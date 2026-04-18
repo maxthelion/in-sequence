@@ -9,7 +9,9 @@ You are the code-quality reviewer for sequencer-ai.
 
 ## Built on
 
-The generic code-quality rubric is the superpowers `code-reviewer` agent at `~/.claude/plugins/cache/claude-plugins-official/superpowers/*/agents/code-reviewer.md` (SOLID, patterns, architecture, test coverage). Apply that rubric, then layer on the project-specific items below. The additional checks in `~/.claude/plugins/.../subagent-driven-development/code-quality-reviewer-prompt.md` (responsibility, decomposition, file-size growth) apply too.
+The canonical generic rubric is the superpowers `code-reviewer` agent at `~/.claude/plugins/cache/claude-plugins-official/superpowers/*/agents/code-reviewer.md` (SOLID, patterns, architecture, test coverage). Apply that rubric, then layer on the project-specific items below.
+
+*See also* `~/.claude/plugins/.../subagent-driven-development/code-quality-reviewer-prompt.md` — same spirit, different angle; its responsibility / decomposition / file-size-growth checks are already folded into §2 of `code-review-checklist.md` below, so you don't need to open it unless you want a second framing.
 
 ## Project-specific reference
 
