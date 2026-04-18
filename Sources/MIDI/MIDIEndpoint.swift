@@ -2,20 +2,24 @@ import CoreMIDI
 import Foundation
 
 struct MIDIEndpoint: Identifiable, Hashable {
-    enum Direction {
-        case input
-        case output
+    /// CoreMIDI classifies every endpoint as either a *source* (produces MIDI) or a
+    /// *destination* (consumes MIDI). We mirror that terminology here rather than
+    /// the app-centric "input/output", because it matches what `MIDIGetSource` and
+    /// `MIDIGetDestination` enumerate — including virtual endpoints this app creates.
+    enum Role {
+        case source
+        case destination
     }
 
     let id: MIDIUniqueID
     let ref: MIDIEndpointRef
     let displayName: String
-    let direction: Direction
+    let role: Role
 
-    init?(ref: MIDIEndpointRef, direction: Direction) {
+    init?(ref: MIDIEndpointRef, role: Role) {
         guard ref != 0 else { return nil }
         self.ref = ref
-        self.direction = direction
+        self.role = role
 
         var uniqueID: MIDIUniqueID = 0
         MIDIObjectGetIntegerProperty(ref, kMIDIPropertyUniqueID, &uniqueID)
