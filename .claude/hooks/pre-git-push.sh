@@ -27,7 +27,7 @@ case " $REST " in
     ;;
 esac
 
-REPO="$(git -C "$SCANNER_DIR" rev-parse --show-toplevel)"
+REPO="${CLAUDE_PROJECT_DIR:-$(git -C "$SCANNER_DIR" rev-parse --show-toplevel)}"
 cd "$REPO"
 
 # Dirty-tree check first (cheap, common-case block).
@@ -40,8 +40,11 @@ fi
 echo "pre-git-push hook: verifying tests before push" >&2
 TMPLOG="$(mktemp -t pre-git-push-test-XXXXXX.log)"
 trap 'rm -f "$TMPLOG"' EXIT
-if ! DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-    xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI \
+# Honour an already-set DEVELOPER_DIR (Xcode-beta, CI, alternate install).
+# Fall back to the standard Xcode location only if nothing is configured.
+: "${DEVELOPER_DIR:=/Applications/Xcode.app/Contents/Developer}"
+export DEVELOPER_DIR
+if ! xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI \
     -destination 'platform=macOS' test >"$TMPLOG" 2>&1; then
   echo "pre-git-push hook: xcodebuild test FAILED — push blocked. Last 40 lines of output:" >&2
   tail -40 "$TMPLOG" >&2
