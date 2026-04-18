@@ -1,4 +1,5 @@
 import CoreMIDI
+import CoreAudio
 import Foundation
 
 final class MidiOut: Block {
@@ -87,6 +88,6 @@ final class MidiOut: Block {
     }
 
     private static func timestamp(from now: TimeInterval) -> MIDITimeStamp {
-        MIDITimeStamp((max(0, now) * 1_000_000_000).rounded())
+        AudioConvertNanosToHostTime(UInt64((max(0, now) * 1_000_000_000).rounded()))
     }
 }

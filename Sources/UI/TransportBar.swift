@@ -1,14 +1,18 @@
 import SwiftUI
 
 struct TransportBar: View {
-    @State private var isPlaying: Bool = false
-    @State private var bpm: Double = 120
-    @State private var swing: Double = 0
+    @Environment(EngineController.self) private var engineController
 
     var body: some View {
         HStack(spacing: 12) {
-            Button { isPlaying.toggle() } label: {
-                Image(systemName: isPlaying ? "stop.fill" : "play.fill")
+            Button {
+                if engineController.isRunning {
+                    engineController.stop()
+                } else {
+                    engineController.start()
+                }
+            } label: {
+                Image(systemName: engineController.isRunning ? "stop.fill" : "play.fill")
                     .frame(width: 16, height: 16)
             }
             Button {} label: {
@@ -20,11 +24,11 @@ struct TransportBar: View {
             Divider().frame(height: 20)
 
             Text("BPM").foregroundStyle(.secondary).font(.caption)
-            Text(String(format: "%.1f", bpm)).monospacedDigit()
+            Text(String(format: "%.1f", engineController.currentBPM)).monospacedDigit()
 
             Divider().frame(height: 20)
 
-            Text("1:1:1").monospacedDigit().foregroundStyle(.secondary)
+            Text(engineController.transportPosition).monospacedDigit().foregroundStyle(.secondary)
 
             Spacer()
         }
@@ -32,5 +36,7 @@ struct TransportBar: View {
 }
 
 #Preview {
-    TransportBar().padding()
+    TransportBar()
+        .padding()
+        .environment(EngineController(client: nil, endpoint: nil))
 }

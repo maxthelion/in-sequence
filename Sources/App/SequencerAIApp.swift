@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct SequencerAIApp: App {
+    @State private var engineController = EngineController()
+
     init() {
         do {
             let root = try AppSupportBootstrap.appSupportRoot()
@@ -19,6 +21,7 @@ struct SequencerAIApp: App {
     var body: some Scene {
         DocumentGroup(newDocument: SeqAIDocument()) { file in
             ContentView(document: file.$document)
+                .environment(engineController)
         }
 
         Settings {
