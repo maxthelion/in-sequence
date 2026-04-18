@@ -21,12 +21,15 @@ if [ -d docs/plans ]; then
   fi
 fi
 
-# Last tag + commits since.
-LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo 'no tags')"
-if [ "$LAST_TAG" != "no tags" ]; then
+# Last tag + commits since. Use empty-string sentinel + explicit check so a tag literally
+# named (say) "no tags" can't be misidentified, and so the banner reads cleanly on a fresh
+# repo.
+if LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null)" && [ -n "$LAST_TAG" ]; then
   AHEAD="$(git rev-list --count "$LAST_TAG"..HEAD 2>/dev/null || echo '?')"
+  TAG_LINE="last tag: $LAST_TAG   +$AHEAD commits"
 else
   AHEAD="$(git rev-list --count HEAD 2>/dev/null || echo '?')"
+  TAG_LINE="history:  $AHEAD commits (untagged)"
 fi
 
 # Dirty tree?
@@ -46,7 +49,7 @@ NEXT_ACTION="(none)"
 cat <<EOF
 ┌─ sequencer-ai status
 │ plan:     $CURRENT_PLAN
-│ last tag: $LAST_TAG   +$AHEAD commits$DIRTY
+│ $TAG_LINE$DIRTY
 │ BT state: next-action=$NEXT_ACTION · inbox=$INBOX · critiques=$CRITIQUES · partial=$PARTIAL · work-item=$WORK_ITEM · candidates=$CANDIDATES
 │ drive:    /next-action (auto) · /execute-plan (explicit) · /adversarial-review (manual)
 │ refresh:  run .claude/hooks/setup-next-action.sh to recompute next-action.md

@@ -9,8 +9,6 @@ final class MIDIClient {
         case endpointConstructionFailed
     }
 
-    typealias IncomingMIDIHandler = (UnsafePointer<MIDIPacketList>) -> Void
-
     let name: String
     private var clientRef: MIDIClientRef = 0
     private var virtualSourceRefs: [MIDIEndpointRef] = []
@@ -77,7 +75,7 @@ final class MIDIClient {
     /// `MIDIGetDestination`, the returned endpoint's `role` is `.destination`.
     func createVirtualInput(
         name: String,
-        handler: @escaping IncomingMIDIHandler
+        handler: @escaping (UnsafePointer<MIDIPacketList>) -> Void
     ) throws -> MIDIEndpoint {
         var ref: MIDIEndpointRef = 0
         let status = MIDIDestinationCreateWithBlock(clientRef, name as CFString, &ref) { packetList, _ in

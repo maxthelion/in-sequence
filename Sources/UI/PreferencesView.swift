@@ -27,54 +27,63 @@ private struct GeneralPreferences: View {
 ///   - "Inputs"  = MIDI coming *into* this app = `MIDISession.sources`
 ///   - "Outputs" = MIDI going *out* from this app = `MIDISession.destinations`
 private struct MIDIPreferences: View {
-    // TODO: replace refreshTick with observation-driven invalidation once MIDIClient
+    // TODO: replace these snapshots with observation-driven invalidation once MIDIClient
     // subscribes to kMIDIMsgObjectAdded / kMIDIMsgObjectRemoved notifications and mutates
-    // tracked state. Until then, the user hits Refresh to re-read the system endpoint list.
-    @State private var refreshTick: Int = 0
+    // tracked state. Until then, the user hits Refresh to re-read the system endpoint list
+    // into these @State snapshots (cheaper than rebuilding the whole view tree via .id()).
+    @State private var sources: [MIDIEndpoint] = MIDISession.shared.sources
+    @State private var destinations: [MIDIEndpoint] = MIDISession.shared.destinations
+    @State private var appInput: MIDIEndpoint? = MIDISession.shared.appInput
+    @State private var appOutput: MIDIEndpoint? = MIDISession.shared.appOutput
 
     var body: some View {
-        let session = MIDISession.shared
-
         Form {
             Section("Inputs") {
-                if session.sources.isEmpty {
+                if sources.isEmpty {
                     Text("No MIDI input endpoints found.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(session.sources) { endpoint in
+                    ForEach(sources) { endpoint in
                         Text(endpoint.displayName)
                     }
                 }
             }
             Section("Outputs") {
-                if session.destinations.isEmpty {
+                if destinations.isEmpty {
                     Text("No MIDI output endpoints found.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(session.destinations) { endpoint in
+                    ForEach(destinations) { endpoint in
                         Text(endpoint.displayName)
                     }
                 }
             }
             Section("Virtual (this app)") {
-                if let out = session.appOutput {
+                if let out = appOutput {
                     LabeledContent("Out", value: out.displayName)
                 }
-                if let input = session.appInput {
+                if let input = appInput {
                     LabeledContent("In", value: input.displayName)
                 }
-                if session.appInput == nil && session.appOutput == nil {
+                if appInput == nil && appOutput == nil {
                     Text("Virtual endpoints unavailable.")
                         .foregroundStyle(.secondary)
                 }
             }
             HStack {
                 Spacer()
-                Button("Refresh") { refreshTick += 1 }
+                Button("Refresh") { refresh() }
             }
         }
         .padding()
-        .id(refreshTick)
+    }
+
+    private func refresh() {
+        let session = MIDISession.shared
+        sources = session.sources
+        destinations = session.destinations
+        appInput = session.appInput
+        appOutput = session.appOutput
     }
 }
 

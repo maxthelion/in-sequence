@@ -47,7 +47,7 @@ The project uses a **behaviour-tree driver** (inspired by [shoe-makers](https://
 │   ├── inbox/                 # user-queued messages
 │   ├── review-queue/          # outstanding critiques
 │   └── insights/              # lateral ideas (innovation tier)
-└── scheduled_tasks.lock       # runtime — gitignored
+├── scheduled_tasks.lock       # runtime — gitignored (.gitignore:39)
 ```
 
 ## Hooks
@@ -77,7 +77,7 @@ Encodes the file-size discipline mechanically. Agents can't accidentally ship a 
 
 ### `SessionStart` — `session-start.sh`
 
-Prints a banner:
+Prints a banner (verbatim format produced by the script):
 
 ```
 ┌─ sequencer-ai status
@@ -89,7 +89,7 @@ Prints a banner:
 └─
 ```
 
-New sessions orient immediately without having to grep git log.
+On a fresh repo with no tags, the `last tag:` line reads `history: <N> commits (untagged)` instead. New sessions orient immediately without having to grep git log.
 
 ## Permission allowlists
 
@@ -164,7 +164,7 @@ Invoke on-demand: `/adversarial-review` (diffs latest tag to HEAD) or `/adversar
 Planned skills that aren't yet implemented — add when the cycle makes them necessary:
 
 - `/next-plan` — picks the next unfinished sub-spec and writes its plan via `superpowers:writing-plans`
-- `/update-wiki` — dedicated wiki-maintenance skill (currently handled inline by `/execute-plan`)
+- `/update-wiki` — dedicated wiki-maintenance skill. Currently handled inline by `/execute-plan` step 7 (see `.claude/skills/execute-plan/SKILL.md:60-67`), so a standalone skill is genuinely deferred rather than missing.
 
 ## Loop-driven autonomous execution
 
@@ -178,9 +178,9 @@ The loop skill self-paces via `ScheduleWakeup`. Between iterations it sleeps (sh
 
 If `/execute-plan` surfaces a BLOCKED or NEEDS_CONTEXT condition from a subagent, it stops the loop — autonomous runs never push past a "the controller needs to decide" point.
 
-## Remote layer (not built yet)
+## Remote layer 🚧 Not implemented
 
-Future additions using `superpowers:schedule` / `CronCreate`:
+Future additions using `superpowers:schedule` / `CronCreate`. None of this is built yet — nothing below currently runs:
 
 - Daily status summary posted to a git-committed status file
 - Weekly spec-compliance replay across the whole tree to catch drift between code and spec
