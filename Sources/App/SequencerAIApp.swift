@@ -2,7 +2,10 @@ import SwiftUI
 
 @main
 struct SequencerAIApp: App {
-    @State private var engineController = EngineController(audioOutput: AudioInstrumentHost())
+    @State private var engineController = EngineController(
+        audioOutput: AudioInstrumentHost(),
+        audioOutputFactory: { AudioInstrumentHost() }
+    )
 
     init() {
         do {
