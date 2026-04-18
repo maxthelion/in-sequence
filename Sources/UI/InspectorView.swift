@@ -3,10 +3,14 @@ import SwiftUI
 struct InspectorView: View {
     @Binding var document: SeqAIDocument
 
+    private var track: StepSequenceTrack {
+        document.model.selectedTrack
+    }
+
     private var pitchesText: Binding<String> {
         Binding(
             get: {
-                document.model.primaryTrack.pitches.map(String.init).joined(separator: ", ")
+                track.pitches.map(String.init).joined(separator: ", ")
             },
             set: { newValue in
                 let parsed = newValue
@@ -18,7 +22,7 @@ struct InspectorView: View {
                     return
                 }
 
-                document.model.primaryTrack.pitches = parsed
+                document.model.selectedTrack.pitches = parsed
             }
         )
     }
@@ -26,7 +30,7 @@ struct InspectorView: View {
     var body: some View {
         Form {
             Section("Track") {
-                TextField("Name", text: $document.model.primaryTrack.name)
+                TextField("Name", text: $document.model.selectedTrack.name)
                 TextField("Pitches", text: pitchesText)
                     .textFieldStyle(.roundedBorder)
                 Text("Comma-separated MIDI notes")
@@ -35,21 +39,21 @@ struct InspectorView: View {
             }
 
             Section("Generator") {
-                Stepper(value: $document.model.primaryTrack.velocity, in: 1...127) {
+                Stepper(value: $document.model.selectedTrack.velocity, in: 1...127) {
                     HStack {
                         Text("Velocity")
                         Spacer()
-                        Text("\(document.model.primaryTrack.velocity)")
+                        Text("\(track.velocity)")
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Stepper(value: $document.model.primaryTrack.gateLength, in: 1...16) {
+                Stepper(value: $document.model.selectedTrack.gateLength, in: 1...16) {
                     HStack {
                         Text("Gate Length")
                         Spacer()
-                        Text("\(document.model.primaryTrack.gateLength) ticks")
+                        Text("\(track.gateLength) ticks")
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
@@ -57,8 +61,9 @@ struct InspectorView: View {
             }
 
             Section("Summary") {
-                LabeledContent("Active steps", value: "\(document.model.primaryTrack.stepPattern.filter { $0 }.count)")
-                LabeledContent("Pitch count", value: "\(document.model.primaryTrack.pitches.count)")
+                LabeledContent("Active steps", value: "\(track.stepPattern.filter { $0 }.count)")
+                LabeledContent("Pitch count", value: "\(track.pitches.count)")
+                LabeledContent("Track ID", value: track.id.uuidString.prefix(8).description)
             }
 
             Spacer()

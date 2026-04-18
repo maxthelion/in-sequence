@@ -3,6 +3,13 @@ import SwiftUI
 struct SidebarView: View {
     @Binding var document: SeqAIDocument
 
+    private var selectedTrackID: Binding<UUID> {
+        Binding(
+            get: { document.model.selectedTrackID },
+            set: { document.model.selectTrack(id: $0) }
+        )
+    }
+
     var body: some View {
         List {
             Section("Arrangement") {
@@ -10,9 +17,35 @@ struct SidebarView: View {
                 Text("Phrase").tag("phrase")
             }
             Section("Tracks") {
-                Label(document.model.primaryTrack.name, systemImage: "pianokeys")
-                Text("\(document.model.primaryTrack.stepPattern.count) steps")
-                    .foregroundStyle(.secondary)
+                ForEach(document.model.tracks, id: \.id) { track in
+                    Button {
+                        document.model.selectTrack(id: track.id)
+                    } label: {
+                        HStack {
+                            Label(track.name, systemImage: track.id == document.model.selectedTrackID ? "pianokeys.inverse" : "pianokeys")
+                            Spacer()
+                            Text("\(track.stepPattern.filter { $0 }.count)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 2)
+                }
+
+                HStack(spacing: 8) {
+                    Button("Add Track") {
+                        document.model.appendTrack()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Remove") {
+                        document.model.removeSelectedTrack()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(document.model.tracks.count <= 1)
+                }
+                .padding(.top, 4)
             }
             Section("Global") {
                 Text("Mixer").tag("mixer")

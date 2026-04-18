@@ -4,6 +4,10 @@ struct DetailView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
 
+    private var track: StepSequenceTrack {
+        document.model.selectedTrack
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             TransportBar()
@@ -18,7 +22,7 @@ struct DetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(document.model.primaryTrack.name)
+                                Text(track.name)
                                     .font(.title2)
                                 Text(engineController.isRunning ? "Engine Running" : "Engine Ready")
                                     .foregroundStyle(.secondary)
@@ -43,7 +47,7 @@ struct DetailView: View {
                         Text("Pattern")
                             .font(.headline)
 
-                        StepGridView(steps: document.model.primaryTrack.stepPattern) { index in
+                        StepGridView(steps: track.stepPattern) { index in
                             toggleStep(at: index)
                         }
                     }
@@ -54,7 +58,7 @@ struct DetailView: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(Array(document.model.primaryTrack.pitches.enumerated()), id: \.offset) { index, pitch in
+                                ForEach(Array(track.pitches.enumerated()), id: \.offset) { index, pitch in
                                     Text("\(pitch)")
                                         .font(.body.monospacedDigit())
                                         .padding(.horizontal, 10)
@@ -79,10 +83,10 @@ struct DetailView: View {
     }
 
     private func toggleStep(at index: Int) {
-        guard document.model.primaryTrack.stepPattern.indices.contains(index) else {
+        guard document.model.selectedTrack.stepPattern.indices.contains(index) else {
             return
         }
-        document.model.primaryTrack.stepPattern[index].toggle()
+        document.model.selectedTrack.stepPattern[index].toggle()
     }
 }
 

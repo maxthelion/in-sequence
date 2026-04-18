@@ -37,15 +37,26 @@ final class EngineControllerTests: XCTestCase {
 
     func test_apply_document_model_updates_note_generator_params() {
         let controller = EngineController(client: nil, endpoint: nil)
+        let bass = StepSequenceTrack(
+            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID(),
+            name: "Bass",
+            pitches: [36],
+            stepPattern: [true, false],
+            velocity: 90,
+            gateLength: 4
+        )
+        let lead = StepSequenceTrack(
+            id: UUID(uuidString: "33333333-3333-3333-3333-333333333333") ?? UUID(),
+            name: "Lead",
+            pitches: [72],
+            stepPattern: [false, true],
+            velocity: 111,
+            gateLength: 2
+        )
         let document = SeqAIDocumentModel(
             version: 1,
-            primaryTrack: StepSequenceTrack(
-                name: "Lead",
-                pitches: [72],
-                stepPattern: [false, true],
-                velocity: 111,
-                gateLength: 2
-            )
+            tracks: [bass, lead],
+            selectedTrackID: lead.id
         )
 
         controller.apply(documentModel: document)

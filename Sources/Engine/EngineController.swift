@@ -69,7 +69,7 @@ final class EngineController {
     }
 
     func apply(documentModel: SeqAIDocumentModel) {
-        apply(track: documentModel.primaryTrack)
+        apply(track: documentModel.selectedTrack)
     }
 
     func apply(track: StepSequenceTrack) {
