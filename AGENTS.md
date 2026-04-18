@@ -28,10 +28,10 @@ Selector: next-action
 │
 ├─ [1a] Tests not verified at HEAD?             → verify-tests
 ├─ [1b] Tests failing?                          → fix-tests
-├─ [1c] Outstanding critiques in review-queue?  → fix-critique (oldest)
-├─ [1d] Partial-work handoff present?           → continue-partial-work
-├─ [1e] Unreviewed commits since last review?   → adversarial-review
-├─ [1f] Inbox messages from user?               → handle-inbox (oldest)
+├─ [1c] Inbox messages from user?               → handle-inbox (oldest)
+├─ [1d] Outstanding critiques in review-queue?  → fix-critique (oldest)
+├─ [1e] Partial-work handoff present?           → continue-partial-work
+├─ [1f] Unreviewed commits since last review?   → adversarial-review
 │
 ├─ [2a] Work-item present?                      → execute-work-item
 ├─ [2b] Candidates queued?                      → prioritise (→ work-item)
@@ -85,7 +85,7 @@ If the loop is running under `/loop`, press Ctrl-C in Claude Code or send an inb
 printf '# please pause\n\n<your reason>\n' > .claude/state/inbox/$(date +%s)-pause.md
 ```
 
-The next iteration's BT evaluation routes to `handle-inbox` ([1f]); `/next-action`'s handling of inbox items is designed to exit and wait for the user.
+The next iteration's BT evaluation routes to `handle-inbox` ([1c]); `/next-action`'s handling of inbox items is designed to exit and wait for the user.
 
 ## How each action works
 

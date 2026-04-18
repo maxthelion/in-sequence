@@ -113,10 +113,10 @@ Selector: next-action
 │
 ├─ [1a] Tests not verified at HEAD?           → verify-tests
 ├─ [1b] Tests failing?                        → fix-tests
-├─ [1c] Outstanding critiques?                → fix-critique (oldest)
-├─ [1d] Partial-work handoff file present?    → continue-partial-work
-├─ [1e] Unreviewed commits since last review? → adversarial-review
-├─ [1f] Inbox messages from user?             → handle-inbox (oldest)
+├─ [1c] Inbox messages from user?             → handle-inbox (oldest)
+├─ [1d] Outstanding critiques?                → fix-critique (oldest)
+├─ [1e] Partial-work handoff file present?    → continue-partial-work
+├─ [1f] Unreviewed commits since last review? → adversarial-review
 │
 ├─ [2a] Work-item present?                    → execute-work-item
 ├─ [2b] Candidates queued?                    → prioritise (→ work-item)

@@ -71,11 +71,26 @@ if [ -f "$STATE/last-tests-failure.md" ]; then
   exit 0
 fi
 
-# [1b] Unresolved adversarial critiques?
-CRITIQUE_COUNT=$(find "$STATE/review-queue" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
-if [ "$CRITIQUE_COUNT" -gt 0 ]; then
+# [1b] Inbox messages from user?
+# Inbox is prioritised above critiques/partial-work/adversarial-review because
+# an inbox message may be meta-guidance that changes how those later actions
+# should be dispatched (e.g. "use the new implementer agent", "pause the BT").
+# Letting critiques run first would churn work under the wrong instructions.
+INBOX_COUNT=$(find "$STATE/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+if [ "$INBOX_COUNT" -gt 0 ]; then
   # Deterministic "oldest" by lexicographic filename, not mtime (which is
   # checkout-time on a fresh clone and gives non-deterministic BT behaviour).
+  OLDEST="$(find "$STATE/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | head -1)"
+  emit "handle-inbox" \
+    "There are $INBOX_COUNT inbox message(s). Oldest: \`$(basename "$OLDEST")\`." \
+    "Read the file and act: the message may be a redirect, a new candidate, a plan edit, or a manual instruction." \
+    "On completion, move the file to \`.claude/state/inbox/archive/\`."
+  exit 0
+fi
+
+# [1c] Unresolved adversarial critiques?
+CRITIQUE_COUNT=$(find "$STATE/review-queue" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+if [ "$CRITIQUE_COUNT" -gt 0 ]; then
   OLDEST="$(find "$STATE/review-queue" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | head -1)"
   emit "fix-critique" \
     "There are $CRITIQUE_COUNT outstanding adversarial critique(s) in \`.claude/state/review-queue/\`." \
@@ -85,7 +100,7 @@ if [ "$CRITIQUE_COUNT" -gt 0 ]; then
   exit 0
 fi
 
-# [1c] Partial work to resume?
+# [1d] Partial work to resume?
 if [ -f "$STATE/partial-work.md" ]; then
   emit "continue-partial-work" \
     "An agent ran out of time mid-task. Handoff details at \`.claude/state/partial-work.md\`." \
@@ -94,7 +109,7 @@ if [ -f "$STATE/partial-work.md" ]; then
   exit 0
 fi
 
-# [1d] Unreviewed commits since last adversarial review?
+# [1e] Unreviewed commits since last adversarial review?
 LAST_REVIEW_SHA="$(cat "$STATE/last-review-sha" 2>/dev/null || echo '')"
 if [ -z "$LAST_REVIEW_SHA" ]; then
   # Never reviewed — use latest tag or initial commit as the base.
@@ -107,18 +122,6 @@ if [ "$UNREVIEWED" -gt 0 ]; then
     "Invoke the \`adversarial-review\` skill against this diff." \
     "For each finding emitted, write one file to \`.claude/state/review-queue/\` (name: severity-short-slug.md)." \
     "Update \`.claude/state/last-review-sha\` to the current HEAD SHA."
-  exit 0
-fi
-
-# [1e] Inbox messages from user?
-INBOX_COUNT=$(find "$STATE/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
-if [ "$INBOX_COUNT" -gt 0 ]; then
-  # Deterministic oldest — see rationale above.
-  OLDEST="$(find "$STATE/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | head -1)"
-  emit "handle-inbox" \
-    "There are $INBOX_COUNT inbox message(s). Oldest: \`$(basename "$OLDEST")\`." \
-    "Read the file and act: the message may be a redirect, a new candidate, a plan edit, or a manual instruction." \
-    "On completion, move the file to \`.claude/state/inbox/archive/\`."
   exit 0
 fi
 
