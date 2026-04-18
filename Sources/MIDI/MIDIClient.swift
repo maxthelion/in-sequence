@@ -6,6 +6,8 @@ final class MIDIClient {
         case failedToCreateClient(status: OSStatus)
         case failedToCreateSource(status: OSStatus)
         case failedToCreateDestination(status: OSStatus)
+        case failedToCreateOutputPort(status: OSStatus)
+        case failedToSend(status: OSStatus)
         case endpointConstructionFailed
     }
 
@@ -13,6 +15,7 @@ final class MIDIClient {
     private var clientRef: MIDIClientRef = 0
     private var virtualSourceRefs: [MIDIEndpointRef] = []
     private var virtualDestinationRefs: [MIDIEndpointRef] = []
+    private var outputPortRef: MIDIPortRef = 0
 
     init(name: String) throws {
         self.name = name
@@ -31,6 +34,7 @@ final class MIDIClient {
     deinit {
         for ref in virtualSourceRefs { MIDIEndpointDispose(ref) }
         for ref in virtualDestinationRefs { MIDIEndpointDispose(ref) }
+        if outputPortRef != 0 { MIDIPortDispose(outputPortRef) }
         if clientRef != 0 {
             MIDIClientDispose(clientRef)
         }
@@ -91,5 +95,40 @@ final class MIDIClient {
             throw ClientError.endpointConstructionFailed
         }
         return endpoint
+    }
+
+    /// Sends a `MIDIPacketList` to `endpoint`.
+    ///
+    /// - If `endpoint` is a virtual source owned by this client, `MIDIReceived` is used
+    ///   so any connected input ports receive the data directly.
+    /// - Otherwise an output port is lazily created and `MIDISend` is used, which works
+    ///   for any real or virtual destination.
+    func send(_ packetList: UnsafePointer<MIDIPacketList>, to endpoint: MIDIEndpoint) throws {
+        if endpoint.role == .source && virtualSourceRefs.contains(endpoint.ref) {
+            // Push into a virtual source we own.
+            let status = MIDIReceived(endpoint.ref, packetList)
+            guard status == noErr else {
+                throw ClientError.failedToSend(status: status)
+            }
+        } else {
+            // Send to any destination (including virtual destinations) via an output port.
+            let port = try lazyOutputPort()
+            let status = MIDISend(port, endpoint.ref, packetList)
+            guard status == noErr else {
+                throw ClientError.failedToSend(status: status)
+            }
+        }
+    }
+
+    // MARK: - Private
+
+    /// Creates the output port on first use.
+    private func lazyOutputPort() throws -> MIDIPortRef {
+        if outputPortRef != 0 { return outputPortRef }
+        let status = MIDIOutputPortCreate(clientRef, "\(name) Out Port" as CFString, &outputPortRef)
+        guard status == noErr else {
+            throw ClientError.failedToCreateOutputPort(status: status)
+        }
+        return outputPortRef
     }
 }
