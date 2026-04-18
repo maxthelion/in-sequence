@@ -34,8 +34,11 @@ Pods/
 # Local config
 *.local
 
-# Claude Code session state (per-environment)
-.claude/
+# Claude Code runtime state (per-environment only; project-scoped config is committed)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/logs/
+.claude/cache/
 
 # Octowiki runtime state (regenerable caches / queues)
 wiki/.meta/
