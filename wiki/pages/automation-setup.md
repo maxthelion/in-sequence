@@ -178,6 +178,30 @@ The loop skill self-paces via `ScheduleWakeup`. Between iterations it sleeps (sh
 
 If `/execute-plan` surfaces a BLOCKED or NEEDS_CONTEXT condition from a subagent, it stops the loop — autonomous runs never push past a "the controller needs to decide" point.
 
+## Codex-native variant
+
+Codex can reuse the same behaviour tree without reimplementing the selector:
+
+- keep `.claude/hooks/setup-next-action.sh` as the deterministic evaluator
+- keep `.claude/state/` as the durable memory
+- wake Codex on a heartbeat and have it execute exactly one BT action per wake-up
+
+The repo helper for that flow is:
+
+```bash
+./scripts/codex/bt-iteration.sh
+```
+
+It refreshes `next-action.md`, prints the selected action, and restates the single-iteration contract for Codex.
+
+Recommended shape:
+
+- Claude continues to own the original checkout while it finishes the current iteration
+- Codex runs in a separate git worktree on its own branch
+- a Codex heartbeat automation wakes the same thread and tells Codex to operate only in that worktree
+
+This preserves the shoe-makers split: bash selects, the LLM executes, state files carry memory across iterations. See `docs/codex-behaviour-tree.md` for the worktree setup and heartbeat prompt.
+
 ## Remote layer 🚧 Not implemented
 
 Future additions using `superpowers:schedule` / `CronCreate`. None of this is built yet — nothing below currently runs:

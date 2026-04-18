@@ -77,6 +77,18 @@ Before running the loop continuously, strongly consider:
 - Confirming `.claude/state/inbox/` is empty (unresolved user requests block progress in the right way, but you should know about them).
 - Running `.claude/hooks/setup-next-action.sh` first and reading the chosen action — if it looks unsafe or off-base, pause.
 
+## Codex variant
+
+Codex can use the same selector and state model without a bespoke planner. In the Codex worktree, run:
+
+```bash
+./scripts/codex/bt-iteration.sh
+```
+
+That helper refreshes `.claude/state/next-action.md`, prints the chosen BT leaf, and restates the one-iteration contract Codex should follow.
+
+For a Codex-native loop, prefer a heartbeat automation that wakes the same thread, tells Codex to operate only in the dedicated worktree, and execute exactly one action before stopping. See `docs/codex-behaviour-tree.md` for the prompt template and worktree discipline.
+
 ## How to pause the loop
 
 If the loop is running under `/loop`, press Ctrl-C in Claude Code or send an inbox message:
