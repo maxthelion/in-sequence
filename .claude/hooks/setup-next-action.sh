@@ -51,15 +51,31 @@ emit() {
 LAST_TESTS_SHA="$(cat "$STATE/last-tests-sha" 2>/dev/null || echo '')"
 HEAD_SHA="$(git rev-parse HEAD)"
 if [ "$LAST_TESTS_SHA" != "$HEAD_SHA" ]; then
-  # Tests haven't been verified at this SHA yet — need to run them.
-  # We don't run the tests from this script (too slow for a setup pass);
-  # we just surface "verify tests" as the next action.
-  emit "verify-tests" \
-    "Tests have not been verified at \`$HEAD_SHA\`." \
-    "Run: \`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' test\`" \
-    "On pass, update \`.claude/state/last-tests-sha\` with the HEAD SHA." \
-    "On fail, the next setup pass will route to \`fix-tests\` with the failing output."
-  exit 0
+  # SHAs don't match, but that alone doesn't mean tests need re-running.
+  # Only re-verify if CODE (Sources/ or Tests/) actually changed since the
+  # last verified SHA. State-only commits (e.g. bumping last-tests-sha
+  # itself) would otherwise create an infinite loop: each commit moves HEAD,
+  # next setup sees mismatch, runs tests, commits the sha bump, HEAD moves
+  # again, etc. Docs/hooks/agent-config changes are also non-code.
+  CODE_CHANGED=1
+  if [ -n "$LAST_TESTS_SHA" ] && git cat-file -e "${LAST_TESTS_SHA}^{commit}" 2>/dev/null; then
+    if git diff --quiet "$LAST_TESTS_SHA..$HEAD_SHA" -- 'Sources/' 'Tests/' 2>/dev/null; then
+      CODE_CHANGED=0
+    fi
+  fi
+  if [ "$CODE_CHANGED" -eq 1 ]; then
+    # We don't run the tests from this script (too slow for a setup pass);
+    # we just surface "verify tests" as the next action.
+    emit "verify-tests" \
+      "Tests have not been verified at \`$HEAD_SHA\` (code changed since \`$LAST_TESTS_SHA\`)." \
+      "Run: \`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' test\`" \
+      "On pass, update \`.claude/state/last-tests-sha\` with the HEAD SHA." \
+      "On fail, the next setup pass will route to \`fix-tests\` with the failing output."
+    exit 0
+  fi
+  # Non-code-only change — assume tests still pass; fall through without
+  # updating the sha (updating here would trigger the same cycle we're
+  # preventing). The sha will catch up the next time verify-tests actually runs.
 fi
 
 # [1a cont] Did the last test run fail? Check for a saved failure report.
