@@ -44,7 +44,7 @@ App → UI → MIDI / Platform / Document
 Look for:
 
 - Code placed in the wrong subdirectory. A new type in `Sources/MIDI/` that reaches into `UI/` or `Document/`. A document-model type that imports SwiftUI. A UI view that talks to CoreMIDI directly instead of via `MIDISession`.
-- Knowledge that belongs to one module leaking into another. A drum/voice concept appearing in `Document/` when it belongs in `Engine/` or `Drums/`. Per-phrase state handled in `Song/` when it should be in `Phrase/`.
+- Knowledge that belongs to one module leaking into another. A drum/voice concept appearing in `Document/` when it belongs in `Engine/` or `Drums/`. Per-phrase state handled in `Song/` when it should be in `Coordinator/` (the phrase model lives with the macro coordinator under plan 2 — see `wiki/pages/project-layout.md`).
 - Platform concerns (FileManager, URL construction, NSUserDefaults) creeping into non-Platform code.
 - UI-layer decisions (view models, `@Observable`, SwiftUI-specific types) in business-logic modules.
 - Singletons reached for deep in the call stack where dependency injection would have kept the boundary clean.

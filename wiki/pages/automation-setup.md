@@ -81,10 +81,11 @@ Prints a banner:
 
 ```
 ┌─ sequencer-ai status
-│ plan:    2026-04-18-app-scaffold.md [all complete]
+│ plan:     2026-04-18-app-scaffold.md [all complete]
 │ last tag: v0.0.1-scaffold   +3 commits
-│ docs:    north-star at docs/specs/ · plans at docs/plans/ · wiki at wiki/pages/
-│ review:  run /adversarial-review after implementer DONE · /simplify before tagging
+│ BT state: next-action=verify-tests · inbox=0 · critiques=0 · partial=no · work-item=no · candidates=no
+│ drive:    /next-action (auto) · /execute-plan (explicit) · /adversarial-review (manual)
+│ refresh:  run .claude/hooks/setup-next-action.sh to recompute next-action.md
 └─
 ```
 

@@ -21,6 +21,11 @@ mkdir -p "$STATE" "$STATE/inbox" "$STATE/review-queue" "$STATE/insights"
 # --------- Helpers -----------------------------------------------------------
 
 emit() {
+  # Atomic write: populate a tempfile, then rename over $OUT. A concurrent
+  # reader of next-action.md either sees the previous complete version or the
+  # new complete version — never a truncated in-progress one. `mv` within the
+  # same filesystem is atomic on POSIX.
+  local tmp="$OUT.tmp.$$"
   {
     echo "# Next Action"
     echo
@@ -36,7 +41,8 @@ emit() {
     echo "---"
     echo
     echo "_Invoke \`/next-action\` to execute. The skill reads this file and dispatches the appropriate subagent._"
-  } > "$OUT"
+  } > "$tmp"
+  mv -f "$tmp" "$OUT"
 }
 
 # --------- Tree evaluation (selector: first match wins) ----------------------
