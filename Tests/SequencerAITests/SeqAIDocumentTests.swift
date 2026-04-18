@@ -10,6 +10,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTrack, .default)
         XCTAssertEqual(model.selectedTrack.stepAccents, Array(repeating: false, count: 16))
         XCTAssertEqual(model.selectedTrack.output, .midiOut)
+        XCTAssertEqual(model.selectedTrack.mix, .default)
     }
 
     func test_codable_roundtrip_preserves_empty() throws {
@@ -25,6 +26,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     stepPattern: [true, false, true, false],
                     stepAccents: [false, true, false, false],
                     output: .midiOut,
+                    mix: TrackMixSettings(level: 0.65, pan: -0.25, isMuted: false),
                     velocity: 92,
                     gateLength: 2
                 ),
@@ -35,6 +37,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     stepPattern: [true, true, false, true],
                     stepAccents: [true, false, false, true],
                     output: .auInstrument,
+                    mix: TrackMixSettings(level: 0.9, pan: 0.4, isMuted: true),
                     velocity: 101,
                     gateLength: 3
                 )
@@ -90,6 +93,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded.selectedTrack.name, "Legacy")
         XCTAssertEqual(decoded.selectedTrack.stepAccents, [false, false, false, false])
         XCTAssertEqual(decoded.selectedTrack.output, .midiOut)
+        XCTAssertEqual(decoded.selectedTrack.mix, .default)
     }
 
     func test_cycle_step_moves_between_off_on_and_accented() {

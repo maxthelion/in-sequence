@@ -86,9 +86,13 @@ final class EngineController {
 
     func apply(track: StepSequenceTrack) {
         selectedOutput = track.output
-        midiOutBlock?.endpoint = track.output == .midiOut ? endpoint : nil
+        currentTrackMix = track.mix
+        midiOutBlock?.endpoint = track.output == .midiOut && !track.mix.isMuted ? endpoint : nil
+        audioOutput?.setMix(track.mix)
         if track.output == .auInstrument {
             audioOutput?.startIfNeeded()
+        } else {
+            audioOutput?.stop()
         }
 
         setParam(
@@ -133,6 +137,9 @@ final class EngineController {
 
         switch selectedOutput {
         case .midiOut:
+            if documentSelectedTrackIsMuted {
+                return "MIDI output muted"
+            }
             guard let endpoint else {
                 return "Playing without MIDI output"
             }
@@ -142,10 +149,16 @@ final class EngineController {
                 return "Audio instrument unavailable"
             }
             return audioOutput.isAvailable
-                ? "Audio: \(audioOutput.displayName) via Main Mixer"
+                ? "Audio: \(audioOutput.displayName) via Main Mixer\(documentSelectedTrackIsMuted ? " (Muted)" : "")"
                 : "Audio instrument unavailable"
         }
     }
+
+    private var documentSelectedTrackIsMuted: Bool {
+        currentTrackMix.isMuted
+    }
+
+    private var currentTrackMix = TrackMixSettings.default
 
     private func buildDefaultPipeline() throws {
         guard let generator = registry.make(kindID: "note-generator", blockID: "gen") as? NoteGenerator,
@@ -180,6 +193,10 @@ final class EngineController {
         let outputs = executor.tick(now: now)
         currentBPM = executor.currentBPM
         transportPosition = Self.transportString(for: tickIndex, stepsPerBar: stepsPerBar)
+
+        guard !currentTrackMix.isMuted else {
+            return
+        }
 
         guard selectedOutput == .auInstrument,
               case let .notes(events)? = outputs["gen"]?["notes"]

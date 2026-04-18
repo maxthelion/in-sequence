@@ -113,6 +113,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var stepPattern: [Bool]
     var stepAccents: [Bool]
     var output: TrackOutputDestination
+    var mix: TrackMixSettings
     var velocity: Int
     var gateLength: Int
 
@@ -123,6 +124,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case stepPattern
         case stepAccents
         case output
+        case mix
         case velocity
         case gateLength
     }
@@ -134,6 +136,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
         output: .midiOut,
+        mix: .default,
         velocity: 100,
         gateLength: 4
     )
@@ -145,6 +148,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
         output: TrackOutputDestination = .midiOut,
+        mix: TrackMixSettings = .default,
         velocity: Int,
         gateLength: Int
     ) {
@@ -154,6 +158,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
         self.output = output
+        self.mix = mix
         self.velocity = velocity
         self.gateLength = gateLength
     }
@@ -207,6 +212,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
         stepAccents = Self.normalizedAccents(decodedAccents, stepCount: stepPattern.count)
         output = try container.decodeIfPresent(TrackOutputDestination.self, forKey: .output) ?? .midiOut
+        mix = try container.decodeIfPresent(TrackMixSettings.self, forKey: .mix) ?? .default
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
     }
@@ -219,6 +225,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(stepPattern, forKey: .stepPattern)
         try container.encode(stepAccents, forKey: .stepAccents)
         try container.encode(output, forKey: .output)
+        try container.encode(mix, forKey: .mix)
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)
     }
@@ -246,5 +253,21 @@ enum TrackOutputDestination: String, Codable, CaseIterable, Equatable, Sendable 
         case .auInstrument:
             return "Built-in AU Synth"
         }
+    }
+}
+
+struct TrackMixSettings: Codable, Equatable, Sendable {
+    var level: Double
+    var pan: Double
+    var isMuted: Bool
+
+    static let `default` = TrackMixSettings(level: 0.8, pan: 0, isMuted: false)
+
+    var clampedLevel: Double {
+        min(max(level, 0), 1)
+    }
+
+    var clampedPan: Double {
+        min(max(pan, -1), 1)
     }
 }

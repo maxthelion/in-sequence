@@ -7,6 +7,7 @@ protocol TrackPlaybackSink: AnyObject {
     var isAvailable: Bool { get }
     func startIfNeeded()
     func stop()
+    func setMix(_ mix: TrackMixSettings)
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int)
 }
 
@@ -17,6 +18,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private let queue = DispatchQueue(label: "ai.sequencer.SequencerAI.AudioInstrumentHost")
     private var instrument: AVAudioUnitMIDIInstrument?
     private var shouldBeRunning = false
+    private var currentMix = TrackMixSettings.default
 
     init(displayName: String = "Apple DLS Synth") {
         self.displayName = displayName
@@ -72,6 +74,17 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
+    func setMix(_ mix: TrackMixSettings) {
+        queue.async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            self.currentMix = mix
+            self.applyCurrentMix()
+        }
+    }
+
     private func stopAllNotes() {
         guard let instrument else {
             return
@@ -105,6 +118,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 self.engine.attach(instrument)
                 self.engine.connect(instrument, to: self.engine.mainMixerNode, format: nil)
                 self.engine.prepare()
+                self.applyCurrentMix()
                 self.startEngineIfPossible()
             }
         }
@@ -120,5 +134,14 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         } catch {
             // A surfaced diagnostics path can own this later; for now we fail soft.
         }
+    }
+
+    private func applyCurrentMix() {
+        guard let instrument else {
+            return
+        }
+
+        instrument.pan = Float(currentMix.clampedPan)
+        instrument.volume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
     }
 }

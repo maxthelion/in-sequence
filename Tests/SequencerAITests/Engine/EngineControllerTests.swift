@@ -55,6 +55,7 @@ final class EngineControllerTests: XCTestCase {
             stepPattern: [false, true],
             stepAccents: [false, true],
             output: .midiOut,
+            mix: TrackMixSettings(level: 0.72, pan: -0.15, isMuted: false),
             velocity: 111,
             gateLength: 2
         )
@@ -81,6 +82,7 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(secondNotes.first?.pitch, 72)
         XCTAssertEqual(secondNotes.first?.velocity, 127)
         XCTAssertEqual(secondNotes.first?.length, 2)
+        XCTAssertEqual(audioSink.receivedMixes.last, lead.mix)
     }
 
     func test_selected_au_output_routes_note_events_to_audio_sink() {
@@ -92,6 +94,7 @@ final class EngineControllerTests: XCTestCase {
             stepPattern: [true],
             stepAccents: [false],
             output: .auInstrument,
+            mix: TrackMixSettings(level: 0.55, pan: 0.35, isMuted: false),
             velocity: 96,
             gateLength: 2
         )
@@ -108,6 +111,28 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(audioSink.receivedEvents.first?.first?.pitch, 64)
         XCTAssertEqual(audioSink.receivedEvents.first?.first?.velocity, 96)
         XCTAssertEqual(controller.statusSummary, "Audio: Mock AU Instrument via Main Mixer")
+        XCTAssertEqual(audioSink.receivedMixes.last, synthTrack.mix)
+    }
+
+    func test_muted_track_suppresses_audio_playback_and_updates_status() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let mutedTrack = StepSequenceTrack(
+            name: "Muted",
+            pitches: [67],
+            stepPattern: [true],
+            stepAccents: [false],
+            output: .auInstrument,
+            mix: TrackMixSettings(level: 0.9, pan: 0, isMuted: true),
+            velocity: 100,
+            gateLength: 2
+        )
+
+        controller.apply(track: mutedTrack)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        XCTAssertTrue(audioSink.receivedEvents.isEmpty)
+        XCTAssertEqual(controller.statusSummary, "Audio: Mock AU Instrument via Main Mixer (Muted)")
     }
 }
 
@@ -117,6 +142,7 @@ private final class CapturingAudioSink: TrackPlaybackSink {
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
     private(set) var receivedEvents: [[NoteEvent]] = []
+    private(set) var receivedMixes: [TrackMixSettings] = []
 
     func startIfNeeded() {
         startCallCount += 1
@@ -124,6 +150,10 @@ private final class CapturingAudioSink: TrackPlaybackSink {
 
     func stop() {
         stopCallCount += 1
+    }
+
+    func setMix(_ mix: TrackMixSettings) {
+        receivedMixes.append(mix)
     }
 
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {

@@ -2,13 +2,7 @@ import SwiftUI
 
 struct SidebarView: View {
     @Binding var document: SeqAIDocument
-
-    private var selectedTrackID: Binding<UUID> {
-        Binding(
-            get: { document.model.selectedTrackID },
-            set: { document.model.selectTrack(id: $0) }
-        )
-    }
+    @Binding var section: WorkspaceSection
 
     var body: some View {
         List {
@@ -20,6 +14,7 @@ struct SidebarView: View {
                 ForEach(document.model.tracks, id: \.id) { track in
                     Button {
                         document.model.selectTrack(id: track.id)
+                        section = .trackEditor
                     } label: {
                         HStack {
                             Label(track.name, systemImage: track.id == document.model.selectedTrackID ? "pianokeys.inverse" : "pianokeys")
@@ -48,13 +43,24 @@ struct SidebarView: View {
                 .padding(.top, 4)
             }
             Section("Global") {
-                Text("Mixer").tag("mixer")
-                Text("Perform").tag("perform")
-                Text("Library").tag("library")
+                globalRow(title: "Mixer", systemImage: "slider.vertical.3", sectionValue: .mixer)
+                globalRow(title: "Perform", systemImage: "dot.radiowaves.left.and.right", sectionValue: .perform)
+                globalRow(title: "Library", systemImage: "books.vertical", sectionValue: .library)
             }
         }
         .listStyle(.sidebar)
         .navigationTitle("SequencerAI")
+    }
+
+    @ViewBuilder
+    private func globalRow(title: String, systemImage: String, sectionValue: WorkspaceSection) -> some View {
+        Button {
+            section = sectionValue
+        } label: {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(section == sectionValue ? .primary : .secondary)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -64,8 +70,9 @@ struct SidebarView: View {
 
 private struct SidebarPreview: View {
     @State private var document = SeqAIDocument()
+    @State private var section: WorkspaceSection = .trackEditor
 
     var body: some View {
-        SidebarView(document: $document)
+        SidebarView(document: $document, section: $section)
     }
 }

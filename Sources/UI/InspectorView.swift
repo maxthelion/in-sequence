@@ -43,6 +43,26 @@ struct InspectorView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Mixer") {
+                HStack {
+                    Text("Level")
+                    Slider(value: $document.model.selectedTrack.mix.level, in: 0...1)
+                    Text("\(Int((track.mix.clampedLevel * 100).rounded()))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Pan")
+                    Slider(value: $document.model.selectedTrack.mix.pan, in: -1...1)
+                    Text(panLabel)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+
+                Toggle("Mute", isOn: $document.model.selectedTrack.mix.isMuted)
+            }
+
             Section("Generator") {
                 Stepper(value: $document.model.selectedTrack.velocity, in: 1...127) {
                     HStack {
@@ -69,12 +89,24 @@ struct InspectorView: View {
                 LabeledContent("Active steps", value: "\(track.activeStepCount)")
                 LabeledContent("Accented steps", value: "\(track.accentedStepCount)")
                 LabeledContent("Pitch count", value: "\(track.pitches.count)")
+                LabeledContent("Level", value: "\(Int((track.mix.clampedLevel * 100).rounded()))%")
                 LabeledContent("Track ID", value: track.id.uuidString.prefix(8).description)
             }
 
             Spacer()
         }
         .frame(minWidth: 220)
+    }
+
+    private var panLabel: String {
+        switch track.mix.clampedPan {
+        case let value where value < -0.05:
+            return "L\(Int(abs(value) * 100))"
+        case let value where value > 0.05:
+            return "R\(Int(value * 100))"
+        default:
+            return "C"
+        }
     }
 }
 
