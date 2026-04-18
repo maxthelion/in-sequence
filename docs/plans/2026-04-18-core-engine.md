@@ -4,9 +4,15 @@
 
 **Goal:** Produce a runnable pipeline engine that ticks at a user-configurable BPM, executes a small DAG of typed blocks per tick, emits MIDI on a virtual CoreMIDI destination, and receives parameter updates from the UI thread through a lock-free command queue. Verified end-to-end via XCTest: the test wires `note-generator → midi-out`, drives the engine for N ticks, and asserts that M expected MIDI events arrive on a virtual input.
 
-**Architecture:** One Swift module (`Engine`) that owns the executor, block registry, typed streams, and command queue. Blocks conform to a narrow protocol (`tick(context:) -> OutputBundle`) — a block reads typed streams from the `TickContext` and writes one or more typed streams as its outputs. The executor holds a topologically-sorted block list and runs them in order per tick. The `TickClock` fires at `60 / BPM / stepsPerBar * 4` seconds using a serial dispatch queue (MVP — replaced by an audio-clock-driven source in the audio-engine plan). Parameter changes from the UI go through a lock-free single-producer-single-consumer `CommandQueue` drained at the top of each tick. No audio engine integration in this plan — the tick clock is software-timed, sample-accurate scheduling lands when the audio-side plan arrives.
+**Architecture:** One Swift module (`Engine`) that owns the executor, block registry, typed streams, and command queue. Blocks conform to a narrow protocol (`tick(context:) -> OutputBundle` + `apply(_ command: Command)`) — a block reads typed streams from the `TickContext`, returns its outputs, and handles parameter-update commands out-of-band. The executor holds a topologically-sorted block list and runs them in order per tick, drains any queued UI commands at the top of each tick, and dispatches each command to the target block by `BlockID`. The `TickClock` fires at the step interval corresponding to the current BPM using a `DispatchSourceTimer` (MVP — replaced by an audio-clock-driven source in the audio-engine plan, sub-spec 10). Parameter changes from the UI go through a `CommandQueue` drained at the top of each tick. No audio engine integration in this plan — the tick clock is software-timed, sample-accurate scheduling lands when the audio-side plan arrives.
 
-**Tech Stack:** Swift 5.9+, Foundation (DispatchQueue, DispatchSourceTimer), CoreMIDI via the existing `MIDIClient`, `os.unfair_lock`-free ring buffer for the command queue, XCTest.
+**Design decisions deliberately taken (flagged because they could be litigated later):**
+
+- **`CommandQueue` is thread-safe but not lock-free for this plan.** The spec's "lock-free" requirement exists because the consumer runs on the audio render thread, which Plan 1 does not. A `DispatchQueue`-serialised ring buffer meets every Plan-1 test and avoids an `Atomics` package dependency. The lock-free re-implementation is folded into Plan 10 (audio engine) when the realtime-thread constraint actually bites. The `CommandQueue` public API is chosen so the swap is a drop-in replacement.
+- **`Stream` is a fat enum, not a set of distinct types.** Type-checking of port connections is runtime, not compile-time. Full compile-time typing (one value type per stream kind + generic `PortSpec`) is a deeper refactor and doesn't ship more working software in Plan 1. Revisit in Plan 2 when we have more blocks and the cost of runtime checks is actually measurable.
+- **`TickContext.inputs` is a dict, constructed per-tick per-block.** Yes, this allocates. We are not on the render thread. Plan 10 will revisit alongside the audio-clock migration — an inline-storage alternative is cheap once the hot-path constraint exists.
+
+**Tech Stack:** Swift 5.9+, Foundation (DispatchQueue, DispatchSourceTimer), CoreMIDI via `MIDIClient` (**extended in this plan — see Task 1**), XCTest.
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md` — sub-spec 1 (Core engine). Scope-shave vs. spec: this plan ships tick-loop + registry + streams + command-queue + `note-generator` source + `midi-out` sink. The remaining spec-listed blocks (`clip-reader`, `force-to-scale`, `quantise-to-chord`, `interpret`) are deferred to a follow-up **Plan 2: Core blocks** because (a) `clip-reader` depends on a clip data model that belongs with the phrase/macro plan (spec sub-spec 2), (b) `interpret` reads abstract macro rows that also belong there, and (c) splitting produces working, tagged software at each milestone.
 
@@ -22,18 +28,25 @@ All paths relative to project root.
 
 ```
 Sources/
+  MIDI/
+    MIDIClient.swift          # Plan 0; this plan adds a `send(_:to:)` method
+    MIDIPacketBuilder.swift   # NEW — constructs MIDIPacketList values for send
   Engine/
-    Block.swift               # Block protocol, BlockID, PortSpec, TickContext
+    Block.swift               # Block protocol, BlockID, PortSpec, TickContext, Command
     Stream.swift              # Typed stream value types
-    Executor.swift            # DAG executor
-    BlockRegistry.swift       # id → factory, type-checks connections
+    Executor.swift            # DAG executor + command-queue drain + dispatch to blocks
+    BlockRegistry.swift       # id → factory, ParamValue-typed params
     TickClock.swift           # BPM-driven software tick source
-    CommandQueue.swift        # Lock-free SPSC ring buffer
+    CommandQueue.swift        # Thread-safe queue (DispatchQueue-serialised; MVP)
+    EngineController.swift    # App-facing owner of Executor + TickClock + Queue + Registry
     Blocks/
       NoteGenerator.swift     # Source: emits note-stream
       MidiOut.swift           # Sink: consumes note-stream → MIDIClient
 Tests/
   SequencerAITests/
+    MIDI/
+      MIDIPacketBuilderTests.swift
+      MIDIClientSendTests.swift
     Engine/
       StreamTests.swift
       BlockProtocolTests.swift
@@ -44,6 +57,7 @@ Tests/
       NoteGeneratorTests.swift
       MidiOutTests.swift
       EngineIntegrationTests.swift
+      EngineControllerTests.swift
 ```
 
 `project.yml` gets an `Engine` group under `Sources/` so files are picked up automatically.
@@ -60,7 +74,42 @@ App → UI → Engine / MIDI / Platform / Document
 
 ---
 
-## Task 1: Add Engine module + typed streams
+## Task 1: Extend `MIDIClient` with a transmit path
+
+**Scope:** Plan 0 shipped MIDI client creation, enumeration, and virtual endpoints — but no `send`. This plan's `midi-out` block depends on being able to push MIDI to a `MIDIEndpoint`, so this task closes the hole before any block code depends on it. Comes FIRST so every later task can assume it exists.
+
+Two pieces:
+
+1. **`MIDIPacketBuilder.swift`** (new, in `Sources/MIDI/`) — a value-type builder that constructs a `MIDIPacketList` for `{note-on, note-off, cc}` payloads. Avoids the error-prone C-style `MIDIPacketListAdd` dance at every call site.
+2. **`MIDIClient.send(packet:to:)`** (new method on existing `MIDIClient`) — routes a `MIDIPacketList` either via `MIDIReceived` (if the target is a virtual source this client created) or via `MIDISend` to a port (if the target is an external or virtual destination).
+
+**Files:**
+- Create: `Sources/MIDI/MIDIPacketBuilder.swift`
+- Modify: `Sources/MIDI/MIDIClient.swift` — add `send(_:to:)` + a lazy output port
+- Create: `Tests/SequencerAITests/MIDI/MIDIPacketBuilderTests.swift`
+- Create: `Tests/SequencerAITests/MIDI/MIDIClientSendTests.swift`
+
+**Tests:**
+
+1. `MIDIPacketBuilderTests`: builds a note-on + note-off pair into a packet list; asserts the list's first packet's 3-byte payload matches `[0x90 | channel, pitch, velocity]`, second packet's matches `[0x80 | channel, pitch, 0]`, and the second packet's timestamp is strictly later.
+2. `MIDIClientSendTests`:
+   - Create a `MIDIClient` "A", a virtual destination `A.dest`. Create a separate `MIDIClient` "B", create an input port that records packets, connect the port to `A.dest`. `A.send(packet, to: A.dest)` → `B` sees the packet.
+   - (Loopback via two clients avoids CoreMIDI's own-source-filter behaviour.)
+
+**Acceptance:** `Sources/MIDI/MIDIClient.swift` has a `send` method referenced below in Task 9. Tests green.
+
+Key rule: this task is a prerequisite for Task 9 (`midi-out`). Do not start Task 9 before Task 1 is committed.
+
+- [ ] MIDIPacketBuilder tests (one note pair)
+- [ ] MIDIPacketBuilder impl
+- [ ] MIDIClientSendTests (2-client loopback)
+- [ ] MIDIClient.send impl + lazy output port
+- [ ] Green `xcodebuild test`
+- [ ] Commit: `feat(midi): transmit path — MIDIPacketBuilder + MIDIClient.send`
+
+---
+
+## Task 2: Typed streams
 
 **Scope:** Create `Sources/Engine/` + `Stream.swift`. Define the six stream value types from the spec as plain Swift types. No executor, no blocks yet — this task ships just the typed stream primitives so later tasks have something to read/write.
 
@@ -102,9 +151,9 @@ public enum EventKind: Equatable, Sendable { case fillFlag, barTick, custom(Stri
 
 ---
 
-## Task 2: Block protocol + TickContext
+## Task 3: Block protocol + TickContext + Command
 
-**Scope:** The narrow contract every block satisfies. `Block` gets a `tick(context:)` that reads input streams from the `TickContext`, does its work, and returns its outputs as a `[PortID: Stream]` dict.
+**Scope:** The narrow contract every block satisfies. Two methods: `tick(context:)` reads input streams and returns outputs; `apply(_ command:)` handles parameter-update commands delivered from the UI via the command queue. The `Command` enum is defined here (not in CommandQueue) because it's the block's contract.
 
 **Files:**
 - Create: `Sources/Engine/Block.swift`
@@ -126,6 +175,18 @@ public enum StreamKind: String, Sendable {
     case notes, scalar, chord, event, gate, stepIndex
 }
 
+public enum ParamValue: Equatable, Sendable {
+    case number(Double)
+    case text(String)
+    case bool(Bool)
+    case integers([Int])    // pitch lists, step patterns (Bool packed), etc.
+}
+
+public enum Command: Sendable {
+    case setParam(blockID: BlockID, paramKey: String, value: ParamValue)
+    case setBPM(Double)
+}
+
 public struct TickContext {
     public let tickIndex: UInt64
     public let bpm: Double
@@ -138,23 +199,28 @@ public protocol Block: AnyObject {
     static var inputs: [PortSpec] { get }
     static var outputs: [PortSpec] { get }
     func tick(context: TickContext) -> [PortID: Stream]
+    /// Apply a param update. Blocks reject unknown keys by doing nothing;
+    /// the executor logs unknown keys via `os_log` at debug level.
+    func apply(paramKey: String, value: ParamValue)
 }
 ```
 
-**Acceptance:** A trivial test block is defined inside `BlockProtocolTests` that just emits `.scalar(0.5)` on output `"value"`; the test verifies its contract declaration and one `tick` call.
+**Acceptance:** A trivial test block emits `.scalar(0.5)` on output `"value"`. After `apply(paramKey: "level", value: .number(0.8))`, its next tick emits `.scalar(0.8)`. An unknown `paramKey` causes no change and no crash.
 
-- [ ] Write test for the trivial block
+- [ ] Write test for the trivial block — tick, apply, tick again, unknown-key apply
 - [ ] Write `Block.swift`
 - [ ] Green
-- [ ] Commit: `feat(engine): block protocol + TickContext`
+- [ ] Commit: `feat(engine): block protocol + TickContext + Command`
 
 ---
 
-## Task 3: Executor (topological tick)
+## Task 4: Executor (topological tick + command drain)
 
-**Scope:** The piece that runs a DAG of blocks per tick. Holds `[Block]` in topological order and a `[BlockID: [PortID: (upstream BlockID, upstream PortID)]]` wiring table. Per `tick()`: for each block in order, gather its inputs from the wiring table's already-computed outputs of earlier blocks, call `block.tick(context:)`, stash outputs.
+**Scope:** The piece that runs a DAG of blocks per tick. Takes a `[BlockID: Block]` (order-agnostic) and a wiring table; computes topological order at init; cycle detection at load-time.
 
-Topological sort is computed once at graph-load time (not every tick). Cycle detection at load-time emits a descriptive error.
+Per `tick()`:
+1. Drain the `CommandQueue` (passed in via init). For each `.setParam(blockID:paramKey:value:)`, look up `blocks[blockID]` and call `apply(paramKey:value:)`. For `.setBPM`, update a local `currentBPM` and forward to the next `tick()` call.
+2. For each block in topological order, gather its inputs, call `block.tick(context:)`, stash outputs.
 
 **Files:**
 - Create: `Sources/Engine/Executor.swift`
@@ -164,13 +230,19 @@ Topological sort is computed once at graph-load time (not every tick). Cycle det
 
 ```swift
 public final class Executor {
-    public init(blocks: [Block], wiring: [BlockID: [PortID: (BlockID, PortID)]]) throws
-    public func tick(bpm: Double, now: TimeInterval) -> [BlockID: [PortID: Stream]]
+    public init(
+        blocks: [BlockID: Block],
+        wiring: [BlockID: [PortID: (BlockID, PortID)]],
+        commandQueue: CommandQueue
+    ) throws
+    public func tick(now: TimeInterval) -> [BlockID: [PortID: Stream]]
+    public var currentBPM: Double { get }
 
     public enum Error: Swift.Error, Equatable {
         case cycleDetected(path: [BlockID])
         case missingUpstream(blockID: BlockID, portID: PortID)
         case streamKindMismatch(blockID: BlockID, portID: PortID, expected: StreamKind, got: StreamKind)
+        case unknownBlockID(BlockID)
     }
 }
 ```
@@ -183,19 +255,22 @@ public final class Executor {
 4. Missing upstream throws at init.
 5. Stream-kind mismatch throws at init.
 6. `tickIndex` increments on each `tick()`.
+7. **Command drain — param**: enqueue `.setParam(blockID: "b", paramKey: "k", value: .number(0.8))` before `tick`; verify `b.apply` was called (use a spy block).
+8. **Command drain — BPM**: enqueue `.setBPM(240)`; verify `currentBPM == 240` after `tick`.
+9. **Command for unknown block**: enqueue `.setParam(blockID: "missing", ...)`; `tick()` does not throw; a debug log entry exists. No crash, no stale command.
 
-- [ ] Write failing tests (6 cases above)
+- [ ] Write failing tests (9 cases)
 - [ ] Implement topological sort
-- [ ] Implement `tick`
+- [ ] Implement `tick` with command drain at top
 - [ ] Implement cycle / wiring / type-check validation
 - [ ] Green
-- [ ] Commit: `feat(engine): DAG executor with topological tick`
+- [ ] Commit: `feat(engine): DAG executor with command-drain tick`
 
 ---
 
-## Task 4: BlockRegistry
+## Task 5: BlockRegistry
 
-**Scope:** String-keyed factory. UI/document code creates a block by its kind identifier (e.g. `"note-generator"`) so blocks can be serialised without type-erasure gymnastics. The registry also reports each kind's `PortSpec`s so the graph editor can type-check wiring before calling the executor.
+**Scope:** String-keyed factory. UI/document code creates a block by its kind identifier (e.g. `"note-generator"`) so blocks can be serialised without type-erasure gymnastics. The registry reports each kind's `PortSpec`s so the graph editor can type-check wiring before calling the executor. Params passed to the factory are `[String: ParamValue]` — the same value type used by `Command.setParam`, so there's one canonical param vocabulary.
 
 **Files:**
 - Create: `Sources/Engine/BlockRegistry.swift`
@@ -208,14 +283,18 @@ public struct BlockKind: Equatable, Sendable {
     public let id: String                   // "note-generator", "midi-out"
     public let inputs: [PortSpec]
     public let outputs: [PortSpec]
-    public let make: (BlockID, [String: Any]) -> Block
+    public let make: (BlockID, [String: ParamValue]) -> Block
 }
 
 public final class BlockRegistry {
     public init()
-    public func register(_ kind: BlockKind)
+    /// Throws `RegistryError.duplicate(kindID)` if `kind.id` is already registered.
+    /// Rationale: silent replacement hides bugs; throw-and-log is the safer default.
+    public func register(_ kind: BlockKind) throws
     public func kinds() -> [BlockKind]
-    public func make(kindID: String, blockID: BlockID, params: [String: Any] = [:]) -> Block?
+    public func make(kindID: String, blockID: BlockID, params: [String: ParamValue] = [:]) -> Block?
+
+    public enum RegistryError: Swift.Error, Equatable { case duplicate(String) }
 }
 ```
 
@@ -223,8 +302,8 @@ public final class BlockRegistry {
 
 1. Register a test kind, retrieve by `kindID`, make an instance.
 2. Unknown `kindID` returns `nil`.
-3. `kinds()` reflects every registration.
-4. Double-registration of the same `kindID` is an error (test pending the decision: replace vs throw — recommend throw).
+3. `kinds()` reflects every registration (order not asserted).
+4. Double-registration of the same `kindID` throws `RegistryError.duplicate`.
 
 - [ ] Tests for the four cases
 - [ ] Implement registry
@@ -233,9 +312,11 @@ public final class BlockRegistry {
 
 ---
 
-## Task 5: TickClock (BPM-driven software tick source)
+## Task 6: TickClock (BPM-driven software tick source)
 
-**Scope:** A serial-dispatch-queue-backed timer that fires a tick handler at the interval corresponding to the current BPM and `stepsPerBar`. Default `stepsPerBar = 16`; default time signature 4/4. Tick interval = `60.0 / bpm / stepsPerBar * 4.0` seconds.
+**Scope:** A serial-dispatch-queue-backed timer that fires a tick handler at the interval corresponding to the current BPM and `stepsPerBar`. Default `stepsPerBar = 16`; time signature 4/4 (the `4` in the formula is beats-per-bar, not a magic number — comment it inline).
+
+Tick interval = `60.0 / bpm / stepsPerBar * beatsPerBar` seconds, where `beatsPerBar = 4`.
 
 The clock can be started, stopped, and have its BPM changed while running (next tick uses the new BPM). The tick handler is called with the monotonic-clock timestamp and the tick index.
 
@@ -255,70 +336,57 @@ public final class TickClock {
 }
 ```
 
-**Tests:**
+**Tests:** Assert on **inter-tick intervals** via the `now` timestamps the handler receives, not on total count over a window (count-over-window cannot distinguish a correct-but-jittery clock from a systematically-wrong one).
 
-1. Start at 240 BPM × 16 steps/bar → interval 62.5ms. Test runs for 500ms; asserts ≥6 and ≤10 ticks arrived (tolerance for DispatchSourceTimer jitter).
-2. Stop inside handler — no further ticks after `stop()` returns.
-3. Change BPM while running — observed interval changes on the next tick.
-4. Tick index starts at 0 and increments monotonically.
+1. Start at 240 BPM × 16 steps/bar → expected interval 62.5ms. Record 10 consecutive tick timestamps; assert every delta is within ±8ms of 62.5ms. Use `DispatchSourceTimer` with explicit `leeway: .milliseconds(1)`.
+2. Stop inside handler — no further `onTick` calls after `stop()` returns; verified by setting a flag in the handler and asserting it remains false for 200ms after stop.
+3. Change BPM mid-run — record the delta across the change; asserts the first post-change delta matches the new expected interval within ±8ms.
+4. Tick index starts at 0 and increments monotonically (no gaps).
 
-- [ ] Tests (accept jitter tolerances explicitly — don't over-assert timing)
-- [ ] Implementation using `DispatchSource.makeTimerSource`
-- [ ] Green (be patient with CI flakiness — these tests time out after 2s each)
+- [ ] Tests (assert on intervals, not counts; tolerances explicit)
+- [ ] Implementation using `DispatchSource.makeTimerSource` with leeway 1ms
+- [ ] Green — tests may be sensitive under CI load; if flake observed, raise tolerance rather than lowering assertion strictness (never test "passes if timer fires at all")
 - [ ] Commit: `feat(engine): BPM-driven tick clock`
 
 ---
 
-## Task 6: CommandQueue (UI → engine SPSC ring buffer)
+## Task 7: CommandQueue (thread-safe UI → engine queue)
 
-**Scope:** A fixed-capacity, lock-free single-producer-single-consumer ring buffer for parameter updates from the UI thread to the engine thread. No allocations on the hot path. The engine drains the queue at the top of each `tick`.
+**Scope:** A fixed-capacity, thread-safe FIFO queue for parameter updates from the UI thread to the engine thread. The engine drains the queue at the top of each `tick`. `Command` is defined in Task 3 (it's the block's contract).
+
+**Design choice (Plan 1 MVP):** `DispatchQueue`-serialised array, `capacity`-bounded. Simpler than a lock-free ring buffer; meets every test. The lock-free SPSC re-implementation lands in Plan 10 (audio engine) when the consumer actually runs on the render thread. Keep the public API below frozen so Plan 10 is a drop-in replacement.
 
 **Files:**
 - Create: `Sources/Engine/CommandQueue.swift`
 - Create: `Tests/SequencerAITests/Engine/CommandQueueTests.swift`
 
-**Design choice:** Use a fixed-size `UnsafeMutableBufferPointer<Command>` with atomic head/tail indices from `Atomics` (Swift's atomics package) — or, if adding a package dependency is undesirable, two `OSAtomic`-backed `Int` via `UnsafeMutablePointer`. Recommend `Atomics` for code clarity; add as a package dep in `project.yml`.
-
-**Command payload:**
-
-```swift
-public enum Command: Sendable {
-    case setParam(blockID: BlockID, paramKey: String, value: ParamValue)
-    case setBPM(Double)
-}
-
-public enum ParamValue: Equatable, Sendable {
-    case number(Double)
-    case text(String)
-    case bool(Bool)
-}
-```
-
 **Public API:**
 
 ```swift
 public final class CommandQueue {
-    public init(capacity: Int)            // capacity = power of 2 recommended
-    public func enqueue(_ command: Command) -> Bool    // false = full, drop
-    public func drainAll() -> [Command]
+    public init(capacity: Int = 1024)
+    @discardableResult
+    public func enqueue(_ command: Command) -> Bool   // false = full, dropped
+    public func drainAll() -> [Command]                // FIFO; clears queue
+    public var droppedCount: UInt64 { get }            // cumulative overflow counter
 }
 ```
 
 **Tests:**
 
 1. Enqueue N < capacity → drain returns N in FIFO order.
-2. Enqueue past capacity → returns false; drain doesn't include dropped entries.
-3. Enqueue from one dispatch queue, drain from another → no crashes, all commands appear.
-4. Stress: 10K enqueue/drain cycles with concurrent producers and a consumer.
+2. Enqueue past capacity → returns false; `droppedCount` increments; drain doesn't include dropped entries.
+3. Enqueue from background queue, drain from main → no crashes, all enqueued commands appear (order within a producer is preserved).
+4. Stress: 1000 enqueues interleaved with 10 drains across two queues; all commands accounted for (enqueued == drained + dropped).
 
-- [ ] Tests (include the concurrency test; use `XCTestExpectation` + `DispatchGroup`)
-- [ ] Implement using `Atomics`
+- [ ] Tests (include the concurrency test using `XCTestExpectation`)
+- [ ] Implement with a serial `DispatchQueue` guarding a `[Command]`
 - [ ] Green
-- [ ] Commit: `feat(engine): SPSC lock-free command queue`
+- [ ] Commit: `feat(engine): thread-safe command queue`
 
 ---
 
-## Task 7: NoteGenerator source block
+## Task 8: NoteGenerator source block
 
 **Scope:** A block with no inputs and one output (`notes: .notes`). Configurable via params: `pitches: [UInt8]` (default C major scale 60,62,64,65,67,69,71,72), `stepPattern: [Bool]` (default all true), `velocity: UInt8` (default 100), `gateLength: UInt16` (default 4 ticks).
 
@@ -343,117 +411,144 @@ Per tick, emits `Stream.notes([NoteEvent(...)])` if `stepPattern[tickIndex % ste
 
 ---
 
-## Task 8: MidiOut sink block
+## Task 9: MidiOut sink block
 
-**Scope:** A block with one input (`notes: .notes`, required) and no outputs. Consumes `Stream.notes(...)` each tick and emits MIDI to a configured `MIDIEndpoint` via `MIDIClient.send(...)`. The `MIDIClient` comes from Plan 0.
+**Scope:** A block with one input (`notes: .notes`, required) and no outputs. Consumes `Stream.notes(...)` each tick and emits MIDI to a configured `MIDIEndpoint` via `MIDIClient.send(...)` (the method shipped in Task 1).
 
-Configurable via params: `channel: UInt8` (default 0, i.e. MIDI ch 1), `noteOffsetTicks: Int` (default 0 — schedule note-off at `length + offset` ticks in the future).
+Configurable via params: `channel: UInt8` (default 0 = MIDI ch 1). Note-off scheduling: `MidiOut` queues a note-off into its internal tick-indexed schedule at `tickIndex + note.length`. On subsequent ticks it sends any note-offs whose scheduled tick has arrived.
 
 **Files:**
 - Create: `Sources/Engine/Blocks/MidiOut.swift`
 - Create: `Tests/SequencerAITests/Engine/MidiOutTests.swift`
 
-**API on MIDIClient:** this task may need to add a `send(_ packet: MIDIPacket, to: MIDIEndpoint)` helper if Plan 0's `MIDIClient` doesn't expose one already. Check `Sources/MIDI/MIDIClient.swift` first; if it's there, use it; if not, add it as a minimum on top of the existing client (separate commit before the MidiOut block commit).
+**Tests:** Use the Plan 0 retrospective's validated pattern: **two `MIDIClient` instances**, one creating a virtual destination (observable input port on the other) and the MidiOut block sending via the first client's output port. This is the pattern that was proven in Plan 0's `test_created_virtual_output_appears_in_destinations` after the Task-9 retrospective rename. **Do not repeat the "virtual source listens to itself" mistake** — a `MIDISourceCreate`-created source has no callback.
 
-**Tests:**
+1. MidiOut receives `.notes([1 NoteEvent(length=4)])` at tickIndex=0 → client sees 1 note-on. At tickIndex=4 → client sees the matching note-off.
+2. MidiOut receives `.notes([])` → nothing sent, no scheduled note-offs pending.
+3. MidiOut receives 3 notes (chord) → 3 note-ons followed by 3 note-offs after their gate length.
+4. MidiOut receives notes at channel=5 → note-on's status byte is `0x95` (0x90 | 0x05).
+5. Block registers in registry under `"midi-out"`.
 
-1. Input stream carries 1 note → `MIDIClient` receives 1 note-on + 1 scheduled note-off.
-2. Input stream carries 0 notes → nothing sent.
-3. Input stream carries 3 notes (chord) → 3 note-on + 3 note-off.
-4. Block registers in registry under `"midi-out"`.
-
-Use the virtual endpoint / virtual input pattern from Plan 0's `MIDIClientTests` — create a virtual destination, subscribe, assert packets.
-
-- [ ] Tests (creates virtual MIDI endpoint, asserts CoreMIDI callback fires)
-- [ ] Implementation (may need a `MIDIClient.send` helper — commit that first if missing)
+- [ ] Tests using two-client loopback
+- [ ] Implementation (depends on MIDIClient.send from Task 1)
 - [ ] Green
 - [ ] Commit: `feat(engine): midi-out sink block`
 
 ---
 
-## Task 9: End-to-end integration
+## Task 10: End-to-end integration
 
-**Scope:** Prove the whole stack works together. Wire `note-generator → midi-out`, drive the executor from the `TickClock`, observe MIDI events on a virtual input, send a command-queue `setBPM` mid-run and verify the tick rate changes.
+**Scope:** Prove the whole stack works together. Wire `note-generator → midi-out`, drive the executor from the `TickClock`, observe MIDI events on a virtual destination owned by a **second** `MIDIClient`, send a command-queue `setBPM` and `setParam` mid-run, verify the effects.
 
 **Files:**
 - Create: `Tests/SequencerAITests/Engine/EngineIntegrationTests.swift`
 
-**Scenario:**
+**Scenario (corrected per Plan 0 retrospective on virtual endpoint direction):**
 
 ```swift
-func test_engine_emits_expected_midi_for_N_ticks() {
-    let midiClient = try MIDIClient()
-    let dest = try midiClient.createVirtualInput("test-in")
-    let src = try midiClient.createVirtualOutput("test-out")
-    // Connect dest's callback to record received packets.
+func test_engine_emits_expected_midi_for_N_ticks() throws {
+    // Two clients: producer owns the MidiOut target; observer records.
+    let producerClient = try MIDIClient(name: "engine-test-producer")
+    let observerClient = try MIDIClient(name: "engine-test-observer")
+    let producerDest = try producerClient.createVirtualInput(name: "engine-dest")
 
-    let gen = NoteGenerator(id: "gen", params: […])
-    let out = MidiOut(id: "out", params: [.endpoint: dest])
+    // Observer connects an input port to producerDest and records packets.
+    let recorder = MIDIPacketRecorder()
+    try observerClient.connect(source: producerDest, to: recorder)
+
+    let gen = NoteGenerator(id: "gen", params: [
+        "pitches": .integers([60]),
+        "stepPattern": .integers([1]),          // always-on
+        "velocity": .number(100),
+        "gateLength": .number(4)
+    ])
+    let out = MidiOut(id: "out", params: ["channel": .number(0)])
+    out.endpoint = producerDest    // direct property (not in ParamValue world)
+    out.client = producerClient
+
+    let queue = CommandQueue(capacity: 128)
     let executor = try Executor(
-        blocks: [gen, out],
-        wiring: ["out": ["notes": ("gen", "notes")]]
+        blocks: ["gen": gen, "out": out],
+        wiring: ["out": ["notes": ("gen", "notes")]],
+        commandQueue: queue
     )
 
     let clock = TickClock(stepsPerBar: 16)
-    clock.bpm = 480  // fast — 16 ticks in 500ms
-    let received = RecorderHarness()
-    clock.start { idx, now in
-        let outputs = executor.tick(bpm: clock.bpm, now: now)
-        // executor writes to midi-out inside its tick; no further routing needed.
+    queue.enqueue(.setBPM(480))    // 62.5ms / 4 = 15.625ms per tick
+    clock.start { _, now in _ = executor.tick(now: now) }
+    // Wait 500ms → expect ~32 ticks = ~32 notes.
+    let exp = expectation(description: "notes arrived")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        clock.stop()
+        exp.fulfill()
     }
-    wait 500ms; clock.stop()
-    XCTAssertGreaterThanOrEqual(received.noteOnCount, 15)
+    wait(for: [exp], timeout: 1.0)
+    XCTAssertGreaterThanOrEqual(recorder.noteOnCount, 25, "expected ~32 notes in 500ms")
 }
 ```
 
-A second test verifies a `setBPM` command fed through the `CommandQueue` changes the clock rate.
+**Test scenarios:**
 
-- [ ] Test scenario 1: 16 notes emitted in 500ms at 480 BPM × 16
-- [ ] Test scenario 2: BPM change mid-run
+1. 500ms run at 480 BPM × 16 → ≥25 note-ons observed on the other client's port.
+2. `setBPM(120)` mid-run → observed inter-note interval roughly quadruples.
+3. `setParam(blockID: "gen", paramKey: "pitches", value: .integers([60, 64, 67]))` mid-run → observed pitches shift to the new set (sample the recorder's pitch history after the change).
+
+- [ ] Harness: `MIDIPacketRecorder` (simple test helper; owns a `MIDIInputPort` + array of received packets)
+- [ ] Test scenario 1
+- [ ] Test scenario 2 (BPM change)
+- [ ] Test scenario 3 (param change)
 - [ ] Green
 - [ ] Commit: `test(engine): end-to-end note-generator → midi-out integration`
 
 ---
 
-## Task 10: Wire Engine into the app shell
+## Task 11: Wire Engine into the app shell
 
-**Scope:** Expose the engine to the SwiftUI app: a single `EngineController` `@Observable` (macOS 14+) that owns an `Executor`, a `TickClock`, a `CommandQueue`, and a `BlockRegistry`. Bound to Play/Stop buttons in `TransportBar.swift` (Plan 0 placeholder). No graph editor yet — the shell creates a hard-coded `note-gen → midi-out` pipeline for smoke-testing.
+**Scope:** Expose the engine to the SwiftUI app: a single `EngineController` (`@Observable`, macOS 14+) that owns an `Executor`, `TickClock`, `CommandQueue`, and `BlockRegistry`. Bound to Play/Stop in `TransportBar.swift` (Plan 0 placeholder).
 
-This surfaces the engine in the running app. The user can hit Play and hear MIDI on a routed destination.
+**Where does the hard-coded `note-gen → midi-out` pipeline live?** In `EngineController.buildDefaultPipeline()` — a private method called during `EngineController.init()`. Rationale: the document model (`SeqAIDocumentModel`) should NOT yet encode pipelines; that's phrase-scoped and belongs to sub-spec 2 (phrase model). Keeping the pipeline inside `EngineController` means Plan 2 can lift it into the document without rewriting anything in `SeqAIDocumentModel`.
+
+The Architecture header's claim that "Engine does not touch the document model here" holds.
 
 **Files:**
 - Create: `Sources/Engine/EngineController.swift`
 - Modify: `Sources/UI/TransportBar.swift` (wire Play/Stop to `EngineController`)
-- Modify: `Sources/App/SequencerAIApp.swift` (construct the controller; pass down via environment)
-- Create: `Tests/SequencerAITests/Engine/EngineControllerTests.swift` (unit: start/stop toggles `isRunning`)
+- Modify: `Sources/App/SequencerAIApp.swift` (construct the controller; pass via environment)
+- Create: `Tests/SequencerAITests/Engine/EngineControllerTests.swift`
 
-- [ ] EngineControllerTests — start/stop state transitions
-- [ ] EngineController implementation
+**Tests:**
+
+1. `EngineController.init()` registers core blocks and builds the default pipeline without throwing.
+2. `start()` then `isRunning == true`; `stop()` then `false`.
+3. After `start()`, `setBPM(120)` via the controller's facade makes its way into `executor.currentBPM` within 2 ticks.
+
+- [ ] EngineControllerTests
+- [ ] EngineController implementation (including `buildDefaultPipeline`)
 - [ ] TransportBar wiring
 - [ ] App entry wiring
-- [ ] Manual smoke test: hit Play, observe MIDI on a DAW or MIDI monitor app; note in commit message
+- [ ] Manual smoke test: hit Play, observe MIDI on a DAW / MIDI monitor; note the observation in the commit message
 - [ ] Green `xcodebuild test`
 - [ ] Commit: `feat(engine): wire engine into app shell + transport`
 
 ---
 
-## Task 11: Wiki update
+## Task 12: Wiki update
 
-**Scope:** Add `wiki/pages/engine-architecture.md` describing the block protocol, stream types, executor contract, and tick-clock approach. Update `wiki/pages/project-layout.md` to reflect the new `Engine/` module and its position in the dependency graph.
+**Scope:** Add `wiki/pages/engine-architecture.md` describing the block protocol, stream types, executor contract, command-queue contract, and tick-clock approach. Update `wiki/pages/project-layout.md` to reflect the new `Engine/` module and its position in the dependency graph.
 
 **Files:**
 - Create: `wiki/pages/engine-architecture.md`
 - Modify: `wiki/pages/project-layout.md`
 
-Dispatched via the `wiki-maintainer` agent after the main code lands — this task is the execute-plan step-7 equivalent for this plan.
+Dispatched via the `wiki-maintainer` agent. The agent's scope is `wiki/pages/` only — it cannot touch `Sources/` or docs. Must land in the same tag as the code (per Plan 0 template).
 
-- [ ] Wiki page covers: block protocol, 6 stream kinds, executor ordering, tick-clock model (and why it's software-timed for now), command-queue contract
-- [ ] `project-layout.md` gains the `Engine` module row
+- [ ] Wiki page covers: block protocol + apply(command), 6 stream kinds, executor ordering + command-drain-at-top, tick-clock model (and why it's software-timed for now), command-queue contract (capacity, dropped-count, last-wins semantics)
+- [ ] `project-layout.md` gains the `Engine` module row + updated dependency-direction diagram
 - [ ] Commit: `docs(wiki): engine architecture + project-layout update`
 
 ---
 
-## Task 12: Tag + mark completed
+## Task 13: Tag + mark completed
 
 - [ ] Replace every `- [ ]` in this file with `- [x]` for steps actually completed
 - [ ] Add `Status: ✅ Completed YYYY-MM-DD. Tag v0.0.2-core-engine at <SHA>.` after `Parent spec`
@@ -462,23 +557,35 @@ Dispatched via the `wiki-maintainer` agent after the main code lands — this ta
 
 ---
 
-## Spec coverage check (self-review)
+## Spec coverage + architectural-claim traceability (self-review)
 
-| Spec item (sub-spec 1) | Task |
-|---|---|
-| Swift tick loop driven from audio clock | **Deferred** — `TickClock` is software-timed; audio-clock source is sub-spec 10's work. Documented in Architecture header. |
-| Pipeline DAG executor | Task 3 |
-| Block registry | Task 4 |
-| Typed streams | Task 1 |
-| Lock-free UI↔render command queue | Task 6 |
-| `note-gen` | Task 7 |
-| `midi-out` | Task 8 |
-| `clip-reader` | **Deferred** — Plan 2 (core blocks), depends on clip data model from sub-spec 2 |
-| `force-to-scale` | **Deferred** — Plan 2 (pure transform, can land with the block library) |
-| `quantise-to-chord` | **Deferred** — Plan 2 (depends on chord-context plumbing from sub-spec 4) |
-| `interpret` | **Deferred** — Plan 2 (depends on macro rows from sub-spec 2) |
+Each architectural claim in the header maps to the task that tests it. If you discover a claim below without a task, fix the plan — don't hope the implementer improvises.
 
-Deferrals are deliberate scope-shaves to keep Plan 1 producing working, tagged software. The deferred blocks become Plan 2 or later and each gets its own TDD sub-plan.
+| Spec item (sub-spec 1) / architectural claim | Task | Notes |
+|---|---|---|
+| MIDI transmit path (`MIDIClient.send`) | Task 1 | Prerequisite; must land before Task 9 |
+| Typed streams | Task 2 | Fat enum; runtime-checked (tradeoff documented in header) |
+| Block protocol + `apply(command:)` | Task 3 | `Command` enum colocated with the protocol |
+| Pipeline DAG executor | Task 4 | Cycle/wiring/type validation at init |
+| **Executor drains CommandQueue at top of tick** | Task 4 (test #7-9) | Closes the "queue sits there unused" gap |
+| **Executor dispatches `.setParam` to the right block via `apply`** | Task 4 (test #7) | Spy-block verifies `apply` called |
+| **Executor tracks BPM updates** | Task 4 (test #8) | `setBPM` via queue mutates `currentBPM` |
+| Block registry w/ typed `ParamValue` params | Task 5 | Throws on duplicate registration |
+| Tick clock @ `60/bpm/stepsPerBar * 4` | Task 6 | Interval-delta assertions (not count-over-window) |
+| Command queue (thread-safe, not lock-free in Plan 1) | Task 7 | Tradeoff documented in header |
+| `note-generator` source | Task 8 | Registers under `"note-generator"` |
+| `midi-out` sink | Task 9 | Uses Task 1's `send`; two-client loopback tests |
+| End-to-end: tick → gen → out → observable MIDI | Task 10 | 3 scenarios (notes, BPM change, param change) |
+| Engine embedded in app shell (`EngineController`) | Task 11 | Owns pipeline; document model untouched |
+| Wiki + project-layout updated | Task 12 | Must land in same tag |
+| Tag `v0.0.2-core-engine` | Task 13 |  |
+| `clip-reader` | **Deferred** — Plan 2 | depends on clip data model from sub-spec 2 |
+| `force-to-scale` | **Deferred** — Plan 2 | pure transform, groups with block library |
+| `quantise-to-chord` | **Deferred** — Plan 2 | depends on chord-context plumbing from sub-spec 4 |
+| `interpret` | **Deferred** — Plan 2 | depends on macro rows from sub-spec 2 |
+| Sample-accurate audio-clock-driven tick | **Deferred** — sub-spec 10 | software-timed for Plan 1 |
+
+Deferrals are deliberate scope-shaves to keep Plan 1 producing working, tagged software. Each deferred item names the sub-spec / plan that picks it up.
 
 ## Open questions resolved for this plan
 
