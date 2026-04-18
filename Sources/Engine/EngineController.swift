@@ -58,9 +58,10 @@ final class EngineController {
     }
 
     func setBPM(_ bpm: Double) {
-        currentBPM = bpm
-        clock.bpm = bpm
-        _ = commandQueue.enqueue(.setBPM(bpm))
+        let clamped = min(max(bpm, 40), 300)
+        currentBPM = clamped
+        clock.bpm = clamped
+        _ = commandQueue.enqueue(.setBPM(clamped))
     }
 
     func setParam(blockID: BlockID, paramKey: String, value: ParamValue) {
@@ -69,6 +70,20 @@ final class EngineController {
 
     var registeredKindIDs: [String] {
         registry.kinds().map(\.id)
+    }
+
+    var canStart: Bool {
+        executor != nil
+    }
+
+    var statusSummary: String {
+        guard canStart else {
+            return "Engine unavailable"
+        }
+        guard let endpoint else {
+            return "Playing without MIDI output"
+        }
+        return "Output: \(endpoint.displayName)"
     }
 
     private func buildDefaultPipeline() throws {
