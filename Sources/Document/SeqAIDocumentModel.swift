@@ -88,6 +88,36 @@ struct SeqAIDocumentModel: Codable, Equatable {
         selectedPhraseID = id
     }
 
+    mutating func appendPhrase() {
+        var nextPhrase = PhraseModel.default(tracks: tracks)
+        nextPhrase.id = UUID()
+        nextPhrase.name = Self.defaultPhraseName(for: phrases.count)
+        phrases.append(nextPhrase.synced(with: tracks))
+        selectedPhraseID = nextPhrase.id
+    }
+
+    mutating func duplicateSelectedPhrase() {
+        guard !phrases.isEmpty else {
+            return
+        }
+
+        var duplicate = selectedPhrase
+        duplicate.id = UUID()
+        duplicate.name = "\(selectedPhrase.name) Copy"
+        let insertionIndex = min(selectedPhraseIndex + 1, phrases.count)
+        phrases.insert(duplicate.synced(with: tracks), at: insertionIndex)
+        selectedPhraseID = duplicate.id
+    }
+
+    mutating func removeSelectedPhrase() {
+        guard phrases.count > 1 else {
+            return
+        }
+
+        phrases.remove(at: selectedPhraseIndex)
+        selectedPhraseID = phrases[min(selectedPhraseIndex, phrases.count - 1)].id
+    }
+
     mutating func appendTrack() {
         let nextIndex = tracks.count + 1
         let nextTrack = StepSequenceTrack(
@@ -190,6 +220,14 @@ struct SeqAIDocumentModel: Codable, Equatable {
         if !phrases.contains(where: { $0.id == selectedPhraseID }) {
             selectedPhraseID = phrases[0].id
         }
+    }
+
+    private static func defaultPhraseName(for index: Int) -> String {
+        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        if alphabet.indices.contains(index) {
+            return "Phrase \(alphabet[index])"
+        }
+        return "Phrase \(index + 1)"
     }
 }
 

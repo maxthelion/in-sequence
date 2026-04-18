@@ -85,6 +85,27 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedPhrase.instrumentSource(for: model.selectedTrack.id), .manualMono)
     }
 
+    func test_append_phrase_selects_new_phrase() {
+        var model = SeqAIDocumentModel.empty
+
+        model.appendPhrase()
+
+        XCTAssertEqual(model.phrases.count, 2)
+        XCTAssertEqual(model.selectedPhraseID, model.phrases.last?.id)
+        XCTAssertEqual(model.selectedPhrase.name, "Phrase B")
+        XCTAssertEqual(model.selectedPhrase.trackPipelines.count, model.tracks.count)
+    }
+
+    func test_duplicate_selected_phrase_inserts_copy_after_current() {
+        var model = SeqAIDocumentModel.empty
+
+        model.duplicateSelectedPhrase()
+
+        XCTAssertEqual(model.phrases.count, 2)
+        XCTAssertEqual(model.selectedPhraseIndex, 1)
+        XCTAssertEqual(model.selectedPhrase.name, "Phrase A Copy")
+    }
+
     func test_remove_selected_track_falls_back_to_neighbour() {
         let trackTwo = StepSequenceTrack(name: "Track 2", pitches: [48], stepPattern: [true, false], stepAccents: [false, true], output: .auInstrument, velocity: 90, gateLength: 2)
         var model = SeqAIDocumentModel(
@@ -207,6 +228,66 @@ final class SeqAIDocumentModelTests: XCTestCase {
         model.selectedPhrase = phrase
 
         XCTAssertEqual(model.selectedPhrase.instrumentSource(for: model.selectedTrack.id), .template)
+    }
+
+    func test_selected_phrase_can_store_phrase_cell_mode_per_track_and_layer() {
+        var model = SeqAIDocumentModel.empty
+
+        var phrase = model.selectedPhrase
+        phrase.setCellMode(.drawn, for: .tension, trackID: model.selectedTrack.id)
+        model.selectedPhrase = phrase
+
+        XCTAssertEqual(model.selectedPhrase.cellMode(for: .tension, trackID: model.selectedTrack.id), .drawn)
+    }
+
+    func test_phrase_pipeline_decodes_missing_layer_states_with_defaults() throws {
+        let json = """
+        {
+          "version": 1,
+          "tracks": [
+            {
+              "id": "11111111-1111-1111-1111-111111111111",
+              "name": "Lead",
+              "trackType": "instrument",
+              "pitches": [60, 64, 67, 72],
+              "stepPattern": [true, true, true, true],
+              "stepAccents": [false, false, false, false],
+              "output": "midiOut",
+              "velocity": 100,
+              "gateLength": 4
+            }
+          ],
+          "selectedTrackID": "11111111-1111-1111-1111-111111111111",
+          "phrases": [
+            {
+              "id": "22222222-2222-2222-2222-222222222222",
+              "name": "Phrase A",
+              "lengthBars": 4,
+              "stepsPerBar": 16,
+              "abstractRows": [
+                { "kind": "intensity", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "density", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "register", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "tension", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "variance", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "brightness", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
+              ],
+              "trackPipelines": [
+                {
+                  "trackID": "11111111-1111-1111-1111-111111111111",
+                  "instrumentSource": "clipReader"
+                }
+              ]
+            }
+          ],
+          "selectedPhraseID": "22222222-2222-2222-2222-222222222222"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
+
+        XCTAssertEqual(decoded.selectedPhrase.cellMode(for: .intensity, trackID: decoded.selectedTrack.id), .single)
+        XCTAssertEqual(decoded.selectedPhrase.trackPipelines.first?.layerStates.count, PhraseAbstractKind.allCases.count)
     }
 }
 

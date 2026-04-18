@@ -43,6 +43,20 @@ struct PhraseModel: Codable, Equatable, Sendable {
         }
     }
 
+    func cellMode(for kind: PhraseAbstractKind, trackID: UUID) -> PhraseCellEditMode {
+        trackPipelines.first(where: { $0.trackID == trackID })?.cellMode(for: kind) ?? .single
+    }
+
+    mutating func setCellMode(_ mode: PhraseCellEditMode, for kind: PhraseAbstractKind, trackID: UUID) {
+        if let existingIndex = trackPipelines.firstIndex(where: { $0.trackID == trackID }) {
+            trackPipelines[existingIndex].setCellMode(mode, for: kind)
+        } else {
+            var pipeline = PhraseTrackPipeline(trackID: trackID, instrumentSource: .manualMono)
+            pipeline.setCellMode(mode, for: kind)
+            trackPipelines.append(pipeline)
+        }
+    }
+
     mutating func cycleAbstractValue(for kind: PhraseAbstractKind, at index: Int) {
         guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
             return
@@ -64,15 +78,13 @@ struct PhraseModel: Codable, Equatable, Sendable {
             return row.normalized(stepCount: normalizedStepCount)
         }
 
-        let instrumentTrackIDs = Set(
-            tracks
-                .filter { $0.trackType == .instrument }
-                .map(\.id)
-        )
+        let trackIDs = Set(tracks.map(\.id))
 
-        var normalizedPipelines = trackPipelines.filter { instrumentTrackIDs.contains($0.trackID) }
+        var normalizedPipelines = trackPipelines
+            .filter { trackIDs.contains($0.trackID) }
+            .map(\.normalized)
         let existingIDs = Set(normalizedPipelines.map(\.trackID))
-        let missingIDs = instrumentTrackIDs.subtracting(existingIDs)
+        let missingIDs = trackIDs.subtracting(existingIDs)
         normalizedPipelines.append(
             contentsOf: missingIDs.map {
                 PhraseTrackPipeline(trackID: $0, instrumentSource: .manualMono)
@@ -94,9 +106,7 @@ struct PhraseModel: Codable, Equatable, Sendable {
     }
 
     private static func defaultPipelines(for tracks: [StepSequenceTrack]) -> [PhraseTrackPipeline] {
-        tracks
-            .filter { $0.trackType == .instrument }
-            .map { PhraseTrackPipeline(trackID: $0.id, instrumentSource: .manualMono) }
+        tracks.map { PhraseTrackPipeline(trackID: $0.id, instrumentSource: .manualMono) }
     }
 }
 
@@ -145,9 +155,88 @@ struct PhraseAbstractRow: Codable, Equatable, Sendable {
 struct PhraseTrackPipeline: Codable, Equatable, Identifiable, Sendable {
     var trackID: UUID
     var instrumentSource: PhraseInstrumentSource
-    var showWiring: Bool = false
+    var layerStates: [PhraseTrackLayerState]
+    var showWiring: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case trackID
+        case instrumentSource
+        case layerStates
+        case showWiring
+    }
+
+    init(
+        trackID: UUID,
+        instrumentSource: PhraseInstrumentSource,
+        layerStates: [PhraseTrackLayerState] = PhraseTrackLayerState.defaults(),
+        showWiring: Bool = false
+    ) {
+        self.trackID = trackID
+        self.instrumentSource = instrumentSource
+        self.layerStates = PhraseTrackLayerState.normalized(layerStates)
+        self.showWiring = showWiring
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        trackID = try container.decode(UUID.self, forKey: .trackID)
+        instrumentSource = try container.decode(PhraseInstrumentSource.self, forKey: .instrumentSource)
+        layerStates = PhraseTrackLayerState.normalized(
+            try container.decodeIfPresent([PhraseTrackLayerState].self, forKey: .layerStates) ?? []
+        )
+        showWiring = try container.decodeIfPresent(Bool.self, forKey: .showWiring) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(trackID, forKey: .trackID)
+        try container.encode(instrumentSource, forKey: .instrumentSource)
+        try container.encode(layerStates, forKey: .layerStates)
+        try container.encode(showWiring, forKey: .showWiring)
+    }
 
     var id: UUID { trackID }
+
+    func cellMode(for kind: PhraseAbstractKind) -> PhraseCellEditMode {
+        layerStates.first(where: { $0.kind == kind })?.cellMode ?? .single
+    }
+
+    mutating func setCellMode(_ mode: PhraseCellEditMode, for kind: PhraseAbstractKind) {
+        if let index = layerStates.firstIndex(where: { $0.kind == kind }) {
+            layerStates[index].cellMode = mode
+        } else {
+            layerStates.append(PhraseTrackLayerState(kind: kind, cellMode: mode))
+        }
+        layerStates = PhraseTrackLayerState.normalized(layerStates)
+    }
+
+    var normalized: PhraseTrackPipeline {
+        PhraseTrackPipeline(
+            trackID: trackID,
+            instrumentSource: instrumentSource,
+            layerStates: PhraseTrackLayerState.normalized(layerStates),
+            showWiring: showWiring
+        )
+    }
+}
+
+struct PhraseTrackLayerState: Codable, Equatable, Identifiable, Sendable {
+    var kind: PhraseAbstractKind
+    var cellMode: PhraseCellEditMode
+
+    var id: PhraseAbstractKind { kind }
+
+    static func defaults() -> [PhraseTrackLayerState] {
+        PhraseAbstractKind.allCases.map {
+            PhraseTrackLayerState(kind: $0, cellMode: .single)
+        }
+    }
+
+    static func normalized(_ states: [PhraseTrackLayerState]) -> [PhraseTrackLayerState] {
+        PhraseAbstractKind.allCases.map { kind in
+            states.first(where: { $0.kind == kind }) ?? PhraseTrackLayerState(kind: kind, cellMode: .single)
+        }
+    }
 }
 
 enum PhraseAbstractKind: String, Codable, CaseIterable, Equatable, Sendable {
@@ -170,6 +259,52 @@ enum PhraseAbstractKind: String, Codable, CaseIterable, Equatable, Sendable {
             return "violet"
         case .tension, .variance:
             return "amber"
+        }
+    }
+}
+
+enum PhraseCellEditMode: String, Codable, CaseIterable, Equatable, Sendable {
+    case single
+    case perBar
+    case rampUp
+    case drawn
+
+    var label: String {
+        switch self {
+        case .single:
+            return "Single"
+        case .perBar:
+            return "Per Bar"
+        case .rampUp:
+            return "Ramp Up"
+        case .drawn:
+            return "Drawn"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .single:
+            return "Single"
+        case .perBar:
+            return "Bars"
+        case .rampUp:
+            return "Ramp"
+        case .drawn:
+            return "Drawn"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .single:
+            return "One phrase-wide value, with later rows inheriting when left empty."
+        case .perBar:
+            return "Per-bar steps for phrase-length variation without freehand drawing."
+        case .rampUp:
+            return "A shaped rise across the phrase, useful for tension or density lifts."
+        case .drawn:
+            return "A freely authored lane for the eventual curve and event editor."
         }
     }
 }
