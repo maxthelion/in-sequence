@@ -14,3 +14,16 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded, original)
     }
 }
+
+import UniformTypeIdentifiers
+
+final class SeqAIDocumentFileTests: XCTestCase {
+    func test_readable_content_types_includes_seqai_utype() {
+        XCTAssertTrue(SeqAIDocument.readableContentTypes.contains(.seqAIDocument))
+    }
+
+    func test_default_initializer_creates_empty_model() {
+        let doc = SeqAIDocument()
+        XCTAssertEqual(doc.model, .empty)
+    }
+}
