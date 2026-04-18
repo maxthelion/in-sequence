@@ -28,8 +28,26 @@ Ordered; each step gates the next.
 
 ### 2. Dispatch the implementer
 
-Use `superpowers:subagent-driven-development`'s implementer-prompt template.
-Pass the plan file path, the environment note, and the parent spec.
+Dispatch the local `implementer` agent:
+
+```
+Agent tool:
+  subagent_type: "implementer"
+  prompt: <plan task brief — use the structure from
+          superpowers:subagent-driven-development/implementer-prompt.md,
+          with placeholders filled in for this plan's task>
+```
+
+The `.claude/agents/implementer.md` system prompt enforces sequencer-ai's
+scope rules (Sources/ + Tests/ only; no hooks/agents/skills/wiki/specs/plans)
+and the Sonnet 4.5+ model requirement. The superpowers template stays in
+scope only as the *dispatch brief* shape — see the agent file's "Built on"
+section.
+
+**If the agent isn't registered** (see § "Agent registration" in `AGENTS.md`),
+fall back to `subagent_type: "general-purpose"` with `model: "sonnet"` and
+paste the body of `.claude/agents/implementer.md` as the system-prompt
+preamble of your task prompt.
 
 ### 3. Wait for implementer
 
@@ -42,9 +60,11 @@ Pass the plan file path, the environment note, and the parent spec.
 
 Fire the following subagents in a single message (parallel, independent):
 
-a. **spec-compliance reviewer** — per `superpowers:subagent-driven-development/spec-reviewer-prompt.md`
-b. **code-quality reviewer** — `superpowers:code-reviewer` with WHAT_WAS_IMPLEMENTED derived from the plan
-c. **adversarial reviewer** — `/adversarial-review` against `<previous-tag>..HEAD`
+a. **spec-compliance reviewer** — `subagent_type: "spec-reviewer"`. The agent builds on `superpowers:subagent-driven-development/spec-reviewer-prompt.md` and layers sequencer-ai specifics (plan checkbox convention, parent-spec chain).
+b. **code-quality reviewer** — `subagent_type: "code-quality-reviewer"`. Built on `superpowers:code-reviewer`; adds the `wiki/pages/code-review-checklist.md` §1-4 hooks.
+c. **adversarial reviewer** — `/adversarial-review` skill against `<previous-tag>..HEAD`. The skill dispatches the local `adversarial-reviewer` agent (opus model) with the scaffold from `.claude/skills/adversarial-review/reviewer-prompt.md`.
+
+**If any of the local agents isn't registered** (see § "Agent registration" in `AGENTS.md`), fall back to `subagent_type: "general-purpose"` with the appropriate model (`sonnet` for spec/quality reviewers, `opus` for adversarial) and paste the corresponding `.claude/agents/<role>.md` body as the system-prompt preamble.
 
 ### 5. Collect findings, run fix loop
 
@@ -59,12 +79,26 @@ Via the Skill tool. It reviews changed code for reuse / quality / efficiency and
 
 ### 7. Update the wiki
 
-Dispatch a wiki-update subagent with:
-- The committed diff (`<previous-tag>..HEAD`)
-- The current set of wiki pages
-- Instructions: update existing pages to match new reality, add new pages for net-new stable truths (see category-taxonomy.md), commit under `docs(wiki):` prefix.
+Dispatch the `wiki-maintainer` agent:
+
+```
+Agent tool:
+  subagent_type: "wiki-maintainer"
+  prompt:
+    - Diff: <previous-tag>..HEAD
+    - Plan file: <path>
+    - Task: update wiki/pages/* to describe what shipped.
+    - Commit under `docs(wiki):` prefix.
+```
+
+The agent's scope is `wiki/pages/` only — it cannot touch Sources/, Tests/,
+docs/, AGENTS.md, CLAUDE.md, or .claude/. New pages only if the plan
+explicitly asked for one (see `wiki/pages/category-taxonomy.md` for the
+taxonomy).
 
 Skip anything that's time-stamped (plan details, spec iteration) — those belong in `docs/`, not the wiki. The wiki captures evergreen truths only.
+
+**If the agent isn't registered**, fall back to `subagent_type: "general-purpose"` with `model: "sonnet"` and paste the body of `.claude/agents/wiki-maintainer.md` as the system-prompt preamble.
 
 ### 8. Tick the plan's checkboxes and add the Status line
 
