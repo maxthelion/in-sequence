@@ -33,3 +33,9 @@ Pods/
 
 # Local config
 *.local
+
+# Claude Code session state (per-environment)
+.claude/
+
+# Octowiki runtime state (regenerable caches / queues)
+wiki/.meta/
