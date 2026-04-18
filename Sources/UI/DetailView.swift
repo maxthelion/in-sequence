@@ -9,6 +9,14 @@ struct DetailView: View {
         document.model.selectedTrack
     }
 
+    private var phrase: PhraseModel {
+        document.model.selectedPhrase
+    }
+
+    private var selectedInstrumentSource: PhraseInstrumentSource {
+        phrase.instrumentSource(for: track.id)
+    }
+
     private var stepStates: [StepVisualState] {
         track.stepPattern.enumerated().map { index, isEnabled in
             guard isEnabled else {
@@ -32,7 +40,7 @@ struct DetailView: View {
     private var sourceEyebrow: String {
         switch track.trackType {
         case .instrument:
-            return "Instrument note-generation options and current live source"
+            return "\(phrase.name) source • \(selectedInstrumentSource.label)"
         case .drumRack:
             return "Tagged multi-lane drum source placeholder"
         case .sliceLoop:
@@ -43,7 +51,7 @@ struct DetailView: View {
     private var sourceSummary: String {
         switch track.trackType {
         case .instrument:
-            return "Manual Mono live"
+            return selectedInstrumentSource.isImplemented ? "Live now" : "Planned"
         case .drumRack, .sliceLoop:
             return "Planned"
         }
@@ -127,35 +135,8 @@ struct DetailView: View {
     }
 
     private var phraseWorkspace: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Phrase", eyebrow: "Macro grid and phrase-scoped pipeline graph", accent: StudioTheme.cyan) {
-                VStack(spacing: 14) {
-                    MacroRowPlaceholder(name: "Intensity", accent: StudioTheme.cyan)
-                    MacroRowPlaceholder(name: "Density", accent: StudioTheme.success)
-                    MacroRowPlaceholder(name: "Register", accent: StudioTheme.violet)
-                    MacroRowPlaceholder(name: "Tension", accent: StudioTheme.amber)
-                }
-            }
-
-            HStack(alignment: .top, spacing: 18) {
-                StudioPanel(title: "Planned Phrase Surface", eyebrow: "Sub-spec 2 placeholder", accent: StudioTheme.violet) {
-                    VStack(spacing: 12) {
-                        StudioPlaceholderTile(title: "Abstract Rows", detail: "Intensity, density, register, tension, variance, and brightness over the phrase.")
-                        StudioPlaceholderTile(title: "Concrete Rows", detail: "Mute, bus, send-A, send-B, fill flag, repeat amount, order preset, transpose, and swing.")
-                        StudioPlaceholderTile(title: "Row Source Toggle", detail: "Authored rows can later switch to generated sources without moving screens.")
-                    }
-                }
-
-                StudioPanel(title: "Pipeline Graph", eyebrow: "Blocks that will live under the phrase", accent: StudioTheme.amber) {
-                    VStack(spacing: 12) {
-                        PhrasePipelineNode(title: "Chord Context", detail: "Phrase-scoped chord generator feeding downstream tracks.")
-                        PhrasePipelineNode(title: "Track Pipelines", detail: "Per-track source → transform → sink graph.")
-                        PhrasePipelineNode(title: "Macro Writers", detail: "Generated rows that write back into macro coordinates.")
-                    }
-                }
-            }
-        }
-        .padding(20)
+        PhraseWorkspaceView(document: $document)
+            .padding(20)
     }
 
     private var trackWorkspace: some View {
@@ -165,15 +146,19 @@ struct DetailView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack(spacing: 10) {
                             StudioMetricPill(title: "Transport", value: engineController.transportPosition)
+                            StudioMetricPill(title: "Phrase", value: phrase.name, accent: StudioTheme.success)
                             StudioMetricPill(title: "BPM", value: "\(Int(engineController.currentBPM.rounded()))", accent: StudioTheme.amber)
                             StudioMetricPill(title: "Type", value: track.trackType.shortLabel, accent: sourceAccent)
+                            if track.trackType == .instrument {
+                                StudioMetricPill(title: "Source", value: selectedInstrumentSource.shortLabel, accent: sourceAccent)
+                            }
                             StudioMetricPill(title: "Status", value: sourceSummary, accent: StudioTheme.violet)
                         }
 
-                        TrackTypePalette(selectedTrackType: $document.model.selectedTrack.trackType)
+                        TrackTypePalette(selectedTrackType: trackTypeBinding)
 
                         if track.trackType == .instrument {
-                            InstrumentSourcePalette()
+                            InstrumentSourcePalette(selectedSource: instrumentSourceBinding)
                         }
 
                         Text("The left side models how this track creates note material. Track type decides the editor shape; phrase-scoped source modes and transforms will later plug into that shape without forcing one giant persisted source enum.")
@@ -182,7 +167,7 @@ struct DetailView: View {
                     }
                 }
 
-                if track.trackType == .instrument {
+                if track.trackType == .instrument && selectedInstrumentSource == .manualMono {
                     StudioPanel(title: track.name, eyebrow: engineController.statusSummary, accent: StudioTheme.cyan) {
                         VStack(alignment: .leading, spacing: 16) {
                             StepGridView(stepStates: stepStates) { index in
@@ -253,6 +238,14 @@ struct DetailView: View {
                             }
                         }
                     }
+                } else if track.trackType == .instrument {
+                    StudioPanel(title: selectedInstrumentSource.label, eyebrow: "Phrase-scoped source placeholder", accent: sourceAccent) {
+                        VStack(spacing: 12) {
+                            ForEach(instrumentSourcePlaceholderTiles, id: \.title) { tile in
+                                StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
+                            }
+                        }
+                    }
                 } else {
                     StudioPanel(title: track.trackType.label, eyebrow: "Planned source editor coverage", accent: sourceAccent) {
                         VStack(spacing: 12) {
@@ -272,17 +265,17 @@ struct DetailView: View {
                             StudioMetricPill(title: "Destination", value: destinationSummary, accent: StudioTheme.violet)
                         }
 
-                        TextField("Track Name", text: $document.model.selectedTrack.name)
+                        TextField("Track Name", text: trackNameBinding)
                             .textFieldStyle(.roundedBorder)
 
-                        Picker("Track Type", selection: $document.model.selectedTrack.trackType) {
+                        Picker("Track Type", selection: trackTypeBinding) {
                             ForEach(TrackType.allCases, id: \.self) { trackType in
                                 Text(trackType.label).tag(trackType)
                             }
                         }
                         .pickerStyle(.segmented)
 
-                        Picker("Output", selection: $document.model.selectedTrack.output) {
+                        Picker("Output", selection: trackOutputBinding) {
                             ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
                                 Text(destination.label).tag(destination)
                             }
@@ -290,7 +283,7 @@ struct DetailView: View {
                         .pickerStyle(.segmented)
 
                         if document.model.selectedTrack.output == .auInstrument {
-                            Picker("Instrument", selection: $document.model.selectedTrack.audioInstrument) {
+                            Picker("Instrument", selection: audioInstrumentBinding) {
                                 ForEach(engineController.availableAudioInstruments, id: \.self) { instrument in
                                     Text(instrument.displayName).tag(instrument)
                                 }
@@ -417,6 +410,47 @@ struct DetailView: View {
         )
     }
 
+    private var trackNameBinding: Binding<String> {
+        Binding(
+            get: { document.model.selectedTrack.name },
+            set: { document.model.selectedTrack.name = $0 }
+        )
+    }
+
+    private var trackTypeBinding: Binding<TrackType> {
+        Binding(
+            get: { document.model.selectedTrack.trackType },
+            set: { document.model.selectedTrack.trackType = $0 }
+        )
+    }
+
+    private var trackOutputBinding: Binding<TrackOutputDestination> {
+        Binding(
+            get: { document.model.selectedTrack.output },
+            set: { document.model.selectedTrack.output = $0 }
+        )
+    }
+
+    private var audioInstrumentBinding: Binding<AudioInstrumentChoice> {
+        Binding(
+            get: { document.model.selectedTrack.audioInstrument },
+            set: { document.model.selectedTrack.audioInstrument = $0 }
+        )
+    }
+
+    private var instrumentSourceBinding: Binding<PhraseInstrumentSource> {
+        Binding(
+            get: {
+                document.model.selectedPhrase.instrumentSource(for: track.id)
+            },
+            set: { newValue in
+                var updatedPhrase = document.model.selectedPhrase
+                updatedPhrase.setInstrumentSource(newValue, for: track.id)
+                document.model.selectedPhrase = updatedPhrase
+            }
+        )
+    }
+
     private var libraryTiles: [(title: String, body: String, accent: Color)] {
         [
             ("Templates", "Tagged rhythmic starting points for tracks and future drum voices.", StudioTheme.cyan),
@@ -432,11 +466,7 @@ struct DetailView: View {
     private var trackTypePlaceholderTiles: [(title: String, detail: String, accent: Color)] {
         switch track.trackType {
         case .instrument:
-            return [
-                ("Manual Mono", "One monophonic step pattern drives one pitch cycle. This is the only live source mode today.", StudioTheme.cyan),
-                ("Clip Reader", "Frozen or hand-authored note material owned by the phrase, including step annotations and locks.", StudioTheme.violet),
-                ("MIDI In / Template", "External input and template-backed starts stay as phrase-scoped source choices inside the instrument track shape.", StudioTheme.amber)
-            ]
+            return []
         case .drumRack:
             return [
                 ("Tagged Drum Source", "One logical source emits tagged notes for kick, snare, hats, and other voices.", StudioTheme.amber),
@@ -448,6 +478,31 @@ struct DetailView: View {
                 ("Slice Trigger Source", "A sliced loop behaves like a tagged note source where slices are the voices.", StudioTheme.violet),
                 ("Planned Editor", "Waveform, slice boundaries, tags, and slice-trigger lanes will live here once the audio-side plans land.", StudioTheme.cyan),
                 ("Shared Destination Story", "Slice tags route through the same future voice-route destination model as drums.", StudioTheme.amber)
+            ]
+        }
+    }
+
+    private var instrumentSourcePlaceholderTiles: [(title: String, detail: String, accent: Color)] {
+        switch selectedInstrumentSource {
+        case .manualMono:
+            return []
+        case .clipReader:
+            return [
+                ("Clip Reader", "Phrase-owned clip material with step annotations and later parameter locks.", StudioTheme.violet),
+                ("Freeze / Stamp", "This source is where frozen generator output and hand-authored clips will land.", StudioTheme.cyan),
+                ("Current Gap", "The phrase model now persists the source choice; the actual clip data/editor lands in the next block-focused slice.", StudioTheme.amber)
+            ]
+        case .template:
+            return [
+                ("Template Source", "Templates will stamp a starting point into the active phrase without changing the track's long-lived identity.", StudioTheme.amber),
+                ("Library Link", "This mode will browse from the Templates library and preserve later phrase-specific edits.", StudioTheme.cyan),
+                ("Current Gap", "Selection is now phrase-scoped and persisted; template asset loading is still to come.", StudioTheme.violet)
+            ]
+        case .midiIn:
+            return [
+                ("Live Feed", "External MIDI becomes a phrase-scoped source block rather than a global track setting.", StudioTheme.success),
+                ("Capture + Monitor", "Planned controls include endpoint selection, thru, quantise, and capture behavior.", StudioTheme.cyan),
+                ("Current Gap", "The phrase model now reserves this home; actual MIDI-in block plumbing is still ahead.", StudioTheme.amber)
             ]
         }
     }
@@ -621,44 +676,65 @@ private struct TrackTypePalette: View {
 }
 
 private struct InstrumentSourcePalette: View {
-    private let tiles: [(title: String, detail: String, status: String, accent: Color)] = [
-        ("Manual Mono", "Current live monophonic step sequencer and pitch cycle.", "LIVE", StudioTheme.cyan),
-        ("Clip Reader", "Frozen or authored clip source owned by the active phrase.", "PLANNED", StudioTheme.violet),
-        ("Template", "Template-backed starting point stamped from the library.", "PLANNED", StudioTheme.amber),
-        ("MIDI In", "External MIDI capture and monitoring source.", "PLANNED", StudioTheme.success)
-    ]
+    @Binding var selectedSource: PhraseInstrumentSource
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 10) {
-            ForEach(tiles, id: \.title) { tile in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(tile.title.uppercased())
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .tracking(0.9)
-                            .foregroundStyle(StudioTheme.text)
+            ForEach(PhraseInstrumentSource.allCases, id: \.self) { source in
+                Button {
+                    selectedSource = source
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(source.label.uppercased())
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .tracking(0.9)
+                                .foregroundStyle(StudioTheme.text)
 
-                        Spacer(minLength: 8)
+                            Spacer(minLength: 8)
 
-                        Text(tile.status)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .tracking(0.9)
-                            .foregroundStyle(tile.accent)
+                            Text(source.isImplemented ? "LIVE" : "PLANNED")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .tracking(0.9)
+                                .foregroundStyle(accent(for: source))
+                        }
+
+                        Text(source.detail)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-
-                    Text(tile.detail)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(fill(for: source), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(stroke(for: source), lineWidth: 1)
+                    )
                 }
-                .padding(14)
-                .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(tile.accent.opacity(tile.status == "LIVE" ? 0.5 : 0.2), lineWidth: 1)
-                )
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    private func accent(for source: PhraseInstrumentSource) -> Color {
+        switch source {
+        case .manualMono:
+            return StudioTheme.cyan
+        case .clipReader:
+            return StudioTheme.violet
+        case .template:
+            return StudioTheme.amber
+        case .midiIn:
+            return StudioTheme.success
+        }
+    }
+
+    private func fill(for source: PhraseInstrumentSource) -> Color {
+        selectedSource == source ? accent(for: source).opacity(0.14) : Color.white.opacity(0.03)
+    }
+
+    private func stroke(for source: PhraseInstrumentSource) -> Color {
+        selectedSource == source ? accent(for: source).opacity(0.52) : StudioTheme.border
     }
 }
 

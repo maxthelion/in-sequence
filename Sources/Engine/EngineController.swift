@@ -122,7 +122,16 @@ final class EngineController {
     }
 
     func apply(track: StepSequenceTrack) {
-        apply(documentModel: SeqAIDocumentModel(version: 1, tracks: [track], selectedTrackID: track.id))
+        let phrase = PhraseModel.default(tracks: [track])
+        apply(
+            documentModel: SeqAIDocumentModel(
+                version: 1,
+                tracks: [track],
+                selectedTrackID: track.id,
+                phrases: [phrase],
+                selectedPhraseID: phrase.id
+            )
+        )
     }
 
     var registeredKindIDs: [String] {

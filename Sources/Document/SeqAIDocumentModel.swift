@@ -4,11 +4,15 @@ struct SeqAIDocumentModel: Codable, Equatable {
     var version: Int
     var tracks: [StepSequenceTrack]
     var selectedTrackID: UUID
+    var phrases: [PhraseModel]
+    var selectedPhraseID: UUID
 
     private enum CodingKeys: String, CodingKey {
         case version
         case tracks
         case selectedTrackID
+        case phrases
+        case selectedPhraseID
         case primaryTrack
     }
 
@@ -17,7 +21,11 @@ struct SeqAIDocumentModel: Codable, Equatable {
         tracks: [
             .default
         ],
-        selectedTrackID: StepSequenceTrack.default.id
+        selectedTrackID: StepSequenceTrack.default.id,
+        phrases: [
+            .default(tracks: [.default])
+        ],
+        selectedPhraseID: PhraseModel.default(tracks: [.default]).id
     )
 
     var selectedTrackIndex: Int {
@@ -43,11 +51,41 @@ struct SeqAIDocumentModel: Codable, Equatable {
         }
     }
 
+    var selectedPhraseIndex: Int {
+        phrases.firstIndex(where: { $0.id == selectedPhraseID }) ?? 0
+    }
+
+    var selectedPhrase: PhraseModel {
+        get {
+            let fallback = PhraseModel.default(tracks: tracks)
+            guard !phrases.isEmpty else {
+                return fallback
+            }
+            return phrases[selectedPhraseIndex]
+        }
+        set {
+            guard !phrases.isEmpty else {
+                phrases = [newValue.synced(with: tracks)]
+                selectedPhraseID = phrases[0].id
+                return
+            }
+            phrases[selectedPhraseIndex] = newValue.synced(with: tracks)
+            selectedPhraseID = phrases[selectedPhraseIndex].id
+        }
+    }
+
     mutating func selectTrack(id: UUID) {
         guard tracks.contains(where: { $0.id == id }) else {
             return
         }
         selectedTrackID = id
+    }
+
+    mutating func selectPhrase(id: UUID) {
+        guard phrases.contains(where: { $0.id == id }) else {
+            return
+        }
+        selectedPhraseID = id
     }
 
     mutating func appendTrack() {
@@ -61,6 +99,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         )
         tracks.append(nextTrack)
         selectedTrackID = nextTrack.id
+        syncPhrasesWithTracks()
     }
 
     mutating func removeSelectedTrack() {
@@ -70,12 +109,26 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
         tracks.remove(at: selectedTrackIndex)
         selectedTrackID = tracks[min(selectedTrackIndex, tracks.count - 1)].id
+        syncPhrasesWithTracks()
     }
 
     init(version: Int, tracks: [StepSequenceTrack], selectedTrackID: UUID) {
+        let defaultPhrases = [PhraseModel.default(tracks: tracks)]
+        self.init(
+            version: version,
+            tracks: tracks,
+            selectedTrackID: selectedTrackID,
+            phrases: defaultPhrases,
+            selectedPhraseID: defaultPhrases[0].id
+        )
+    }
+
+    init(version: Int, tracks: [StepSequenceTrack], selectedTrackID: UUID, phrases: [PhraseModel], selectedPhraseID: UUID) {
         self.version = version
         self.tracks = tracks
         self.selectedTrackID = selectedTrackID
+        self.phrases = phrases.isEmpty ? [.default(tracks: tracks)] : phrases.map { $0.synced(with: tracks) }
+        self.selectedPhraseID = self.phrases.contains(where: { $0.id == selectedPhraseID }) ? selectedPhraseID : self.phrases[0].id
     }
 
     init(from decoder: Decoder) throws {
@@ -85,17 +138,35 @@ struct SeqAIDocumentModel: Codable, Equatable {
         if let decodedTracks = try container.decodeIfPresent([StepSequenceTrack].self, forKey: .tracks),
            !decodedTracks.isEmpty
         {
-            tracks = decodedTracks
-            selectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID) ?? decodedTracks[0].id
-            if !tracks.contains(where: { $0.id == selectedTrackID }) {
-                selectedTrackID = tracks[0].id
+            let resolvedTracks = decodedTracks
+            var resolvedSelectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID) ?? resolvedTracks[0].id
+            if !resolvedTracks.contains(where: { $0.id == resolvedSelectedTrackID }) {
+                resolvedSelectedTrackID = resolvedTracks[0].id
             }
+            let resolvedPhrases: [PhraseModel]
+            if let decodedPhrases = try container.decodeIfPresent([PhraseModel].self, forKey: .phrases),
+               !decodedPhrases.isEmpty
+            {
+                resolvedPhrases = decodedPhrases.map { $0.synced(with: resolvedTracks) }
+            } else {
+                resolvedPhrases = [.default(tracks: resolvedTracks)]
+            }
+            var resolvedSelectedPhraseID = try container.decodeIfPresent(UUID.self, forKey: .selectedPhraseID) ?? resolvedPhrases[0].id
+            if !resolvedPhrases.contains(where: { $0.id == resolvedSelectedPhraseID }) {
+                resolvedSelectedPhraseID = resolvedPhrases[0].id
+            }
+            tracks = resolvedTracks
+            selectedTrackID = resolvedSelectedTrackID
+            phrases = resolvedPhrases
+            selectedPhraseID = resolvedSelectedPhraseID
             return
         }
 
         let fallbackTrack = try container.decodeIfPresent(StepSequenceTrack.self, forKey: .primaryTrack) ?? .default
         tracks = [fallbackTrack]
         selectedTrackID = fallbackTrack.id
+        phrases = [.default(tracks: tracks)]
+        selectedPhraseID = phrases[0].id
     }
 
     func encode(to encoder: Encoder) throws {
@@ -103,6 +174,22 @@ struct SeqAIDocumentModel: Codable, Equatable {
         try container.encode(version, forKey: .version)
         try container.encode(tracks, forKey: .tracks)
         try container.encode(selectedTrackID, forKey: .selectedTrackID)
+        try container.encode(phrases, forKey: .phrases)
+        try container.encode(selectedPhraseID, forKey: .selectedPhraseID)
+    }
+
+    private mutating func syncPhrasesWithTracks() {
+        if phrases.isEmpty {
+            let fallback = PhraseModel.default(tracks: tracks)
+            phrases = [fallback]
+            selectedPhraseID = fallback.id
+            return
+        }
+
+        phrases = phrases.map { $0.synced(with: tracks) }
+        if !phrases.contains(where: { $0.id == selectedPhraseID }) {
+            selectedPhraseID = phrases[0].id
+        }
     }
 }
 

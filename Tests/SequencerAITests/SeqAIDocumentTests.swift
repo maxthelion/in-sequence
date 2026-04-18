@@ -13,11 +13,15 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTrack.output, .midiOut)
         XCTAssertEqual(model.selectedTrack.audioInstrument, .builtInSynth)
         XCTAssertEqual(model.selectedTrack.mix, .default)
+        XCTAssertEqual(model.phrases.count, 1)
+        XCTAssertEqual(model.selectedPhrase.name, "Phrase A")
+        XCTAssertEqual(model.selectedPhrase.instrumentSource(for: StepSequenceTrack.default.id), .manualMono)
     }
 
     func test_codable_roundtrip_preserves_empty() throws {
         let bassID = UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID()
         let leadID = UUID(uuidString: "33333333-3333-3333-3333-333333333333") ?? UUID()
+        let phraseID = UUID(uuidString: "66666666-6666-6666-6666-666666666666") ?? UUID()
         let original = SeqAIDocumentModel(
             version: 1,
             tracks: [
@@ -47,7 +51,22 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     gateLength: 3
                 )
             ],
-            selectedTrackID: leadID
+            selectedTrackID: leadID,
+            phrases: [
+                PhraseModel(
+                    id: phraseID,
+                    name: "Verse",
+                    lengthBars: 4,
+                    stepsPerBar: 16,
+                    abstractRows: PhraseAbstractKind.allCases.map {
+                        PhraseAbstractRow(kind: $0, values: Array(repeating: 0.5, count: 64))
+                    },
+                    trackPipelines: [
+                        PhraseTrackPipeline(trackID: bassID, instrumentSource: .clipReader)
+                    ]
+                )
+            ],
+            selectedPhraseID: phraseID
         )
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: data)
@@ -62,6 +81,8 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.tracks.count, 2)
         XCTAssertEqual(model.selectedTrack.id, model.tracks.last?.id)
         XCTAssertEqual(model.selectedTrack.name, "Track 2")
+        XCTAssertEqual(model.selectedPhrase.trackPipelines.count, 2)
+        XCTAssertEqual(model.selectedPhrase.instrumentSource(for: model.selectedTrack.id), .manualMono)
     }
 
     func test_remove_selected_track_falls_back_to_neighbour() {
@@ -101,6 +122,8 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded.selectedTrack.output, .midiOut)
         XCTAssertEqual(decoded.selectedTrack.audioInstrument, .builtInSynth)
         XCTAssertEqual(decoded.selectedTrack.mix, .default)
+        XCTAssertEqual(decoded.phrases.count, 1)
+        XCTAssertEqual(decoded.selectedPhrase.instrumentSource(for: decoded.selectedTrack.id), .manualMono)
     }
 
     func test_decodes_track_type_when_present() throws {
@@ -174,6 +197,16 @@ final class SeqAIDocumentModelTests: XCTestCase {
         track.cycleStep(at: 0)
         XCTAssertEqual(track.stepPattern, [false])
         XCTAssertEqual(track.stepAccents, [false])
+    }
+
+    func test_selected_phrase_can_store_phrase_scoped_instrument_source() {
+        var model = SeqAIDocumentModel.empty
+
+        var phrase = model.selectedPhrase
+        phrase.setInstrumentSource(.template, for: model.selectedTrack.id)
+        model.selectedPhrase = phrase
+
+        XCTAssertEqual(model.selectedPhrase.instrumentSource(for: model.selectedTrack.id), .template)
     }
 }
 
