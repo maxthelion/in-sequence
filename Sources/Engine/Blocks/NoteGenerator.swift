@@ -1,8 +1,10 @@
 final class NoteGenerator: Block {
     static let defaultPitches: [UInt8] = [60, 62, 64, 65, 67, 69, 71, 72]
     static let defaultStepPattern: [Bool] = Array(repeating: true, count: 16)
+    static let defaultAccentPattern: [Bool] = Array(repeating: false, count: 16)
     static let defaultVelocity: UInt8 = 100
     static let defaultGateLength: UInt16 = 4
+    static let accentBoost: UInt8 = 20
 
     static let inputs: [PortSpec] = []
     static let outputs: [PortSpec] = [
@@ -13,6 +15,7 @@ final class NoteGenerator: Block {
 
     private var pitches: [UInt8]
     private var stepPattern: [Bool]
+    private var accentPattern: [Bool]
     private var velocity: UInt8
     private var gateLength: UInt16
 
@@ -20,6 +23,7 @@ final class NoteGenerator: Block {
         self.id = id
         self.pitches = Self.defaultPitches
         self.stepPattern = Self.defaultStepPattern
+        self.accentPattern = Self.defaultAccentPattern
         self.velocity = Self.defaultVelocity
         self.gateLength = Self.defaultGateLength
 
@@ -39,9 +43,10 @@ final class NoteGenerator: Block {
         }
 
         let pitchIndex = Int(context.tickIndex % UInt64(pitches.count))
+        let stepVelocity = accentPattern[stepIndex] ? velocity.midiClampedAdd(Self.accentBoost) : velocity
         let event = NoteEvent(
             pitch: pitches[pitchIndex],
-            velocity: velocity,
+            velocity: stepVelocity,
             length: gateLength,
             gate: true,
             voiceTag: nil
@@ -63,6 +68,13 @@ final class NoteGenerator: Block {
                 return
             }
             stepPattern = values.map { $0 != 0 }
+            accentPattern = Self.normalizedPattern(accentPattern, stepCount: stepPattern.count)
+
+        case let ("accentPattern", .integers(values)):
+            guard !values.isEmpty else {
+                return
+            }
+            accentPattern = Self.normalizedPattern(values.map { $0 != 0 }, stepCount: stepPattern.count)
 
         case let ("velocity", .number(nextVelocity)):
             guard let velocity = Self.midiByte(from: Int(nextVelocity.rounded())) else {
@@ -88,5 +100,15 @@ final class NoteGenerator: Block {
             return nil
         }
         return UInt8(value)
+    }
+
+    private static func normalizedPattern(_ pattern: [Bool], stepCount: Int) -> [Bool] {
+        Array(pattern.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - pattern.count))
+    }
+}
+
+private extension UInt8 {
+    func midiClampedAdd(_ other: UInt8) -> UInt8 {
+        UInt8(Swift.min(Int(self) + Int(other), 127))
     }
 }

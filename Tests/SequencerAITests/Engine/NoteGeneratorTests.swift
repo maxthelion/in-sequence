@@ -38,6 +38,20 @@ final class NoteGeneratorTests: XCTestCase {
         }
     }
 
+    func test_accent_pattern_boosts_step_velocity() {
+        let generator = NoteGenerator(id: "gen", params: [
+            "stepPattern": .integers([1, 1]),
+            "accentPattern": .integers([0, 1]),
+            "velocity": .number(90)
+        ])
+
+        let first = notes(from: generator.tick(context: makeContext(tick: 0)))
+        let second = notes(from: generator.tick(context: makeContext(tick: 1)))
+
+        XCTAssertEqual(first.first?.velocity, 90)
+        XCTAssertEqual(second.first?.velocity, 110)
+    }
+
     func test_registers_in_block_registry_under_note_generator() throws {
         let registry = BlockRegistry()
 

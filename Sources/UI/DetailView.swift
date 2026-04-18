@@ -8,6 +8,15 @@ struct DetailView: View {
         document.model.selectedTrack
     }
 
+    private var stepStates: [StepVisualState] {
+        track.stepPattern.enumerated().map { index, isEnabled in
+            guard isEnabled else {
+                return .off
+            }
+            return track.stepAccents[index] ? .accented : .on
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             TransportBar()
@@ -44,12 +53,31 @@ struct DetailView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Pattern")
-                            .font(.headline)
+                        HStack {
+                            Text("Pattern")
+                                .font(.headline)
 
-                        StepGridView(steps: track.stepPattern) { index in
-                            toggleStep(at: index)
+                            Spacer()
+
+                            Button("Accent Downbeats") {
+                                document.model.selectedTrack.accentDownbeats()
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button("Clear Accents") {
+                                document.model.selectedTrack.clearAccents()
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(track.accentedStepCount == 0)
                         }
+
+                        StepGridView(stepStates: stepStates) { index in
+                            advanceStep(at: index)
+                        }
+
+                        Text("Click a step to cycle Off, On, and Accented.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
@@ -82,11 +110,8 @@ struct DetailView: View {
         }
     }
 
-    private func toggleStep(at index: Int) {
-        guard document.model.selectedTrack.stepPattern.indices.contains(index) else {
-            return
-        }
-        document.model.selectedTrack.stepPattern[index].toggle()
+    private func advanceStep(at index: Int) {
+        document.model.selectedTrack.cycleStep(at: index)
     }
 }
 

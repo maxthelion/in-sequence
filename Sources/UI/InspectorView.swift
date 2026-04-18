@@ -61,7 +61,8 @@ struct InspectorView: View {
             }
 
             Section("Summary") {
-                LabeledContent("Active steps", value: "\(track.stepPattern.filter { $0 }.count)")
+                LabeledContent("Active steps", value: "\(track.activeStepCount)")
+                LabeledContent("Accented steps", value: "\(track.accentedStepCount)")
                 LabeledContent("Pitch count", value: "\(track.pitches.count)")
                 LabeledContent("Track ID", value: track.id.uuidString.prefix(8).description)
             }

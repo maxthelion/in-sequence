@@ -42,6 +42,7 @@ final class EngineControllerTests: XCTestCase {
             name: "Bass",
             pitches: [36],
             stepPattern: [true, false],
+            stepAccents: [false, false],
             velocity: 90,
             gateLength: 4
         )
@@ -50,6 +51,7 @@ final class EngineControllerTests: XCTestCase {
             name: "Lead",
             pitches: [72],
             stepPattern: [false, true],
+            stepAccents: [false, true],
             velocity: 111,
             gateLength: 2
         )
@@ -74,7 +76,7 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertTrue(firstNotes.isEmpty)
         XCTAssertEqual(secondNotes.count, 1)
         XCTAssertEqual(secondNotes.first?.pitch, 72)
-        XCTAssertEqual(secondNotes.first?.velocity, 111)
+        XCTAssertEqual(secondNotes.first?.velocity, 127)
         XCTAssertEqual(secondNotes.first?.length, 2)
     }
 }

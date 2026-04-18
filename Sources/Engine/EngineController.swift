@@ -85,6 +85,11 @@ final class EngineController {
         )
         setParam(
             blockID: "gen",
+            paramKey: "accentPattern",
+            value: .integers(track.stepAccents.map { $0 ? 1 : 0 })
+        )
+        setParam(
+            blockID: "gen",
             paramKey: "velocity",
             value: .number(Double(track.velocity))
         )

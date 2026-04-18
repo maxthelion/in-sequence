@@ -8,6 +8,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.tracks, [.default])
         XCTAssertEqual(model.selectedTrackID, StepSequenceTrack.default.id)
         XCTAssertEqual(model.selectedTrack, .default)
+        XCTAssertEqual(model.selectedTrack.stepAccents, Array(repeating: false, count: 16))
     }
 
     func test_codable_roundtrip_preserves_empty() throws {
@@ -21,6 +22,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     name: "Bass",
                     pitches: [36, 43],
                     stepPattern: [true, false, true, false],
+                    stepAccents: [false, true, false, false],
                     velocity: 92,
                     gateLength: 2
                 ),
@@ -29,6 +31,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     name: "Lead",
                     pitches: [72, 76],
                     stepPattern: [true, true, false, true],
+                    stepAccents: [true, false, false, true],
                     velocity: 101,
                     gateLength: 3
                 )
@@ -51,7 +54,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
     }
 
     func test_remove_selected_track_falls_back_to_neighbour() {
-        let trackTwo = StepSequenceTrack(name: "Track 2", pitches: [48], stepPattern: [true, false], velocity: 90, gateLength: 2)
+        let trackTwo = StepSequenceTrack(name: "Track 2", pitches: [48], stepPattern: [true, false], stepAccents: [false, true], velocity: 90, gateLength: 2)
         var model = SeqAIDocumentModel(
             version: 1,
             tracks: [.default, trackTwo],
@@ -62,6 +65,43 @@ final class SeqAIDocumentModelTests: XCTestCase {
 
         XCTAssertEqual(model.tracks, [.default])
         XCTAssertEqual(model.selectedTrackID, StepSequenceTrack.default.id)
+    }
+
+    func test_decodes_legacy_single_track_documents() throws {
+        let json = """
+        {
+          "version": 1,
+          "primaryTrack": {
+            "name": "Legacy",
+            "pitches": [60, 67],
+            "stepPattern": [true, false, true, false],
+            "velocity": 99,
+            "gateLength": 3
+          }
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
+
+        XCTAssertEqual(decoded.tracks.count, 1)
+        XCTAssertEqual(decoded.selectedTrack.name, "Legacy")
+        XCTAssertEqual(decoded.selectedTrack.stepAccents, [false, false, false, false])
+    }
+
+    func test_cycle_step_moves_between_off_on_and_accented() {
+        var track = StepSequenceTrack(name: "Lead", pitches: [72], stepPattern: [false], velocity: 100, gateLength: 4)
+
+        track.cycleStep(at: 0)
+        XCTAssertEqual(track.stepPattern, [true])
+        XCTAssertEqual(track.stepAccents, [false])
+
+        track.cycleStep(at: 0)
+        XCTAssertEqual(track.stepPattern, [true])
+        XCTAssertEqual(track.stepAccents, [true])
+
+        track.cycleStep(at: 0)
+        XCTAssertEqual(track.stepPattern, [false])
+        XCTAssertEqual(track.stepAccents, [false])
     }
 }
 
