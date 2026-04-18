@@ -114,21 +114,29 @@ From the shoe-makers pattern: each phase hands off a well-scoped brief.
 
 If `execute-work-item` is reading broadly to figure out what to do, the prioritise step didn't write a good brief. That's a signal to improve the prioritise prompt, not to workaround in execute.
 
-## Per-action subagent configuration (ongoing work)
+## Per-action subagent configuration
 
-The current implementation dispatches all actions through a `general-purpose` subagent. Future iterations are moving to **role-specialised subagents** (e.g., a dedicated reviewer agent, implementer agent, wiki-maintainer agent), declared in `.claude/agents/` with appropriate permission scoping. If you find `.claude/agents/*.md` files on a fresh land, they're the current roster. Check `.claude/settings.json` for agent-specific hook overrides.
+Role-specialised subagents live in `.claude/agents/*.md`. Each declares its `description`, `tools` surface, and `model`. Path-level permissions (e.g. wiki-maintainer editing only `wiki/pages/`) are convention-enforced in the agent system prompts — Claude Code's subagent layer doesn't yet enforce path scoping natively.
 
-Role-based permissions aren't yet enforced by Claude Code's subagent layer natively — today it's by convention in the dispatch prompts.
+Current roster:
 
-### Model selection
+| Agent                       | Model   | Scope                                                                               | Dispatched for                                               |
+|-----------------------------|---------|-------------------------------------------------------------------------------------|--------------------------------------------------------------|
+| `implementer`               | sonnet  | Sources/, Tests/, `.claude/state/` (consumes briefs only)                           | fix-tests, fix-critique, continue-partial-work, execute-work-item, promote-plan-task-to-work-item |
+| `spec-reviewer`             | sonnet  | Read-only                                                                           | Three-stage review (stage 1)                                 |
+| `code-quality-reviewer`     | sonnet  | Read-only                                                                           | Three-stage review (stage 2)                                 |
+| `adversarial-reviewer`      | opus    | Read-only                                                                           | Three-stage review (stage 3); BT's adversarial-review action |
+| `wiki-maintainer`           | sonnet  | `wiki/pages/` only                                                                  | After a plan's completion; called from execute-plan step 7   |
+| `explorer`                  | haiku   | Read-only except `.claude/state/candidates.md`                                      | BT's explore action                                          |
+| `prioritiser`               | sonnet  | Read-only except `.claude/state/work-item.md` + `candidates.md` annotation          | BT's prioritise action                                       |
 
-**Implementation subagents must use Sonnet 4.5 or newer.** In the `Agent` tool, pass `model: "sonnet"` (which resolves to the current default — Sonnet 4.6 / Opus 4.7) explicitly. Never dispatch code-writing work to Haiku or older Sonnet. This applies to:
+### Model selection rationale
 
-- `execute-work-item`, `fix-critique`, `fix-tests`, `continue-partial-work` (implementers)
-- `promote-plan-task-to-work-item` execution
-- `write-next-plan` (invokes `superpowers:writing-plans`, which itself dispatches further)
+- **Sonnet** is the default for judgment work — code writing (implementer), reviewing (spec, quality), prose (wiki), and decision work (prioritiser). The memory rule is strict: **code-writing dispatches must pass `model: "sonnet"` explicitly**; never send code-writing work to Haiku or older Sonnet.
+- **Opus** is reserved for the adversarial reviewer. It's the last line of defence before tag/ship; a caught bug in review is ~100× cheaper than one in production, so the best model is warranted.
+- **Haiku** is used for bulk, rubric-driven scanning (explorer). Judgement about which candidate to pursue is deferred to the prioritiser; the explorer's job is surface area, not selection.
 
-Reviewers (spec-compliance, code-quality, adversarial), explore / prioritise coordinators, and status-summary agents can use default models — the quality bar for review / triage is lower-stakes than for code generation.
+When invoking an agent via the `Agent` tool, the `subagent_type` parameter matches the agent's `name` frontmatter. The model is taken from the agent's frontmatter unless overridden explicitly.
 
 ## Common failure modes
 

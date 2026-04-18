@@ -43,19 +43,21 @@ Inspiration: <https://github.com/maxthelion/shoe-makers>
 
 ## Action table
 
-| Action name | Dispatch | State updates after success |
+| Action name | Agent / dispatch | State updates after success |
 |---|---|---|
-| `verify-tests` | A test-runner subagent that runs `xcodebuild test` and captures output. On pass: write HEAD SHA to `state/last-tests-sha`. On fail: write output to `state/last-tests-failure.md`. | last-tests-sha or last-tests-failure.md |
-| `fix-tests` | An implementer subagent briefed with `state/last-tests-failure.md`. Scope: make tests green without changing contracts. | Delete last-tests-failure.md; update last-tests-sha. Commit. |
-| `fix-critique` | An implementer briefed with the oldest file in `state/review-queue/`. Scope: address the critique exactly, no scope creep. | Delete the critique file. Commit. |
-| `continue-partial-work` | An implementer briefed with `state/partial-work.md`. Picks up where the previous agent left off. | Delete partial-work.md on completion. Commit. |
-| `adversarial-review` | Invoke the `/adversarial-review` skill against the diff specified in next-action.md. Collect findings. Write each finding as a file in `state/review-queue/` (name: `severity-slug.md`). | Update `state/last-review-sha` to current HEAD. |
-| `handle-inbox` | A subagent briefed with the oldest file in `state/inbox/`. Act on the message (redirect, candidate, plan edit, direct task). | Move the file to `state/inbox/archive/`. |
-| `execute-work-item` | An implementer via `superpowers:subagent-driven-development` briefed with `state/work-item.md`. | Delete work-item.md on DONE. Commit. |
-| `prioritise` | A small coordinator subagent. Reads `state/candidates.md` + the code-review checklist. Picks one, writes a detailed `state/work-item.md`. Marks the candidate as chosen. | Write work-item.md. Update candidates.md. No code commit (state file changes may be committed separately). |
-| `promote-plan-task-to-work-item` | Mechanical transformation. Read the named plan file, extract the next-unticked task's full section, write it as `state/work-item.md`. | Write work-item.md. |
-| `write-next-plan` | Invoke `superpowers:writing-plans` for the next unfinished sub-spec. | Writes `docs/plans/YYYY-MM-DD-<slug>.md`. Commit. |
-| `explore` | A researcher subagent. Runs `octowiki-invariants` (if present), `octoclean` (if installed in sibling dir), scans for TODOs / test-coverage gaps / wiki-code drift. Writes findings ranked into `state/candidates.md`. | Write candidates.md. |
+| `verify-tests` | `general-purpose` subagent (narrow test-runner brief — no dedicated agent needed for a mechanical command). Runs `xcodebuild test` and captures output. On pass: write HEAD SHA to `state/last-tests-sha`. On fail: write output to `state/last-tests-failure.md`. | last-tests-sha or last-tests-failure.md |
+| `fix-tests` | `implementer` agent briefed with `state/last-tests-failure.md`. Scope: make tests green without changing contracts. | Delete last-tests-failure.md; update last-tests-sha. Commit. |
+| `fix-critique` | `implementer` agent briefed with the oldest file in `state/review-queue/`. Scope: address the critique exactly, no scope creep. | Delete the critique file. Commit. |
+| `continue-partial-work` | `implementer` agent briefed with `state/partial-work.md`. Picks up where the previous agent left off. | Delete partial-work.md on completion. Commit. |
+| `adversarial-review` | Invoke the `/adversarial-review` skill against the diff specified in next-action.md — the skill dispatches the `adversarial-reviewer` agent. Collect findings. Write each as a file in `state/review-queue/` (`severity-slug.md`). | Update `state/last-review-sha` to current HEAD. |
+| `handle-inbox` | `general-purpose` subagent briefed with the oldest file in `state/inbox/`. Act on the message (redirect, candidate, plan edit, direct task). If the message requires user action, the skill exits and leaves the file in place. | Move the file to `state/inbox/archive/` only if fully resolved. |
+| `execute-work-item` | `implementer` agent via `superpowers:subagent-driven-development` briefed with `state/work-item.md`. The three-stage review (`spec-reviewer` → `code-quality-reviewer` → `adversarial-reviewer`) runs after DONE. | Delete work-item.md on DONE. Commit. |
+| `prioritise` | `prioritiser` agent. Reads `state/candidates.md` + the code-review checklist. Picks one, writes a detailed `state/work-item.md`. Marks the candidate as chosen. | Write work-item.md. Update candidates.md. No code commit (state file changes may be committed separately). |
+| `promote-plan-task-to-work-item` | Mechanical transformation. Read the named plan file, extract the next-unticked task's full section, write it as `state/work-item.md`. No subagent needed (pure state movement). | Write work-item.md. |
+| `write-next-plan` | `implementer` agent invoking `superpowers:writing-plans` for the next unfinished sub-spec. | Writes `docs/plans/YYYY-MM-DD-<slug>.md`. Commit. |
+| `explore` | `explorer` agent. Runs `octowiki-invariants` (if present), `octoclean` (if installed in sibling dir), scans for TODOs / test-coverage gaps / wiki-code drift. Writes findings ranked into `state/candidates.md`. | Write candidates.md. |
+
+> **Wiki updates** are not in this table — they happen at plan completion via `execute-plan` step 7, which dispatches the `wiki-maintainer` agent. The BT doesn't route to wiki as a top-level action.
 
 ## Context-narrowing principle
 
@@ -69,11 +71,14 @@ If execute is ever reading broadly to figure out what to do, prioritise didn't w
 
 ## Model selection for dispatched subagents
 
-Implementation-scope agents (any action that writes Swift or test code, applies review fixes, executes a plan task, or invokes `superpowers:writing-plans`) **must** use Sonnet 4.5 or newer. Pass `model: "sonnet"` (current default: Sonnet 4.6 / Opus 4.7) explicitly on the `Agent` dispatch. Never dispatch code-writing tasks to Haiku or older Sonnet.
+Model is declared per-agent in `.claude/agents/*.md` frontmatter. Quick reference:
 
-Review, triage, and research agents (spec-compliance reviewer, code-quality reviewer, adversarial reviewer, explore / prioritise coordinators) can use the default model — the quality bar is lower-stakes.
+- `implementer` → **sonnet** (required; never Haiku or older Sonnet for code-writing)
+- `adversarial-reviewer` → **opus** (last line of defence before ship)
+- `spec-reviewer`, `code-quality-reviewer`, `wiki-maintainer`, `prioritiser` → **sonnet**
+- `explorer` → **haiku** (cheap bulk scan)
 
-See `AGENTS.md` § "Model selection" and the feedback memory `feedback_implementation_model.md` for the full rationale.
+Full table and rationale in `AGENTS.md` § "Per-action subagent configuration". Feedback memory `feedback_implementation_model.md` has the underlying rule.
 
 ## Safety rails
 

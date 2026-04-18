@@ -56,13 +56,13 @@ Run all three. Each has a different mindset and will find different issues.
 
 ## Prompt template
 
-See `./reviewer-prompt.md` in this skill directory for the exact instructions dispatched to the subagent. Keep the "be uncharitable" framing — the whole point is to counteract the default agreeable stance.
+Canonical mindset, hunt checklist, and report format live in the **`adversarial-reviewer`** subagent at `.claude/agents/adversarial-reviewer.md`. The per-invocation scaffold (base ref, HEAD, plan, diff, commit log) is at `./reviewer-prompt.md`. Dispatch passes the filled-in scaffold to the agent.
 
 ## Steps when invoked
 
-1. Resolve the base ref (argument given, or latest tag, or `main~1` as fallback)
-2. Collect the diff: `git diff <base>..HEAD` and `git log <base>..HEAD --oneline`
-3. Collect the plan / spec paths currently active (latest in `docs/plans/`, parent spec in `docs/specs/`)
-4. Dispatch a subagent with the reviewer prompt and all the above
-5. Surface the subagent's findings verbatim, grouped by severity
-6. Do not automatically fix or commit anything — findings are surfaced for the controller to act on
+1. Resolve the base ref (argument given, or latest tag, or `main~1` as fallback).
+2. Collect the diff: `git diff <base>..HEAD` and `git log <base>..HEAD --oneline`.
+3. Collect the plan / spec paths currently active (latest in `docs/plans/`, parent spec in `docs/specs/`).
+4. Fill `./reviewer-prompt.md`'s scaffold with those values; dispatch the `adversarial-reviewer` subagent with the filled scaffold as the user prompt.
+5. Surface the subagent's findings verbatim, grouped by severity.
+6. Do not automatically fix or commit anything — findings are surfaced for the controller to act on.
