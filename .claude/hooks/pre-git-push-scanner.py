@@ -6,11 +6,24 @@ Invoked by pre-git-push.sh with the hook JSON on stdin. Emits one line:
     FIRE <rest-args-of-push-statement>    if a real git push is present
     SKIP                                   otherwise
 
-A "real" git push is `git push` appearing at a shell statement boundary
-(command start, after ``&&``/``||``/``;``/``|``/subshell, or inside a
-recursive ``bash -c`` / ``sh -c`` string). Leading ``sudo`` and
-``VAR=value`` env-var assignments at a boundary are skipped. Substring
-occurrences inside strings/comments do NOT fire.
+Detection runs two passes, logically OR'd:
+
+1. **Shlex-based token scan.** Handles compound commands (``&&``, ``||``,
+   ``;``, ``|``, subshell parens, braces), env-var prefixes (``FOO=bar``),
+   prefix words that pass through (``sudo``, ``exec``, ``command``, ``env``,
+   ``time``, ``nice``, ``nohup``), and recursive invocations
+   (``bash -c "…"``, ``sh -c``, ``zsh -c``, ``eval "…"``). This pass also
+   extracts the rest-args of the push statement so the outer hook can honour
+   ``--dry-run`` / ``--help``.
+2. **Boundary-aware regex.** A fallback that catches forms the token scan
+   can't easily parse: heredocs (``bash <<EOF\\ngit push\\nEOF``), backtick
+   command substitution, newline-separated statements, unbalanced-quote
+   commands shlex rejects. Regex cannot extract rest-args reliably — if this
+   is the only pass that fires, rest-args is empty (and the ``--dry-run``
+   check treats the push conservatively, i.e. runs tests).
+
+The two-pass design is documented in the project's code-review-checklist
+"enumerate the surface" rule — the structure here *is* the test table.
 """
 from __future__ import annotations
 
@@ -21,14 +34,46 @@ import shlex
 import sys
 
 
+# Matches ``VAR=value`` at a statement boundary. Assignment semantics
+# apply only to that one command: ``FOO=bar git push`` runs ``git push``
+# with ``FOO=bar`` exported.
 ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+
+# Statement-boundary tokens as emitted by ``shlex.split`` after
+# ``space_operators`` has spaced them out.
 BOUNDARIES = {"&&", "||", ";", "|", "&", "(", ")", "{", "}"}
+
+# Prefix words that delegate to the remaining command preserving semantics.
+# Treated the same as ``VAR=val`` — skip them at a boundary.
+PREFIX_SKIP = {"sudo", "exec", "command", "env", "time", "nice", "nohup"}
+
+# Words that take ``-c "inner"`` and re-execute the inner string as a shell
+# command. Recurse into the inner string.
+SHELL_RECURSE = {"bash", "sh", "zsh", "dash", "ksh"}
+
+# Words that take remaining args and re-evaluate them as a shell command.
+# Recurse into the joined args (up to the next statement boundary).
+EVAL_LIKE = {"eval"}
+
+# Boundary-aware regex probe. Matches ``git push`` where the preceding
+# character is a boundary (start of string, whitespace — including newline —
+# or a shell metachar we recognise) AND the following character is a
+# boundary. The ``\n`` inclusion is what catches heredoc bodies; the
+# backtick inclusion catches command substitution. We do NOT include ``"``
+# or ``'`` — in-string occurrences must stay SKIP.
+BOUNDARY_RE = re.compile(
+    r"(?:^|[\s;&|({`])git\s+push(?:\s|$|[;&|)}`])"
+)
 
 
 def space_operators(s: str) -> str:
     """Insert spaces around shell operators at top level (outside quotes) so
-    shlex.split treats them as standalone tokens. Without this, `;git push` and
-    `(git push` arrive as fused tokens and the boundary check misses them."""
+    ``shlex.split`` treats them as standalone tokens.
+
+    Operator set: ``&&``, ``||``, ``;``, ``|``, ``&``, ``(``, ``)``, ``{``,
+    ``}``, backtick, newline. Without this step ``;git push`` and
+    ``(git push`` arrive as fused tokens, backticks survive as part of
+    a token, and multi-statement scripts collapse to one."""
     out = []
     in_single = in_double = False
     i = 0
@@ -54,7 +99,7 @@ def space_operators(s: str) -> str:
             out.append(" " + two + " ")
             i += 2
             continue
-        if ch in ";|&(){}":
+        if ch in ";|&(){}`\n":
             out.append(" " + ch + " ")
             i += 1
             continue
@@ -78,25 +123,15 @@ def strip_comments(s: str) -> str:
     return "".join(out).strip()
 
 
-def find_push(source: str) -> tuple[bool, str]:
-    """Return (found, rest_args) for the first real git push in source."""
-    source = strip_comments(source)
-    if not source:
-        return (False, "")
-    try:
-        tokens = shlex.split(space_operators(source), posix=True)
-    except ValueError:
-        # Unbalanced quotes / exotic syntax — conservative: treat any
-        # literal "git push" substring as a fire to avoid a silent bypass.
-        return ("git push" in source, "")
-
+def _scan_tokens(tokens: list[str]) -> tuple[bool, str]:
+    """Walk the token list looking for `git push` at a statement boundary."""
     n = len(tokens)
     i = 0
     at_boundary = True  # first position is a boundary
     while i < n:
         if at_boundary:
-            # Skip env-var assignments and sudo at a boundary.
-            while i < n and (ENV_ASSIGN.match(tokens[i]) or tokens[i] == "sudo"):
+            # Skip env-var assignments and transparent prefix words.
+            while i < n and (ENV_ASSIGN.match(tokens[i]) or tokens[i] in PREFIX_SKIP):
                 i += 1
             if i >= n:
                 break
@@ -110,8 +145,8 @@ def find_push(source: str) -> tuple[bool, str]:
                     trimmed.append(t)
                 return (True, " ".join(trimmed))
 
-            # bash -c "inner" / sh -c "inner" — recurse.
-            if tok in ("bash", "sh", "zsh"):
+            # bash -c "inner" / sh -c "inner" / zsh -c "inner" → recurse.
+            if tok in SHELL_RECURSE:
                 j = i + 1
                 while j < n and tokens[j].startswith("-") and tokens[j] != "-c":
                     j += 1
@@ -120,9 +155,50 @@ def find_push(source: str) -> tuple[bool, str]:
                     if found:
                         return (True, rest)
 
+            # eval <args…> → concat up to next boundary, recurse.
+            if tok in EVAL_LIKE:
+                args = []
+                j = i + 1
+                while j < n and tokens[j] not in BOUNDARIES:
+                    args.append(tokens[j])
+                    j += 1
+                if args:
+                    found, rest = find_push(" ".join(args))
+                    if found:
+                        return (True, rest)
+
         tok = tokens[i]
         at_boundary = tok in BOUNDARIES
         i += 1
+
+    return (False, "")
+
+
+def find_push(source: str) -> tuple[bool, str]:
+    """Return (found, rest_args) for the first real git push in source.
+
+    Runs both passes: the shlex token scan first (precise; can extract
+    rest-args), then the boundary regex (coarser; catches heredocs, backticks,
+    newlines, unbalanced-quote commands). Token result wins if it fires.
+    """
+    source = strip_comments(source)
+    if not source:
+        return (False, "")
+
+    token_result: tuple[bool, str] = (False, "")
+    try:
+        tokens = shlex.split(space_operators(source), posix=True)
+    except ValueError:
+        tokens = None
+    if tokens is not None:
+        token_result = _scan_tokens(tokens)
+        if token_result[0]:
+            return token_result
+
+    # Fallback: boundary regex on the raw source. Empty rest — downstream
+    # will conservatively run tests rather than honour --dry-run.
+    if BOUNDARY_RE.search(source):
+        return (True, "")
 
     return (False, "")
 
