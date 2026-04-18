@@ -192,6 +192,14 @@ struct DetailView: View {
                         }
                         .pickerStyle(.segmented)
 
+                        if document.model.selectedTrack.output == .auInstrument {
+                            Picker("Instrument", selection: $document.model.selectedTrack.audioInstrument) {
+                                ForEach(engineController.availableAudioInstruments, id: \.self) { instrument in
+                                    Text(instrument.displayName).tag(instrument)
+                                }
+                            }
+                        }
+
                         Text("Pitches")
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .tracking(0.8)

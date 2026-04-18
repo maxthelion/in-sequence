@@ -10,6 +10,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTrack, .default)
         XCTAssertEqual(model.selectedTrack.stepAccents, Array(repeating: false, count: 16))
         XCTAssertEqual(model.selectedTrack.output, .midiOut)
+        XCTAssertEqual(model.selectedTrack.audioInstrument, .builtInSynth)
         XCTAssertEqual(model.selectedTrack.mix, .default)
     }
 
@@ -37,6 +38,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     stepPattern: [true, true, false, true],
                     stepAccents: [true, false, false, true],
                     output: .auInstrument,
+                    audioInstrument: .testInstrument,
                     mix: TrackMixSettings(level: 0.9, pan: 0.4, isMuted: true),
                     velocity: 101,
                     gateLength: 3
@@ -93,6 +95,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded.selectedTrack.name, "Legacy")
         XCTAssertEqual(decoded.selectedTrack.stepAccents, [false, false, false, false])
         XCTAssertEqual(decoded.selectedTrack.output, .midiOut)
+        XCTAssertEqual(decoded.selectedTrack.audioInstrument, .builtInSynth)
         XCTAssertEqual(decoded.selectedTrack.mix, .default)
     }
 

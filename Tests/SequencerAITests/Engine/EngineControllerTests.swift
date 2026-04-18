@@ -94,6 +94,7 @@ final class EngineControllerTests: XCTestCase {
             stepPattern: [true],
             stepAccents: [false],
             output: .auInstrument,
+            audioInstrument: .testInstrument,
             mix: TrackMixSettings(level: 0.55, pan: 0.35, isMuted: false),
             velocity: 96,
             gateLength: 2
@@ -110,6 +111,7 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(audioSink.startCallCount, 1)
         XCTAssertEqual(audioSink.receivedEvents.first?.first?.pitch, 64)
         XCTAssertEqual(audioSink.receivedEvents.first?.first?.velocity, 96)
+        XCTAssertEqual(audioSink.selectedInstrument, .testInstrument)
         XCTAssertEqual(controller.statusSummary, "Audio: Mock AU Instrument via Main Mixer")
         XCTAssertEqual(audioSink.receivedMixes.last, synthTrack.mix)
     }
@@ -139,6 +141,8 @@ final class EngineControllerTests: XCTestCase {
 private final class CapturingAudioSink: TrackPlaybackSink {
     let displayName = "Mock AU Instrument"
     var isAvailable = true
+    let availableInstruments = [AudioInstrumentChoice.builtInSynth, .testInstrument]
+    private(set) var selectedInstrument: AudioInstrumentChoice = .builtInSynth
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
     private(set) var receivedEvents: [[NoteEvent]] = []
@@ -154,6 +158,10 @@ private final class CapturingAudioSink: TrackPlaybackSink {
 
     func setMix(_ mix: TrackMixSettings) {
         receivedMixes.append(mix)
+    }
+
+    func selectInstrument(_ choice: AudioInstrumentChoice) {
+        selectedInstrument = choice
     }
 
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {

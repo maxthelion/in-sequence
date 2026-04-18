@@ -113,6 +113,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var stepPattern: [Bool]
     var stepAccents: [Bool]
     var output: TrackOutputDestination
+    var audioInstrument: AudioInstrumentChoice
     var mix: TrackMixSettings
     var velocity: Int
     var gateLength: Int
@@ -124,6 +125,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case stepPattern
         case stepAccents
         case output
+        case audioInstrument
         case mix
         case velocity
         case gateLength
@@ -136,6 +138,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
         output: .midiOut,
+        audioInstrument: .builtInSynth,
         mix: .default,
         velocity: 100,
         gateLength: 4
@@ -148,6 +151,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
         output: TrackOutputDestination = .midiOut,
+        audioInstrument: AudioInstrumentChoice = .builtInSynth,
         mix: TrackMixSettings = .default,
         velocity: Int,
         gateLength: Int
@@ -158,6 +162,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
         self.output = output
+        self.audioInstrument = audioInstrument
         self.mix = mix
         self.velocity = velocity
         self.gateLength = gateLength
@@ -212,6 +217,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
         stepAccents = Self.normalizedAccents(decodedAccents, stepCount: stepPattern.count)
         output = try container.decodeIfPresent(TrackOutputDestination.self, forKey: .output) ?? .midiOut
+        audioInstrument = try container.decodeIfPresent(AudioInstrumentChoice.self, forKey: .audioInstrument) ?? .builtInSynth
         mix = try container.decodeIfPresent(TrackMixSettings.self, forKey: .mix) ?? .default
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
@@ -225,6 +231,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(stepPattern, forKey: .stepPattern)
         try container.encode(stepAccents, forKey: .stepAccents)
         try container.encode(output, forKey: .output)
+        try container.encode(audioInstrument, forKey: .audioInstrument)
         try container.encode(mix, forKey: .mix)
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)

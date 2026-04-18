@@ -88,6 +88,7 @@ final class EngineController {
         selectedOutput = track.output
         currentTrackMix = track.mix
         midiOutBlock?.endpoint = track.output == .midiOut && !track.mix.isMuted ? endpoint : nil
+        audioOutput?.selectInstrument(track.audioInstrument)
         audioOutput?.setMix(track.mix)
         if track.output == .auInstrument {
             audioOutput?.startIfNeeded()
@@ -128,6 +129,10 @@ final class EngineController {
 
     var canStart: Bool {
         executor != nil
+    }
+
+    var availableAudioInstruments: [AudioInstrumentChoice] {
+        audioOutput?.availableInstruments ?? [.builtInSynth]
     }
 
     var statusSummary: String {

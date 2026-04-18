@@ -2,6 +2,7 @@ import SwiftUI
 
 struct InspectorView: View {
     @Binding var document: SeqAIDocument
+    @Environment(EngineController.self) private var engineController
 
     private var track: StepSequenceTrack {
         document.model.selectedTrack
@@ -34,6 +35,13 @@ struct InspectorView: View {
                 Picker("Output", selection: $document.model.selectedTrack.output) {
                     ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
                         Text(destination.label).tag(destination)
+                    }
+                }
+                if document.model.selectedTrack.output == .auInstrument {
+                    Picker("Instrument", selection: $document.model.selectedTrack.audioInstrument) {
+                        ForEach(engineController.availableAudioInstruments, id: \.self) { instrument in
+                            Text(instrument.displayName).tag(instrument)
+                        }
                     }
                 }
                 TextField("Pitches", text: pitchesText)
