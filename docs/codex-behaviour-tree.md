@@ -35,14 +35,16 @@ That is exactly what `bt-iteration.sh` prepares.
 Keep Codex in its own checkout so it does not interfere with Claude's active loop:
 
 ```bash
-git worktree add -b codex-bt-loop ../sequencer-ai-codex <base-commit-or-branch>
+git worktree add -b codex-bt-loop .codex-worktree <base-commit-or-branch>
 ```
 
-The worktree used for the first Codex experiment was:
+Recommended location:
 
 ```text
-/Users/maxwilliams/dev/sequencer-ai-codex
+/Users/maxwilliams/dev/sequencer-ai/.codex-worktree
 ```
+
+Keeping the Codex worktree under the repo root means future workspace-write heartbeats can still update `.claude/state/` there even when sandbox permissions are tighter than an interactive session.
 
 Because `.claude/state/` is committed, each worktree gets its own branch-local copy of the BT memory. That lets Claude finish its current iteration in the original checkout while Codex experiments safely elsewhere.
 
@@ -71,7 +73,7 @@ The most natural Codex-native driver is a thread heartbeat. The heartbeat prompt
 Suggested prompt:
 
 ```text
-Operate only in /Users/maxwilliams/dev/sequencer-ai-codex.
+Operate only in /Users/maxwilliams/dev/sequencer-ai/.codex-worktree.
 Run ./scripts/codex/bt-iteration.sh first.
 Execute exactly one behaviour-tree action from .claude/state/next-action.md.
 Use .claude/state/ as durable memory.
