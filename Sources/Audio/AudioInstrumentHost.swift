@@ -15,23 +15,34 @@ protocol TrackPlaybackSink: AnyObject {
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
+    typealias AudioUnitLoader = @Sendable (
+        AudioComponentDescription,
+        @escaping @Sendable (AVAudioUnit?, Error?) -> Void
+    ) -> Void
+
     private let engine = AVAudioEngine()
     private let queue = DispatchQueue(label: "ai.sequencer.SequencerAI.AudioInstrumentHost")
     private let instrumentChoices: [AudioInstrumentChoice]
+    private let instantiateAudioUnit: AudioUnitLoader
 
     private var instrument: AVAudioUnitMIDIInstrument?
     private var shouldBeRunning = false
     private var currentMix = TrackMixSettings.default
     private var currentChoice: AudioInstrumentChoice
+    private var instantiationGeneration: UInt64 = 0
 
     init(
         instrumentChoices: [AudioInstrumentChoice] = AudioInstrumentChoice.defaultChoices,
-        initialInstrument: AudioInstrumentChoice = .builtInSynth
+        initialInstrument: AudioInstrumentChoice = .builtInSynth,
+        instantiateAudioUnit: @escaping AudioUnitLoader = { description, completion in
+            AVAudioUnit.instantiate(with: description, options: [], completionHandler: completion)
+        }
     ) {
         let resolvedChoices = instrumentChoices.isEmpty ? [.builtInSynth] : instrumentChoices
         self.instrumentChoices = resolvedChoices
         self.currentChoice = resolvedChoices.first(where: { $0 == initialInstrument }) ?? initialInstrument
-        instantiate(choice: currentChoice)
+        self.instantiateAudioUnit = instantiateAudioUnit
+        instantiate(choice: currentChoice, generation: instantiationGeneration)
     }
 
     var displayName: String {
@@ -94,18 +105,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 return
             }
 
-            self.stopAllNotes()
-            if self.engine.isRunning {
-                self.engine.stop()
-            }
-            if let instrument = self.instrument {
-                self.engine.disconnectNodeInput(self.engine.mainMixerNode)
-                self.engine.detach(instrument)
-                self.instrument = nil
-            }
-
             self.currentChoice = resolvedChoice
-            self.instantiate(choice: resolvedChoice)
+            self.instantiationGeneration &+= 1
+            self.disconnectCurrentInstrument()
+            self.instantiate(choice: resolvedChoice, generation: self.instantiationGeneration)
         }
     }
 
@@ -142,25 +145,48 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
-    private func instantiate(choice: AudioInstrumentChoice) {
-        AVAudioUnit.instantiate(with: choice.componentDescription, options: []) { [weak self] audioUnit, _ in
+    private func instantiate(choice: AudioInstrumentChoice, generation: UInt64) {
+        instantiateAudioUnit(choice.componentDescription) { [weak self] audioUnit, _ in
             guard let self else {
                 return
             }
 
             self.queue.async {
+                guard generation == self.instantiationGeneration else {
+                    return
+                }
                 guard let instrument = audioUnit as? AVAudioUnitMIDIInstrument else {
                     return
                 }
 
-                self.instrument = instrument
-                self.engine.attach(instrument)
-                self.engine.connect(instrument, to: self.engine.mainMixerNode, format: nil)
-                self.engine.prepare()
-                self.applyCurrentMix()
-                self.startEngineIfPossible()
+                self.connectLoadedInstrument(instrument)
             }
         }
+    }
+
+    private func connectLoadedInstrument(_ nextInstrument: AVAudioUnitMIDIInstrument) {
+        disconnectCurrentInstrument()
+        instrument = nextInstrument
+        engine.attach(nextInstrument)
+        engine.connect(nextInstrument, to: engine.mainMixerNode, format: nil)
+        engine.prepare()
+        applyCurrentMix()
+        startEngineIfPossible()
+    }
+
+    private func disconnectCurrentInstrument() {
+        stopAllNotes()
+        if engine.isRunning {
+            engine.stop()
+        }
+
+        guard let instrument else {
+            return
+        }
+
+        engine.disconnectNodeOutput(instrument)
+        engine.detach(instrument)
+        self.instrument = nil
     }
 
     private func startEngineIfPossible() {
