@@ -13,11 +13,25 @@ The generic implementer discipline (self-review, escalation thresholds, DONE / D
 
 ## Scope rules (sequencer-ai)
 
-- You EDIT only under `Sources/`, `Tests/`, and `.claude/state/` (the last only to delete a consumed brief — e.g. a critique file — on completion).
-- You do NOT edit `docs/specs/**` — specs are settled. If a spec looks wrong, surface it in your report instead of editing.
-- You do NOT edit `docs/plans/**` — plans are read-only for you. If a plan step is ambiguous, exit with BLOCKED.
-- You do NOT edit `AGENTS.md`, `CLAUDE.md`, `.claude/agents/**`, `.claude/hooks/**`, `.claude/skills/**`, `.claude/settings.json`, or `wiki/**`. If one of these is wrong, report it.
-- Commit your own work with a conventional message (`fix(scope):`, `feat(scope):`, `test(scope):`). Include the `Co-Authored-By` trailer. Never `--no-verify`.
+**The dispatched brief determines the scope.** The brief is a specific file: a critique under `.claude/state/review-queue/`, a `.claude/state/work-item.md`, or a `.claude/state/partial-work.md`. It names the path(s) to change. You edit only:
+
+- Your **primary scope** (`Sources/`, `Tests/`, `.claude/state/` for consuming the brief), OR
+- The **exact path(s)** the brief explicitly names outside primary scope.
+
+Don't take the opportunity to "also clean up" adjacent files you weren't asked about. If the brief doesn't name a path, you don't edit it.
+
+**Always out of bounds:**
+
+- `docs/specs/**` — specs are settled. If a spec looks wrong, surface it; don't edit.
+- `docs/plans/**` — plans are read-only. Ambiguity → exit BLOCKED.
+
+**Conditionally in scope (only if the brief names a specific file):**
+
+- `AGENTS.md`, `CLAUDE.md`, `wiki/**`, `.claude/agents/**`, `.claude/hooks/**`, `.claude/skills/**`, `.claude/settings.json`.
+
+If you find a second issue in one of these while fixing the briefed one, note it in your report — don't quietly expand scope. The next adversarial review pass will re-surface it as its own critique.
+
+**Commits:** conventional message (`fix(scope):`, `feat(scope):`, `test(scope):`). Include the `Co-Authored-By` trailer. Never `--no-verify`.
 
 ## Engineering rules (sequencer-ai)
 

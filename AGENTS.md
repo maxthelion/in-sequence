@@ -122,7 +122,7 @@ Current roster:
 
 | Agent                       | Model   | Scope                                                                               | Dispatched for                                               |
 |-----------------------------|---------|-------------------------------------------------------------------------------------|--------------------------------------------------------------|
-| `implementer`               | sonnet  | Sources/, Tests/, `.claude/state/` (consumes briefs only)                           | fix-tests, fix-critique, continue-partial-work, execute-work-item, promote-plan-task-to-work-item |
+| `implementer`               | sonnet  | Primary: Sources/, Tests/, `.claude/state/` (brief consumption). Extended: any path explicitly named in the dispatched brief (hook, skill, settings.json, wiki page, agent file). Always off-limits: `docs/specs/**`, `docs/plans/**`. | fix-tests, fix-critique, continue-partial-work, execute-work-item, promote-plan-task-to-work-item |
 | `spec-reviewer`             | sonnet  | Read-only                                                                           | Three-stage review (stage 1)                                 |
 | `code-quality-reviewer`     | sonnet  | Read-only                                                                           | Three-stage review (stage 2)                                 |
 | `adversarial-reviewer`      | opus    | Read-only                                                                           | Three-stage review (stage 3); BT's adversarial-review action |
@@ -137,6 +137,19 @@ Current roster:
 - **Haiku** is used for bulk, rubric-driven scanning (explorer). Judgement about which candidate to pursue is deferred to the prioritiser; the explorer's job is surface area, not selection.
 
 When invoking an agent via the `Agent` tool, the `subagent_type` parameter matches the agent's `name` frontmatter. The model is taken from the agent's frontmatter unless overridden explicitly.
+
+### Agent registration (session-start caveat)
+
+The Agent tool's `subagent_type` enum is populated **at session start**. Agent files created or renamed mid-session aren't visible to the dispatcher until the next session — the dispatcher silently falls back to `general-purpose` if you name an unregistered agent.
+
+Symptoms of a mid-session unregistered agent:
+
+- `Agent` calls with `subagent_type: "<new-agent>"` fail validation, or
+- The dispatcher accepts the call but runs as plain `general-purpose` without your system prompt
+
+**Mitigation** — when a skill/hook/script names a role agent, include a fallback clause: "if the agent isn't registered, dispatch `general-purpose` with the right `model` and paste the agent's system prompt as a preamble." See `.claude/skills/execute-plan/SKILL.md` for the pattern.
+
+A fresh session picks up the current `.claude/agents/*.md` set — so once you see the roster in the Agent tool's registered list, it's safe to dispatch by name.
 
 ## Common failure modes
 
