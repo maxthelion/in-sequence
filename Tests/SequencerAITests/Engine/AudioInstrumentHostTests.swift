@@ -11,8 +11,13 @@ final class AudioInstrumentHostTests: XCTestCase {
             instantiateAudioUnit: loader.load
         )
 
-        XCTAssertEqual(loader.pendingCount, 1)
+        XCTAssertEqual(loader.pendingCount, 0)
         XCTAssertFalse(host.isAvailable)
+
+        host.startIfNeeded()
+        waitForQueueDrain()
+
+        XCTAssertEqual(loader.pendingCount, 1)
 
         host.selectInstrument(.testInstrument)
         waitForQueueDrain()
@@ -31,6 +36,35 @@ final class AudioInstrumentHostTests: XCTestCase {
         XCTAssertTrue(host.isAvailable)
         XCTAssertEqual(host.selectedInstrument, .testInstrument)
         XCTAssertEqual(host.displayName, AudioInstrumentChoice.testInstrument.displayName)
+    }
+
+    func test_pre_attached_audio_unit_falls_back_to_built_in_synth() {
+        let loader = PendingAudioUnitLoader()
+        let host = AudioInstrumentHost(
+            instrumentChoices: [.builtInSynth, .testInstrument],
+            initialInstrument: .testInstrument,
+            instantiateAudioUnit: loader.load
+        )
+        let foreignEngine = AVAudioEngine()
+        let foreignInstrument = AVAudioUnitSampler()
+        foreignEngine.attach(foreignInstrument)
+
+        host.startIfNeeded()
+        waitForQueueDrain()
+
+        XCTAssertEqual(loader.pendingCount, 1)
+
+        loader.complete(at: 0, with: foreignInstrument)
+        waitForQueueDrain()
+
+        XCTAssertEqual(loader.pendingCount, 2)
+
+        loader.complete(at: 1, with: AVAudioUnitSampler())
+        waitUntil(timeout: 1) { host.isAvailable }
+
+        XCTAssertTrue(host.isAvailable)
+        XCTAssertEqual(host.selectedInstrument, .builtInSynth)
+        XCTAssertEqual(host.displayName, AudioInstrumentChoice.builtInSynth.displayName)
     }
 
     private func waitForQueueDrain() {

@@ -30,6 +30,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var currentMix = TrackMixSettings.default
     private var currentChoice: AudioInstrumentChoice
     private var instantiationGeneration: UInt64 = 0
+    private var pendingLoadGeneration: UInt64?
 
     init(
         instrumentChoices: [AudioInstrumentChoice] = AudioInstrumentChoice.defaultChoices,
@@ -42,7 +43,6 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         self.instrumentChoices = resolvedChoices
         self.currentChoice = resolvedChoices.first(where: { $0 == initialInstrument }) ?? initialInstrument
         self.instantiateAudioUnit = instantiateAudioUnit
-        instantiate(choice: currentChoice, generation: instantiationGeneration)
     }
 
     var displayName: String {
@@ -67,7 +67,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 return
             }
             self.shouldBeRunning = true
-            self.startEngineIfPossible()
+            self.ensureInstrumentLoaded()
         }
     }
 
@@ -107,8 +107,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
             self.currentChoice = resolvedChoice
             self.instantiationGeneration &+= 1
+            self.pendingLoadGeneration = nil
             self.disconnectCurrentInstrument()
-            self.instantiate(choice: resolvedChoice, generation: self.instantiationGeneration)
+            if self.shouldBeRunning {
+                self.ensureInstrumentLoaded()
+            }
         }
     }
 
@@ -118,7 +121,12 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
 
         queue.async { [weak self] in
-            guard let self, let instrument = self.instrument else {
+            guard let self else {
+                return
+            }
+
+            guard let instrument = self.instrument else {
+                self.ensureInstrumentLoaded()
                 return
             }
 
@@ -146,6 +154,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     }
 
     private func instantiate(choice: AudioInstrumentChoice, generation: UInt64) {
+        pendingLoadGeneration = generation
         instantiateAudioUnit(choice.componentDescription) { [weak self] audioUnit, _ in
             guard let self else {
                 return
@@ -155,7 +164,17 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 guard generation == self.instantiationGeneration else {
                     return
                 }
+                guard self.pendingLoadGeneration == generation else {
+                    return
+                }
+                self.pendingLoadGeneration = nil
                 guard let instrument = audioUnit as? AVAudioUnitMIDIInstrument else {
+                    self.handleLoadFailure(for: choice, generation: generation)
+                    return
+                }
+
+                if let attachedEngine = instrument.engine, attachedEngine !== self.engine {
+                    self.handleLoadFailure(for: choice, generation: generation)
                     return
                 }
 
@@ -167,11 +186,45 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private func connectLoadedInstrument(_ nextInstrument: AVAudioUnitMIDIInstrument) {
         disconnectCurrentInstrument()
         instrument = nextInstrument
-        engine.attach(nextInstrument)
-        engine.connect(nextInstrument, to: engine.mainMixerNode, format: nil)
+        if nextInstrument.engine == nil {
+            engine.attach(nextInstrument)
+        }
+        if engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
+            engine.connect(nextInstrument, to: engine.mainMixerNode, format: nil)
+        }
         engine.prepare()
         applyCurrentMix()
         startEngineIfPossible()
+    }
+
+    private func ensureInstrumentLoaded() {
+        guard instrument == nil else {
+            startEngineIfPossible()
+            return
+        }
+        guard pendingLoadGeneration != instantiationGeneration else {
+            return
+        }
+
+        instantiate(choice: currentChoice, generation: instantiationGeneration)
+    }
+
+    private func handleLoadFailure(for choice: AudioInstrumentChoice, generation: UInt64) {
+        guard generation == instantiationGeneration else {
+            return
+        }
+
+        pendingLoadGeneration = nil
+        disconnectCurrentInstrument()
+        guard choice != .builtInSynth,
+              let fallbackChoice = instrumentChoices.first(where: { $0 == .builtInSynth })
+        else {
+            return
+        }
+
+        currentChoice = fallbackChoice
+        instantiationGeneration &+= 1
+        instantiate(choice: fallbackChoice, generation: instantiationGeneration)
     }
 
     private func disconnectCurrentInstrument() {
