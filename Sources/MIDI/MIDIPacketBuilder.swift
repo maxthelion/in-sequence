@@ -71,6 +71,11 @@ struct MIDIPacketBuilder {
     }
 
     // MARK: - Add methods
+    //
+    // Validation style: precondition (style B). MIDI parameter ranges are invariants;
+    // an out-of-range value is a programmer error, not a recoverable runtime condition.
+    // Preconditions crash immediately in debug and fail-fast in release rather than
+    // silently truncating (e.g. channel 20 → channel 4 via bitmask).
 
     mutating func addNoteOn(
         channel: UInt8,
@@ -78,9 +83,12 @@ struct MIDIPacketBuilder {
         velocity: UInt8,
         timestamp: MIDITimeStamp
     ) {
+        precondition(channel < 16, "MIDI channel must be 0–15, got \(channel)")
+        precondition(pitch < 128, "MIDI pitch must be 0–127, got \(pitch)")
+        precondition(velocity < 128, "MIDI velocity must be 0–127, got \(velocity)")
         events.append(MIDIEvent(
             timestamp: timestamp,
-            bytes: [0x90 | (channel & 0x0F), pitch & 0x7F, velocity & 0x7F]
+            bytes: [0x90 | channel, pitch, velocity]
         ))
     }
 
@@ -89,9 +97,11 @@ struct MIDIPacketBuilder {
         pitch: UInt8,
         timestamp: MIDITimeStamp
     ) {
+        precondition(channel < 16, "MIDI channel must be 0–15, got \(channel)")
+        precondition(pitch < 128, "MIDI pitch must be 0–127, got \(pitch)")
         events.append(MIDIEvent(
             timestamp: timestamp,
-            bytes: [0x80 | (channel & 0x0F), pitch & 0x7F, 0]
+            bytes: [0x80 | channel, pitch, 0]
         ))
     }
 
@@ -101,9 +111,12 @@ struct MIDIPacketBuilder {
         value: UInt8,
         timestamp: MIDITimeStamp
     ) {
+        precondition(channel < 16, "MIDI channel must be 0–15, got \(channel)")
+        precondition(controller < 128, "MIDI controller number must be 0–127, got \(controller)")
+        precondition(value < 128, "MIDI CC value must be 0–127, got \(value)")
         events.append(MIDIEvent(
             timestamp: timestamp,
-            bytes: [0xB0 | (channel & 0x0F), controller & 0x7F, value & 0x7F]
+            bytes: [0xB0 | channel, controller, value]
         ))
     }
 

@@ -103,6 +103,21 @@ final class MIDIClient {
     ///   so any connected input ports receive the data directly.
     /// - Otherwise an output port is lazily created and `MIDISend` is used, which works
     ///   for any real or virtual destination.
+    ///
+    /// **Contract / failure modes:**
+    /// - Empty packet list (`numPackets == 0`): this is a silent no-op — CoreMIDI and
+    ///   `MIDIReceived` both accept an empty list without error. Callers that want
+    ///   to avoid the round-trip should guard `!events.isEmpty` before calling.
+    /// - Disposed or invalid endpoint (`endpoint.ref == 0` or already disposed):
+    ///   CoreMIDI returns a non-`noErr` status, which this method surfaces as
+    ///   `ClientError.failedToSend(status:)`. The caller is responsible for not
+    ///   sending to an endpoint whose lifetime has ended.
+    /// - Errors from `MIDIReceived` / `MIDISend` / `MIDIOutputPortCreate` are all
+    ///   re-thrown; no status is silently swallowed.
+    ///
+    /// - Throws: `ClientError.failedToSend` if CoreMIDI reports an error.
+    /// - Throws: `ClientError.failedToCreateOutputPort` on first use if the output
+    ///   port cannot be created.
     func send(_ packetList: UnsafePointer<MIDIPacketList>, to endpoint: MIDIEndpoint) throws {
         if endpoint.role == .source && virtualSourceRefs.contains(endpoint.ref) {
             // Push into a virtual source we own.
@@ -119,6 +134,12 @@ final class MIDIClient {
             }
         }
     }
+
+    // MARK: - Internal (test access)
+
+    /// Exposes the underlying `MIDIClientRef` so test helpers (e.g. `MIDIInputPortCreateWithBlock`)
+    /// can create additional ports on this client without making `clientRef` fully public.
+    var clientRefForTesting: MIDIClientRef { clientRef }
 
     // MARK: - Private
 

@@ -16,9 +16,11 @@ final class MIDIPacketBuilderTests: XCTestCase {
         try builder.withPacketList { listPtr in
             XCTAssertEqual(listPtr.pointee.numPackets, 2)
 
-            // First packet: note-on
+            // First packet: use MemoryLayout.offset(of:) to find the `packet` field instead
+            // of hard-coding 4 bytes (the offset depends on CoreMIDI's packing attributes).
+            let firstPacketOffset = MemoryLayout<MIDIPacketList>.offset(of: \.packet)!
             let firstPacketPtr = UnsafeRawPointer(listPtr)
-                .advanced(by: MemoryLayout<UInt32>.size) // skip numPackets
+                .advanced(by: firstPacketOffset)
                 .assumingMemoryBound(to: MIDIPacket.self)
             let firstPacket = firstPacketPtr.pointee
             XCTAssertEqual(firstPacket.data.0, 0x90 | 0)  // note-on, channel 0
@@ -26,8 +28,9 @@ final class MIDIPacketBuilderTests: XCTestCase {
             XCTAssertEqual(firstPacket.data.2, 100)         // velocity
             XCTAssertEqual(firstPacket.timeStamp, baseTime)
 
-            // Second packet: note-off
-            let secondPacketPtr = MIDIPacketNext(firstPacketPtr)
+            // Second packet: use MIDIPacketNext for safe iteration (never advance by hand).
+            var mutableFirst = firstPacket
+            let secondPacketPtr = MIDIPacketNext(&mutableFirst)
             let secondPacket = secondPacketPtr.pointee
             XCTAssertEqual(secondPacket.data.0, 0x80 | 0)  // note-off, channel 0
             XCTAssertEqual(secondPacket.data.1, 60)          // pitch
@@ -46,8 +49,9 @@ final class MIDIPacketBuilderTests: XCTestCase {
         try builder.withPacketList { listPtr in
             XCTAssertEqual(listPtr.pointee.numPackets, 1)
 
+            let packetOffset = MemoryLayout<MIDIPacketList>.offset(of: \.packet)!
             let packetPtr = UnsafeRawPointer(listPtr)
-                .advanced(by: MemoryLayout<UInt32>.size)
+                .advanced(by: packetOffset)
                 .assumingMemoryBound(to: MIDIPacket.self)
             let packet = packetPtr.pointee
             XCTAssertEqual(packet.data.0, 0xB0 | 2)  // CC, channel 2
@@ -72,6 +76,77 @@ final class MIDIPacketBuilderTests: XCTestCase {
         // Should not throw
         try builder.withPacketList { listPtr in
             XCTAssertEqual(listPtr.pointee.numPackets, 128)
+        }
+    }
+
+    // MARK: - Input validation (precondition style B)
+    //
+    // Out-of-range MIDI values are programmer errors. The add methods use
+    // `precondition()` so they trap immediately rather than silently truncating
+    // (e.g. channel 20 becoming channel 4). Because precondition() terminates
+    // the process, the trap paths cannot be exercised in-process. The tests
+    // below verify correct byte encoding at the valid boundaries to confirm the
+    // preconditions do not fire for legal values.
+
+    // channel 0 and channel 15 are both valid; verify bytes at boundary.
+    func test_addNoteOn_validChannelBoundaries_encodeCorrectly() throws {
+        var low = MIDIPacketBuilder()
+        low.addNoteOn(channel: 0, pitch: 60, velocity: 64, timestamp: 0)
+        try low.withPacketList { listPtr in
+            let off = MemoryLayout<MIDIPacketList>.offset(of: \.packet)!
+            let p = UnsafeRawPointer(listPtr).advanced(by: off).assumingMemoryBound(to: MIDIPacket.self).pointee
+            XCTAssertEqual(p.data.0, 0x90, "channel 0 => status 0x90")
+        }
+
+        var high = MIDIPacketBuilder()
+        high.addNoteOn(channel: 15, pitch: 60, velocity: 64, timestamp: 0)
+        try high.withPacketList { listPtr in
+            let off = MemoryLayout<MIDIPacketList>.offset(of: \.packet)!
+            let p = UnsafeRawPointer(listPtr).advanced(by: off).assumingMemoryBound(to: MIDIPacket.self).pointee
+            XCTAssertEqual(p.data.0, 0x9F, "channel 15 => status 0x9F")
+        }
+    }
+
+    // pitch 0 and pitch 127 are both valid.
+    func test_addNoteOn_validPitchBoundaries_encodeCorrectly() throws {
+        var b = MIDIPacketBuilder()
+        b.addNoteOn(channel: 0, pitch: 0, velocity: 64, timestamp: 0)
+        b.addNoteOn(channel: 0, pitch: 127, velocity: 64, timestamp: 1)
+        try b.withPacketList { listPtr in
+            let off = MemoryLayout<MIDIPacketList>.offset(of: \.packet)!
+            let first = UnsafeRawPointer(listPtr).advanced(by: off).assumingMemoryBound(to: MIDIPacket.self).pointee
+            XCTAssertEqual(first.data.1, 0)
+            var mutableFirst = first
+            let second = MIDIPacketNext(&mutableFirst).pointee
+            XCTAssertEqual(second.data.1, 127)
+        }
+    }
+
+    // velocity 0 and velocity 127 are both valid.
+    func test_addNoteOn_validVelocityBoundaries_encodeCorrectly() throws {
+        var b = MIDIPacketBuilder()
+        b.addNoteOn(channel: 0, pitch: 60, velocity: 0, timestamp: 0)
+        b.addNoteOn(channel: 0, pitch: 60, velocity: 127, timestamp: 1)
+        try b.withPacketList { listPtr in
+            let off = MemoryLayout<MIDIPacketList>.offset(of: \.packet)!
+            let first = UnsafeRawPointer(listPtr).advanced(by: off).assumingMemoryBound(to: MIDIPacket.self).pointee
+            XCTAssertEqual(first.data.2, 0)
+            var mutableFirst = first
+            let second = MIDIPacketNext(&mutableFirst).pointee
+            XCTAssertEqual(second.data.2, 127)
+        }
+    }
+
+    // addCC: controller and value at max valid boundary.
+    func test_addCC_validBoundaries_encodeCorrectly() throws {
+        var b = MIDIPacketBuilder()
+        b.addCC(channel: 15, controller: 127, value: 127, timestamp: 0)
+        try b.withPacketList { listPtr in
+            let off = MemoryLayout<MIDIPacketList>.offset(of: \.packet)!
+            let p = UnsafeRawPointer(listPtr).advanced(by: off).assumingMemoryBound(to: MIDIPacket.self).pointee
+            XCTAssertEqual(p.data.0, 0xBF)   // CC, channel 15
+            XCTAssertEqual(p.data.1, 127)     // controller
+            XCTAssertEqual(p.data.2, 127)     // value
         }
     }
 

@@ -4,30 +4,35 @@ import CoreMIDI
 
 final class MIDIClientSendTests: XCTestCase {
 
-    /// Two-client loopback: client A owns a virtual destination; client B creates an input port
-    /// connected to that destination and records received packets.
-    /// Sending via A.send() must result in B's port handler receiving the packet.
-    func test_send_to_virtual_destination_is_received_by_connected_port() throws {
+    // MARK: - Finding 6: 2-client loopback (MIDISend branch)
+    //
+    // Plan Task 1 wiring (corrected): client B owns the virtual destination and records
+    // packets arriving at its own createVirtualInput callback. Client A creates an
+    // output port and sends to B's destination via MIDISend.
+    //
+    // Previously the recording handler lived on A's own createVirtualInput callback
+    // while B only sent, making it a 1-direction test. Now B is both the destination
+    // owner AND the recorder; A is purely the sender. This catches regressions in
+    // CoreMIDI's MIDISend → virtual destination delivery path.
+    func test_send_loopback_roundtrip() throws {
         let received = LockedPacketStore()
 
-        // Client A: owns the virtual destination (other apps write to it)
-        let clientA = try MIDIClient(name: "SequencerAI_SendTest_A")
-        let destA = try clientA.createVirtualInput(name: "SequencerAI_SendTest_Dest") { packetList in
-            // CoreMIDI calls this when data arrives at the virtual destination.
-            // Forward to our store so the test can inspect it.
+        // Client B: owns the virtual destination and records arriving packets.
+        let clientB = try MIDIClient(name: "SequencerAI_Loopback_B")
+        let destB = try clientB.createVirtualInput(name: "SequencerAI_Loopback_Dest") { packetList in
             received.append(packetList)
         }
 
-        // Client B: creates an output port and sends to destA
-        let clientB = try MIDIClient(name: "SequencerAI_SendTest_B")
+        // Client A: creates an output port and sends to B's virtual destination.
+        let clientA = try MIDIClient(name: "SequencerAI_Loopback_A")
 
-        // Build a note-on packet
+        // Build a note-on packet.
         var builder = MIDIPacketBuilder()
         builder.addNoteOn(channel: 0, pitch: 69, velocity: 88, timestamp: 0)
 
-        // Send from B to A's virtual destination
+        // Send from A to B's virtual destination (MIDISend path).
         try builder.withPacketList { listPtr in
-            try clientB.send(listPtr, to: destA)
+            try clientA.send(listPtr, to: destB)
         }
 
         // CoreMIDI dispatches asynchronously; poll briefly.
@@ -36,12 +41,63 @@ final class MIDIClientSendTests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.02))
         }
 
-        XCTAssertFalse(received.isEmpty, "Should have received at least one packet")
-
+        XCTAssertFalse(received.isEmpty, "B's virtual destination should have received at least one packet")
         received.withFirstPacket { packet in
-            XCTAssertEqual(packet.data.0, 0x90 | 0) // note-on, channel 0
-            XCTAssertEqual(packet.data.1, 69)         // pitch A4
-            XCTAssertEqual(packet.data.2, 88)         // velocity
+            XCTAssertEqual(packet.data.0, 0x90 | 0)  // note-on, channel 0
+            XCTAssertEqual(packet.data.1, 69)          // pitch A4
+            XCTAssertEqual(packet.data.2, 88)          // velocity
+        }
+    }
+
+    // MARK: - Finding 5: MIDIReceived branch of send(_:to:)
+    //
+    // When send() targets a virtual source owned by this client, it calls MIDIReceived
+    // instead of MIDISend. This test exercises that branch:
+    //   - Client A creates a virtual source.
+    //   - Client B creates an input port connected to A's virtual source.
+    //   - Client A calls send(_:to:) targeting its own virtual source.
+    //   - Client B's input port handler must observe the packet.
+    func test_send_via_MIDIReceived_is_observed_by_connected_client() throws {
+        let received = LockedPacketStore()
+
+        // Client A: owns the virtual source (MIDI producer).
+        let clientA = try MIDIClient(name: "SequencerAI_Received_A")
+        let sourceA = try clientA.createVirtualOutput(name: "SequencerAI_Received_Src")
+
+        // Client B: input port connected to A's virtual source.
+        let clientB = try MIDIClient(name: "SequencerAI_Received_B")
+        var inputPortRef: MIDIPortRef = 0
+        let portStatus = MIDIInputPortCreateWithBlock(
+            clientB.clientRefForTesting,
+            "SequencerAI_Received_B_InPort" as CFString,
+            &inputPortRef
+        ) { packetList, _ in
+            received.append(packetList)
+        }
+        XCTAssertEqual(portStatus, noErr, "Failed to create input port on client B")
+        let connectStatus = MIDIPortConnectSource(inputPortRef, sourceA.ref, nil)
+        XCTAssertEqual(connectStatus, noErr, "Failed to connect B's port to A's virtual source")
+
+        // Build and send from A targeting its own virtual source — triggers MIDIReceived.
+        var builder = MIDIPacketBuilder()
+        builder.addNoteOn(channel: 1, pitch: 48, velocity: 72, timestamp: 0)
+        try builder.withPacketList { listPtr in
+            try clientA.send(listPtr, to: sourceA)
+        }
+
+        // Poll for receipt.
+        let deadline = Date().addingTimeInterval(1.0)
+        while received.isEmpty && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        }
+
+        MIDIPortDispose(inputPortRef)
+
+        XCTAssertFalse(received.isEmpty, "B should have received a packet via MIDIReceived path")
+        received.withFirstPacket { packet in
+            XCTAssertEqual(packet.data.0, 0x91)  // note-on, channel 1
+            XCTAssertEqual(packet.data.1, 48)     // pitch C3
+            XCTAssertEqual(packet.data.2, 72)     // velocity
         }
     }
 }
