@@ -109,6 +109,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
 struct StepSequenceTrack: Codable, Equatable, Sendable {
     var id: UUID
     var name: String
+    var trackType: TrackType
     var pitches: [Int]
     var stepPattern: [Bool]
     var stepAccents: [Bool]
@@ -121,6 +122,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id
         case name
+        case trackType
+        case source
         case pitches
         case stepPattern
         case stepAccents
@@ -134,6 +137,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     static let `default` = StepSequenceTrack(
         id: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
         name: "Main Track",
+        trackType: .instrument,
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
@@ -147,6 +151,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     init(
         id: UUID = UUID(),
         name: String,
+        trackType: TrackType = .instrument,
         pitches: [Int],
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
@@ -158,6 +163,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.name = name
+        self.trackType = trackType
         self.pitches = pitches
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
@@ -212,6 +218,12 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try container.decode(String.self, forKey: .name)
+        if let decodedTrackType = try container.decodeIfPresent(TrackType.self, forKey: .trackType) {
+            trackType = decodedTrackType
+        } else {
+            let legacySource = try container.decodeIfPresent(LegacyTrackSource.self, forKey: .source)
+            trackType = legacySource?.trackType ?? .instrument
+        }
         pitches = try container.decode([Int].self, forKey: .pitches)
         stepPattern = try container.decode([Bool].self, forKey: .stepPattern)
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
@@ -227,6 +239,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
+        try container.encode(trackType, forKey: .trackType)
         try container.encode(pitches, forKey: .pitches)
         try container.encode(stepPattern, forKey: .stepPattern)
         try container.encode(stepAccents, forKey: .stepAccents)
@@ -246,6 +259,54 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             return accents
         }
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
+    }
+}
+
+private enum LegacyTrackSource: String, Codable {
+    case manualMono
+    case clip
+    case template
+    case midiIn
+    case drumRack
+    case sliceLoop
+
+    var trackType: TrackType {
+        switch self {
+        case .manualMono, .clip, .template, .midiIn:
+            return .instrument
+        case .drumRack:
+            return .drumRack
+        case .sliceLoop:
+            return .sliceLoop
+        }
+    }
+}
+
+enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
+    case instrument
+    case drumRack
+    case sliceLoop
+
+    var label: String {
+        switch self {
+        case .instrument:
+            return "Instrument"
+        case .drumRack:
+            return "Drum Rack"
+        case .sliceLoop:
+            return "Slice Loop"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .instrument:
+            return "Inst"
+        case .drumRack:
+            return "Drum"
+        case .sliceLoop:
+            return "Slice"
+        }
     }
 }
 

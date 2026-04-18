@@ -18,6 +18,46 @@ struct DetailView: View {
         }
     }
 
+    private var sourceAccent: Color {
+        switch track.trackType {
+        case .instrument:
+            return StudioTheme.cyan
+        case .drumRack:
+            return StudioTheme.amber
+        case .sliceLoop:
+            return StudioTheme.violet
+        }
+    }
+
+    private var sourceEyebrow: String {
+        switch track.trackType {
+        case .instrument:
+            return "Instrument note-generation options and current live source"
+        case .drumRack:
+            return "Tagged multi-lane drum source placeholder"
+        case .sliceLoop:
+            return "Tagged slice trigger source placeholder"
+        }
+    }
+
+    private var sourceSummary: String {
+        switch track.trackType {
+        case .instrument:
+            return "Manual Mono live"
+        case .drumRack, .sliceLoop:
+            return "Planned"
+        }
+    }
+
+    private var destinationSummary: String {
+        switch track.output {
+        case .midiOut:
+            return "MIDI sink"
+        case .auInstrument:
+            return "AU sink"
+        }
+    }
+
     var body: some View {
         ScrollView {
             workspace
@@ -121,58 +161,103 @@ struct DetailView: View {
     private var trackWorkspace: some View {
         HStack(alignment: .top, spacing: 18) {
             VStack(alignment: .leading, spacing: 18) {
-                StudioPanel(title: track.name, eyebrow: engineController.statusSummary, accent: StudioTheme.cyan) {
+                StudioPanel(title: "Source", eyebrow: sourceEyebrow, accent: sourceAccent) {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack(spacing: 10) {
                             StudioMetricPill(title: "Transport", value: engineController.transportPosition)
                             StudioMetricPill(title: "BPM", value: "\(Int(engineController.currentBPM.rounded()))", accent: StudioTheme.amber)
-                            StudioMetricPill(title: "Output", value: track.output == .midiOut ? "MIDI" : "AU", accent: StudioTheme.violet)
+                            StudioMetricPill(title: "Type", value: track.trackType.shortLabel, accent: sourceAccent)
+                            StudioMetricPill(title: "Status", value: sourceSummary, accent: StudioTheme.violet)
                         }
 
-                        StepGridView(stepStates: stepStates) { index in
-                            document.model.selectedTrack.cycleStep(at: index)
+                        TrackTypePalette(selectedTrackType: $document.model.selectedTrack.trackType)
+
+                        if track.trackType == .instrument {
+                            InstrumentSourcePalette()
                         }
 
-                        HStack(spacing: 10) {
-                            Button("Accent Downbeats") {
-                                document.model.selectedTrack.accentDownbeats()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(StudioTheme.amber)
-
-                            Button("Clear Accents") {
-                                document.model.selectedTrack.clearAccents()
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(track.accentedStepCount == 0)
-                        }
-
-                        Text("The track surface owns the live pattern, note accents, voice routing, and generator controls. Phrase and song editing will stay separate so this view can stay focused and immediate.")
+                        Text("The left side models how this track creates note material. Track type decides the editor shape; phrase-scoped source modes and transforms will later plug into that shape without forcing one giant persisted source enum.")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(StudioTheme.mutedText)
                     }
                 }
 
-                StudioPanel(title: "Pitch Cycle", eyebrow: "Selected pitches used by the note generator", accent: StudioTheme.violet) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(Array(track.pitches.enumerated()), id: \.offset) { index, pitch in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("STEP \(index + 1)")
-                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                        .tracking(0.8)
-                                        .foregroundStyle(StudioTheme.mutedText)
-                                    Text("\(pitch)")
-                                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                                        .foregroundStyle(StudioTheme.text)
+                if track.trackType == .instrument {
+                    StudioPanel(title: track.name, eyebrow: engineController.statusSummary, accent: StudioTheme.cyan) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            StepGridView(stepStates: stepStates) { index in
+                                document.model.selectedTrack.cycleStep(at: index)
+                            }
+
+                            HStack(spacing: 10) {
+                                Button("Accent Downbeats") {
+                                    document.model.selectedTrack.accentDownbeats()
                                 }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .stroke(StudioTheme.border, lineWidth: 1)
-                                )
+                                .buttonStyle(.borderedProminent)
+                                .tint(StudioTheme.amber)
+
+                                Button("Clear Accents") {
+                                    document.model.selectedTrack.clearAccents()
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(track.accentedStepCount == 0)
+                            }
+
+                            Text("This source is the current MVP note generator: one monophonic step pattern, one pitch cycle, and immediate velocity and gate controls.")
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundStyle(StudioTheme.mutedText)
+                        }
+                    }
+
+                    StudioPanel(title: "Pitch Cycle", eyebrow: "Selected pitches used by the note generator", accent: StudioTheme.violet) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(Array(track.pitches.enumerated()), id: \.offset) { index, pitch in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("STEP \(index + 1)")
+                                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                            .tracking(0.8)
+                                            .foregroundStyle(StudioTheme.mutedText)
+                                        Text("\(pitch)")
+                                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                                            .foregroundStyle(StudioTheme.text)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+                                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                            .stroke(StudioTheme.border, lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    StudioPanel(title: "Generator", eyebrow: "Immediate controls for the manual mono source", accent: StudioTheme.amber) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Pitches")
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .tracking(0.8)
+                                .foregroundStyle(StudioTheme.mutedText)
+
+                            TextField("Comma-separated MIDI notes", text: pitchesBinding)
+                                .textFieldStyle(.roundedBorder)
+
+                            ParameterSliderRow(title: "Velocity", value: Double(track.velocity), range: 1...127, accent: StudioTheme.amber) { newValue in
+                                document.model.selectedTrack.velocity = Int(newValue.rounded())
+                            }
+
+                            ParameterSliderRow(title: "Gate Length", value: Double(track.gateLength), range: 1...16, accent: StudioTheme.violet) { newValue in
+                                document.model.selectedTrack.gateLength = Int(newValue.rounded())
+                            }
+                        }
+                    }
+                } else {
+                    StudioPanel(title: track.trackType.label, eyebrow: "Planned source editor coverage", accent: sourceAccent) {
+                        VStack(spacing: 12) {
+                            ForEach(trackTypePlaceholderTiles, id: \.title) { tile in
+                                StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
                             }
                         }
                     }
@@ -180,10 +265,22 @@ struct DetailView: View {
             }
 
             VStack(alignment: .leading, spacing: 18) {
-                StudioPanel(title: "Track Voice", eyebrow: "Project-scoped identity and sink", accent: StudioTheme.success) {
+                StudioPanel(title: "Destination", eyebrow: "Project-scoped identity and current sink", accent: StudioTheme.success) {
                     VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 10) {
+                            StudioMetricPill(title: "Track", value: track.name, accent: StudioTheme.success)
+                            StudioMetricPill(title: "Destination", value: destinationSummary, accent: StudioTheme.violet)
+                        }
+
                         TextField("Track Name", text: $document.model.selectedTrack.name)
                             .textFieldStyle(.roundedBorder)
+
+                        Picker("Track Type", selection: $document.model.selectedTrack.trackType) {
+                            ForEach(TrackType.allCases, id: \.self) { trackType in
+                                Text(trackType.label).tag(trackType)
+                            }
+                        }
+                        .pickerStyle(.segmented)
 
                         Picker("Output", selection: $document.model.selectedTrack.output) {
                             ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
@@ -199,45 +296,22 @@ struct DetailView: View {
                                 }
                             }
                         }
-
-                        Text("Pitches")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-
-                        TextField("Comma-separated MIDI notes", text: pitchesBinding)
-                            .textFieldStyle(.roundedBorder)
                     }
                 }
 
-                StudioPanel(title: "Generator", eyebrow: "Immediate note-gen controls", accent: StudioTheme.amber) {
-                    VStack(spacing: 14) {
-                        ParameterSliderRow(title: "Velocity", value: Double(track.velocity), range: 1...127, accent: StudioTheme.amber) { newValue in
-                            document.model.selectedTrack.velocity = Int(newValue.rounded())
-                        }
-
-                        ParameterSliderRow(title: "Gate Length", value: Double(track.gateLength), range: 1...16, accent: StudioTheme.violet) { newValue in
-                            document.model.selectedTrack.gateLength = Int(newValue.rounded())
+                StudioPanel(title: "Routing", eyebrow: "Future sink-side controls and placeholders", accent: StudioTheme.violet) {
+                    VStack(spacing: 12) {
+                        ForEach(destinationPlaceholderTiles, id: \.title) { tile in
+                            StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
                         }
                     }
                 }
 
-                StudioPanel(title: "Mixer", eyebrow: "Per-track level, pan, and mute", accent: StudioTheme.cyan) {
-                    VStack(spacing: 14) {
-                        ParameterSliderRow(title: "Level", value: track.mix.clampedLevel, range: 0...1, accent: StudioTheme.cyan) { newValue in
-                            document.model.selectedTrack.mix.level = newValue
-                        }
-
-                        ParameterSliderRow(title: "Pan", value: track.mix.clampedPan, range: -1...1, accent: StudioTheme.violet) { newValue in
-                            document.model.selectedTrack.mix.pan = newValue
-                        }
-
-                        Toggle(isOn: $document.model.selectedTrack.mix.isMuted) {
-                            Text("Mute Track")
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                .foregroundStyle(StudioTheme.text)
-                        }
-                        .toggleStyle(.switch)
+                StudioPanel(title: "Track Contract", eyebrow: "What lives here versus elsewhere", accent: StudioTheme.amber) {
+                    VStack(spacing: 12) {
+                        StudioPlaceholderTile(title: "Source Left / Destination Right", detail: "This track surface now treats note generation and note destination as separate concerns, matching the north-star pipeline model.", accent: StudioTheme.cyan)
+                        StudioPlaceholderTile(title: "Mixer Lives In Mixer", detail: "Level, pan, mute, buses, sends, and per-voice strips stay in the Mixer workspace so the Track view can stay focused.", accent: StudioTheme.amber)
+                        StudioPlaceholderTile(title: "Phrase Owns Graph Shape", detail: "The current shell is future-proofed for phrase-scoped pipelines: source placeholders on the left, sink placeholders on the right, graph details later in the Phrase workspace.", accent: StudioTheme.violet)
                     }
                 }
             }
@@ -354,6 +428,45 @@ struct DetailView: View {
             ("Phrases", "Reusable phrase-level macro and pipeline definitions.", StudioTheme.violet)
         ]
     }
+
+    private var trackTypePlaceholderTiles: [(title: String, detail: String, accent: Color)] {
+        switch track.trackType {
+        case .instrument:
+            return [
+                ("Manual Mono", "One monophonic step pattern drives one pitch cycle. This is the only live source mode today.", StudioTheme.cyan),
+                ("Clip Reader", "Frozen or hand-authored note material owned by the phrase, including step annotations and locks.", StudioTheme.violet),
+                ("MIDI In / Template", "External input and template-backed starts stay as phrase-scoped source choices inside the instrument track shape.", StudioTheme.amber)
+            ]
+        case .drumRack:
+            return [
+                ("Tagged Drum Source", "One logical source emits tagged notes for kick, snare, hats, and other voices.", StudioTheme.amber),
+                ("Per-Voice Sequencing", "This is where multiple step lanes make sense: one row or lane per drum voice, not one monophonic pattern.", StudioTheme.cyan),
+                ("Voice Route Link", "The destination side will eventually expose one sink route per voice tag.", StudioTheme.violet)
+            ]
+        case .sliceLoop:
+            return [
+                ("Slice Trigger Source", "A sliced loop behaves like a tagged note source where slices are the voices.", StudioTheme.violet),
+                ("Planned Editor", "Waveform, slice boundaries, tags, and slice-trigger lanes will live here once the audio-side plans land.", StudioTheme.cyan),
+                ("Shared Destination Story", "Slice tags route through the same future voice-route destination model as drums.", StudioTheme.amber)
+            ]
+        }
+    }
+
+    private var destinationPlaceholderTiles: [(title: String, detail: String, accent: Color)] {
+        var tiles: [(title: String, detail: String, accent: Color)] = [
+            ("Current Sink", track.output == .midiOut ? "The track currently targets a MIDI output endpoint." : "The track currently targets a hosted AU instrument through the app mixer.", StudioTheme.success),
+            ("Bus / Sends", "Main-alt bus selection, send levels, and phrase concrete-row routing are planned here, not in the source editor.", StudioTheme.amber),
+            ("FX / Treatment", "Per-track insert effects, AU MIDI processors, and destination-specific treatment belong on the sink side of the layout.", StudioTheme.violet)
+        ]
+
+        if track.trackType == .drumRack || track.trackType == .sliceLoop {
+            tiles.append(("Voice Routes", "Tagged voices will each need their own route target so kick, snare, hats, or slices can hit different buses or instruments.", StudioTheme.cyan))
+        } else {
+            tiles.append(("Single Voice Route", "For non-tagged tracks this side stays simple: one source stream, one destination chain, optional transforms in between.", StudioTheme.cyan))
+        }
+
+        return tiles
+    }
 }
 
 private struct SongPhraseRefCard: View {
@@ -440,6 +553,112 @@ private struct PhrasePipelineNode: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+private struct TrackTypePalette: View {
+    @Binding var selectedTrackType: TrackType
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(TrackType.allCases, id: \.self) { trackType in
+                Button {
+                    selectedTrackType = trackType
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(trackType.label.uppercased())
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .tracking(0.9)
+                            .foregroundStyle(StudioTheme.text)
+
+                        Text(description(for: trackType))
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(fill(for: trackType), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(stroke(for: trackType), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func description(for trackType: TrackType) -> String {
+        switch trackType {
+        case .instrument:
+            return "Single melodic voice with swappable phrase sources."
+        case .drumRack:
+            return "Tagged drum lanes and per-voice routing."
+        case .sliceLoop:
+            return "Slice triggers, waveform view, and routed slice voices."
+        }
+    }
+
+    private func fill(for trackType: TrackType) -> Color {
+        selectedTrackType == trackType ? accent(for: trackType).opacity(0.15) : Color.white.opacity(0.03)
+    }
+
+    private func stroke(for trackType: TrackType) -> Color {
+        selectedTrackType == trackType ? accent(for: trackType).opacity(0.5) : StudioTheme.border
+    }
+
+    private func accent(for trackType: TrackType) -> Color {
+        switch trackType {
+        case .instrument:
+            return StudioTheme.cyan
+        case .drumRack:
+            return StudioTheme.amber
+        case .sliceLoop:
+            return StudioTheme.violet
+        }
+    }
+}
+
+private struct InstrumentSourcePalette: View {
+    private let tiles: [(title: String, detail: String, status: String, accent: Color)] = [
+        ("Manual Mono", "Current live monophonic step sequencer and pitch cycle.", "LIVE", StudioTheme.cyan),
+        ("Clip Reader", "Frozen or authored clip source owned by the active phrase.", "PLANNED", StudioTheme.violet),
+        ("Template", "Template-backed starting point stamped from the library.", "PLANNED", StudioTheme.amber),
+        ("MIDI In", "External MIDI capture and monitoring source.", "PLANNED", StudioTheme.success)
+    ]
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 10) {
+            ForEach(tiles, id: \.title) { tile in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(tile.title.uppercased())
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .tracking(0.9)
+                            .foregroundStyle(StudioTheme.text)
+
+                        Spacer(minLength: 8)
+
+                        Text(tile.status)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .tracking(0.9)
+                            .foregroundStyle(tile.accent)
+                    }
+
+                    Text(tile.detail)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(14)
+                .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(tile.accent.opacity(tile.status == "LIVE" ? 0.5 : 0.2), lineWidth: 1)
+                )
+            }
+        }
     }
 }
 

@@ -9,6 +9,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTrackID, StepSequenceTrack.default.id)
         XCTAssertEqual(model.selectedTrack, .default)
         XCTAssertEqual(model.selectedTrack.stepAccents, Array(repeating: false, count: 16))
+        XCTAssertEqual(model.selectedTrack.trackType, .instrument)
         XCTAssertEqual(model.selectedTrack.output, .midiOut)
         XCTAssertEqual(model.selectedTrack.audioInstrument, .builtInSynth)
         XCTAssertEqual(model.selectedTrack.mix, .default)
@@ -23,6 +24,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                 StepSequenceTrack(
                     id: bassID,
                     name: "Bass",
+                    trackType: .instrument,
                     pitches: [36, 43],
                     stepPattern: [true, false, true, false],
                     stepAccents: [false, true, false, false],
@@ -34,6 +36,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                 StepSequenceTrack(
                     id: leadID,
                     name: "Lead",
+                    trackType: .sliceLoop,
                     pitches: [72, 76],
                     stepPattern: [true, true, false, true],
                     stepAccents: [true, false, false, true],
@@ -94,9 +97,67 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded.tracks.count, 1)
         XCTAssertEqual(decoded.selectedTrack.name, "Legacy")
         XCTAssertEqual(decoded.selectedTrack.stepAccents, [false, false, false, false])
+        XCTAssertEqual(decoded.selectedTrack.trackType, .instrument)
         XCTAssertEqual(decoded.selectedTrack.output, .midiOut)
         XCTAssertEqual(decoded.selectedTrack.audioInstrument, .builtInSynth)
         XCTAssertEqual(decoded.selectedTrack.mix, .default)
+    }
+
+    func test_decodes_track_type_when_present() throws {
+        let json = """
+        {
+          "version": 1,
+          "tracks": [
+            {
+              "id": "44444444-4444-4444-4444-444444444444",
+              "name": "Drums",
+              "trackType": "drumRack",
+              "pitches": [36, 38, 42],
+              "stepPattern": [true, false, true, false],
+              "stepAccents": [false, false, true, false],
+              "output": "midiOut",
+              "mix": {
+                "level": 1,
+                "pan": 0,
+                "isMuted": false
+              },
+              "velocity": 100,
+              "gateLength": 4
+            }
+          ],
+          "selectedTrackID": "44444444-4444-4444-4444-444444444444"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
+
+        XCTAssertEqual(decoded.selectedTrack.trackType, .drumRack)
+    }
+
+    func test_maps_legacy_source_to_track_type_when_present() throws {
+        let json = """
+        {
+          "version": 1,
+          "tracks": [
+            {
+              "id": "55555555-5555-5555-5555-555555555555",
+              "name": "Loop",
+              "source": "sliceLoop",
+              "pitches": [60, 62],
+              "stepPattern": [true, false, true, false],
+              "stepAccents": [false, false, false, true],
+              "output": "midiOut",
+              "velocity": 90,
+              "gateLength": 2
+            }
+          ],
+          "selectedTrackID": "55555555-5555-5555-5555-555555555555"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
+
+        XCTAssertEqual(decoded.selectedTrack.trackType, .sliceLoop)
     }
 
     func test_cycle_step_moves_between_off_on_and_accented() {

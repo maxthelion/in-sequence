@@ -95,6 +95,10 @@ struct TrackBankBar: View {
                             .foregroundStyle(StudioTheme.text)
 
                         HStack(spacing: 8) {
+                            Text(track.trackType.shortLabel.uppercased())
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.mutedText)
+
                             Text(track.output == .midiOut ? "MIDI" : "AUDIO")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundStyle(StudioTheme.mutedText)

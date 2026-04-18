@@ -57,12 +57,12 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 Following phatcontroller and Octatrack's part/pattern split: **tracks are project-scoped, pipelines are phrase-scoped**.
 
 - **Project-scoped (stable across phrases):**
-  - The set of tracks and their identities (kick, bass, lead, pad...)
-  - Voice preset per track (generator type, interpretation map, local param baselines)
+  - The set of tracks, their identities (kick, bass, lead, pad...), and their **track types** (`instrument`, `drum`, `slice`, chord pseudo-track, etc.)
+  - Voice preset per track (interpretation map, local param baselines, default sound identity)
   - `voice-route` destination assignments (MIDI channel, bus, FX chain)
   - Template library, saved fill presets, chord-generator library
 - **Phrase-scoped (can vary per phrase):**
-  - Per-track pipeline customization — which source block (live generator vs clip-reader vs template), its params, any extra transform blocks
+  - Per-track pipeline customization — within the current track type, which source block is active (live generator vs clip-reader vs template vs midi-in), its params, and any extra transform blocks
   - Clip data (with step annotations) for that track in that phrase
   - Macro grid values (authored rows + generator-sourced row assignments)
   - Chord-gen pipeline configuration (progression, tension mapping)
@@ -374,29 +374,29 @@ MVP ships audio as single-bus pass-through; the alt-bus and crossfader are an ar
 
 ## UX surfaces
 
-Main window is a macOS NavigationSplitView: sidebar → content → inspector. Transport is a persistent top bar. Perform mode is an overlay, not a separate route.
+Main window is a custom studio shell: persistent top chrome, track bank, and a lower context workspace that swaps wholesale by mode/selection. Perform mode is an overlay, not a separate route.
 
 ### Always visible
 
-- **Transport bar** (top) — play / stop / record / tap-tempo, BPM, swing, position (phrase:bar:step), follow-playback toggle, global freeze button
-- **Navigation sidebar** (left, collapsible) — Song / Phrase / Track-N / Mixer / Perform / Library / Preferences; track entries show voice name + color; drum tracks expose their tag list inline
-- **Inspector** (right, collapsible, context-sensitive) — properties of the current selection: step, block, track, phrase-ref, slice, clip; editable in-place
+- **Studio chrome** (top) — project title, transport, main mode buttons (Song / Phrase / Track / Mixer / Perform / Library / Preferences), engine state, and compact status pills. This should feel like instrument chrome, not a document-app toolbar.
+- **Track bank** (persistent strip beneath the chrome) — project tracks as a compact bank of voices; selecting a track swaps the lower workspace into the right shape for that track type.
+- **Context workspace** (lower body) — the entire lower surface changes with the active mode. This is the main canvas, not a sidebar/detail layout.
+- **Inspector details** (embedded or floating) — selection-specific controls live inside the active workspace or in a lightweight floating inspector, not as a permanent macOS form rail.
 
 ### Main content views
 
 | View | Controls |
 |---|---|
 | **Song** | Phrase-ref chain editor. Rows = refs; columns = phrase-id, repeats, per-ref macro overrides, conditional (every-Nth), scene A/B, transpose, BPM, mute mask. Special rows: HALT / LOOP (finite or ∞) / JUMP / REM. Timeline with playhead; drag phrases from library. |
-| **Phrase (phatcontroller macro grid)** | Tracks × 128-step grid × parameter-layer switcher. Layers: 6 abstract rows (intensity / density / register / tension / variance / brightness) + concrete rows (mute / bus / send / fill-flag / repeat-active / order-preset / global-transpose / swing / crossfader). Per row: authored-vs-generator-sourced toggle. Chord-context row renders as chord names by bar, not scalar values. Per-track interpretation maps decide how each voice routes intensity (velocity, density, register, or a mix). |
-| **Track** (generic MIDI/AU instrument track) | Pipeline editor (simple source-picker default; "show wiring" reveals DAG for power users). Voice-preset picker. Interpretation-map editor (abstract-row → local-param, curve, weight). Local generator params. Inline clip viewer and step-annotation editor (play-prob, jitter, conditional). Commands: freeze, stamp, clear. |
-| **Sound** | MIDI destination (port / channel / program, Cirklon-style labeled CCs and notes) or AU plugin embed + preset. Used for generic instrument tracks. Drum and sample tracks use their specialized views instead. |
+| **Phrase (phatcontroller macro grid)** | Tracks × 128-step grid × parameter-layer switcher. Layers: 6 abstract rows (intensity / density / register / tension / variance / brightness) + concrete rows (mute / bus / send / fill-flag / repeat-active / order-preset / global-transpose / swing / crossfader). Per row: authored-vs-generator-sourced toggle, with phrasing behaviors inspired by phatcontroller's `Single` / `Bars` / `Ramping` modes rather than generic DAW automation lanes. Chord-context row renders as chord names by bar, not scalar values. Per-track interpretation maps decide how each voice routes intensity (velocity, density, register, or a mix). |
+| **Track** (instrument track) | Split workspace: **source editor on the left, destination editor on the right**. The left side chooses and edits the phrase-scoped note source for the current track type; the right side owns sound/routing identity. For instrument tracks the current happy path is a manual monophonic step source, but the same workspace must reserve visible homes for `clip-reader`, `template`, and `midi-in`. "Show wiring" reveals the deeper DAG for power users. Commands: freeze, stamp, clear. |
 | **Drum** | Tag list with per-tag player assignment (MIDI channel+note, internal sampler voice, or AU instance), per-tag bus routing, per-tag velocity curve. Optional kit-level template applied to this track's clip. |
 | **Sample** | Waveform with draggable slice boundaries, auto-slice (transient / grid) + re-analyze. Per-slice: start / end / pitch-offset / reverse / envelope / gain / tag / route-override. Spectral view + auto-labeling toggle. Audition playback. |
 | **Chord generator** | Source-type toggle (generator / authored / midi-in). If generator: chord pool, scale, progression strategy, interpretation map (tension → dissonance, register → progression-root-bias). If authored: per-bar progression editor (degrees or chord names, optional inversions). Consumption matrix showing which tracks subscribe and in what mode (ignore / scale-root / chord-pool / transpose). Local transport. |
 | **Mixer** | Per-track channel strips (vol / pan / mute / solo), bus assignment (main / alt), send-A and send-B, crossfader, per-bus FX chain slots, VU meters, master bus. Drum tracks expose one strip per `voice-route` destination (so a drum track with kick-to-subBus, snare-to-mid, hat-to-hi shows three strips). |
 | **Perform** (overlay) | Fill-preset pad grid (momentary / latched), separate Take pad grid (triggers captured macros with momentary / latched / one-shot), XY pad for continuous abstract-vector control (X = intensity, Y = tension by default; configurable), Polyend-Play-style punch-in effects (repeat / reverse / loop / step-shuffle), per-track select pads for fill targeting, **Capture** button → prompts bar-count → records next N bars as a new Take. Floats over any content view. |
 | **Library** | Browser of library assets: voice presets, drum templates, fill presets, **Takes**, chord-gen presets, sample slice sets, saved phrases. Preview, tag / search, drag-drop into tracks / pad grids. Source flag (bundled vs user). Import / export for sharing across projects. |
-| **Clip editor** (Elektron-style step sequencer for instrument tracks) | 16-cell step grid per bar (pages for longer clips); cell state shows trig / p-lock / conditional / probability / slide / ratchet. Click toggles trig; hold a step + twist any knob in Track / Sound / Inspector → records a **parameter lock** on that step instead of changing baseline (classic Elektron gesture). Inspector "Locks" section lists active locks per step with remove buttons. Sub-grids below show velocity / length / delay / micro-timing as mini bar graphs (Cirklon row-view style). Conditional selector per step. For drum / sample-tagged clips the layout switches to tagged rows × steps. |
+| **Clip editor** (Elektron-style step sequencer for instrument tracks) | 16-cell step grid per bar (pages for longer clips); cell state shows trig / p-lock / conditional / probability / slide / ratchet. Click toggles trig; hold a step + twist any knob in the Track destination panel or floating inspector → records a **parameter lock** on that step instead of changing baseline (classic Elektron gesture). Inspector "Locks" section lists active locks per step with remove buttons. Sub-grids below show velocity / length / delay / micro-timing as mini bar graphs (Cirklon row-view style). Conditional selector per step. For drum / sample-tagged clips the layout switches to tagged rows × steps. |
 | **Graph** (power-user, optional) | Full pipeline DAG for the current phrase. Drag-wire blocks, block palette sidebar, inspector for selected block. Hidden by default; accessible via a "show wiring" toggle in Track view or as a standalone view for deep editing. |
 | **Preferences** | MIDI devices & virtual endpoints, clock master/slave, audio device & latency, AU scan + whitelist, default phrase length + time signature, appearance, keyboard shortcuts. |
 
@@ -404,15 +404,15 @@ Main window is a macOS NavigationSplitView: sidebar → content → inspector. T
 
 Several views are specializations rather than alternatives:
 
-- Selecting a track in the sidebar routes to **Track view** — but a drum track routes to **Drum view**, a sliced-loop track routes to **Sample view**, and a chord-gen pseudo-track routes to **Chord generator view**. Same sidebar slot, different content shape.
-- **Sound view** similarly shape-shifts per track type (MIDI destination vs AU embed); for drum and sample tracks it's absorbed into Drum/Sample view respectively.
+- Selecting a track routes the workspace into that track type's editor shape — instrument tracks open **Track view**, drum tracks open **Drum view**, sliced-loop tracks open **Sample view**, and a chord-gen pseudo-track opens **Chord generator view**. Same track bank slot, different content shape.
+- The **destination/sound half** of the workspace similarly shape-shifts per track type (MIDI destination vs AU embed vs tag-to-route assignment); it is part of the track-type editor, not a separate first-class mode.
 - **Clip editor** can appear inline inside Track/Drum/Sample view or be pinned as its own view for heavy editing sessions.
 
 ### Navigation feel
 
 - Opening a project drops into Song view
 - One-click from Song to any Phrase → opens Phrase view with that phrase active
-- Clicking a track row in Phrase view (or a track in the sidebar) opens its Track/Drum/Sample view
+- Clicking a track row in Phrase view (or a track in the track bank) opens its Track/Drum/Sample view
 - Clicking the chord-context row in Phrase view opens Chord generator view
 - Perform and Mixer are global: same state regardless of which phrase or track is active
 - Library is a drawer that can overlay any view (drag-drop target)
@@ -466,7 +466,7 @@ The design's validation: this user story should feel natural.
 
 ## State, persistence, freeze
 
-- All pipeline configurations, clip data (with annotations), voice-route maps, song structure, macro grids live in a **project document** — a `.seqai` file (Codable, JSON internally for diff-friendliness; may compact to binary later if size matters).
+- All project track identities/types, phrase pipeline configurations, clip data (with annotations), voice-route maps, song structure, and macro grids live in a **project document** — a `.seqai` file (Codable, JSON internally for diff-friendliness; may compact to binary later if size matters).
 - **Templates, voice presets, fill presets, chord-gen presets, slice-set analyses** are **library-scoped** (project-agnostic) — saved to `~/Library/Application Support/sequencer-ai/library/` as individual files, shareable by copying.
 - Autosave on edit; document dirty-flag at the project scope; project-level undo/redo stack.
 - **Freezing** captures a live generator's output across a window into a new clip. The pipeline is reconfigured in place: source block swapped from the generator to a `clip-reader` pointing at the new clip. Generator config preserved (re-swappable).
