@@ -16,16 +16,14 @@ struct SidebarView: View {
                         document.model.selectTrack(id: track.id)
                         section = .trackEditor
                     } label: {
-                        HStack {
-                            Label(track.name, systemImage: track.id == document.model.selectedTrackID ? "pianokeys.inverse" : "pianokeys")
-                            Spacer()
-                            Text("\(track.stepPattern.filter { $0 }.count)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        SidebarRow(
+                            title: track.name,
+                            systemImage: track.id == document.model.selectedTrackID ? "pianokeys.inverse" : "pianokeys",
+                            trailingText: "\(track.stepPattern.filter { $0 }.count)",
+                            isSelected: track.id == document.model.selectedTrackID && section == .trackEditor
+                        )
                     }
                     .buttonStyle(.plain)
-                    .padding(.vertical, 2)
                 }
 
                 HStack(spacing: 8) {
@@ -57,10 +55,43 @@ struct SidebarView: View {
         Button {
             section = sectionValue
         } label: {
-            Label(title, systemImage: systemImage)
-                .foregroundStyle(section == sectionValue ? .primary : .secondary)
+            SidebarRow(
+                title: title,
+                systemImage: systemImage,
+                isSelected: section == sectionValue
+            )
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct SidebarRow: View {
+    let title: String
+    let systemImage: String
+    var trailingText: String? = nil
+    var isSelected: Bool = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 8)
+
+            if let trailingText {
+                Text(trailingText)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+        )
     }
 }
 
