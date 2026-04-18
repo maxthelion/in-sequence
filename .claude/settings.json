@@ -52,6 +52,11 @@
       "Bash(git stash pop:*)",
       "Bash(git stash apply:*)",
       "Bash(git check-ignore:*)"
+    ],
+    "deny": [
+      "Bash(git branch -D:*)",
+      "Bash(git branch -d:*)",
+      "Bash(git tag -d:*)"
     ]
   },
   "hooks": {

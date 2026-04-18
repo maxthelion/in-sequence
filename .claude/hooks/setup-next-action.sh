@@ -105,7 +105,9 @@ if [ "$INBOX_COUNT" -gt 0 ]; then
 fi
 
 # [1c] Unresolved adversarial critiques?
-CRITIQUE_COUNT=$(find "$STATE/review-queue" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+# Only count/dispatch top-level files. Subdirs (e.g. `blocked/` for items
+# awaiting user authorization) are held out of the queue on purpose.
+CRITIQUE_COUNT=$(find "$STATE/review-queue" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$CRITIQUE_COUNT" -gt 0 ]; then
   OLDEST="$(find "$STATE/review-queue" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | head -1)"
   emit "fix-critique" \
