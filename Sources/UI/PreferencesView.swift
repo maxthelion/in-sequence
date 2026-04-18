@@ -27,6 +27,9 @@ private struct GeneralPreferences: View {
 ///   - "Inputs"  = MIDI coming *into* this app = `MIDISession.sources`
 ///   - "Outputs" = MIDI going *out* from this app = `MIDISession.destinations`
 private struct MIDIPreferences: View {
+    // TODO: replace refreshTick with observation-driven invalidation once MIDIClient
+    // subscribes to kMIDIMsgObjectAdded / kMIDIMsgObjectRemoved notifications and mutates
+    // tracked state. Until then, the user hits Refresh to re-read the system endpoint list.
     @State private var refreshTick: Int = 0
 
     var body: some View {

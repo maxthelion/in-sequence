@@ -15,10 +15,13 @@ final class MIDIClient {
     private var clientRef: MIDIClientRef = 0
     private var virtualSourceRefs: [MIDIEndpointRef] = []
     private var virtualDestinationRefs: [MIDIEndpointRef] = []
-    private var incomingHandlers: [MIDIEndpointRef: IncomingMIDIHandler] = [:]
 
     init(name: String) throws {
         self.name = name
+        // NB: the notification block runs on a CoreMIDI-internal thread; when it grows
+        // beyond a no-op (to track kMIDIMsgObjectAdded/Removed for device hot-plug),
+        // mutations from here must be marshalled to match the main-thread readers of
+        // `sources` / `destinations`.
         let status = MIDIClientCreateWithBlock(name as CFString, &clientRef) { _ in
             // MIDI system notifications — handled in a later task.
         }
@@ -83,8 +86,9 @@ final class MIDIClient {
         guard status == noErr else {
             throw ClientError.failedToCreateDestination(status: status)
         }
+        // Handler is retained by the closure captured by MIDIDestinationCreateWithBlock; no
+        // separate ownership needed here.
         virtualDestinationRefs.append(ref)
-        incomingHandlers[ref] = handler
         guard let endpoint = MIDIEndpoint(ref: ref, role: .destination) else {
             throw ClientError.endpointConstructionFailed
         }
