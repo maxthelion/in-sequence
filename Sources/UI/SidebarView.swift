@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SidebarView: View {
+    @Binding var document: SeqAIDocument
+
     var body: some View {
         List {
             Section("Arrangement") {
@@ -8,7 +10,9 @@ struct SidebarView: View {
                 Text("Phrase").tag("phrase")
             }
             Section("Tracks") {
-                Text("(no tracks yet)").foregroundStyle(.secondary)
+                Label(document.model.primaryTrack.name, systemImage: "pianokeys")
+                Text("\(document.model.primaryTrack.stepPattern.count) steps")
+                    .foregroundStyle(.secondary)
             }
             Section("Global") {
                 Text("Mixer").tag("mixer")
@@ -22,5 +26,13 @@ struct SidebarView: View {
 }
 
 #Preview {
-    SidebarView()
+    SidebarPreview()
+}
+
+private struct SidebarPreview: View {
+    @State private var document = SeqAIDocument()
+
+    var body: some View {
+        SidebarView(document: $document)
+    }
 }

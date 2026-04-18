@@ -68,6 +68,33 @@ final class EngineController {
         _ = commandQueue.enqueue(.setParam(blockID: blockID, paramKey: paramKey, value: value))
     }
 
+    func apply(documentModel: SeqAIDocumentModel) {
+        apply(track: documentModel.primaryTrack)
+    }
+
+    func apply(track: StepSequenceTrack) {
+        setParam(
+            blockID: "gen",
+            paramKey: "pitches",
+            value: .integers(track.pitches)
+        )
+        setParam(
+            blockID: "gen",
+            paramKey: "stepPattern",
+            value: .integers(track.stepPattern.map { $0 ? 1 : 0 })
+        )
+        setParam(
+            blockID: "gen",
+            paramKey: "velocity",
+            value: .number(Double(track.velocity))
+        )
+        setParam(
+            blockID: "gen",
+            paramKey: "gateLength",
+            value: .number(Double(track.gateLength))
+        )
+    }
+
     var registeredKindIDs: [String] {
         registry.kinds().map(\.id)
     }
@@ -106,6 +133,8 @@ final class EngineController {
             ],
             commandQueue: commandQueue
         )
+
+        apply(track: .default)
     }
 
     private func handleTick(tickIndex: UInt64, now: TimeInterval) {
