@@ -11,6 +11,9 @@ struct SequencerAIApp: App {
             // Logging only; UI will surface the issue via the Library view (future task).
             NSLog("AppSupportBootstrap failed: \(error)")
         }
+
+        // Touch the shared session so MIDI is initialized at app launch.
+        _ = MIDISession.shared
     }
 
     var body: some Scene {

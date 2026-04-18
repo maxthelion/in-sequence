@@ -22,11 +22,56 @@ private struct GeneralPreferences: View {
     }
 }
 
+/// The MIDI preferences tab uses user-friendly "Inputs" / "Outputs" labels,
+/// which map onto CoreMIDI sources / destinations respectively:
+///   - "Inputs"  = MIDI coming *into* this app = `MIDISession.sources`
+///   - "Outputs" = MIDI going *out* from this app = `MIDISession.destinations`
 private struct MIDIPreferences: View {
+    @State private var refreshTick: Int = 0
+
     var body: some View {
+        let session = MIDISession.shared
+
         Form {
-            Text("MIDI devices will be listed here after Task 9.")
-        }.padding()
+            Section("Inputs") {
+                if session.sources.isEmpty {
+                    Text("No MIDI input endpoints found.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(session.sources) { endpoint in
+                        Text(endpoint.displayName)
+                    }
+                }
+            }
+            Section("Outputs") {
+                if session.destinations.isEmpty {
+                    Text("No MIDI output endpoints found.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(session.destinations) { endpoint in
+                        Text(endpoint.displayName)
+                    }
+                }
+            }
+            Section("Virtual (this app)") {
+                if let out = session.appOutput {
+                    LabeledContent("Out", value: out.displayName)
+                }
+                if let input = session.appInput {
+                    LabeledContent("In", value: input.displayName)
+                }
+                if session.appInput == nil && session.appOutput == nil {
+                    Text("Virtual endpoints unavailable.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Refresh") { refreshTick += 1 }
+            }
+        }
+        .padding()
+        .id(refreshTick)
     }
 }
 
