@@ -3,7 +3,7 @@ import XCTest
 
 final class StreamTests: XCTestCase {
     func test_notes_stream_is_equatable_and_sendable() {
-        let stream = Stream.notes([
+        let stream = SequencerAI.Stream.notes([
             NoteEvent(pitch: 60, velocity: 100, length: 4, gate: true, voiceTag: "kick")
         ])
 
@@ -12,14 +12,14 @@ final class StreamTests: XCTestCase {
     }
 
     func test_scalar_stream_is_equatable_and_sendable() {
-        let stream = Stream.scalar(0.5)
+        let stream = SequencerAI.Stream.scalar(0.5)
 
         XCTAssertEqual(stream, stream)
         XCTAssertEqual(roundTrip(stream), stream)
     }
 
     func test_chord_stream_is_equatable_and_sendable() {
-        let stream = Stream.chord(
+        let stream = SequencerAI.Stream.chord(
             Chord(root: 60, chordType: "maj7", scale: "ionian")
         )
 
@@ -28,21 +28,21 @@ final class StreamTests: XCTestCase {
     }
 
     func test_event_stream_is_equatable_and_sendable() {
-        let stream = Stream.event(.custom("fill"))
+        let stream = SequencerAI.Stream.event(.custom("fill"))
 
         XCTAssertEqual(stream, stream)
         XCTAssertEqual(roundTrip(stream), stream)
     }
 
     func test_gate_stream_is_equatable_and_sendable() {
-        let stream = Stream.gate(true)
+        let stream = SequencerAI.Stream.gate(true)
 
         XCTAssertEqual(stream, stream)
         XCTAssertEqual(roundTrip(stream), stream)
     }
 
     func test_step_index_stream_is_equatable_and_sendable() {
-        let stream = Stream.stepIndex(7)
+        let stream = SequencerAI.Stream.stepIndex(7)
 
         XCTAssertEqual(stream, stream)
         XCTAssertEqual(roundTrip(stream), stream)

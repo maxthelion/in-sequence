@@ -1,5 +1,3 @@
-import Foundation
-
 struct NoteEvent: Equatable, Sendable {
     let pitch: UInt8
     let velocity: UInt8
