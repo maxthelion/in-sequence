@@ -68,7 +68,9 @@ fi
 # [1b] Unresolved adversarial critiques?
 CRITIQUE_COUNT=$(find "$STATE/review-queue" -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$CRITIQUE_COUNT" -gt 0 ]; then
-  OLDEST="$(ls -1t "$STATE/review-queue"/*.md 2>/dev/null | tail -1)"
+  # Deterministic "oldest" by lexicographic filename, not mtime (which is
+  # checkout-time on a fresh clone and gives non-deterministic BT behaviour).
+  OLDEST="$(find "$STATE/review-queue" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | head -1)"
   emit "fix-critique" \
     "There are $CRITIQUE_COUNT outstanding adversarial critique(s) in \`.claude/state/review-queue/\`." \
     "Oldest: \`$(basename "$OLDEST")\`" \
@@ -105,7 +107,8 @@ fi
 # [1e] Inbox messages from user?
 INBOX_COUNT=$(find "$STATE/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$INBOX_COUNT" -gt 0 ]; then
-  OLDEST="$(ls -1t "$STATE/inbox"/*.md 2>/dev/null | tail -1)"
+  # Deterministic oldest — see rationale above.
+  OLDEST="$(find "$STATE/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | head -1)"
   emit "handle-inbox" \
     "There are $INBOX_COUNT inbox message(s). Oldest: \`$(basename "$OLDEST")\`." \
     "Read the file and act: the message may be a redirect, a new candidate, a plan edit, or a manual instruction." \
@@ -134,11 +137,12 @@ fi
 
 # [2c] Plan with unfinished tasks?
 ACTIVE_PLAN=""
-for f in $(ls -1 docs/plans/*.md 2>/dev/null | sort); do
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
   if ! grep -q "Status:.*Completed" "$f" 2>/dev/null; then
     ACTIVE_PLAN="$f"; break
   fi
-done
+done < <(find docs/plans -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort)
 if [ -n "$ACTIVE_PLAN" ]; then
   # Find the first unticked checkbox.
   UNTICKED=$(grep -nE '^[[:space:]]*- \[ \]' "$ACTIVE_PLAN" 2>/dev/null | head -1 || true)
@@ -154,8 +158,8 @@ if [ -n "$ACTIVE_PLAN" ]; then
 fi
 
 # [2d] No active plan but unfinished sub-specs in the north-star?
-SPEC_FILE="$(ls -1 docs/specs/*.md 2>/dev/null | tail -1)"
-if [ -n "$SPEC_FILE" ] && ! [ -n "$ACTIVE_PLAN" ]; then
+SPEC_FILE="$(find docs/specs -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | tail -1)"
+if [ -n "$SPEC_FILE" ] && [ -z "$ACTIVE_PLAN" ]; then
   emit "write-next-plan" \
     "No active plan. Unfinished sub-specs may remain in \`$SPEC_FILE\`'s Decomposition section." \
     "Read the spec's Decomposition section; find the next sub-spec that has no corresponding file under \`docs/plans/\`." \

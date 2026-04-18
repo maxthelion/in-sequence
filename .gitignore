@@ -39,6 +39,9 @@ Pods/
 .claude/scheduled_tasks.lock
 .claude/logs/
 .claude/cache/
+# Behaviour-tree generated files — churn-on-every-run. Durable state
+# (review-queue/, inbox/, work-item.md, candidates.md, last-*-sha) is committed.
+.claude/state/next-action.md
 
 # Octowiki runtime state (regenerable caches / queues)
 wiki/.meta/
