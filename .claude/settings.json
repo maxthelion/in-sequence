@@ -55,8 +55,15 @@
     ],
     "deny": [
       "Bash(git branch -D:*)",
+      "Bash(git branch -Df:*)",
+      "Bash(git branch -Dr:*)",
       "Bash(git branch -d:*)",
-      "Bash(git tag -d:*)"
+      "Bash(git branch -df:*)",
+      "Bash(git branch -dr:*)",
+      "Bash(git branch --delete:*)",
+      "Bash(git tag -d:*)",
+      "Bash(git tag --delete:*)",
+      "Bash(git update-ref -d:*)"
     ]
   },
   "hooks": {
