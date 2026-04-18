@@ -67,6 +67,14 @@ From the shoe-makers pattern: each phase should hand off a **well-scoped brief**
 
 If execute is ever reading broadly to figure out what to do, prioritise didn't write a good enough brief. If prioritise is improvising, explore didn't surface strong candidates. The handoffs are the system's QA.
 
+## Model selection for dispatched subagents
+
+Implementation-scope agents (any action that writes Swift or test code, applies review fixes, executes a plan task, or invokes `superpowers:writing-plans`) **must** use Sonnet 4.5 or newer. Pass `model: "sonnet"` (current default: Sonnet 4.6 / Opus 4.7) explicitly on the `Agent` dispatch. Never dispatch code-writing tasks to Haiku or older Sonnet.
+
+Review, triage, and research agents (spec-compliance reviewer, code-quality reviewer, adversarial reviewer, explore / prioritise coordinators) can use the default model — the quality bar is lower-stakes.
+
+See `AGENTS.md` § "Model selection" and the feedback memory `feedback_implementation_model.md` for the full rationale.
+
 ## Safety rails
 
 - **One action per invocation.** The skill does not chain actions. The next iteration will pick the next.
