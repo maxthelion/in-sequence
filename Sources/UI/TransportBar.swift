@@ -11,7 +11,7 @@ struct TransportBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             Button {
                 if engineController.isRunning {
                     engineController.stop()
@@ -20,37 +20,75 @@ struct TransportBar: View {
                 }
             } label: {
                 Image(systemName: engineController.isRunning ? "stop.fill" : "play.fill")
-                    .frame(width: 16, height: 16)
+                    .frame(width: 18, height: 18)
             }
+            .buttonStyle(TransportButtonStyle(accent: engineController.isRunning ? StudioTheme.amber : StudioTheme.cyan))
             .disabled(!engineController.canStart)
 
             Button {} label: {
                 Image(systemName: "record.circle.fill")
-                    .foregroundStyle(.red)
-                    .frame(width: 16, height: 16)
+                    .foregroundStyle(StudioTheme.amber)
+                    .frame(width: 18, height: 18)
             }
+            .buttonStyle(TransportButtonStyle(accent: StudioTheme.amber))
             .disabled(true)
 
-            Divider().frame(height: 20)
+            Rectangle()
+                .fill(StudioTheme.border)
+                .frame(width: 1, height: 26)
 
-            Text("BPM").foregroundStyle(.secondary).font(.caption)
-            Stepper(value: bpmBinding, in: 40...300, step: 1) {
-                Text(String(format: "%.0f", engineController.currentBPM))
-                    .monospacedDigit()
-            }
-            .labelsHidden()
-            Text(String(format: "%.0f", engineController.currentBPM)).monospacedDigit()
+            Text("BPM")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
 
-            Divider().frame(height: 20)
+            Slider(value: bpmBinding, in: 40...300)
+                .frame(width: 120)
+                .tint(StudioTheme.cyan)
 
-            Text(engineController.transportPosition).monospacedDigit().foregroundStyle(.secondary)
+            Text(String(format: "%.0f", engineController.currentBPM))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.text)
+
+            Rectangle()
+                .fill(StudioTheme.border)
+                .frame(width: 1, height: 26)
+
+            Text(engineController.transportPosition)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.text)
+
             Text(engineController.statusSummary)
-                .foregroundStyle(.secondary)
-                .font(.caption)
+                .foregroundStyle(StudioTheme.mutedText)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
                 .lineLimit(1)
 
             Spacer()
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.035), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(StudioTheme.border, lineWidth: 1)
+        )
+    }
+}
+
+private struct TransportButtonStyle: ButtonStyle {
+    let accent: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(StudioTheme.text)
+            .padding(12)
+            .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(accent.opacity(0.45), lineWidth: 1)
+            )
     }
 }
 

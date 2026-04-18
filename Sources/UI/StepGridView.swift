@@ -10,10 +10,10 @@ struct StepGridView: View {
     let stepStates: [StepVisualState]
     let advanceStep: (Int) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 8)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 8)
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
+        LazyVGrid(columns: columns, spacing: 10) {
             ForEach(Array(stepStates.enumerated()), id: \.offset) { index, state in
                 StepGridCell(
                     index: index,
@@ -32,22 +32,35 @@ private struct StepGridCell: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: 10) {
                 Text("\(index + 1)")
-                    .font(.caption2)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .tracking(0.8)
                     .foregroundStyle(labelStyle)
 
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(fillColor)
-                    .frame(height: 34)
+                    .frame(height: 44)
                     .overlay {
                         Image(systemName: symbolName)
-                            .font(.caption)
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(iconStyle)
+                    }
+                    .overlay(alignment: .top) {
+                        Capsule()
+                            .fill(edgeGlow)
+                            .frame(width: 26, height: 3)
+                            .padding(.top, 5)
                     }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+            .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(outlineColor, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Step \(index + 1)")
@@ -57,11 +70,11 @@ private struct StepGridCell: View {
     private var fillColor: Color {
         switch state {
         case .off:
-            return Color.secondary.opacity(0.15)
+            return Color.white.opacity(0.06)
         case .on:
-            return Color.accentColor
+            return StudioTheme.cyan.opacity(0.82)
         case .accented:
-            return Color.orange
+            return StudioTheme.amber.opacity(0.92)
         }
     }
 
@@ -88,11 +101,33 @@ private struct StepGridCell: View {
     }
 
     private var labelStyle: AnyShapeStyle {
-        state == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
+        state == .off ? AnyShapeStyle(StudioTheme.mutedText) : AnyShapeStyle(StudioTheme.text)
     }
 
     private var iconStyle: AnyShapeStyle {
-        state == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white)
+        state == .off ? AnyShapeStyle(StudioTheme.mutedText) : AnyShapeStyle(StudioTheme.text)
+    }
+
+    private var edgeGlow: Color {
+        switch state {
+        case .off:
+            return .clear
+        case .on:
+            return StudioTheme.cyan
+        case .accented:
+            return StudioTheme.amber
+        }
+    }
+
+    private var outlineColor: Color {
+        switch state {
+        case .off:
+            return Color.white.opacity(0.06)
+        case .on:
+            return StudioTheme.cyan.opacity(0.34)
+        case .accented:
+            return StudioTheme.amber.opacity(0.34)
+        }
     }
 }
 

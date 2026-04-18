@@ -14,13 +14,13 @@ struct SidebarView: View {
                 ForEach(document.model.tracks, id: \.id) { track in
                     Button {
                         document.model.selectTrack(id: track.id)
-                        section = .trackEditor
+                        section = .track
                     } label: {
                         SidebarRow(
                             title: track.name,
                             systemImage: track.id == document.model.selectedTrackID ? "pianokeys.inverse" : "pianokeys",
                             trailingText: "\(track.stepPattern.filter { $0 }.count)",
-                            isSelected: track.id == document.model.selectedTrackID && section == .trackEditor
+                            isSelected: track.id == document.model.selectedTrackID && section == .track
                         )
                     }
                     .buttonStyle(.plain)
@@ -101,7 +101,7 @@ private struct SidebarRow: View {
 
 private struct SidebarPreview: View {
     @State private var document = SeqAIDocument()
-    @State private var section: WorkspaceSection = .trackEditor
+    @State private var section: WorkspaceSection = .track
 
     var body: some View {
         SidebarView(document: $document, section: $section)
