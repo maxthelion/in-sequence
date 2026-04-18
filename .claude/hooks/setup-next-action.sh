@@ -129,6 +129,10 @@ if [ -f "$STATE/partial-work.md" ]; then
 fi
 
 # [1e] Unreviewed commits since last adversarial review?
+# Same shape as [1a]: only route when CODE changed (Sources/ or Tests/ or
+# docs/plans/ or docs/specs/). Pure automation/hygiene / state-bump commits
+# don't need a review cycle, and committing the sha bump itself would
+# otherwise create an infinite loop.
 LAST_REVIEW_SHA="$(cat "$STATE/last-review-sha" 2>/dev/null || echo '')"
 if [ -z "$LAST_REVIEW_SHA" ]; then
   # Never reviewed — use latest tag or initial commit as the base.
@@ -136,12 +140,22 @@ if [ -z "$LAST_REVIEW_SHA" ]; then
 fi
 UNREVIEWED=$(git rev-list --count "$LAST_REVIEW_SHA..HEAD" 2>/dev/null || echo '0')
 if [ "$UNREVIEWED" -gt 0 ]; then
-  emit "adversarial-review" \
-    "$UNREVIEWED commit(s) since last adversarial review (\`$LAST_REVIEW_SHA..HEAD\`)." \
-    "Invoke the \`adversarial-review\` skill against this diff." \
-    "For each finding emitted, write one file to \`.claude/state/review-queue/\` (name: severity-short-slug.md)." \
-    "Update \`.claude/state/last-review-sha\` to the current HEAD SHA."
-  exit 0
+  CODE_CHANGED=1
+  if git cat-file -e "${LAST_REVIEW_SHA}^{commit}" 2>/dev/null; then
+    if git diff --quiet "$LAST_REVIEW_SHA..HEAD" -- 'Sources/' 'Tests/' 'docs/plans/' 'docs/specs/' 2>/dev/null; then
+      CODE_CHANGED=0
+    fi
+  fi
+  if [ "$CODE_CHANGED" -eq 1 ]; then
+    emit "adversarial-review" \
+      "$UNREVIEWED commit(s) since last adversarial review (\`$LAST_REVIEW_SHA..HEAD\`)." \
+      "Invoke the \`adversarial-review\` skill against this diff." \
+      "For each finding emitted, write one file to \`.claude/state/review-queue/\` (name: severity-short-slug.md)." \
+      "Update \`.claude/state/last-review-sha\` to the current HEAD SHA."
+    exit 0
+  fi
+  # Non-code-only range — skip the review; the sha will catch up the next
+  # time code changes and adversarial-review actually runs.
 fi
 
 # [2a] Open work-item?
