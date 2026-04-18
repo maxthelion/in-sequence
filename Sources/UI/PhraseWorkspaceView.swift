@@ -42,6 +42,10 @@ struct PhraseWorkspaceView: View {
         selectedPhrase.cellMode(for: selectedLayer, trackID: selectedTrack.id)
     }
 
+    private var selectedSourceMode: TrackSourceMode {
+        document.model.selectedSourceMode(for: selectedTrack.id)
+    }
+
     private var playbackPhase: PlaybackPhase? {
         guard engineController.isRunning, !phrases.isEmpty else {
             return nil
@@ -362,25 +366,25 @@ struct PhraseWorkspaceView: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
 
-            if selectedTrack.trackType == .instrument {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Instrument Source")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Source Mode")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
 
-                    Picker("Source", selection: selectedInstrumentSourceBinding) {
-                        ForEach(PhraseInstrumentSource.allCases, id: \.self) { source in
-                            Text(source.label).tag(source)
-                        }
+                Picker("Source", selection: selectedSourceModeBinding) {
+                    ForEach(TrackSourceMode.available(for: selectedTrack.trackType), id: \.self) { source in
+                        Text(source.label).tag(source)
                     }
-                    .pickerStyle(.segmented)
-
-                    Text(selectedPhrase.instrumentSource(for: selectedTrack.id).detail)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(StudioTheme.mutedText)
                 }
-            } else {
+                .pickerStyle(.segmented)
+
+                Text(selectedSourceMode.detail)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            if selectedTrack.trackType != .instrument {
                 StudioPlaceholderTile(
                     title: selectedTrack.trackType == .drumRack ? "Drum Lane Routing" : "Slice Lane Routing",
                     detail: selectedTrack.trackType == .drumRack
@@ -428,13 +432,11 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    private var selectedInstrumentSourceBinding: Binding<PhraseInstrumentSource> {
+    private var selectedSourceModeBinding: Binding<TrackSourceMode> {
         Binding(
-            get: { selectedPhrase.instrumentSource(for: selectedTrack.id) },
+            get: { document.model.selectedSourceMode(for: selectedTrack.id) },
             set: { newValue in
-                mutateSelectedPhrase { phrase in
-                    phrase.setInstrumentSource(newValue, for: selectedTrack.id)
-                }
+                document.model.setSelectedPhraseSourceMode(newValue, for: selectedTrack.id)
             }
         )
     }
@@ -625,7 +627,7 @@ private struct PhraseMatrixRow: View {
 
     private func footerText(for track: StepSequenceTrack) -> String {
         if track.trackType == .instrument {
-            return phrase.instrumentSource(for: track.id).label
+            return phrase.sourceMode(for: track.id).label
         }
         return track.trackType.label
     }

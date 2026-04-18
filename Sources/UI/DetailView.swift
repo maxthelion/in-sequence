@@ -13,8 +13,8 @@ struct DetailView: View {
         document.model.selectedPhrase
     }
 
-    private var selectedInstrumentSource: PhraseInstrumentSource {
-        phrase.instrumentSource(for: track.id)
+    private var selectedSourceMode: TrackSourceMode {
+        document.model.selectedSourceMode(for: track.id)
     }
 
     private var stepStates: [StepVisualState] {
@@ -38,23 +38,11 @@ struct DetailView: View {
     }
 
     private var sourceEyebrow: String {
-        switch track.trackType {
-        case .instrument:
-            return "\(phrase.name) source • \(selectedInstrumentSource.label)"
-        case .drumRack:
-            return "Tagged multi-lane drum source placeholder"
-        case .sliceLoop:
-            return "Tagged slice trigger source placeholder"
-        }
+        "\(phrase.name) source • \(selectedSourceMode.label)"
     }
 
     private var sourceSummary: String {
-        switch track.trackType {
-        case .instrument:
-            return selectedInstrumentSource.isImplemented ? "Live now" : "Planned"
-        case .drumRack, .sliceLoop:
-            return "Planned"
-        }
+        track.trackType == .instrument && selectedSourceMode.isImplemented ? "Live now" : "Planned"
     }
 
     private var destinationSummary: String {
@@ -149,17 +137,12 @@ struct DetailView: View {
                             StudioMetricPill(title: "Phrase", value: phrase.name, accent: StudioTheme.success)
                             StudioMetricPill(title: "BPM", value: "\(Int(engineController.currentBPM.rounded()))", accent: StudioTheme.amber)
                             StudioMetricPill(title: "Type", value: track.trackType.shortLabel, accent: sourceAccent)
-                            if track.trackType == .instrument {
-                                StudioMetricPill(title: "Source", value: selectedInstrumentSource.shortLabel, accent: sourceAccent)
-                            }
+                            StudioMetricPill(title: "Source", value: selectedSourceMode.shortLabel, accent: sourceAccent)
                             StudioMetricPill(title: "Status", value: sourceSummary, accent: StudioTheme.violet)
                         }
 
                         TrackTypePalette(selectedTrackType: trackTypeBinding)
-
-                        if track.trackType == .instrument {
-                            InstrumentSourcePalette(selectedSource: instrumentSourceBinding)
-                        }
+                        SourceModePalette(trackType: track.trackType, selectedSource: sourceModeBinding)
 
                         Text("The left side models how this track creates note material. Track type decides the editor shape; phrase-scoped source modes and transforms will later plug into that shape without forcing one giant persisted source enum.")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -167,7 +150,7 @@ struct DetailView: View {
                     }
                 }
 
-                if track.trackType == .instrument && selectedInstrumentSource == .manualMono {
+                if track.trackType == .instrument && selectedSourceMode == .generator {
                     StudioPanel(title: track.name, eyebrow: engineController.statusSummary, accent: StudioTheme.cyan) {
                         VStack(alignment: .leading, spacing: 16) {
                             StepGridView(stepStates: stepStates) { index in
@@ -239,7 +222,7 @@ struct DetailView: View {
                         }
                     }
                 } else if track.trackType == .instrument {
-                    StudioPanel(title: selectedInstrumentSource.label, eyebrow: "Phrase-scoped source placeholder", accent: sourceAccent) {
+                    StudioPanel(title: selectedSourceMode.label, eyebrow: "Phrase-scoped source placeholder", accent: sourceAccent) {
                         VStack(spacing: 12) {
                             ForEach(instrumentSourcePlaceholderTiles, id: \.title) { tile in
                                 StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
@@ -420,7 +403,7 @@ struct DetailView: View {
     private var trackTypeBinding: Binding<TrackType> {
         Binding(
             get: { document.model.selectedTrack.trackType },
-            set: { document.model.selectedTrack.trackType = $0 }
+            set: { document.model.setSelectedTrackType($0) }
         )
     }
 
@@ -438,15 +421,13 @@ struct DetailView: View {
         )
     }
 
-    private var instrumentSourceBinding: Binding<PhraseInstrumentSource> {
+    private var sourceModeBinding: Binding<TrackSourceMode> {
         Binding(
             get: {
-                document.model.selectedPhrase.instrumentSource(for: track.id)
+                document.model.selectedSourceMode(for: track.id)
             },
             set: { newValue in
-                var updatedPhrase = document.model.selectedPhrase
-                updatedPhrase.setInstrumentSource(newValue, for: track.id)
-                document.model.selectedPhrase = updatedPhrase
+                document.model.setSelectedPhraseSourceMode(newValue, for: track.id)
             }
         )
     }
@@ -483,10 +464,10 @@ struct DetailView: View {
     }
 
     private var instrumentSourcePlaceholderTiles: [(title: String, detail: String, accent: Color)] {
-        switch selectedInstrumentSource {
-        case .manualMono:
+        switch selectedSourceMode {
+        case .generator:
             return []
-        case .clipReader:
+        case .clip:
             return [
                 ("Clip Reader", "Phrase-owned clip material with step annotations and later parameter locks.", StudioTheme.violet),
                 ("Freeze / Stamp", "This source is where frozen generator output and hand-authored clips will land.", StudioTheme.cyan),
@@ -675,12 +656,13 @@ private struct TrackTypePalette: View {
     }
 }
 
-private struct InstrumentSourcePalette: View {
-    @Binding var selectedSource: PhraseInstrumentSource
+private struct SourceModePalette: View {
+    let trackType: TrackType
+    @Binding var selectedSource: TrackSourceMode
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 10) {
-            ForEach(PhraseInstrumentSource.allCases, id: \.self) { source in
+            ForEach(TrackSourceMode.available(for: trackType), id: \.self) { source in
                 Button {
                     selectedSource = source
                 } label: {
@@ -716,11 +698,11 @@ private struct InstrumentSourcePalette: View {
         }
     }
 
-    private func accent(for source: PhraseInstrumentSource) -> Color {
+    private func accent(for source: TrackSourceMode) -> Color {
         switch source {
-        case .manualMono:
+        case .generator:
             return StudioTheme.cyan
-        case .clipReader:
+        case .clip:
             return StudioTheme.violet
         case .template:
             return StudioTheme.amber
@@ -729,11 +711,11 @@ private struct InstrumentSourcePalette: View {
         }
     }
 
-    private func fill(for source: PhraseInstrumentSource) -> Color {
+    private func fill(for source: TrackSourceMode) -> Color {
         selectedSource == source ? accent(for: source).opacity(0.14) : Color.white.opacity(0.03)
     }
 
-    private func stroke(for source: PhraseInstrumentSource) -> Color {
+    private func stroke(for source: TrackSourceMode) -> Color {
         selectedSource == source ? accent(for: source).opacity(0.52) : StudioTheme.border
     }
 }

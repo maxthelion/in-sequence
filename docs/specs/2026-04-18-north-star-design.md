@@ -42,10 +42,16 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 
 ## Vocabulary
 
-- **Track** — one instrument channel (voice), conceptually. Implemented as a pipeline ending in a MIDI or audio sink.
+- **Track** — one project-scoped musical lane with a stable identity, immutable **track type**, and one or more phrase-scoped source choices feeding a destination.
+- **Track type** — the top-level shape of a track (`instrument`, `drum`, `slice`, chord pseudo-track). Determines compatible generators, voicing behavior, and workspace shape.
+- **Voicing** — how a track type realizes note material at the destination side: monophonic instrument voice, tagged drum voices, slice voices, or chord broadcast behavior.
+- **Generator kind** — a reusable category of generator (`manual-mono`, `drum-pattern`, `slice-trigger`, etc.) used for compatibility filtering and UI affordances.
+- **Generator instance** — one project-scoped entry in the generator pool, referenced by phrases through a source ref.
 - **Generator** — a block that produces notes or values. Typically composed as step-gen × pitch-gen (following glaypen).
+- **Clip pool** — the project-scoped set of reusable clip instances that phrases may point at.
+- **Source mode** — the phrase-scoped choice of how a track gets note material in this phrase: generator, clip, template, MIDI-in, or a graph override.
 - **Clip** — concrete, stored step data for a track. Optional per track; present when material has been frozen or hand-authored.
-- **Phrase** — reusable, N-bar unit (default 8 bars × 16 steps = 128 steps). Contains a macro grid plus a graph of pipelines. Ghosts phatcontroller's phrase concept.
+- **Phrase** — reusable, N-bar unit (default 8 bars × 16 steps = 128 steps). Contains a macro grid plus per-track source refs, with optional graph-view overrides. Ghosts phatcontroller's phrase concept.
 - **Song** — ordered chain of phrase-refs, each specifying phrase id, repeat count, and optional per-ref overrides.
 - **Stream** — a typed value flow through the system. Every output of every block is a stream.
 - **Sink** — a block that terminates a stream outside the pipeline DAG: MIDI-out, audio-param, chord-context broadcast, macro-row writer.
@@ -54,22 +60,47 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 
 ## Scoping: project vs phrase
 
-Following phatcontroller and Octatrack's part/pattern split: **tracks are project-scoped, pipelines are phrase-scoped**.
+Following phatcontroller and Octatrack's part/pattern split: **tracks and shared pools are project-scoped, while phrases choose source modes and per-phrase behavior**.
 
 - **Project-scoped (stable across phrases):**
   - The set of tracks, their identities (kick, bass, lead, pad...), and their **track types** (`instrument`, `drum`, `slice`, chord pseudo-track, etc.)
-  - Voice preset per track (interpretation map, local param baselines, default sound identity)
+  - Voice preset / voicing contract per track (interpretation map, local param baselines, default sound identity)
   - `voice-route` destination assignments (MIDI channel, bus, FX chain)
+  - `generatorPool` — project-scoped generator instances, filtered by track type compatibility
+  - `clipPool` — project-scoped clip instances, filtered by track type compatibility
   - Template library, saved fill presets, chord-generator library
 - **Phrase-scoped (can vary per phrase):**
-  - Per-track pipeline customization — within the current track type, which source block is active (live generator vs clip-reader vs template vs midi-in), its params, and any extra transform blocks
-  - Clip data (with step annotations) for that track in that phrase
+  - Per-track **source mode** selection — which generator instance / clip / template / MIDI-in mode is active for that phrase
+  - Optional graph-view override for advanced per-phrase wiring beyond the default source-mode shape
+  - Phrase-local authored row values and cell modes
   - Macro grid values (authored rows + generator-sourced row assignments)
   - Chord-gen pipeline configuration (progression, tension mapping)
 - **Phrase-ref-scoped (per-use overrides):**
   - Macro-row value offsets applied only on one usage of a phrase in the song
 
 A voice preset swap at project scope instantly propagates to every phrase. A clip edit stays in one phrase. This means adding a new track to a song is a one-place operation; changing its sound across the whole song is also a one-place operation; tweaking its notes for one section is local.
+
+## Track types and source modes
+
+The persisted top-level choice is **track type**, not "track source". Track type is project-scoped and effectively immutable once a track has meaningful content, because it defines the workspace shape, compatible generators, and destination contract. Phrases then choose a **source mode** within that track type.
+
+### Track types
+
+| Track type | Default voicing | Main editor shape | Compatible source modes |
+|---|---|---|---|
+| `instrument` | Monophonic or chord-aware pitched voice | Source editor left, destination editor right | `generator`, `clip`, `template`, `midi-in` |
+| `drum` | Tagged per-voice drum events | Drum lanes and voice routing | `generator`, `clip`, `template` |
+| `slice` | Tagged slice-trigger voices | Waveform/slice editor plus routing | `generator`, `clip` |
+| `chord` pseudo-track | Broadcast chord-context, not direct note output | Chord generator / progression editor | `generator`, `clip`, `midi-in` |
+
+### Source-mode rules
+
+- Source modes are **phrase-scoped references**, not embedded copies of a whole pipeline.
+- A phrase should normally store **`[TrackID: SourceRef]`** where `SourceRef` points at a compatible generator instance or clip from the project pools, plus template / MIDI-in sentinels where appropriate.
+- Compatibility filtering is enforced by track type. A drum track cannot point at a manual mono generator; an instrument track cannot point at a slice-trigger generator.
+- The happy path editor is track-type specific: manual mono step sequencer for instrument generators, per-voice drum rows for drums, slice triggers for slice tracks.
+- The graph editor remains the power-user escape hatch: it can reveal or override the default source-mode wiring, but it does not replace the source-ref model as the primary persisted shape.
+- The arpeggiator question resolves inside **generator kind / instance**, not as a separate track type. An arpeggiator is an instrument-compatible generator kind or transform chain.
 
 ## The three layers
 
@@ -430,17 +461,20 @@ The design's validation: this user story should feel natural.
 
 ## Components inventory (block palette sketch)
 
-**Sources:**
-- `note-generator(step-gen, pitch-gen)` — glaypen-orthogonal
-- `chord-generator` — tension-aware chord picker
-- `euclidean-drum-gen` — per-tag euclidean rhythms
-- `clip-reader(clip-ref)` — plays stored clip with step annotations
-- `template-clip(template-ref)` — tagged clip with annotations
-- `slice-clip(sample-ref, slice-set-ref)` — sliced-loop pattern with tagged slice triggers
-- `slice-generator(sample-ref, slice-set-ref, strategy)` — generator emitting slice triggers (euclidean-over-tags, Markov, pool-random)
-- `authored-row(values[])` — static per-step values
-- `saw-ramp(period)` — generative scalar, useful for auto-intensity
-- `midi-in(port, channel)` — external feed
+### Generator kinds
+
+| Generator kind | Emits | Compatible track types | Notes |
+|---|---|---|---|
+| `manual-mono` / `note-generator(step-gen, pitch-gen)` | note-stream | `instrument` | Current happy path; arpeggiator can live here or as a transform chain |
+| `chord-generator` | chord-stream | `chord` pseudo-track | Tension-aware chord picker |
+| `euclidean-drum-gen` | tagged note-stream | `drum` | Per-tag euclidean rhythms |
+| `clip-reader(clip-ref)` | note-stream / tagged note-stream | `instrument`, `drum`, `slice`, `chord` | Plays stored clip with step annotations |
+| `template-clip(template-ref)` | tagged note-stream | `instrument`, `drum` | Tagged clip with annotations |
+| `slice-clip(sample-ref, slice-set-ref)` | tagged note-stream | `slice` | Sliced-loop pattern with tagged slice triggers |
+| `slice-generator(sample-ref, slice-set-ref, strategy)` | tagged note-stream | `slice` | Emits slice triggers (euclidean-over-tags, Markov, pool-random) |
+| `authored-row(values[])` | scalar-stream | phrase macro rows | Static per-step values |
+| `saw-ramp(period)` | scalar-stream | phrase macro rows | Generative scalar, useful for auto-intensity |
+| `midi-in(port, channel)` | note-stream / chord-stream | `instrument`, `chord` | External feed |
 
 **Transforms:**
 - `force-to-scale(scale, root)` — scene-level pitch correction

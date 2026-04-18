@@ -3,6 +3,8 @@ import Foundation
 struct SeqAIDocumentModel: Codable, Equatable {
     var version: Int
     var tracks: [StepSequenceTrack]
+    var generatorPool: [GeneratorPoolEntry]
+    var clipPool: [ClipPoolEntry]
     var selectedTrackID: UUID
     var phrases: [PhraseModel]
     var selectedPhraseID: UUID
@@ -10,6 +12,8 @@ struct SeqAIDocumentModel: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case version
         case tracks
+        case generatorPool
+        case clipPool
         case selectedTrackID
         case phrases
         case selectedPhraseID
@@ -21,11 +25,13 @@ struct SeqAIDocumentModel: Codable, Equatable {
         tracks: [
             .default
         ],
+        generatorPool: GeneratorPoolEntry.defaultPool,
+        clipPool: [],
         selectedTrackID: StepSequenceTrack.default.id,
         phrases: [
-            .default(tracks: [.default])
+            .default(tracks: [.default], generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])
         ],
-        selectedPhraseID: PhraseModel.default(tracks: [.default]).id
+        selectedPhraseID: PhraseModel.default(tracks: [.default], generatorPool: GeneratorPoolEntry.defaultPool, clipPool: []).id
     )
 
     var selectedTrackIndex: Int {
@@ -57,7 +63,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
     var selectedPhrase: PhraseModel {
         get {
-            let fallback = PhraseModel.default(tracks: tracks)
+            let fallback = PhraseModel.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)
             guard !phrases.isEmpty else {
                 return fallback
             }
@@ -65,13 +71,37 @@ struct SeqAIDocumentModel: Codable, Equatable {
         }
         set {
             guard !phrases.isEmpty else {
-                phrases = [newValue.synced(with: tracks)]
+                phrases = [newValue.synced(with: tracks, generatorPool: generatorPool, clipPool: clipPool)]
                 selectedPhraseID = phrases[0].id
                 return
             }
-            phrases[selectedPhraseIndex] = newValue.synced(with: tracks)
+            phrases[selectedPhraseIndex] = newValue.synced(with: tracks, generatorPool: generatorPool, clipPool: clipPool)
             selectedPhraseID = phrases[selectedPhraseIndex].id
         }
+    }
+
+    func selectedSourceRef(for trackID: UUID) -> SourceRef {
+        selectedPhrase.sourceRef(for: trackID)
+    }
+
+    func selectedSourceMode(for trackID: UUID) -> TrackSourceMode {
+        selectedPhrase.sourceMode(for: trackID)
+    }
+
+    mutating func setSelectedPhraseSourceMode(_ mode: TrackSourceMode, for trackID: UUID) {
+        guard let track = tracks.first(where: { $0.id == trackID }) else {
+            return
+        }
+
+        var phrase = selectedPhrase
+        phrase.setSourceMode(
+            mode,
+            for: trackID,
+            trackType: track.trackType,
+            generatorPool: generatorPool,
+            clipPool: clipPool
+        )
+        selectedPhrase = phrase
     }
 
     mutating func selectTrack(id: UUID) {
@@ -89,10 +119,10 @@ struct SeqAIDocumentModel: Codable, Equatable {
     }
 
     mutating func appendPhrase() {
-        var nextPhrase = PhraseModel.default(tracks: tracks)
+        var nextPhrase = PhraseModel.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)
         nextPhrase.id = UUID()
         nextPhrase.name = Self.defaultPhraseName(for: phrases.count)
-        phrases.append(nextPhrase.synced(with: tracks))
+        phrases.append(nextPhrase.synced(with: tracks, generatorPool: generatorPool, clipPool: clipPool))
         selectedPhraseID = nextPhrase.id
     }
 
@@ -105,7 +135,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         duplicate.id = UUID()
         duplicate.name = "\(selectedPhrase.name) Copy"
         let insertionIndex = min(selectedPhraseIndex + 1, phrases.count)
-        phrases.insert(duplicate.synced(with: tracks), at: insertionIndex)
+        phrases.insert(duplicate.synced(with: tracks, generatorPool: generatorPool, clipPool: clipPool), at: insertionIndex)
         selectedPhraseID = duplicate.id
     }
 
@@ -132,6 +162,15 @@ struct SeqAIDocumentModel: Codable, Equatable {
         syncPhrasesWithTracks()
     }
 
+    mutating func setSelectedTrackType(_ trackType: TrackType) {
+        guard !tracks.isEmpty else {
+            return
+        }
+
+        tracks[selectedTrackIndex].trackType = trackType
+        syncPhrasesWithTracks()
+    }
+
     mutating func removeSelectedTrack() {
         guard tracks.count > 1 else {
             return
@@ -143,21 +182,37 @@ struct SeqAIDocumentModel: Codable, Equatable {
     }
 
     init(version: Int, tracks: [StepSequenceTrack], selectedTrackID: UUID) {
-        let defaultPhrases = [PhraseModel.default(tracks: tracks)]
+        let defaultGeneratorPool = GeneratorPoolEntry.defaultPool
+        let defaultClipPool: [ClipPoolEntry] = []
+        let defaultPhrases = [PhraseModel.default(tracks: tracks, generatorPool: defaultGeneratorPool, clipPool: defaultClipPool)]
         self.init(
             version: version,
             tracks: tracks,
+            generatorPool: defaultGeneratorPool,
+            clipPool: defaultClipPool,
             selectedTrackID: selectedTrackID,
             phrases: defaultPhrases,
             selectedPhraseID: defaultPhrases[0].id
         )
     }
 
-    init(version: Int, tracks: [StepSequenceTrack], selectedTrackID: UUID, phrases: [PhraseModel], selectedPhraseID: UUID) {
+    init(
+        version: Int,
+        tracks: [StepSequenceTrack],
+        generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
+        clipPool: [ClipPoolEntry] = [],
+        selectedTrackID: UUID,
+        phrases: [PhraseModel],
+        selectedPhraseID: UUID
+    ) {
         self.version = version
         self.tracks = tracks
+        self.generatorPool = generatorPool
+        self.clipPool = clipPool
         self.selectedTrackID = selectedTrackID
-        self.phrases = phrases.isEmpty ? [.default(tracks: tracks)] : phrases.map { $0.synced(with: tracks) }
+        self.phrases = phrases.isEmpty
+            ? [.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)]
+            : phrases.map { $0.synced(with: tracks, generatorPool: generatorPool, clipPool: clipPool) }
         self.selectedPhraseID = self.phrases.contains(where: { $0.id == selectedPhraseID }) ? selectedPhraseID : self.phrases[0].id
     }
 
@@ -169,6 +224,8 @@ struct SeqAIDocumentModel: Codable, Equatable {
            !decodedTracks.isEmpty
         {
             let resolvedTracks = decodedTracks
+            let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
+            let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
             var resolvedSelectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID) ?? resolvedTracks[0].id
             if !resolvedTracks.contains(where: { $0.id == resolvedSelectedTrackID }) {
                 resolvedSelectedTrackID = resolvedTracks[0].id
@@ -177,15 +234,19 @@ struct SeqAIDocumentModel: Codable, Equatable {
             if let decodedPhrases = try container.decodeIfPresent([PhraseModel].self, forKey: .phrases),
                !decodedPhrases.isEmpty
             {
-                resolvedPhrases = decodedPhrases.map { $0.synced(with: resolvedTracks) }
+                resolvedPhrases = decodedPhrases.map {
+                    $0.synced(with: resolvedTracks, generatorPool: resolvedGeneratorPool, clipPool: resolvedClipPool)
+                }
             } else {
-                resolvedPhrases = [.default(tracks: resolvedTracks)]
+                resolvedPhrases = [.default(tracks: resolvedTracks, generatorPool: resolvedGeneratorPool, clipPool: resolvedClipPool)]
             }
             var resolvedSelectedPhraseID = try container.decodeIfPresent(UUID.self, forKey: .selectedPhraseID) ?? resolvedPhrases[0].id
             if !resolvedPhrases.contains(where: { $0.id == resolvedSelectedPhraseID }) {
                 resolvedSelectedPhraseID = resolvedPhrases[0].id
             }
             tracks = resolvedTracks
+            generatorPool = resolvedGeneratorPool
+            clipPool = resolvedClipPool
             selectedTrackID = resolvedSelectedTrackID
             phrases = resolvedPhrases
             selectedPhraseID = resolvedSelectedPhraseID
@@ -194,8 +255,10 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
         let fallbackTrack = try container.decodeIfPresent(StepSequenceTrack.self, forKey: .primaryTrack) ?? .default
         tracks = [fallbackTrack]
+        generatorPool = GeneratorPoolEntry.defaultPool
+        clipPool = []
         selectedTrackID = fallbackTrack.id
-        phrases = [.default(tracks: tracks)]
+        phrases = [.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)]
         selectedPhraseID = phrases[0].id
     }
 
@@ -203,6 +266,8 @@ struct SeqAIDocumentModel: Codable, Equatable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(version, forKey: .version)
         try container.encode(tracks, forKey: .tracks)
+        try container.encode(generatorPool, forKey: .generatorPool)
+        try container.encode(clipPool, forKey: .clipPool)
         try container.encode(selectedTrackID, forKey: .selectedTrackID)
         try container.encode(phrases, forKey: .phrases)
         try container.encode(selectedPhraseID, forKey: .selectedPhraseID)
@@ -210,13 +275,13 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
     private mutating func syncPhrasesWithTracks() {
         if phrases.isEmpty {
-            let fallback = PhraseModel.default(tracks: tracks)
+            let fallback = PhraseModel.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)
             phrases = [fallback]
             selectedPhraseID = fallback.id
             return
         }
 
-        phrases = phrases.map { $0.synced(with: tracks) }
+        phrases = phrases.map { $0.synced(with: tracks, generatorPool: generatorPool, clipPool: clipPool) }
         if !phrases.contains(where: { $0.id == selectedPhraseID }) {
             selectedPhraseID = phrases[0].id
         }

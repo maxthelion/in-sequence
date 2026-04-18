@@ -15,7 +15,9 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTrack.mix, .default)
         XCTAssertEqual(model.phrases.count, 1)
         XCTAssertEqual(model.selectedPhrase.name, "Phrase A")
-        XCTAssertEqual(model.selectedPhrase.instrumentSource(for: StepSequenceTrack.default.id), .manualMono)
+        XCTAssertEqual(model.selectedPhrase.sourceMode(for: StepSequenceTrack.default.id), .generator)
+        XCTAssertEqual(model.generatorPool.count, 3)
+        XCTAssertTrue(model.clipPool.isEmpty)
     }
 
     func test_codable_roundtrip_preserves_empty() throws {
@@ -61,8 +63,11 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     abstractRows: PhraseAbstractKind.allCases.map {
                         PhraseAbstractRow(kind: $0, values: Array(repeating: 0.5, count: 64))
                     },
-                    trackPipelines: [
-                        PhraseTrackPipeline(trackID: bassID, instrumentSource: .clipReader)
+                    sourceRefs: [
+                        PhraseTrackSourceAssignment(trackID: bassID, sourceRef: .clip(nil))
+                    ],
+                    trackLayerStates: [
+                        PhraseTrackLayerStateGroup(trackID: bassID)
                     ]
                 )
             ],
@@ -81,8 +86,8 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.tracks.count, 2)
         XCTAssertEqual(model.selectedTrack.id, model.tracks.last?.id)
         XCTAssertEqual(model.selectedTrack.name, "Track 2")
-        XCTAssertEqual(model.selectedPhrase.trackPipelines.count, 2)
-        XCTAssertEqual(model.selectedPhrase.instrumentSource(for: model.selectedTrack.id), .manualMono)
+        XCTAssertEqual(model.selectedPhrase.sourceRefs.count, 2)
+        XCTAssertEqual(model.selectedPhrase.sourceMode(for: model.selectedTrack.id), .generator)
     }
 
     func test_append_phrase_selects_new_phrase() {
@@ -93,7 +98,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.phrases.count, 2)
         XCTAssertEqual(model.selectedPhraseID, model.phrases.last?.id)
         XCTAssertEqual(model.selectedPhrase.name, "Phrase B")
-        XCTAssertEqual(model.selectedPhrase.trackPipelines.count, model.tracks.count)
+        XCTAssertEqual(model.selectedPhrase.sourceRefs.count, model.tracks.count)
     }
 
     func test_duplicate_selected_phrase_inserts_copy_after_current() {
@@ -144,7 +149,8 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded.selectedTrack.audioInstrument, .builtInSynth)
         XCTAssertEqual(decoded.selectedTrack.mix, .default)
         XCTAssertEqual(decoded.phrases.count, 1)
-        XCTAssertEqual(decoded.selectedPhrase.instrumentSource(for: decoded.selectedTrack.id), .manualMono)
+        XCTAssertEqual(decoded.selectedPhrase.sourceMode(for: decoded.selectedTrack.id), .generator)
+        XCTAssertEqual(decoded.generatorPool.count, 3)
     }
 
     func test_decodes_track_type_when_present() throws {
@@ -223,11 +229,9 @@ final class SeqAIDocumentModelTests: XCTestCase {
     func test_selected_phrase_can_store_phrase_scoped_instrument_source() {
         var model = SeqAIDocumentModel.empty
 
-        var phrase = model.selectedPhrase
-        phrase.setInstrumentSource(.template, for: model.selectedTrack.id)
-        model.selectedPhrase = phrase
+        model.setSelectedPhraseSourceMode(.template, for: model.selectedTrack.id)
 
-        XCTAssertEqual(model.selectedPhrase.instrumentSource(for: model.selectedTrack.id), .template)
+        XCTAssertEqual(model.selectedPhrase.sourceMode(for: model.selectedTrack.id), .template)
     }
 
     func test_selected_phrase_can_store_phrase_cell_mode_per_track_and_layer() {
@@ -272,10 +276,12 @@ final class SeqAIDocumentModelTests: XCTestCase {
                 { "kind": "variance", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
                 { "kind": "brightness", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
               ],
-              "trackPipelines": [
+              "sourceRefs": [
                 {
                   "trackID": "11111111-1111-1111-1111-111111111111",
-                  "instrumentSource": "clipReader"
+                  "sourceRef": {
+                    "mode": "clip"
+                  }
                 }
               ]
             }
@@ -287,7 +293,56 @@ final class SeqAIDocumentModelTests: XCTestCase {
         let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
 
         XCTAssertEqual(decoded.selectedPhrase.cellMode(for: .intensity, trackID: decoded.selectedTrack.id), .single)
-        XCTAssertEqual(decoded.selectedPhrase.trackPipelines.first?.layerStates.count, PhraseAbstractKind.allCases.count)
+        XCTAssertEqual(decoded.selectedPhrase.trackLayerStates.first?.layerStates.count, PhraseAbstractKind.allCases.count)
+    }
+
+    func test_phrase_source_refs_decode_legacy_instrument_source_key() throws {
+        let json = """
+        {
+          "version": 1,
+          "tracks": [
+            {
+              "id": "11111111-1111-1111-1111-111111111111",
+              "name": "Lead",
+              "trackType": "instrument",
+              "pitches": [60],
+              "stepPattern": [true, false, true, false],
+              "stepAccents": [false, false, false, false],
+              "output": "midiOut",
+              "velocity": 100,
+              "gateLength": 4
+            }
+          ],
+          "selectedTrackID": "11111111-1111-1111-1111-111111111111",
+          "phrases": [
+            {
+              "id": "22222222-2222-2222-2222-222222222222",
+              "name": "Phrase A",
+              "lengthBars": 1,
+              "stepsPerBar": 16,
+              "abstractRows": [
+                { "kind": "intensity", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "density", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "register", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "tension", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "variance", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+                { "kind": "brightness", "sourceMode": "authored", "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
+              ],
+              "sourceRefs": [
+                {
+                  "trackID": "11111111-1111-1111-1111-111111111111",
+                  "instrumentSource": "template"
+                }
+              ]
+            }
+          ],
+          "selectedPhraseID": "22222222-2222-2222-2222-222222222222"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
+
+        XCTAssertEqual(decoded.selectedPhrase.sourceMode(for: decoded.selectedTrack.id), .template)
     }
 }
 
