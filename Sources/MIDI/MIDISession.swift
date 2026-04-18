@@ -25,6 +25,7 @@ final class MIDISession {
             do {
                 self.appOutput = try c.createVirtualOutput(name: "SequencerAI Out")
                 self.appInput = try c.createVirtualInput(name: "SequencerAI In") { _ in
+                    NSLog("SequencerAI In received MIDI before phase 2 routing exists; dropping packet list")
                     // TODO(phase 2): route incoming MIDI into the engine
                 }
             } catch {

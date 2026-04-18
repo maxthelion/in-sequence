@@ -20,7 +20,7 @@ enum MIDIPacketBuilderError: Error {
 /// builder.addNoteOn(channel: 0, pitch: 60, velocity: 100, timestamp: mach_absolute_time())
 /// builder.addNoteOff(channel: 0, pitch: 60, timestamp: mach_absolute_time() + delta)
 /// try builder.withPacketList { ptr in
-///     MIDISend(outputPort, destination, ptr)
+///     try client.send(ptr, to: endpoint)
 /// }
 /// ```
 struct MIDIPacketBuilder {
@@ -32,10 +32,10 @@ struct MIDIPacketBuilder {
     // This is well within the 2–4 KiB target from the spec and far below the old 64 KiB.
     static let bufferSize = 2200
 
-    private var buffer: [UInt8]
+    private let storage: Storage
 
     init() {
-        buffer = [UInt8](repeating: 0, count: Self.bufferSize)
+        storage = Storage(bufferSize: Self.bufferSize)
     }
 
     /// Calls `body` with a pointer to the built `MIDIPacketList`.
@@ -43,8 +43,8 @@ struct MIDIPacketBuilder {
     ///
     /// - Throws: `MIDIPacketBuilderError.packetListFull` if the events added to
     ///   this builder exceed the 2 KiB buffer capacity.
-    mutating func withPacketList<R>(_ body: (UnsafePointer<MIDIPacketList>) throws -> R) throws -> R {
-        try buffer.withUnsafeMutableBytes { rawBuffer in
+    func withPacketList<R>(_ body: (UnsafePointer<MIDIPacketList>) throws -> R) throws -> R {
+        try storage.buffer.withUnsafeMutableBytes { rawBuffer in
             let listPtr = rawBuffer.baseAddress!
                 .assumingMemoryBound(to: MIDIPacketList.self)
             var current = MIDIPacketListInit(listPtr)
@@ -121,6 +121,14 @@ struct MIDIPacketBuilder {
     }
 
     // MARK: - Private storage
+
+    private final class Storage {
+        var buffer: [UInt8]
+
+        init(bufferSize: Int) {
+            buffer = [UInt8](repeating: 0, count: bufferSize)
+        }
+    }
 
     private struct MIDIEvent {
         let timestamp: MIDITimeStamp

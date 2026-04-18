@@ -66,6 +66,14 @@ final class MIDIPacketBuilderTests: XCTestCase {
             "bufferSize must be < 4 KiB; found \(MIDIPacketBuilder.bufferSize) bytes")
     }
 
+    func test_withPacketList_can_be_called_on_let_builder() throws {
+        let builder = makeBuilderWithSingleNoteOn()
+
+        try builder.withPacketList { listPtr in
+            XCTAssertEqual(listPtr.pointee.numPackets, 1)
+        }
+    }
+
     // At capacity limit (128 events): withPacketList must succeed.
     func test_at_capacity_withPacketList_succeeds() throws {
         var builder = MIDIPacketBuilder()
@@ -165,5 +173,11 @@ final class MIDIPacketBuilderTests: XCTestCase {
                 return
             }
         }
+    }
+
+    private func makeBuilderWithSingleNoteOn() -> MIDIPacketBuilder {
+        var builder = MIDIPacketBuilder()
+        builder.addNoteOn(channel: 0, pitch: 60, velocity: 64, timestamp: 0)
+        return builder
     }
 }

@@ -16,6 +16,7 @@ final class MIDIClient {
     private var virtualSourceRefs: [MIDIEndpointRef] = []
     private var virtualDestinationRefs: [MIDIEndpointRef] = []
     private var outputPortRef: MIDIPortRef = 0
+    private let outputPortLock = NSLock()
 
     init(name: String) throws {
         self.name = name
@@ -114,6 +115,10 @@ final class MIDIClient {
     ///   sending to an endpoint whose lifetime has ended.
     /// - Errors from `MIDIReceived` / `MIDISend` / `MIDIOutputPortCreate` are all
     ///   re-thrown; no status is silently swallowed.
+    /// - Threading: `send(_:to:)` may be called from multiple threads. Output-port
+    ///   creation is serialized internally so the lazily created port is only
+    ///   instantiated once; higher-level ordering of MIDI events is still the caller's
+    ///   responsibility.
     ///
     /// - Throws: `ClientError.failedToSend` if CoreMIDI reports an error.
     /// - Throws: `ClientError.failedToCreateOutputPort` on first use if the output
@@ -145,6 +150,9 @@ final class MIDIClient {
 
     /// Creates the output port on first use.
     private func lazyOutputPort() throws -> MIDIPortRef {
+        outputPortLock.lock()
+        defer { outputPortLock.unlock() }
+
         if outputPortRef != 0 { return outputPortRef }
         let status = MIDIOutputPortCreate(clientRef, "\(name) Out Port" as CFString, &outputPortRef)
         guard status == noErr else {
