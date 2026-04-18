@@ -551,7 +551,7 @@ Dispatched via the `wiki-maintainer` agent. The agent's scope is `wiki/pages/` o
 ## Task 13: Tag + mark completed
 
 - [ ] Replace every `- [ ]` in this file with `- [x]` for steps actually completed
-- [ ] Add `Status: ✅ Completed YYYY-MM-DD. Tag v0.0.2-core-engine at <SHA>.` after `Parent spec`
+- [ ] Add a `Status:` line after `Parent spec` in this file's header, of the form `<STATUS_PREFIX> ✅ <COMPLETED_MARKER> YYYY-MM-DD. Tag v0.0.2-core-engine at <SHA>.` (using the same phrasing as Plan 0's completed header — the placeholders here keep this plan from looking "done" to the BT active-plan detector)
 - [ ] Commit: `docs(plan): mark 1-core-engine completed`
 - [ ] Tag: `git tag -a v0.0.2-core-engine -m "Core engine complete: tick loop + executor + streams + command queue + note-gen + midi-out + shell wiring"`
 
