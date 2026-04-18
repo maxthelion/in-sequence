@@ -36,13 +36,15 @@ final class EngineControllerTests: XCTestCase {
     }
 
     func test_apply_document_model_updates_note_generator_params() {
-        let controller = EngineController(client: nil, endpoint: nil)
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
         let bass = StepSequenceTrack(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID(),
             name: "Bass",
             pitches: [36],
             stepPattern: [true, false],
             stepAccents: [false, false],
+            output: .midiOut,
             velocity: 90,
             gateLength: 4
         )
@@ -52,6 +54,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [72],
             stepPattern: [false, true],
             stepAccents: [false, true],
+            output: .midiOut,
             velocity: 111,
             gateLength: 2
         )
@@ -78,5 +81,52 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(secondNotes.first?.pitch, 72)
         XCTAssertEqual(secondNotes.first?.velocity, 127)
         XCTAssertEqual(secondNotes.first?.length, 2)
+    }
+
+    func test_selected_au_output_routes_note_events_to_audio_sink() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let synthTrack = StepSequenceTrack(
+            name: "Synth",
+            pitches: [64],
+            stepPattern: [true],
+            stepAccents: [false],
+            output: .auInstrument,
+            velocity: 96,
+            gateLength: 2
+        )
+        let document = SeqAIDocumentModel(
+            version: 1,
+            tracks: [synthTrack],
+            selectedTrackID: synthTrack.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        XCTAssertEqual(audioSink.startCallCount, 1)
+        XCTAssertEqual(audioSink.receivedEvents.first?.first?.pitch, 64)
+        XCTAssertEqual(audioSink.receivedEvents.first?.first?.velocity, 96)
+        XCTAssertEqual(controller.statusSummary, "Audio: Mock AU Instrument via Main Mixer")
+    }
+}
+
+private final class CapturingAudioSink: TrackPlaybackSink {
+    let displayName = "Mock AU Instrument"
+    var isAvailable = true
+    private(set) var startCallCount = 0
+    private(set) var stopCallCount = 0
+    private(set) var receivedEvents: [[NoteEvent]] = []
+
+    func startIfNeeded() {
+        startCallCount += 1
+    }
+
+    func stop() {
+        stopCallCount += 1
+    }
+
+    func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {
+        receivedEvents.append(noteEvents)
     }
 }

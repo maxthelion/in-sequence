@@ -9,6 +9,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTrackID, StepSequenceTrack.default.id)
         XCTAssertEqual(model.selectedTrack, .default)
         XCTAssertEqual(model.selectedTrack.stepAccents, Array(repeating: false, count: 16))
+        XCTAssertEqual(model.selectedTrack.output, .midiOut)
     }
 
     func test_codable_roundtrip_preserves_empty() throws {
@@ -23,6 +24,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     pitches: [36, 43],
                     stepPattern: [true, false, true, false],
                     stepAccents: [false, true, false, false],
+                    output: .midiOut,
                     velocity: 92,
                     gateLength: 2
                 ),
@@ -32,6 +34,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
                     pitches: [72, 76],
                     stepPattern: [true, true, false, true],
                     stepAccents: [true, false, false, true],
+                    output: .auInstrument,
                     velocity: 101,
                     gateLength: 3
                 )
@@ -54,7 +57,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
     }
 
     func test_remove_selected_track_falls_back_to_neighbour() {
-        let trackTwo = StepSequenceTrack(name: "Track 2", pitches: [48], stepPattern: [true, false], stepAccents: [false, true], velocity: 90, gateLength: 2)
+        let trackTwo = StepSequenceTrack(name: "Track 2", pitches: [48], stepPattern: [true, false], stepAccents: [false, true], output: .auInstrument, velocity: 90, gateLength: 2)
         var model = SeqAIDocumentModel(
             version: 1,
             tracks: [.default, trackTwo],
@@ -86,6 +89,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded.tracks.count, 1)
         XCTAssertEqual(decoded.selectedTrack.name, "Legacy")
         XCTAssertEqual(decoded.selectedTrack.stepAccents, [false, false, false, false])
+        XCTAssertEqual(decoded.selectedTrack.output, .midiOut)
     }
 
     func test_cycle_step_moves_between_off_on_and_accented() {

@@ -5,6 +5,7 @@ import Observation
 final class EngineController {
     private let midiClient: MIDIClient?
     private let endpoint: MIDIEndpoint?
+    private let audioOutput: TrackPlaybackSink?
     private let stepsPerBar: Int
 
     let registry: BlockRegistry
@@ -15,19 +16,25 @@ final class EngineController {
     private(set) var currentBPM: Double
     private(set) var transportPosition = "1:1:1"
     private(set) var executor: Executor?
+    private(set) var selectedOutput: TrackOutputDestination
+
+    private var midiOutBlock: MidiOut?
 
     init(
         client: MIDIClient? = MIDISession.shared.client,
         endpoint: MIDIEndpoint? = MIDISession.shared.appOutput,
+        audioOutput: TrackPlaybackSink? = nil,
         stepsPerBar: Int = 16
     ) {
         self.midiClient = client
         self.endpoint = endpoint
+        self.audioOutput = audioOutput
         self.stepsPerBar = max(1, stepsPerBar)
         self.registry = BlockRegistry()
         self.commandQueue = CommandQueue(capacity: 256)
         self.clock = TickClock(stepsPerBar: stepsPerBar)
         self.currentBPM = 120
+        self.selectedOutput = .midiOut
 
         do {
             try registerCoreBlocks(registry)
@@ -42,9 +49,13 @@ final class EngineController {
             return
         }
 
+        if selectedOutput == .auInstrument {
+            audioOutput?.startIfNeeded()
+        }
+
         isRunning = true
         clock.start { [weak self] tickIndex, now in
-            self?.handleTick(tickIndex: tickIndex, now: now)
+            self?.processTick(tickIndex: tickIndex, now: now)
         }
     }
 
@@ -54,6 +65,7 @@ final class EngineController {
         }
 
         clock.stop()
+        audioOutput?.stop()
         isRunning = false
     }
 
@@ -73,6 +85,12 @@ final class EngineController {
     }
 
     func apply(track: StepSequenceTrack) {
+        selectedOutput = track.output
+        midiOutBlock?.endpoint = track.output == .midiOut ? endpoint : nil
+        if track.output == .auInstrument {
+            audioOutput?.startIfNeeded()
+        }
+
         setParam(
             blockID: "gen",
             paramKey: "pitches",
@@ -112,10 +130,21 @@ final class EngineController {
         guard canStart else {
             return "Engine unavailable"
         }
-        guard let endpoint else {
-            return "Playing without MIDI output"
+
+        switch selectedOutput {
+        case .midiOut:
+            guard let endpoint else {
+                return "Playing without MIDI output"
+            }
+            return "Output: \(endpoint.displayName)"
+        case .auInstrument:
+            guard let audioOutput else {
+                return "Audio instrument unavailable"
+            }
+            return audioOutput.isAvailable
+                ? "Audio: \(audioOutput.displayName) via Main Mixer"
+                : "Audio instrument unavailable"
         }
-        return "Output: \(endpoint.displayName)"
     }
 
     private func buildDefaultPipeline() throws {
@@ -127,6 +156,7 @@ final class EngineController {
 
         midiOut.client = midiClient
         midiOut.endpoint = endpoint
+        self.midiOutBlock = midiOut
 
         executor = try Executor(
             blocks: [
@@ -142,14 +172,22 @@ final class EngineController {
         apply(track: .default)
     }
 
-    private func handleTick(tickIndex: UInt64, now: TimeInterval) {
+    func processTick(tickIndex: UInt64, now: TimeInterval) {
         guard let executor else {
             return
         }
 
-        _ = executor.tick(now: now)
+        let outputs = executor.tick(now: now)
         currentBPM = executor.currentBPM
         transportPosition = Self.transportString(for: tickIndex, stepsPerBar: stepsPerBar)
+
+        guard selectedOutput == .auInstrument,
+              case let .notes(events)? = outputs["gen"]?["notes"]
+        else {
+            return
+        }
+
+        audioOutput?.play(noteEvents: events, bpm: executor.currentBPM, stepsPerBar: stepsPerBar)
     }
 
     private static func transportString(for tickIndex: UInt64, stepsPerBar: Int) -> String {

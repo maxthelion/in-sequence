@@ -18,6 +18,7 @@ sequencer-ai/
 │   ├── UI/
 │   ├── Platform/
 │   ├── MIDI/
+│   ├── Audio/
 │   └── Resources/
 ├── Tests/
 │   └── SequencerAITests/              # XCTest bundle
@@ -62,6 +63,12 @@ CoreMIDI wrapping and app-level MIDI session. See [[midi-layer]]. Never imported
 
 Currently: `MIDIClient.swift`, `MIDIEndpoint.swift`, `MIDISession.swift`.
 
+### `Sources/Audio/`
+
+Native audio output and AU instrument hosting. This layer owns `AVAudioEngine`, built-in or hosted instrument nodes, and mixer routing for tracks that play sound inside the app instead of emitting only CoreMIDI. It does not know about SwiftUI or document bindings directly; the controller layer feeds it note events.
+
+Currently: `AudioInstrumentHost.swift`.
+
 ### `Sources/Resources/`
 
 Non-code artifacts bundled into the app: `Info.plist`, `SequencerAI.entitlements`. Managed by `project.yml`; xcodegen writes these during generation.
@@ -85,7 +92,8 @@ Current `Sources/` exemplifies this: `MIDIEndpoint.swift` is ~30 lines (value ty
 Dependencies flow **inward** toward `Document/`:
 
 ```
-App   → UI → MIDI / Platform / Document
+App   → UI → Audio / MIDI / Platform / Document
+              Audio           → Engine / (nothing else project-internal)
               Platform        → Document
               MIDI            → (nothing from this project)
               Document        → (nothing from this project)
@@ -94,7 +102,7 @@ App   → UI → MIDI / Platform / Document
 Rules this encodes:
 
 - `Document/` depends on nothing project-internal. It stays pure-Codable.
-- `MIDI/` and `Platform/` don't import each other and don't import `UI/` or `Document/`.
+- `Audio/`, `MIDI/`, and `Platform/` don't import `UI/` or `Document/`.
 - `UI/` can use anything below it but doesn't own business logic.
 - `App/` wires everything together.
 
@@ -109,7 +117,7 @@ As later plans land, additional boundaries will appear:
 - `Sources/Song/` — song model / phrase-refs (Plan 3)
 - `Sources/Chord/` — chord generator (Plan 4)
 - `Sources/Drums/` — drum tagged-stream support (Plan 5)
-- `Sources/Audio/` — AVAudioEngine + AU hosting + sample playback (later plan)
+- `Sources/Audio/` — AVAudioEngine + AU hosting + sample playback
 - `Sources/Library/` — the template / voice-preset / take / etc library loader (later plan)
 
 Each new directory comes with a wiki page like this one describing what it contains and what depends on what.

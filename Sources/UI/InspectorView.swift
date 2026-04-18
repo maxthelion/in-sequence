@@ -31,6 +31,11 @@ struct InspectorView: View {
         Form {
             Section("Track") {
                 TextField("Name", text: $document.model.selectedTrack.name)
+                Picker("Output", selection: $document.model.selectedTrack.output) {
+                    ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
+                        Text(destination.label).tag(destination)
+                    }
+                }
                 TextField("Pitches", text: pitchesText)
                     .textFieldStyle(.roundedBorder)
                 Text("Comma-separated MIDI notes")

@@ -112,6 +112,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var pitches: [Int]
     var stepPattern: [Bool]
     var stepAccents: [Bool]
+    var output: TrackOutputDestination
     var velocity: Int
     var gateLength: Int
 
@@ -121,6 +122,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case pitches
         case stepPattern
         case stepAccents
+        case output
         case velocity
         case gateLength
     }
@@ -131,6 +133,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
+        output: .midiOut,
         velocity: 100,
         gateLength: 4
     )
@@ -141,6 +144,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [Int],
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
+        output: TrackOutputDestination = .midiOut,
         velocity: Int,
         gateLength: Int
     ) {
@@ -149,6 +153,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.pitches = pitches
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
+        self.output = output
         self.velocity = velocity
         self.gateLength = gateLength
     }
@@ -201,6 +206,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepPattern = try container.decode([Bool].self, forKey: .stepPattern)
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
         stepAccents = Self.normalizedAccents(decodedAccents, stepCount: stepPattern.count)
+        output = try container.decodeIfPresent(TrackOutputDestination.self, forKey: .output) ?? .midiOut
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
     }
@@ -212,6 +218,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(pitches, forKey: .pitches)
         try container.encode(stepPattern, forKey: .stepPattern)
         try container.encode(stepAccents, forKey: .stepAccents)
+        try container.encode(output, forKey: .output)
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)
     }
@@ -225,5 +232,19 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             return accents
         }
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
+    }
+}
+
+enum TrackOutputDestination: String, Codable, CaseIterable, Equatable, Sendable {
+    case midiOut
+    case auInstrument
+
+    var label: String {
+        switch self {
+        case .midiOut:
+            return "Virtual MIDI Out"
+        case .auInstrument:
+            return "Built-in AU Synth"
+        }
     }
 }
