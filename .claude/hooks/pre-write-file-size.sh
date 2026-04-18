@@ -4,12 +4,10 @@
 # the hard cap, blocks the operation. Soft cap just warns.
 #
 # For Write: uses the proposed `content` directly.
-# For Edit:  uses the current file size (lines) as a lower bound — catches
-#            already-too-large files; doesn't prevent a single edit from
-#            pushing a file from 999→1001 but that's fine, the next edit
-#            will catch it. (A full simulate-the-edit path is not worth the
-#            complexity; we rely on the cap being robust enough that nobody
-#            is routinely editing right at the boundary.)
+# For Edit:  reads the current file, applies the old_string→new_string
+#            replacement (honouring `replace_all`), and counts lines of the
+#            simulated result. If the file is unreadable (e.g. target does
+#            not exist yet) the hook fails open.
 #
 # See wiki/pages/code-review-checklist.md §2 "No god files":
 #   ~200 lines OK, ~500 lines smell, ~1000 lines split.
