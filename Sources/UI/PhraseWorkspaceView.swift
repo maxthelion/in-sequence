@@ -95,39 +95,27 @@ struct PhraseWorkspaceView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 10) {
-            StudioMetricPill(title: "Transport", value: engineController.transportPosition, accent: StudioTheme.cyan)
-            StudioMetricPill(title: "Mode", value: engineController.transportMode.label, accent: StudioTheme.amber)
-            StudioMetricPill(title: "Layer", value: selectedLayer.name, accent: layerAccent(selectedLayer.id))
-            StudioMetricPill(title: "Phrases", value: "\(phrases.count)", accent: StudioTheme.violet)
-            StudioMetricPill(title: "Tracks", value: "\(tracks.count)", accent: StudioTheme.success)
-
-            if let playbackPhraseIndex {
-                StudioMetricPill(
-                    title: "Now",
-                    value: phrases[playbackPhraseIndex].name,
-                    accent: StudioTheme.success
-                )
-            }
-
+        HStack {
             Spacer()
 
-            Button("Add Phrase") {
-                document.model.appendPhrase()
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.cyan)
+            HStack(spacing: 10) {
+                Button("Add Phrase") {
+                    document.model.appendPhrase()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(StudioTheme.cyan)
 
-            Button("Duplicate") {
-                document.model.duplicateSelectedPhrase()
-            }
-            .buttonStyle(.bordered)
+                Button("Duplicate") {
+                    document.model.duplicateSelectedPhrase()
+                }
+                .buttonStyle(.bordered)
 
-            Button("Remove") {
-                document.model.removeSelectedPhrase()
+                Button("Remove") {
+                    document.model.removeSelectedPhrase()
+                }
+                .buttonStyle(.bordered)
+                .disabled(phrases.count == 1)
             }
-            .buttonStyle(.bordered)
-            .disabled(phrases.count == 1)
         }
     }
 
