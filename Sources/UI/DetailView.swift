@@ -17,6 +17,14 @@ struct DetailView: View {
         document.model.selectedPatternIndex(for: track.id)
     }
 
+    private var occupiedPatternSlots: Set<Int> {
+        Set(
+            document.model.phrases.map { phrase in
+                phrase.patternIndex(for: track.id)
+            }
+        )
+    }
+
     private var selectedPattern: TrackPatternSlot {
         document.model.selectedPattern(for: track.id)
     }
@@ -46,11 +54,7 @@ struct DetailView: View {
     }
 
     private var sourceEyebrow: String {
-        "\(phrase.name) pattern • slot \(selectedPatternIndex + 1)"
-    }
-
-    private var sourceSummary: String {
-        track.trackType == .instrument && selectedSourceMode.isImplemented ? "Live now" : "Placeholder"
+        "\(phrase.name) • Pattern \(selectedPatternIndex + 1)"
     }
 
     var body: some View {
@@ -131,26 +135,14 @@ struct DetailView: View {
             VStack(alignment: .leading, spacing: 18) {
                 StudioPanel(title: "Source", eyebrow: sourceEyebrow, accent: sourceAccent) {
                     VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 10) {
-                            StudioMetricPill(title: "Transport", value: engineController.transportPosition)
-                            StudioMetricPill(title: "Phrase", value: phrase.name, accent: StudioTheme.success)
-                            StudioMetricPill(title: "BPM", value: "\(Int(engineController.currentBPM.rounded()))", accent: StudioTheme.amber)
-                            StudioMetricPill(title: "Type", value: track.trackType.shortLabel, accent: sourceAccent)
-                            StudioMetricPill(title: "Pattern", value: "P\(selectedPatternIndex + 1)", accent: StudioTheme.success)
-                            StudioMetricPill(title: "Source", value: selectedSourceMode.shortLabel, accent: sourceAccent)
-                            StudioMetricPill(title: "Status", value: sourceSummary, accent: StudioTheme.violet)
-                        }
-
-                        TrackTypePalette(selectedTrackType: trackTypeBinding)
-                        PatternSlotPalette(selectedSlot: selectedPatternIndexBinding)
+                        PatternSlotPalette(
+                            selectedSlot: selectedPatternIndexBinding,
+                            occupiedSlots: occupiedPatternSlots
+                        )
                         SourceModePalette(trackType: track.trackType, selectedSource: selectedPatternSourceModeBinding)
 
                         TextField("Pattern Name", text: patternNameBinding)
                             .textFieldStyle(.roundedBorder)
-
-                        Text("The left side now reflects the spec split: each track owns a 16-slot pattern bank, and the current phrase just picks which slot is active. Editing here changes the selected slot for this track across any phrase that points at it.")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(StudioTheme.mutedText)
                     }
                 }
 
@@ -551,70 +543,6 @@ private struct PhrasePipelineNode: View {
     }
 }
 
-private struct TrackTypePalette: View {
-    @Binding var selectedTrackType: TrackType
-
-    var body: some View {
-        HStack(spacing: 10) {
-            ForEach(TrackType.allCases, id: \.self) { trackType in
-                Button {
-                    selectedTrackType = trackType
-                } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(trackType.label.uppercased())
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .tracking(0.9)
-                            .foregroundStyle(StudioTheme.text)
-
-                        Text(description(for: trackType))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .lineLimit(2)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(fill(for: trackType), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(stroke(for: trackType), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func description(for trackType: TrackType) -> String {
-        switch trackType {
-        case .instrument:
-            return "Single melodic voice with swappable phrase sources."
-        case .drumRack:
-            return "Tagged drum lanes and per-voice routing."
-        case .sliceLoop:
-            return "Slice triggers, waveform view, and routed slice voices."
-        }
-    }
-
-    private func fill(for trackType: TrackType) -> Color {
-        selectedTrackType == trackType ? accent(for: trackType).opacity(0.15) : Color.white.opacity(0.03)
-    }
-
-    private func stroke(for trackType: TrackType) -> Color {
-        selectedTrackType == trackType ? accent(for: trackType).opacity(0.5) : StudioTheme.border
-    }
-
-    private func accent(for trackType: TrackType) -> Color {
-        switch trackType {
-        case .instrument:
-            return StudioTheme.cyan
-        case .drumRack:
-            return StudioTheme.amber
-        case .sliceLoop:
-            return StudioTheme.violet
-        }
-    }
-}
-
 private struct SourceModePalette: View {
     let trackType: TrackType
     @Binding var selectedSource: TrackSourceMode
@@ -677,6 +605,7 @@ private struct SourceModePalette: View {
 
 private struct PatternSlotPalette: View {
     @Binding var selectedSlot: Int
+    let occupiedSlots: Set<Int>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -685,29 +614,65 @@ private struct PatternSlotPalette: View {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8), spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
                     Button {
                         selectedSlot = slotIndex
                     } label: {
-                        Text("\(slotIndex + 1)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(StudioTheme.text)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(selectedSlot == slotIndex ? StudioTheme.success.opacity(0.2) : Color.white.opacity(0.03))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(selectedSlot == slotIndex ? StudioTheme.success.opacity(0.7) : StudioTheme.border, lineWidth: 1)
-                            )
+                        VStack(spacing: 6) {
+                            Text("\(slotIndex + 1)")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.text)
+
+                            RoundedRectangle(cornerRadius: 999, style: .continuous)
+                                .fill(indicatorFill(for: slotIndex))
+                                .frame(height: 3)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(backgroundFill(for: slotIndex))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(borderColor(for: slotIndex), lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
+    }
+
+    private func backgroundFill(for slotIndex: Int) -> Color {
+        if selectedSlot == slotIndex {
+            return StudioTheme.success.opacity(0.2)
+        }
+        if occupiedSlots.contains(slotIndex) {
+            return StudioTheme.success.opacity(0.08)
+        }
+        return Color.white.opacity(0.03)
+    }
+
+    private func borderColor(for slotIndex: Int) -> Color {
+        if selectedSlot == slotIndex {
+            return StudioTheme.success.opacity(0.7)
+        }
+        if occupiedSlots.contains(slotIndex) {
+            return StudioTheme.success.opacity(0.28)
+        }
+        return StudioTheme.border
+    }
+
+    private func indicatorFill(for slotIndex: Int) -> Color {
+        if selectedSlot == slotIndex {
+            return StudioTheme.success
+        }
+        if occupiedSlots.contains(slotIndex) {
+            return StudioTheme.success.opacity(0.6)
+        }
+        return Color.white.opacity(0.08)
     }
 }
 
