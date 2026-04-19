@@ -18,12 +18,12 @@ final class GeneratorKindTests: XCTestCase {
         }
     }
 
-    func test_mono_generator_is_compatible_with_instrument_tracks() {
-        XCTAssertTrue(GeneratorKind.monoGenerator.compatibleWith.contains(.instrument))
+    func test_mono_generator_is_compatible_with_mono_tracks() {
+        XCTAssertTrue(GeneratorKind.monoGenerator.compatibleWith.contains(.monoMelodic))
     }
 
-    func test_drum_kit_only_targets_drum_racks() {
-        XCTAssertEqual(GeneratorKind.drumKit.compatibleWith, [.drumRack])
+    func test_drum_kit_targets_groupable_mono_tracks() {
+        XCTAssertEqual(GeneratorKind.drumKit.compatibleWith, [.monoMelodic])
     }
 
     func test_legacy_values_decode_to_new_cases() throws {

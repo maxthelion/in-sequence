@@ -573,7 +573,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     static let `default` = StepSequenceTrack(
         id: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
         name: "Main Track",
-        trackType: .instrument,
+        trackType: .monoMelodic,
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
@@ -586,7 +586,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     init(
         id: UUID = UUID(),
         name: String,
-        trackType: TrackType = .instrument,
+        trackType: TrackType = .monoMelodic,
         pitches: [Int],
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
@@ -661,7 +661,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             trackType = decodedTrackType
         } else {
             let legacySource = try container.decodeIfPresent(LegacyTrackSource.self, forKey: .source)
-            trackType = legacySource?.trackType ?? .instrument
+            trackType = legacySource?.trackType ?? .monoMelodic
         }
         pitches = try container.decode([Int].self, forKey: .pitches)
         stepPattern = try container.decode([Bool].self, forKey: .stepPattern)
@@ -828,38 +828,63 @@ private enum LegacyTrackSource: String, Codable {
     var trackType: TrackType {
         switch self {
         case .manualMono, .clip, .template, .midiIn:
-            return .instrument
+            return .monoMelodic
         case .drumRack:
-            return .drumRack
+            return .monoMelodic
         case .sliceLoop:
-            return .sliceLoop
+            return .slice
         }
     }
 }
 
 enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
-    case instrument
-    case drumRack
-    case sliceLoop
+    case monoMelodic
+    case polyMelodic
+    case slice
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+
+        switch raw {
+        case "monoMelodic":
+            self = .monoMelodic
+        case "polyMelodic":
+            self = .polyMelodic
+        case "slice":
+            self = .slice
+        case "instrument":
+            self = .monoMelodic
+        case "drumRack":
+            self = .monoMelodic
+        case "sliceLoop":
+            self = .slice
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown TrackType: \(raw)"
+            )
+        }
+    }
 
     var label: String {
         switch self {
-        case .instrument:
-            return "Instrument"
-        case .drumRack:
-            return "Drum Rack"
-        case .sliceLoop:
-            return "Slice Loop"
+        case .monoMelodic:
+            return "Mono"
+        case .polyMelodic:
+            return "Poly"
+        case .slice:
+            return "Slice"
         }
     }
 
     var shortLabel: String {
         switch self {
-        case .instrument:
-            return "Inst"
-        case .drumRack:
-            return "Drum"
-        case .sliceLoop:
+        case .monoMelodic:
+            return "Mono"
+        case .polyMelodic:
+            return "Poly"
+        case .slice:
             return "Slice"
         }
     }

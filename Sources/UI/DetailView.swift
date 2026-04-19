@@ -48,11 +48,9 @@ struct DetailView: View {
 
     private var sourceAccent: Color {
         switch track.trackType {
-        case .instrument:
+        case .monoMelodic, .polyMelodic:
             return StudioTheme.cyan
-        case .drumRack:
-            return StudioTheme.amber
-        case .sliceLoop:
+        case .slice:
             return StudioTheme.violet
         }
     }
@@ -175,7 +173,7 @@ struct DetailView: View {
                 }
             }
 
-            if track.trackType == .instrument && selectedSourceMode == .generator {
+            if track.trackType == .monoMelodic && selectedSourceMode == .generator {
                 StudioPanel(title: track.name, eyebrow: engineController.statusSummary, accent: StudioTheme.cyan) {
                     VStack(alignment: .leading, spacing: 16) {
                         StepGridView(stepStates: stepStates) { index in
@@ -246,7 +244,7 @@ struct DetailView: View {
                         }
                     }
                 }
-            } else if track.trackType == .instrument {
+            } else if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
                 StudioPanel(title: selectedSourceMode.label, eyebrow: "Pattern-slot placeholder", accent: sourceAccent) {
                     VStack(spacing: 12) {
                         ForEach(instrumentSourcePlaceholderTiles, id: \.title) { tile in
@@ -446,19 +444,19 @@ struct DetailView: View {
 
     private var trackTypePlaceholderTiles: [(title: String, detail: String, accent: Color)] {
         switch track.trackType {
-        case .instrument:
+        case .monoMelodic:
             return []
-        case .drumRack:
+        case .polyMelodic:
             return [
-                ("Tagged Drum Source", "One logical source emits tagged notes for kick, snare, hats, and other voices.", StudioTheme.amber),
-                ("Per-Voice Sequencing", "This is where multiple step lanes make sense: one row or lane per drum voice, not one monophonic pattern.", StudioTheme.cyan),
-                ("Voice Route Link", "The destination side will eventually expose one sink route per voice tag.", StudioTheme.violet)
+                ("Poly Source", "Poly tracks will author multi-note events instead of the current monophonic step lane.", StudioTheme.cyan),
+                ("Chord-Aware Editing", "This is where chord clips, voiced generators, and held-note editing will land.", StudioTheme.violet),
+                ("Shared Destination Story", "Poly tracks still route into the same destination model on the right.", StudioTheme.amber)
             ]
-        case .sliceLoop:
+        case .slice:
             return [
                 ("Slice Trigger Source", "A sliced loop behaves like a tagged note source where slices are the voices.", StudioTheme.violet),
                 ("Planned Editor", "Waveform, slice boundaries, tags, and slice-trigger lanes will live here once the audio-side plans land.", StudioTheme.cyan),
-                ("Shared Destination Story", "Slice tags route through the same future voice-route destination model as drums.", StudioTheme.amber)
+                ("Shared Destination Story", "Slice tags route through the same future voice-route destination model as grouped mono tracks.", StudioTheme.amber)
             ]
         }
     }

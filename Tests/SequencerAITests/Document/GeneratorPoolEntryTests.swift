@@ -22,7 +22,7 @@ final class GeneratorPoolEntryTests: XCTestCase {
         let entry = GeneratorPoolEntry(
             id: UUID(uuidString: "88888888-8888-8888-8888-888888888888")!,
             name: "Poly Motion",
-            trackType: .instrument,
+            trackType: .polyMelodic,
             kind: .polyGenerator,
             params: .poly(
                 step: .euclidean(pulses: 5, steps: 16, offset: 0),
@@ -56,7 +56,7 @@ final class GeneratorPoolEntryTests: XCTestCase {
             id: UUID(uuidString: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")!,
             name: "Default Drum",
             kind: .drumKit,
-            trackType: .drumRack
+            trackType: .monoMelodic
         )
 
         XCTAssertEqual(entry.params, .defaultDrumKit)

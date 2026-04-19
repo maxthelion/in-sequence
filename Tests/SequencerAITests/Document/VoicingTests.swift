@@ -39,25 +39,14 @@ final class VoicingTests: XCTestCase {
         XCTAssertEqual(voicing.defaultDestination, next)
     }
 
-    func test_defaults_for_instrument_start_unassigned() {
-        XCTAssertEqual(Voicing.defaults(forType: .instrument).defaultDestination, .none)
+    func test_defaults_for_melodic_tracks_start_unassigned() {
+        XCTAssertEqual(Voicing.defaults(forType: .monoMelodic).defaultDestination, .none)
+        XCTAssertEqual(Voicing.defaults(forType: .polyMelodic).defaultDestination, .none)
     }
 
-    func test_defaults_for_drum_rack_seed_internal_sampler_tags() {
-        let defaults = Voicing.defaults(forType: .drumRack)
-
-        XCTAssertEqual(defaults.destinations.count, 10)
-        XCTAssertTrue(defaults.destinations.values.allSatisfy {
-            if case .internalSampler = $0 {
-                return true
-            }
-            return false
-        })
-    }
-
-    func test_defaults_for_slice_loop_seed_internal_sampler_default() {
+    func test_defaults_for_slice_tracks_seed_internal_sampler_default() {
         XCTAssertEqual(
-            Voicing.defaults(forType: .sliceLoop).defaultDestination,
+            Voicing.defaults(forType: .slice).defaultDestination,
             .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
         )
     }

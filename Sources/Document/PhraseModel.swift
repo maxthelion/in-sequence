@@ -723,14 +723,16 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
 
     var compatibleWith: Set<TrackType> {
         switch self {
-        case .monoGenerator, .polyGenerator:
-            return [.instrument]
+        case .monoGenerator:
+            return [.monoMelodic]
+        case .polyGenerator:
+            return [.polyMelodic]
         case .drumKit:
-            return [.drumRack]
+            return [.monoMelodic]
         case .templateGenerator:
             return Set(TrackType.allCases)
         case .sliceGenerator:
-            return [.sliceLoop]
+            return [.slice]
         }
     }
 
@@ -815,19 +817,19 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1") ?? UUID(),
             name: "Manual Mono",
             kind: .monoGenerator,
-            trackType: .instrument
+            trackType: .monoMelodic
         ),
         GeneratorPoolEntry.makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2") ?? UUID(),
             name: "Drum Pattern",
             kind: .drumKit,
-            trackType: .drumRack
+            trackType: .monoMelodic
         ),
         GeneratorPoolEntry.makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
             name: "Slice Trigger",
             kind: .sliceGenerator,
-            trackType: .sliceLoop
+            trackType: .slice
         )
     ]
 }

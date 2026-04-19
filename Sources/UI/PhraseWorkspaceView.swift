@@ -477,11 +477,11 @@ struct PhraseWorkspaceView: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
 
-            if selectedTrack.trackType != .instrument {
+            if selectedTrack.trackType != .monoMelodic {
                 StudioPlaceholderTile(
-                    title: selectedTrack.trackType == .drumRack ? "Drum Lane Routing" : "Slice Lane Routing",
-                    detail: selectedTrack.trackType == .drumRack
-                        ? "This cell will eventually host tagged drum-lane sources and phrase-scoped trigger modes."
+                    title: selectedTrack.trackType == .polyMelodic ? "Poly Lane Routing" : "Slice Lane Routing",
+                    detail: selectedTrack.trackType == .polyMelodic
+                        ? "This cell will eventually host voiced note groups, chord shapes, and phrase-scoped poly articulation."
                         : "This cell will eventually host slice trigger patterns, slice groups, and phrase-specific loop transforms.",
                     accent: StudioTheme.violet
                 )
