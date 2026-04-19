@@ -16,6 +16,8 @@
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md` — sub-spec 1 (Core engine). Scope-shave vs. spec: this plan ships tick-loop + registry + streams + command-queue + `note-generator` source + `midi-out` sink. The remaining spec-listed blocks (`clip-reader`, `force-to-scale`, `quantise-to-chord`, `interpret`) are deferred to a follow-up **Plan 2: Core blocks** because (a) `clip-reader` depends on a clip data model that belongs with the phrase/macro plan (spec sub-spec 2), (b) `interpret` reads abstract macro rows that also belong there, and (c) splitting produces working, tagged software at each milestone.
 
+**Status:** ✅ Completed 2026-04-18. Tag `v0.0.2-core-engine` at commit `cfa1ec6`. All 88 tests green via `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme SequencerAI -destination 'platform=macOS' test`. Plan-closure bookkeeping committed afterward.
+
 **Why not audio-clock-driven ticks yet:** Audio-engine integration is a separate spec sub-spec (10). Starting with a `DispatchSourceTimer` gives us a testable engine today; swapping the clock source later is a local change because `TickClock` is injected into the executor via a protocol, not hard-coded. The executor itself is clock-agnostic.
 
 **Environment note:** Same Xcode-16 / `DEVELOPER_DIR` discipline as Plan 0. All `xcodebuild` commands prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
@@ -100,12 +102,12 @@ Two pieces:
 
 Key rule: this task is a prerequisite for Task 9 (`midi-out`). Do not start Task 9 before Task 1 is committed.
 
-- [ ] MIDIPacketBuilder tests (one note pair)
-- [ ] MIDIPacketBuilder impl
-- [ ] MIDIClientSendTests (2-client loopback)
-- [ ] MIDIClient.send impl + lazy output port
-- [ ] Green `xcodebuild test`
-- [ ] Commit: `feat(midi): transmit path — MIDIPacketBuilder + MIDIClient.send`
+- [x] MIDIPacketBuilder tests (one note pair)
+- [x] MIDIPacketBuilder impl
+- [x] MIDIClientSendTests (2-client loopback)
+- [x] MIDIClient.send impl + lazy output port
+- [x] Green `xcodebuild test`
+- [x] Commit: `feat(midi): transmit path — MIDIPacketBuilder + MIDIClient.send`
 
 ---
 
@@ -144,10 +146,10 @@ public enum EventKind: Equatable, Sendable { case fillFlag, barTick, custom(Stri
 
 **Acceptance:** XCTest `StreamTests` creates each variant, asserts `Equatable`, asserts `Sendable` (via `@Sendable` closure round-trip). All types are value types.
 
-- [ ] Write `StreamTests` (6 cases, one per variant)
-- [ ] Write `Stream.swift` minimum to pass
-- [ ] `xcodebuild test` green
-- [ ] Commit: `feat(engine): typed stream value types`
+- [x] Write `StreamTests` (6 cases, one per variant)
+- [x] Write `Stream.swift` minimum to pass
+- [x] `xcodebuild test` green
+- [x] Commit: `feat(engine): typed stream value types`
 
 ---
 
@@ -207,10 +209,10 @@ public protocol Block: AnyObject {
 
 **Acceptance:** A trivial test block emits `.scalar(0.5)` on output `"value"`. After `apply(paramKey: "level", value: .number(0.8))`, its next tick emits `.scalar(0.8)`. An unknown `paramKey` causes no change and no crash.
 
-- [ ] Write test for the trivial block — tick, apply, tick again, unknown-key apply
-- [ ] Write `Block.swift`
-- [ ] Green
-- [ ] Commit: `feat(engine): block protocol + TickContext + Command`
+- [x] Write test for the trivial block — tick, apply, tick again, unknown-key apply
+- [x] Write `Block.swift`
+- [x] Green
+- [x] Commit: `feat(engine): block protocol + TickContext + Command`
 
 ---
 
@@ -259,12 +261,12 @@ public final class Executor {
 8. **Command drain — BPM**: enqueue `.setBPM(240)`; verify `currentBPM == 240` after `tick`.
 9. **Command for unknown block**: enqueue `.setParam(blockID: "missing", ...)`; `tick()` does not throw; a debug log entry exists. No crash, no stale command.
 
-- [ ] Write failing tests (9 cases)
-- [ ] Implement topological sort
-- [ ] Implement `tick` with command drain at top
-- [ ] Implement cycle / wiring / type-check validation
-- [ ] Green
-- [ ] Commit: `feat(engine): DAG executor with command-drain tick`
+- [x] Write failing tests (9 cases)
+- [x] Implement topological sort
+- [x] Implement `tick` with command drain at top
+- [x] Implement cycle / wiring / type-check validation
+- [x] Green
+- [x] Commit: `feat(engine): DAG executor with command-drain tick`
 
 ---
 
@@ -305,10 +307,10 @@ public final class BlockRegistry {
 3. `kinds()` reflects every registration (order not asserted).
 4. Double-registration of the same `kindID` throws `RegistryError.duplicate`.
 
-- [ ] Tests for the four cases
-- [ ] Implement registry
-- [ ] Green
-- [ ] Commit: `feat(engine): block registry`
+- [x] Tests for the four cases
+- [x] Implement registry
+- [x] Green
+- [x] Commit: `feat(engine): block registry`
 
 ---
 
@@ -343,10 +345,10 @@ public final class TickClock {
 3. Change BPM mid-run — record the delta across the change; asserts the first post-change delta matches the new expected interval within ±8ms.
 4. Tick index starts at 0 and increments monotonically (no gaps).
 
-- [ ] Tests (assert on intervals, not counts; tolerances explicit)
-- [ ] Implementation using `DispatchSource.makeTimerSource` with leeway 1ms
-- [ ] Green — tests may be sensitive under CI load; if flake observed, raise tolerance rather than lowering assertion strictness (never test "passes if timer fires at all")
-- [ ] Commit: `feat(engine): BPM-driven tick clock`
+- [x] Tests (assert on intervals, not counts; tolerances explicit)
+- [x] Implementation using `DispatchSource.makeTimerSource` with leeway 1ms
+- [x] Green — tests may be sensitive under CI load; if flake observed, raise tolerance rather than lowering assertion strictness (never test "passes if timer fires at all")
+- [x] Commit: `feat(engine): BPM-driven tick clock`
 
 ---
 
@@ -379,10 +381,10 @@ public final class CommandQueue {
 3. Enqueue from background queue, drain from main → no crashes, all enqueued commands appear (order within a producer is preserved).
 4. Stress: 1000 enqueues interleaved with 10 drains across two queues; all commands accounted for (enqueued == drained + dropped).
 
-- [ ] Tests (include the concurrency test using `XCTestExpectation`)
-- [ ] Implement with a serial `DispatchQueue` guarding a `[Command]`
-- [ ] Green
-- [ ] Commit: `feat(engine): thread-safe command queue`
+- [x] Tests (include the concurrency test using `XCTestExpectation`)
+- [x] Implement with a serial `DispatchQueue` guarding a `[Command]`
+- [x] Green
+- [x] Commit: `feat(engine): thread-safe command queue`
 
 ---
 
@@ -403,11 +405,11 @@ Per tick, emits `Stream.notes([NoteEvent(...)])` if `stepPattern[tickIndex % ste
 3. `stepPattern = [false]` → zero notes ever.
 4. Block registers in the `BlockRegistry` under `"note-generator"`.
 
-- [ ] Tests
-- [ ] Implementation
-- [ ] Registry registration in a module-level `registerCoreBlocks(_:)` helper in `BlockRegistry.swift`
-- [ ] Green
-- [ ] Commit: `feat(engine): note-generator source block`
+- [x] Tests
+- [x] Implementation
+- [x] Registry registration in a module-level `registerCoreBlocks(_:)` helper in `BlockRegistry.swift`
+- [x] Green
+- [x] Commit: `feat(engine): note-generator source block`
 
 ---
 
@@ -429,10 +431,10 @@ Configurable via params: `channel: UInt8` (default 0 = MIDI ch 1). Note-off sche
 4. MidiOut receives notes at channel=5 → note-on's status byte is `0x95` (0x90 | 0x05).
 5. Block registers in registry under `"midi-out"`.
 
-- [ ] Tests using two-client loopback
-- [ ] Implementation (depends on MIDIClient.send from Task 1)
-- [ ] Green
-- [ ] Commit: `feat(engine): midi-out sink block`
+- [x] Tests using two-client loopback
+- [x] Implementation (depends on MIDIClient.send from Task 1)
+- [x] Green
+- [x] Commit: `feat(engine): midi-out sink block`
 
 ---
 
@@ -493,12 +495,12 @@ func test_engine_emits_expected_midi_for_N_ticks() throws {
 2. `setBPM(120)` mid-run → observed inter-note interval roughly quadruples.
 3. `setParam(blockID: "gen", paramKey: "pitches", value: .integers([60, 64, 67]))` mid-run → observed pitches shift to the new set (sample the recorder's pitch history after the change).
 
-- [ ] Harness: `MIDIPacketRecorder` (simple test helper; owns a `MIDIInputPort` + array of received packets)
-- [ ] Test scenario 1
-- [ ] Test scenario 2 (BPM change)
-- [ ] Test scenario 3 (param change)
-- [ ] Green
-- [ ] Commit: `test(engine): end-to-end note-generator → midi-out integration`
+- [x] Harness: `MIDIPacketRecorder` (simple test helper; owns a `MIDIInputPort` + array of received packets)
+- [x] Test scenario 1
+- [x] Test scenario 2 (BPM change)
+- [x] Test scenario 3 (param change)
+- [x] Green
+- [x] Commit: `test(engine): end-to-end note-generator → midi-out integration`
 
 ---
 
@@ -522,13 +524,13 @@ The Architecture header's claim that "Engine does not touch the document model h
 2. `start()` then `isRunning == true`; `stop()` then `false`.
 3. After `start()`, `setBPM(120)` via the controller's facade makes its way into `executor.currentBPM` within 2 ticks.
 
-- [ ] EngineControllerTests
-- [ ] EngineController implementation (including `buildDefaultPipeline`)
-- [ ] TransportBar wiring
-- [ ] App entry wiring
-- [ ] Manual smoke test: hit Play, observe MIDI on a DAW / MIDI monitor; note the observation in the commit message
-- [ ] Green `xcodebuild test`
-- [ ] Commit: `feat(engine): wire engine into app shell + transport`
+- [x] EngineControllerTests
+- [x] EngineController implementation (including `buildDefaultPipeline`)
+- [x] TransportBar wiring
+- [x] App entry wiring
+- [x] Manual smoke test: hit Play, observe MIDI on a DAW / MIDI monitor; note the observation in the commit message
+- [x] Green `xcodebuild test`
+- [x] Commit: `feat(engine): wire engine into app shell + transport`
 
 ---
 
@@ -542,18 +544,18 @@ The Architecture header's claim that "Engine does not touch the document model h
 
 Dispatched via the `wiki-maintainer` agent. The agent's scope is `wiki/pages/` only — it cannot touch `Sources/` or docs. Must land in the same tag as the code (per Plan 0 template).
 
-- [ ] Wiki page covers: block protocol + apply(command), 6 stream kinds, executor ordering + command-drain-at-top, tick-clock model (and why it's software-timed for now), command-queue contract (capacity, dropped-count, last-wins semantics)
-- [ ] `project-layout.md` gains the `Engine` module row + updated dependency-direction diagram
-- [ ] Commit: `docs(wiki): engine architecture + project-layout update`
+- [x] Wiki page covers: block protocol + apply(command), 6 stream kinds, executor ordering + command-drain-at-top, tick-clock model (and why it's software-timed for now), command-queue contract (capacity, dropped-count, last-wins semantics)
+- [x] `project-layout.md` gains the `Engine` module row + updated dependency-direction diagram
+- [x] Commit: `docs(wiki): engine architecture + project-layout update`
 
 ---
 
 ## Task 13: Tag + mark completed
 
-- [ ] Replace every `- [ ]` in this file with `- [x]` for steps actually completed
-- [ ] Add a `Status:` line after `Parent spec` in this file's header, of the form `<STATUS_PREFIX> ✅ <COMPLETED_MARKER> YYYY-MM-DD. Tag v0.0.2-core-engine at <SHA>.` (using the same phrasing as Plan 0's completed header — the placeholders here keep this plan from looking "done" to the BT active-plan detector)
-- [ ] Commit: `docs(plan): mark 1-core-engine completed`
-- [ ] Tag: `git tag -a v0.0.2-core-engine -m "Core engine complete: tick loop + executor + streams + command queue + note-gen + midi-out + shell wiring"`
+- [x] Replace every `- [ ]` in this file with `- [x]` for steps actually completed
+- [x] Add a `Status:` line after `Parent spec` in this file's header, of the form `<STATUS_PREFIX> ✅ <COMPLETED_MARKER> YYYY-MM-DD. Tag v0.0.2-core-engine at <SHA>.` (using the same phrasing as Plan 0's completed header — the placeholders here keep this plan from looking "done" to the BT active-plan detector)
+- [x] Commit: `docs(plan): mark 1-core-engine completed`
+- [x] Tag: `git tag -a v0.0.2-core-engine -m "Core engine complete: tick loop + executor + streams + command queue + note-gen + midi-out + shell wiring"`
 
 ---
 

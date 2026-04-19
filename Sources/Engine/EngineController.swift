@@ -28,6 +28,7 @@ final class EngineController {
 
     private(set) var isRunning = false
     private(set) var currentBPM: Double
+    private(set) var transportTickIndex: UInt64 = 0
     private(set) var transportPosition = "1:1:1"
     private(set) var executor: Executor?
     private(set) var selectedOutput: TrackOutputDestination
@@ -122,7 +123,16 @@ final class EngineController {
     }
 
     func apply(track: StepSequenceTrack) {
-        apply(documentModel: SeqAIDocumentModel(version: 1, tracks: [track], selectedTrackID: track.id))
+        let phrase = PhraseModel.default(tracks: [track])
+        apply(
+            documentModel: SeqAIDocumentModel(
+                version: 1,
+                tracks: [track],
+                selectedTrackID: track.id,
+                phrases: [phrase],
+                selectedPhraseID: phrase.id
+            )
+        )
     }
 
     var registeredKindIDs: [String] {
@@ -174,6 +184,7 @@ final class EngineController {
 
         let outputs = executor.tick(now: now)
         currentBPM = executor.currentBPM
+        transportTickIndex = tickIndex
         transportPosition = Self.transportString(for: tickIndex, stepsPerBar: stepsPerBar)
 
         for runtime in audioRuntimes.values where !runtime.mix.isMuted {
