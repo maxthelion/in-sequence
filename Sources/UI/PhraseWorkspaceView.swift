@@ -324,7 +324,7 @@ struct PhraseWorkspaceView: View {
                     .tracking(0.9)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                Text("Playback steps down the phrase rows as transport advances.")
+                Text("Track headings align with the matrix columns.")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -751,7 +751,7 @@ private struct PhraseMatrixRow: View {
                 Button {
                     onSelectCell(track.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(cellMode.shortLabel.uppercased())
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
@@ -774,19 +774,13 @@ private struct PhraseMatrixRow: View {
                             isActive: selectedTrackID == track.id && isSelected
                         )
 
-                        PhraseBarPreview(
-                            values: barPreview,
-                            accent: rowAccent,
-                            activeBarIndex: activePlayback?.barIndex
-                        )
-
-                        Text(footerText(for: track))
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                        Text(cellSummaryText(for: cellMode, track: track))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(StudioTheme.mutedText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(width: trackColumnWidth, alignment: .leading)
-                    .frame(minHeight: 142, alignment: .topLeading)
+                    .frame(minHeight: 126, alignment: .topLeading)
                     .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -802,9 +796,19 @@ private struct PhraseMatrixRow: View {
         }
     }
 
-    private func footerText(for track: StepSequenceTrack) -> String {
+    private func cellSummaryText(for mode: PhraseCellEditMode, track: StepSequenceTrack) -> String {
         let patternIndex = phrase.patternIndex(for: track.id)
-        return "P\(patternIndex + 1) • \(track.trackType.shortLabel)"
+        let patternLabel = "Pattern \(patternIndex + 1)"
+        switch mode {
+        case .single:
+            return "\(patternLabel) • whole phrase value"
+        case .perBar:
+            return "\(patternLabel) • one value per bar"
+        case .rampUp:
+            return "\(patternLabel) • interpolated curve"
+        case .drawn:
+            return "\(patternLabel) • per-step drawing"
+        }
     }
 
     private func cellFill(for track: StepSequenceTrack) -> Color {
@@ -836,7 +840,7 @@ private struct PhraseMatrixTrackHeaderCell: View {
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(track.name)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(StudioTheme.text)
@@ -851,16 +855,16 @@ private struct PhraseMatrixTrackHeaderCell: View {
                 .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(width: trackColumnWidth, alignment: .leading)
-            .frame(minHeight: 54, alignment: .leading)
+            .frame(minHeight: 44, alignment: .leading)
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isSelected ? StudioTheme.cyan.opacity(0.14) : Color.white.opacity(0.03))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isSelected ? StudioTheme.cyan.opacity(0.12) : Color.white.opacity(0.02))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(isSelected ? StudioTheme.cyan.opacity(0.55) : StudioTheme.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? StudioTheme.cyan.opacity(0.55) : StudioTheme.border.opacity(0.8), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -888,7 +892,7 @@ private struct PhraseCellPreview: View {
                 drawnPreview
             }
         }
-        .frame(height: 70)
+        .frame(height: 62)
     }
 
     private var singlePreview: some View {
@@ -905,9 +909,9 @@ private struct PhraseCellPreview: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             Text(averageValueText)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(StudioTheme.text)
-                .padding(10)
+                .padding(9)
         }
     }
 
