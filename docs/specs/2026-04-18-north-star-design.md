@@ -42,25 +42,26 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 
 ## Vocabulary
 
-- **Track** — one instrument channel, project-scoped. Has an immutable **track type** (see below), a **voicing** (project-scoped), and gets a **source mode** assigned per phrase. Implemented as a pipeline ending in a MIDI or audio sink.
-- **Track type** — one of `monoMelodic` / `polyMelodic` / `drum` / `slice`. Immutable after track creation. Constrains which generator kinds and clip kinds the track can source from, and which UI surface (pitch-lane / chord-stack / per-tag grid / per-slice grid) the track uses. See §"Track types and source modes."
+- **Track** — one instrument channel, project-scoped. Has an immutable **track type**, a **voicing**, and owns a fixed-size **pattern bank** of 16 patterns. Implemented as a pipeline ending in a MIDI or audio sink.
+- **Track type** — one of `monoMelodic` / `polyMelodic` / `drum` / `slice`. Immutable after track creation. Constrains which generator kinds and clip kinds the track's patterns can reference, and which UI surface (pitch-lane / chord-stack / per-tag grid / per-slice grid) the track uses. See §"Track types, patterns, and phrases."
+- **Pattern** — one slot in a track's 16-slot pattern bank (indexed 0..15, project-scoped, track-owned). Holds a **source mode** (either `.generator(GeneratorID)` or `.clip(ClipID)`) plus an optional human-readable name. All 16 slots always exist; empty slots default to `.generator(GeneratorID)` pointing at the track-type's default generator.
+- **Source mode** — the content of a pattern slot: `.generator(GeneratorID)` referring into the generator pool, or `.clip(ClipID)` referring into the clip pool. Phrase never stores a source mode directly — phrase stores the pattern index and the pattern carries the source mode.
 - **Voicing** — per-track map `VoiceTag → VoicePresetID`. Melodic / slice tracks use a single `"default"` entry; drum tracks have one entry per voice tag (`"kick"`, `"snare"`, …). An unmapped tag on a drum track drops silently.
-- **Generator kind** — a code-defined block type (`random-notes-in-scale-mono`, `euclidean-drums`, `template-drum-kit`, `chord-generator`, `arpeggiator`, …). Declared in the block palette; each kind declares which track types it's compatible with. Kinds are the codebase taxonomy.
-- **Generator instance** — a user-configured instance of a kind (`"my punchy kick" = euclidean-drums(density=0.7, fills=0.3)`), living in the project's **generator pool**. Multiple instances of the same kind with different params coexist. Phrases reference instances by id.
+- **Generator kind** — a code-defined block type (`random-notes-in-scale-mono`, `euclidean-drums`, `template-drum-kit`, `chord-generator`, `arp-source`, …). Declared in the block palette; each kind declares which track types it's compatible with. Kinds are the codebase taxonomy.
+- **Generator instance** — a user-configured instance of a kind (`"my punchy kick" = euclidean-drums(density=0.7, fills=0.3)`), living in the project's **generator pool**. Multiple instances of the same kind with different params coexist. Patterns reference instances by id.
 - **Clip** — concrete, stored step data with annotations, living in the project's **clip pool**. Has a compatibility tag (which track types may play it). Created by hand-authoring, freezing live generator output, or loading from the library.
-- **Source mode** — what plays on a track in a given phrase: either `.generator(GeneratorID)` referring into the generator pool, or `.clip(ClipID)` referring into the clip pool. Phrase-scoped (varies per phrase).
-- **Phrase** — reusable, N-bar unit (default 8 bars × 16 steps = 128 steps). Contains a macro grid plus per-track source modes. Ghosts phatcontroller's phrase concept.
+- **Phrase** — reusable, N-bar unit (default 8 bars × 16 steps = 128 steps). Stores **one pattern index (0..15) per track** plus a macro grid. The phrase does not carry source modes directly — it references the per-track pattern bank. Ghosts phatcontroller's phrase concept, but with an Elektron-style pattern-bank twist.
 - **Song** — ordered chain of phrase-refs, each specifying phrase id, repeat count, and optional per-ref overrides.
 - **Stream** — a typed value flow through the system. Every output of every block is a stream.
 - **Sink** — a block that terminates a stream outside the pipeline DAG: MIDI-out, audio-param, chord-context broadcast, macro-row writer.
-- **Pipeline** — a directed path from source through transforms to sink within a phrase. The source is determined by the track's current source mode; extra transforms are a power-user escape hatch in the Graph view.
+- **Pipeline** — a directed path from source through transforms to sink within a phrase. The source is determined by the active pattern on that track in that phrase; extra transforms are a power-user escape hatch in the Graph view.
 - **Voice tag** — an abstract label (`kick`, `snare`, `hat`, `clap`...) carried on note-stream entries for drum tracks; decouples rhythmic material from sonic realization. Indexes both `Voicing.presets` and the `voice-route` sink's destination map.
 
-## Track types and source modes
+## Track types, patterns, and phrases
 
-Four track types, immutable after creation. Each has distinct generator-pool compatibility, UI surface, and voicing cardinality.
+Four track types, immutable after creation. Each track owns a fixed bank of 16 patterns. Phrases pick one pattern per track. The phrase does not carry source modes directly — it references pattern indexes into the per-track bank.
 
-### The four types
+### The four track types
 
 | Type | One-line | Voicing cardinality | UI surface | Generator kinds (examples) |
 |---|---|---|---|---|
@@ -69,52 +70,92 @@ Four track types, immutable after creation. Each has distinct generator-pool com
 | `drum` | tagged voices, rhythm-decoupled-from-sound | N, one per used voice tag | per-tag row grid (kick, snare, hat rows) | `euclidean-drums`, `template-drum-kit`, `markov-drum-pattern` |
 | `slice` | sliced-loop playback | 1 (`"default"`); slice indices live downstream in slice-player config | per-slice row grid | `slice-trigger`, `slice-markov`, `template-slice-pattern` |
 
-Chord-producing material is **not** a fifth type: a "chord track" is a `polyMelodic` track whose current source is a `chord-generator` instance.
+Chord-producing material is **not** a fifth type: a "chord track" is a `polyMelodic` track whose active pattern's source mode is `.generator(id)` pointing at a `chord-generator` instance.
 
-### Project-scoped pools
+### The pattern bank (per track)
 
-The project document carries three pools:
-
-- `tracks: [Track]` — track identity, type, voicing, routing.
-- `generatorPool: [GeneratorInstance]` — user-configured generator instances. Each declares its kind and the set of track types it's compatible with (inherited from its kind). Editing an instance propagates to every phrase that references it.
-- `clipPool: [Clip]` — stored clips with annotations, tagged with track-type compatibility. Grows over time as the user hand-authors, freezes, or imports clips.
-
-### Phrase-scoped source modes
-
-A phrase carries a map `TrackID → SourceRef` where:
+Every track owns exactly 16 pattern slots, indexed 0..15. Each slot holds:
 
 ```
-SourceRef = .generator(GeneratorID) | .clip(ClipID)
+Pattern
+├── sourceMode: SourceRef           // .generator(GeneratorID) | .clip(ClipID)
+└── name: String?                   // optional, user-editable
 ```
 
-To change what a track plays between phrases, the phrase's `SourceRef` for that track points at a different pool entry. The common workflow — "verse uses the live kick generator, chorus uses a frozen chorus-kick clip" — is two phrases with different `SourceRef` values for the kick track. No pipeline rewiring needed at the track level; the pool entries already exist.
+All 16 slots always exist. At track creation every slot is initialised to `.generator(defaultGeneratorID)` where `defaultGeneratorID` is a track-type-appropriate starter (e.g. a default `euclidean-drums` instance for drum tracks, `random-notes-in-scale-mono` for monoMelodic). Users edit slots over time; unedited slots just keep playing their defaults.
 
-"Muted for this phrase" is not a source mode — it's a per-track concrete row on the phrase's macro coordinator (the existing `mute` row; see §"Phrase layer").
+Pattern bank operations are track-local:
 
-### Compatibility filtering
+- **Copy** within a track: slot 3 → slot 7. Both slots now reference the same generator / clip id, with independent names.
+- **Copy** between tracks of the same type: allowed, subject to compatibility filtering of the referenced pool entry.
+- **Clear** a slot: resets it to `.generator(defaultGeneratorID)` for that track type.
 
-When the UI offers a source picker for a track in a phrase, the choices are:
+### Project-scoped pools (unchanged)
+
+Patterns reference into two project-scoped pools:
+
+- `generatorPool: [GeneratorInstance]` — user-configured generator instances. Editing an instance propagates to every pattern slot (across tracks and phrases) that references it.
+- `clipPool: [Clip]` — stored clips with annotations. Same propagation semantics.
+
+Pool entries carry a `compatibleWith: Set<TrackType>` field (inherited from their kind for generators, declared at clip creation for clips).
+
+### Phrase structure
+
+A phrase is now much smaller:
+
+```
+Phrase
+├── trackPatternIndexes: [TrackID: Int]    // every 0..15; every track has an entry
+├── macroGrid: …                           // existing (abstract rows + concrete rows)
+└── chordGenConfig: …                      // existing (progression, tension mapping)
+```
+
+When a track is added to a project, every existing phrase gets a new entry `trackID → 0` (the default pattern). No phrase is ever missing a track.
+
+"Muted in this phrase" is not represented by a pattern-bank trick — it's a per-track concrete row on the phrase's macro coordinator (the existing `mute` row, see §"Phrase layer"). Keeps pattern index semantics clean.
+
+### Compatibility filtering at the slot editor
+
+When the user opens a pattern slot's source picker in the Pattern editor, the choices are:
 
 - `generatorPool.filter { $0.compatibleWith.contains(track.type) }`
 - `clipPool.filter { $0.compatibleWith.contains(track.type) }`
 
-The pool never exposes a melodic generator to a drum track, or vice versa. Same for clips.
+The filter never exposes a melodic generator to a drum track, or a drum-kit clip to a `monoMelodic` track.
 
 ### Track-type immutability
 
-A track's type is set at creation and never changes. "Change the mind" is "create a new track of the desired type, migrate the phrase references, delete the old track." This prevents a whole class of ambiguity (drum voicing surviving a melodic reassignment; mono sources suddenly playing on a poly track; …).
+A track's type is set at creation and never changes. The 16-slot pattern bank is typed alongside it; all slots are constrained to the track's type. "Change the mind" is "create a new track of the desired type, migrate the phrase indexes, delete the old track."
 
 ### Voicing details by type
 
 - `monoMelodic` / `polyMelodic` / `slice` carry a single voicing entry under `Voicing.defaultTag = "default"`. Voice-route and preset both use that key.
 - `drum` carries one voicing entry per voice tag the track uses (declared when the track is created or edited). Note-stream events with tags not present in `voicing.presets` are dropped silently at the `voice-route` sink; the UI surfaces a warning when any of the track's currently-assigned generators/clips can produce tags not in the voicing map.
 
+### Worked example
+
+Three phrases (verse / chorus / breakdown) and a kick track with three interesting pattern slots — 0 (steady euclidean kick), 3 (half-time variation), 7 (frozen fill clip captured live):
+
+```
+kickTrack.patterns[0]  = .generator(euclidKickInstanceID)     // "steady kick"
+kickTrack.patterns[3]  = .generator(halfTimeKickInstanceID)   // "half-time kick"
+kickTrack.patterns[7]  = .clip(liveFillClipID)                // "captured fill" (from freeze)
+// slots 1, 2, 4-6, 8-15 = default
+
+versePhrase.trackPatternIndexes[kickTrack.id]     = 0
+chorusPhrase.trackPatternIndexes[kickTrack.id]    = 0
+breakdownPhrase.trackPatternIndexes[kickTrack.id] = 3
+fillPhrase.trackPatternIndexes[kickTrack.id]      = 7
+```
+
+Editing the params of `euclidKickInstanceID` in the generator pool affects verse + chorus kicks together (both reference it via slot 0). Switching the breakdown phrase to use the captured fill is a single integer change: `3 → 7`.
+
 ### Arpeggiator — a known edge
 
-Arpeggiators bridge polyphonic input (a held chord) to monophonic output (one note per step). There are two viable homes for arp in this model:
+Arpeggiators bridge polyphonic input (a held chord) to monophonic output (one note per step). Two viable homes:
 
-- A generator kind compatible with `polyMelodic` (input-side): chord-context in, chord-pattern out. The track stays poly.
-- A transform block that lives downstream of a poly source and upstream of a mono sink — in which case it doesn't fit the simple `SourceRef` world and requires a power-user Graph-view override.
+- A generator kind compatible with `polyMelodic` (input-side): chord-context in, chord-pattern out. The track stays poly; a pattern slot can reference an arp-source generator instance.
+- A transform block that lives downstream of a poly source and upstream of a mono sink — doesn't fit the simple `SourceRef` world and requires a power-user Graph-view override.
 
 Resolved for MVP: **arp-as-source-kind for `polyMelodic`**. The output is still one-or-more notes per step, so calling it poly is honest. A mono-side arp is deferred; when we need it, we'll promote the Graph-view escape hatch as a first-class thing.
 
@@ -123,18 +164,18 @@ Resolved for MVP: **arp-as-source-kind for `polyMelodic`**. The output is still 
 Following phatcontroller and Octatrack's part/pattern split: **tracks are project-scoped, pipelines are phrase-scoped**.
 
 - **Project-scoped (stable across phrases):**
-  - The set of tracks, their identities (kick, bass, lead, pad...), and their **track types** (`monoMelodic` / `polyMelodic` / `drum` / `slice`; see §"Track types and source modes")
+  - The set of tracks, their identities (kick, bass, lead, pad...), and their **track types** (`monoMelodic` / `polyMelodic` / `drum` / `slice`)
   - Per-track **voicing** — for melodic/slice tracks a single voice preset under `"default"`; for drum tracks one preset per voice tag
   - `voice-route` destination assignments (MIDI channel, bus, FX chain) — similarly per-tag for drum tracks
-  - **Generator pool** — user-configured `GeneratorInstance`s (e.g. "my punchy kick", "verse-lead-wander"), each an instance of a registered `GeneratorKind`, with params
-  - **Clip pool** — stored clips with annotations, tagged by track-type compatibility. Grows as the user hand-authors, freezes, or imports
+  - **Per-track pattern bank** — exactly 16 pattern slots per track, each holding a `SourceRef` (`.generator(id) | .clip(id)`) and an optional name. Every slot always exists; empty-at-creation slots default to the track-type's default generator
+  - **Generator pool** — user-configured `GeneratorInstance`s (e.g. "my punchy kick", "verse-lead-wander"), each an instance of a registered `GeneratorKind`, with params. Patterns reference these
+  - **Clip pool** — stored clips with annotations, tagged by track-type compatibility. Grows as the user hand-authors, freezes, or imports. Patterns reference these
   - Template library, saved fill presets, chord-generator library (library-scoped imports that feed the pools)
 - **Phrase-scoped (can vary per phrase):**
-  - Per-track **source mode** — `.generator(GeneratorID)` or `.clip(ClipID)`, referencing the project pools
-  - Clip-specific step annotations that are authored inside the phrase (when the clip is phrase-local rather than library-shared)
+  - Per-track **pattern index** — integer 0..15 picking one of the track's pattern slots. Every track always has a pattern index in every phrase; default is 0
   - Macro grid values (authored rows + generator-sourced row assignments)
   - Chord-gen pipeline configuration (progression, tension mapping)
-  - Power-user graph override: extra transform blocks beyond the default pipeline implied by the track's type and source mode (Graph view only)
+  - Power-user graph override: extra transform blocks beyond the default pipeline implied by the track's type and active pattern's source mode (Graph view only)
 - **Phrase-ref-scoped (per-use overrides):**
   - Macro-row value offsets applied only on one usage of a phrase in the song
 
