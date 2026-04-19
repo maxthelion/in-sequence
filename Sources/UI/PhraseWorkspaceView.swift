@@ -6,6 +6,7 @@ struct PhraseWorkspaceView: View {
 
     @State private var selectedLayerID = "pattern"
     @State private var selectedBarPage = 0
+    @State private var showingCellEditor = false
 
     private let phraseColumnWidth: CGFloat = 150
     private let trackColumnWidth: CGFloat = 132
@@ -64,7 +65,9 @@ struct PhraseWorkspaceView: View {
                     matrix
                 }
             }
-
+        }
+        .padding(20)
+        .sheet(isPresented: $showingCellEditor) {
             StudioPanel(
                 title: "Cell Editor",
                 eyebrow: "\(selectedPhrase.name) • \(selectedTrack.name) • \(selectedLayer.name)",
@@ -72,8 +75,9 @@ struct PhraseWorkspaceView: View {
             ) {
                 cellEditor
             }
+            .padding(24)
+            .frame(minWidth: 680, minHeight: 420)
         }
-        .padding(20)
         .onAppear {
             if document.model.layer(id: selectedLayerID) == nil {
                 selectedLayerID = document.model.patternLayer?.id ?? layers.first?.id ?? "pattern"
@@ -174,20 +178,25 @@ struct PhraseWorkspaceView: View {
                         .frame(width: phraseColumnWidth)
 
                         ForEach(tracks, id: \.id) { track in
-                            Button {
+                            PhraseGridCell(
+                                layer: selectedLayer,
+                                cell: phrase.cell(for: selectedLayer.id, trackID: track.id),
+                                phrase: phrase,
+                                track: track,
+                                isSelected: phrase.id == document.model.selectedPhraseID && track.id == document.model.selectedTrackID,
+                                accent: layerAccent(selectedLayer.id)
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
                                 document.model.selectPhrase(id: phrase.id)
                                 document.model.selectTrack(id: track.id)
-                            } label: {
-                                PhraseGridCell(
-                                    layer: selectedLayer,
-                                    cell: phrase.cell(for: selectedLayer.id, trackID: track.id),
-                                    phrase: phrase,
-                                    track: track,
-                                    isSelected: phrase.id == document.model.selectedPhraseID && track.id == document.model.selectedTrackID,
-                                    accent: layerAccent(selectedLayer.id)
-                                )
                             }
-                            .buttonStyle(.plain)
+                            .onTapGesture(count: 2) {
+                                document.model.selectPhrase(id: phrase.id)
+                                document.model.selectTrack(id: track.id)
+                                selectedBarPage = 0
+                                showingCellEditor = true
+                            }
                             .frame(width: trackColumnWidth)
                         }
                     }
