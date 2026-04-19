@@ -75,9 +75,13 @@ Tests/
 public enum Destination: Codable, Equatable, Sendable {
     case midi(port: MIDIEndpointName?, channel: UInt8, noteOffset: Int)
     case auInstrument(componentID: AudioComponentID, stateBlob: Data?)
-    case none   // unassigned — track plays but no output target
+    case internalSampler(bankID: InternalSamplerBankID, preset: String)
+        // bundled sound presets for drum/slice defaults — "drum-kit-default",
+        // "slice-808-kit", etc. Maps to an internal AU at runtime; the
+        // bankID is project-agnostic and ships with the binary.
+    case none   // unassigned — routing engine decides; silent if no route set
 
-    public var kindLabel: String { ... }   // "MIDI" / "AU Instrument" / "—"
+    public var kindLabel: String { ... }   // "MIDI" / "AU" / "Internal" / "—"
 }
 
 public struct MIDIEndpointName: Codable, Equatable, Hashable, Sendable {
@@ -159,6 +163,41 @@ public struct Voicing: Codable, Equatable, Sendable {
 - [ ] Implement
 - [ ] Green
 - [ ] Commit: `feat(document): Voicing per-tag Destination map`
+
+---
+
+## Task 2b: Per-track-type default voicing at track creation
+
+**Scope:** When a track is created via `SeqAIDocumentModel.appendTrack(type:)`, it lands with a type-appropriate default `Voicing`. This is distinct from Task 2 (which just gives us the type); here we add the factory logic.
+
+**Per-type defaults:**
+
+| Track type | Default `Voicing` | Rationale |
+|---|---|---|
+| `monoMelodic`, `polyMelodic` | `Voicing.single(.none)` | Empty. User explicitly sets AU or MIDI via the destination editor |
+| `drum` | `Voicing(destinations: ["kick": .internalSampler(bank: .drumKitDefault, preset: "kick-909"), "snare": .internalSampler(..., "snare-909"), "hat-closed": ..., "hat-open": ..., "clap": ..., "tom-low": ..., "tom-mid": ..., "tom-hi": ..., "ride": ..., "crash": ...])` | Drum tracks are instantly playable. User replaces per-tag via the drum view later |
+| `slice` | `Voicing.single(.internalSampler(bank: .sliceDefault, preset: "empty-slice"))` | Slice track's default is an empty slice buffer the user loads a sample into |
+
+The bundled `InternalSamplerBankID` values (`drumKitDefault`, `sliceDefault`) ship with the app. Their audio is hosted by an internal AU (added in a later audio plan) — for now, `Destination.internalSampler` decodes cleanly and gets an explicit TODO in the engine wiring (Task 10) saying "plays silence until internal-sampler AU ships."
+
+**Files:**
+- Modify: `Sources/Document/SeqAIDocumentModel.swift` — `appendTrack(type:)` consults a new helper `Voicing.defaults(forType:)`
+- Modify: `Sources/Document/Voicing.swift` — add the `defaults(forType:)` static
+- Modify: `Tests/SequencerAITests/Document/VoicingTests.swift` — add per-type default assertions
+
+**Tests:**
+
+1. `Voicing.defaults(forType: .instrument)` returns `.single(.none)`.
+2. `Voicing.defaults(forType: .drumRack).destinations.count == 10` (or whatever the seed kit lands at).
+3. Every `drum`-default tag maps to `.internalSampler(...)` with a non-empty preset string.
+4. `Voicing.defaults(forType: .sliceLoop).defaultDestination` is `.internalSampler(bank: .sliceDefault, preset: "empty-slice")`.
+5. `appendTrack(type: .drumRack)` on an empty document produces a track whose `voicing` matches `Voicing.defaults(forType: .drumRack)`.
+
+- [ ] Tests
+- [ ] Implement `Voicing.defaults(forType:)`
+- [ ] Update `appendTrack(type:)`
+- [ ] Green
+- [ ] Commit: `feat(document): per-track-type default Voicing at track creation`
 
 ---
 
