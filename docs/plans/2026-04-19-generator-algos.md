@@ -462,7 +462,7 @@ public typealias VoiceTag = String
 - [x] Tests
 - [x] Implement
 - [x] Green
-- [ ] Commit: `feat(document): GeneratorParams tagged union`
+- [x] Commit: `feat(document): GeneratorParams tagged union`
 
 ---
 
@@ -537,9 +537,9 @@ public init(from decoder: Decoder) throws {
 5. Legacy decode: JSON `"manualMono"` → `.monoGenerator`; `"drumPattern"` → `.drumKit`; `"sliceTrigger"` → `.sliceGenerator`.
 6. Round-trip for new names.
 
-- [ ] Tests
-- [ ] Implement enum + migration
-- [ ] Green
+- [x] Tests
+- [x] Implement enum + migration
+- [x] Green
 - [ ] Commit: `feat(document): expand GeneratorKind to spec's 5-case roster with legacy migration`
 
 ---

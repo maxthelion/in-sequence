@@ -671,18 +671,88 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
 }
 
 enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
-    case manualMono
-    case drumPattern
-    case sliceTrigger
+    case monoGenerator
+    case polyGenerator
+    case drumKit
+    case templateGenerator
+    case sliceGenerator
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+
+        switch rawValue {
+        case "monoGenerator":
+            self = .monoGenerator
+        case "polyGenerator":
+            self = .polyGenerator
+        case "drumKit":
+            self = .drumKit
+        case "templateGenerator":
+            self = .templateGenerator
+        case "sliceGenerator":
+            self = .sliceGenerator
+        case "manualMono":
+            self = .monoGenerator
+        case "drumPattern":
+            self = .drumKit
+        case "sliceTrigger":
+            self = .sliceGenerator
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown GeneratorKind: \(rawValue)"
+            )
+        }
+    }
 
     var label: String {
         switch self {
-        case .manualMono:
-            return "Manual Mono"
-        case .drumPattern:
-            return "Drum Pattern"
-        case .sliceTrigger:
+        case .monoGenerator:
+            return "Mono Generator"
+        case .polyGenerator:
+            return "Poly Generator"
+        case .drumKit:
+            return "Drum Kit"
+        case .templateGenerator:
+            return "Template Generator"
+        case .sliceGenerator:
             return "Slice Trigger"
+        }
+    }
+
+    var compatibleWith: Set<TrackType> {
+        switch self {
+        case .monoGenerator, .polyGenerator:
+            return [.instrument]
+        case .drumKit:
+            return [.drumRack]
+        case .templateGenerator:
+            return Set(TrackType.allCases)
+        case .sliceGenerator:
+            return [.sliceLoop]
+        }
+    }
+
+    var defaultParams: GeneratorParams {
+        switch self {
+        case .monoGenerator:
+            return .defaultMono
+        case .polyGenerator:
+            return .poly(
+                step: .manual(pattern: Array(repeating: false, count: 16)),
+                pitches: [.manual(pitches: [60, 64, 67], pickMode: .random)],
+                shape: .default
+            )
+        case .drumKit:
+            return .defaultDrumKit
+        case .templateGenerator:
+            return .template(templateID: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!)
+        case .sliceGenerator:
+            return .slice(
+                step: .manual(pattern: Array(repeating: false, count: 16)),
+                sliceIndexes: []
+            )
         }
     }
 }
@@ -698,19 +768,19 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1") ?? UUID(),
             name: "Manual Mono",
             trackType: .instrument,
-            kind: .manualMono
+            kind: .monoGenerator
         ),
         GeneratorPoolEntry(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2") ?? UUID(),
             name: "Drum Pattern",
             trackType: .drumRack,
-            kind: .drumPattern
+            kind: .drumKit
         ),
         GeneratorPoolEntry(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
             name: "Slice Trigger",
             trackType: .sliceLoop,
-            kind: .sliceTrigger
+            kind: .sliceGenerator
         )
     ]
 }
