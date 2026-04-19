@@ -65,22 +65,12 @@ struct PhraseWorkspaceView: View {
                 }
             }
 
-            HStack(alignment: .top, spacing: 18) {
-                StudioPanel(
-                    title: "Cell Editor",
-                    eyebrow: "\(selectedPhrase.name) • \(selectedTrack.name) • \(selectedLayer.name)",
-                    accent: layerAccent(selectedLayer.id)
-                ) {
-                    cellEditor
-                }
-
-                StudioPanel(
-                    title: "Live View",
-                    eyebrow: "Current phrase and layer through the transport lens",
-                    accent: StudioTheme.amber
-                ) {
-                    LiveWorkspaceView(document: $document, selectedLayerID: $selectedLayerID)
-                }
+            StudioPanel(
+                title: "Cell Editor",
+                eyebrow: "\(selectedPhrase.name) • \(selectedTrack.name) • \(selectedLayer.name)",
+                accent: layerAccent(selectedLayer.id)
+            ) {
+                cellEditor
             }
         }
         .padding(20)
