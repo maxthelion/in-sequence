@@ -504,6 +504,13 @@ struct LiveWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Binding var selectedLayerID: String
     @Environment(EngineController.self) private var engineController
+    @State private var collapseGroups = true
+    @State private var selectedScopeID: String?
+    @State private var selectedBarPage = 0
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 180, maximum: 240), spacing: 12)
+    ]
 
     private var selectedLayer: PhraseLayerDefinition {
         document.model.layer(id: selectedLayerID)
@@ -511,41 +518,531 @@ struct LiveWorkspaceView: View {
             ?? document.model.layers.first!
     }
 
-    private var phrase: PhraseModel { document.model.selectedPhrase }
+    private var editingPhrase: PhraseModel {
+        document.model.phrases.first(where: { $0.id == editingPhraseID }) ?? document.model.selectedPhrase
+    }
+
+    private var editingPhraseID: UUID {
+        guard engineController.transportMode == .song,
+              engineController.isRunning,
+              let playbackPhraseIndex
+        else {
+            return document.model.selectedPhraseID
+        }
+
+        return document.model.phrases[playbackPhraseIndex].id
+    }
+
+    private var playbackPhraseIndex: Int? {
+        let phrases = document.model.phrases
+        guard engineController.isRunning, !phrases.isEmpty else {
+            return nil
+        }
+
+        let totalBars = phrases.reduce(0) { $0 + max(1, $1.lengthBars) }
+        guard totalBars > 0 else {
+            return nil
+        }
+
+        let absoluteBar = Int(engineController.transportTickIndex) / max(1, document.model.selectedPhrase.stepsPerBar)
+        var cycleBar = absoluteBar % totalBars
+
+        for (index, phrase) in phrases.enumerated() {
+            let phraseBars = max(1, phrase.lengthBars)
+            if cycleBar < phraseBars {
+                return index
+            }
+            cycleBar -= phraseBars
+        }
+
+        return nil
+    }
+
+    private var visibleScopes: [LiveLaneScope] {
+        var scopes: [LiveLaneScope] = []
+        var emittedGroups: Set<TrackGroupID> = []
+
+        for track in document.model.tracks {
+            if collapseGroups,
+               let groupID = track.groupID,
+               let group = document.model.trackGroups.first(where: { $0.id == groupID }),
+               !emittedGroups.contains(groupID)
+            {
+                emittedGroups.insert(groupID)
+                let members = document.model.tracksInGroup(groupID)
+                scopes.append(
+                    LiveLaneScope(
+                        kind: .group(group.id),
+                        title: group.name,
+                        subtitle: "\(members.count) tracks • \(group.sharedDestination?.kindLabel ?? "No sink")",
+                        trackIDs: members.map(\.id),
+                        accent: StudioTheme.success
+                    )
+                )
+                continue
+            }
+
+            let subtitle: String
+            if let groupID = track.groupID,
+               let group = document.model.trackGroups.first(where: { $0.id == groupID })
+            {
+                subtitle = "\(group.name) • \(track.trackType.shortLabel)"
+            } else {
+                subtitle = "\(track.trackType.shortLabel) • \(track.destination.kindLabel)"
+            }
+
+            scopes.append(
+                LiveLaneScope(
+                    kind: .track(track.id),
+                    title: track.name,
+                    subtitle: subtitle,
+                    trackIDs: [track.id],
+                    accent: track.groupID == nil ? accent : StudioTheme.success
+                )
+            )
+        }
+
+        return scopes
+    }
+
+    private var selectedScope: LiveLaneScope? {
+        visibleScopes.first(where: { $0.id == selectedScopeID }) ?? visibleScopes.first
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                StudioMetricPill(title: "Phrase", value: phrase.name, accent: StudioTheme.violet)
-                StudioMetricPill(title: "Layer", value: selectedLayer.name, accent: accent)
-                StudioMetricPill(title: "Mode", value: engineController.transportMode.label, accent: StudioTheme.amber)
+            topBar
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(visibleScopes) { scope in
+                    Button {
+                        selectedScopeID = scope.id
+                    } label: {
+                        LiveScopeCard(
+                            scope: scope,
+                            modeLabel: currentMode(for: scope)?.label ?? "Mixed",
+                            summary: liveValueLabel(for: scope),
+                            isSelected: selectedScope?.id == scope.id,
+                            isMixed: sharedCell(for: scope) == nil
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                ForEach(document.model.tracks, id: \.id) { track in
-                    let cell = phrase.cell(for: selectedLayer.id, trackID: track.id)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(track.name)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+            if let selectedScope {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(selectedScope.title.uppercased())
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .tracking(1.0)
                             .foregroundStyle(StudioTheme.text)
-                        Text(cell.editMode.label.uppercased())
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .tracking(0.8)
-                            .foregroundStyle(accent)
-                        Text(liveValueLabel(cell))
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(StudioTheme.text)
+
+                        Rectangle()
+                            .fill(selectedScope.accent)
+                            .frame(width: 34, height: 3)
+                            .clipShape(Capsule())
+
+                        Text("editing \(editingPhrase.name.lowercased())")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(StudioTheme.mutedText)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(accent.opacity(0.22), lineWidth: 1)
+
+                    if sharedCell(for: selectedScope) == nil {
+                        StudioPlaceholderTile(
+                            title: "Mixed Member Values",
+                            detail: "This aggregate lane currently differs across its member tracks. Editing here fans the next value or mode out to all \(selectedScope.trackIDs.count) members.",
+                            accent: selectedScope.accent
+                        )
+                    }
+
+                    HStack(spacing: 8) {
+                        ForEach(selectedLayer.availableModes, id: \.self) { mode in
+                            Button {
+                                document.model.setPhraseCellMode(
+                                    mode,
+                                    layer: selectedLayer,
+                                    trackIDs: selectedScope.trackIDs,
+                                    phraseID: editingPhraseID
+                                )
+                            } label: {
+                                Text(mode.label)
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        currentMode(for: selectedScope) == mode
+                                            ? selectedScope.accent.opacity(0.2)
+                                            : Color.white.opacity(0.04),
+                                        in: Capsule()
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(
+                                currentMode(for: selectedScope) == mode ? StudioTheme.text : StudioTheme.mutedText
+                            )
+                        }
+                    }
+
+                    liveEditor(for: selectedScope, cell: editableCell(for: selectedScope))
+                }
+                .padding(16)
+                .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(selectedScope.accent.opacity(0.16), lineWidth: 1)
+                )
+            }
+        }
+        .onAppear(perform: syncSelectedScope)
+        .onChange(of: collapseGroups) {
+            syncSelectedScope()
+        }
+        .onChange(of: document.model.selectedTrackID) {
+            if !collapseGroups {
+                selectedScopeID = LiveLaneScope.trackID(document.model.selectedTrackID)
+            }
+        }
+        .onChange(of: editingPhraseID) {
+            selectedBarPage = 0
+        }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            StudioMetricPill(title: "Editing", value: editingPhrase.name, accent: StudioTheme.violet)
+            StudioMetricPill(title: "Layer", value: selectedLayer.name, accent: accent)
+            StudioMetricPill(title: "Mode", value: engineController.transportMode.label, accent: StudioTheme.amber)
+            StudioMetricPill(title: "Lanes", value: "\(visibleScopes.count)", accent: StudioTheme.cyan)
+
+            if !document.model.trackGroups.isEmpty {
+                Toggle("Collapse groups", isOn: $collapseGroups)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+
+                Text(collapseGroups ? "Grouped" : "Expanded")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private func liveEditor(for scope: LiveLaneScope, cell: PhraseCell) -> some View {
+        switch cell {
+        case .inheritDefault:
+            StudioPlaceholderTile(
+                title: "Using Layer Default",
+                detail: "This lane is inheriting the default \(selectedLayer.name.lowercased()) value. Pick a mode or change a value to author it directly.",
+                accent: scope.accent
+            )
+        case let .single(value):
+            liveSingleValueEditor(value: value, scope: scope)
+        case let .bars(values):
+            liveBarsEditor(values: values, scope: scope)
+        case let .steps(values):
+            liveStepsEditor(values: values, scope: scope)
+        case let .curve(points):
+            liveCurveEditor(points: points, scope: scope)
+        }
+    }
+
+    @ViewBuilder
+    private func liveSingleValueEditor(value: PhraseCellValue, scope: LiveLaneScope) -> some View {
+        switch selectedLayer.valueType {
+        case .boolean:
+            Toggle("Enabled", isOn: Binding(
+                get: {
+                    if case let .bool(isOn) = value.normalized(for: selectedLayer) { return isOn }
+                    return false
+                },
+                set: { newValue in
+                    document.model.setPhraseCell(
+                        .single(.bool(newValue)),
+                        layerID: selectedLayer.id,
+                        trackIDs: scope.trackIDs,
+                        phraseID: editingPhraseID
                     )
+                }
+            ))
+            .toggleStyle(.switch)
+        case .patternIndex:
+            PatternIndexPicker(
+                selectedIndex: Binding(
+                    get: {
+                        if case let .index(index) = value.normalized(for: selectedLayer) { return index }
+                        return 0
+                    },
+                    set: { newIndex in
+                        document.model.setPhraseCell(
+                            .single(.index(newIndex)),
+                            layerID: selectedLayer.id,
+                            trackIDs: scope.trackIDs,
+                            phraseID: editingPhraseID
+                        )
+                    }
+                )
+            )
+        case .scalar:
+            ScalarValueEditor(
+                title: selectedLayer.name,
+                range: selectedLayer.scalarRange,
+                value: Binding(
+                    get: {
+                        if case let .scalar(scalar) = value.normalized(for: selectedLayer) { return scalar }
+                        return selectedLayer.minValue
+                    },
+                    set: { newValue in
+                        document.model.setPhraseCell(
+                            .single(.scalar(newValue)),
+                            layerID: selectedLayer.id,
+                            trackIDs: scope.trackIDs,
+                            phraseID: editingPhraseID
+                        )
+                    }
+                )
+            )
+        }
+    }
+
+    private func liveBarsEditor(values: [PhraseCellValue], scope: LiveLaneScope) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(values.enumerated()), id: \.offset) { index, value in
+                HStack(spacing: 12) {
+                    Text("Bar \(index + 1)")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .frame(width: 44, alignment: .leading)
+
+                    liveValueEditor(for: value) { newValue in
+                        var nextValues = values
+                        nextValues[index] = newValue
+                        document.model.setPhraseCell(
+                            .bars(nextValues),
+                            layerID: selectedLayer.id,
+                            trackIDs: scope.trackIDs,
+                            phraseID: editingPhraseID
+                        )
+                    }
                 }
             }
         }
+    }
+
+    private func liveStepsEditor(values: [PhraseCellValue], scope: LiveLaneScope) -> some View {
+        let pageCount = max(1, editingPhrase.lengthBars)
+        let activePage = min(selectedBarPage, pageCount - 1)
+        let start = activePage * editingPhrase.stepsPerBar
+        let end = min(start + editingPhrase.stepsPerBar, values.count)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                ForEach(0..<pageCount, id: \.self) { index in
+                    Button {
+                        selectedBarPage = index
+                    } label: {
+                        Text("Bar \(index + 1)")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                index == activePage ? scope.accent.opacity(0.2) : Color.white.opacity(0.04),
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8), spacing: 8) {
+                ForEach(start..<end, id: \.self) { stepIndex in
+                    Button {
+                        var nextValues = values
+                        nextValues[stepIndex] = cycleLiveValue(nextValues[stepIndex])
+                        document.model.setPhraseCell(
+                            .steps(nextValues),
+                            layerID: selectedLayer.id,
+                            trackIDs: scope.trackIDs,
+                            phraseID: editingPhraseID
+                        )
+                    } label: {
+                        VStack(spacing: 6) {
+                            Text("\(stepIndex - start + 1)")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.mutedText)
+                            Text(valueLabel(values[stepIndex], layer: selectedLayer))
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.text)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(scope.accent.opacity(0.25), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func liveCurveEditor(points: [Double], scope: LiveLaneScope) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                ForEach(PhraseCurvePreset.allCases, id: \.self) { preset in
+                    Button(preset.label) {
+                        document.model.setPhraseCell(
+                            .curve(preset.points(in: selectedLayer.scalarRange)),
+                            layerID: selectedLayer.id,
+                            trackIDs: scope.trackIDs,
+                            phraseID: editingPhraseID
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            PhraseCurvePreview(points: points, range: selectedLayer.scalarRange, accent: scope.accent)
+                .frame(height: 120)
+        }
+    }
+
+    @ViewBuilder
+    private func liveValueEditor(
+        for value: PhraseCellValue,
+        onChange: @escaping (PhraseCellValue) -> Void
+    ) -> some View {
+        switch selectedLayer.valueType {
+        case .boolean:
+            Toggle("", isOn: Binding(
+                get: {
+                    if case let .bool(isOn) = value.normalized(for: selectedLayer) { return isOn }
+                    return false
+                },
+                set: { onChange(.bool($0)) }
+            ))
+            .labelsHidden()
+        case .patternIndex:
+            PatternIndexPicker(
+                selectedIndex: Binding(
+                    get: {
+                        if case let .index(index) = value.normalized(for: selectedLayer) { return index }
+                        return 0
+                    },
+                    set: { onChange(.index($0)) }
+                )
+            )
+        case .scalar:
+            ScalarValueEditor(
+                title: nil,
+                range: selectedLayer.scalarRange,
+                value: Binding(
+                    get: {
+                        if case let .scalar(scalar) = value.normalized(for: selectedLayer) { return scalar }
+                        return selectedLayer.minValue
+                    },
+                    set: { onChange(.scalar($0)) }
+                )
+            )
+        }
+    }
+
+    private func sharedCell(for scope: LiveLaneScope) -> PhraseCell? {
+        let cells = scope.trackIDs.map { editingPhrase.cell(for: selectedLayer.id, trackID: $0) }
+        guard let first = cells.first else {
+            return nil
+        }
+        return cells.dropFirst().allSatisfy { $0 == first } ? first : nil
+    }
+
+    private func currentMode(for scope: LiveLaneScope) -> PhraseCellEditMode? {
+        let modes = Set(scope.trackIDs.map { editingPhrase.cellMode(for: selectedLayer.id, trackID: $0) })
+        guard modes.count == 1 else {
+            return nil
+        }
+        return modes.first
+    }
+
+    private func editableCell(for scope: LiveLaneScope) -> PhraseCell {
+        if let shared = sharedCell(for: scope) {
+            return shared
+        }
+
+        guard let seedTrackID = scope.trackIDs.first else {
+            return .inheritDefault
+        }
+
+        let firstCell = editingPhrase.cell(for: selectedLayer.id, trackID: seedTrackID)
+        if firstCell != .inheritDefault {
+            return firstCell
+        }
+
+        let mode = currentMode(for: scope) ?? .single
+        return PhraseCell.makeDefault(
+            mode: mode,
+            layer: selectedLayer,
+            defaultValue: selectedLayer.defaultValue(for: seedTrackID),
+            stepCount: editingPhrase.stepCount,
+            barCount: editingPhrase.lengthBars
+        )
+    }
+
+    private func liveValueLabel(for scope: LiveLaneScope) -> String {
+        guard let cell = sharedCell(for: scope) else {
+            return "Mixed"
+        }
+
+        switch cell {
+        case .inheritDefault:
+            return "Default"
+        case let .single(value):
+            return valueLabel(value, layer: selectedLayer)
+        case let .bars(values):
+            return "\(values.count) bars"
+        case let .steps(values):
+            return "\(values.count) steps"
+        case let .curve(points):
+            return "\(points.count) pt curve"
+        }
+    }
+
+    private func cycleLiveValue(_ value: PhraseCellValue) -> PhraseCellValue {
+        switch selectedLayer.valueType {
+        case .boolean:
+            if case let .bool(isOn) = value.normalized(for: selectedLayer) {
+                return .bool(!isOn)
+            }
+            return .bool(true)
+        case .patternIndex:
+            if case let .index(index) = value.normalized(for: selectedLayer) {
+                return .index((index + 1) % TrackPatternBank.slotCount)
+            }
+            return .index(0)
+        case .scalar:
+            let current: Double
+            if case let .scalar(scalar) = value.normalized(for: selectedLayer) {
+                current = scalar
+            } else {
+                current = selectedLayer.minValue
+            }
+            let step = (selectedLayer.maxValue - selectedLayer.minValue) / 4
+            let next = current + step
+            if next > selectedLayer.maxValue {
+                return .scalar(selectedLayer.minValue)
+            }
+            return .scalar(next)
+        }
+    }
+
+    private func syncSelectedScope() {
+        if let selectedScopeID, visibleScopes.contains(where: { $0.id == selectedScopeID }) {
+            return
+        }
+        selectedScopeID = visibleScopes.first?.id
     }
 
     private var accent: Color {
@@ -572,6 +1069,86 @@ struct LiveWorkspaceView: View {
         case let .curve(points):
             return "\(points.count) Pt Curve"
         }
+    }
+}
+
+private struct LiveLaneScope: Identifiable, Equatable {
+    enum Kind: Equatable {
+        case track(UUID)
+        case group(TrackGroupID)
+    }
+
+    let kind: Kind
+    let title: String
+    let subtitle: String
+    let trackIDs: [UUID]
+    let accent: Color
+
+    var id: String {
+        switch kind {
+        case let .track(trackID):
+            return Self.trackID(trackID)
+        case let .group(groupID):
+            return "group:\(groupID.uuidString)"
+        }
+    }
+
+    static func trackID(_ trackID: UUID) -> String {
+        "track:\(trackID.uuidString)"
+    }
+}
+
+private struct LiveScopeCard: View {
+    let scope: LiveLaneScope
+    let modeLabel: String
+    let summary: String
+    let isSelected: Bool
+    let isMixed: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(modeLabel.uppercased())
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(scope.accent)
+
+                Spacer()
+
+                if isMixed {
+                    Text("MIX")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.06), in: Capsule())
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+            }
+
+            Text(scope.title)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(2)
+
+            Text(scope.subtitle)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(2)
+
+            Text(summary)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background((isSelected ? scope.accent.opacity(0.15) : Color.white.opacity(0.03)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(scope.accent.opacity(isSelected ? 0.6 : 0.14), lineWidth: 1)
+        )
     }
 }
 

@@ -5,50 +5,44 @@ struct TracksMatrixView: View {
     let onOpenTrack: () -> Void
 
     @State private var isPresentingCreateTrack = false
+    @State private var collapsedGroupIDs: Set<TrackGroupID> = []
 
     private let columns = [
-        GridItem(.adaptive(minimum: 190, maximum: 260), spacing: 14)
+        GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 14)
     ]
+
+    private var groupedSections: [GroupedTrackSection] {
+        document.model.trackGroups.compactMap { group in
+            let members = document.model.tracksInGroup(group.id)
+            guard !members.isEmpty else {
+                return nil
+            }
+            return GroupedTrackSection(group: group, members: members)
+        }
+    }
+
+    private var ungroupedTracks: [StepSequenceTrack] {
+        document.model.tracks.filter { $0.groupID == nil }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
-                eyebrow: "\(document.model.tracks.count) track\(document.model.tracks.count == 1 ? "" : "s") • flat matrix with group tinting",
+                eyebrow: "\(document.model.tracks.count) tracks • flat matrix with grouped drum-kit bundles",
                 accent: StudioTheme.cyan
             ) {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 10) {
-                        Button("Add Track") {
-                            isPresentingCreateTrack = true
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(StudioTheme.cyan)
+                VStack(alignment: .leading, spacing: 18) {
+                    actionBar
 
-                        Menu("Add Drum Kit") {
-                            ForEach(DrumKitPreset.allCases, id: \.self) { preset in
-                                Button(preset.displayName) {
-                                    _ = document.model.addDrumKit(preset)
-                                    onOpenTrack()
-                                }
-                            }
-                        }
-                        .buttonStyle(.bordered)
-
-                        Spacer()
-                    }
-
-                    LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(document.model.tracks, id: \.id) { track in
-                            TrackMatrixCard(
-                                track: track,
-                                group: document.model.group(for: track.id),
-                                isSelected: track.id == document.model.selectedTrackID
-                            ) {
-                                document.model.selectTrack(id: track.id)
-                                onOpenTrack()
-                            }
-                        }
+                    if document.model.tracks.isEmpty {
+                        StudioPlaceholderTile(
+                            title: "No Tracks Yet",
+                            detail: "Create a mono, poly, slice, or drum-kit bundle to start building the matrix.",
+                            accent: StudioTheme.cyan
+                        )
+                    } else {
+                        matrixSections
                     }
                 }
             }
@@ -58,11 +52,211 @@ struct TracksMatrixView: View {
             CreateTrackSheet(document: $document, onOpenTrack: onOpenTrack)
         }
     }
+
+    private var actionBar: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                createTrackButtons
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                createTrackButtons
+            }
+        }
+    }
+
+    private var createTrackButtons: some View {
+        Group {
+            Button("Add Mono") {
+                document.model.appendTrack(trackType: .monoMelodic)
+                onOpenTrack()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(StudioTheme.cyan)
+
+            Button("Add Poly") {
+                document.model.appendTrack(trackType: .polyMelodic)
+                onOpenTrack()
+            }
+            .buttonStyle(.bordered)
+
+            Button("Add Slice") {
+                document.model.appendTrack(trackType: .slice)
+                onOpenTrack()
+            }
+            .buttonStyle(.bordered)
+
+            Menu("Add Drum Kit") {
+                ForEach(DrumKitPreset.allCases, id: \.self) { preset in
+                    Button(preset.displayName) {
+                        _ = document.model.addDrumKit(preset)
+                        onOpenTrack()
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private var matrixSections: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if !ungroupedTracks.isEmpty {
+                TrackSectionShell(
+                    title: "Ungrouped",
+                    detail: "\(ungroupedTracks.count) standalone track\(ungroupedTracks.count == 1 ? "" : "s")",
+                    accent: StudioTheme.cyan
+                ) {
+                    tracksGrid(ungroupedTracks, group: nil)
+                }
+            }
+
+            ForEach(groupedSections) { section in
+                GroupSectionView(
+                    section: section,
+                    isCollapsed: collapsedGroupIDs.contains(section.id),
+                    toggleCollapse: { toggleCollapse(for: section.id) },
+                    grid: { tracksGrid(section.members, group: section.group) }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?) -> some View {
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(tracks, id: \.id) { track in
+                TrackMatrixCard(
+                    track: track,
+                    group: group,
+                    patternIndex: document.model.selectedPatternIndex(for: track.id),
+                    isSelected: track.id == document.model.selectedTrackID
+                ) {
+                    document.model.selectTrack(id: track.id)
+                    onOpenTrack()
+                }
+            }
+        }
+    }
+
+    private func toggleCollapse(for groupID: TrackGroupID) {
+        if collapsedGroupIDs.contains(groupID) {
+            collapsedGroupIDs.remove(groupID)
+        } else {
+            collapsedGroupIDs.insert(groupID)
+        }
+    }
+}
+
+private struct GroupedTrackSection: Identifiable {
+    let group: TrackGroup
+    let members: [StepSequenceTrack]
+
+    var id: TrackGroupID { group.id }
+}
+
+private struct TrackSectionShell<Content: View>: View {
+    let title: String
+    let detail: String
+    let accent: Color
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(title.uppercased())
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(StudioTheme.text)
+
+                Rectangle()
+                    .fill(accent)
+                    .frame(width: 34, height: 3)
+                    .clipShape(Capsule())
+
+                Text(detail)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            content
+        }
+    }
+}
+
+private struct GroupSectionView<Grid: View>: View {
+    let section: GroupedTrackSection
+    let isCollapsed: Bool
+    let toggleCollapse: () -> Void
+    @ViewBuilder let grid: Grid
+
+    private var accent: Color {
+        Color(hex: section.group.color) ?? StudioTheme.success
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(section.group.name)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundStyle(StudioTheme.text)
+
+                        Text("\(section.members.count) tracks")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(accent.opacity(0.18), in: Capsule())
+                            .foregroundStyle(accent)
+                    }
+
+                    Text(section.group.sharedDestination?.summary ?? "Shared destination not assigned")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Button(isCollapsed ? "Expand" : "Collapse", action: toggleCollapse)
+                    .buttonStyle(.bordered)
+            }
+
+            if isCollapsed {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(section.members, id: \.id) { track in
+                            Text(track.name)
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.white.opacity(0.04), in: Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(accent.opacity(0.35), lineWidth: 1)
+                                )
+                                .foregroundStyle(StudioTheme.text)
+                        }
+                    }
+                }
+            } else {
+                grid
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(accent.opacity(0.16), lineWidth: 1)
+        )
+    }
 }
 
 private struct TrackMatrixCard: View {
     let track: StepSequenceTrack
     let group: TrackGroup?
+    let patternIndex: Int
     let isSelected: Bool
     let onTap: () -> Void
 
@@ -81,55 +275,74 @@ private struct TrackMatrixCard: View {
     }
 
     private var typeLabel: String {
-        switch track.trackType {
-        case .monoMelodic:
-            return "MONO"
-        case .polyMelodic:
-            return "POLY"
-        case .slice:
-            return "SLICE"
+        track.trackType.label.uppercased()
+    }
+
+    private var destinationLabel: String {
+        if case .inheritGroup = track.destination {
+            return group?.sharedDestination?.kindLabel ?? "GROUP"
         }
+        return track.destination.kindLabel
+    }
+
+    private var pitchOffsetLabel: String? {
+        guard let group, let offset = group.noteMapping[track.id], offset != 0 else {
+            return nil
+        }
+        return offset > 0 ? "+\(offset)" : "\(offset)"
     }
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     TrackTypeBadge(trackType: track.trackType, accent: accent)
-                    Spacer()
-                    if let group {
-                        Text(group.name.uppercased())
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .tracking(0.9)
-                            .foregroundStyle(accent.opacity(0.9))
-                    }
-                }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(track.name)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(track.name)
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
 
-                    Text(typeLabel)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .tracking(0.9)
+                        HStack(spacing: 6) {
+                            Text(typeLabel)
+                            Text("P\(patternIndex + 1)")
+                            Text(destinationLabel)
+                            if let pitchOffsetLabel {
+                                Text(pitchOffsetLabel)
+                            }
+                        }
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
+                    }
+
+                    Spacer(minLength: 0)
                 }
 
-                Text(track.defaultDestination.summary)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(2)
+                if let group {
+                    Text(group.name.uppercased())
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(accent.opacity(0.14), in: Capsule())
+                } else {
+                    Text(track.defaultDestination.summary)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                }
             }
-            .frame(maxWidth: .infinity, minHeight: 148, alignment: .leading)
-            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+            .padding(14)
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(isSelected ? accent.opacity(0.16) : Color.white.opacity(0.03))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(isSelected ? accent.opacity(0.55) : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
             )
         }

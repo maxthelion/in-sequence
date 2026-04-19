@@ -10,7 +10,7 @@
 
 **Parent spec:** `/Users/maxwilliams/dev/sequencer-ai/docs/specs/2026-04-18-north-star-design.md`
 
-**Status:** In progress. The app already has a `Tracks` destination and a first shell. This plan now focuses on making that surface match the fresh model cleanly.
+**Status:** ✅ Completed 2026-04-19. Tag `v0.0.10-tracks-matrix`. Verified with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project /Users/maxwilliams/dev/sequencer-ai/SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS,arch=arm64' test` (`174` tests, `0` failures, `3` skips).
 
 **Depends on:**
 
@@ -62,8 +62,8 @@ Tests/
 4. Empty-state messaging is only shown when there are truly no tracks.
 
 - [x] Add `Tracks` workspace shell
-- [ ] Tighten the matrix layout and card hierarchy
-- [ ] Add focused tests for selection/navigation
+- [x] Tighten the matrix layout and card hierarchy
+- [x] Add focused tests for selection/navigation
 
 ---
 
@@ -83,9 +83,9 @@ Tests/
 3. The card does not duplicate destination controls or generator parameters.
 4. Drum-kit members read as tracks in a group, not as a special legacy drum type.
 
-- [ ] Simplify card contents
-- [ ] Add group tint / group label treatment
-- [ ] Keep selection styling clear
+- [x] Simplify card contents
+- [x] Add group tint / group label treatment
+- [x] Keep selection styling clear
 
 ---
 
@@ -113,9 +113,9 @@ Tests/
 3. New tracks become selected and route into Track view.
 4. No UI path exposes the retired `drumRack` type.
 
-- [ ] Implement document-backed create actions
-- [ ] Add drum-kit create affordance
-- [ ] Cover selection after creation in tests
+- [x] Implement document-backed create actions
+- [x] Add drum-kit create affordance
+- [x] Cover selection after creation in tests
 
 ---
 
@@ -135,9 +135,9 @@ Tests/
 3. Selecting one grouped member still opens that exact track in Track view.
 4. The surface remains flat and dense enough to scan quickly.
 
-- [ ] Add group summary treatment
-- [ ] Add optional collapse/expand behavior if needed
-- [ ] Keep member selection explicit
+- [x] Add group summary treatment
+- [x] Add optional collapse/expand behavior if needed
+- [x] Keep member selection explicit
 
 ---
 
@@ -153,8 +153,7 @@ xcodebuild -project /Users/maxwilliams/dev/sequencer-ai/SequencerAI.xcodeproj \
   test
 ```
 
-- [ ] Full suite green
-- [ ] Wiki notes updated if behavior changed materially
-- [ ] Plan marked complete
-- [ ] Tag: `git tag -a v0.0.10-tracks-matrix -m "Tracks matrix complete"`
-
+- [x] Full suite green
+- [x] Wiki notes updated if behavior changed materially
+- [x] Plan marked complete
+- [x] Tag: `git tag -a v0.0.10-tracks-matrix -m "Tracks matrix complete"`

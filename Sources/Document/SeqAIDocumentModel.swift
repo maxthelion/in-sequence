@@ -346,6 +346,43 @@ struct SeqAIDocumentModel: Codable, Equatable {
         selectedPhraseID = id
     }
 
+    mutating func updatePhrase(id: UUID? = nil, _ update: (inout PhraseModel) -> Void) {
+        let resolvedID = id ?? selectedPhraseID
+        guard let phraseIndex = phrases.firstIndex(where: { $0.id == resolvedID }) else {
+            return
+        }
+
+        update(&phrases[phraseIndex])
+        phrases[phraseIndex] = phrases[phraseIndex].synced(with: tracks, layers: layers)
+        selectedPhraseID = phrases[phraseIndex].id
+    }
+
+    mutating func setPhraseCell(
+        _ cell: PhraseCell,
+        layerID: String,
+        trackIDs: [UUID],
+        phraseID: UUID? = nil
+    ) {
+        updatePhrase(id: phraseID) { phrase in
+            for trackID in trackIDs {
+                phrase.setCell(cell, for: layerID, trackID: trackID)
+            }
+        }
+    }
+
+    mutating func setPhraseCellMode(
+        _ mode: PhraseCellEditMode,
+        layer: PhraseLayerDefinition,
+        trackIDs: [UUID],
+        phraseID: UUID? = nil
+    ) {
+        updatePhrase(id: phraseID) { phrase in
+            for trackID in trackIDs {
+                phrase.setCellMode(mode, for: layer, trackID: trackID)
+            }
+        }
+    }
+
     mutating func appendPhrase() {
         var nextPhrase = PhraseModel.default(
             tracks: tracks,

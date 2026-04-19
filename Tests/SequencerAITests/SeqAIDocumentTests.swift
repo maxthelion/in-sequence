@@ -121,6 +121,21 @@ final class SeqAIDocumentModelTests: XCTestCase {
                 phrase.cell(for: "pattern", trackID: memberID) == .inheritDefault
             }
         })
+        XCTAssertEqual(model.selectedTrackID, model.trackGroups[0].memberIDs.first)
+    }
+
+    func test_set_phrase_cell_can_fan_out_to_multiple_tracks() throws {
+        var model = SeqAIDocumentModel.empty
+        let groupID = try XCTUnwrap(model.addDrumKit(.kit808))
+        let memberIDs = try XCTUnwrap(model.trackGroups.first(where: { $0.id == groupID })?.memberIDs)
+        let intensityLayer = try XCTUnwrap(model.layers.first(where: { $0.id == "intensity" }))
+
+        model.setPhraseCellMode(.single, layer: intensityLayer, trackIDs: memberIDs)
+        model.setPhraseCell(.single(.scalar(0.72)), layerID: intensityLayer.id, trackIDs: memberIDs)
+
+        XCTAssertTrue(memberIDs.allSatisfy { memberID in
+            model.selectedPhrase.cell(for: intensityLayer.id, trackID: memberID) == .single(.scalar(0.72))
+        })
     }
 
     func test_codable_roundtrip_preserves_layers_and_cells() throws {

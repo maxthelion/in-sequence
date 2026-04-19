@@ -147,6 +147,9 @@ Each new directory comes with a wiki page like this one describing what it conta
 - [[document-model]] — what lives in a `.seqai`
 - [[generator-algos]] — musical tables, generator kinds, and algo composition
 - [[track-destinations]] — per-track `Destination`, groups, and AU state persistence
+- [[track-groups]] — grouped track bundles and shared destinations
+- [[tracks-matrix]] — the flat/group-aware track selection workspace
+- [[live-view]] — the performance-facing layer/cell editor
 - [[routing]] — project-level additive fan-out routing
 - [[midi-layer]] — the MIDI module in detail
 - [[app-support-layout]] — filesystem layout under `~/Library`
