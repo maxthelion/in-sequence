@@ -80,6 +80,37 @@ final class MidiOut: Block {
         self.channel = channel
     }
 
+    func flushPendingNoteOffs(now: TimeInterval) {
+        guard !pendingNoteOffs.isEmpty else {
+            return
+        }
+
+        let noteOffs = pendingNoteOffs
+            .keys
+            .sorted()
+            .flatMap { pendingNoteOffs[$0] ?? [] }
+        pendingNoteOffs.removeAll()
+
+        guard let client, let endpoint, !noteOffs.isEmpty else {
+            return
+        }
+
+        var builder = MIDIPacketBuilder()
+        let timestamp = Self.timestamp(from: now)
+        for pitch in noteOffs {
+            builder.addNoteOff(channel: channel, pitch: pitch, timestamp: timestamp)
+        }
+
+        do {
+            try builder.withPacketList { packetList in
+                try client.send(packetList, to: endpoint)
+            }
+        } catch {
+            // Flush is best-effort transport cleanup. If the destination vanished, we still
+            // clear local state so future ticks do not re-emit stale note-offs.
+        }
+    }
+
     private static func midiChannel(from value: Int) -> UInt8? {
         guard (0...15).contains(value) else {
             return nil

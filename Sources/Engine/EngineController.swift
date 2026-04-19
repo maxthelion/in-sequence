@@ -96,6 +96,7 @@ final class EngineController: RouterDispatcher {
             return
         }
 
+        flushAllPendingMIDINoteOffs(now: ProcessInfo.processInfo.systemUptime)
         clock.stop()
         let hosts = withStateLock { Array(audioOutputsByTrackID.values) }
         hosts.forEach { $0.stop() }
@@ -114,6 +115,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(documentModel: SeqAIDocumentModel) {
+        flushDetachedMIDINoteOffs(from: currentDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         currentDocumentModel = documentModel
         let selectedTrack = documentModel.selectedTrack
         selectedOutput = selectedTrack.output
@@ -491,7 +493,11 @@ final class EngineController: RouterDispatcher {
     private func syncMidiOutputs(for documentModel: SeqAIDocumentModel) {
         let midiOutBlocks = withStateLock { midiOutBlocksByTrackID }
         for track in documentModel.tracks {
-            midiOutBlocks[track.id]?.endpoint = track.output == .midiOut && !track.mix.isMuted ? endpoint : nil
+            let nextEndpoint = track.output == .midiOut && !track.mix.isMuted ? endpoint : nil
+            if midiOutBlocks[track.id]?.endpoint != nil, nextEndpoint == nil {
+                midiOutBlocks[track.id]?.flushPendingNoteOffs(now: ProcessInfo.processInfo.systemUptime)
+            }
+            midiOutBlocks[track.id]?.endpoint = nextEndpoint
         }
     }
 
@@ -563,6 +569,59 @@ final class EngineController: RouterDispatcher {
 
     private static func pipelineShape(for documentModel: SeqAIDocumentModel) -> [PipelineEntry] {
         documentModel.tracks.map { PipelineEntry(trackID: $0.id, output: $0.output) }
+    }
+
+    private func flushAllPendingMIDINoteOffs(now: TimeInterval) {
+        let midiOutBlocks = withStateLock { Array(midiOutBlocksByTrackID.values) }
+        midiOutBlocks.forEach { $0.flushPendingNoteOffs(now: now) }
+
+        let routedOutputs = withStateLock { Array(routeMidiOutputs.values) }
+        routedOutputs.forEach { $0.flushPendingNoteOffs(now: now) }
+    }
+
+    private func flushDetachedMIDINoteOffs(
+        from previousDocument: SeqAIDocumentModel,
+        to nextDocument: SeqAIDocumentModel,
+        now: TimeInterval
+    ) {
+        let previousTracks = Dictionary(uniqueKeysWithValues: previousDocument.tracks.map { ($0.id, $0) })
+        let nextTracks = Dictionary(uniqueKeysWithValues: nextDocument.tracks.map { ($0.id, $0) })
+        let midiOutBlocks = withStateLock { midiOutBlocksByTrackID }
+
+        for (trackID, previousTrack) in previousTracks {
+            guard previousTrack.output == .midiOut, !previousTrack.mix.isMuted else {
+                continue
+            }
+
+            let nextTrack = nextTracks[trackID]
+            let stillTargetsPrimaryMIDI = nextTrack?.output == .midiOut && nextTrack?.mix.isMuted == false
+            if !stillTargetsPrimaryMIDI {
+                midiOutBlocks[trackID]?.flushPendingNoteOffs(now: now)
+            }
+        }
+
+        let previousRoutedMIDIDestinations = Set(previousDocument.routes.compactMap(Self.routedMIDIDestination(from:)))
+        let nextRoutedMIDIDestinations = Set(nextDocument.routes.compactMap(Self.routedMIDIDestination(from:)))
+        let detachedRoutedDestinations = previousRoutedMIDIDestinations.subtracting(nextRoutedMIDIDestinations)
+
+        let routedOutputs = withStateLock { routeMidiOutputs }
+        for destination in detachedRoutedDestinations {
+            routedOutputs[destination]?.flushPendingNoteOffs(now: now)
+        }
+
+        withStateLock {
+            for destination in detachedRoutedDestinations {
+                routeMidiOutputs.removeValue(forKey: destination)
+            }
+        }
+    }
+
+    private static func routedMIDIDestination(from route: Route) -> Destination? {
+        guard case let .midi(port, channel, noteOffset) = route.destination else {
+            return nil
+        }
+
+        return .midi(port: port, channel: channel, noteOffset: noteOffset)
     }
 
     private static func transportString(for tickIndex: UInt64, stepsPerBar: Int) -> String {
