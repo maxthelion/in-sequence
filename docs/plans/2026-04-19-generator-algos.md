@@ -125,11 +125,11 @@ Display names use Title Case: "Chromatic", "Major", "Natural Minor", "Harmonic M
 3. Spot-check intervals: `.major` = `[0,2,4,5,7,9,11]`; `.chromatic.intervals.count == 12`; `.pentatonic(...)` has length 5.
 4. Every scale's intervals are strictly ascending, start at 0, and each value is in `0..<12`.
 
-- [ ] Write `ScalesTests.swift` with the 4 cases
-- [ ] Run test — verify fails ("ScaleID not defined")
-- [ ] Implement `ScaleID`, `Scale`, `Scales.swift` with the table
-- [ ] Run test — verify passes
-- [ ] `xcodebuild test` green
+- [x] Write `ScalesTests.swift` with the 4 cases
+- [x] Run test — verify fails ("ScaleID not defined")
+- [x] Implement `ScaleID`, `Scale`, `Scales.swift` with the table
+- [x] Run test — verify passes
+- [x] `xcodebuild test` green
 - [ ] Commit: `feat(musical): scale reference tables`
 
 ---
