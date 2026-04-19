@@ -190,6 +190,9 @@ struct PhraseWorkspaceView: View {
                             .onTapGesture {
                                 document.model.selectPhrase(id: phrase.id)
                                 document.model.selectTrack(id: track.id)
+                                if selectedLayer.valueType == .boolean {
+                                    toggleBooleanCell(phraseID: phrase.id, trackID: track.id)
+                                }
                             }
                             .onTapGesture(count: 2) {
                                 document.model.selectPhrase(id: phrase.id)
@@ -463,6 +466,33 @@ struct PhraseWorkspaceView: View {
                 return .scalar(selectedLayer.minValue)
             }
             return .scalar(next)
+        }
+    }
+
+    private func toggleBooleanCell(phraseID: UUID, trackID: UUID) {
+        document.model.updatePhrase(id: phraseID) { phrase in
+            let currentCell = phrase.cell(for: selectedLayer.id, trackID: trackID)
+            let toggledValue: PhraseCellValue
+
+            switch phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0) {
+            case let .bool(isOn):
+                toggledValue = .bool(!isOn)
+            case let .index(index):
+                toggledValue = .bool(index == 0)
+            case let .scalar(value):
+                toggledValue = .bool(value <= selectedLayer.minValue)
+            }
+
+            switch currentCell {
+            case .inheritDefault, .curve:
+                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
+            case .single:
+                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
+            case let .bars(values):
+                phrase.setCell(.bars(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
+            case let .steps(values):
+                phrase.setCell(.steps(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
+            }
         }
     }
 
@@ -1218,14 +1248,9 @@ private struct PhraseGridCell: View {
             }
 
             cellPreview
-
-            Text(cellSummary(cell, layer: layer, phrase: phrase))
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(10)
         .background((isSelected ? accent.opacity(0.15) : Color.white.opacity(0.03)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -1235,32 +1260,13 @@ private struct PhraseGridCell: View {
 
     @ViewBuilder
     private var cellPreview: some View {
-        switch cell {
-        case .inheritDefault:
-            Text("Default")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-        case let .single(value):
-            previewText(valueLabel(value, layer: layer))
-        case let .bars(values):
-            if layer.valueType == .scalar {
-                HStack(spacing: 4) {
-                    ForEach(Array(values.enumerated()), id: \.offset) { _, value in
-                        let scalar = scalarValue(for: value.normalized(for: layer), layer: layer)
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(accent.opacity(0.75))
-                            .frame(height: max(8, 8 + (scalarRatio(scalar, layer: layer) * 24)))
-                            .frame(maxWidth: .infinity, alignment: .bottom)
-                    }
-                }
-                .frame(height: 36, alignment: .bottom)
-            } else {
-                previewText("\(values.count) bars")
-            }
-        case let .steps(values):
-            previewText("\(values.count) steps")
-        case .curve:
-            previewText("Curve")
+        switch layer.valueType {
+        case .boolean:
+            booleanPreview
+        case .scalar:
+            scalarPreview
+        case .patternIndex:
+            patternPreview
         }
     }
 
@@ -1268,6 +1274,93 @@ private struct PhraseGridCell: View {
         Text(text)
             .font(.system(size: 22, weight: .bold, design: .rounded))
             .foregroundStyle(StudioTheme.text)
+    }
+
+    private var resolvedValue: PhraseCellValue {
+        phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0)
+    }
+
+    private var booleanState: Bool {
+        if case let .bool(isOn) = resolvedValue.normalized(for: layer) {
+            return isOn
+        }
+        return false
+    }
+
+    private var booleanLabel: String {
+        if layer.id == "mute" {
+            return booleanState ? "Muted" : "Live"
+        }
+        return booleanState ? "On" : "Off"
+    }
+
+    private var booleanFill: Color {
+        if layer.id == "mute" {
+            return booleanState ? Color.red.opacity(0.7) : StudioTheme.success.opacity(0.55)
+        }
+        return booleanState ? accent.opacity(0.65) : Color.white.opacity(0.04)
+    }
+
+    private var booleanPreview: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(booleanFill)
+
+            Text(booleanLabel)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+        }
+        .frame(height: 72)
+    }
+
+    private var scalarPreview: some View {
+        GeometryReader { geometry in
+            let scalar = scalarValue(for: resolvedValue, layer: layer)
+            let ratio = scalarRatio(scalar, layer: layer)
+            let fillHeight = max(6, geometry.size.height * ratio)
+
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.04))
+
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(accent.opacity(0.8))
+                    .frame(height: fillHeight)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Spacer()
+                    Text(valueLabel(resolvedValue, layer: layer))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+
+                    Text(cellSummary(cell, layer: layer, phrase: phrase))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.text.opacity(0.85))
+                        .lineLimit(1)
+                }
+                .padding(10)
+            }
+        }
+        .frame(height: 84)
+    }
+
+    private var patternPreview: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+
+            VStack(alignment: .leading, spacing: 4) {
+                previewText(valueLabel(resolvedValue, layer: layer))
+
+                Text(cellSummary(cell, layer: layer, phrase: phrase))
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(10)
+        }
+        .frame(height: 84)
     }
 }
 
