@@ -15,6 +15,7 @@ sequencer-ai/
 ├── Sources/                           # all Swift sources (one Xcode target)
 │   ├── App/
 │   ├── Document/
+│   ├── Musical/
 │   ├── UI/
 │   ├── Engine/
 │   ├── Platform/
@@ -42,9 +43,15 @@ Currently: `SequencerAIApp.swift`.
 
 ### `Sources/Document/`
 
-Everything about the `.seqai` document. `FileDocument` conformance, the `Codable` model that's serialized, UTType declarations. **No UI, no engine, no platform concerns.** This module should remain importable into a hypothetical CLI tool that only processes documents.
+Everything about the `.seqai` document. `FileDocument` conformance, the `Codable` model that's serialized, UTType declarations, phrase/pattern/generator model types, and the pure generator-algo value types used by document data. **No UI, no engine, no platform concerns.** This module may depend on `Musical/` for shipped lookup tables, but should remain importable into a hypothetical CLI tool that only processes documents.
 
-Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`. See [[document-model]].
+Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`, `PhraseModel.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. See [[document-model]] and [[generator-algos]].
+
+### `Sources/Musical/`
+
+Read-only musical reference data shipped with the app binary. This boundary owns scale tables, chord tables, style profiles, and small helper algorithms such as Euclidean distribution generation. It has no knowledge of documents, engine runtime, or SwiftUI.
+
+Currently: `ScaleID.swift`, `Scale.swift`, `Scales.swift`, `ChordID.swift`, `Chord.swift`, `Chords.swift`, `StyleProfileID.swift`, `StyleProfile.swift`, `StyleProfiles.swift`, `Euclidean.swift`. See [[generator-algos]].
 
 ### `Sources/UI/`
 
@@ -96,20 +103,23 @@ Current `Sources/` exemplifies this: `MIDIEndpoint.swift` is ~30 lines (value ty
 
 ## Dependency direction
 
-Dependencies flow **inward** toward `Document/`:
+Dependencies flow **inward** toward `Document/` and `Musical/`:
 
 ```
 App   → UI → Engine / Audio / MIDI / Platform / Document
+                                   Document → Musical
               Engine          → MIDI / Audio
               Audio           → Engine (playback sink protocol only)
               Platform        → Document
+              Musical         → (nothing from this project)
               MIDI            → (nothing from this project)
-              Document        → (nothing from this project)
+              Document        → Musical
 ```
 
 Rules this encodes:
 
-- `Document/` depends on nothing project-internal. It stays pure-Codable.
+- `Musical/` depends on nothing project-internal. It stays pure reference data / helper logic.
+- `Document/` may depend on `Musical/`, but not on `Engine/`, `UI/`, or platform code. It stays pure-Codable and pure-eval.
 - `Engine/` owns playback/runtime logic and may talk to MIDI and audio sinks, but not SwiftUI.
 - `Audio/`, `MIDI/`, and `Platform/` don't import `UI/` or `Document/`.
 - `UI/` can use anything below it but doesn't own business logic.
@@ -134,6 +144,7 @@ Each new directory comes with a wiki page like this one describing what it conta
 
 - [[build-system]] — how the project is generated and built
 - [[document-model]] — what lives in a `.seqai`
+- [[generator-algos]] — musical tables, generator kinds, and algo composition
 - [[midi-layer]] — the MIDI module in detail
 - [[app-support-layout]] — filesystem layout under `~/Library`
 - [[code-review-checklist]] — the rules this layout is designed to satisfy
