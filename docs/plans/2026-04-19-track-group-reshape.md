@@ -400,24 +400,25 @@ public enum DrumKitPreset: String, CaseIterable, Sendable {
 }
 ```
 
-**`SeqAIDocumentModel.addDrumKit(_ preset: DrumKitPreset) -> TrackGroupID`:**
+**`SeqAIDocumentModel.addDrumKit(_ preset: DrumKitPreset) -> TrackGroupID?`:**
 
-- For each member: create a new `monoMelodic` track with `destination = .inheritGroup`, `groupID = (to be set)`, place in next empty slot, append to `tracks` + `trackSlots`.
+- For each member: create a new `monoMelodic` track with `destination = .inheritGroup`, `groupID = (to be set)`, and append it to the flat `tracks` list.
 - Create a group: `name = preset.displayName`, `color = preset.suggestedGroupColor`, `memberIDs = [newTrackIDs]`, `sharedDestination = preset.suggestedSharedDestination`, `noteMapping = [trackID: DrumKitNoteMap.note(for: tag) - 36]` (baseline: the shared destination's root note is C2 = 36; offset from that).
 - Set each new track's `groupID = group.id`.
 - Append the group to `trackGroups`.
-- Return the new group ID.
+- Sync pattern banks / phrases for the appended tracks.
+- Return the new group ID. `nil` is reserved for malformed presets (for example, an empty member list), not track-capacity errors.
 
 **Tests:**
 
 1. `DrumKitPreset.kit808.members.count == 4`; members have unique tags.
 2. `DrumKitNoteMap.note(for: "kick") == 36`; `"snare" == 38`; `"unknown-tag" == 60`.
-3. `addDrumKit(.kit808)` on an empty document produces 4 tracks + 1 group. Every track is `monoMelodic` with `destination = .inheritGroup`, `groupID = <new group>`. Group has `memberIDs.count == 4`, `sharedDestination` non-nil, `noteMapping` has 4 entries.
-4. `addDrumKit(.kit808)` with only 2 empty slots available: partial placement or error (spec: error — preset needs all N slots contiguous or available; warn the user). TDD test: with fewer-than-N empty slots, the method returns `nil` and makes no mutations.
+3. `addDrumKit(.kit808)` on the default document appends 4 grouped tracks + 1 group. Every new track is `monoMelodic` with `destination = .inheritGroup`, `groupID = <new group>`. Group has `memberIDs.count == 4`, `sharedDestination` non-nil, `noteMapping` has 4 entries.
+4. `addDrumKit(.kit808)` also appends pattern banks and phrase pattern indexes for each new track, and selects the first newly-added member.
 
-- [ ] Tests
-- [ ] Implement DrumKitNoteMap, DrumKitPreset, addDrumKit
-- [ ] Green
+- [x] Tests
+- [x] Implement DrumKitNoteMap, DrumKitPreset, addDrumKit
+- [x] Green
 - [ ] Commit: `feat(document): DrumKitPreset library + addDrumKit flow`
 
 ---
@@ -532,5 +533,5 @@ public enum DrumKitPreset: String, CaseIterable, Sendable {
 - **Orphaned `.inheritGroup`** (track is `.inheritGroup` but not in a group, or in a group with `sharedDestination == nil`): resolution returns `.none`; the tick drops events; UI warns via a yellow pill on the track in the matrix + a tooltip "Destination inherits from group but group has no shared destination."
 - **Legacy `RouteFilter.voiceTag`** in `midi-routing`: remains decodable (preserves old documents) but acts as `.all` at runtime (no per-tag filter since tags aren't an event axis any more). Legacy routes issue a one-time warning on document load: "Voice-tag routes retired; routing via track IDs now. Please re-author."
 - **CellValue.singleMuteTagSet** (live-view plan Task 6): retires. Per-tag mute is now just per-track mute on the relevant flat mono track.
-- **Drum-kit preset ergonomics:** MVP ships 3 presets. Picking one drops N tracks in the matrix atomically. If there aren't enough empty slots, the operation fails with a user-visible error. The user frees up slots and retries.
+- **Drum-kit preset ergonomics:** MVP ships 3 presets. Picking one appends N grouped tracks atomically into the flat track list. The fresh model no longer has matrix slot-capacity constraints, so there is no "not enough empty slots" failure path at the document layer.
 - **What if the user drags a track out of a drum group?** `removeFromGroup(trackID:)` clears `track.groupID`; if the track's destination was `.inheritGroup`, auto-convert to `.none` and surface a warning — the user picks a new destination.
