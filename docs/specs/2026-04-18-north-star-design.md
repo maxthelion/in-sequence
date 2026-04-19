@@ -47,8 +47,10 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 - **Pattern** — one slot in a track's 16-slot pattern bank (indexed 0..15, project-scoped, track-owned). Holds a **source mode** (either `.generator(GeneratorID)` or `.clip(ClipID)`) plus an optional human-readable name. All 16 slots always exist; empty slots default to `.generator(GeneratorID)` pointing at the track-type's default generator.
 - **Source mode** — the content of a pattern slot: `.generator(GeneratorID)` referring into the generator pool, or `.clip(ClipID)` referring into the clip pool. Phrase never stores a source mode directly — phrase stores the pattern index and the pattern carries the source mode.
 - **Voicing** — per-track map `VoiceTag → VoicePresetID`. Melodic / slice tracks use a single `"default"` entry; drum tracks have one entry per voice tag (`"kick"`, `"snare"`, …). An unmapped tag on a drum track drops silently.
-- **Generator kind** — a code-defined block type (`random-notes-in-scale-mono`, `euclidean-drums`, `template-drum-kit`, `chord-generator`, `arp-source`, …). Declared in the block palette; each kind declares which track types it's compatible with. Kinds are the codebase taxonomy.
-- **Generator instance** — a user-configured instance of a kind (`"my punchy kick" = euclidean-drums(density=0.7, fills=0.3)`), living in the project's **generator pool**. Multiple instances of the same kind with different params coexist. Patterns reference instances by id.
+- **Generator kind** — a code-defined block type, one per track-type family: `mono-generator`, `poly-generator`, `drum-kit`, `template-generator`, `slice-generator`, `authored-scalar`, `saw-ramp`, `midi-in`. Declared in the block palette; each kind declares which track types it's compatible with. See §"Components inventory" for the full table.
+- **StepAlgo** — one of the strategies a generator instance composes to decide *whether* a step fires: `manual` / `randomWeighted` / `euclidean` / `perStepProbability` / `fromClipSteps`.
+- **PitchAlgo** — one of the strategies a pitched generator instance composes to decide *what pitch* to play on a firing step: `manual` / `randomInScale` / `randomInChord` / `intervalProb` / `markov` / `fromClipPitches` / `external`.
+- **Generator instance** — a user-configured instance of a kind, composing a `StepAlgo` × `PitchAlgo` (or `[VoiceTag: StepAlgo]` for a drum-kit) plus shared `NoteShape` (velocity, gateLength, accent). Lives in the project's **generator pool**; referenced by pattern slots. Multiple instances of the same kind with different algos/params coexist. Example: `"verse-bass" = mono-generator(step: manual([..]), pitch: randomInScale(root: 36, scale: .minor, spread: 12), NoteShape(vel: 95, gate: 3))`.
 - **Clip** — concrete, stored step data with annotations, living in the project's **clip pool**. Has a compatibility tag (which track types may play it). Created by hand-authoring, freezing live generator output, or loading from the library.
 - **Phrase** — reusable, N-bar unit (default 8 bars × 16 steps = 128 steps). A row in the phatcontroller-style grid: stores a **cell per (track × layer)**, where a cell carries an authored value (single, bars, per-step, or curve) or inherits the layer's per-track default. Phrases never carry source modes directly — the pattern-index layer resolves to the per-track pattern bank. Ghosts phatcontroller's phrase concept.
 - **Song** — the ordered list `project.phrases: [Phrase]`, played top-to-bottom. Not a separate data structure — there is no "song" object, no phrase-refs, no repeat-count sugar, no conditional refs. To play something twice, list the same phrase twice. To de-duplicate edits, phrases reference shared pool entries (patterns, generators, clips) — editing the pool affects every phrase using it.
@@ -576,32 +578,83 @@ The design's validation: this user story should feel natural.
 
 ## Components inventory (block palette sketch)
 
-This section lists **generator kinds** (code-defined, registered in the block palette). User-configured **generator instances** of these kinds live in the project's generator pool (see §"Track types and source modes" → "Project-scoped pools"). Each kind declares which track types it's compatible with; the UI filters the source picker by those declarations.
+This section lists **generator kinds** (code-defined, registered in the block palette). User-configured **generator instances** of these kinds live in the project's generator pool (see §"Track types, patterns, and phrases" → "Project-scoped pools"). Each kind declares which track types it's compatible with; the UI filters the source picker by those declarations.
 
-**Sources — generator kinds:**
+### Generator composition — `StepAlgo × PitchAlgo`
 
-| Kind | Compatible track types | Notes |
+Most generator kinds are *compositions* of two orthogonal strategies (the glaypen / sequencerbox split, with HotStepper's style profiles folded in as a PitchAlgo variant):
+
+- **StepAlgo** — decides *whether* a note fires on a given step
+- **PitchAlgo** — decides *what pitch* to play when a step fires
+
+This replaces the earlier inventory's long list of variants. Instead of distinct kinds for "random-notes-in-scale-mono", "markov-note-chain", "chord-generator" etc., there is a small number of kinds (mono, poly, drum, template, slice) and the variety comes from the algo choice inside each instance.
+
+#### StepAlgo variants
+
+Shared across mono / poly / drum-kit / slice kinds.
+
+| Variant | Params | Notes |
 |---|---|---|
-| `note-generator-mono(step-gen, pitch-gen)` | `monoMelodic` | glaypen-orthogonal step × pitch composition |
-| `note-generator-poly(step-gen, pitch-gen)` | `polyMelodic` | multi-note variant |
-| `random-notes-in-scale-mono` | `monoMelodic` | simple scale-walk |
-| `markov-note-chain` | `monoMelodic`, `polyMelodic` | learned-sequence source |
-| `chord-generator` | `polyMelodic` | tension-aware chord picker; also drives chord-context sink |
-| `arp-source` | `polyMelodic` | chord-in → chord-pattern-out; stays poly. Mono-side arp is deferred to a power-user transform |
-| `euclidean-drum-gen` | `drum` | per-tag euclidean rhythms |
-| `template-drum-kit` | `drum` | tagged-pattern drum clip with probabilistic annotations |
-| `slice-generator(strategy)` | `slice` | emits slice triggers (euclidean-over-tags, Markov, pool-random) |
-| `template-slice-pattern` | `slice` | probabilistic slice-trigger pattern |
-| `authored-row(values[])` | any (scalar-stream output) | static per-step macro row |
-| `saw-ramp(period)` | any (scalar-stream output) | generative scalar, useful for auto-intensity |
-| `midi-in(port, channel)` | `monoMelodic`, `polyMelodic` | external feed |
+| `manual` | `pattern: [Bool]` (length = pattern step count) | User-drawn step mask. Matches the classic step-sequencer UX |
+| `randomWeighted` | `density: Double (0..1)` | N random positions per pattern where N = density × stepCount. Stable across ticks within a pattern unless re-rolled |
+| `euclidean` | `pulses: Int`, `steps: Int`, `offset: Int` | Bjorklund distribution — hats, house-music snare patterns etc. |
+| `perStepProbability` | `probs: [Double]` (length = stepCount) | HotStepper-style per-step probability bars. Re-rolls every loop |
+| `fromClipSteps` | `clipID: ClipID` | Use an existing clip's step mask (sequencerbox pattern). Allows layering rhythm from one clip with pitches from another algo |
 
-**Sources — clip-side (reference rather than generator):**
+#### PitchAlgo variants
 
-A track's source mode can also be `.clip(ClipID)`, which reads from the project's clip pool. Clips are tagged with track-type compatibility at creation; the picker filters the same way as for generators. There is no separate `clip-reader` kind in the inventory — the clip-mode path is its own branch of `SourceRef`.
-- `authored-row(values[])` — static per-step values
-- `saw-ramp(period)` — generative scalar, useful for auto-intensity
-- `midi-in(port, channel)` — external feed
+Used by pitched kinds (mono, poly). Drum-kit has no PitchAlgo — the tag is the identity. Slice-track has `[SliceIndex]` instead.
+
+| Variant | Params | Notes |
+|---|---|---|
+| `manual` | `pitches: [Int]`, `pickMode: .sequential | .random` | Fixed pool. Matches codex's current `pitches` array behaviour |
+| `randomInScale` | `root: Int`, `scale: ScaleID`, `spread: Int` (semitones) | Random walk within a scale, ± spread around root. "Fully random" = `scale = .chromatic, spread = 24` |
+| `randomInChord` | `root: Int`, `chord: ChordID`, `inverted: Bool`, `spread: Int` | sequencerbox's ChordPitchFunction. "Play in a chord" |
+| `intervalProb` | `root: Int`, `scale: ScaleID`, `degreeWeights: [Double]` (one weight per scale degree) | glaypen's scale-interval-probability vector. The single strongest "musicality" knob |
+| `markov` | `root: Int`, `scale: ScaleID`, `styleID: StyleProfileID`, `leap: 0..1`, `color: 0..1` | HotStepper-style. History-aware: biases by distance to `lastPitch`, ascending vs descending, repeat vs leap. `styleID` picks a pre-baked weight profile (`vocal` / `balanced` / `jazz` / …); `leap` and `color` are macro-controllable overlays |
+| `fromClipPitches` | `clipID: ClipID`, `pickMode: .sequential | .random` | sequencerbox's ClipPitchFunction. "Play pitches from this clip in whatever order the step algo dictates" |
+| `external` | `port: String`, `channel: Int`, `holdMode: .pool | .latest` | Incoming MIDI fills a pitch pool (sequencerbox's manual / glaypen's manualPitch). "Teach the generator your pitches" |
+
+**Mapping to the user's examples:**
+
+| "..." | StepAlgo | PitchAlgo |
+|---|---|---|
+| Fully random | `randomWeighted(0.5)` | `randomInScale(root, .chromatic, spread: 24)` |
+| Within an octave | `randomWeighted(0.5)` | `randomInScale(root, .major, spread: 12)` |
+| In a chord | any | `randomInChord(root, chord)` |
+| In relation to preceding notes | any | `markov(root, scale, styleID: .balanced)` |
+| Clip rhythm + random scale pitches | `fromClipSteps(clipID)` | `randomInScale(…)` |
+
+#### Static code tables (not library-scoped)
+
+The following reference data is **shipped with the binary as static tables** (project-agnostic, read-only, versioned with the code). Not in `~/Library/Application Support/sequencer-ai/library/` — that folder is for user-saved things (voice presets, templates, takes, clips).
+
+- **`ScaleID`** — 19 scales lifted from glaypen: chromatic, major, natural minor, harmonic minor, melodic minor, major pentatonic, minor pentatonic, blues, dorian, mixolydian, lydian, phrygian, locrian, whole-tone, diminished, augmented, gypsy, hungarian-minor, akebono / japanese / hirajoshi / in-sen / iwato / kumoi / pelog (the non-Western scales live behind a "More scales" reveal in the picker).
+- **`ChordID`** — 16 chords lifted from sequencerbox: major-triad, minor-triad, augmented-triad, diminished-triad, major-7th, minor-7th, dominant-7th, diminished-7th, augmented-7th, half-diminished-7th, major-6th, minor-6th, major-9th, minor-9th, major-11th, minor-11th.
+- **`StyleProfileID`** — 3 profiles lifted from HotStepper: `vocal` (narrow intervals, strong repeat bias, descending tilt), `balanced` (all-rounder), `jazz` (wider intervals, higher leap tolerance, more color tones). Each profile carries `ascendBias`, `descendBias`, `repeatBias`, `leapPenalty`, `reversalTrigger` and related weights. Encoded as a static struct in `Sources/Musical/StyleProfiles.swift`.
+
+Code location: `Sources/Musical/{Scales,Chords,StyleProfiles}.swift`. One source of truth; never duplicated into JSON. When we add scales or chords, they are code changes, versioned, type-safe.
+
+### Generator kinds — the actual list
+
+| Kind | Composition | Compatible track types | Notes |
+|---|---|---|---|
+| `mono-generator` | `StepAlgo × PitchAlgo × NoteShape` | `monoMelodic` | The workhorse. 5 StepAlgos × 7 PitchAlgos = 35 possible instances, before params. Covers classic step-seq (manual × manual), scale-walks (anything × randomInScale), markov (anything × markov), etc. |
+| `poly-generator` | `StepAlgo × [PitchAlgo] (chord stack) × NoteShape` | `polyMelodic` | Same step algo; multiple pitch algos stack. A "chord-generator" is a `poly-generator` instance with step = `manual([true])` and a single `randomInChord` pitch algo |
+| `drum-kit` | `[VoiceTag: StepAlgo]` + shared `NoteShape` | `drum` | Per-tag step algos. No PitchAlgo. A "euclidean-drum-gen" is a `drum-kit` instance where every tag's StepAlgo is `euclidean(...)` |
+| `template-generator` | `TemplateRef` (resolves to a pre-authored clip with annotations) | any (type declared on template) | Library-loaded pre-composed material. Internally expands to a one-shot clip played back with annotations; params are the template's knobs (swing, density-scale, pitch-transpose, …) |
+| `slice-generator` | `StepAlgo × [SliceIndex]` — **deferred** to sub-spec 11 | `slice` | Slice infra is its own spec; the composition shape is reserved |
+| `authored-scalar` | constant value or edited curve | macro-row input (scalar-stream) | Used when a Layer's cell is of curve/step type and needs a runtime emitter — this kind powers the layer evaluation loop for non-patternIndex layers |
+| `saw-ramp` | `period: Int`, `amplitude: Double`, `phase: Double` | scalar-stream | Generative scalar row; "auto-intensity", LFO-style modulation |
+| `midi-in` | `port: String`, `channel: Int` | `monoMelodic`, `polyMelodic` | External feed |
+
+**Why the shrink:** the previous inventory enumerated "random-notes-in-scale-mono", "markov-note-chain", "chord-generator", "euclidean-drum-gen" as distinct kinds. These are now *instances* of `mono-generator`, `poly-generator`, `drum-kit` with specific algo choices. The inventory is shorter; the user's vocabulary stays rich because named *presets* of those kinds ship in the library (`bass-random-pentatonic`, `lead-jazz-markov`, `kick-euclidean-4`, …).
+
+**Time-varying generator params:** any generator-instance param (density, spread, degreeWeights, leap, color, …) can be driven by a Layer with target `.blockParam(generatorInstanceID, paramKey)`. The layer's cell supplies the per-step value. This is the glaypen "param history indexed by step" capability, realised through the phrase grid instead of a separate automation lane — author the curve once on a phrase's layer cell, and it runs every time that phrase plays.
+
+### Sources — clip mode
+
+A track's pattern-slot source can also be `.clip(ClipID)`, which reads from the project's clip pool. Clips are tagged with track-type compatibility at creation; the picker filters the same way as for generators. There is no separate `clip-reader` *kind* in the inventory — the clip-mode path is its own branch of `SourceRef`. The `fromClipSteps` / `fromClipPitches` PitchAlgo / StepAlgo variants above let a *generator* reference a clip as raw input material, distinct from playing that clip directly.
 
 **Transforms:**
 - `force-to-scale(scale, root)` — scene-level pitch correction
