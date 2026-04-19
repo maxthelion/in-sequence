@@ -13,8 +13,16 @@ struct DetailView: View {
         document.model.selectedPhrase
     }
 
+    private var selectedPatternIndex: Int {
+        document.model.selectedPatternIndex(for: track.id)
+    }
+
+    private var selectedPattern: TrackPatternSlot {
+        document.model.selectedPattern(for: track.id)
+    }
+
     private var selectedSourceMode: TrackSourceMode {
-        document.model.selectedSourceMode(for: track.id)
+        selectedPattern.sourceRef.mode
     }
 
     private var stepStates: [StepVisualState] {
@@ -38,11 +46,11 @@ struct DetailView: View {
     }
 
     private var sourceEyebrow: String {
-        "\(phrase.name) source • \(selectedSourceMode.label)"
+        "\(phrase.name) pattern • slot \(selectedPatternIndex + 1)"
     }
 
     private var sourceSummary: String {
-        track.trackType == .instrument && selectedSourceMode.isImplemented ? "Live now" : "Planned"
+        track.trackType == .instrument && selectedSourceMode.isImplemented ? "Live now" : "Placeholder"
     }
 
     private var destinationSummary: String {
@@ -137,14 +145,19 @@ struct DetailView: View {
                             StudioMetricPill(title: "Phrase", value: phrase.name, accent: StudioTheme.success)
                             StudioMetricPill(title: "BPM", value: "\(Int(engineController.currentBPM.rounded()))", accent: StudioTheme.amber)
                             StudioMetricPill(title: "Type", value: track.trackType.shortLabel, accent: sourceAccent)
+                            StudioMetricPill(title: "Pattern", value: "P\(selectedPatternIndex + 1)", accent: StudioTheme.success)
                             StudioMetricPill(title: "Source", value: selectedSourceMode.shortLabel, accent: sourceAccent)
                             StudioMetricPill(title: "Status", value: sourceSummary, accent: StudioTheme.violet)
                         }
 
                         TrackTypePalette(selectedTrackType: trackTypeBinding)
-                        SourceModePalette(trackType: track.trackType, selectedSource: sourceModeBinding)
+                        PatternSlotPalette(selectedSlot: selectedPatternIndexBinding)
+                        SourceModePalette(trackType: track.trackType, selectedSource: selectedPatternSourceModeBinding)
 
-                        Text("The left side models how this track creates note material. Track type decides the editor shape; phrase-scoped source modes and transforms will later plug into that shape without forcing one giant persisted source enum.")
+                        TextField("Pattern Name", text: patternNameBinding)
+                            .textFieldStyle(.roundedBorder)
+
+                        Text("The left side now reflects the spec split: each track owns a 16-slot pattern bank, and the current phrase just picks which slot is active. Editing here changes the selected slot for this track across any phrase that points at it.")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(StudioTheme.mutedText)
                     }
@@ -222,7 +235,7 @@ struct DetailView: View {
                         }
                     }
                 } else if track.trackType == .instrument {
-                    StudioPanel(title: selectedSourceMode.label, eyebrow: "Phrase-scoped source placeholder", accent: sourceAccent) {
+                    StudioPanel(title: selectedSourceMode.label, eyebrow: "Pattern-slot placeholder", accent: sourceAccent) {
                         VStack(spacing: 12) {
                             ForEach(instrumentSourcePlaceholderTiles, id: \.title) { tile in
                                 StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
@@ -421,13 +434,27 @@ struct DetailView: View {
         )
     }
 
-    private var sourceModeBinding: Binding<TrackSourceMode> {
+    private var selectedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: {
-                document.model.selectedSourceMode(for: track.id)
-            },
+            get: { document.model.selectedPatternIndex(for: track.id) },
+            set: { document.model.setSelectedPatternIndex($0, for: track.id) }
+        )
+    }
+
+    private var selectedPatternSourceModeBinding: Binding<TrackSourceMode> {
+        Binding(
+            get: { document.model.selectedSourceMode(for: track.id) },
             set: { newValue in
-                document.model.setSelectedPhraseSourceMode(newValue, for: track.id)
+                document.model.setPatternSourceMode(newValue, for: track.id, slotIndex: selectedPatternIndex)
+            }
+        )
+    }
+
+    private var patternNameBinding: Binding<String> {
+        Binding(
+            get: { selectedPattern.name ?? "" },
+            set: { newValue in
+                document.model.setPatternName(newValue, for: track.id, slotIndex: selectedPatternIndex)
             }
         )
     }
@@ -469,21 +496,9 @@ struct DetailView: View {
             return []
         case .clip:
             return [
-                ("Clip Reader", "Phrase-owned clip material with step annotations and later parameter locks.", StudioTheme.violet),
-                ("Freeze / Stamp", "This source is where frozen generator output and hand-authored clips will land.", StudioTheme.cyan),
-                ("Current Gap", "The phrase model now persists the source choice; the actual clip data/editor lands in the next block-focused slice.", StudioTheme.amber)
-            ]
-        case .template:
-            return [
-                ("Template Source", "Templates will stamp a starting point into the active phrase without changing the track's long-lived identity.", StudioTheme.amber),
-                ("Library Link", "This mode will browse from the Templates library and preserve later phrase-specific edits.", StudioTheme.cyan),
-                ("Current Gap", "Selection is now phrase-scoped and persisted; template asset loading is still to come.", StudioTheme.violet)
-            ]
-        case .midiIn:
-            return [
-                ("Live Feed", "External MIDI becomes a phrase-scoped source block rather than a global track setting.", StudioTheme.success),
-                ("Capture + Monitor", "Planned controls include endpoint selection, thru, quantise, and capture behavior.", StudioTheme.cyan),
-                ("Current Gap", "The phrase model now reserves this home; actual MIDI-in block plumbing is still ahead.", StudioTheme.amber)
+                ("Clip Reader", "This slot points at a shared clip-pool entry instead of a generator instance.", StudioTheme.violet),
+                ("Shared Pool Semantics", "Editing the clip entry will affect every pattern slot and phrase that references it.", StudioTheme.cyan),
+                ("Current Gap", "The pattern bank now persists clip slots; the actual clip editor and freeze flow are still ahead.", StudioTheme.amber)
             ]
         }
     }
@@ -704,10 +719,6 @@ private struct SourceModePalette: View {
             return StudioTheme.cyan
         case .clip:
             return StudioTheme.violet
-        case .template:
-            return StudioTheme.amber
-        case .midiIn:
-            return StudioTheme.success
         }
     }
 
@@ -717,6 +728,42 @@ private struct SourceModePalette: View {
 
     private func stroke(for source: TrackSourceMode) -> Color {
         selectedSource == source ? accent(for: source).opacity(0.52) : StudioTheme.border
+    }
+}
+
+private struct PatternSlotPalette: View {
+    @Binding var selectedSlot: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("PATTERN BANK")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8), spacing: 8) {
+                ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
+                    Button {
+                        selectedSlot = slotIndex
+                    } label: {
+                        Text("\(slotIndex + 1)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(StudioTheme.text)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(selectedSlot == slotIndex ? StudioTheme.success.opacity(0.2) : Color.white.opacity(0.03))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(selectedSlot == slotIndex ? StudioTheme.success.opacity(0.7) : StudioTheme.border, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 }
 

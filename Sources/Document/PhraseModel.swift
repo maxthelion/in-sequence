@@ -6,8 +6,10 @@ struct PhraseModel: Codable, Equatable, Sendable {
     var lengthBars: Int
     var stepsPerBar: Int
     var abstractRows: [PhraseAbstractRow]
-    var sourceRefs: [PhraseTrackSourceAssignment]
+    var trackPatternIndexes: [UUID: Int]
     var trackLayerStates: [PhraseTrackLayerStateGroup]
+
+    var legacySourceRefs: [PhraseTrackSourceAssignment]
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -15,6 +17,7 @@ struct PhraseModel: Codable, Equatable, Sendable {
         case lengthBars
         case stepsPerBar
         case abstractRows
+        case trackPatternIndexes
         case sourceRefs
         case trackLayerStates
     }
@@ -25,16 +28,28 @@ struct PhraseModel: Codable, Equatable, Sendable {
         lengthBars: Int,
         stepsPerBar: Int,
         abstractRows: [PhraseAbstractRow],
-        sourceRefs: [PhraseTrackSourceAssignment],
-        trackLayerStates: [PhraseTrackLayerStateGroup]
+        trackPatternIndexes: [UUID: Int],
+        trackLayerStates: [PhraseTrackLayerStateGroup],
+        legacySourceRefs: [PhraseTrackSourceAssignment] = []
     ) {
         self.id = id
         self.name = name
         self.lengthBars = lengthBars
         self.stepsPerBar = stepsPerBar
         self.abstractRows = abstractRows
-        self.sourceRefs = sourceRefs
+        self.trackPatternIndexes = trackPatternIndexes
         self.trackLayerStates = trackLayerStates
+        self.legacySourceRefs = legacySourceRefs
+    }
+
+    static func == (lhs: PhraseModel, rhs: PhraseModel) -> Bool {
+        lhs.id == rhs.id &&
+            lhs.name == rhs.name &&
+            lhs.lengthBars == rhs.lengthBars &&
+            lhs.stepsPerBar == rhs.stepsPerBar &&
+            lhs.abstractRows == rhs.abstractRows &&
+            lhs.trackPatternIndexes == rhs.trackPatternIndexes &&
+            lhs.trackLayerStates == rhs.trackLayerStates
     }
 
     static func `default`(
@@ -54,7 +69,7 @@ struct PhraseModel: Codable, Equatable, Sendable {
             abstractRows: PhraseAbstractKind.allCases.map {
                 PhraseAbstractRow(kind: $0, values: Array(repeating: 0, count: stepCount))
             },
-            sourceRefs: defaultSourceAssignments(for: tracks, generatorPool: generatorPool, clipPool: clipPool),
+            trackPatternIndexes: defaultPatternIndexes(for: tracks),
             trackLayerStates: defaultLayerStateGroups(for: tracks)
         )
     }
@@ -70,64 +85,36 @@ struct PhraseModel: Codable, Equatable, Sendable {
         lengthBars = try container.decode(Int.self, forKey: .lengthBars)
         stepsPerBar = try container.decode(Int.self, forKey: .stepsPerBar)
         abstractRows = try container.decode([PhraseAbstractRow].self, forKey: .abstractRows)
-        sourceRefs = try container.decodeIfPresent([PhraseTrackSourceAssignment].self, forKey: .sourceRefs) ?? []
+        let decodedPatternIndexes = try container.decodeIfPresent([String: Int].self, forKey: .trackPatternIndexes) ?? [:]
+        trackPatternIndexes = Dictionary(
+            uniqueKeysWithValues: decodedPatternIndexes.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, value) }
+            }
+        )
+        legacySourceRefs = try container.decodeIfPresent([PhraseTrackSourceAssignment].self, forKey: .sourceRefs) ?? []
         trackLayerStates = try container.decodeIfPresent([PhraseTrackLayerStateGroup].self, forKey: .trackLayerStates) ?? []
     }
 
-    func sourceRef(for trackID: UUID) -> SourceRef {
-        sourceRefs.first(where: { $0.trackID == trackID })?.sourceRef ?? .generator(nil as UUID?)
-    }
-
-    func sourceMode(for trackID: UUID) -> TrackSourceMode {
-        sourceRef(for: trackID).mode
-    }
-
-    mutating func setSourceRef(_ sourceRef: SourceRef, for trackID: UUID) {
-        if let existingIndex = sourceRefs.firstIndex(where: { $0.trackID == trackID }) {
-            sourceRefs[existingIndex].sourceRef = sourceRef
-        } else {
-            sourceRefs.append(
-                PhraseTrackSourceAssignment(trackID: trackID, sourceRef: sourceRef)
-            )
-        }
-    }
-
-    mutating func setSourceMode(
-        _ mode: TrackSourceMode,
-        for trackID: UUID,
-        trackType: TrackType,
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry]
-    ) {
-        setSourceRef(
-            Self.defaultSourceRef(
-                for: mode,
-                trackType: trackType,
-                generatorPool: generatorPool,
-                clipPool: clipPool
-            ),
-            for: trackID
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(lengthBars, forKey: .lengthBars)
+        try container.encode(stepsPerBar, forKey: .stepsPerBar)
+        try container.encode(abstractRows, forKey: .abstractRows)
+        let encodedPatternIndexes = Dictionary(
+            uniqueKeysWithValues: trackPatternIndexes.map { ($0.key.uuidString, $0.value) }
         )
+        try container.encode(encodedPatternIndexes, forKey: .trackPatternIndexes)
+        try container.encode(trackLayerStates, forKey: .trackLayerStates)
     }
 
-    func instrumentSource(for trackID: UUID) -> TrackSourceMode {
-        sourceMode(for: trackID)
+    func patternIndex(for trackID: UUID) -> Int {
+        min(max(trackPatternIndexes[trackID] ?? 0, 0), TrackPatternBank.slotCount - 1)
     }
 
-    mutating func setInstrumentSource(
-        _ source: TrackSourceMode,
-        for trackID: UUID,
-        trackType: TrackType,
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry]
-    ) {
-        setSourceMode(
-            source,
-            for: trackID,
-            trackType: trackType,
-            generatorPool: generatorPool,
-            clipPool: clipPool
-        )
+    mutating func setPatternIndex(_ index: Int, for trackID: UUID) {
+        trackPatternIndexes[trackID] = min(max(index, 0), TrackPatternBank.slotCount - 1)
     }
 
     func cellMode(for kind: PhraseAbstractKind, trackID: UUID) -> PhraseCellEditMode {
@@ -158,11 +145,7 @@ struct PhraseModel: Codable, Equatable, Sendable {
         abstractRows[rowIndex].sourceMode = mode
     }
 
-    func synced(
-        with tracks: [StepSequenceTrack],
-        generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
-        clipPool: [ClipPoolEntry] = []
-    ) -> PhraseModel {
+    func synced(with tracks: [StepSequenceTrack]) -> PhraseModel {
         let normalizedStepCount = max(1, lengthBars * stepsPerBar)
         let normalizedRows = PhraseAbstractKind.allCases.map { kind in
             let row = abstractRows.first(where: { $0.kind == kind }) ?? PhraseAbstractRow(kind: kind, values: [])
@@ -170,40 +153,12 @@ struct PhraseModel: Codable, Equatable, Sendable {
         }
 
         let trackIDs = Set(tracks.map(\.id))
+        var normalizedPatternIndexes = trackPatternIndexes
+            .filter { trackIDs.contains($0.key) }
+            .mapValues { min(max($0, 0), TrackPatternBank.slotCount - 1) }
 
-        var normalizedSourceRefs = sourceRefs
-            .filter { trackIDs.contains($0.trackID) }
-        let existingIDs = Set(normalizedSourceRefs.map(\.trackID))
-        let missingIDs = trackIDs.subtracting(existingIDs)
-        normalizedSourceRefs.append(
-            contentsOf: missingIDs.compactMap { trackID in
-                guard let track = tracks.first(where: { $0.id == trackID }) else {
-                    return nil
-                }
-                return PhraseTrackSourceAssignment(
-                    trackID: trackID,
-                    sourceRef: Self.defaultSourceRef(
-                        for: .generator,
-                        trackType: track.trackType,
-                        generatorPool: generatorPool,
-                        clipPool: clipPool
-                    )
-                )
-            }
-        )
-        normalizedSourceRefs = normalizedSourceRefs.map { assignment in
-            guard let track = tracks.first(where: { $0.id == assignment.trackID }) else {
-                return assignment
-            }
-            return assignment.normalized(
-                trackType: track.trackType,
-                generatorPool: generatorPool,
-                clipPool: clipPool
-            )
-        }
-        normalizedSourceRefs.sort { lhs, rhs in
-            tracks.firstIndex(where: { $0.id == lhs.trackID }) ?? 0 <
-                tracks.firstIndex(where: { $0.id == rhs.trackID }) ?? 0
+        for track in tracks where normalizedPatternIndexes[track.id] == nil {
+            normalizedPatternIndexes[track.id] = 0
         }
 
         var normalizedLayerStates = trackLayerStates
@@ -217,57 +172,31 @@ struct PhraseModel: Codable, Equatable, Sendable {
                 tracks.firstIndex(where: { $0.id == rhs.trackID }) ?? 0
         }
 
+        let normalizedLegacySourceRefs = legacySourceRefs
+            .filter { trackIDs.contains($0.trackID) }
+            .sorted { lhs, rhs in
+                tracks.firstIndex(where: { $0.id == lhs.trackID }) ?? 0 <
+                    tracks.firstIndex(where: { $0.id == rhs.trackID }) ?? 0
+            }
+
         return PhraseModel(
             id: id,
             name: name,
             lengthBars: max(1, lengthBars),
             stepsPerBar: max(1, stepsPerBar),
             abstractRows: normalizedRows,
-            sourceRefs: normalizedSourceRefs,
-            trackLayerStates: normalizedLayerStates
+            trackPatternIndexes: normalizedPatternIndexes,
+            trackLayerStates: normalizedLayerStates,
+            legacySourceRefs: normalizedLegacySourceRefs
         )
     }
 
-    private static func defaultSourceAssignments(
-        for tracks: [StepSequenceTrack],
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry]
-    ) -> [PhraseTrackSourceAssignment] {
-        tracks.map {
-            PhraseTrackSourceAssignment(
-                trackID: $0.id,
-                sourceRef: defaultSourceRef(
-                    for: .generator,
-                    trackType: $0.trackType,
-                    generatorPool: generatorPool,
-                    clipPool: clipPool
-                )
-            )
-        }
+    private static func defaultPatternIndexes(for tracks: [StepSequenceTrack]) -> [UUID: Int] {
+        Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, 0) })
     }
 
     private static func defaultLayerStateGroups(for tracks: [StepSequenceTrack]) -> [PhraseTrackLayerStateGroup] {
         tracks.map { PhraseTrackLayerStateGroup(trackID: $0.id) }
-    }
-
-    private static func defaultSourceRef(
-        for mode: TrackSourceMode,
-        trackType: TrackType,
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry]
-    ) -> SourceRef {
-        switch mode {
-        case .generator:
-            let generatorID = generatorPool.first(where: { $0.trackType == trackType })?.id
-            return .generator(generatorID)
-        case .clip:
-            let clipID = clipPool.first(where: { $0.trackType == trackType })?.id
-            return .clip(clipID)
-        case .template:
-            return .template
-        case .midiIn:
-            return .midiIn
-        }
     }
 }
 
@@ -323,10 +252,7 @@ struct PhraseTrackSourceAssignment: Codable, Equatable, Identifiable, Sendable {
         case instrumentSource
     }
 
-    init(
-        trackID: UUID,
-        sourceRef: SourceRef
-    ) {
+    init(trackID: UUID, sourceRef: SourceRef) {
         self.trackID = trackID
         self.sourceRef = sourceRef
     }
@@ -411,6 +337,124 @@ struct PhraseTrackLayerState: Codable, Equatable, Identifiable, Sendable {
         PhraseAbstractKind.allCases.map { kind in
             states.first(where: { $0.kind == kind }) ?? PhraseTrackLayerState(kind: kind, cellMode: .single)
         }
+    }
+}
+
+struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
+    static let slotCount = 16
+
+    var trackID: UUID
+    var slots: [TrackPatternSlot]
+
+    var id: UUID { trackID }
+
+    init(trackID: UUID, slots: [TrackPatternSlot]) {
+        self.trackID = trackID
+        self.slots = TrackPatternBank.normalizedSlots(slots)
+    }
+
+    func slot(at index: Int) -> TrackPatternSlot {
+        let clampedIndex = min(max(index, 0), Self.slotCount - 1)
+        return slots[clampedIndex]
+    }
+
+    mutating func setSlot(_ slot: TrackPatternSlot, at index: Int) {
+        let clampedIndex = min(max(index, 0), Self.slotCount - 1)
+        slots[clampedIndex] = slot.normalized(slotIndex: clampedIndex)
+        slots = TrackPatternBank.normalizedSlots(slots)
+    }
+
+    func synced(
+        track: StepSequenceTrack,
+        generatorPool: [GeneratorPoolEntry],
+        clipPool: [ClipPoolEntry]
+    ) -> TrackPatternBank {
+        TrackPatternBank(
+            trackID: trackID,
+            slots: slots.enumerated().map { index, slot in
+                slot.normalized(
+                    slotIndex: index,
+                    trackType: track.trackType,
+                    generatorPool: generatorPool,
+                    clipPool: clipPool,
+                    fallbackSourceRef: Self.defaultSourceRef(for: track, generatorPool: generatorPool)
+                )
+            }
+        )
+    }
+
+    static func `default`(
+        for track: StepSequenceTrack,
+        generatorPool: [GeneratorPoolEntry],
+        clipPool: [ClipPoolEntry]
+    ) -> TrackPatternBank {
+        let defaultSourceRef = defaultSourceRef(for: track, generatorPool: generatorPool)
+        return TrackPatternBank(
+            trackID: track.id,
+            slots: (0..<slotCount).map {
+                TrackPatternSlot(slotIndex: $0, sourceRef: defaultSourceRef)
+            }
+        )
+    }
+
+    private static func normalizedSlots(_ slots: [TrackPatternSlot]) -> [TrackPatternSlot] {
+        (0..<slotCount).map { index in
+            slots.first(where: { $0.slotIndex == index })?.normalized(slotIndex: index)
+                ?? TrackPatternSlot(slotIndex: index, sourceRef: .generator(nil))
+        }
+    }
+
+    private static func defaultSourceRef(
+        for track: StepSequenceTrack,
+        generatorPool: [GeneratorPoolEntry]
+    ) -> SourceRef {
+        .generator(generatorPool.first(where: { $0.trackType == track.trackType })?.id)
+    }
+}
+
+struct TrackPatternSlot: Codable, Equatable, Identifiable, Sendable {
+    var slotIndex: Int
+    var name: String?
+    var sourceRef: SourceRef
+
+    var id: Int { slotIndex }
+
+    init(slotIndex: Int, name: String? = nil, sourceRef: SourceRef) {
+        self.slotIndex = slotIndex
+        self.name = name
+        self.sourceRef = sourceRef
+    }
+
+    func normalized(slotIndex: Int) -> TrackPatternSlot {
+        TrackPatternSlot(
+            slotIndex: slotIndex,
+            name: normalizedName,
+            sourceRef: sourceRef
+        )
+    }
+
+    func normalized(
+        slotIndex: Int,
+        trackType: TrackType,
+        generatorPool: [GeneratorPoolEntry],
+        clipPool: [ClipPoolEntry],
+        fallbackSourceRef: SourceRef
+    ) -> TrackPatternSlot {
+        let normalizedSourceRef = sourceRef.normalized(
+            trackType: trackType,
+            generatorPool: generatorPool,
+            clipPool: clipPool
+        )
+        return TrackPatternSlot(
+            slotIndex: slotIndex,
+            name: normalizedName,
+            sourceRef: normalizedSourceRef.isEmpty ? fallbackSourceRef : normalizedSourceRef
+        )
+    }
+
+    private var normalizedName: String? {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == true ? nil : trimmed
     }
 }
 
@@ -501,8 +545,6 @@ enum PhraseRowSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
 enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
     case generator
     case clip
-    case template
-    case midiIn
 
     var label: String {
         switch self {
@@ -510,10 +552,6 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
             return "Generator"
         case .clip:
             return "Clip"
-        case .template:
-            return "Template"
-        case .midiIn:
-            return "MIDI In"
         }
     }
 
@@ -523,23 +561,15 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
             return "Gen"
         case .clip:
             return "Clip"
-        case .template:
-            return "Template"
-        case .midiIn:
-            return "MIDI In"
         }
     }
 
     var detail: String {
         switch self {
         case .generator:
-            return "Phrase points at a project-scoped generator instance."
+            return "Pattern points at a project-scoped generator instance."
         case .clip:
-            return "Frozen or authored phrase clip"
-        case .template:
-            return "Template-backed starting point"
-        case .midiIn:
-            return "External MIDI capture and monitoring"
+            return "Pattern points at a stored clip in the shared clip pool."
         }
     }
 
@@ -548,14 +578,8 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
     }
 
     static func available(for trackType: TrackType) -> [TrackSourceMode] {
-        switch trackType {
-        case .instrument:
-            return [.generator, .clip, .template, .midiIn]
-        case .drumRack:
-            return [.generator, .clip, .template]
-        case .sliceLoop:
-            return [.generator, .clip]
-        }
+        _ = trackType
+        return [.generator, .clip]
     }
 }
 
@@ -610,7 +634,7 @@ struct ClipPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable {
     var trackType: TrackType
 }
 
-struct SourceRef: Codable, Equatable, Sendable {
+struct SourceRef: Codable, Equatable, Hashable, Sendable {
     var mode: TrackSourceMode
     var generatorID: UUID?
     var clipID: UUID?
@@ -629,8 +653,14 @@ struct SourceRef: Codable, Equatable, Sendable {
         SourceRef(mode: .clip, clipID: id)
     }
 
-    static let template = SourceRef(mode: .template)
-    static let midiIn = SourceRef(mode: .midiIn)
+    var isEmpty: Bool {
+        switch mode {
+        case .generator:
+            return generatorID == nil
+        case .clip:
+            return false
+        }
+    }
 
     func normalized(
         trackType: TrackType,
@@ -641,16 +671,11 @@ struct SourceRef: Codable, Equatable, Sendable {
         case .generator:
             let compatibleID = generatorPool.first(where: { $0.id == generatorID && $0.trackType == trackType })?.id
                 ?? generatorPool.first(where: { $0.trackType == trackType })?.id
-            return .generator(compatibleID as UUID?)
+            return .generator(compatibleID)
         case .clip:
             let compatibleID = clipPool.first(where: { $0.id == clipID && $0.trackType == trackType })?.id
                 ?? clipPool.first(where: { $0.trackType == trackType })?.id
-            return .clip(compatibleID as UUID?)
-        case .template:
-            return .template
-        case .midiIn:
-            let fallbackGeneratorID = generatorPool.first(where: { $0.trackType == trackType })?.id
-            return trackType == .instrument ? .midiIn : .generator(fallbackGeneratorID as UUID?)
+            return .clip(compatibleID)
         }
     }
 }
@@ -665,14 +690,10 @@ private enum LegacyPhraseSource: String, Codable {
 
     var trackSourceMode: TrackSourceMode {
         switch self {
-        case .manualMono, .generator:
+        case .manualMono, .generator, .template, .midiIn:
             return .generator
         case .clipReader, .clip:
             return .clip
-        case .template:
-            return .template
-        case .midiIn:
-            return .midiIn
         }
     }
 }

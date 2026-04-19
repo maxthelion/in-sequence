@@ -42,8 +42,16 @@ struct PhraseWorkspaceView: View {
         selectedPhrase.cellMode(for: selectedLayer, trackID: selectedTrack.id)
     }
 
+    private var selectedPatternIndex: Int {
+        document.model.selectedPatternIndex(for: selectedTrack.id)
+    }
+
+    private var selectedPattern: TrackPatternSlot {
+        document.model.selectedPattern(for: selectedTrack.id)
+    }
+
     private var selectedSourceMode: TrackSourceMode {
-        document.model.selectedSourceMode(for: selectedTrack.id)
+        selectedPattern.sourceRef.mode
     }
 
     private var playbackPhase: PlaybackPhase? {
@@ -328,6 +336,7 @@ struct PhraseWorkspaceView: View {
                 StudioMetricPill(title: "Track", value: selectedTrack.name, accent: StudioTheme.cyan)
                 StudioMetricPill(title: "Type", value: selectedTrack.trackType.shortLabel, accent: StudioTheme.violet)
                 StudioMetricPill(title: "Mode", value: selectedCellMode.shortLabel, accent: StudioTheme.amber)
+                StudioMetricPill(title: "Pattern", value: "P\(selectedPatternIndex + 1)", accent: StudioTheme.success)
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -367,19 +376,14 @@ struct PhraseWorkspaceView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Source Mode")
+                Text("Pattern Slot")
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                Picker("Source", selection: selectedSourceModeBinding) {
-                    ForEach(TrackSourceMode.available(for: selectedTrack.trackType), id: \.self) { source in
-                        Text(source.label).tag(source)
-                    }
-                }
-                .pickerStyle(.segmented)
+                PatternSlotPalette(selectedSlot: selectedPatternIndexBinding)
 
-                Text(selectedSourceMode.detail)
+                Text("This phrase now stores a pattern index for each track. The selected slot resolves to a shared \(selectedSourceMode.label.lowercased()) entry, so changing slot numbers here is lightweight while editing the slot itself still happens in the Track workspace.")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(StudioTheme.mutedText)
             }
@@ -432,12 +436,10 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    private var selectedSourceModeBinding: Binding<TrackSourceMode> {
+    private var selectedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: { document.model.selectedSourceMode(for: selectedTrack.id) },
-            set: { newValue in
-                document.model.setSelectedPhraseSourceMode(newValue, for: selectedTrack.id)
-            }
+            get: { document.model.selectedPatternIndex(for: selectedTrack.id) },
+            set: { document.model.setSelectedPatternIndex($0, for: selectedTrack.id) }
         )
     }
 
@@ -626,10 +628,8 @@ private struct PhraseMatrixRow: View {
     }
 
     private func footerText(for track: StepSequenceTrack) -> String {
-        if track.trackType == .instrument {
-            return phrase.sourceMode(for: track.id).label
-        }
-        return track.trackType.label
+        let patternIndex = phrase.patternIndex(for: track.id)
+        return "P\(patternIndex + 1) • \(track.trackType.shortLabel)"
     }
 
     private func cellFill(for track: StepSequenceTrack) -> Color {
@@ -742,6 +742,35 @@ private struct PhraseBarPreview: View {
             return Color.white.opacity(0.12)
         }
         return accent.opacity(0.28 + (value * 0.55))
+    }
+}
+
+private struct PatternSlotPalette: View {
+    @Binding var selectedSlot: Int
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8), spacing: 8) {
+            ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
+                Button {
+                    selectedSlot = slotIndex
+                } label: {
+                    Text("\(slotIndex + 1)")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(selectedSlot == slotIndex ? StudioTheme.success.opacity(0.2) : Color.white.opacity(0.03))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(selectedSlot == slotIndex ? StudioTheme.success.opacity(0.7) : StudioTheme.border, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }
 
