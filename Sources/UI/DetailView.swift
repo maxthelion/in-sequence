@@ -4,6 +4,7 @@ struct DetailView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
     @Environment(EngineController.self) private var engineController
+    @State private var liveLayerID = "pattern"
 
     private var track: StepSequenceTrack {
         document.model.selectedTrack
@@ -20,7 +21,7 @@ struct DetailView: View {
     private var occupiedPatternSlots: Set<Int> {
         Set(
             document.model.phrases.map { phrase in
-                phrase.patternIndex(for: track.id)
+                phrase.patternIndex(for: track.id, layers: document.model.layers)
             }
         )
     }
@@ -332,31 +333,12 @@ struct DetailView: View {
     }
 
     private var liveWorkspace: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Live", eyebrow: "Direct transport and matrix control surface", accent: StudioTheme.amber) {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
-                    ForEach(["Mute", "Pattern", "Volume", "Density", "Fill", "Stutter", "Reverse", "Recall"], id: \.self) { effect in
-                        PerformPad(title: effect)
-                    }
-                }
-            }
-
-            HStack(alignment: .top, spacing: 18) {
-                StudioPanel(title: "Planned Coverage", eyebrow: "Live matrix next", accent: StudioTheme.cyan) {
-                    VStack(spacing: 12) {
-                        StudioPlaceholderTile(title: "Track Matrix", detail: "8x8 live grid derived from the current phrase layer state and current transport mode.")
-                        StudioPlaceholderTile(title: "Drum Expansion", detail: "Mute-layer drum groups can fan out into individual lane cells without changing the stored document shape.")
-                        StudioPlaceholderTile(title: "Save As Phrase", detail: "Capture the current live grid state as a new phrase once the matrix editor lands.")
-                    }
-                }
-
-                StudioPanel(title: "Current Status", eyebrow: "What exists today", accent: StudioTheme.violet) {
-                    VStack(spacing: 12) {
-                        StudioPlaceholderTile(title: "Transport Mode", detail: "Song vs Free mode is now exposed in the top transport bar and stored on the engine controller.")
-                        StudioPlaceholderTile(title: "Next Step", detail: "Replace these pads with the real live matrix once the tracks-matrix shell and reshape docs are closed.")
-                    }
-                }
-            }
+        StudioPanel(
+            title: "Live",
+            eyebrow: "Current phrase cells under direct transport control",
+            accent: StudioTheme.amber
+        ) {
+            LiveWorkspaceView(document: $document, selectedLayerID: $liveLayerID)
         }
         .padding(20)
     }

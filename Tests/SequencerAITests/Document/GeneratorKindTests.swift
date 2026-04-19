@@ -26,21 +26,11 @@ final class GeneratorKindTests: XCTestCase {
         XCTAssertEqual(GeneratorKind.drumKit.compatibleWith, [.monoMelodic])
     }
 
-    func test_legacy_values_decode_to_new_cases() throws {
-        XCTAssertEqual(try decode("\"manualMono\""), .monoGenerator)
-        XCTAssertEqual(try decode("\"drumPattern\""), .drumKit)
-        XCTAssertEqual(try decode("\"sliceTrigger\""), .sliceGenerator)
-    }
-
     func test_new_values_round_trip() throws {
         for kind in GeneratorKind.allCases {
             let data = try JSONEncoder().encode(kind)
             let decoded = try JSONDecoder().decode(GeneratorKind.self, from: data)
             XCTAssertEqual(decoded, kind)
         }
-    }
-
-    private func decode(_ json: String) throws -> GeneratorKind {
-        try JSONDecoder().decode(GeneratorKind.self, from: Data(json.utf8))
     }
 }

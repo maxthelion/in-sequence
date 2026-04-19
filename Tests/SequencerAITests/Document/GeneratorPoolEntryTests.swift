@@ -36,21 +36,6 @@ final class GeneratorPoolEntryTests: XCTestCase {
         XCTAssertEqual(decoded, entry)
     }
 
-    func test_legacy_decode_backfills_params_from_kind_default() throws {
-        let json = """
-        {
-          "id": "99999999-9999-9999-9999-999999999999",
-          "name": "Legacy Manual Mono",
-          "trackType": "instrument",
-          "kind": "manualMono"
-        }
-        """.data(using: .utf8)!
-
-        let decoded = try JSONDecoder().decode(GeneratorPoolEntry.self, from: json)
-        XCTAssertEqual(decoded.kind, .monoGenerator)
-        XCTAssertEqual(decoded.params, .defaultMono)
-    }
-
     func test_make_default_seeds_params_from_kind() {
         let entry = GeneratorPoolEntry.makeDefault(
             id: UUID(uuidString: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")!,

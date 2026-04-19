@@ -148,11 +148,13 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(track: StepSequenceTrack) {
-        let phrase = PhraseModel.default(tracks: [track])
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
         apply(
             documentModel: SeqAIDocumentModel(
                 version: 1,
                 tracks: [track],
+                layers: layers,
                 selectedTrackID: track.id,
                 phrases: [phrase],
                 selectedPhraseID: phrase.id
@@ -489,6 +491,10 @@ final class EngineController: RouterDispatcher {
     }
 
     private func resolveEndpoint(named port: MIDIEndpointName) -> MIDIEndpoint? {
+        if port == .sequencerAIOut, let endpoint {
+            return endpoint
+        }
+
         if port.isVirtual,
            let endpoint,
            endpoint.displayName == port.displayName

@@ -96,6 +96,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
     var trackGroups: [TrackGroup]
     var generatorPool: [GeneratorPoolEntry]
     var clipPool: [ClipPoolEntry]
+    var layers: [PhraseLayerDefinition]
     var routes: [Route]
     var patternBanks: [TrackPatternBank]
     var selectedTrackID: UUID
@@ -108,12 +109,12 @@ struct SeqAIDocumentModel: Codable, Equatable {
         case trackGroups
         case generatorPool
         case clipPool
+        case layers
         case routes
         case patternBanks
         case selectedTrackID
         case phrases
         case selectedPhraseID
-        case primaryTrack
     }
 
     static let empty = SeqAIDocumentModel(
@@ -124,15 +125,26 @@ struct SeqAIDocumentModel: Codable, Equatable {
         trackGroups: [],
         generatorPool: GeneratorPoolEntry.defaultPool,
         clipPool: [],
+        layers: PhraseLayerDefinition.defaultSet(for: [.default]),
         routes: [],
         patternBanks: [
             TrackPatternBank.default(for: .default, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])
         ],
         selectedTrackID: StepSequenceTrack.default.id,
         phrases: [
-            .default(tracks: [.default], generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])
+            .default(
+                tracks: [.default],
+                layers: PhraseLayerDefinition.defaultSet(for: [.default]),
+                generatorPool: GeneratorPoolEntry.defaultPool,
+                clipPool: []
+            )
         ],
-        selectedPhraseID: PhraseModel.default(tracks: [.default], generatorPool: GeneratorPoolEntry.defaultPool, clipPool: []).id
+        selectedPhraseID: PhraseModel.default(
+            tracks: [.default],
+            layers: PhraseLayerDefinition.defaultSet(for: [.default]),
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: []
+        ).id
     )
 
     var selectedTrackIndex: Int {
@@ -164,7 +176,12 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
     var selectedPhrase: PhraseModel {
         get {
-            let fallback = PhraseModel.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)
+            let fallback = PhraseModel.default(
+                tracks: tracks,
+                layers: layers,
+                generatorPool: generatorPool,
+                clipPool: clipPool
+            )
             guard !phrases.isEmpty else {
                 return fallback
             }
@@ -172,11 +189,11 @@ struct SeqAIDocumentModel: Codable, Equatable {
         }
         set {
             guard !phrases.isEmpty else {
-                phrases = [newValue.synced(with: tracks)]
+                phrases = [newValue.synced(with: tracks, layers: layers)]
                 selectedPhraseID = phrases[0].id
                 return
             }
-            phrases[selectedPhraseIndex] = newValue.synced(with: tracks)
+            phrases[selectedPhraseIndex] = newValue.synced(with: tracks, layers: layers)
             selectedPhraseID = phrases[selectedPhraseIndex].id
         }
     }
@@ -190,8 +207,21 @@ struct SeqAIDocumentModel: Codable, Equatable {
             )
     }
 
+    var patternLayer: PhraseLayerDefinition? {
+        layers.first(where: { $0.target == .patternIndex })
+    }
+
+    func layer(id: String) -> PhraseLayerDefinition? {
+        layers.first(where: { $0.id == id })
+    }
+
+    func cell(for trackID: UUID, layerID: String, phraseID: UUID? = nil) -> PhraseCell {
+        let phrase = phrases.first(where: { $0.id == phraseID }) ?? selectedPhrase
+        return phrase.cell(for: layerID, trackID: trackID)
+    }
+
     func selectedPatternIndex(for trackID: UUID) -> Int {
-        selectedPhrase.patternIndex(for: trackID)
+        selectedPhrase.patternIndex(for: trackID, layers: layers)
     }
 
     func selectedPattern(for trackID: UUID) -> TrackPatternSlot {
@@ -237,7 +267,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
     mutating func setSelectedPatternIndex(_ index: Int, for trackID: UUID) {
         var phrase = selectedPhrase
-        phrase.setPatternIndex(index, for: trackID)
+        phrase.setPatternIndex(index, for: trackID, layers: layers)
         selectedPhrase = phrase
     }
 
@@ -317,10 +347,15 @@ struct SeqAIDocumentModel: Codable, Equatable {
     }
 
     mutating func appendPhrase() {
-        var nextPhrase = PhraseModel.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)
+        var nextPhrase = PhraseModel.default(
+            tracks: tracks,
+            layers: layers,
+            generatorPool: generatorPool,
+            clipPool: clipPool
+        )
         nextPhrase.id = UUID()
         nextPhrase.name = Self.defaultPhraseName(for: phrases.count)
-        phrases.append(nextPhrase.synced(with: tracks))
+        phrases.append(nextPhrase.synced(with: tracks, layers: layers))
         selectedPhraseID = nextPhrase.id
     }
 
@@ -333,7 +368,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         duplicate.id = UUID()
         duplicate.name = "\(selectedPhrase.name) Copy"
         let insertionIndex = min(selectedPhraseIndex + 1, phrases.count)
-        phrases.insert(duplicate.synced(with: tracks), at: insertionIndex)
+        phrases.insert(duplicate.synced(with: tracks, layers: layers), at: insertionIndex)
         selectedPhraseID = duplicate.id
     }
 
@@ -443,13 +478,22 @@ struct SeqAIDocumentModel: Codable, Equatable {
     init(version: Int, tracks: [StepSequenceTrack], selectedTrackID: UUID) {
         let defaultGeneratorPool = GeneratorPoolEntry.defaultPool
         let defaultClipPool: [ClipPoolEntry] = []
-        let defaultPhrases = [PhraseModel.default(tracks: tracks, generatorPool: defaultGeneratorPool, clipPool: defaultClipPool)]
+        let defaultLayers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let defaultPhrases = [
+            PhraseModel.default(
+                tracks: tracks,
+                layers: defaultLayers,
+                generatorPool: defaultGeneratorPool,
+                clipPool: defaultClipPool
+            )
+        ]
         self.init(
             version: version,
             tracks: tracks,
             trackGroups: [],
             generatorPool: defaultGeneratorPool,
             clipPool: defaultClipPool,
+            layers: defaultLayers,
             patternBanks: Self.defaultPatternBanks(for: tracks, generatorPool: defaultGeneratorPool, clipPool: defaultClipPool),
             selectedTrackID: selectedTrackID,
             phrases: defaultPhrases,
@@ -463,19 +507,17 @@ struct SeqAIDocumentModel: Codable, Equatable {
         trackGroups: [TrackGroup] = [],
         generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
         clipPool: [ClipPoolEntry] = [],
+        layers: [PhraseLayerDefinition] = [],
         routes: [Route] = [],
         patternBanks: [TrackPatternBank] = [],
         selectedTrackID: UUID,
         phrases: [PhraseModel],
         selectedPhraseID: UUID
     ) {
-        self.version = version
-        self.tracks = tracks
-        self.trackGroups = trackGroups
-        self.generatorPool = generatorPool
-        self.clipPool = clipPool
-        self.routes = routes
-        self.patternBanks = patternBanks.isEmpty
+        let resolvedLayers = layers.isEmpty
+            ? PhraseLayerDefinition.defaultSet(for: tracks)
+            : layers.map { $0.synced(with: tracks) }
+        let resolvedPatternBanks = patternBanks.isEmpty
             ? Self.defaultPatternBanks(for: tracks, generatorPool: generatorPool, clipPool: clipPool)
             : patternBanks
                 .filter { bank in tracks.contains(where: { $0.id == bank.trackID }) }
@@ -486,87 +528,77 @@ struct SeqAIDocumentModel: Codable, Equatable {
                         clipPool: clipPool
                     )
                 }
-        self.selectedTrackID = tracks.contains(where: { $0.id == selectedTrackID }) ? selectedTrackID : tracks[0].id
-        self.phrases = phrases.isEmpty
-            ? [.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)]
-            : phrases.map { $0.synced(with: tracks) }
-        self.selectedPhraseID = self.phrases.contains(where: { $0.id == selectedPhraseID }) ? selectedPhraseID : self.phrases[0].id
+        let resolvedSelectedTrackID = tracks.contains(where: { $0.id == selectedTrackID }) ? selectedTrackID : tracks[0].id
+        let resolvedPhrases = phrases.isEmpty
+            ? [.default(tracks: tracks, layers: resolvedLayers, generatorPool: generatorPool, clipPool: clipPool)]
+            : phrases.map { $0.synced(with: tracks, layers: resolvedLayers) }
+        let resolvedSelectedPhraseID = resolvedPhrases.contains(where: { $0.id == selectedPhraseID }) ? selectedPhraseID : resolvedPhrases[0].id
+
+        self.version = version
+        self.tracks = tracks
+        self.trackGroups = trackGroups
+        self.generatorPool = generatorPool
+        self.clipPool = clipPool
+        self.layers = resolvedLayers
+        self.routes = routes
+        self.patternBanks = resolvedPatternBanks
+        self.selectedTrackID = resolvedSelectedTrackID
+        self.phrases = resolvedPhrases
+        self.selectedPhraseID = resolvedSelectedPhraseID
         syncPhrasesWithTracks()
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        version = try container.decode(Int.self, forKey: .version)
-
-        if let decodedTracks = try container.decodeIfPresent([StepSequenceTrack].self, forKey: .tracks),
-           !decodedTracks.isEmpty
-        {
-            let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
-            let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
-            let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
-            let resolvedTrackGroups = try container.decodeIfPresent([TrackGroup].self, forKey: .trackGroups) ?? []
-            let resolvedTracks = decodedTracks
-            var resolvedSelectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID) ?? resolvedTracks[0].id
-            if !resolvedTracks.contains(where: { $0.id == resolvedSelectedTrackID }) {
-                resolvedSelectedTrackID = resolvedTracks[0].id
-            }
-            let resolvedPhrases: [PhraseModel]
-            if let decodedPhrases = try container.decodeIfPresent([PhraseModel].self, forKey: .phrases),
-               !decodedPhrases.isEmpty
-            {
-                resolvedPhrases = decodedPhrases.map {
-                    $0.synced(with: resolvedTracks)
-                }
-            } else {
-                resolvedPhrases = [.default(tracks: resolvedTracks, generatorPool: resolvedGeneratorPool, clipPool: resolvedClipPool)]
-            }
-            let decodedPatternBanks = try container.decodeIfPresent([TrackPatternBank].self, forKey: .patternBanks) ?? []
-            let migrated: (patternBanks: [TrackPatternBank], phrases: [PhraseModel])
-            if decodedPatternBanks.isEmpty {
-                migrated = Self.migrateLegacyPatternBanks(
-                    tracks: resolvedTracks,
+        let resolvedVersion = try container.decode(Int.self, forKey: .version)
+        let resolvedTracks = try container.decode([StepSequenceTrack].self, forKey: .tracks)
+        let resolvedTrackGroups = try container.decodeIfPresent([TrackGroup].self, forKey: .trackGroups) ?? []
+        let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
+        let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
+        let resolvedLayers = (try container.decodeIfPresent([PhraseLayerDefinition].self, forKey: .layers) ?? PhraseLayerDefinition.defaultSet(for: resolvedTracks))
+            .map { $0.synced(with: resolvedTracks) }
+        let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
+        let decodedPatternBanks = try container.decodeIfPresent([TrackPatternBank].self, forKey: .patternBanks) ?? []
+        let resolvedPatternBanks = decodedPatternBanks.isEmpty
+            ? Self.defaultPatternBanks(for: resolvedTracks, generatorPool: resolvedGeneratorPool, clipPool: resolvedClipPool)
+            : decodedPatternBanks.map { bank in
+                bank.synced(
+                    track: resolvedTracks.first(where: { $0.id == bank.trackID }) ?? .default,
                     generatorPool: resolvedGeneratorPool,
-                    clipPool: resolvedClipPool,
-                    phrases: resolvedPhrases
-                )
-            } else {
-                migrated = (
-                    patternBanks: decodedPatternBanks.map { bank in
-                        bank.synced(
-                            track: resolvedTracks.first(where: { $0.id == bank.trackID }) ?? .default,
-                            generatorPool: resolvedGeneratorPool,
-                            clipPool: resolvedClipPool
-                        )
-                    },
-                    phrases: resolvedPhrases.map { $0.synced(with: resolvedTracks) }
+                    clipPool: resolvedClipPool
                 )
             }
-            var resolvedSelectedPhraseID = try container.decodeIfPresent(UUID.self, forKey: .selectedPhraseID) ?? resolvedPhrases[0].id
-            if !migrated.phrases.contains(where: { $0.id == resolvedSelectedPhraseID }) {
-                resolvedSelectedPhraseID = migrated.phrases[0].id
-            }
-            tracks = resolvedTracks
-            trackGroups = resolvedTrackGroups
-            generatorPool = resolvedGeneratorPool
-            clipPool = resolvedClipPool
-            routes = resolvedRoutes
-            patternBanks = migrated.patternBanks
-            selectedTrackID = resolvedSelectedTrackID
-            phrases = migrated.phrases
-            selectedPhraseID = resolvedSelectedPhraseID
-            return
+        let decodedPhrases = try container.decodeIfPresent([PhraseModel].self, forKey: .phrases) ?? []
+        let resolvedPhrases = decodedPhrases.isEmpty
+            ? [.default(tracks: resolvedTracks, layers: resolvedLayers, generatorPool: resolvedGeneratorPool, clipPool: resolvedClipPool)]
+            : decodedPhrases.map { $0.synced(with: resolvedTracks, layers: resolvedLayers) }
+        let decodedSelectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID)
+        let resolvedSelectedTrackID: UUID
+        if let decodedSelectedTrackID, resolvedTracks.contains(where: { $0.id == decodedSelectedTrackID }) {
+            resolvedSelectedTrackID = decodedSelectedTrackID
+        } else {
+            resolvedSelectedTrackID = resolvedTracks[0].id
+        }
+        let decodedSelectedPhraseID = try container.decodeIfPresent(UUID.self, forKey: .selectedPhraseID)
+        let resolvedSelectedPhraseID: UUID
+        if let decodedSelectedPhraseID, resolvedPhrases.contains(where: { $0.id == decodedSelectedPhraseID }) {
+            resolvedSelectedPhraseID = decodedSelectedPhraseID
+        } else {
+            resolvedSelectedPhraseID = resolvedPhrases[0].id
         }
 
-        let fallbackTrack = try container.decodeIfPresent(StepSequenceTrack.self, forKey: .primaryTrack) ?? .default
-        tracks = [fallbackTrack]
-        trackGroups = []
-        generatorPool = GeneratorPoolEntry.defaultPool
-        clipPool = []
-        routes = []
-        patternBanks = Self.defaultPatternBanks(for: tracks, generatorPool: generatorPool, clipPool: clipPool)
-        selectedTrackID = fallbackTrack.id
-        phrases = [.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)]
-        selectedPhraseID = phrases[0].id
+        version = resolvedVersion
+        tracks = resolvedTracks
+        trackGroups = resolvedTrackGroups
+        generatorPool = resolvedGeneratorPool
+        clipPool = resolvedClipPool
+        layers = resolvedLayers
+        routes = resolvedRoutes
+        patternBanks = resolvedPatternBanks
+        selectedTrackID = resolvedSelectedTrackID
+        phrases = resolvedPhrases
+        selectedPhraseID = resolvedSelectedPhraseID
+        syncPhrasesWithTracks()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -576,6 +608,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         try container.encode(trackGroups, forKey: .trackGroups)
         try container.encode(generatorPool, forKey: .generatorPool)
         try container.encode(clipPool, forKey: .clipPool)
+        try container.encode(layers, forKey: .layers)
         try container.encode(routes, forKey: .routes)
         try container.encode(patternBanks, forKey: .patternBanks)
         try container.encode(selectedTrackID, forKey: .selectedTrackID)
@@ -584,12 +617,13 @@ struct SeqAIDocumentModel: Codable, Equatable {
     }
 
     private mutating func syncPhrasesWithTracks() {
+        layers = layers.map { $0.synced(with: tracks) }
         if phrases.isEmpty {
-            let fallback = PhraseModel.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)
+            let fallback = PhraseModel.default(tracks: tracks, layers: layers, generatorPool: generatorPool, clipPool: clipPool)
             phrases = [fallback]
             selectedPhraseID = fallback.id
         } else {
-            phrases = phrases.map { $0.synced(with: tracks) }
+            phrases = phrases.map { $0.synced(with: tracks, layers: layers) }
         }
 
         patternBanks = Self.syncPatternBanks(
@@ -687,65 +721,6 @@ struct SeqAIDocumentModel: Codable, Equatable {
         }
     }
 
-    private static func migrateLegacyPatternBanks(
-        tracks: [StepSequenceTrack],
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry],
-        phrases: [PhraseModel]
-    ) -> (patternBanks: [TrackPatternBank], phrases: [PhraseModel]) {
-        var patternBanks = defaultPatternBanks(for: tracks, generatorPool: generatorPool, clipPool: clipPool)
-        var migratedPhrases = phrases.map { $0.synced(with: tracks) }
-
-        for track in tracks {
-            let legacyRefs = migratedPhrases.compactMap { phrase -> SourceRef? in
-                phrase.legacySourceRefs.first(where: { $0.trackID == track.id })?.sourceRef.normalized(
-                    trackType: track.trackType,
-                    generatorPool: generatorPool,
-                    clipPool: clipPool
-                )
-            }
-
-            guard !legacyRefs.isEmpty,
-                  let bankIndex = patternBanks.firstIndex(where: { $0.trackID == track.id })
-            else {
-                continue
-            }
-
-            var uniqueRefs: [SourceRef] = []
-            for sourceRef in legacyRefs where !uniqueRefs.contains(sourceRef) {
-                uniqueRefs.append(sourceRef)
-                if uniqueRefs.count == TrackPatternBank.slotCount {
-                    break
-                }
-            }
-
-            var bank = patternBanks[bankIndex]
-            for (slotIndex, sourceRef) in uniqueRefs.enumerated() {
-                let existingName = bank.slot(at: slotIndex).name
-                bank.setSlot(
-                    TrackPatternSlot(slotIndex: slotIndex, name: existingName, sourceRef: sourceRef),
-                    at: slotIndex
-                )
-            }
-            patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
-
-            for index in migratedPhrases.indices {
-                let sourceRef = migratedPhrases[index].legacySourceRefs.first(where: { $0.trackID == track.id })?.sourceRef.normalized(
-                    trackType: track.trackType,
-                    generatorPool: generatorPool,
-                    clipPool: clipPool
-                )
-                let slotIndex = sourceRef.flatMap { ref in
-                    patternBanks[bankIndex].slots.firstIndex(where: { $0.sourceRef == ref })
-                } ?? 0
-                migratedPhrases[index].setPatternIndex(slotIndex, for: track.id)
-                migratedPhrases[index].legacySourceRefs = []
-            }
-        }
-
-        return (patternBanks, migratedPhrases.map { $0.synced(with: tracks) })
-    }
-
     private func defaultSourceRef(for mode: TrackSourceMode, trackType: TrackType) -> SourceRef {
         switch mode {
         case .generator:
@@ -808,14 +783,6 @@ struct SeqAIDocumentModel: Codable, Equatable {
     }
 }
 
-private struct LegacyVoicing: Codable, Equatable, Sendable {
-    var destinations: [VoiceTag: Destination]
-
-    var defaultDestination: Destination {
-        destinations[defaultVoiceTag] ?? .none
-    }
-}
-
 struct StepSequenceTrack: Codable, Equatable, Sendable {
     var id: UUID
     var name: String
@@ -833,15 +800,11 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case id
         case name
         case trackType
-        case source
         case pitches
         case stepPattern
         case stepAccents
         case destination
         case groupID
-        case voicing
-        case output
-        case audioInstrument
         case mix
         case velocity
         case gateLength
@@ -882,7 +845,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.pitches = pitches
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
-        self.destination = destination ?? Self.legacyDestination(
+        self.destination = destination ?? Self.defaultDestination(
             output: output,
             audioInstrument: audioInstrument,
             trackType: trackType
@@ -937,29 +900,12 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try container.decode(String.self, forKey: .name)
-        if let decodedTrackType = try container.decodeIfPresent(TrackType.self, forKey: .trackType) {
-            trackType = decodedTrackType
-        } else {
-            let legacySource = try container.decodeIfPresent(LegacyTrackSource.self, forKey: .source)
-            trackType = legacySource?.trackType ?? .monoMelodic
-        }
+        trackType = try container.decode(TrackType.self, forKey: .trackType)
         pitches = try container.decode([Int].self, forKey: .pitches)
         stepPattern = try container.decode([Bool].self, forKey: .stepPattern)
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
         stepAccents = Self.normalizedAccents(decodedAccents, stepCount: stepPattern.count)
-        if let decodedDestination = try container.decodeIfPresent(Destination.self, forKey: .destination) {
-            destination = decodedDestination
-        } else if let decodedVoicing = try container.decodeIfPresent(LegacyVoicing.self, forKey: .voicing) {
-            destination = decodedVoicing.defaultDestination
-        } else {
-            let legacyOutput = try container.decodeIfPresent(TrackOutputDestination.self, forKey: .output) ?? .midiOut
-            let legacyInstrument = try container.decodeIfPresent(AudioInstrumentChoice.self, forKey: .audioInstrument) ?? .builtInSynth
-            destination = Self.legacyDestination(
-                output: legacyOutput,
-                audioInstrument: legacyInstrument,
-                trackType: trackType
-            )
-        }
+        destination = try container.decode(Destination.self, forKey: .destination)
         groupID = try container.decodeIfPresent(TrackGroupID.self, forKey: .groupID)
         mix = try container.decodeIfPresent(TrackMixSettings.self, forKey: .mix) ?? .default
         velocity = try container.decode(Int.self, forKey: .velocity)
@@ -1017,7 +963,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             case .auInstrument:
                 destination = .auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil)
             case .internalSampler:
-                destination = Self.legacyDestination(
+                destination = Self.defaultDestination(
                     output: .internalSampler,
                     audioInstrument: audioInstrument,
                     trackType: trackType
@@ -1087,7 +1033,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
     }
 
-    private static func legacyDestination(
+    private static func defaultDestination(
         output: TrackOutputDestination,
         audioInstrument: AudioInstrumentChoice,
         trackType: TrackType
@@ -1110,55 +1056,10 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     }
 }
 
-private enum LegacyTrackSource: String, Codable {
-    case manualMono
-    case clip
-    case template
-    case midiIn
-    case drumRack
-    case sliceLoop
-
-    var trackType: TrackType {
-        switch self {
-        case .manualMono, .clip, .template, .midiIn:
-            return .monoMelodic
-        case .drumRack:
-            return .monoMelodic
-        case .sliceLoop:
-            return .slice
-        }
-    }
-}
-
 enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
     case monoMelodic
     case polyMelodic
     case slice
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let raw = try container.decode(String.self)
-
-        switch raw {
-        case "monoMelodic":
-            self = .monoMelodic
-        case "polyMelodic":
-            self = .polyMelodic
-        case "slice":
-            self = .slice
-        case "instrument":
-            self = .monoMelodic
-        case "drumRack":
-            self = .monoMelodic
-        case "sliceLoop":
-            self = .slice
-        default:
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Unknown TrackType: \(raw)"
-            )
-        }
-    }
 
     var label: String {
         switch self {

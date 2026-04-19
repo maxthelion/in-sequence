@@ -1,76 +1,46 @@
 import Foundation
 
-struct PhraseModel: Codable, Equatable, Sendable {
+struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
     var id: UUID
     var name: String
     var lengthBars: Int
     var stepsPerBar: Int
-    var abstractRows: [PhraseAbstractRow]
-    var trackPatternIndexes: [UUID: Int]
-    var trackLayerStates: [PhraseTrackLayerStateGroup]
-
-    var legacySourceRefs: [PhraseTrackSourceAssignment]
-
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case lengthBars
-        case stepsPerBar
-        case abstractRows
-        case trackPatternIndexes
-        case sourceRefs
-        case trackLayerStates
-    }
+    var cells: [PhraseCellAssignment]
 
     init(
         id: UUID,
         name: String,
         lengthBars: Int,
         stepsPerBar: Int,
-        abstractRows: [PhraseAbstractRow],
-        trackPatternIndexes: [UUID: Int],
-        trackLayerStates: [PhraseTrackLayerStateGroup],
-        legacySourceRefs: [PhraseTrackSourceAssignment] = []
+        cells: [PhraseCellAssignment]
     ) {
         self.id = id
         self.name = name
-        self.lengthBars = lengthBars
-        self.stepsPerBar = stepsPerBar
-        self.abstractRows = abstractRows
-        self.trackPatternIndexes = trackPatternIndexes
-        self.trackLayerStates = trackLayerStates
-        self.legacySourceRefs = legacySourceRefs
-    }
-
-    static func == (lhs: PhraseModel, rhs: PhraseModel) -> Bool {
-        lhs.id == rhs.id &&
-            lhs.name == rhs.name &&
-            lhs.lengthBars == rhs.lengthBars &&
-            lhs.stepsPerBar == rhs.stepsPerBar &&
-            lhs.abstractRows == rhs.abstractRows &&
-            lhs.trackPatternIndexes == rhs.trackPatternIndexes &&
-            lhs.trackLayerStates == rhs.trackLayerStates
+        self.lengthBars = max(1, lengthBars)
+        self.stepsPerBar = max(1, stepsPerBar)
+        self.cells = cells
     }
 
     static func `default`(
         tracks: [StepSequenceTrack],
+        layers: [PhraseLayerDefinition]? = nil,
         generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
         clipPool: [ClipPoolEntry] = []
     ) -> PhraseModel {
-        let defaultBars = 8
-        let defaultStepsPerBar = 16
-        let stepCount = defaultBars * defaultStepsPerBar
+        _ = generatorPool
+        _ = clipPool
 
+        let resolvedLayers = layers ?? PhraseLayerDefinition.defaultSet(for: tracks)
         return PhraseModel(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID(),
             name: "Phrase A",
-            lengthBars: defaultBars,
-            stepsPerBar: defaultStepsPerBar,
-            abstractRows: PhraseAbstractKind.allCases.map {
-                PhraseAbstractRow(kind: $0, values: Array(repeating: 0, count: stepCount))
-            },
-            trackPatternIndexes: defaultPatternIndexes(for: tracks),
-            trackLayerStates: defaultLayerStateGroups(for: tracks)
+            lengthBars: 8,
+            stepsPerBar: 16,
+            cells: resolvedLayers.flatMap { layer in
+                tracks.map { track in
+                    PhraseCellAssignment(trackID: track.id, layerID: layer.id, cell: .inheritDefault)
+                }
+            }
         )
     }
 
@@ -78,313 +48,419 @@ struct PhraseModel: Codable, Equatable, Sendable {
         max(1, lengthBars * stepsPerBar)
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        lengthBars = try container.decode(Int.self, forKey: .lengthBars)
-        stepsPerBar = try container.decode(Int.self, forKey: .stepsPerBar)
-        abstractRows = try container.decode([PhraseAbstractRow].self, forKey: .abstractRows)
-        let decodedPatternIndexes = try container.decodeIfPresent([String: Int].self, forKey: .trackPatternIndexes) ?? [:]
-        trackPatternIndexes = Dictionary(
-            uniqueKeysWithValues: decodedPatternIndexes.compactMap { key, value in
-                UUID(uuidString: key).map { ($0, value) }
-            }
-        )
-        legacySourceRefs = try container.decodeIfPresent([PhraseTrackSourceAssignment].self, forKey: .sourceRefs) ?? []
-        trackLayerStates = try container.decodeIfPresent([PhraseTrackLayerStateGroup].self, forKey: .trackLayerStates) ?? []
+    func cell(for layerID: String, trackID: UUID) -> PhraseCell {
+        cells.first(where: { $0.trackID == trackID && $0.layerID == layerID })?.cell ?? .inheritDefault
     }
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(name, forKey: .name)
-        try container.encode(lengthBars, forKey: .lengthBars)
-        try container.encode(stepsPerBar, forKey: .stepsPerBar)
-        try container.encode(abstractRows, forKey: .abstractRows)
-        let encodedPatternIndexes = Dictionary(
-            uniqueKeysWithValues: trackPatternIndexes.map { ($0.key.uuidString, $0.value) }
-        )
-        try container.encode(encodedPatternIndexes, forKey: .trackPatternIndexes)
-        try container.encode(trackLayerStates, forKey: .trackLayerStates)
-    }
-
-    func patternIndex(for trackID: UUID) -> Int {
-        min(max(trackPatternIndexes[trackID] ?? 0, 0), TrackPatternBank.slotCount - 1)
-    }
-
-    mutating func setPatternIndex(_ index: Int, for trackID: UUID) {
-        trackPatternIndexes[trackID] = min(max(index, 0), TrackPatternBank.slotCount - 1)
-    }
-
-    func cellMode(for kind: PhraseAbstractKind, trackID: UUID) -> PhraseCellEditMode {
-        trackLayerStates.first(where: { $0.trackID == trackID })?.cellMode(for: kind) ?? .single
-    }
-
-    mutating func setCellMode(_ mode: PhraseCellEditMode, for kind: PhraseAbstractKind, trackID: UUID) {
-        if let existingIndex = trackLayerStates.firstIndex(where: { $0.trackID == trackID }) {
-            trackLayerStates[existingIndex].setCellMode(mode, for: kind)
+    mutating func setCell(_ cell: PhraseCell, for layerID: String, trackID: UUID) {
+        if let index = cells.firstIndex(where: { $0.trackID == trackID && $0.layerID == layerID }) {
+            cells[index].cell = cell
         } else {
-            var group = PhraseTrackLayerStateGroup(trackID: trackID)
-            group.setCellMode(mode, for: kind)
-            trackLayerStates.append(group)
+            cells.append(PhraseCellAssignment(trackID: trackID, layerID: layerID, cell: cell))
         }
     }
 
-    mutating func cycleAbstractValue(for kind: PhraseAbstractKind, at index: Int) {
-        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
-            return
-        }
-        abstractRows[rowIndex].cycleValue(at: index)
+    func cellMode(for layerID: String, trackID: UUID) -> PhraseCellEditMode {
+        cell(for: layerID, trackID: trackID).editMode
     }
 
-    mutating func setAbstractValue(for kind: PhraseAbstractKind, at index: Int, value: Double) {
-        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }),
-              abstractRows[rowIndex].values.indices.contains(index)
-        else {
-            return
-        }
-        abstractRows[rowIndex].values[index] = min(max(value, 0), 1)
-    }
-
-    mutating func setAbstractUniformValue(for kind: PhraseAbstractKind, value: Double) {
-        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
-            return
-        }
-        let normalized = min(max(value, 0), 1)
-        abstractRows[rowIndex].values = Array(repeating: normalized, count: abstractRows[rowIndex].values.count)
-    }
-
-    mutating func setAbstractBarValue(
-        for kind: PhraseAbstractKind,
-        barIndex: Int,
-        value: Double
+    mutating func setCellMode(
+        _ mode: PhraseCellEditMode,
+        for layer: PhraseLayerDefinition,
+        trackID: UUID
     ) {
-        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
-            return
-        }
+        let updated = PhraseCell.makeDefault(
+            mode: mode,
+            layer: layer,
+            defaultValue: layer.defaultValue(for: trackID),
+            stepCount: stepCount,
+            barCount: lengthBars
+        )
+        setCell(updated, for: layer.id, trackID: trackID)
+    }
 
-        let start = max(0, barIndex) * stepsPerBar
-        let end = min(abstractRows[rowIndex].values.count, start + stepsPerBar)
-        guard start < end else {
-            return
-        }
+    func resolvedValue(
+        for layer: PhraseLayerDefinition,
+        trackID: UUID,
+        stepIndex: Int
+    ) -> PhraseCellValue {
+        let clampedStep = min(max(stepIndex, 0), stepCount - 1)
+        let fallback = layer.defaultValue(for: trackID).normalized(for: layer)
 
-        let normalized = min(max(value, 0), 1)
-        for index in start..<end {
-            abstractRows[rowIndex].values[index] = normalized
+        switch cell(for: layer.id, trackID: trackID) {
+        case .inheritDefault:
+            return fallback
+        case let .single(value):
+            return value.normalized(for: layer)
+        case let .bars(values):
+            guard !values.isEmpty else { return fallback }
+            let barIndex = min(max(clampedStep / stepsPerBar, 0), values.count - 1)
+            return values[barIndex].normalized(for: layer)
+        case let .steps(values):
+            guard !values.isEmpty else { return fallback }
+            return values[min(clampedStep, values.count - 1)].normalized(for: layer)
+        case let .curve(points):
+            let sampled = PhraseCurveSampler.sample(
+                points: points,
+                at: clampedStep,
+                stepCount: stepCount,
+                range: layer.scalarRange
+            )
+            return .scalar(sampled)
         }
     }
 
-    mutating func setAbstractValues(for kind: PhraseAbstractKind, values: [Double]) {
-        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
-            return
+    func patternIndex(for trackID: UUID, layers: [PhraseLayerDefinition]) -> Int {
+        guard let layer = layers.first(where: { $0.target == .patternIndex }) else {
+            return 0
         }
 
-        let stepCount = abstractRows[rowIndex].values.count
-        let normalized = Array(values.prefix(stepCount)).map { min(max($0, 0), 1) }
-        abstractRows[rowIndex].values = normalized + Array(repeating: 0, count: max(0, stepCount - normalized.count))
+        switch resolvedValue(for: layer, trackID: trackID, stepIndex: 0) {
+        case let .index(index):
+            return min(max(index, 0), TrackPatternBank.slotCount - 1)
+        case let .scalar(value):
+            return min(max(Int(value.rounded()), 0), TrackPatternBank.slotCount - 1)
+        case let .bool(isOn):
+            return isOn ? 1 : 0
+        }
     }
 
-    mutating func setAbstractRowSourceMode(_ mode: PhraseRowSourceMode, for kind: PhraseAbstractKind) {
-        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
-            return
-        }
-        abstractRows[rowIndex].sourceMode = mode
-    }
-
-    func synced(with tracks: [StepSequenceTrack]) -> PhraseModel {
-        let normalizedStepCount = max(1, lengthBars * stepsPerBar)
-        let normalizedRows = PhraseAbstractKind.allCases.map { kind in
-            let row = abstractRows.first(where: { $0.kind == kind }) ?? PhraseAbstractRow(kind: kind, values: [])
-            return row.normalized(stepCount: normalizedStepCount)
+    func usedPatternIndexes(for trackID: UUID, layers: [PhraseLayerDefinition]) -> Set<Int> {
+        guard let layer = layers.first(where: { $0.target == .patternIndex }) else {
+            return [0]
         }
 
-        let trackIDs = Set(tracks.map(\.id))
-        var normalizedPatternIndexes = trackPatternIndexes
-            .filter { trackIDs.contains($0.key) }
-            .mapValues { min(max($0, 0), TrackPatternBank.slotCount - 1) }
-
-        for track in tracks where normalizedPatternIndexes[track.id] == nil {
-            normalizedPatternIndexes[track.id] = 0
-        }
-
-        var normalizedLayerStates = trackLayerStates
-            .filter { trackIDs.contains($0.trackID) }
-            .map(\.normalized)
-        let existingLayerIDs = Set(normalizedLayerStates.map(\.trackID))
-        let missingLayerIDs = trackIDs.subtracting(existingLayerIDs)
-        normalizedLayerStates.append(contentsOf: missingLayerIDs.map { PhraseTrackLayerStateGroup(trackID: $0) })
-        normalizedLayerStates.sort { lhs, rhs in
-            tracks.firstIndex(where: { $0.id == lhs.trackID }) ?? 0 <
-                tracks.firstIndex(where: { $0.id == rhs.trackID }) ?? 0
-        }
-
-        let normalizedLegacySourceRefs = legacySourceRefs
-            .filter { trackIDs.contains($0.trackID) }
-            .sorted { lhs, rhs in
-                tracks.firstIndex(where: { $0.id == lhs.trackID }) ?? 0 <
-                    tracks.firstIndex(where: { $0.id == rhs.trackID }) ?? 0
+        switch cell(for: layer.id, trackID: trackID) {
+        case .inheritDefault, .single, .curve:
+            return [patternIndex(for: trackID, layers: layers)]
+        case let .bars(values), let .steps(values):
+            let indexes = values.map { value -> Int in
+                switch value.normalized(for: layer) {
+                case let .index(index):
+                    return min(max(index, 0), TrackPatternBank.slotCount - 1)
+                case let .scalar(scalar):
+                    return min(max(Int(scalar.rounded()), 0), TrackPatternBank.slotCount - 1)
+                case let .bool(isOn):
+                    return isOn ? 1 : 0
+                }
             }
+            return Set(indexes)
+        }
+    }
+
+    mutating func setPatternIndex(_ index: Int, for trackID: UUID, layers: [PhraseLayerDefinition]) {
+        guard let layer = layers.first(where: { $0.target == .patternIndex }) else {
+            return
+        }
+        setCell(.single(.index(min(max(index, 0), TrackPatternBank.slotCount - 1))), for: layer.id, trackID: trackID)
+    }
+
+    func synced(with tracks: [StepSequenceTrack], layers: [PhraseLayerDefinition]) -> PhraseModel {
+        let trackIDs = Set(tracks.map(\.id))
+        let layerIDs = Set(layers.map(\.id))
+        let normalizedCells = layers.flatMap { layer in
+            tracks.map { track in
+                cells.first(where: { $0.trackID == track.id && $0.layerID == layer.id })
+                    ?? PhraseCellAssignment(trackID: track.id, layerID: layer.id, cell: .inheritDefault)
+            }
+        }
+        .filter { trackIDs.contains($0.trackID) && layerIDs.contains($0.layerID) }
 
         return PhraseModel(
             id: id,
             name: name,
             lengthBars: max(1, lengthBars),
             stepsPerBar: max(1, stepsPerBar),
-            abstractRows: normalizedRows,
-            trackPatternIndexes: normalizedPatternIndexes,
-            trackLayerStates: normalizedLayerStates,
-            legacySourceRefs: normalizedLegacySourceRefs
+            cells: normalizedCells
+        )
+    }
+}
+
+struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
+    var id: String
+    var name: String
+    var valueType: PhraseLayerValueType
+    var minValue: Double
+    var maxValue: Double
+    var target: PhraseLayerTarget
+    var defaults: [UUID: PhraseCellValue]
+
+    var editorKind: PhraseLayerEditorKind {
+        valueType.editorKind
+    }
+
+    var availableModes: [PhraseCellEditMode] {
+        editorKind.availableModes
+    }
+
+    var scalarRange: ClosedRange<Double> {
+        minValue...maxValue
+    }
+
+    func defaultValue(for trackID: UUID) -> PhraseCellValue {
+        defaults[trackID]?.normalized(for: self) ?? valueType.fallbackValue(in: scalarRange)
+    }
+
+    func synced(with tracks: [StepSequenceTrack]) -> PhraseLayerDefinition {
+        let trackIDs = Set(tracks.map(\.id))
+        var normalizedDefaults = defaults.filter { trackIDs.contains($0.key) }
+        for track in tracks where normalizedDefaults[track.id] == nil {
+            normalizedDefaults[track.id] = Self.defaultValue(for: id, track: track)
+        }
+
+        return PhraseLayerDefinition(
+            id: id,
+            name: name,
+            valueType: valueType,
+            minValue: minValue,
+            maxValue: maxValue,
+            target: target,
+            defaults: normalizedDefaults
         )
     }
 
-    private static func defaultPatternIndexes(for tracks: [StepSequenceTrack]) -> [UUID: Int] {
-        Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, 0) })
-    }
+    static func defaultSet(for tracks: [StepSequenceTrack]) -> [PhraseLayerDefinition] {
+        let builtins: [(String, String, PhraseLayerValueType, ClosedRange<Double>, PhraseLayerTarget)] = [
+            ("pattern", "Pattern", .patternIndex, 0...15, .patternIndex),
+            ("mute", "Mute", .boolean, 0...1, .mute),
+            ("volume", "Volume", .scalar, 0...127, .macroRow("volume")),
+            ("transpose", "Transpose", .scalar, -24...24, .macroRow("transpose")),
+            ("intensity", "Intensity", .scalar, 0...1, .macroRow("intensity")),
+            ("density", "Density", .scalar, 0...1, .macroRow("density")),
+            ("tension", "Tension", .scalar, 0...1, .macroRow("tension")),
+            ("register", "Register", .scalar, 0...1, .macroRow("register")),
+            ("variance", "Variance", .scalar, 0...1, .macroRow("variance")),
+            ("brightness", "Brightness", .scalar, 0...1, .macroRow("brightness")),
+            ("fill-flag", "Fill", .boolean, 0...1, .macroRow("fill-flag")),
+            ("swing", "Swing", .scalar, 0...1, .macroRow("swing-amount")),
+        ]
 
-    private static func defaultLayerStateGroups(for tracks: [StepSequenceTrack]) -> [PhraseTrackLayerStateGroup] {
-        tracks.map { PhraseTrackLayerStateGroup(trackID: $0.id) }
-    }
-}
-
-struct PhraseAbstractRow: Codable, Equatable, Sendable {
-    var kind: PhraseAbstractKind
-    var sourceMode: PhraseRowSourceMode
-    var values: [Double]
-
-    init(kind: PhraseAbstractKind, sourceMode: PhraseRowSourceMode = .authored, values: [Double]) {
-        self.kind = kind
-        self.sourceMode = sourceMode
-        self.values = values.map { min(max($0, 0), 1) }
-    }
-
-    mutating func cycleValue(at index: Int) {
-        guard values.indices.contains(index) else {
-            return
-        }
-
-        let nextValue: Double
-        switch values[index] {
-        case ..<0.25:
-            nextValue = 0.33
-        case ..<0.5:
-            nextValue = 0.66
-        case ..<0.83:
-            nextValue = 1.0
-        default:
-            nextValue = 0.0
-        }
-
-        values[index] = nextValue
-    }
-
-    func normalized(stepCount: Int) -> PhraseAbstractRow {
-        let clampedValues = values.map { min(max($0, 0), 1) }
-        if clampedValues.count == stepCount {
-            return PhraseAbstractRow(kind: kind, sourceMode: sourceMode, values: clampedValues)
-        }
-
-        let resized = Array(clampedValues.prefix(stepCount)) + Array(repeating: 0, count: max(0, stepCount - clampedValues.count))
-        return PhraseAbstractRow(kind: kind, sourceMode: sourceMode, values: resized)
-    }
-}
-
-struct PhraseTrackSourceAssignment: Codable, Equatable, Identifiable, Sendable {
-    var trackID: UUID
-    var sourceRef: SourceRef
-
-    private enum CodingKeys: String, CodingKey {
-        case trackID
-        case sourceRef
-        case instrumentSource
-    }
-
-    init(trackID: UUID, sourceRef: SourceRef) {
-        self.trackID = trackID
-        self.sourceRef = sourceRef
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        trackID = try container.decode(UUID.self, forKey: .trackID)
-        if let decodedSourceRef = try container.decodeIfPresent(SourceRef.self, forKey: .sourceRef) {
-            sourceRef = decodedSourceRef
-        } else {
-            let legacySource = try container.decodeIfPresent(LegacyPhraseSource.self, forKey: .instrumentSource) ?? .generator
-            sourceRef = SourceRef(mode: legacySource.trackSourceMode)
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(trackID, forKey: .trackID)
-        try container.encode(sourceRef, forKey: .sourceRef)
-    }
-
-    var id: UUID { trackID }
-
-    func normalized(
-        trackType: TrackType,
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry]
-    ) -> PhraseTrackSourceAssignment {
-        PhraseTrackSourceAssignment(
-            trackID: trackID,
-            sourceRef: sourceRef.normalized(
-                trackType: trackType,
-                generatorPool: generatorPool,
-                clipPool: clipPool
+        return builtins.map { id, name, valueType, range, target in
+            PhraseLayerDefinition(
+                id: id,
+                name: name,
+                valueType: valueType,
+                minValue: range.lowerBound,
+                maxValue: range.upperBound,
+                target: target,
+                defaults: Dictionary(uniqueKeysWithValues: tracks.map { track in
+                    (track.id, defaultValue(for: id, track: track))
+                })
             )
-        )
+        }
+    }
+
+    private static func defaultValue(for id: String, track: StepSequenceTrack) -> PhraseCellValue {
+        switch id {
+        case "pattern":
+            return .index(0)
+        case "mute":
+            return .bool(false)
+        case "volume":
+            return .scalar(track.mix.level * 127)
+        case "transpose":
+            return .scalar(0)
+        case "fill-flag":
+            return .bool(false)
+        default:
+            return .scalar(0)
+        }
     }
 }
 
-struct PhraseTrackLayerStateGroup: Codable, Equatable, Identifiable, Sendable {
+enum PhraseLayerValueType: String, Codable, CaseIterable, Equatable, Sendable {
+    case boolean
+    case scalar
+    case patternIndex
+
+    var editorKind: PhraseLayerEditorKind {
+        switch self {
+        case .boolean:
+            return .toggleBoolean
+        case .scalar:
+            return .continuousScalar
+        case .patternIndex:
+            return .indexedChoice
+        }
+    }
+
+    func fallbackValue(in range: ClosedRange<Double>) -> PhraseCellValue {
+        switch self {
+        case .boolean:
+            return .bool(false)
+        case .scalar:
+            return .scalar(range.lowerBound)
+        case .patternIndex:
+            return .index(Int(range.lowerBound.rounded()))
+        }
+    }
+}
+
+enum PhraseLayerTarget: Codable, Equatable, Sendable {
+    case patternIndex
+    case mute
+    case macroRow(String)
+    case blockParam(String, String)
+    case voiceRouteOverride(String)
+}
+
+struct PhraseCellAssignment: Codable, Equatable, Sendable {
     var trackID: UUID
-    var layerStates: [PhraseTrackLayerState]
+    var layerID: String
+    var cell: PhraseCell
+}
 
-    init(trackID: UUID, layerStates: [PhraseTrackLayerState] = PhraseTrackLayerState.defaults()) {
-        self.trackID = trackID
-        self.layerStates = PhraseTrackLayerState.normalized(layerStates)
-    }
+enum PhraseCell: Codable, Equatable, Sendable {
+    case inheritDefault
+    case single(PhraseCellValue)
+    case bars([PhraseCellValue])
+    case steps([PhraseCellValue])
+    case curve([Double])
 
-    var id: UUID { trackID }
-
-    func cellMode(for kind: PhraseAbstractKind) -> PhraseCellEditMode {
-        layerStates.first(where: { $0.kind == kind })?.cellMode ?? .single
-    }
-
-    mutating func setCellMode(_ mode: PhraseCellEditMode, for kind: PhraseAbstractKind) {
-        if let index = layerStates.firstIndex(where: { $0.kind == kind }) {
-            layerStates[index].cellMode = mode
-        } else {
-            layerStates.append(PhraseTrackLayerState(kind: kind, cellMode: mode))
+    var editMode: PhraseCellEditMode {
+        switch self {
+        case .inheritDefault:
+            return .inheritDefault
+        case .single:
+            return .single
+        case .bars:
+            return .bars
+        case .steps:
+            return .steps
+        case .curve:
+            return .curve
         }
-        layerStates = PhraseTrackLayerState.normalized(layerStates)
     }
 
-    var normalized: PhraseTrackLayerStateGroup {
-        PhraseTrackLayerStateGroup(trackID: trackID, layerStates: PhraseTrackLayerState.normalized(layerStates))
+    static func makeDefault(
+        mode: PhraseCellEditMode,
+        layer: PhraseLayerDefinition,
+        defaultValue: PhraseCellValue,
+        stepCount: Int,
+        barCount: Int
+    ) -> PhraseCell {
+        let normalizedValue = defaultValue.normalized(for: layer)
+        switch mode {
+        case .inheritDefault:
+            return .inheritDefault
+        case .single:
+            return .single(normalizedValue)
+        case .bars:
+            return .bars(Array(repeating: normalizedValue, count: max(1, barCount)))
+        case .steps:
+            return .steps(Array(repeating: normalizedValue, count: max(1, stepCount)))
+        case .curve:
+            let base: Double
+            switch normalizedValue {
+            case let .scalar(value):
+                base = value
+            case let .index(index):
+                base = Double(index)
+            case let .bool(isOn):
+                base = isOn ? layer.maxValue : layer.minValue
+            }
+            return .curve([base, base, base, base])
+        }
     }
 }
 
-struct PhraseTrackLayerState: Codable, Equatable, Identifiable, Sendable {
-    var kind: PhraseAbstractKind
-    var cellMode: PhraseCellEditMode
+enum PhraseCellValue: Codable, Equatable, Hashable, Sendable {
+    case bool(Bool)
+    case scalar(Double)
+    case index(Int)
 
-    var id: PhraseAbstractKind { kind }
-
-    static func defaults() -> [PhraseTrackLayerState] {
-        PhraseAbstractKind.allCases.map {
-            PhraseTrackLayerState(kind: $0, cellMode: .single)
+    func normalized(for layer: PhraseLayerDefinition) -> PhraseCellValue {
+        switch layer.valueType {
+        case .boolean:
+            switch self {
+            case let .bool(value):
+                return .bool(value)
+            case let .scalar(value):
+                return .bool(value >= 0.5)
+            case let .index(value):
+                return .bool(value != 0)
+            }
+        case .scalar:
+            switch self {
+            case let .bool(value):
+                return .scalar(value ? layer.maxValue : layer.minValue)
+            case let .scalar(value):
+                return .scalar(min(max(value, layer.minValue), layer.maxValue))
+            case let .index(value):
+                return .scalar(min(max(Double(value), layer.minValue), layer.maxValue))
+            }
+        case .patternIndex:
+            switch self {
+            case let .bool(value):
+                return .index(value ? 1 : 0)
+            case let .scalar(value):
+                return .index(min(max(Int(value.rounded()), 0), TrackPatternBank.slotCount - 1))
+            case let .index(value):
+                return .index(min(max(value, 0), TrackPatternBank.slotCount - 1))
+            }
         }
     }
+}
 
-    static func normalized(_ states: [PhraseTrackLayerState]) -> [PhraseTrackLayerState] {
-        PhraseAbstractKind.allCases.map { kind in
-            states.first(where: { $0.kind == kind }) ?? PhraseTrackLayerState(kind: kind, cellMode: .single)
+enum PhraseLayerEditorKind: Equatable, Sendable {
+    case toggleBoolean
+    case continuousScalar
+    case indexedChoice
+
+    var availableModes: [PhraseCellEditMode] {
+        switch self {
+        case .toggleBoolean, .indexedChoice:
+            return [.inheritDefault, .single, .bars]
+        case .continuousScalar:
+            return [.inheritDefault, .single, .bars, .steps, .curve]
         }
+    }
+}
+
+enum PhraseCellEditMode: String, Codable, CaseIterable, Equatable, Sendable {
+    case inheritDefault
+    case single
+    case bars
+    case steps
+    case curve
+
+    var label: String {
+        switch self {
+        case .inheritDefault:
+            return "Inherit"
+        case .single:
+            return "Single"
+        case .bars:
+            return "Bars"
+        case .steps:
+            return "Steps"
+        case .curve:
+            return "Curve"
+        }
+    }
+}
+
+enum PhraseCurveSampler {
+    static func sample(
+        points: [Double],
+        at stepIndex: Int,
+        stepCount: Int,
+        range: ClosedRange<Double>
+    ) -> Double {
+        guard !points.isEmpty else {
+            return range.lowerBound
+        }
+        guard points.count > 1 else {
+            return min(max(points[0], range.lowerBound), range.upperBound)
+        }
+
+        let normalizedPosition = Double(stepIndex) / Double(max(1, stepCount - 1))
+        let segmentPosition = normalizedPosition * Double(points.count - 1)
+        let lowerIndex = min(max(Int(segmentPosition.rounded(.down)), 0), points.count - 1)
+        let upperIndex = min(lowerIndex + 1, points.count - 1)
+        let remainder = segmentPosition - Double(lowerIndex)
+        let value = points[lowerIndex] + ((points[upperIndex] - points[lowerIndex]) * remainder)
+        return min(max(value, range.lowerBound), range.upperBound)
     }
 }
 
@@ -402,8 +478,7 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
     }
 
     func slot(at index: Int) -> TrackPatternSlot {
-        let clampedIndex = min(max(index, 0), Self.slotCount - 1)
-        return slots[clampedIndex]
+        slots[min(max(index, 0), Self.slotCount - 1)]
     }
 
     mutating func setSlot(_ slot: TrackPatternSlot, at index: Int) {
@@ -417,7 +492,8 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
         generatorPool: [GeneratorPoolEntry],
         clipPool: [ClipPoolEntry]
     ) -> TrackPatternBank {
-        TrackPatternBank(
+        let fallbackSourceRef = Self.defaultSourceRef(for: track, generatorPool: generatorPool)
+        return TrackPatternBank(
             trackID: trackID,
             slots: slots.enumerated().map { index, slot in
                 slot.normalized(
@@ -425,7 +501,7 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
                     trackType: track.trackType,
                     generatorPool: generatorPool,
                     clipPool: clipPool,
-                    fallbackSourceRef: Self.defaultSourceRef(for: track, generatorPool: generatorPool)
+                    fallbackSourceRef: fallbackSourceRef
                 )
             }
         )
@@ -439,9 +515,7 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
         let defaultSourceRef = defaultSourceRef(for: track, generatorPool: generatorPool)
         return TrackPatternBank(
             trackID: track.id,
-            slots: (0..<slotCount).map {
-                TrackPatternSlot(slotIndex: $0, sourceRef: defaultSourceRef)
-            }
+            slots: (0..<slotCount).map { TrackPatternSlot(slotIndex: $0, sourceRef: defaultSourceRef) }
         )
     }
 
@@ -474,11 +548,7 @@ struct TrackPatternSlot: Codable, Equatable, Identifiable, Sendable {
     }
 
     func normalized(slotIndex: Int) -> TrackPatternSlot {
-        TrackPatternSlot(
-            slotIndex: slotIndex,
-            name: normalizedName,
-            sourceRef: sourceRef
-        )
+        TrackPatternSlot(slotIndex: slotIndex, name: normalizedName, sourceRef: sourceRef)
     }
 
     func normalized(
@@ -506,129 +576,6 @@ struct TrackPatternSlot: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-enum PhraseAbstractKind: String, Codable, CaseIterable, Equatable, Sendable {
-    case intensity
-    case density
-    case register
-    case tension
-    case variance
-    case brightness
-
-    var label: String {
-        rawValue.capitalized
-    }
-
-    var accentName: String {
-        switch self {
-        case .intensity, .density:
-            return "cyan"
-        case .register, .brightness:
-            return "violet"
-        case .tension, .variance:
-            return "amber"
-        }
-    }
-
-    var editorKind: PhraseLayerEditorKind {
-        switch self {
-        case .intensity, .density, .register, .tension, .variance, .brightness:
-            return .continuousScalar
-        }
-    }
-
-    var availableCellModes: [PhraseCellEditMode] {
-        editorKind.availableModes
-    }
-}
-
-enum PhraseLayerEditorKind: Equatable, Sendable {
-    case toggleBoolean
-    case continuousScalar
-    case indexedChoice
-
-    var label: String {
-        switch self {
-        case .toggleBoolean:
-            return "Toggle"
-        case .continuousScalar:
-            return "Scalar"
-        case .indexedChoice:
-            return "Indexed"
-        }
-    }
-
-    var availableModes: [PhraseCellEditMode] {
-        switch self {
-        case .toggleBoolean:
-            return [.single, .perBar]
-        case .continuousScalar:
-            return [.single, .rampUp, .perBar, .drawn]
-        case .indexedChoice:
-            return [.single, .perBar]
-        }
-    }
-}
-
-enum PhraseCellEditMode: String, Codable, CaseIterable, Equatable, Sendable {
-    case single
-    case perBar
-    case rampUp
-    case drawn
-
-    var label: String {
-        switch self {
-        case .single:
-            return "Single"
-        case .perBar:
-            return "Per Bar"
-        case .rampUp:
-            return "Ramp Up"
-        case .drawn:
-            return "Drawn"
-        }
-    }
-
-    var shortLabel: String {
-        switch self {
-        case .single:
-            return "Single"
-        case .perBar:
-            return "Bars"
-        case .rampUp:
-            return "Ramp"
-        case .drawn:
-            return "Drawn"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .single:
-            return "One phrase-wide value, with later rows inheriting when left empty."
-        case .perBar:
-            return "Per-bar steps for phrase-length variation without freehand drawing."
-        case .rampUp:
-            return "A shaped rise across the phrase, useful for tension or density lifts."
-        case .drawn:
-            return "A freely authored lane for the eventual curve and event editor."
-        }
-    }
-}
-
-enum PhraseRowSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
-    case authored
-    case generated
-
-    var label: String {
-        switch self {
-        case .authored:
-            return "Authored"
-        case .generated:
-            return "Generated"
-        }
-    }
-}
-
 enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
     case generator
     case clip
@@ -651,15 +598,6 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
         }
     }
 
-    var detail: String {
-        switch self {
-        case .generator:
-            return "Pattern points at a project-scoped generator instance."
-        case .clip:
-            return "Pattern points at a stored clip in the shared clip pool."
-        }
-    }
-
     var isImplemented: Bool {
         self == .generator
     }
@@ -677,35 +615,6 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
     case templateGenerator
     case sliceGenerator
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-
-        switch rawValue {
-        case "monoGenerator":
-            self = .monoGenerator
-        case "polyGenerator":
-            self = .polyGenerator
-        case "drumKit":
-            self = .drumKit
-        case "templateGenerator":
-            self = .templateGenerator
-        case "sliceGenerator":
-            self = .sliceGenerator
-        case "manualMono":
-            self = .monoGenerator
-        case "drumPattern":
-            self = .drumKit
-        case "sliceTrigger":
-            self = .sliceGenerator
-        default:
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Unknown GeneratorKind: \(rawValue)"
-            )
-        }
-    }
-
     var label: String {
         switch self {
         case .monoGenerator:
@@ -717,7 +626,7 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
         case .templateGenerator:
             return "Template Generator"
         case .sliceGenerator:
-            return "Slice Trigger"
+            return "Slice Generator"
         }
     }
 
@@ -757,6 +666,7 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             )
         }
     }
+
 }
 
 struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable {
@@ -765,14 +675,6 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
     var trackType: TrackType
     var kind: GeneratorKind
     var params: GeneratorParams
-
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case trackType
-        case kind
-        case params
-    }
 
     init(
         id: UUID,
@@ -788,44 +690,29 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
         self.params = params
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        trackType = try container.decode(TrackType.self, forKey: .trackType)
-        kind = try container.decode(GeneratorKind.self, forKey: .kind)
-        params = try container.decodeIfPresent(GeneratorParams.self, forKey: .params) ?? kind.defaultParams
-    }
-
     static func makeDefault(
         id: UUID,
         name: String,
         kind: GeneratorKind,
         trackType: TrackType
     ) -> GeneratorPoolEntry {
-        GeneratorPoolEntry(
-            id: id,
-            name: name,
-            trackType: trackType,
-            kind: kind,
-            params: kind.defaultParams
-        )
+        GeneratorPoolEntry(id: id, name: name, trackType: trackType, kind: kind, params: kind.defaultParams)
     }
 
     static let defaultPool: [GeneratorPoolEntry] = [
-        GeneratorPoolEntry.makeDefault(
+        .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1") ?? UUID(),
             name: "Manual Mono",
             kind: .monoGenerator,
             trackType: .monoMelodic
         ),
-        GeneratorPoolEntry.makeDefault(
+        .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2") ?? UUID(),
             name: "Drum Pattern",
             kind: .drumKit,
             trackType: .monoMelodic
         ),
-        GeneratorPoolEntry.makeDefault(
+        .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
             name: "Slice Trigger",
             kind: .sliceGenerator,
@@ -864,7 +751,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         case .generator:
             return generatorID == nil
         case .clip:
-            return false
+            return clipID == nil
         }
     }
 
@@ -882,24 +769,6 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
             let compatibleID = clipPool.first(where: { $0.id == clipID && $0.trackType == trackType })?.id
                 ?? clipPool.first(where: { $0.trackType == trackType })?.id
             return .clip(compatibleID)
-        }
-    }
-}
-
-private enum LegacyPhraseSource: String, Codable {
-    case manualMono
-    case clipReader
-    case template
-    case midiIn
-    case generator
-    case clip
-
-    var trackSourceMode: TrackSourceMode {
-        switch self {
-        case .manualMono, .generator, .template, .midiIn:
-            return .generator
-        case .clipReader, .clip:
-            return .clip
         }
     }
 }

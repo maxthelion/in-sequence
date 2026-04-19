@@ -403,7 +403,7 @@ private enum RouteDestinationKind: CaseIterable {
     var label: String {
         switch self {
         case .voicing:
-            return "Voicing"
+            return "Track Default"
         case .trackInput:
             return "Track Input"
         case .midi:
