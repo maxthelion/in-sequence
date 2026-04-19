@@ -333,7 +333,7 @@ Use `SystemRandomNumberGenerator` in non-stochastic tests; for stochastic ones, 
 - [x] Implement `StepAlgo` and `fires(at:…)`
 - [x] Implement Bjorklund algorithm (keep standalone — maybe in `Sources/Musical/Euclidean.swift` and reference from here)
 - [x] Green
-- [ ] Commit: `feat(document): StepAlgo with per-variant eval`
+- [x] Commit: `feat(document): StepAlgo with per-variant eval`
 
 ---
 
@@ -405,10 +405,10 @@ public enum PitchAlgo: Codable, Equatable, Sendable {
 9. `.external(...)`: returns `context.scaleRoot`.
 10. Round-trip Codable for each variant.
 
-- [ ] Write tests
-- [ ] Implement `PitchContext`, `PitchAlgo`, `PickMode`, `HoldMode`
-- [ ] Implement eval
-- [ ] Green
+- [x] Write tests
+- [x] Implement `PitchContext`, `PitchAlgo`, `PickMode`, `HoldMode`
+- [x] Implement eval
+- [x] Green
 - [ ] Commit: `feat(document): PitchAlgo with per-variant eval + PitchContext`
 
 ---
