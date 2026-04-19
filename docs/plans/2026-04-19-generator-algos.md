@@ -277,7 +277,7 @@ public struct NoteShape: Codable, Equatable, Sendable {
 - [x] Tests
 - [x] Implement
 - [x] Green
-- [ ] Commit: `feat(document): NoteShape shared per-note knobs`
+- [x] Commit: `feat(document): NoteShape shared per-note knobs`
 
 ---
 
@@ -329,10 +329,10 @@ public enum StepAlgo: Codable, Equatable, Sendable {
 
 Use `SystemRandomNumberGenerator` in non-stochastic tests; for stochastic ones, seed a deterministic generator (wrap `SplitMix64` or use a simple `LinearCongruentialGenerator` helper in the test file).
 
-- [ ] Write 9 tests
-- [ ] Implement `StepAlgo` and `fires(at:…)`
-- [ ] Implement Bjorklund algorithm (keep standalone — maybe in `Sources/Musical/Euclidean.swift` and reference from here)
-- [ ] Green
+- [x] Write 9 tests
+- [x] Implement `StepAlgo` and `fires(at:…)`
+- [x] Implement Bjorklund algorithm (keep standalone — maybe in `Sources/Musical/Euclidean.swift` and reference from here)
+- [x] Green
 - [ ] Commit: `feat(document): StepAlgo with per-variant eval`
 
 ---
