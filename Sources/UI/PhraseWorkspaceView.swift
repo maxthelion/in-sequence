@@ -8,9 +8,9 @@ struct PhraseWorkspaceView: View {
     @State private var selectedLayer: PhraseAbstractKind = .intensity
     @State private var isShowingCellEditor = false
 
-    private let phraseColumnWidth: CGFloat = 190
-    private let minimumTrackColumnWidth: CGFloat = 148
-    private let matrixSpacing: CGFloat = 10
+    private let phraseColumnWidth: CGFloat = 172
+    private let minimumTrackColumnWidth: CGFloat = 132
+    private let matrixSpacing: CGFloat = 8
 
     private var phrases: [PhraseModel] {
         document.model.phrases
@@ -313,10 +313,9 @@ struct PhraseWorkspaceView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(minHeight: CGFloat(phrases.count) * 210 + 24)
+        .frame(minHeight: CGFloat(phrases.count) * 154 + 20)
     }
 
-    @ViewBuilder
     private func matrixHeader(trackColumnWidth: CGFloat) -> some View {
         HStack(alignment: .bottom, spacing: matrixSpacing) {
             VStack(alignment: .leading, spacing: 8) {
@@ -325,43 +324,21 @@ struct PhraseWorkspaceView: View {
                     .tracking(0.9)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                Text("As transport advances, the active highlight moves down to the next phrase row.")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                Text("Playback steps down the phrase rows as transport advances.")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(width: phraseColumnWidth, alignment: .leading)
 
             ForEach(tracks, id: \.id) { track in
-                Button {
+                PhraseMatrixTrackHeaderCell(
+                    track: track,
+                    trackColumnWidth: trackColumnWidth,
+                    isSelected: document.model.selectedTrackID == track.id
+                ) {
                     document.model.selectTrack(id: track.id)
-                } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(track.name)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(StudioTheme.text)
-
-                        HStack(spacing: 6) {
-                            Text(track.trackType.shortLabel.uppercased())
-                            Text(track.output == .midiOut ? "MIDI" : "AU")
-                        }
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    }
-                    .frame(width: trackColumnWidth, minHeight: 62, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(document.model.selectedTrackID == track.id ? StudioTheme.cyan.opacity(0.14) : Color.white.opacity(0.03))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(document.model.selectedTrackID == track.id ? StudioTheme.cyan.opacity(0.55) : StudioTheme.border, lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -719,14 +696,14 @@ private struct PhraseMatrixRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: matrixSpacing) {
             Button(action: onSelectPhrase) {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(phrase.name)
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
                                 .foregroundStyle(StudioTheme.text)
                             Text("\(phrase.lengthBars) bars")
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 .tracking(0.8)
                                 .foregroundStyle(StudioTheme.mutedText)
                         }
@@ -747,14 +724,14 @@ private struct PhraseMatrixRow: View {
                         activeBarIndex: activePlayback?.barIndex
                     )
 
-                    Text(isPlaying ? "The transport is currently inside this phrase row." : "Select this row to edit its lane details below.")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                    Text(isPlaying ? "Transport is inside this phrase." : "Select row")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(StudioTheme.mutedText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(width: phraseColumnWidth, alignment: .leading)
-                .frame(minHeight: 168, alignment: .topLeading)
-                .padding(12)
+                .frame(minHeight: 142, alignment: .topLeading)
+                .padding(10)
                 .background(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(isPlaying ? rowAccent.opacity(0.14) : Color.white.opacity(isSelected ? 0.06 : 0.03))
@@ -774,10 +751,10 @@ private struct PhraseMatrixRow: View {
                 Button {
                     onSelectCell(track.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text(cellMode.shortLabel.uppercased())
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .tracking(0.9)
                                 .foregroundStyle(rowAccent)
                             Spacer()
@@ -804,13 +781,13 @@ private struct PhraseMatrixRow: View {
                         )
 
                         Text(footerText(for: track))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
                             .foregroundStyle(StudioTheme.mutedText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(width: trackColumnWidth, alignment: .leading)
-                    .frame(minHeight: 168, alignment: .topLeading)
-                    .padding(12)
+                    .frame(minHeight: 142, alignment: .topLeading)
+                    .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .fill(cellFill(for: track))
@@ -851,6 +828,45 @@ private struct PhraseMatrixRow: View {
     }
 }
 
+private struct PhraseMatrixTrackHeaderCell: View {
+    let track: StepSequenceTrack
+    let trackColumnWidth: CGFloat
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(track.name)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    Text(track.trackType.shortLabel.uppercased())
+                    Text(track.output == .midiOut ? "MIDI" : "AU")
+                }
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+            }
+            .frame(width: trackColumnWidth, alignment: .leading)
+            .frame(minHeight: 54, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(isSelected ? StudioTheme.cyan.opacity(0.14) : Color.white.opacity(0.03))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(isSelected ? StudioTheme.cyan.opacity(0.55) : StudioTheme.border, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct PhraseCellPreview: View {
     let mode: PhraseCellEditMode
     let averageValueText: String
@@ -872,7 +888,7 @@ private struct PhraseCellPreview: View {
                 drawnPreview
             }
         }
-        .frame(height: 92)
+        .frame(height: 70)
     }
 
     private var singlePreview: some View {
@@ -889,19 +905,19 @@ private struct PhraseCellPreview: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             Text(averageValueText)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(StudioTheme.text)
-                .padding(12)
+                .padding(10)
         }
     }
 
     private var barsPreview: some View {
-        HStack(alignment: .bottom, spacing: 6) {
+        HStack(alignment: .bottom, spacing: 4) {
             ForEach(Array(barPreview.enumerated()), id: \.offset) { _, value in
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(accent.opacity(0.28 + (value * 0.58)))
                     .frame(maxWidth: .infinity)
-                    .frame(height: max(12, 18 + (value * 64)))
+                    .frame(height: max(10, 14 + (value * 48)))
             }
         }
     }
@@ -918,7 +934,7 @@ private struct PhraseCellPreview: View {
     }
 
     private var drawnPreview: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 2) {
             ForEach(Array(stepPreview.enumerated()), id: \.offset) { _, value in
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .fill(value > 0.8 ? StudioTheme.success : accent.opacity(0.2 + (value * 0.65)))
