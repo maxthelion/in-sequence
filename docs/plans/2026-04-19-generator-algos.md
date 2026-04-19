@@ -193,7 +193,7 @@ public struct ChordDefinition: Equatable, Sendable {
 - [x] Write tests
 - [x] Implement
 - [x] Green
-- [ ] Commit: `feat(musical): chord reference tables`
+- [x] Commit: `feat(musical): chord reference tables`
 
 ---
 
@@ -241,9 +241,9 @@ public struct StyleProfile: Equatable, Sendable {
 3. Each profile's `distanceWeights` has length 8 and sums to between 0.8 and 1.2 (coarse sanity).
 4. `jazz.leapPenalty > vocal.leapPenalty` (jazz tolerates leaps more).
 
-- [ ] Write tests
-- [ ] Implement
-- [ ] Green
+- [x] Write tests
+- [x] Implement
+- [x] Green
 - [ ] Commit: `feat(musical): style profile reference tables`
 
 ---
