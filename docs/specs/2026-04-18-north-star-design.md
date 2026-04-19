@@ -42,12 +42,13 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 
 ## Vocabulary
 
-- **Track** — one instrument channel, project-scoped. Has an immutable **track type**, a **voicing**, and owns a fixed-size **pattern bank** of 16 patterns. Implemented as a pipeline ending in a MIDI or audio sink.
-- **Track type** — one of `monoMelodic` / `polyMelodic` / `drum` / `slice`. Immutable after track creation. Constrains which generator kinds and clip kinds the track's patterns can reference, and which UI surface (pitch-lane / chord-stack / per-tag grid / per-slice grid) the track uses. See §"Track types, patterns, and phrases."
+- **Track** — one instrument channel, project-scoped. Has an immutable **track type**, an inline **destination**, an optional **group membership**, and owns a fixed-size **pattern bank** of 16 patterns. Implemented as a pipeline ending in a MIDI or audio sink.
+- **Track type** — one of `monoMelodic` / `polyMelodic` / `slice`. Immutable after track creation. Drum "parts" (kick, snare, hat, …) are **not** a separate track type; they are `monoMelodic` tracks conventionally grouped into a `TrackGroup` with a shared drum-machine destination (see §"Drum tracks as groups"). Immutability means "change the mind" = create a new track and migrate references.
+- **Track group** — a project-scoped container that bundles N member tracks for collective operations: group-level mute / solo, group bus routing, optional `sharedDestination` that pulls member-track output through one shared AU (the drum-machine use case), and a display color for matrix tinting. Tracks belong to at most one group. See §"Drum tracks as groups."
+- **Destination** — where a track's note stream ends up. Tagged union: `.midi(port, channel, noteOffset)` / `.auInstrument(componentID, stateBlob)` / `.internalSampler(bankID, preset)` / `.none` / `.inheritGroup`. The `.inheritGroup` variant is only valid when the track is in a group whose `sharedDestination` is set; at tick time the track's notes route through the group's shared destination instead of its own. Hybrid allowed: a drum group can have most members `.inheritGroup` while one member uses its own `.auInstrument(...)` to get a dedicated voice.
 - **Pattern** — one slot in a track's 16-slot pattern bank (indexed 0..15, project-scoped, track-owned). Holds a **source mode** (either `.generator(GeneratorID)` or `.clip(ClipID)`) plus an optional human-readable name. All 16 slots always exist; empty slots default to `.generator(GeneratorID)` pointing at the track-type's default generator.
 - **Source mode** — the content of a pattern slot: `.generator(GeneratorID)` referring into the generator pool, or `.clip(ClipID)` referring into the clip pool. Phrase never stores a source mode directly — phrase stores the pattern index and the pattern carries the source mode.
-- **Voicing** — per-track map `VoiceTag → VoicePresetID`. Melodic / slice tracks use a single `"default"` entry; drum tracks have one entry per voice tag (`"kick"`, `"snare"`, …). An unmapped tag on a drum track drops silently.
-- **Generator kind** — a code-defined block type, one per track-type family: `mono-generator`, `poly-generator`, `drum-kit`, `template-generator`, `slice-generator`, `authored-scalar`, `saw-ramp`, `midi-in`. Declared in the block palette; each kind declares which track types it's compatible with. See §"Components inventory" for the full table.
+- **Generator kind** — a code-defined block type: `mono-generator`, `poly-generator`, `template-generator`, `slice-generator`, `authored-scalar`, `saw-ramp`, `midi-in`. Declared in the block palette; each kind declares which track types it's compatible with. See §"Components inventory." Note: there is no `drum-kit` kind in the flat-track model — drum parts are individual `monoMelodic` tracks, each with their own generator (typically `mono-generator(step: euclidean, pitch: manual([constantPitch]))` for a drum voice).
 - **StepAlgo** — one of the strategies a generator instance composes to decide *whether* a step fires: `manual` / `randomWeighted` / `euclidean` / `perStepProbability` / `fromClipSteps`.
 - **PitchAlgo** — one of the strategies a pitched generator instance composes to decide *what pitch* to play on a firing step: `manual` / `randomInScale` / `randomInChord` / `intervalProb` / `markov` / `fromClipPitches` / `external`.
 - **Generator instance** — a user-configured instance of a kind, composing a `StepAlgo` × `PitchAlgo` (or `[VoiceTag: StepAlgo]` for a drum-kit) plus shared `NoteShape` (velocity, gateLength, accent). Lives in the project's **generator pool**; referenced by pattern slots. Multiple instances of the same kind with different algos/params coexist. Example: `"verse-bass" = mono-generator(step: manual([..]), pitch: randomInScale(root: 36, scale: .minor, spread: 12), NoteShape(vel: 95, gate: 3))`.
@@ -69,18 +70,17 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 
 ## Track types, patterns, and phrases
 
-Four track types, immutable after creation. Each track owns a fixed bank of 16 patterns. Phrases pick one pattern per track. The phrase does not carry source modes directly — it references pattern indexes into the per-track bank.
+Three track types, immutable after creation. Each track owns a fixed bank of 16 patterns. Phrases pick one pattern per track. The phrase does not carry source modes directly — it references pattern indexes into the per-track bank.
 
-### The four track types
+### The three track types
 
-| Type | One-line | Voicing cardinality | UI surface | Generator kinds (examples) |
-|---|---|---|---|---|
-| `monoMelodic` | bass, lead, single voice per step | 1 (`"default"`) | pitch-lane editor (one note per step visible) | `random-notes-in-scale-mono`, `markov-note-chain`, `note-gen-mono(step-gen × pitch-gen)` |
-| `polyMelodic` | pads, chords, arp output | 1 (`"default"`) | chord/stack editor (multi-note per step) | `chord-generator`, `note-gen-poly`, `arp-source`, `template-poly-pattern` |
-| `drum` | tagged voices, rhythm-decoupled-from-sound | N, one per used voice tag | per-tag row grid (kick, snare, hat rows) | `euclidean-drums`, `template-drum-kit`, `markov-drum-pattern` |
-| `slice` | sliced-loop playback | 1 (`"default"`); slice indices live downstream in slice-player config | per-slice row grid | `slice-trigger`, `slice-markov`, `template-slice-pattern` |
+| Type | One-line | UI surface | Generator kinds (examples) |
+|---|---|---|---|
+| `monoMelodic` | bass, lead, drum voice — single note per step | pitch-lane editor (one note per step visible) | `mono-generator(step: euclidean, pitch: manual)` (the drum-voice pattern), `mono-generator(step: manual, pitch: randomInScale)` (melodic), `markov-note-chain` |
+| `polyMelodic` | pads, chords, arp output | chord/stack editor (multi-note per step) | `chord-generator`, `note-gen-poly`, `arp-source`, `template-poly-pattern` |
+| `slice` | sliced-loop playback | per-slice row grid | `slice-trigger`, `slice-markov`, `template-slice-pattern` |
 
-Chord-producing material is **not** a fifth type: a "chord track" is a `polyMelodic` track whose active pattern's source mode is `.generator(id)` pointing at a `chord-generator` instance.
+Chord-producing material is **not** a fourth type: a "chord track" is a `polyMelodic` track whose active pattern's source mode is `.generator(id)` pointing at a `chord-generator` instance. **Drum parts are not a fourth type either** — each drum voice (kick, snare, hat, …) is its own `monoMelodic` track, typically configured with an euclidean or manual step algo and a constant pitch. Drum parts are grouped via `TrackGroup` for collective operations and optionally share a single drum-machine AU via `sharedDestination`; see §"Drum tracks as groups."
 
 ### The pattern bank (per track)
 
@@ -131,18 +131,121 @@ When the user opens a pattern slot's source picker in the Pattern editor, the ch
 - `generatorPool.filter { $0.compatibleWith.contains(track.type) }`
 - `clipPool.filter { $0.compatibleWith.contains(track.type) }`
 
-The filter never exposes a melodic generator to a drum track, or a drum-kit clip to a `monoMelodic` track.
+The filter never exposes a melodic generator to a slice track, or a slice-trigger clip to a `monoMelodic` track.
 
 ### Track-type immutability
 
 A track's type is set at creation and never changes. The 16-slot pattern bank is typed alongside it; all slots are constrained to the track's type. "Change the mind" is "create a new track of the desired type, migrate the phrase indexes, delete the old track."
 
-### Voicing details by type
+## Drum tracks as groups
 
-- `monoMelodic` / `polyMelodic` / `slice` carry a single voicing entry under `Voicing.defaultTag = "default"`. Voice-route and preset both use that key.
-- `drum` carries one voicing entry per voice tag the track uses (declared when the track is created or edited). Note-stream events with tags not present in `voicing.presets` are dropped silently at the `voice-route` sink; the UI surfaces a warning when any of the track's currently-assigned generators/clips can produce tags not in the voicing map.
+Drum parts don't get a special track type. A kick is a `monoMelodic` track. A snare is a `monoMelodic` track. A hat is a `monoMelodic` track. They're grouped via `TrackGroup` for the shared affordances users expect from a "drum track": mute the whole kit, compress it to a shared bus, collapse it to one cell in the matrix, share a single AU instance.
 
-### Worked example
+### `TrackGroup` shape
+
+```swift
+public struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
+    public let id: TrackGroupID
+    public var name: String                          // "Drums", "Keys", "Backing vocals"
+    public var color: String                         // hex / named colour for matrix tint
+    public var memberIDs: [TrackID]                  // ordered; controls collapsed-cell order
+
+    /// If set, member tracks whose `Destination == .inheritGroup` route here instead of their own.
+    /// Use case: one drum-machine AU plays all member voices, addressed by note number.
+    public var sharedDestination: Destination?
+
+    /// Per-member note offset added to each note's pitch when routed through `sharedDestination`.
+    /// Ignored for members whose Destination is not `.inheritGroup`.
+    public var noteMapping: [TrackID: Int]
+
+    public var mute: Bool                            // group-level mute; OR'd with per-member mute
+    public var solo: Bool                            // group-level solo
+    public var busSink: BusRef?                      // future: route the group's audio to a shared bus
+}
+
+// Project:
+document.trackGroups: [TrackGroup]
+```
+
+A track belongs to **at most one** group (stored as `track.groupID: TrackGroupID?`). Removing a track from a group sets `track.groupID = nil`; if that track's `destination` was `.inheritGroup`, it auto-converts to `.none` and the UI surfaces a warning asking the user to pick a new destination.
+
+### The three drum-setup ergonomics the model supports
+
+1. **One drum-machine AU, many voices** (the Battery / Addictive Drums case):
+
+   ```
+   group "Drums"
+     sharedDestination: .auInstrument(Battery)
+     noteMapping: [kickTrackID: 36, snareTrackID: 38, hatTrackID: 42, …]
+     memberIDs:  [kickTrackID, snareTrackID, hatTrackID, …]
+
+   kickTrack.destination  = .inheritGroup     // routes through group's Battery at note 36
+   snareTrack.destination = .inheritGroup     // routes through group's Battery at note 38
+   hatTrack.destination   = .inheritGroup     // routes through group's Battery at note 42
+   ```
+
+   One AU instance. One AU editor window. Per-track patterns, per-track generators, per-track lengths — all still work because each member is an independent track.
+
+2. **One independent AU per voice** (the Digitakt / per-part-granularity case):
+
+   ```
+   group "Drums"
+     sharedDestination: nil
+     memberIDs:  [kickTrackID, snareTrackID, hatTrackID, …]
+
+   kickTrack.destination  = .auInstrument(kickAU)
+   snareTrack.destination = .auInstrument(snareAU)
+   hatTrack.destination   = .auInstrument(hatAU)
+   ```
+
+   Each voice has its own AU, its own FX chain (when insert-effects ship), its own life. Group still gives you collective mute/solo/bus-compress.
+
+3. **Hybrid — mostly shared, some dedicated** (the "my kick needs its own specialist, everything else is the drum-machine" case):
+
+   ```
+   group "Drums"
+     sharedDestination: .auInstrument(Battery)
+     noteMapping: [snareTrackID: 38, hatTrackID: 42, …]     // no entry for kickTrackID
+     memberIDs:  [kickTrackID, snareTrackID, hatTrackID, …]
+
+   kickTrack.destination  = .auInstrument(dedicatedKickAU)   // bypasses group's Battery
+   snareTrack.destination = .inheritGroup                    // routes to Battery at 38
+   hatTrack.destination   = .inheritGroup                    // routes to Battery at 42
+   ```
+
+   Per-member opt-out by setting a concrete destination instead of `.inheritGroup`. Group still mutes all three together, still soloes together, still bus-routes together.
+
+### Drum-kit preset (library asset)
+
+A **drum-kit preset** is a library asset that bootstraps one of the three setups above. Encodes:
+
+- A list of member-track definitions (name, default generator instance, pattern-bank seed, inherit-group flag, noteMapping entry)
+- The group's `sharedDestination` template (if any)
+- The group's suggested name + color
+
+Applying a preset: user clicks "Add Drum Kit" in the Tracks matrix → picks a preset ("808", "Acoustic", "Techno") → the app creates N tracks + a `TrackGroup`, wires them per the preset's definition, navigates to the group detail (or to the first member track). MVP ships a handful of hard-coded `DrumKitPreset` values in `Sources/Musical/DrumKitPresets.swift`; later, preset import from the library folder.
+
+### Resolution logic at tick time
+
+```swift
+func effectiveDestination(for trackID: TrackID) -> (Destination, pitchOffset: Int) {
+    let track = tracks[trackID]!
+    if case .inheritGroup = track.destination {
+        guard let groupID = track.groupID, let group = trackGroups[groupID] else {
+            return (.none, 0)        // orphaned inheritGroup → silent; UI warns
+        }
+        guard let shared = group.sharedDestination else {
+            return (.none, 0)        // group has no shared destination → silent; UI warns
+        }
+        return (shared, group.noteMapping[trackID] ?? 0)
+    }
+    return (track.destination, 0)
+}
+```
+
+Applied once per note event before dispatch. The `pitchOffset` is added to the event's `NoteEvent.pitch`.
+
+### Worked example (updated)
 
 Three phrases (verse / chorus / breakdown) and a kick track with three interesting pattern slots — 0 (steady euclidean kick), 3 (half-time variation), 7 (frozen fill clip captured live):
 
@@ -160,7 +263,7 @@ fillPhrase.trackPatternIndexes[kickTrack.id]      = 7
 
 Editing the params of `euclidKickInstanceID` in the generator pool affects verse + chorus kicks together (both reference it via slot 0). Switching the breakdown phrase to use the captured fill is a single integer change: `3 → 7`.
 
-### Arpeggiator — a known edge
+## Arpeggiator — a known edge
 
 Arpeggiators bridge polyphonic input (a held chord) to monophonic output (one note per step). Two viable homes:
 
@@ -174,9 +277,9 @@ Resolved for MVP: **arp-as-source-kind for `polyMelodic`**. The output is still 
 Following phatcontroller and Octatrack's part/pattern split: **tracks are project-scoped, pipelines are phrase-scoped**.
 
 - **Project-scoped (stable across phrases):**
-  - The set of tracks, their identities (kick, bass, lead, pad...), and their **track types** (`monoMelodic` / `polyMelodic` / `drum` / `slice`)
-  - Per-track **voicing** — for melodic/slice tracks a single voice preset under `"default"`; for drum tracks one preset per voice tag
-  - `voice-route` destination assignments (MIDI channel, bus, FX chain) — similarly per-tag for drum tracks
+  - The set of tracks, their identities (kick, bass, lead, pad...), and their **track types** (`monoMelodic` / `polyMelodic` / `slice`)
+  - Per-track **destination** — inline value of type `Destination` (`.midi` / `.auInstrument` / `.internalSampler` / `.none` / `.inheritGroup`)
+  - **Track groups** — `trackGroups: [TrackGroup]`; each group bundles member tracks and optionally owns a shared destination (drum-machine AU case) with a per-member note-offset map. Tracks belong to at most one group
   - **Per-track pattern bank** — exactly 16 pattern slots per track, each holding a `SourceRef` (`.generator(id) | .clip(id)`) and an optional name. Every slot always exists; empty-at-creation slots default to the track-type's default generator
   - **Generator pool** — user-configured `GeneratorInstance`s (e.g. "my punchy kick", "verse-lead-wander"), each an instance of a registered `GeneratorKind`, with params. Patterns reference these
   - **Clip pool** — stored clips with annotations, tagged by track-type compatibility. Grows as the user hand-authors, freezes, or imports. Patterns reference these
