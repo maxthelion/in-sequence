@@ -19,16 +19,6 @@ struct TrackDestinationEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                StudioMetricPill(title: "Track", value: track.name, accent: StudioTheme.success)
-                StudioMetricPill(title: "Output", value: track.output.label, accent: StudioTheme.violet)
-                StudioMetricPill(
-                    title: "Routes Out",
-                    value: "\(document.model.routesSourced(from: track.id).count)",
-                    accent: StudioTheme.amber
-                )
-            }
-
             Picker("Output", selection: trackOutputBinding) {
                 ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
                     Text(destination.label).tag(destination)
@@ -46,6 +36,10 @@ struct TrackDestinationEditor: View {
             case .none:
                 noneEditor
             }
+
+            Text(track.defaultDestination.summary)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
         }
     }
 
@@ -79,10 +73,6 @@ struct TrackDestinationEditor: View {
                     }
                 }
             }
-
-            Text(track.defaultDestination.summary)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.mutedText)
         }
     }
 
