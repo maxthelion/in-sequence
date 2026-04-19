@@ -45,7 +45,7 @@ Currently: `SequencerAIApp.swift`.
 
 Everything about the `.seqai` document. `FileDocument` conformance, the `Codable` model that's serialized, UTType declarations, phrase/pattern/generator model types, and the pure generator-algo value types used by document data. **No UI, no engine, no platform concerns.** This module may depend on `Musical/` for shipped lookup tables, but should remain importable into a hypothetical CLI tool that only processes documents.
 
-Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`, `PhraseModel.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. See [[document-model]] and [[generator-algos]].
+Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`, `PhraseModel.swift`, `Destination.swift`, `Voicing.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. See [[document-model]], [[generator-algos]], [[track-destinations]], and [[routing]].
 
 ### `Sources/Musical/`
 
@@ -57,19 +57,19 @@ Currently: `ScaleID.swift`, `Scale.swift`, `Scales.swift`, `ChordID.swift`, `Cho
 
 SwiftUI views only. Each view in its own file. Composed into `ContentView` (NavigationSplitView) via `SequencerAIApp`. Views read from `MIDISession.shared` and the document binding; they never own business logic or talk to platform APIs directly.
 
-Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `TransportBar`, `PreferencesView`.
+Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `TransportBar`, `PreferencesView`, `TrackDestinationEditor`, `VoicePickerView`, `RoutesListView`, `RouteEditorSheet`.
 
 ### `Sources/Engine/`
 
 The pipeline runtime and app-facing playback controller. This boundary owns typed streams, the block contract, block registry, DAG executor, tick clock, command queue, and the engine controller that wires those pieces into track playback. It may depend on `MIDI/` for transport to virtual endpoints and on the audio sink protocol used by `Audio/`, but it does not depend on SwiftUI views or document serialization details.
 
-Currently: `Block.swift`, `Stream.swift`, `Executor.swift`, `BlockRegistry.swift`, `TickClock.swift`, `CommandQueue.swift`, `EngineController.swift`, `Blocks/NoteGenerator.swift`, `Blocks/MidiOut.swift`. See [[engine-architecture]].
+Currently: `Block.swift`, `Stream.swift`, `Executor.swift`, `BlockRegistry.swift`, `TickClock.swift`, `CommandQueue.swift`, `EngineController.swift`, `MIDIRouter.swift`, `Blocks/NoteGenerator.swift`, `Blocks/MidiOut.swift`, `Blocks/ChordContextSink.swift`. See [[engine-architecture]] and [[routing]].
 
 ### `Sources/Platform/`
 
 macOS-specific glue that isn't specific to any one subsystem — filesystem paths, app-support bootstrap, permissions prompts, document pickers. Code here uses `FileManager`, `URL`, `NSUserDefaults`, etc.
 
-Currently: `AppSupportBootstrap.swift`. See [[app-support-layout]].
+Currently: `AppSupportBootstrap.swift`, `RecentVoicesStore.swift`. See [[app-support-layout]] and [[track-destinations]].
 
 ### `Sources/MIDI/`
 
@@ -81,7 +81,7 @@ Currently: `MIDIClient.swift`, `MIDIEndpoint.swift`, `MIDISession.swift`.
 
 Native audio output and AU instrument hosting. This layer owns `AVAudioEngine`, built-in or hosted instrument nodes, and mixer routing for tracks that play sound inside the app instead of emitting only CoreMIDI. It does not know about SwiftUI or document bindings directly; the controller layer feeds it note events.
 
-Currently: `AudioInstrumentHost.swift`.
+Currently: `AudioInstrumentChoice.swift`, `AudioInstrumentHost.swift`, `AUAudioUnitFactory.swift`, `AUWindowHost.swift`, `FullStateCoder.swift`. See [[track-destinations]].
 
 ### `Sources/Resources/`
 
@@ -145,6 +145,8 @@ Each new directory comes with a wiki page like this one describing what it conta
 - [[build-system]] — how the project is generated and built
 - [[document-model]] — what lives in a `.seqai`
 - [[generator-algos]] — musical tables, generator kinds, and algo composition
+- [[track-destinations]] — per-track `Destination` / `Voicing` and AU state persistence
+- [[routing]] — project-level additive fan-out routing
 - [[midi-layer]] — the MIDI module in detail
 - [[app-support-layout]] — filesystem layout under `~/Library`
 - [[code-review-checklist]] — the rules this layout is designed to satisfy
