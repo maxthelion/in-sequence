@@ -11,7 +11,6 @@ struct ContentView: View {
 
             VStack(spacing: 14) {
                 StudioTopBar(section: $section, document: $document)
-                TrackBankBar(document: $document, section: $section)
                 DetailView(document: $document, section: $section)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

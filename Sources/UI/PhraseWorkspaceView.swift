@@ -8,9 +8,9 @@ struct PhraseWorkspaceView: View {
     @State private var selectedLayer: PhraseAbstractKind = .intensity
     @State private var isShowingCellEditor = false
 
-    private let phraseColumnWidth: CGFloat = 220
-    private let minimumTrackColumnWidth: CGFloat = 170
-    private let matrixSpacing: CGFloat = 12
+    private let phraseColumnWidth: CGFloat = 190
+    private let minimumTrackColumnWidth: CGFloat = 148
+    private let matrixSpacing: CGFloat = 10
 
     private var phrases: [PhraseModel] {
         document.model.phrases
@@ -100,7 +100,7 @@ struct PhraseWorkspaceView: View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Phrase Matrix",
-                eyebrow: "Phrases run down the rows, the selected layer changes what every cell means, and track selection now lives outside this grid.",
+                eyebrow: "Tracks sit inside the matrix header, phrases run down the rows, and the selected layer changes what every cell means.",
                 accent: StudioTheme.cyan
             ) {
                 VStack(alignment: .leading, spacing: 16) {
@@ -286,6 +286,8 @@ struct PhraseWorkspaceView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: matrixSpacing) {
+                    matrixHeader(trackColumnWidth: trackColumnWidth)
+
                     ForEach(Array(phrases.enumerated()), id: \.element.id) { phraseIndex, phrase in
                         PhraseMatrixRow(
                             phrase: phrase,
@@ -312,6 +314,56 @@ struct PhraseWorkspaceView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(minHeight: CGFloat(phrases.count) * 210 + 24)
+    }
+
+    @ViewBuilder
+    private func matrixHeader(trackColumnWidth: CGFloat) -> some View {
+        HStack(alignment: .bottom, spacing: matrixSpacing) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("PHRASES")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .tracking(0.9)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Text("As transport advances, the active highlight moves down to the next phrase row.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(width: phraseColumnWidth, alignment: .leading)
+
+            ForEach(tracks, id: \.id) { track in
+                Button {
+                    document.model.selectTrack(id: track.id)
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(track.name)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(StudioTheme.text)
+
+                        HStack(spacing: 6) {
+                            Text(track.trackType.shortLabel.uppercased())
+                            Text(track.output == .midiOut ? "MIDI" : "AU")
+                        }
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    }
+                    .frame(width: trackColumnWidth, minHeight: 62, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(document.model.selectedTrackID == track.id ? StudioTheme.cyan.opacity(0.14) : Color.white.opacity(0.03))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(document.model.selectedTrackID == track.id ? StudioTheme.cyan.opacity(0.55) : StudioTheme.border, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private var selectedPhrasePanel: some View {
@@ -701,8 +753,8 @@ private struct PhraseMatrixRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(width: phraseColumnWidth, alignment: .leading)
-                .frame(minHeight: 212, alignment: .topLeading)
-                .padding(14)
+                .frame(minHeight: 168, alignment: .topLeading)
+                .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(isPlaying ? rowAccent.opacity(0.14) : Color.white.opacity(isSelected ? 0.06 : 0.03))
@@ -722,7 +774,7 @@ private struct PhraseMatrixRow: View {
                 Button {
                     onSelectCell(track.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(cellMode.shortLabel.uppercased())
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -757,8 +809,8 @@ private struct PhraseMatrixRow: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(width: trackColumnWidth, alignment: .leading)
-                    .frame(minHeight: 212, alignment: .topLeading)
-                    .padding(14)
+                    .frame(minHeight: 168, alignment: .topLeading)
+                    .padding(12)
                     .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .fill(cellFill(for: track))

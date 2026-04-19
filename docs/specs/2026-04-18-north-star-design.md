@@ -406,12 +406,12 @@ MVP ships audio as single-bus pass-through; the alt-bus and crossfader are an ar
 
 ## UX surfaces
 
-Main window is a custom studio shell: persistent top chrome, track bank, and a lower context workspace that swaps wholesale by mode/selection. Perform mode is an overlay, not a separate route.
+Main window is a custom studio shell: persistent top chrome and a lower context workspace that swaps wholesale by mode/selection. Perform mode is an overlay, not a separate route.
 
 ### Always visible
 
 - **Studio chrome** (top) — project title, transport, main mode buttons (Song / Phrase / Track / Mixer / Perform / Library / Preferences), engine state, and compact status pills. This should feel like instrument chrome, not a document-app toolbar.
-- **Track bank** (persistent strip beneath the chrome) — project tracks as a compact bank of voices; selecting a track swaps the lower workspace into the right shape for that track type.
+- **Contextual track selection** — track picking lives inside the active workspace where it adds the most value (for example, the phrase matrix header or a dedicated track matrix), rather than in a permanently duplicated shell strip.
 - **Context workspace** (lower body) — the entire lower surface changes with the active mode. This is the main canvas, not a sidebar/detail layout.
 - **Inspector details** (embedded or floating) — selection-specific controls live inside the active workspace or in a lightweight floating inspector, not as a permanent macOS form rail.
 
@@ -420,7 +420,7 @@ Main window is a custom studio shell: persistent top chrome, track bank, and a l
 | View | Controls |
 |---|---|
 | **Song** | Ordered phrase list. Rows = phrases in playback order; controls = add / duplicate / reorder / remove / attach fills or takes. There is no separate phrase-ref wrapper; repeating something means inserting the phrase again. Timeline and playhead still sit here. |
-| **Phrase (phatcontroller macro grid)** | Phrase rows form the left rail and the track cells fill the main grid; track selection comes from the persistent track bank rather than a duplicated header strip inside the matrix. One selected **layer** is shown at a time. Default layers: Pattern, Mute, Volume, Transpose, Intensity, Density, Tension, Register, Variance, Brightness, FillFlag, Swing, plus user-added layers. Cell previews and editing modes are type-driven: booleans get toggle-style `Single` / `Bars`; indexed layers like Pattern get slot-selection `Single` / `Bars`; scalar layers get `Single`, `Bars`, per-step drawing, and curve/ramp editors. Chord-context displays as named harmonic states by bar rather than a raw scalar. |
+| **Phrase (phatcontroller macro grid)** | Phrase rows form the left rail and the track cells fill the main grid; the matrix itself carries the useful track header/selection affordance instead of relying on a duplicated shell strip. One selected **layer** is shown at a time. Default layers: Pattern, Mute, Volume, Transpose, Intensity, Density, Tension, Register, Variance, Brightness, FillFlag, Swing, plus user-added layers. Cell previews and editing modes are type-driven: booleans get toggle-style `Single` / `Bars`; indexed layers like Pattern get slot-selection `Single` / `Bars`; scalar layers get `Single`, `Bars`, per-step drawing, and curve/ramp editors. Chord-context displays as named harmonic states by bar rather than a raw scalar. |
 | **Track** (instrument track) | Split workspace: **source editor on the left, destination editor on the right**. The left side chooses and edits the phrase-scoped note source for the current track type; the right side owns sound/routing identity. For instrument tracks the current happy path is a manual monophonic step source, but the same workspace must reserve visible homes for `clip-reader`, `template`, and `midi-in`. "Show wiring" reveals the deeper DAG for power users. Commands: freeze, stamp, clear. |
 | **Drum** | Tag list with per-tag player assignment (MIDI channel+note, internal sampler voice, or AU instance), per-tag bus routing, per-tag velocity curve. Optional kit-level template applied to this track's clip. |
 | **Sample** | Waveform with draggable slice boundaries, auto-slice (transient / grid) + re-analyze. Per-slice: start / end / pitch-offset / reverse / envelope / gain / tag / route-override. Spectral view + auto-labeling toggle. Audition playback. |
@@ -436,7 +436,7 @@ Main window is a custom studio shell: persistent top chrome, track bank, and a l
 
 Several views are specializations rather than alternatives:
 
-- Selecting a track routes the workspace into that track type's editor shape — instrument tracks open **Track view**, drum tracks open **Drum view**, sliced-loop tracks open **Sample view**, and a chord-gen pseudo-track opens **Chord generator view**. Same track bank slot, different content shape.
+- Selecting a track routes the workspace into that track type's editor shape — instrument tracks open **Track view**, drum tracks open **Drum view**, sliced-loop tracks open **Sample view**, and a chord-gen pseudo-track opens **Chord generator view**.
 - The **destination/sound half** of the workspace similarly shape-shifts per track type (MIDI destination vs AU embed vs tag-to-route assignment); it is part of the track-type editor, not a separate first-class mode.
 - **Clip editor** can appear inline inside Track/Drum/Sample view or be pinned as its own view for heavy editing sessions.
 
@@ -444,7 +444,7 @@ Several views are specializations rather than alternatives:
 
 - Opening a project drops into Song view
 - One-click from Song to any Phrase → opens Phrase view with that phrase active
-- Clicking a phrase cell or using the persistent track bank opens the relevant Track/Drum/Sample view
+- Clicking a phrase cell or another contextual track selector opens the relevant Track/Drum/Sample view
 - Clicking the chord-context row in Phrase view opens Chord generator view
 - Perform and Mixer are global: same state regardless of which phrase or track is active
 - Library is a drawer that can overlay any view (drag-drop target)
