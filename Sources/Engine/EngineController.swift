@@ -391,8 +391,8 @@ final class EngineController: RouterDispatcher {
             guard let track = currentDocumentModel.tracks.first(where: { $0.id == trackID }) else {
                 return
             }
-            let voiceTag = tag ?? Voicing.defaultTag
-            flushConcreteDestination(track.voicing.destination(for: voiceTag), notes: notes, bpm: bpm, track: track)
+            _ = tag
+            flushConcreteDestination(track.defaultDestination, notes: notes, bpm: bpm, track: track)
 
         case .chordContext:
             return
@@ -436,7 +436,7 @@ final class EngineController: RouterDispatcher {
             host.setDestination(destination)
             host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
-        case .internalSampler, .none:
+        case .internalSampler, .inheritGroup, .none:
             return
         }
     }

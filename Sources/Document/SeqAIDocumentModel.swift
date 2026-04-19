@@ -710,7 +710,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
                 return .auInstrument
             case .internalSampler:
                 return .internalSampler
-            case .none:
+            case .inheritGroup, .none:
                 return .none
             }
         }

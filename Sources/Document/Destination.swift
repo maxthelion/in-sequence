@@ -27,6 +27,7 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
     case midi(port: MIDIEndpointName?, channel: UInt8, noteOffset: Int)
     case auInstrument(componentID: AudioComponentID, stateBlob: Data?)
     case internalSampler(bankID: InternalSamplerBankID, preset: String)
+    case inheritGroup
     case none
 
     var kindLabel: String {
@@ -37,6 +38,8 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
             return "AU"
         case .internalSampler:
             return "Internal"
+        case .inheritGroup:
+            return "Group"
         case .none:
             return "—"
         }
@@ -52,6 +55,8 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
             return componentID.displayKey
         case let .internalSampler(bankID, preset):
             return "\(bankID.rawValue) • \(preset)"
+        case .inheritGroup:
+            return "Inherited from group"
         case .none:
             return "No default destination"
         }

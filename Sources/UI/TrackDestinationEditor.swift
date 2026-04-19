@@ -10,10 +10,12 @@ struct TrackDestinationEditor: View {
 
     private var recentVoices: [RecentVoice] {
         RecentVoicesStore.shared.load().filter {
-            if case .none = $0.destination {
+            switch $0.destination {
+            case .none, .inheritGroup:
                 return false
+            case .midi, .auInstrument, .internalSampler:
+                return true
             }
-            return true
         }
     }
 
@@ -219,8 +221,11 @@ struct TrackDestinationEditor: View {
     }
 
     private func recordVoiceSnapshot(destination: Destination) {
-        guard destination != .none else {
+        switch destination {
+        case .none, .inheritGroup:
             return
+        case .midi, .auInstrument, .internalSampler:
+            break
         }
 
         let existingID = RecentVoicesStore.shared.load().first(where: { $0.destination == destination })?.id ?? UUID()

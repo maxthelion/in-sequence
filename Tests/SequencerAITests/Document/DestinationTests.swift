@@ -11,6 +11,7 @@ final class DestinationTests: XCTestCase {
                 stateBlob: Data(repeating: 0xAB, count: 64)
             ),
             .internalSampler(bankID: .drumKitDefault, preset: "kick-909"),
+            .inheritGroup,
             .none,
         ]
 
@@ -23,6 +24,10 @@ final class DestinationTests: XCTestCase {
 
     func test_none_uses_em_dash_kind_label() {
         XCTAssertEqual(Destination.none.kindLabel, "—")
+    }
+
+    func test_inherit_group_uses_group_kind_label() {
+        XCTAssertEqual(Destination.inheritGroup.kindLabel, "Group")
     }
 
     func test_audio_component_display_key_uses_manufacturer_type_and_subtype() {
