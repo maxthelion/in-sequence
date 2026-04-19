@@ -409,7 +409,7 @@ public enum PitchAlgo: Codable, Equatable, Sendable {
 - [x] Implement `PitchContext`, `PitchAlgo`, `PickMode`, `HoldMode`
 - [x] Implement eval
 - [x] Green
-- [ ] Commit: `feat(document): PitchAlgo with per-variant eval + PitchContext`
+- [x] Commit: `feat(document): PitchAlgo with per-variant eval + PitchContext`
 
 ---
 
@@ -459,9 +459,9 @@ public typealias VoiceTag = String
 3. `defaultDrumKit.steps.count == 3`; contains "kick", "snare", "hat".
 4. Equality: differing `step` makes two mono variants unequal.
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
+- [x] Tests
+- [x] Implement
+- [x] Green
 - [ ] Commit: `feat(document): GeneratorParams tagged union`
 
 ---
