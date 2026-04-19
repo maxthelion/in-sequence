@@ -39,6 +39,7 @@ final class EngineController: RouterDispatcher {
     private(set) var currentBPM: Double
     private(set) var transportTickIndex: UInt64 = 0
     private(set) var transportPosition = "1:1:1"
+    private(set) var transportMode: TransportMode = .free
     private(set) var executor: Executor?
     private(set) var selectedOutput: TrackOutputDestination
 
@@ -115,6 +116,10 @@ final class EngineController: RouterDispatcher {
         currentBPM = clamped
         clock.bpm = clamped
         _ = commandQueue.enqueue(.setBPM(clamped))
+    }
+
+    func setTransportMode(_ mode: TransportMode) {
+        transportMode = mode
     }
 
     func setParam(blockID: BlockID, paramKey: String, value: ParamValue) {

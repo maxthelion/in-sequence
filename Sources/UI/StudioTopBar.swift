@@ -35,11 +35,13 @@ struct StudioTopBar: View {
                             Text(sectionValue.title.uppercased())
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .tracking(0.9)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                         .foregroundStyle(section == sectionValue ? StudioTheme.text : StudioTheme.mutedText)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .frame(minWidth: 94)
+                        .frame(minWidth: 84)
                         .background(buttonFill(for: sectionValue), in: Capsule())
                         .overlay(
                             Capsule()

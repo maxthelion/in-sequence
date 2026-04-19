@@ -7,8 +7,9 @@ struct SidebarView: View {
     var body: some View {
         List {
             Section("Arrangement") {
-                Text("Song").tag("song")
-                Text("Phrase").tag("phrase")
+                globalRow(title: "Song", systemImage: "rectangle.stack", sectionValue: .song)
+                globalRow(title: "Phrase", systemImage: "square.split.2x2", sectionValue: .phrase)
+                globalRow(title: "Tracks", systemImage: "square.grid.3x3", sectionValue: .tracks)
             }
             Section("Tracks") {
                 ForEach(document.model.tracks, id: \.id) { track in
@@ -42,7 +43,7 @@ struct SidebarView: View {
             }
             Section("Global") {
                 globalRow(title: "Mixer", systemImage: "slider.vertical.3", sectionValue: .mixer)
-                globalRow(title: "Perform", systemImage: "dot.radiowaves.left.and.right", sectionValue: .perform)
+                globalRow(title: "Live", systemImage: "sparkles", sectionValue: .live)
                 globalRow(title: "Library", systemImage: "books.vertical", sectionValue: .library)
             }
         }

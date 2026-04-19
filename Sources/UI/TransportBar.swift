@@ -10,6 +10,13 @@ struct TransportBar: View {
         )
     }
 
+    private var transportModeBinding: Binding<TransportMode> {
+        Binding(
+            get: { engineController.transportMode },
+            set: { engineController.setTransportMode($0) }
+        )
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             Button {
@@ -51,6 +58,8 @@ struct TransportBar: View {
                 .monospacedDigit()
                 .foregroundStyle(StudioTheme.text)
 
+            TransportModePicker(selection: transportModeBinding)
+
             Rectangle()
                 .fill(StudioTheme.border)
                 .frame(width: 1, height: 26)
@@ -74,6 +83,36 @@ struct TransportBar: View {
             Capsule()
                 .stroke(StudioTheme.border, lineWidth: 1)
         )
+    }
+}
+
+private struct TransportModePicker: View {
+    @Binding var selection: TransportMode
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(TransportMode.allCases, id: \.self) { mode in
+                Button {
+                    selection = mode
+                } label: {
+                    Text(mode.label)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.mutedText)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(selection == mode ? StudioTheme.amber.opacity(0.18) : Color.white.opacity(0.02))
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(selection == mode ? StudioTheme.amber.opacity(0.45) : StudioTheme.border, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .accessibilityIdentifier("transport-mode")
     }
 }
 

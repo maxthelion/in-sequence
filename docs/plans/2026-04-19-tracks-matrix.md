@@ -2,13 +2,22 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give the app a dedicated Tracks matrix as a nav destination — a **fixed 8×8 grid of 64 slots**, each either empty or carrying a track. Existing-track slots show a card summarising that track (name, type badge, destination summary, pattern-slot strip preview, mute state) — clicking routes to its detail. Empty slots show an empty placeholder; clicking an empty slot pops a track-creation modal with each `TrackType` as a one-click button, creates the track into that slot, and navigates to its detail. From the matrix the user can also duplicate, delete, and (context-menu) "Change type…" a track. Verified by: navigating to the Tracks section shows 64 cells; clicking an empty slot creates a track of the chosen type at that slot index and routes to its detail; clicking a populated slot routes to the existing track's detail; deleting clears the slot; the `selectedTrackID` invariant never points at a deleted track (closes the codex review-queue finding).
+**Goal:** Give the app a dedicated Tracks matrix as a nav destination — a flat, group-aware grid of track cards plus clear creation affordances. Cards route into the single-track detail view. New creation supports the fresh 3-case `TrackType` model (`monoMelodic / polyMelodic / slice`) and a first-class **Add Drum Kit** flow that appends grouped mono tracks with one shared destination. Verified by: navigating to the Tracks section shows the current track list as cards; adding a track or drum kit appends real tracks in the document and routes into Track detail; group membership is visually clear in the matrix.
 
-**Architecture:** New SwiftUI view `TracksMatrixView` that renders a **fixed 8×8 `LazyVGrid`** of 64 cells. Slot-to-track mapping lives on the document as `trackSlots: [TrackID?]` of fixed length 64 — a stable positional layout that survives reorder. Tracks themselves still live in `tracks: [Track]` keyed by `id`; `trackSlots` is the one-to-one indexing into the grid. Empty cells render an `EmptyTrackCell`; populated cells render the existing `TrackCard`. `WorkspaceSection` gains a `.tracks` case alongside the existing `.song / .phrase / .track / .mixer / .perform / .library`. The studio chrome's section nav gets a new button. Clicking a populated card sets `document.model.selectedTrackID` and switches `section = .track`, routing to the existing single-track detail. Clicking an empty cell opens `CreateTrackSheet` — a row of large track-type buttons (Instrument / Drum / Slice). Picking one calls `document.model.createTrack(type:atSlot:)`, which populates per-type-default `Voicing` (from the `track-destinations` plan) and writes the new track's ID into `trackSlots[slotIndex]`. Navigation switches to `.track` and selects the new track.
+**Architecture:** `TracksMatrixView` now renders an adaptive `LazyVGrid` over the document's flat `tracks: [Track]` list. There is no `trackSlots` structure in the fresh model. Creation is document-driven: `appendTrack(trackType:)` appends one flat track, while `addDrumKit(_:)` appends a color-tinted `TrackGroup` worth of mono tracks sharing one destination. `WorkspaceSection` gains a `.tracks` case. Clicking a populated card sets `document.model.selectedTrackID` and switches `section = .track`.
 
-Track-type is still **immutable in the data model** (spec §"Track types, patterns, and phrases"). The UI affords a "Change Type…" action via context menu which under the hood is "delete the old track from this slot + create a fresh one of the chosen type in the same slot." Existing phrase `trackPatternIndexes` entries referencing the old TrackID get cleaned up. The user sees this as "changed the track's type"; the data model sees a destroy + recreate — consistent with the spec's immutability stance while giving the user the affordance they expect.
+Track-type remains **immutable in the data model**. The UI can still afford "Change Type…" if needed, but it should be modeled as recreate-in-place against the flat track list, not a slot mutation.
 
-The `selectedTrackID` invariant fix (from codex's review-queue) lands as part of this plan's init + deletion + slot-clearing code paths, since all of them touch the invariant.
+The `selectedTrackID` invariant is already enforced in the document model, so this plan does not need to reopen that bug.
+
+## Reshape Note
+
+This plan was originally written against a slot-based matrix and a drum-specific track type. Those assumptions are now retired.
+
+- `trackSlots: [TrackID?]` is gone; the matrix renders the flat track list directly.
+- The track-type buttons are now `Mono`, `Poly`, and `Slice`.
+- Drum creation is no longer a track type. It is a separate **Add Drum Kit** flow backed by `DrumKitPreset`.
+- Group membership is shown via shared tinting and group labels on cards rather than a special drum-card renderer.
 
 **Tech Stack:** Swift 5.9+, SwiftUI (`LazyVGrid`, `onDrag` / `onDrop`), Foundation, XCTest.
 
@@ -20,7 +29,7 @@ The `selectedTrackID` invariant fix (from codex's review-queue) lands as part of
 
 **Depends on:**
 
-- `2026-04-19-track-destinations.md` — needs `Voicing` + `Destination` + `Voicing.defaults(forType:)` so the track-creation sheet populates correct defaults. Recommend executing after track-destinations lands. The cards' destination-summary pill also reads from `Voicing.defaultDestination`, which only exists after that plan.
+- `2026-04-19-track-group-reshape.md` — the flat/grouped document model must land first so this matrix builds on `track.destination`, `track.groupID`, and `trackGroups`.
 
 **Deliberately deferred:**
 

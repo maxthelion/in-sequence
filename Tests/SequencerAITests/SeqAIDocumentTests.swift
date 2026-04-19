@@ -130,10 +130,24 @@ final class SeqAIDocumentModelTests: XCTestCase {
 
         XCTAssertEqual(model.tracks.count, 2)
         XCTAssertEqual(model.selectedTrack.id, model.tracks.last?.id)
-        XCTAssertEqual(model.selectedTrack.name, "Track 2")
+        XCTAssertEqual(model.selectedTrack.name, "Mono 2")
         XCTAssertEqual(model.patternBanks.count, 2)
         XCTAssertEqual(model.selectedPhrase.trackPatternIndexes.count, 2)
         XCTAssertEqual(model.selectedPatternIndex(for: model.selectedTrack.id), 0)
+    }
+
+    func test_append_track_uses_requested_track_type_defaults() {
+        var model = SeqAIDocumentModel.empty
+
+        model.appendTrack(trackType: .slice)
+
+        XCTAssertEqual(model.selectedTrack.trackType, .slice)
+        XCTAssertEqual(model.selectedTrack.name, "Slice 2")
+        XCTAssertEqual(model.selectedTrack.pitches, [60])
+        XCTAssertEqual(
+            model.selectedTrack.defaultDestination,
+            .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
+        )
     }
 
     func test_append_phrase_selects_new_phrase_with_default_pattern_indexes() {
@@ -721,7 +735,10 @@ final class SeqAIDocumentModelTests: XCTestCase {
 
         model.appendTrack()
 
-        XCTAssertEqual(model.selectedTrack.destination, .none)
+        XCTAssertEqual(
+            model.selectedTrack.destination,
+            .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
         XCTAssertNil(model.selectedTrack.groupID)
     }
 

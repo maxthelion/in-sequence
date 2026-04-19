@@ -2,11 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Migrate the already-shipped track/voicing/routing code to the flat-track + `TrackGroup` model documented in the 2026-04-19 spec delta. Rename `TrackType` cases (`.instrument / .drumRack / .sliceLoop` → `.monoMelodic / .polyMelodic / .slice`, dropping drumRack). Retire per-tag `Voicing`; tracks carry an inline `Destination`. Introduce `TrackGroup` + `Destination.inheritGroup`. Ship a minimal `DrumKitPreset` library so "Add Drum Kit" users land with a kick/snare/hat kit + group + shared destination. Update in-flight plan docs (tracks-matrix, live-view) to reflect the new shape, and add a banner to the already-shipped plans (track-destinations, midi-routing) noting the data model they write to has changed. Verified by: existing documents decode into the new shape (tests prove the migration); `xcodebuild test` stays green; a fresh document with a default drum kit produces 3 mono tracks grouped together, all routing through one shared AU.
+**Goal:** Finish the reshape from the shipped voicing-era model to the flat-track + `TrackGroup` model documented in the 2026-04-19 spec delta. `TrackType` is now `.monoMelodic / .polyMelodic / .slice`; tracks carry an inline `Destination`; groups own shared destinations and note offsets; "Add Drum Kit" appends grouped mono tracks with one shared destination. The remaining work is to keep the plans/wiki coherent and let follow-on UI plans build on the fresh model rather than the retired slot/voicing shape. Verified by: `xcodebuild test` stays green; a fresh document with a default drum kit produces grouped mono tracks routing through one shared destination; the tracks/live plans stop referencing retired structures.
 
-**Architecture:** This plan is primarily a data-model reshape plus a migration path. The shipped `Voicing` type (per-tag destination map) becomes a pair: `Track.destination: Destination` (inline, single value) plus `TrackGroup` (project-scoped container). Legacy decoder: if a document has `trackType == .drumRack`, on load we (a) create one new `monoMelodic` track per voice tag in the old Voicing map, (b) create a `TrackGroup` containing those tracks, (c) set the group's `sharedDestination` to whichever destination type all tags agreed on (if they all pointed at the same AU, use it as shared; otherwise split — each member keeps its own destination and the group has `sharedDestination = nil`), (d) populate `noteMapping[trackID]` from the old tag-to-MIDI-note convention (36=kick, 38=snare, 42=hat, …). Legacy `TrackType.instrument` tracks decode to `.monoMelodic`; the poly→mono split for instrument tracks can happen incrementally (MVP = all existing `.instrument` become `.monoMelodic`; users manually upgrade to `.polyMelodic` later if they want multi-note step authoring). `TrackType.sliceLoop` → `.slice`.
-
-`Destination.inheritGroup` is an additive case on the existing `Destination` enum — legacy decoders don't emit it, so no migration beyond adding the case. The only live site that reads destinations (the engine's tick dispatch) gets an `effectiveDestination(for:)` helper that consults the group when the track's destination is `.inheritGroup`.
+**Architecture:** This plan is now primarily a coherence pass around the already-landed fresh model. The active shape is: `Track.destination: Destination` inline, optional `track.groupID`, project-scoped `TrackGroup`, `Destination.inheritGroup`, and a minimal `DrumKitPreset` library. `EngineController` resolves `.inheritGroup` through `effectiveDestination(for:)`, and grouped audio tracks share one AU host keyed by group. The remaining value here is to make sure later UI plans (`tracks-matrix`, `live-view`) and the wiki describe that shape accurately.
 
 **Tech Stack:** Swift 5.9+, Foundation, AVFoundation (existing AU hosting), XCTest. No new dependencies.
 
@@ -14,7 +12,7 @@
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
-**Status:** <STATUS_PREFIX> <COMPLETED_MARKER> TBD. Tag `v0.0.9-track-group-reshape` at TBD.
+**Status:** In progress. Core model + engine reshape landed; docs/wiki closure remains. Tag `v0.0.9-track-group-reshape` at TBD.
 
 **Depends on:**
 
@@ -28,6 +26,8 @@
 - `2026-04-19-live-view.md` — drum-expand affordance retires (members are already separate cells). Add group-aggregate cells. Task 9 below handles the plan-doc update.
 
 **Deliberately deferred:**
+
+- **Legacy-compatibility migration polish.** Fresh-model work now takes precedence; compatibility cleanup is not required to unblock current UI plans.
 
 - **Full library-scoped drum kit presets** (loading `.seqai-drumkit` files). MVP ships a small hardcoded `DrumKitPreset` enum; library loading lands later.
 - **Group bus routing / group insert effects.** Group's `busSink` field exists for future use; MVP wires mute + solo only.
@@ -440,7 +440,7 @@ public enum DrumKitPreset: String, CaseIterable, Sendable {
 
 **Tests:** this is a plan-doc update, not code. Verification: no `drumRack` references in the plan; "Add Drum Kit" section present; group-color mention in TrackCard task.
 
-- [ ] Edit plan doc
+- [ ] Edit plan doc for the flat/grouped model
 - [ ] Commit: `docs(plan): tracks-matrix — drop drum type; add Add-Drum-Kit flow + group tinting`
 
 ---
@@ -463,7 +463,7 @@ public enum DrumKitPreset: String, CaseIterable, Sendable {
 **Files:**
 - Modify: `docs/plans/2026-04-19-live-view.md`
 
-- [ ] Edit plan doc
+- [ ] Edit plan doc for the flat/grouped model
 - [ ] Commit: `docs(plan): live-view — drop drum expansion; add groupAggregate cell + Collapse Groups toggle`
 
 ---

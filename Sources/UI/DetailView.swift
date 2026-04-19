@@ -78,12 +78,14 @@ struct DetailView: View {
             songWorkspace
         case .phrase:
             phraseWorkspace
+        case .tracks:
+            tracksWorkspace
         case .track:
             trackWorkspace
         case .mixer:
             mixerWorkspace
-        case .perform:
-            performWorkspace
+        case .live:
+            liveWorkspace
         case .library:
             libraryWorkspace
         }
@@ -130,6 +132,13 @@ struct DetailView: View {
     private var phraseWorkspace: some View {
         PhraseWorkspaceView(document: $document)
             .padding(20)
+    }
+
+    private var tracksWorkspace: some View {
+        TracksMatrixView(document: $document) {
+            section = .track
+        }
+        .padding(20)
     }
 
     private var trackWorkspace: some View {
@@ -322,29 +331,29 @@ struct DetailView: View {
         .padding(20)
     }
 
-    private var performWorkspace: some View {
+    private var liveWorkspace: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Perform", eyebrow: "Non-destructive overlay inspired by Polyend Play", accent: StudioTheme.amber) {
+            StudioPanel(title: "Live", eyebrow: "Direct transport and matrix control surface", accent: StudioTheme.amber) {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
-                    ForEach(["Fill", "Stutter", "Roll", "Mute", "Filter", "Scatter", "Reverse", "Recall"], id: \.self) { effect in
+                    ForEach(["Mute", "Pattern", "Volume", "Density", "Fill", "Stutter", "Reverse", "Recall"], id: \.self) { effect in
                         PerformPad(title: effect)
                     }
                 }
             }
 
             HStack(alignment: .top, spacing: 18) {
-                StudioPanel(title: "Planned Coverage", eyebrow: "Spec-driven placeholder", accent: StudioTheme.cyan) {
+                StudioPanel(title: "Planned Coverage", eyebrow: "Live matrix next", accent: StudioTheme.cyan) {
                     VStack(spacing: 12) {
-                        StudioPlaceholderTile(title: "Track Selection", detail: "Choose a subset of tracks for momentary or latched performance actions.")
-                        StudioPlaceholderTile(title: "Workspace Recall", detail: "Save/recall a known-good live state without mutating stored phrase content.")
-                        StudioPlaceholderTile(title: "Punch-In Effects", detail: "Live order, repeat, density, bus, and macro overrides that revert on exit.")
+                        StudioPlaceholderTile(title: "Track Matrix", detail: "8x8 live grid derived from the current phrase layer state and current transport mode.")
+                        StudioPlaceholderTile(title: "Drum Expansion", detail: "Mute-layer drum groups can fan out into individual lane cells without changing the stored document shape.")
+                        StudioPlaceholderTile(title: "Save As Phrase", detail: "Capture the current live grid state as a new phrase once the matrix editor lands.")
                     }
                 }
 
                 StudioPanel(title: "Current Status", eyebrow: "What exists today", accent: StudioTheme.violet) {
                     VStack(spacing: 12) {
-                        StudioPlaceholderTile(title: "Engine Routing", detail: "Track playback and transport are live, so this screen can grow into a true overlay instead of a mock app page.")
-                        StudioPlaceholderTile(title: "Next Step", detail: "Wire perform actions into the command path once the phrase macro coordinator exists.")
+                        StudioPlaceholderTile(title: "Transport Mode", detail: "Song vs Free mode is now exposed in the top transport bar and stored on the engine controller.")
+                        StudioPlaceholderTile(title: "Next Step", detail: "Replace these pads with the real live matrix once the tracks-matrix shell and reshape docs are closed.")
                     }
                 }
             }

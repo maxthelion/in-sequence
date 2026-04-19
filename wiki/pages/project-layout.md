@@ -45,25 +45,25 @@ Currently: `SequencerAIApp.swift`.
 
 Everything about the `.seqai` document. `FileDocument` conformance, the `Codable` model that's serialized, UTType declarations, phrase/pattern/generator model types, and the pure generator-algo value types used by document data. **No UI, no engine, no platform concerns.** This module may depend on `Musical/` for shipped lookup tables, but should remain importable into a hypothetical CLI tool that only processes documents.
 
-Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`, `PhraseModel.swift`, `Destination.swift`, `Voicing.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. See [[document-model]], [[generator-algos]], [[track-destinations]], and [[routing]].
+Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`, `PhraseModel.swift`, `Destination.swift`, `TrackGroup.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. Fresh-model document state now centers on inline `Destination`, optional `track.groupID`, project-scoped `trackGroups`, and per-track pattern banks. See [[document-model]], [[generator-algos]], [[track-destinations]], and [[routing]].
 
 ### `Sources/Musical/`
 
 Read-only musical reference data shipped with the app binary. This boundary owns scale tables, chord tables, style profiles, and small helper algorithms such as Euclidean distribution generation. It has no knowledge of documents, engine runtime, or SwiftUI.
 
-Currently: `ScaleID.swift`, `Scale.swift`, `Scales.swift`, `ChordID.swift`, `Chord.swift`, `Chords.swift`, `StyleProfileID.swift`, `StyleProfile.swift`, `StyleProfiles.swift`, `Euclidean.swift`. See [[generator-algos]].
+Currently: `ScaleID.swift`, `Scale.swift`, `Scales.swift`, `ChordID.swift`, `Chord.swift`, `Chords.swift`, `StyleProfileID.swift`, `StyleProfile.swift`, `StyleProfiles.swift`, `Euclidean.swift`. Drum-kit preset note maps are currently document-scoped via `DrumKitNoteMap` / `DrumKitPreset`, but may migrate here later if they become pure library data. See [[generator-algos]].
 
 ### `Sources/UI/`
 
 SwiftUI views only. Each view in its own file. Composed into `ContentView` (NavigationSplitView) via `SequencerAIApp`. Views read from `MIDISession.shared` and the document binding; they never own business logic or talk to platform APIs directly.
 
-Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `TransportBar`, `PreferencesView`, `TrackDestinationEditor`, `VoicePickerView`, `RoutesListView`, `RouteEditorSheet`.
+Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `TransportBar`, `StudioTopBar`, `PhraseWorkspaceView`, `TracksMatrixView`, `PreferencesView`, `TrackDestinationEditor`, `VoicePickerView`, `RoutesListView`, `RouteEditorSheet`.
 
 ### `Sources/Engine/`
 
 The pipeline runtime and app-facing playback controller. This boundary owns typed streams, the block contract, block registry, DAG executor, tick clock, command queue, and the engine controller that wires those pieces into track playback. It may depend on `MIDI/` for transport to virtual endpoints and on the audio sink protocol used by `Audio/`, but it does not depend on SwiftUI views or document serialization details.
 
-Currently: `Block.swift`, `Stream.swift`, `Executor.swift`, `BlockRegistry.swift`, `TickClock.swift`, `CommandQueue.swift`, `EngineController.swift`, `MIDIRouter.swift`, `Blocks/NoteGenerator.swift`, `Blocks/MidiOut.swift`, `Blocks/ChordContextSink.swift`. See [[engine-architecture]] and [[routing]].
+Currently: `Block.swift`, `Stream.swift`, `Executor.swift`, `BlockRegistry.swift`, `TickClock.swift`, `CommandQueue.swift`, `EngineController.swift`, `MIDIRouter.swift`, `TransportMode.swift`, `Blocks/NoteGenerator.swift`, `Blocks/MidiOut.swift`, `Blocks/ChordContextSink.swift`. See [[engine-architecture]] and [[routing]].
 
 ### `Sources/Platform/`
 
@@ -137,6 +137,7 @@ As later plans land, additional boundaries will appear:
 - `Sources/Drums/` — drum tagged-stream support (Plan 5)
 - `Sources/Audio/` — AVAudioEngine + AU hosting + sample playback
 - `Sources/Library/` — the template / voice-preset / take / etc library loader (later plan)
+- group-focused UI/docs — the flat track + `TrackGroup` reshape is in flight, so expect a dedicated `track-groups` wiki page as that settles
 
 Each new directory comes with a wiki page like this one describing what it contains and what depends on what.
 
@@ -145,7 +146,7 @@ Each new directory comes with a wiki page like this one describing what it conta
 - [[build-system]] — how the project is generated and built
 - [[document-model]] — what lives in a `.seqai`
 - [[generator-algos]] — musical tables, generator kinds, and algo composition
-- [[track-destinations]] — per-track `Destination` / `Voicing` and AU state persistence
+- [[track-destinations]] — per-track `Destination`, groups, and AU state persistence
 - [[routing]] — project-level additive fan-out routing
 - [[midi-layer]] — the MIDI module in detail
 - [[app-support-layout]] — filesystem layout under `~/Library`

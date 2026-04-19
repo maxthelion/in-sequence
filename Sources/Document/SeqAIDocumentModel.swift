@@ -1,74 +1,5 @@
 import Foundation
 
-typealias TrackGroupID = UUID
-
-struct BusRef: Codable, Equatable, Hashable, Sendable {
-    var id: String
-
-    init(id: String) {
-        self.id = id
-    }
-}
-
-struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
-    var id: TrackGroupID
-    var name: String
-    var color: String
-    var memberIDs: [UUID]
-    var sharedDestination: Destination?
-    var noteMapping: [UUID: Int]
-    var mute: Bool
-    var solo: Bool
-    var busSink: BusRef?
-
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case color
-        case memberIDs
-        case sharedDestination
-        case noteMapping
-        case mute
-        case solo
-        case busSink
-    }
-
-    init(
-        id: TrackGroupID = UUID(),
-        name: String,
-        color: String = "#8AA",
-        memberIDs: [UUID] = [],
-        sharedDestination: Destination? = nil,
-        noteMapping: [UUID: Int] = [:],
-        mute: Bool = false,
-        solo: Bool = false,
-        busSink: BusRef? = nil
-    ) {
-        self.id = id
-        self.name = name
-        self.color = color
-        self.memberIDs = memberIDs
-        self.sharedDestination = sharedDestination
-        self.noteMapping = noteMapping
-        self.mute = mute
-        self.solo = solo
-        self.busSink = busSink
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decodeIfPresent(TrackGroupID.self, forKey: .id) ?? UUID()
-        name = try container.decode(String.self, forKey: .name)
-        color = try container.decodeIfPresent(String.self, forKey: .color) ?? "#8AA"
-        memberIDs = try container.decodeIfPresent([UUID].self, forKey: .memberIDs) ?? []
-        sharedDestination = try container.decodeIfPresent(Destination.self, forKey: .sharedDestination)
-        noteMapping = try container.decodeIfPresent([UUID: Int].self, forKey: .noteMapping) ?? [:]
-        mute = try container.decodeIfPresent(Bool.self, forKey: .mute) ?? false
-        solo = try container.decodeIfPresent(Bool.self, forKey: .solo) ?? false
-        busSink = try container.decodeIfPresent(BusRef.self, forKey: .busSink)
-    }
-}
-
 enum DrumKitNoteMap {
     static let baselineNote = 36
 
@@ -415,13 +346,13 @@ struct SeqAIDocumentModel: Codable, Equatable {
         selectedPhraseID = phrases[min(selectedPhraseIndex, phrases.count - 1)].id
     }
 
-    mutating func appendTrack() {
-        let nextIndex = tracks.count + 1
+    mutating func appendTrack(trackType: TrackType = .monoMelodic) {
         let nextTrack = StepSequenceTrack(
-            name: "Track \(nextIndex)",
-            pitches: StepSequenceTrack.default.pitches,
-            stepPattern: StepSequenceTrack.default.stepPattern,
-            destination: Destination.none,
+            name: Self.defaultTrackName(for: trackType, index: tracks.count + 1),
+            trackType: trackType,
+            pitches: Self.defaultPitches(for: trackType),
+            stepPattern: Self.defaultStepPattern(for: trackType),
+            destination: Self.defaultDestination(for: trackType),
             velocity: StepSequenceTrack.default.velocity,
             gateLength: StepSequenceTrack.default.gateLength
         )
@@ -691,6 +622,46 @@ struct SeqAIDocumentModel: Codable, Equatable {
             return "Phrase \(alphabet[index])"
         }
         return "Phrase \(index + 1)"
+    }
+
+    private static func defaultTrackName(for trackType: TrackType, index: Int) -> String {
+        switch trackType {
+        case .monoMelodic:
+            return index == 1 ? "Main Track" : "Mono \(index)"
+        case .polyMelodic:
+            return "Poly \(index)"
+        case .slice:
+            return "Slice \(index)"
+        }
+    }
+
+    private static func defaultPitches(for trackType: TrackType) -> [Int] {
+        switch trackType {
+        case .monoMelodic:
+            return StepSequenceTrack.default.pitches
+        case .polyMelodic:
+            return [60, 64, 67]
+        case .slice:
+            return [60]
+        }
+    }
+
+    private static func defaultStepPattern(for trackType: TrackType) -> [Bool] {
+        switch trackType {
+        case .monoMelodic, .polyMelodic:
+            return StepSequenceTrack.default.stepPattern
+        case .slice:
+            return [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]
+        }
+    }
+
+    private static func defaultDestination(for trackType: TrackType) -> Destination {
+        switch trackType {
+        case .monoMelodic, .polyMelodic:
+            return .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        case .slice:
+            return .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
+        }
     }
 
     private static func defaultPatternBanks(
