@@ -1,6 +1,6 @@
 # Generator Algos and Pool Shape Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use standard markdown checkbox syntax for tracking.
 
 **Goal:** Replace the flat `GeneratorKind` enum (`manualMono`/`drumPattern`/`sliceTrigger`) with the `StepAlgo × PitchAlgo` orthogonal composition from the spec, ship the static musical tables (`Scales`, `Chords`, `StyleProfiles`) the algos depend on, extend `GeneratorPoolEntry` to carry per-kind `GeneratorParams`, and provide pure evaluation functions. Verified end-to-end by XCTest — each algo variant's output on a fixed RNG seed matches expected values; `GeneratorPoolEntry.defaultPool` produces three valid entries (mono / drum / slice-stub); legacy-format documents decode into the new shape.
 
@@ -10,9 +10,9 @@
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md` — §"Components inventory (block palette sketch)" → "Generator composition — StepAlgo × PitchAlgo", "Static code tables", "Generator kinds — the actual list".
 
-**Environment note:** Xcode 16 at `/Applications/Xcode.app`. `xcode-select` points at CommandLineTools. All `xcodebuild` invocations in this plan prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+**Status:** ✅ Completed 2026-04-19. Tag `v0.0.3-generator-algos` at commit `54d7851`. 141/141 tests green from `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' test`. See commits `1ddd302..54d7851` on `main`.
 
-**Status:** <STATUS_PREFIX> <COMPLETED_MARKER> TBD. Tag `v0.0.3-generator-algos` at TBD.
+**Environment note:** Xcode 16 at `/Applications/Xcode.app`. `xcode-select` points at CommandLineTools. All `xcodebuild` invocations in this plan prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 **Deliberately deferred (documented in header, not in this plan):**
 
@@ -130,7 +130,7 @@ Display names use Title Case: "Chromatic", "Major", "Natural Minor", "Harmonic M
 - [x] Implement `ScaleID`, `Scale`, `Scales.swift` with the table
 - [x] Run test — verify passes
 - [x] `xcodebuild test` green
-- [ ] Commit: `feat(musical): scale reference tables`
+- [x] Commit: `feat(musical): scale reference tables`
 
 ---
 
@@ -540,7 +540,7 @@ public init(from decoder: Decoder) throws {
 - [x] Tests
 - [x] Implement enum + migration
 - [x] Green
-- [ ] Commit: `feat(document): expand GeneratorKind to spec's 5-case roster with legacy migration`
+- [x] Commit: `feat(document): expand GeneratorKind to spec's 5-case roster with legacy migration`
 
 ---
 
@@ -608,10 +608,10 @@ public static let defaultPool: [GeneratorPoolEntry] = [
 4. Legacy decode: a JSON blob with old `kind: "manualMono"` and no `params` field decodes to a `monoGenerator` entry with `params = .defaultMono`.
 5. `makeDefault` seeds the pool entry's params from the kind.
 
-- [ ] Tests
-- [ ] Implement the field + migration + refreshed `defaultPool`
-- [ ] Green
-- [ ] Commit: `feat(document): GeneratorPoolEntry carries per-kind params; legacy migration`
+- [x] Tests
+- [x] Implement the field + migration + refreshed `defaultPool`
+- [x] Green
+- [x] Commit: `feat(document): GeneratorPoolEntry carries per-kind params; legacy migration`
 
 ---
 
@@ -628,10 +628,10 @@ public static let defaultPool: [GeneratorPoolEntry] = [
 - Run: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' test`
 - Acceptance: full suite green. No regressions. New algo / tables / pool tests all pass (Tasks 1–9 accumulated).
 
-- [ ] Run suite, note any failures
-- [ ] Adjust existing-test fixtures to compile / pass
-- [ ] Re-run — all green
-- [ ] Commit: `fix(tests): update fixtures for new GeneratorKind and GeneratorPoolEntry shape`
+- [x] Run suite, note any failures
+- [x] Adjust existing-test fixtures to compile / pass (none required beyond the new focused coverage added in Tasks 1–9)
+- [x] Re-run — all green
+- [x] Commit: `fix(tests): update fixtures for new GeneratorKind and GeneratorPoolEntry shape` (no standalone fixture-fix commit was needed; full-suite verification completed at 141/141 passing)
 
 ---
 
@@ -645,18 +645,18 @@ public static let defaultPool: [GeneratorPoolEntry] = [
 
 Content of the wiki page: short — point at the spec's Components Inventory section as canon, summarise the Swift types and their Codable migration stance, link to each static table.
 
-- [ ] Wiki page
-- [ ] project-layout updated with Musical module + updated dependency line (`Engine → Musical` if any block uses it, otherwise `Document → Musical`)
-- [ ] Commit: `docs(wiki): generator-algos page + project-layout update`
+- [x] Wiki page
+- [x] project-layout updated with Musical module + updated dependency line (`Engine → Musical` if any block uses it, otherwise `Document → Musical`)
+- [x] Commit: `docs(wiki): generator-algos page + project-layout update`
 
 ---
 
 ## Task 12: Tag + mark completed
 
-- [ ] Replace every `- [ ]` in this file with `- [x]` for steps actually completed
-- [ ] Add a `Status:` line after `Parent spec` in this file's header, following Plan 0's pattern (completed-prefix word, tag name, SHA) — placeholders kept so the BT's active-plan detector doesn't mis-fire before completion
-- [ ] Commit: `docs(plan): mark 2-generator-algos completed`
-- [ ] Tag: `git tag -a v0.0.3-generator-algos -m "Generator algos + musical tables complete: StepAlgo, PitchAlgo, NoteShape, GeneratorParams; Scales / Chords / StyleProfiles tables; GeneratorPoolEntry carries params; legacy migration"`
+- [x] Replace every unchecked box in this file with `[x]` for steps actually completed
+- [x] Add a `Status:` line after `Parent spec` in this file's header, following Plan 0's pattern (completed-prefix word, tag name, SHA) — placeholders kept so the BT's active-plan detector doesn't mis-fire before completion
+- [x] Commit: `docs(plan): mark 2-generator-algos completed`
+- [x] Tag: `git tag -a v0.0.3-generator-algos -m "Generator algos + musical tables complete: StepAlgo, PitchAlgo, NoteShape, GeneratorParams; Scales / Chords / StyleProfiles tables; GeneratorPoolEntry carries params; legacy migration"`
 
 ---
 
