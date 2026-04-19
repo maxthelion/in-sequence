@@ -69,6 +69,96 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+enum DrumKitNoteMap {
+    static let baselineNote = 36
+
+    static let table: [VoiceTag: UInt8] = [
+        "kick": 36,
+        "snare": 38,
+        "sidestick": 37,
+        "hat-closed": 42,
+        "hat-open": 46,
+        "hat-pedal": 44,
+        "clap": 39,
+        "tom-low": 41,
+        "tom-mid": 45,
+        "tom-hi": 48,
+        "ride": 51,
+        "crash": 49,
+        "cowbell": 56,
+        "tambourine": 54,
+        "shaker": 70,
+    ]
+
+    static func note(for tag: VoiceTag) -> UInt8 {
+        table[tag] ?? 60
+    }
+}
+
+enum DrumKitPreset: String, CaseIterable, Sendable {
+    case kit808 = "808"
+    case acousticBasic = "Acoustic"
+    case techno = "Techno"
+
+    struct Member: Equatable, Sendable {
+        let tag: VoiceTag
+        let trackName: String
+        let defaultGeneratorKindID: String
+        let seedPattern: [Bool]
+    }
+
+    var displayName: String {
+        switch self {
+        case .kit808:
+            return "808 Kit"
+        case .acousticBasic:
+            return "Acoustic Kit"
+        case .techno:
+            return "Techno Kit"
+        }
+    }
+
+    var members: [Member] {
+        switch self {
+        case .kit808:
+            return [
+                Member(tag: "kick", trackName: "Kick", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
+                Member(tag: "snare", trackName: "Snare", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
+                Member(tag: "hat-closed", trackName: "Hat", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]),
+                Member(tag: "clap", trackName: "Clap", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false]),
+            ]
+        case .acousticBasic:
+            return [
+                Member(tag: "kick", trackName: "Kick", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, false, false, false, false, true, false, true, false, false, false, false, false, true, false]),
+                Member(tag: "snare", trackName: "Snare", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
+                Member(tag: "hat-closed", trackName: "Hat", defaultGeneratorKindID: "mono-generator", seedPattern: [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true]),
+            ]
+        case .techno:
+            return [
+                Member(tag: "kick", trackName: "Kick", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, true, false]),
+                Member(tag: "snare", trackName: "Snare", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
+                Member(tag: "hat-closed", trackName: "Hat", defaultGeneratorKindID: "mono-generator", seedPattern: [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true]),
+                Member(tag: "ride", trackName: "Ride", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, true, false, false, false, true, false, false, false, true, false, false, false, true]),
+            ]
+        }
+    }
+
+    var suggestedSharedDestination: Destination {
+        .internalSampler(bankID: .drumKitDefault, preset: rawValue)
+    }
+
+    var suggestedGroupColor: String {
+        switch self {
+        case .kit808:
+            return "#C6A"
+        case .acousticBasic:
+            return "#8AA"
+        case .techno:
+            return "#8FC"
+        }
+    }
+}
+
 struct SeqAIDocumentModel: Codable, Equatable {
     var version: Int
     var tracks: [StepSequenceTrack]
@@ -341,6 +431,49 @@ struct SeqAIDocumentModel: Codable, Equatable {
         )
         selectedTrackID = nextTrack.id
         syncPhrasesWithTracks()
+    }
+
+    @discardableResult
+    mutating func addDrumKit(_ preset: DrumKitPreset) -> TrackGroupID? {
+        guard !preset.members.isEmpty else {
+            return nil
+        }
+
+        let groupID = TrackGroupID()
+        let newTracks = preset.members.map { member in
+            StepSequenceTrack(
+                name: member.trackName,
+                trackType: .monoMelodic,
+                pitches: [DrumKitNoteMap.baselineNote],
+                stepPattern: member.seedPattern,
+                destination: .inheritGroup,
+                groupID: groupID,
+                velocity: StepSequenceTrack.default.velocity,
+                gateLength: StepSequenceTrack.default.gateLength
+            )
+        }
+
+        tracks.append(contentsOf: newTracks)
+        trackGroups.append(
+            TrackGroup(
+                id: groupID,
+                name: preset.displayName,
+                color: preset.suggestedGroupColor,
+                memberIDs: newTracks.map(\.id),
+                sharedDestination: preset.suggestedSharedDestination,
+                noteMapping: Dictionary(
+                    uniqueKeysWithValues: zip(newTracks, preset.members).map { track, member in
+                        (
+                            track.id,
+                            Int(DrumKitNoteMap.note(for: member.tag)) - DrumKitNoteMap.baselineNote
+                        )
+                    }
+                )
+            )
+        )
+        selectedTrackID = newTracks.first?.id ?? selectedTrackID
+        syncPhrasesWithTracks()
+        return groupID
     }
 
     mutating func setSelectedTrackType(_ trackType: TrackType) {

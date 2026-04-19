@@ -777,4 +777,68 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertNil(model.group(for: trackID))
         XCTAssertTrue(model.tracksInGroup(groupID).isEmpty)
     }
+
+    func test_drum_kit_preset_exposes_expected_members() {
+        let members = DrumKitPreset.kit808.members
+
+        XCTAssertEqual(members.count, 4)
+        XCTAssertEqual(Set(members.map(\.tag)).count, 4)
+    }
+
+    func test_drum_kit_note_map_returns_expected_notes() {
+        XCTAssertEqual(DrumKitNoteMap.note(for: "kick"), 36)
+        XCTAssertEqual(DrumKitNoteMap.note(for: "snare"), 38)
+        XCTAssertEqual(DrumKitNoteMap.note(for: "unknown-tag"), 60)
+    }
+
+    func test_add_drum_kit_appends_grouped_tracks_with_shared_destination() {
+        var model = SeqAIDocumentModel.empty
+
+        let groupID = model.addDrumKit(.kit808)
+
+        XCTAssertEqual(groupID, model.trackGroups.first?.id)
+        XCTAssertEqual(model.tracks.count, 5)
+        XCTAssertEqual(model.patternBanks.count, 5)
+        XCTAssertEqual(model.selectedPhrase.trackPatternIndexes.count, 5)
+
+        guard let groupID,
+              let group = model.trackGroups.first(where: { $0.id == groupID })
+        else {
+            return XCTFail("Expected added drum-kit group")
+        }
+
+        XCTAssertEqual(group.name, DrumKitPreset.kit808.displayName)
+        XCTAssertEqual(group.color, DrumKitPreset.kit808.suggestedGroupColor)
+        XCTAssertEqual(group.sharedDestination, DrumKitPreset.kit808.suggestedSharedDestination)
+        XCTAssertEqual(group.memberIDs.count, 4)
+        XCTAssertEqual(group.noteMapping.count, 4)
+        XCTAssertEqual(model.selectedTrackID, group.memberIDs.first)
+
+        let appendedTracks = model.tracks.filter { group.memberIDs.contains($0.id) }
+        XCTAssertEqual(appendedTracks.count, 4)
+        XCTAssertTrue(appendedTracks.allSatisfy { $0.trackType == .monoMelodic })
+        XCTAssertTrue(appendedTracks.allSatisfy { $0.destination == .inheritGroup })
+        XCTAssertTrue(appendedTracks.allSatisfy { $0.groupID == groupID })
+        XCTAssertTrue(appendedTracks.allSatisfy { $0.pitches == [DrumKitNoteMap.baselineNote] })
+
+        let expectedOffsets = Dictionary(
+            uniqueKeysWithValues: zip(appendedTracks.map(\.name), appendedTracks.map(\.id)).map { name, id in
+                let tag: VoiceTag
+                switch name {
+                case "Kick":
+                    tag = "kick"
+                case "Snare":
+                    tag = "snare"
+                case "Hat":
+                    tag = "hat-closed"
+                case "Clap":
+                    tag = "clap"
+                default:
+                    tag = "unknown-tag"
+                }
+                return (id, Int(DrumKitNoteMap.note(for: tag)) - DrumKitNoteMap.baselineNote)
+            }
+        )
+        XCTAssertEqual(group.noteMapping, expectedOffsets)
+    }
 }
