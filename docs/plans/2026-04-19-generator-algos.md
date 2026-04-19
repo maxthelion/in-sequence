@@ -4,7 +4,7 @@
 
 **Goal:** Replace the flat `GeneratorKind` enum (`manualMono`/`drumPattern`/`sliceTrigger`) with the `StepAlgo × PitchAlgo` orthogonal composition from the spec, ship the static musical tables (`Scales`, `Chords`, `StyleProfiles`) the algos depend on, extend `GeneratorPoolEntry` to carry per-kind `GeneratorParams`, and provide pure evaluation functions. Verified end-to-end by XCTest — each algo variant's output on a fixed RNG seed matches expected values; `GeneratorPoolEntry.defaultPool` produces three valid entries (mono / drum / slice-stub); legacy-format documents decode into the new shape.
 
-**Architecture:** Two Swift modules grow. `Sources/Musical/` is new, carrying `Scale`, `Chord`, `StyleProfile` value types plus their `{ScaleID, ChordID, StyleProfileID}` enums and static lookup tables — read-only, shipped with the binary, no library-scoped overlay. `Sources/Document/` gains `StepAlgo.swift`, `PitchAlgo.swift`, `NoteShape.swift`, `GeneratorParams.swift`, all as value types with `Codable`, `Equatable`, `Sendable` conformance. Eval lives in extensions: `StepAlgo.fires(at:totalSteps:rng:)` and `PitchAlgo.pick(context:rng:)` — pure functions, no state kept across calls. `GeneratorKind` expands from 3 cases to 5 to match the spec's generator-kind roster; `GeneratorPoolEntry` gains a `params: GeneratorParams` field. `defaultPool` is refreshed. **This plan does NOT wire the new algos into the running engine** — the existing `NoteGenerator` block keeps reading its own inlined params. Engine integration is a separate plan so this one stays reviewable.
+**Architecture:** Two Swift modules grow. `Sources/Musical/` is new, carrying `Scale`, `ChordDefinition`, `StyleProfile` value types plus their `{ScaleID, ChordID, StyleProfileID}` enums and static lookup tables — read-only, shipped with the binary, no library-scoped overlay. `Sources/Document/` gains `StepAlgo.swift`, `PitchAlgo.swift`, `NoteShape.swift`, `GeneratorParams.swift`, all as value types with `Codable`, `Equatable`, `Sendable` conformance. Eval lives in extensions: `StepAlgo.fires(at:totalSteps:rng:)` and `PitchAlgo.pick(context:rng:)` — pure functions, no state kept across calls. `GeneratorKind` expands from 3 cases to 5 to match the spec's generator-kind roster; `GeneratorPoolEntry` gains a `params: GeneratorParams` field. `defaultPool` is refreshed. **This plan does NOT wire the new algos into the running engine** — the existing `NoteGenerator` block keeps reading its own inlined params. Engine integration is a separate plan so this one stays reviewable.
 
 **Tech Stack:** Swift 5.9+, Foundation, XCTest. No new package dependencies.
 
@@ -33,7 +33,7 @@ Sources/
     Scales.swift                          # static [ScaleID: Scale] table (19 scales)
     ChordID.swift                         # enum
     Chord.swift                           # struct { intervals: [Int], name }
-    Chords.swift                          # static [ChordID: Chord] table (16 chords)
+    Chords.swift                          # static [ChordID: ChordDefinition] table (16 chords)
     StyleProfileID.swift                  # enum
     StyleProfile.swift                    # struct (ascend/descend/leap biases)
     StyleProfiles.swift                   # static [StyleProfileID: StyleProfile] table
@@ -155,7 +155,7 @@ public enum ChordID: String, Codable, CaseIterable, Equatable, Sendable {
     case major11th, minor11th
 }
 
-public struct Chord: Equatable, Sendable {
+public struct ChordDefinition: Equatable, Sendable {
     public let id: ChordID
     public let name: String
     public let intervals: [Int]
@@ -190,9 +190,9 @@ public struct Chord: Equatable, Sendable {
 3. Spot-check intervals: `.majorTriad = [0,4,7]`, `.dominant7th = [0,4,7,10]`.
 4. Every chord's intervals are strictly ascending and start at 0.
 
-- [ ] Write tests
-- [ ] Implement
-- [ ] Green
+- [x] Write tests
+- [x] Implement
+- [x] Green
 - [ ] Commit: `feat(musical): chord reference tables`
 
 ---
