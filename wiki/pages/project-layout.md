@@ -16,6 +16,7 @@ sequencer-ai/
 │   ├── App/
 │   ├── Document/
 │   ├── UI/
+│   ├── Engine/
 │   ├── Platform/
 │   ├── MIDI/
 │   ├── Audio/
@@ -50,6 +51,12 @@ Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`. See [[document-mod
 SwiftUI views only. Each view in its own file. Composed into `ContentView` (NavigationSplitView) via `SequencerAIApp`. Views read from `MIDISession.shared` and the document binding; they never own business logic or talk to platform APIs directly.
 
 Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `TransportBar`, `PreferencesView`.
+
+### `Sources/Engine/`
+
+The pipeline runtime and app-facing playback controller. This boundary owns typed streams, the block contract, block registry, DAG executor, tick clock, command queue, and the engine controller that wires those pieces into track playback. It may depend on `MIDI/` for transport to virtual endpoints and on the audio sink protocol used by `Audio/`, but it does not depend on SwiftUI views or document serialization details.
+
+Currently: `Block.swift`, `Stream.swift`, `Executor.swift`, `BlockRegistry.swift`, `TickClock.swift`, `CommandQueue.swift`, `EngineController.swift`, `Blocks/NoteGenerator.swift`, `Blocks/MidiOut.swift`. See [[engine-architecture]].
 
 ### `Sources/Platform/`
 
@@ -92,8 +99,9 @@ Current `Sources/` exemplifies this: `MIDIEndpoint.swift` is ~30 lines (value ty
 Dependencies flow **inward** toward `Document/`:
 
 ```
-App   → UI → Audio / MIDI / Platform / Document
-              Audio           → Engine / (nothing else project-internal)
+App   → UI → Engine / Audio / MIDI / Platform / Document
+              Engine          → MIDI / Audio
+              Audio           → Engine (playback sink protocol only)
               Platform        → Document
               MIDI            → (nothing from this project)
               Document        → (nothing from this project)
@@ -102,6 +110,7 @@ App   → UI → Audio / MIDI / Platform / Document
 Rules this encodes:
 
 - `Document/` depends on nothing project-internal. It stays pure-Codable.
+- `Engine/` owns playback/runtime logic and may talk to MIDI and audio sinks, but not SwiftUI.
 - `Audio/`, `MIDI/`, and `Platform/` don't import `UI/` or `Document/`.
 - `UI/` can use anything below it but doesn't own business logic.
 - `App/` wires everything together.
@@ -112,7 +121,6 @@ Breaking this ordering (e.g., `Document/` importing `UI/`) is a review-blocking 
 
 As later plans land, additional boundaries will appear:
 
-- `Sources/Engine/` — the pipeline DAG executor, block types, streams (Plan 1)
 - `Sources/Coordinator/` — macro coordinator + phrase model (Plan 2)
 - `Sources/Song/` — song model / phrase-refs (Plan 3)
 - `Sources/Chord/` — chord generator (Plan 4)
