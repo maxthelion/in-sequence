@@ -6,6 +6,7 @@ struct PhraseWorkspaceView: View {
 
     @State private var selectedBarIndex = 0
     @State private var selectedLayer: PhraseAbstractKind = .intensity
+    @State private var isShowingCellEditor = false
 
     private let phraseColumnWidth: CGFloat = 190
     private let trackColumnWidth: CGFloat = 160
@@ -30,12 +31,24 @@ struct PhraseWorkspaceView: View {
         row(for: selectedPhrase, kind: selectedLayer)
     }
 
+    private var selectedBarValues: [Double] {
+        barPreview(for: selectedRow, phrase: selectedPhrase)
+    }
+
+    private var selectedStepValues: [Double] {
+        stepPageValues(for: selectedRow, phrase: selectedPhrase, barIndex: currentBarIndex)
+    }
+
     private var currentBarIndex: Int {
         min(selectedBarIndex, max(0, selectedPhrase.lengthBars - 1))
     }
 
     private var layerAccent: Color {
         accent(for: selectedLayer)
+    }
+
+    private var selectedLayerEditorKind: PhraseLayerEditorKind {
+        selectedLayer.editorKind
     }
 
     private var selectedCellMode: PhraseCellEditMode {
@@ -116,6 +129,85 @@ struct PhraseWorkspaceView: View {
         }
         .onChange(of: document.model.selectedPhraseID) {
             selectedBarIndex = min(selectedBarIndex, max(0, selectedPhrase.lengthBars - 1))
+        }
+        .onChange(of: selectedLayer) {
+            normalizeSelectedCellModeIfNeeded()
+        }
+        .overlay {
+            if isShowingCellEditor {
+                ZStack {
+                    Color.black.opacity(0.55)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            isShowingCellEditor = false
+                        }
+
+                    PhraseCellEditorOverlay(
+                        layer: selectedLayer,
+                        editorKind: selectedLayerEditorKind,
+                        cellMode: selectedCellMode,
+                        availableModes: selectedLayer.availableCellModes,
+                        accent: layerAccent,
+                        phraseName: selectedPhrase.name,
+                        trackName: selectedTrack.name,
+                        barValues: selectedBarValues,
+                        stepValues: selectedStepValues,
+                        currentBarIndex: currentBarIndex,
+                        totalBars: selectedPhrase.lengthBars,
+                        onSelectMode: { mode in
+                            mutateSelectedPhrase { phrase in
+                                phrase.setCellMode(mode, for: selectedLayer, trackID: selectedTrack.id)
+                            }
+                        },
+                        onApplySingleValue: { value in
+                            mutateSelectedPhrase { phrase in
+                                phrase.setAbstractUniformValue(for: selectedLayer, value: value)
+                            }
+                        },
+                        onCycleBar: { barIndex in
+                            guard selectedBarValues.indices.contains(barIndex) else {
+                                return
+                            }
+                            mutateSelectedPhrase { phrase in
+                                phrase.setAbstractBarValue(
+                                    for: selectedLayer,
+                                    barIndex: barIndex,
+                                    value: nextStepValue(after: selectedBarValues[barIndex])
+                                )
+                            }
+                        },
+                        onApplyRamp: { preset in
+                            mutateSelectedPhrase { phrase in
+                                phrase.setAbstractValues(
+                                    for: selectedLayer,
+                                    values: rampValues(
+                                        preset: preset,
+                                        stepCount: phrase.stepCount
+                                    )
+                                )
+                            }
+                        },
+                        onCycleStep: { stepOffset in
+                            let absoluteIndex = (currentBarIndex * selectedPhrase.stepsPerBar) + stepOffset
+                            guard selectedStepValues.indices.contains(stepOffset) else {
+                                return
+                            }
+                            mutateSelectedPhrase { phrase in
+                                phrase.setAbstractValue(
+                                    for: selectedLayer,
+                                    at: absoluteIndex,
+                                    value: nextStepValue(after: selectedStepValues[stepOffset])
+                                )
+                            }
+                        },
+                        onClose: {
+                            isShowingCellEditor = false
+                        }
+                    )
+                    .frame(maxWidth: 980)
+                    .padding(32)
+                }
+            }
         }
     }
 
@@ -335,6 +427,7 @@ struct PhraseWorkspaceView: View {
             HStack(spacing: 10) {
                 StudioMetricPill(title: "Track", value: selectedTrack.name, accent: StudioTheme.cyan)
                 StudioMetricPill(title: "Type", value: selectedTrack.trackType.shortLabel, accent: StudioTheme.violet)
+                StudioMetricPill(title: "Editor", value: selectedLayerEditorKind.label, accent: layerAccent)
                 StudioMetricPill(title: "Mode", value: selectedCellMode.shortLabel, accent: StudioTheme.amber)
                 StudioMetricPill(title: "Pattern", value: "P\(selectedPatternIndex + 1)", accent: StudioTheme.success)
             }
@@ -346,7 +439,7 @@ struct PhraseWorkspaceView: View {
                     .foregroundStyle(StudioTheme.mutedText)
 
                 HStack(spacing: 10) {
-                    ForEach(PhraseCellEditMode.allCases, id: \.self) { mode in
+                    ForEach(selectedLayer.availableCellModes, id: \.self) { mode in
                         Button {
                             mutateSelectedPhrase { phrase in
                                 phrase.setCellMode(mode, for: selectedLayer, trackID: selectedTrack.id)
@@ -373,7 +466,17 @@ struct PhraseWorkspaceView: View {
                 Text(selectedCellMode.detail)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(StudioTheme.mutedText)
+
+                Text("\(selectedLayerEditorKind.label) layers expose the same mode logic phatcontroller used: toggles keep `Single` and `Bars`, while scalar lanes unlock `Ramping` and freehand editing.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
             }
+
+            Button("Open Cell Editor") {
+                isShowingCellEditor = true
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(layerAccent)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Pattern Slot")
@@ -449,8 +552,75 @@ struct PhraseWorkspaceView: View {
         document.model.selectedPhrase = phrase
     }
 
+    private func normalizeSelectedCellModeIfNeeded() {
+        let allowedModes = selectedLayer.availableCellModes
+        guard !allowedModes.contains(selectedCellMode),
+              let fallbackMode = allowedModes.first
+        else {
+            return
+        }
+
+        mutateSelectedPhrase { phrase in
+            phrase.setCellMode(fallbackMode, for: selectedLayer, trackID: selectedTrack.id)
+        }
+    }
+
     private func row(for phrase: PhraseModel, kind: PhraseAbstractKind) -> PhraseAbstractRow {
         phrase.abstractRows.first(where: { $0.kind == kind }) ?? PhraseAbstractRow(kind: kind, values: Array(repeating: 0, count: phrase.stepCount))
+    }
+
+    private func barPreview(for row: PhraseAbstractRow, phrase: PhraseModel) -> [Double] {
+        let stepsPerBar = max(1, phrase.stepsPerBar)
+        return (0..<max(1, phrase.lengthBars)).map { barIndex in
+            let start = barIndex * stepsPerBar
+            let end = min(row.values.count, start + stepsPerBar)
+            guard start < end else {
+                return 0
+            }
+            let slice = row.values[start..<end]
+            return slice.reduce(0, +) / Double(slice.count)
+        }
+    }
+
+    private func stepPageValues(for row: PhraseAbstractRow, phrase: PhraseModel, barIndex: Int) -> [Double] {
+        let stepsPerBar = max(1, phrase.stepsPerBar)
+        let start = max(0, barIndex) * stepsPerBar
+        let end = min(row.values.count, start + stepsPerBar)
+        guard start < end else {
+            return []
+        }
+        return Array(row.values[start..<end])
+    }
+
+    private func nextStepValue(after value: Double) -> Double {
+        switch value {
+        case ..<0.25:
+            return 0.33
+        case ..<0.5:
+            return 0.66
+        case ..<0.83:
+            return 1.0
+        default:
+            return 0.0
+        }
+    }
+
+    private func rampValues(preset: PhraseCurvePreset, stepCount: Int) -> [Double] {
+        guard stepCount > 1 else {
+            return [preset == .fall ? 1 : 0]
+        }
+
+        return (0..<stepCount).map { index in
+            let progress = Double(index) / Double(stepCount - 1)
+            switch preset {
+            case .rise:
+                return progress
+            case .fall:
+                return 1 - progress
+            case .peak:
+                return progress < 0.5 ? (progress * 2) : ((1 - progress) * 2)
+            }
+        }
     }
 
     private func accent(for kind: PhraseAbstractKind) -> Color {
@@ -579,12 +749,13 @@ private struct PhraseMatrixRow: View {
             .buttonStyle(.plain)
 
             ForEach(tracks, id: \.id) { track in
+                let cellMode = phrase.cellMode(for: selectedLayer, trackID: track.id)
                 Button {
                     onSelectCell(track.id)
                 } label: {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text(phrase.cellMode(for: selectedLayer, trackID: track.id).shortLabel.uppercased())
+                            Text(cellMode.shortLabel.uppercased())
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .tracking(0.9)
                                 .foregroundStyle(rowAccent)
@@ -596,9 +767,14 @@ private struct PhraseMatrixRow: View {
                             }
                         }
 
-                        Text(averageValueText)
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(StudioTheme.text)
+                        PhraseCellPreview(
+                            mode: cellMode,
+                            averageValueText: averageValueText,
+                            barPreview: barPreview,
+                            stepPreview: Array(layerValues.prefix(16)),
+                            accent: rowAccent,
+                            isActive: selectedTrackID == track.id && isSelected
+                        )
 
                         PhraseBarPreview(
                             values: barPreview,
@@ -650,6 +826,88 @@ private struct PhraseMatrixRow: View {
             return rowAccent.opacity(0.28)
         }
         return StudioTheme.border
+    }
+}
+
+private struct PhraseCellPreview: View {
+    let mode: PhraseCellEditMode
+    let averageValueText: String
+    let barPreview: [Double]
+    let stepPreview: [Double]
+    let accent: Color
+    let isActive: Bool
+
+    var body: some View {
+        Group {
+            switch mode {
+            case .single:
+                singlePreview
+            case .perBar:
+                barsPreview
+            case .rampUp:
+                rampPreview
+            case .drawn:
+                drawnPreview
+            }
+        }
+        .frame(height: 92)
+    }
+
+    private var singlePreview: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(isActive ? 0.11 : 0.07))
+
+            GeometryReader { proxy in
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(accent.opacity(0.82))
+                    .frame(height: max(14, proxy.size.height * CGFloat(averageFraction)))
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            Text(averageValueText)
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+                .padding(12)
+        }
+    }
+
+    private var barsPreview: some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            ForEach(Array(barPreview.enumerated()), id: \.offset) { _, value in
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(accent.opacity(0.28 + (value * 0.58)))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: max(12, 18 + (value * 64)))
+            }
+        }
+    }
+
+    private var rampPreview: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.82))
+
+            PhraseRampShape(values: barPreview)
+                .stroke(Color.white.opacity(0.92), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                .padding(12)
+        }
+    }
+
+    private var drawnPreview: some View {
+        HStack(spacing: 3) {
+            ForEach(Array(stepPreview.enumerated()), id: \.offset) { _, value in
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(value > 0.8 ? StudioTheme.success : accent.opacity(0.2 + (value * 0.65)))
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private var averageFraction: Double {
+        let numeric = Double(averageValueText.replacingOccurrences(of: "%", with: "")) ?? 0
+        return min(max(numeric / 100, 0), 1)
     }
 }
 
@@ -716,6 +974,335 @@ private struct PhraseLayerEditor: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(accent.opacity(0.18), lineWidth: 1)
         )
+    }
+}
+
+private struct PhraseCellEditorOverlay: View {
+    let layer: PhraseAbstractKind
+    let editorKind: PhraseLayerEditorKind
+    let cellMode: PhraseCellEditMode
+    let availableModes: [PhraseCellEditMode]
+    let accent: Color
+    let phraseName: String
+    let trackName: String
+    let barValues: [Double]
+    let stepValues: [Double]
+    let currentBarIndex: Int
+    let totalBars: Int
+    let onSelectMode: (PhraseCellEditMode) -> Void
+    let onApplySingleValue: (Double) -> Void
+    let onCycleBar: (Int) -> Void
+    let onApplyRamp: (PhraseCurvePreset) -> Void
+    let onCycleStep: (Int) -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(phraseName) • \(trackName)")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Text("\(layer.label) Cell")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+                }
+
+                Spacer()
+
+                Button("Close") {
+                    onClose()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            HStack(spacing: 10) {
+                ForEach(availableModes, id: \.self) { mode in
+                    Button {
+                        onSelectMode(mode)
+                    } label: {
+                        Text(mode.label)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(StudioTheme.text)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(cellMode == mode ? accent.opacity(0.22) : Color.white.opacity(0.04))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(cellMode == mode ? accent.opacity(0.7) : StudioTheme.border, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Group {
+                switch editorKind {
+                case .continuousScalar:
+                    switch cellMode {
+                    case .single:
+                        PhraseSingleModeEditor(accent: accent, onApplyValue: onApplySingleValue)
+                    case .perBar:
+                        PhraseBarsModeEditor(
+                            accent: accent,
+                            values: barValues,
+                            onCycleBar: onCycleBar
+                        )
+                    case .rampUp:
+                        PhraseRampModeEditor(
+                            accent: accent,
+                            values: barValues,
+                            onApplyRamp: onApplyRamp
+                        )
+                    case .drawn:
+                        PhraseDrawnModeEditor(
+                            accent: accent,
+                            values: stepValues,
+                            currentBarIndex: currentBarIndex,
+                            totalBars: totalBars,
+                            onCycleStep: onCycleStep
+                        )
+                    }
+                case .toggleBoolean, .indexedChoice:
+                    PhraseUnavailableModeEditor(editorKind: editorKind)
+                }
+            }
+        }
+        .padding(22)
+        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(accent.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+private struct PhraseUnavailableModeEditor: View {
+    let editorKind: PhraseLayerEditorKind
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("\(editorKind.label) layer editors are reserved for the concrete row types from the north-star.")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Text("The current implementation only exposes the abstract scalar layers, but the editor-selection rule is already in place so `Pattern`, `Mute`, and other discrete/toggle layers can swap in their own phatcontroller-style controls next.")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+private struct PhraseSingleModeEditor: View {
+    let accent: Color
+    let onApplyValue: (Double) -> Void
+
+    private let values: [Double] = [0, 0.25, 0.5, 0.75, 1]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Single mode applies one value for the whole phrase.")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(alignment: .bottom, spacing: 10) {
+                ForEach(values, id: \.self) { value in
+                    Button {
+                        onApplyValue(value)
+                    } label: {
+                        VStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(accent.opacity(0.25 + (value * 0.65)))
+                                .frame(height: 48 + (value * 120))
+
+                            Text("\(Int((value * 100).rounded()))")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.text)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+private struct PhraseBarsModeEditor: View {
+    let accent: Color
+    let values: [Double]
+    let onCycleBar: (Int) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Bars mode stores one value per bar. Tap a column to cycle it.")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(alignment: .bottom, spacing: 10) {
+                ForEach(Array(values.enumerated()), id: \.offset) { index, value in
+                    Button {
+                        onCycleBar(index)
+                    } label: {
+                        VStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(accent.opacity(0.25 + (value * 0.65)))
+                                .frame(height: 40 + (value * 120))
+
+                            Text("\(index + 1)")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.text)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+private struct PhraseRampModeEditor: View {
+    let accent: Color
+    let values: [Double]
+    let onApplyRamp: (PhraseCurvePreset) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Ramping mode applies a phrase-wide curve shape.")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 10) {
+                ForEach(PhraseCurvePreset.allCases, id: \.self) { preset in
+                    Button {
+                        onApplyRamp(preset)
+                    } label: {
+                        Text(preset.label)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(StudioTheme.text)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.white.opacity(0.04))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(StudioTheme.border, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.black.opacity(0.82))
+
+                PhraseRampShape(values: values)
+                    .stroke(Color.white.opacity(0.92), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    .padding(18)
+            }
+            .frame(height: 220)
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+private struct PhraseDrawnModeEditor: View {
+    let accent: Color
+    let values: [Double]
+    let currentBarIndex: Int
+    let totalBars: Int
+    let onCycleStep: (Int) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Drawn mode works at step resolution. Tap a step to cycle its height for the selected bar.")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Text("Bar \(currentBarIndex + 1) of \(totalBars)")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(Array(values.enumerated()), id: \.offset) { index, value in
+                    Button {
+                        onCycleStep(index)
+                    } label: {
+                        VStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(accent.opacity(0.25 + (value * 0.65)))
+                                .frame(height: 24 + (value * 116))
+
+                            Text("\(index + 1)")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.text)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+private struct PhraseRampShape: Shape {
+    let values: [Double]
+
+    func path(in rect: CGRect) -> Path {
+        guard !values.isEmpty else {
+            return Path()
+        }
+
+        let normalized = values.map { min(max($0, 0), 1) }
+        let stepWidth = values.count == 1 ? 0 : rect.width / CGFloat(values.count - 1)
+
+        var path = Path()
+        for (index, value) in normalized.enumerated() {
+            let point = CGPoint(
+                x: rect.minX + (CGFloat(index) * stepWidth),
+                y: rect.maxY - (CGFloat(value) * rect.height)
+            )
+            if index == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+        return path
+    }
+}
+
+private enum PhraseCurvePreset: CaseIterable {
+    case rise
+    case fall
+    case peak
+
+    var label: String {
+        switch self {
+        case .rise:
+            return "Ramp Up"
+        case .fall:
+            return "Ramp Down"
+        case .peak:
+            return "Peak"
+        }
     }
 }
 

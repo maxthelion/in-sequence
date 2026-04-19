@@ -138,6 +138,54 @@ struct PhraseModel: Codable, Equatable, Sendable {
         abstractRows[rowIndex].cycleValue(at: index)
     }
 
+    mutating func setAbstractValue(for kind: PhraseAbstractKind, at index: Int, value: Double) {
+        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }),
+              abstractRows[rowIndex].values.indices.contains(index)
+        else {
+            return
+        }
+        abstractRows[rowIndex].values[index] = min(max(value, 0), 1)
+    }
+
+    mutating func setAbstractUniformValue(for kind: PhraseAbstractKind, value: Double) {
+        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
+            return
+        }
+        let normalized = min(max(value, 0), 1)
+        abstractRows[rowIndex].values = Array(repeating: normalized, count: abstractRows[rowIndex].values.count)
+    }
+
+    mutating func setAbstractBarValue(
+        for kind: PhraseAbstractKind,
+        barIndex: Int,
+        value: Double
+    ) {
+        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
+            return
+        }
+
+        let start = max(0, barIndex) * stepsPerBar
+        let end = min(abstractRows[rowIndex].values.count, start + stepsPerBar)
+        guard start < end else {
+            return
+        }
+
+        let normalized = min(max(value, 0), 1)
+        for index in start..<end {
+            abstractRows[rowIndex].values[index] = normalized
+        }
+    }
+
+    mutating func setAbstractValues(for kind: PhraseAbstractKind, values: [Double]) {
+        guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
+            return
+        }
+
+        let stepCount = abstractRows[rowIndex].values.count
+        let normalized = Array(values.prefix(stepCount)).map { min(max($0, 0), 1) }
+        abstractRows[rowIndex].values = normalized + Array(repeating: 0, count: max(0, stepCount - normalized.count))
+    }
+
     mutating func setAbstractRowSourceMode(_ mode: PhraseRowSourceMode, for kind: PhraseAbstractKind) {
         guard let rowIndex = abstractRows.firstIndex(where: { $0.kind == kind }) else {
             return
@@ -478,6 +526,45 @@ enum PhraseAbstractKind: String, Codable, CaseIterable, Equatable, Sendable {
             return "violet"
         case .tension, .variance:
             return "amber"
+        }
+    }
+
+    var editorKind: PhraseLayerEditorKind {
+        switch self {
+        case .intensity, .density, .register, .tension, .variance, .brightness:
+            return .continuousScalar
+        }
+    }
+
+    var availableCellModes: [PhraseCellEditMode] {
+        editorKind.availableModes
+    }
+}
+
+enum PhraseLayerEditorKind: Equatable, Sendable {
+    case toggleBoolean
+    case continuousScalar
+    case indexedChoice
+
+    var label: String {
+        switch self {
+        case .toggleBoolean:
+            return "Toggle"
+        case .continuousScalar:
+            return "Scalar"
+        case .indexedChoice:
+            return "Indexed"
+        }
+    }
+
+    var availableModes: [PhraseCellEditMode] {
+        switch self {
+        case .toggleBoolean:
+            return [.single, .perBar]
+        case .continuousScalar:
+            return [.single, .rampUp, .perBar, .drawn]
+        case .indexedChoice:
+            return [.single, .perBar]
         }
     }
 }

@@ -2,6 +2,17 @@ import XCTest
 @testable import SequencerAI
 
 final class SeqAIDocumentModelTests: XCTestCase {
+    func test_phrase_layer_editor_kind_exposes_expected_modes() {
+        XCTAssertEqual(PhraseLayerEditorKind.toggleBoolean.availableModes, [.single, .perBar])
+        XCTAssertEqual(PhraseLayerEditorKind.indexedChoice.availableModes, [.single, .perBar])
+        XCTAssertEqual(PhraseLayerEditorKind.continuousScalar.availableModes, [.single, .rampUp, .perBar, .drawn])
+    }
+
+    func test_phrase_abstract_layers_use_continuous_scalar_editor_kind() {
+        XCTAssertTrue(PhraseAbstractKind.allCases.allSatisfy { $0.editorKind == .continuousScalar })
+        XCTAssertTrue(PhraseAbstractKind.allCases.allSatisfy { $0.availableCellModes == [.single, .rampUp, .perBar, .drawn] })
+    }
+
     func test_empty_has_version_1() {
         let model = SeqAIDocumentModel.empty
 
