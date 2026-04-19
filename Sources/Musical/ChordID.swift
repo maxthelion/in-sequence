@@ -1,4 +1,4 @@
-enum ChordID: String, Codable, CaseIterable, Equatable, Sendable {
+enum ChordID: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
     case majorTriad
     case minorTriad
     case augmentedTriad

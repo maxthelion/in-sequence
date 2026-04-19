@@ -1,6 +1,6 @@
 import Foundation
 
-enum StepAlgo: Codable, Equatable, Sendable {
+enum StepAlgo: Codable, Equatable, Hashable, Sendable {
     case manual(pattern: [Bool])
     case randomWeighted(density: Double)
     case euclidean(pulses: Int, steps: Int, offset: Int)

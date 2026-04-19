@@ -1,4 +1,4 @@
-enum ScaleID: String, Codable, CaseIterable, Equatable, Sendable {
+enum ScaleID: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
     case chromatic
     case major
     case naturalMinor

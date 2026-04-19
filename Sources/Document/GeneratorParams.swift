@@ -2,7 +2,7 @@ import Foundation
 
 typealias VoiceTag = String
 
-enum GeneratorParams: Codable, Equatable, Sendable {
+enum GeneratorParams: Codable, Equatable, Hashable, Sendable {
     case mono(step: StepAlgo, pitch: PitchAlgo, shape: NoteShape)
     case poly(step: StepAlgo, pitches: [PitchAlgo], shape: NoteShape)
     case drum(steps: [VoiceTag: StepAlgo], shape: NoteShape)

@@ -1,4 +1,4 @@
-struct NoteShape: Codable, Equatable, Sendable {
+struct NoteShape: Codable, Equatable, Hashable, Sendable {
     var velocity: Int
     var gateLength: Int
     var accent: Bool

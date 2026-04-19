@@ -1,16 +1,16 @@
 import Foundation
 
-enum PickMode: String, Codable, Equatable, Sendable {
+enum PickMode: String, Codable, Equatable, Hashable, Sendable {
     case sequential
     case random
 }
 
-enum HoldMode: String, Codable, Equatable, Sendable {
+enum HoldMode: String, Codable, Equatable, Hashable, Sendable {
     case pool
     case latest
 }
 
-enum PitchAlgo: Codable, Equatable, Sendable {
+enum PitchAlgo: Codable, Equatable, Hashable, Sendable {
     case manual(pitches: [Int], pickMode: PickMode)
     case randomInScale(root: Int, scale: ScaleID, spread: Int)
     case randomInChord(root: Int, chord: ChordID, inverted: Bool, spread: Int)

@@ -762,25 +762,72 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
     var name: String
     var trackType: TrackType
     var kind: GeneratorKind
+    var params: GeneratorParams
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case trackType
+        case kind
+        case params
+    }
+
+    init(
+        id: UUID,
+        name: String,
+        trackType: TrackType,
+        kind: GeneratorKind,
+        params: GeneratorParams
+    ) {
+        self.id = id
+        self.name = name
+        self.trackType = trackType
+        self.kind = kind
+        self.params = params
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        trackType = try container.decode(TrackType.self, forKey: .trackType)
+        kind = try container.decode(GeneratorKind.self, forKey: .kind)
+        params = try container.decodeIfPresent(GeneratorParams.self, forKey: .params) ?? kind.defaultParams
+    }
+
+    static func makeDefault(
+        id: UUID,
+        name: String,
+        kind: GeneratorKind,
+        trackType: TrackType
+    ) -> GeneratorPoolEntry {
+        GeneratorPoolEntry(
+            id: id,
+            name: name,
+            trackType: trackType,
+            kind: kind,
+            params: kind.defaultParams
+        )
+    }
 
     static let defaultPool: [GeneratorPoolEntry] = [
-        GeneratorPoolEntry(
+        GeneratorPoolEntry.makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1") ?? UUID(),
             name: "Manual Mono",
-            trackType: .instrument,
-            kind: .monoGenerator
+            kind: .monoGenerator,
+            trackType: .instrument
         ),
-        GeneratorPoolEntry(
+        GeneratorPoolEntry.makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2") ?? UUID(),
             name: "Drum Pattern",
-            trackType: .drumRack,
-            kind: .drumKit
+            kind: .drumKit,
+            trackType: .drumRack
         ),
-        GeneratorPoolEntry(
+        GeneratorPoolEntry.makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
             name: "Slice Trigger",
-            trackType: .sliceLoop,
-            kind: .sliceGenerator
+            kind: .sliceGenerator,
+            trackType: .sliceLoop
         )
     ]
 }
