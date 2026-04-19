@@ -1,8 +1,78 @@
 import Foundation
 
+typealias TrackGroupID = UUID
+
+struct BusRef: Codable, Equatable, Hashable, Sendable {
+    var id: String
+
+    init(id: String) {
+        self.id = id
+    }
+}
+
+struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
+    var id: TrackGroupID
+    var name: String
+    var color: String
+    var memberIDs: [UUID]
+    var sharedDestination: Destination?
+    var noteMapping: [UUID: Int]
+    var mute: Bool
+    var solo: Bool
+    var busSink: BusRef?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case color
+        case memberIDs
+        case sharedDestination
+        case noteMapping
+        case mute
+        case solo
+        case busSink
+    }
+
+    init(
+        id: TrackGroupID = UUID(),
+        name: String,
+        color: String = "#8AA",
+        memberIDs: [UUID] = [],
+        sharedDestination: Destination? = nil,
+        noteMapping: [UUID: Int] = [:],
+        mute: Bool = false,
+        solo: Bool = false,
+        busSink: BusRef? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.color = color
+        self.memberIDs = memberIDs
+        self.sharedDestination = sharedDestination
+        self.noteMapping = noteMapping
+        self.mute = mute
+        self.solo = solo
+        self.busSink = busSink
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(TrackGroupID.self, forKey: .id) ?? UUID()
+        name = try container.decode(String.self, forKey: .name)
+        color = try container.decodeIfPresent(String.self, forKey: .color) ?? "#8AA"
+        memberIDs = try container.decodeIfPresent([UUID].self, forKey: .memberIDs) ?? []
+        sharedDestination = try container.decodeIfPresent(Destination.self, forKey: .sharedDestination)
+        noteMapping = try container.decodeIfPresent([UUID: Int].self, forKey: .noteMapping) ?? [:]
+        mute = try container.decodeIfPresent(Bool.self, forKey: .mute) ?? false
+        solo = try container.decodeIfPresent(Bool.self, forKey: .solo) ?? false
+        busSink = try container.decodeIfPresent(BusRef.self, forKey: .busSink)
+    }
+}
+
 struct SeqAIDocumentModel: Codable, Equatable {
     var version: Int
     var tracks: [StepSequenceTrack]
+    var trackGroups: [TrackGroup]
     var generatorPool: [GeneratorPoolEntry]
     var clipPool: [ClipPoolEntry]
     var routes: [Route]
@@ -14,6 +84,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case version
         case tracks
+        case trackGroups
         case generatorPool
         case clipPool
         case routes
@@ -29,6 +100,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         tracks: [
             .default
         ],
+        trackGroups: [],
         generatorPool: GeneratorPoolEntry.defaultPool,
         clipPool: [],
         routes: [],
@@ -124,6 +196,22 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
     func routesTargeting(_ trackID: UUID) -> [Route] {
         routes.filter { $0.destination.targetTrackID == trackID }
+    }
+
+    func group(for trackID: UUID) -> TrackGroup? {
+        guard let groupID = tracks.first(where: { $0.id == trackID })?.groupID else {
+            return nil
+        }
+        return trackGroups.first(where: { $0.id == groupID })
+    }
+
+    func tracksInGroup(_ groupID: TrackGroupID) -> [StepSequenceTrack] {
+        guard let group = trackGroups.first(where: { $0.id == groupID }) else {
+            return []
+        }
+        return group.memberIDs.compactMap { memberID in
+            tracks.first(where: { $0.id == memberID })
+        }
     }
 
     mutating func setSelectedPatternIndex(_ index: Int, for trackID: UUID) {
@@ -243,6 +331,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
             name: "Track \(nextIndex)",
             pitches: StepSequenceTrack.default.pitches,
             stepPattern: StepSequenceTrack.default.stepPattern,
+            destination: Destination.none,
             velocity: StepSequenceTrack.default.velocity,
             gateLength: StepSequenceTrack.default.gateLength
         )
@@ -278,6 +367,10 @@ struct SeqAIDocumentModel: Codable, Equatable {
             return
         }
 
+        let removedTrack = tracks[selectedTrackIndex]
+        if removedTrack.groupID != nil {
+            removeFromGroup(trackID: removedTrack.id)
+        }
         tracks.remove(at: selectedTrackIndex)
         selectedTrackID = tracks[min(selectedTrackIndex, tracks.count - 1)].id
         syncPhrasesWithTracks()
@@ -290,6 +383,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         self.init(
             version: version,
             tracks: tracks,
+            trackGroups: [],
             generatorPool: defaultGeneratorPool,
             clipPool: defaultClipPool,
             patternBanks: Self.defaultPatternBanks(for: tracks, generatorPool: defaultGeneratorPool, clipPool: defaultClipPool),
@@ -302,6 +396,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
     init(
         version: Int,
         tracks: [StepSequenceTrack],
+        trackGroups: [TrackGroup] = [],
         generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
         clipPool: [ClipPoolEntry] = [],
         routes: [Route] = [],
@@ -312,6 +407,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
     ) {
         self.version = version
         self.tracks = tracks
+        self.trackGroups = trackGroups
         self.generatorPool = generatorPool
         self.clipPool = clipPool
         self.routes = routes
@@ -341,10 +437,11 @@ struct SeqAIDocumentModel: Codable, Equatable {
         if let decodedTracks = try container.decodeIfPresent([StepSequenceTrack].self, forKey: .tracks),
            !decodedTracks.isEmpty
         {
-            let resolvedTracks = decodedTracks
             let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
             let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
             let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
+            let resolvedTrackGroups = try container.decodeIfPresent([TrackGroup].self, forKey: .trackGroups) ?? []
+            let resolvedTracks = decodedTracks
             var resolvedSelectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID) ?? resolvedTracks[0].id
             if !resolvedTracks.contains(where: { $0.id == resolvedSelectedTrackID }) {
                 resolvedSelectedTrackID = resolvedTracks[0].id
@@ -385,6 +482,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
                 resolvedSelectedPhraseID = migrated.phrases[0].id
             }
             tracks = resolvedTracks
+            trackGroups = resolvedTrackGroups
             generatorPool = resolvedGeneratorPool
             clipPool = resolvedClipPool
             routes = resolvedRoutes
@@ -397,6 +495,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
         let fallbackTrack = try container.decodeIfPresent(StepSequenceTrack.self, forKey: .primaryTrack) ?? .default
         tracks = [fallbackTrack]
+        trackGroups = []
         generatorPool = GeneratorPoolEntry.defaultPool
         clipPool = []
         routes = []
@@ -410,6 +509,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(version, forKey: .version)
         try container.encode(tracks, forKey: .tracks)
+        try container.encode(trackGroups, forKey: .trackGroups)
         try container.encode(generatorPool, forKey: .generatorPool)
         try container.encode(clipPool, forKey: .clipPool)
         try container.encode(routes, forKey: .routes)
@@ -434,6 +534,16 @@ struct SeqAIDocumentModel: Codable, Equatable {
             generatorPool: generatorPool,
             clipPool: clipPool
         )
+        trackGroups = trackGroups.map { group in
+            var synced = group
+            synced.memberIDs = group.memberIDs.filter { memberID in
+                tracks.contains(where: { $0.id == memberID })
+            }
+            synced.noteMapping = group.noteMapping.filter { memberID, _ in
+                synced.memberIDs.contains(memberID)
+            }
+            return synced
+        }
         if !phrases.contains(where: { $0.id == selectedPhraseID }) {
             selectedPhraseID = phrases[0].id
         }
@@ -540,6 +650,66 @@ struct SeqAIDocumentModel: Codable, Equatable {
             return .clip(clipPool.first(where: { $0.trackType == trackType })?.id)
         }
     }
+
+    mutating func addGroup(name: String, color: String = "#8AA") -> TrackGroupID {
+        let group = TrackGroup(name: name, color: color)
+        trackGroups.append(group)
+        return group.id
+    }
+
+    mutating func addToGroup(trackID: UUID, groupID: TrackGroupID) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
+              let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID })
+        else {
+            return
+        }
+
+        if tracks[trackIndex].groupID == groupID,
+           trackGroups[groupIndex].memberIDs.contains(trackID)
+        {
+            return
+        }
+
+        if let previousGroupID = tracks[trackIndex].groupID,
+           let previousGroupIndex = trackGroups.firstIndex(where: { $0.id == previousGroupID })
+        {
+            trackGroups[previousGroupIndex].memberIDs.removeAll { $0 == trackID }
+            trackGroups[previousGroupIndex].noteMapping.removeValue(forKey: trackID)
+        }
+
+        tracks[trackIndex].groupID = groupID
+        if !trackGroups[groupIndex].memberIDs.contains(trackID) {
+            trackGroups[groupIndex].memberIDs.append(trackID)
+        }
+    }
+
+    mutating func removeFromGroup(trackID: UUID) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }) else {
+            return
+        }
+        guard let groupID = tracks[trackIndex].groupID,
+              let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID })
+        else {
+            tracks[trackIndex].groupID = nil
+            return
+        }
+
+        tracks[trackIndex].groupID = nil
+        trackGroups[groupIndex].memberIDs.removeAll { $0 == trackID }
+        trackGroups[groupIndex].noteMapping.removeValue(forKey: trackID)
+        if tracks[trackIndex].destination == .inheritGroup {
+            NSLog("Track %@ left group %@ while inheriting destination; resetting to .none", tracks[trackIndex].name, trackGroups[groupIndex].name)
+            tracks[trackIndex].destination = .none
+        }
+    }
+}
+
+private struct LegacyVoicing: Codable, Equatable, Sendable {
+    var destinations: [VoiceTag: Destination]
+
+    var defaultDestination: Destination {
+        destinations[defaultVoiceTag] ?? .none
+    }
 }
 
 struct StepSequenceTrack: Codable, Equatable, Sendable {
@@ -549,7 +719,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var pitches: [Int]
     var stepPattern: [Bool]
     var stepAccents: [Bool]
-    var voicing: Voicing
+    var destination: Destination
+    var groupID: TrackGroupID?
     var mix: TrackMixSettings
     var velocity: Int
     var gateLength: Int
@@ -562,6 +733,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case pitches
         case stepPattern
         case stepAccents
+        case destination
+        case groupID
         case voicing
         case output
         case audioInstrument
@@ -577,7 +750,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
-        voicing: .single(.midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)),
+        destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+        groupID: nil,
         mix: .default,
         velocity: 100,
         gateLength: 4
@@ -590,7 +764,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [Int],
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
-        voicing: Voicing? = nil,
+        destination: Destination? = nil,
+        groupID: TrackGroupID? = nil,
         output: TrackOutputDestination = .midiOut,
         audioInstrument: AudioInstrumentChoice = .builtInSynth,
         mix: TrackMixSettings = .default,
@@ -603,11 +778,12 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.pitches = pitches
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
-        self.voicing = voicing ?? Self.legacyVoicing(
+        self.destination = destination ?? Self.legacyDestination(
             output: output,
             audioInstrument: audioInstrument,
             trackType: trackType
         )
+        self.groupID = groupID
         self.mix = mix
         self.velocity = velocity
         self.gateLength = gateLength
@@ -667,17 +843,20 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepPattern = try container.decode([Bool].self, forKey: .stepPattern)
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
         stepAccents = Self.normalizedAccents(decodedAccents, stepCount: stepPattern.count)
-        if let decodedVoicing = try container.decodeIfPresent(Voicing.self, forKey: .voicing) {
-            voicing = decodedVoicing
+        if let decodedDestination = try container.decodeIfPresent(Destination.self, forKey: .destination) {
+            destination = decodedDestination
+        } else if let decodedVoicing = try container.decodeIfPresent(LegacyVoicing.self, forKey: .voicing) {
+            destination = decodedVoicing.defaultDestination
         } else {
             let legacyOutput = try container.decodeIfPresent(TrackOutputDestination.self, forKey: .output) ?? .midiOut
             let legacyInstrument = try container.decodeIfPresent(AudioInstrumentChoice.self, forKey: .audioInstrument) ?? .builtInSynth
-            voicing = Self.legacyVoicing(
+            destination = Self.legacyDestination(
                 output: legacyOutput,
                 audioInstrument: legacyInstrument,
                 trackType: trackType
             )
         }
+        groupID = try container.decodeIfPresent(TrackGroupID.self, forKey: .groupID)
         mix = try container.decodeIfPresent(TrackMixSettings.self, forKey: .mix) ?? .default
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
@@ -691,14 +870,15 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(pitches, forKey: .pitches)
         try container.encode(stepPattern, forKey: .stepPattern)
         try container.encode(stepAccents, forKey: .stepAccents)
-        try container.encode(voicing, forKey: .voicing)
+        try container.encode(destination, forKey: .destination)
+        try container.encodeIfPresent(groupID, forKey: .groupID)
         try container.encode(mix, forKey: .mix)
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)
     }
 
     var defaultDestination: Destination {
-        voicing.defaultDestination
+        destination
     }
 
     var output: TrackOutputDestination {
@@ -729,13 +909,17 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
                     channel = 0
                     noteOffset = 0
                 }
-                voicing.setDefault(.midi(port: port, channel: channel, noteOffset: noteOffset))
+                destination = .midi(port: port, channel: channel, noteOffset: noteOffset)
             case .auInstrument:
-                voicing.setDefault(.auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil))
+                destination = .auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil)
             case .internalSampler:
-                voicing.setDefault(Voicing.defaults(forType: trackType).defaultDestination)
+                destination = Self.legacyDestination(
+                    output: .internalSampler,
+                    audioInstrument: audioInstrument,
+                    trackType: trackType
+                )
             case .none:
-                voicing.setDefault(.none)
+                destination = .none
             }
         }
     }
@@ -762,15 +946,15 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     }
 
     mutating func setMIDIPort(_ port: MIDIEndpointName?) {
-        voicing.setDefault(.midi(port: port, channel: midiChannel, noteOffset: midiNoteOffset))
+        destination = .midi(port: port, channel: midiChannel, noteOffset: midiNoteOffset)
     }
 
     mutating func setMIDIChannel(_ channel: UInt8) {
-        voicing.setDefault(.midi(port: midiPortName, channel: channel, noteOffset: midiNoteOffset))
+        destination = .midi(port: midiPortName, channel: channel, noteOffset: midiNoteOffset)
     }
 
     mutating func setMIDINoteOffset(_ noteOffset: Int) {
-        voicing.setDefault(.midi(port: midiPortName, channel: midiChannel, noteOffset: noteOffset))
+        destination = .midi(port: midiPortName, channel: midiChannel, noteOffset: noteOffset)
     }
 
     var audioInstrument: AudioInstrumentChoice {
@@ -784,7 +968,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             }
         }
         set {
-            voicing.setDefault(.auInstrument(componentID: newValue.audioComponentID, stateBlob: nil))
+            destination = .auInstrument(componentID: newValue.audioComponentID, stateBlob: nil)
         }
     }
 
@@ -799,20 +983,25 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
     }
 
-    private static func legacyVoicing(
+    private static func legacyDestination(
         output: TrackOutputDestination,
         audioInstrument: AudioInstrumentChoice,
         trackType: TrackType
-    ) -> Voicing {
+    ) -> Destination {
         switch output {
         case .midiOut:
-            return .single(.midi(port: .sequencerAIOut, channel: 0, noteOffset: 0))
+            return .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
         case .auInstrument:
-            return .single(.auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil))
+            return .auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil)
         case .internalSampler:
-            return Voicing.defaults(forType: trackType)
+            switch trackType {
+            case .monoMelodic, .polyMelodic:
+                return .none
+            case .slice:
+                return .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
+            }
         case .none:
-            return .single(.none)
+            return .none
         }
     }
 }

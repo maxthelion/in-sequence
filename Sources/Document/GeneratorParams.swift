@@ -1,6 +1,7 @@
 import Foundation
 
 typealias VoiceTag = String
+let defaultVoiceTag: VoiceTag = "default"
 
 enum GeneratorParams: Codable, Equatable, Hashable, Sendable {
     case mono(step: StepAlgo, pitch: PitchAlgo, shape: NoteShape)

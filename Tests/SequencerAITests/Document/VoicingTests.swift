@@ -29,25 +29,4 @@ final class VoicingTests: XCTestCase {
         let decoded = try JSONDecoder().decode(Voicing.self, from: data)
         XCTAssertEqual(decoded, original)
     }
-
-    func test_set_default_replaces_default_destination() {
-        var voicing = Voicing.single(.none)
-        let next = Destination.midi(port: .sequencerAIOut, channel: 3, noteOffset: 2)
-
-        voicing.setDefault(next)
-
-        XCTAssertEqual(voicing.defaultDestination, next)
-    }
-
-    func test_defaults_for_melodic_tracks_start_unassigned() {
-        XCTAssertEqual(Voicing.defaults(forType: .monoMelodic).defaultDestination, .none)
-        XCTAssertEqual(Voicing.defaults(forType: .polyMelodic).defaultDestination, .none)
-    }
-
-    func test_defaults_for_slice_tracks_seed_internal_sampler_default() {
-        XCTAssertEqual(
-            Voicing.defaults(forType: .slice).defaultDestination,
-            .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
-        )
-    }
 }

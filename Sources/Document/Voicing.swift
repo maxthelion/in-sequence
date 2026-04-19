@@ -1,9 +1,11 @@
 import Foundation
 
+// Legacy shim kept only so older test/project references still compile while the
+// app code moves to inline track destinations.
 struct Voicing: Codable, Equatable, Sendable {
-    static let defaultTag: VoiceTag = "default"
-
     var destinations: [VoiceTag: Destination]
+
+    static let defaultTag: VoiceTag = defaultVoiceTag
 
     init(destinations: [VoiceTag: Destination] = [:]) {
         self.destinations = destinations

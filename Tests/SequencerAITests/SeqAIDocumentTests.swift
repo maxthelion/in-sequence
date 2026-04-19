@@ -709,4 +709,72 @@ final class SeqAIDocumentModelTests: XCTestCase {
 
         XCTAssertTrue(decoded.routes.isEmpty)
     }
+
+    func test_empty_document_starts_without_track_groups() {
+        let model = SeqAIDocumentModel.empty
+
+        XCTAssertTrue(model.trackGroups.isEmpty)
+    }
+
+    func test_append_track_uses_flat_destination_defaults() {
+        var model = SeqAIDocumentModel.empty
+
+        model.appendTrack()
+
+        XCTAssertEqual(model.selectedTrack.destination, .none)
+        XCTAssertNil(model.selectedTrack.groupID)
+    }
+
+    func test_add_group_appends_group_and_returns_identifier() {
+        var model = SeqAIDocumentModel.empty
+
+        let groupID = model.addGroup(name: "Drums", color: "#C6A")
+
+        XCTAssertEqual(model.trackGroups.count, 1)
+        XCTAssertEqual(model.trackGroups[0].id, groupID)
+        XCTAssertEqual(model.trackGroups[0].name, "Drums")
+        XCTAssertEqual(model.trackGroups[0].color, "#C6A")
+        XCTAssertTrue(model.trackGroups[0].memberIDs.isEmpty)
+    }
+
+    func test_add_to_group_updates_track_and_group_membership_idempotently() {
+        var model = SeqAIDocumentModel.empty
+        model.appendTrack()
+        let trackID = model.selectedTrack.id
+        let groupID = model.addGroup(name: "Kit")
+
+        model.addToGroup(trackID: trackID, groupID: groupID)
+        model.addToGroup(trackID: trackID, groupID: groupID)
+
+        XCTAssertEqual(model.tracks.first(where: { $0.id == trackID })?.groupID, groupID)
+        XCTAssertEqual(model.group(for: trackID)?.id, groupID)
+        XCTAssertEqual(model.trackGroups.first(where: { $0.id == groupID })?.memberIDs, [trackID])
+        XCTAssertEqual(model.tracksInGroup(groupID).map(\.id), [trackID])
+    }
+
+    func test_remove_from_group_clears_membership_and_resets_inherited_destination() {
+        var model = SeqAIDocumentModel.empty
+        model.appendTrack()
+        let trackID = model.selectedTrack.id
+        let groupID = model.addGroup(name: "Kit")
+
+        model.addToGroup(trackID: trackID, groupID: groupID)
+        guard let trackIndex = model.tracks.firstIndex(where: { $0.id == trackID }),
+              let groupIndex = model.trackGroups.firstIndex(where: { $0.id == groupID })
+        else {
+            return XCTFail("Expected track and group to exist")
+        }
+
+        model.tracks[trackIndex].destination = .inheritGroup
+        model.trackGroups[groupIndex].noteMapping[trackID] = 36
+
+        model.removeFromGroup(trackID: trackID)
+
+        XCTAssertNil(model.tracks.first(where: { $0.id == trackID })?.groupID)
+        XCTAssertEqual(model.tracks.first(where: { $0.id == trackID })?.destination, .some(.none))
+        XCTAssertEqual(model.trackGroups.first(where: { $0.id == groupID })?.memberIDs, [])
+        XCTAssertEqual(model.trackGroups.first(where: { $0.id == groupID })?.noteMapping, [:])
+        XCTAssertNil(model.group(for: trackID))
+        XCTAssertTrue(model.tracksInGroup(groupID).isEmpty)
+    }
 }

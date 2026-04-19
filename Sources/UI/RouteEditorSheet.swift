@@ -371,7 +371,7 @@ private enum RouteFilterKind: CaseIterable {
             if case .voiceTag = existing {
                 return existing
             }
-            return .voiceTag(Voicing.defaultTag)
+            return .voiceTag(defaultVoiceTag)
         case .noteRange:
             if case .noteRange = existing {
                 return existing

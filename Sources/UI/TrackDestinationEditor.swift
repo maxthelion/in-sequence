@@ -206,13 +206,13 @@ struct TrackDestinationEditor: View {
                 return
             }
 
-            document.model.tracks[trackIndex].voicing.setDefault(.auInstrument(componentID: componentID, stateBlob: stateBlob))
+            document.model.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
             recordVoiceSnapshot(destination: document.model.tracks[trackIndex].defaultDestination)
         }
     }
 
     private func recallRecentVoice(_ voice: RecentVoice) {
-        document.model.selectedTrack.voicing.setDefault(voice.destination)
+        document.model.selectedTrack.destination = voice.destination
         RecentVoicesStore.shared.touch(id: voice.id)
     }
 

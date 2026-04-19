@@ -88,7 +88,7 @@ extension RouteDestination {
     func title(trackLookup: (UUID) -> StepSequenceTrack?) -> String {
         switch self {
         case let .voicing(trackID):
-            return "\(trackLookup(trackID)?.name ?? "Track") default voicing"
+            return "\(trackLookup(trackID)?.name ?? "Track") default destination"
         case let .trackInput(trackID, tag):
             if let tag, !tag.isEmpty {
                 return "\(trackLookup(trackID)?.name ?? "Track") input • \(tag)"

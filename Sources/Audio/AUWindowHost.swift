@@ -40,7 +40,7 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
 
     func open(
         for trackID: UUID,
-        tag: VoiceTag = Voicing.defaultTag,
+        tag: VoiceTag = defaultVoiceTag,
         presenter: AudioUnitWindowPresentable,
         title: String,
         stateWriteback: @escaping (Data?) -> Void
@@ -75,7 +75,7 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         }
     }
 
-    func close(for trackID: UUID, tag: VoiceTag = Voicing.defaultTag) {
+    func close(for trackID: UUID, tag: VoiceTag = defaultVoiceTag) {
         let key = WindowKey(trackID: trackID, tag: tag)
         guard let entry = windows[key] else {
             return
@@ -83,7 +83,7 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         entry.window.close()
     }
 
-    func isOpen(for trackID: UUID, tag: VoiceTag = Voicing.defaultTag) -> Bool {
+    func isOpen(for trackID: UUID, tag: VoiceTag = defaultVoiceTag) -> Bool {
         windows[WindowKey(trackID: trackID, tag: tag)] != nil
     }
 
