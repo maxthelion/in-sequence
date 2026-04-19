@@ -244,7 +244,7 @@ public struct StyleProfile: Equatable, Sendable {
 - [x] Write tests
 - [x] Implement
 - [x] Green
-- [ ] Commit: `feat(musical): style profile reference tables`
+- [x] Commit: `feat(musical): style profile reference tables`
 
 ---
 
@@ -274,9 +274,9 @@ public struct NoteShape: Codable, Equatable, Sendable {
 2. Equality: two identical shapes are equal; differing velocity makes them unequal.
 3. The default satisfies: `0 <= velocity && velocity <= 127 && gateLength > 0`.
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
+- [x] Tests
+- [x] Implement
+- [x] Green
 - [ ] Commit: `feat(document): NoteShape shared per-note knobs`
 
 ---
