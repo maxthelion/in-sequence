@@ -2,9 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give the app a dedicated Tracks matrix as a nav destination — a grid of track cards, each summarising one track at a glance (name, type badge, destination summary, pattern-slot strip preview, mute state). Clicking a card navigates into that track's detail view. From the matrix the user can add, duplicate, reorder, and delete tracks, with type-aware creation flow. Verified by: navigating to the Tracks section shows all tracks as a grid; clicking a card routes to the Track detail with that track selected; adding a new drum track lands with the per-track-type defaults from `track-destinations`; deleting a track doesn't leave a stale `selectedTrackID` (closes the codex review-queue finding).
+**Goal:** Give the app a dedicated Tracks matrix as a nav destination — a **fixed 8×8 grid of 64 slots**, each either empty or carrying a track. Existing-track slots show a card summarising that track (name, type badge, destination summary, pattern-slot strip preview, mute state) — clicking routes to its detail. Empty slots show an empty placeholder; clicking an empty slot pops a track-creation modal with each `TrackType` as a one-click button, creates the track into that slot, and navigates to its detail. From the matrix the user can also duplicate, delete, and (context-menu) "Change type…" a track. Verified by: navigating to the Tracks section shows 64 cells; clicking an empty slot creates a track of the chosen type at that slot index and routes to its detail; clicking a populated slot routes to the existing track's detail; deleting clears the slot; the `selectedTrackID` invariant never points at a deleted track (closes the codex review-queue finding).
 
-**Architecture:** New SwiftUI view `TracksMatrixView` that renders `document.model.tracks` as a responsive grid of `TrackCard` components. `WorkspaceSection` gains a `.tracks` case alongside the existing `.song / .phrase / .track / .mixer / .perform / .library`. The studio chrome's section nav gets a new button. Clicking a card sets `document.model.selectedTrackID` and switches `section = .track`, which routes to the existing single-track detail view. Track-creation uses a sheet picker ("Add track → pick type → confirm"), which calls `document.model.appendTrack(type:)` — the method from the `track-destinations` plan that populates the per-type default `Voicing`. Reorder is drag-and-drop within the grid; delete has a confirmation sheet. The `selectedTrackID` invariant fix (from codex's review-queue) lands as part of this plan's init + deletion code paths, since both naturally touch the invariant.
+**Architecture:** New SwiftUI view `TracksMatrixView` that renders a **fixed 8×8 `LazyVGrid`** of 64 cells. Slot-to-track mapping lives on the document as `trackSlots: [TrackID?]` of fixed length 64 — a stable positional layout that survives reorder. Tracks themselves still live in `tracks: [Track]` keyed by `id`; `trackSlots` is the one-to-one indexing into the grid. Empty cells render an `EmptyTrackCell`; populated cells render the existing `TrackCard`. `WorkspaceSection` gains a `.tracks` case alongside the existing `.song / .phrase / .track / .mixer / .perform / .library`. The studio chrome's section nav gets a new button. Clicking a populated card sets `document.model.selectedTrackID` and switches `section = .track`, routing to the existing single-track detail. Clicking an empty cell opens `CreateTrackSheet` — a row of large track-type buttons (Instrument / Drum / Slice). Picking one calls `document.model.createTrack(type:atSlot:)`, which populates per-type-default `Voicing` (from the `track-destinations` plan) and writes the new track's ID into `trackSlots[slotIndex]`. Navigation switches to `.track` and selects the new track.
+
+Track-type is still **immutable in the data model** (spec §"Track types, patterns, and phrases"). The UI affords a "Change Type…" action via context menu which under the hood is "delete the old track from this slot + create a fresh one of the chosen type in the same slot." Existing phrase `trackPatternIndexes` entries referencing the old TrackID get cleaned up. The user sees this as "changed the track's type"; the data model sees a destroy + recreate — consistent with the spec's immutability stance while giving the user the affordance they expect.
+
+The `selectedTrackID` invariant fix (from codex's review-queue) lands as part of this plan's init + deletion + slot-clearing code paths, since all of them touch the invariant.
 
 **Tech Stack:** Swift 5.9+, SwiftUI (`LazyVGrid`, `onDrag` / `onDrop`), Foundation, XCTest.
 
@@ -23,7 +27,10 @@
 - **Matrix-based track arrangement visualisation** (rendering the track's pattern output as a mini waveform / step preview). MVP cards show a minimal pattern-slot-strip preview; richer previews are a polish pass.
 - **Drag tracks between projects.** Cross-project drag comes with a library UX plan.
 - **Multi-select + bulk operations** (select 3 tracks, delete all, duplicate all). Single-select only in MVP.
-- **Track-group / folder hierarchy.** Flat list for MVP.
+- **Track-group / folder hierarchy.** Flat 64-slot grid for MVP.
+- **Slot count > 64.** Fixed at 64 for MVP (8×8). Expanding to 128 / 256 / multi-bank (MPC-style 4 × 64 banks) is a later plan.
+- **Slot labels.** MVP shows no per-slot label; a follow-up can add A1–H8 MPC-style coordinates if the UX calls for it.
+- **Drag-to-swap** between slots. MVP's reorder is context-menu "Move to slot…" pickers; drag-drop between cells is finicky in `LazyVGrid` and deferred.
 
 ---
 
@@ -32,24 +39,36 @@
 ```
 Sources/
   UI/
-    TracksMatrixView.swift               # NEW — LazyVGrid of TrackCards, new-track sheet, delete flow
-    TrackCard.swift                      # NEW — single-track card component
-    AddTrackSheet.swift                  # NEW — type picker + name field + Add button
+    TracksMatrixView.swift               # NEW — 8x8 LazyVGrid of 64 cells; populated or empty
+    TrackCard.swift                      # NEW — populated-slot card component
+    EmptyTrackCell.swift                 # NEW — empty-slot placeholder with "+" affordance
+    CreateTrackSheet.swift               # NEW — type picker buttons at modal; called on empty-slot tap
     WorkspaceSection.swift               # MODIFIED — add .tracks case
     StudioTopBar.swift                   # MODIFIED — new nav button for .tracks
     ContentView.swift                    # MODIFIED — .tracks case in the section switch
   Document/
-    SeqAIDocumentModel.swift             # MODIFIED — reorderTracks(fromOffsets:toOffset:); robust selectedTrackID invariant in init + mutations
+    SeqAIDocumentModel.swift             # MODIFIED — trackSlots: [TrackID?] (length 64) + slot-aware mutations + selectedTrackID invariant
 Tests/
   SequencerAITests/
     Document/
-      SeqAIDocumentModelTests.swift      # MODIFIED — selectedTrackID invariant assertions (closes the codex review-queue item)
+      SeqAIDocumentModelTests.swift      # MODIFIED — trackSlots + invariant assertions (closes the codex review-queue item)
     UI/
       TrackCardTests.swift
+      EmptyTrackCellTests.swift
       TracksMatrixViewTests.swift
-      AddTrackSheetTests.swift
-    Snapshots/                           # coverage lands once qa-infra plan ships snapshot infrastructure
-      TracksMatrixSnapshotTests.swift    # deferred implementation; file skeleton only
+      CreateTrackSheetTests.swift
+    Snapshots/
+      TracksMatrixSnapshotTests.swift    # skeleton; populated once qa-infra lands
+```
+
+**Constants:**
+
+```swift
+public enum TracksLayout {
+    public static let slotCount: Int = 64
+    public static let columnCount: Int = 8              // → 8 rows
+    // slotIndex = row * columnCount + column
+}
 ```
 
 ---
@@ -110,9 +129,9 @@ Tests/
 
 ---
 
-## Task 3: `TrackCard` component
+## Task 3: `TrackCard` component (minimal — nav-focused)
 
-**Scope:** Render one track as a card. No navigation logic — pure presentation + tap callback.
+**Scope:** The matrix is a navigation grid. Cards show *just enough* to identify the track at a glance — name + type indicator. No destination pill, no pattern preview, no mute state. Those live in the track detail view. Keeping cards minimal keeps the 8×8 grid legible at reasonable window sizes.
 
 **Files:**
 - Create: `Sources/UI/TrackCard.swift`
@@ -127,166 +146,262 @@ struct TrackCard: View {
     let onTap: () -> Void
     let onDuplicate: () -> Void
     let onDelete: () -> Void
+    let onChangeType: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(track.name).font(.headline)
-                    Spacer()
-                    TrackTypeBadge(type: track.trackType)   // Inst / Drum / Slice
-                }
-                DestinationPill(voicing: track.voicing)     // "Serum 1 · AU" / "MIDI ch1" / "— (none)"
-                PatternSlotStripMini(track: track)          // 16 tiny cells, active slot highlighted
-                if track.mix.isMuted {
-                    Text("MUTED").font(.caption2).foregroundStyle(.red)
-                }
+            VStack(spacing: 4) {
+                TrackTypeGlyph(type: track.trackType)       // the most prominent element — icon + colour per type
+                Text(track.name)
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(8)
             .background(isSelected ? StudioTheme.cyan.opacity(0.25) : StudioTheme.border.opacity(0.1))
-            .overlay(isSelected ? RoundedRectangle(cornerRadius: 8).stroke(StudioTheme.cyan, lineWidth: 2) : nil)
+            .overlay(isSelected ? RoundedRectangle(cornerRadius: 6).stroke(StudioTheme.cyan, lineWidth: 2) : nil)
         }
         .contextMenu {
             Button("Duplicate", action: onDuplicate)
+            Button("Change Type…", action: onChangeType)    // destructive: deletes + recreates
             Button("Delete", role: .destructive, action: onDelete)
         }
         .accessibilityIdentifier("track-card-\(track.id.uuidString)")
     }
 }
-```
 
-Subviews (`TrackTypeBadge`, `DestinationPill`, `PatternSlotStripMini`) are small view structs that take minimal params. Their implementation is part of this task.
-
-**Tests:**
-
-1. Renders with the track's name and type label.
-2. `.accessibilityIdentifier` present and matches `"track-card-\(track.id.uuidString)"`.
-3. Tap calls `onTap` exactly once.
-4. Context menu's Duplicate button calls `onDuplicate`.
-5. `isSelected = true` adds a visible selection treatment (hard to snapshot without the qa-infra plan — for now verify via state inspection that the selected-variant renders a different background colour).
-6. Muted state shows a "MUTED" label.
-
-- [ ] Tests
-- [ ] Implement TrackCard + subviews
-- [ ] Green
-- [ ] Commit: `feat(ui): TrackCard component`
-
----
-
-## Task 4: `AddTrackSheet` component
-
-**Scope:** Modal sheet for creating a new track. Pick type + name + confirm.
-
-**Files:**
-- Create: `Sources/UI/AddTrackSheet.swift`
-- Create: `Tests/SequencerAITests/UI/AddTrackSheetTests.swift`
-
-**View shape:**
-
-```swift
-struct AddTrackSheet: View {
-    @Binding var isPresented: Bool
-    @State private var selectedType: TrackType = .instrument
-    @State private var name: String = ""
-    let onAdd: (TrackType, String) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("New Track").font(.title2)
-            Picker("Type", selection: $selectedType) {
-                ForEach(TrackType.allCases, id: \.self) { type in
-                    Text(type.label).tag(type)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            TextField("Name (optional)", text: $name)
-
-            HStack {
-                Spacer()
-                Button("Cancel") { isPresented = false }
-                Button("Add") {
-                    onAdd(selectedType, name.isEmpty ? defaultName(for: selectedType) : name)
-                    isPresented = false
-                }
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("add-track-confirm")
-            }
-        }
-        .padding(20)
-        .frame(width: 400)
-    }
-
-    private func defaultName(for type: TrackType) -> String {
-        // "Instrument 3" / "Drum 1" / "Slice 2" — pass existing count in via env later
-        type.label
-    }
+struct TrackTypeGlyph: View {
+    let type: TrackType
+    // Renders a type-coloured icon (sf-symbol or custom):
+    // - instrument   → "pianokeys" on cyan
+    // - drumRack     → "circle.grid.3x3.fill" on magenta
+    // - sliceLoop    → "waveform" on yellow
+    // Type identity should be discernible in < 100ms at typical grid cell size.
 }
 ```
 
 **Tests:**
 
-1. Picker renders all `TrackType` cases.
-2. Pressing Add with a selected type + empty name calls `onAdd(selectedType, defaultName)`.
-3. Pressing Add with a typed name uses that name.
-4. Cancel sets `isPresented = false` without firing `onAdd`.
-5. `.accessibilityIdentifier("add-track-confirm")` present on the Add button.
+1. Renders the track's name (font-size 11, single line, truncating).
+2. `TrackTypeGlyph` renders a different visual for each `TrackType`.
+3. `.accessibilityIdentifier` matches `"track-card-\(track.id.uuidString)"`.
+4. Tap calls `onTap` exactly once.
+5. Context-menu Duplicate / Change Type… / Delete each wire to the right callback.
+6. `isSelected = true` applies a different background + overlay than `isSelected = false`.
+
+Explicitly NOT tested (because the card no longer shows them): destination text, pattern-preview cells, muted indicator.
 
 - [ ] Tests
-- [ ] Implement
+- [ ] Implement TrackCard + TrackTypeGlyph
 - [ ] Green
-- [ ] Commit: `feat(ui): AddTrackSheet type picker`
+- [ ] Commit: `feat(ui): TrackCard (minimal — type glyph + name only)`
 
 ---
 
-## Task 5: `SeqAIDocumentModel` track mutations — reorder + delete + appendTrack(type:)
+## Task 4: `EmptyTrackCell` + `CreateTrackSheet`
 
-**Scope:** Make sure the document model has everything the matrix needs to add / reorder / delete tracks cleanly. `appendTrack` may already exist; extend to take a `TrackType` param and use `Voicing.defaults(forType:)` (from `track-destinations` plan Task 2b). Add `reorderTracks(fromOffsets:toOffset:)` and `removeTrack(id:)`.
+**Scope:** Two tightly-coupled pieces. The empty-slot placeholder renders a subtle "+" affordance; tapping it opens a one-click type-picker modal. Picking a type creates the track at that slot and navigates to its detail. There is no name field — default names suffice; rename happens in the track detail view.
+
+**Files:**
+- Create: `Sources/UI/EmptyTrackCell.swift`
+- Create: `Sources/UI/CreateTrackSheet.swift`
+- Create: `Tests/SequencerAITests/UI/EmptyTrackCellTests.swift`
+- Create: `Tests/SequencerAITests/UI/CreateTrackSheetTests.swift`
+
+**Empty cell:**
+
+```swift
+struct EmptyTrackCell: View {
+    let slotIndex: Int
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack {
+                Spacer()
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(StudioTheme.mutedText.opacity(0.5))
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(StudioTheme.border.opacity(0.03))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(StudioTheme.border.opacity(0.3),
+                                  style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("track-slot-\(slotIndex)-empty")
+    }
+}
+```
+
+**Create sheet:**
+
+```swift
+struct CreateTrackSheet: View {
+    @Binding var isPresented: Bool
+    let slotIndex: Int
+    let onCreate: (TrackType) -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Create Track in Slot \(slotIndex + 1)")
+                .font(.title2)
+
+            HStack(spacing: 16) {
+                ForEach(TrackType.allCases, id: \.self) { type in
+                    Button {
+                        onCreate(type)
+                        isPresented = false
+                    } label: {
+                        VStack(spacing: 8) {
+                            TrackTypeGlyph(type: type)
+                                .frame(width: 60, height: 60)
+                            Text(type.label)
+                                .font(.headline)
+                        }
+                        .frame(width: 140, height: 140)
+                        .background(StudioTheme.border.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("create-track-\(type.rawValue)")
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") { isPresented = false }
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 560)
+    }
+}
+```
+
+**Tests — EmptyTrackCell:**
+
+1. Renders with accessibility identifier `"track-slot-\(slotIndex)-empty"`.
+2. Tap calls `onTap` once.
+
+**Tests — CreateTrackSheet:**
+
+1. Renders one button per `TrackType` case (3 buttons in MVP: instrument / drumRack / sliceLoop).
+2. Tapping the instrument button calls `onCreate(.instrument)` and sets `isPresented = false`.
+3. Tapping the drum button calls `onCreate(.drumRack)` and dismisses.
+4. Cancel dismisses without calling `onCreate`.
+5. Each type button carries `.accessibilityIdentifier("create-track-\(type.rawValue)")`.
+
+- [ ] Tests for EmptyTrackCell
+- [ ] Tests for CreateTrackSheet
+- [ ] Implement both views
+- [ ] Green
+- [ ] Commit: `feat(ui): EmptyTrackCell + CreateTrackSheet (one-tap type-picker)`
+
+---
+
+## Task 5: `SeqAIDocumentModel` — `trackSlots` + slot-aware mutations
+
+**Scope:** Add the fixed-size `trackSlots: [TrackID?]` (length 64) to the document model. All track add / delete / duplicate / change-type operations target a specific slot index. Legacy documents decode into a packed trackSlots mapping — if a pre-trackSlots doc has N tracks, they occupy slots 0..N-1 and the rest are nil.
 
 **Files:**
 - Modify: `Sources/Document/SeqAIDocumentModel.swift`
 - Modify: `Tests/SequencerAITests/Document/SeqAIDocumentModelTests.swift`
 
+**New fields:**
+
+```swift
+public struct SeqAIDocumentModel: Codable, Equatable {
+    public var version: Int
+    public var tracks: [StepSequenceTrack]
+    public var trackSlots: [TrackID?]              // length = TracksLayout.slotCount (64)
+    public var selectedTrackID: UUID
+    // ... existing fields
+}
+```
+
+Invariant: `trackSlots.count == 64`. Every non-nil entry's ID exists in `tracks`. Every track's ID appears exactly once in `trackSlots`.
+
 **API:**
 
 ```swift
-public mutating func appendTrack(type: TrackType, name: String? = nil) -> TrackID
-public mutating func removeTrack(id: TrackID)
-public mutating func reorderTracks(fromOffsets: IndexSet, toOffset: Int)
-public mutating func duplicateTrack(id: TrackID) -> TrackID?
+/// The first empty slot, or nil if all 64 are full.
+public var firstEmptySlot: Int? { get }
+
+/// Track at the given slot, or nil if empty.
+public func track(atSlot slotIndex: Int) -> StepSequenceTrack?
+
+/// Create a new track of the given type at the specified empty slot.
+/// Returns the new track ID, or nil if the slot is already occupied.
+public mutating func createTrack(type: TrackType, atSlot slotIndex: Int, name: String? = nil) -> TrackID?
+
+/// Remove the track at the given slot (if any). Slot becomes nil.
+public mutating func removeTrack(atSlot slotIndex: Int)
+
+/// Duplicate the track at `fromSlot` into `toSlot` (which must be empty).
+/// Returns the new track ID, or nil on failure.
+public mutating func duplicateTrack(fromSlot: Int, toSlot: Int) -> TrackID?
+
+/// Move the track from one slot to another (swap if destination occupied).
+public mutating func moveTrack(fromSlot: Int, toSlot: Int)
+
+/// Change-type: destroy the track at `slotIndex` and create a fresh one of `newType`
+/// at the same slot. Phrase references to the old track are cleaned up.
+public mutating func changeTrackType(atSlot slotIndex: Int, newType: TrackType)
 ```
 
-All four mutations call `normaliseSelection()` (from Task 2) when they're done.
+All mutations call a private `normaliseSelection()` helper (from Task 2) when the tracks list changes.
 
-**`appendTrack(type:name:)`** — creates a new `StepSequenceTrack`:
+**`createTrack(type:atSlot:name:)`** — creates a new `StepSequenceTrack`:
 - `id = UUID()`
-- `name = name ?? "\(type.label) \(nextIndex)"` where nextIndex counts existing tracks of that type + 1
+- `name = name ?? "\(type.label) \(slotIndex + 1)"`
 - `trackType = type`
-- `voicing = Voicing.defaults(forType: type)` — uses the Task 2b helper
-- `patterns = TrackPatternBank.default(for: type, generatorPool: document.generatorPool, clipPool: document.clipPool)`
-- Default `mix`, default pattern-slot, default output-route metadata
-- Appends; returns the new ID
+- `voicing = Voicing.defaults(forType: type)` — from track-destinations plan Task 2b
+- `patterns = TrackPatternBank.default(for:generatorPool:clipPool:)`
+- Appends to `tracks` array; writes the new ID into `trackSlots[slotIndex]`
+- Returns the new ID
+
+**`changeTrackType(atSlot:newType:)`** — destroys + recreates:
+- Captures the old track's name (preserve it if possible)
+- Calls `removeTrack(atSlot:)` then `createTrack(type: newType, atSlot: slotIndex, name: oldName)`
+- Iterates all phrases and removes `trackPatternIndexes` entries for the old track ID (the new track has a fresh ID; users re-reference it explicitly per-phrase)
+
+**Legacy migration (decoder):**
+
+- If JSON has `trackSlots`, use it (and assert invariant; fall back to rebuilt packed layout on violation).
+- If no `trackSlots` key: build a packed mapping — `trackSlots = (0..<64).map { i in i < tracks.count ? tracks[i].id : nil }`.
 
 **Tests:**
 
-1. `appendTrack(type: .drumRack)`: returned ID exists; `tracks.last.trackType == .drumRack`; `voicing` has multiple entries (drum defaults).
-2. `appendTrack(type: .instrument)`: voicing has one entry `"default": .none`.
-3. `removeTrack(id:)` on non-existent ID: no-op, no crash.
-4. `removeTrack(id:)` on the selected track: `selectedTrackID` ends up pointing at a surviving track (per the invariant from Task 2).
-5. `removeTrack(id:)` on the last track: `tracks.isEmpty`.
-6. `reorderTracks(fromOffsets: [0], toOffset: 2)`: moves track 0 to position 2; `selectedTrackID` unchanged.
-7. `duplicateTrack(id:)`: produces a new track with the same config except a fresh ID and ` Copy` suffix on the name.
+1. `firstEmptySlot` on an empty document = 0; after `createTrack` at slot 0, firstEmptySlot = 1.
+2. `createTrack(type: .drumRack, atSlot: 5)`: `tracks` count grows by 1; `trackSlots[5]` = new ID; other slots unchanged.
+3. `createTrack(..., atSlot: 5)` a second time at the same occupied slot returns nil and doesn't mutate.
+4. `removeTrack(atSlot:)` on an empty slot is a no-op.
+5. `removeTrack(atSlot:)` on an occupied slot clears the slot AND removes from `tracks`. `selectedTrackID` normalised.
+6. `moveTrack(fromSlot: 2, toSlot: 5)` where slot 5 is empty: slot 2 becomes empty, slot 5 holds the track.
+7. `moveTrack(fromSlot: 2, toSlot: 5)` where slot 5 is occupied: swap (both slots still populated, tracks swapped).
+8. `duplicateTrack(fromSlot: 0, toSlot: 1)` where slot 1 empty: new track at slot 1 with same params, fresh ID, " Copy" on name.
+9. `duplicateTrack(fromSlot: 0, toSlot: 1)` where slot 1 occupied: returns nil; no mutation.
+10. `changeTrackType(atSlot: 0, newType: .drumRack)`: slot 0 now holds a drum track; old track's ID no longer in `tracks`; any phrase's `trackPatternIndexes` entry for the old ID is gone.
+11. Legacy decode: a doc without `trackSlots` decodes with tracks packed into leading slots.
+12. Invariant tests: `trackSlots.count == 64` after every mutation; every non-nil slot references a present track.
 
-- [ ] Tests
-- [ ] Implement mutations (existing `appendTrack()` with no param can become a `appendTrack(type: defaultType)`-calling convenience wrapper; or get removed in favour of the new signature — favour the latter for clarity)
+- [ ] Tests (12 cases)
+- [ ] Implement fields + mutations + normalisation
 - [ ] Green
-- [ ] Commit: `feat(document): track mutations — appendTrack(type:)/removeTrack/reorderTracks/duplicateTrack`
+- [ ] Commit: `feat(document): trackSlots fixed 64-slot grid + slot-aware mutations`
 
 ---
 
-## Task 6: `TracksMatrixView` + wiring
+## Task 6: `TracksMatrixView` — 8×8 grid of populated + empty cells
 
-**Scope:** The actual matrix. Responsive grid using `LazyVGrid`. Renders one `TrackCard` per track. Tap navigates to `.track` with that track selected. Header has `+` button → opens `AddTrackSheet`. Footer/inspector has reorder affordance.
+**Scope:** Fixed 8-column grid, exactly 64 cells. For each slot index, render either a `TrackCard` (if populated) or an `EmptyTrackCell` (if nil). Clicking populated navigates to the track's detail; clicking empty opens `CreateTrackSheet` for that slot.
 
 **Files:**
 - Create: `Sources/UI/TracksMatrixView.swift`
@@ -299,25 +414,24 @@ All four mutations call `normaliseSelection()` (from Task 2) when they're done.
 struct TracksMatrixView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
-    @State private var isAddSheetPresented: Bool = false
-    @State private var confirmDeleteID: TrackID? = nil
+    @State private var createSlotIndex: Int? = nil
+    @State private var confirmDeleteSlot: Int? = nil
+    @State private var changeTypeSlot: Int? = nil
+
+    private let columns: [GridItem] = Array(
+        repeating: GridItem(.flexible(), spacing: 8),
+        count: TracksLayout.columnCount
+    )
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Tracks").font(.largeTitle)
-                Spacer()
-                Button {
-                    isAddSheetPresented = true
-                } label: {
-                    Label("Add Track", systemImage: "plus")
-                }
-                .accessibilityIdentifier("add-track-button")
-            }
+            Text("Tracks")
+                .font(.largeTitle)
+                .padding(.horizontal)
 
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 16)], spacing: 16) {
-                    ForEach(document.model.tracks, id: \.id) { track in
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(0..<TracksLayout.slotCount, id: \.self) { slotIndex in
+                    if let track = document.model.track(atSlot: slotIndex) {
                         TrackCard(
                             track: track,
                             isSelected: track.id == document.model.selectedTrackID,
@@ -326,81 +440,133 @@ struct TracksMatrixView: View {
                                 section = .track
                             },
                             onDuplicate: {
-                                _ = document.model.duplicateTrack(id: track.id)
+                                if let empty = document.model.firstEmptySlot {
+                                    _ = document.model.duplicateTrack(fromSlot: slotIndex, toSlot: empty)
+                                }
+                            },
+                            onChangeType: {
+                                changeTypeSlot = slotIndex
                             },
                             onDelete: {
-                                confirmDeleteID = track.id
+                                confirmDeleteSlot = slotIndex
                             }
                         )
-                        .onDrag { NSItemProvider(object: track.id.uuidString as NSString) }
+                        .aspectRatio(1.0, contentMode: .fit)
+                    } else {
+                        EmptyTrackCell(slotIndex: slotIndex) {
+                            createSlotIndex = slotIndex
+                        }
+                        .aspectRatio(1.0, contentMode: .fit)
                     }
                 }
-                .padding()
+            }
+            .padding()
+        }
+        .sheet(item: Binding(
+            get: { createSlotIndex.map { SlotBox(index: $0) } },
+            set: { createSlotIndex = $0?.index }
+        )) { box in
+            CreateTrackSheet(
+                isPresented: .init(
+                    get: { createSlotIndex != nil },
+                    set: { if !$0 { createSlotIndex = nil } }
+                ),
+                slotIndex: box.index
+            ) { type in
+                if let newID = document.model.createTrack(type: type, atSlot: box.index) {
+                    document.model.selectTrack(id: newID)
+                    section = .track
+                }
             }
         }
-        .sheet(isPresented: $isAddSheetPresented) {
-            AddTrackSheet(isPresented: $isAddSheetPresented) { type, name in
-                let newID = document.model.appendTrack(type: type, name: name)
-                document.model.selectTrack(id: newID)
+        .sheet(item: Binding(
+            get: { changeTypeSlot.map { SlotBox(index: $0) } },
+            set: { changeTypeSlot = $0?.index }
+        )) { box in
+            CreateTrackSheet(
+                isPresented: .init(
+                    get: { changeTypeSlot != nil },
+                    set: { if !$0 { changeTypeSlot = nil } }
+                ),
+                slotIndex: box.index,
+                title: "Change Type for Slot \(box.index + 1)"
+            ) { type in
+                document.model.changeTrackType(atSlot: box.index, newType: type)
             }
         }
         .confirmationDialog(
             "Delete track?",
-            isPresented: .init(get: { confirmDeleteID != nil }, set: { if !$0 { confirmDeleteID = nil } }),
+            isPresented: .init(
+                get: { confirmDeleteSlot != nil },
+                set: { if !$0 { confirmDeleteSlot = nil } }
+            ),
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                if let id = confirmDeleteID {
-                    document.model.removeTrack(id: id)
-                    confirmDeleteID = nil
+                if let slot = confirmDeleteSlot {
+                    document.model.removeTrack(atSlot: slot)
+                    confirmDeleteSlot = nil
                 }
             }
-            Button("Cancel", role: .cancel) { confirmDeleteID = nil }
+            Button("Cancel", role: .cancel) { confirmDeleteSlot = nil }
         }
         .accessibilityIdentifier("tracks-matrix")
     }
 }
+
+private struct SlotBox: Identifiable { let index: Int; var id: Int { index } }
 ```
 
-Reorder via `.onMove` on the underlying ForEach — if the grid approach doesn't support `.onMove`, fall back to drag-drop between grid cells or a dedicated "Edit" mode that switches to a reorderable list. For MVP, ship with context-menu-based "Move Up" / "Move Down" if drag is awkward in `LazyVGrid` (it typically is).
+Note: `CreateTrackSheet` gains an optional `title` parameter so the same sheet handles both "Create in slot N" and "Change type of slot N" flows.
 
 **Tests:**
 
-1. Renders one card per track in `document.model.tracks`.
-2. Tapping a card selects that track and sets `section = .track`.
-3. Add Track sheet opens on button tap; confirmed name+type creates a track via `appendTrack(type:name:)`.
-4. Card context menu's Delete opens confirmation; confirm deletes the track via `removeTrack(id:)`.
-5. Card shows selection treatment when that track is selected.
-6. Empty document (no tracks) renders "No tracks yet — Add one" empty-state with an embedded Add button.
-7. `.accessibilityIdentifier("tracks-matrix")` present on root; `"add-track-button"` on add button.
+1. Renders 64 cells (count children of the grid in state inspection).
+2. For a doc with tracks at slots 0, 3, 7: those slots render `TrackCard`; the other 61 render `EmptyTrackCell`.
+3. Tapping a populated card selects that track and sets `section = .track`.
+4. Tapping an empty cell at slot 5 sets `createSlotIndex = 5` (sheet opens for that slot).
+5. Confirming the sheet with `.instrument` calls `document.model.createTrack(type: .instrument, atSlot: 5)`; the slot becomes populated; selection moves to the new track.
+6. Context-menu Change Type... opens the same sheet with the change-type code path; picking a type calls `changeTrackType(atSlot:newType:)`.
+7. Context-menu Delete opens confirmation; confirm calls `removeTrack(atSlot:)`; slot becomes empty.
+8. `.accessibilityIdentifier("tracks-matrix")` present.
+9. Empty document still renders all 64 empty cells (no "no tracks yet" special-case; the grid IS the empty state).
 
 - [ ] Tests
 - [ ] Implement
 - [ ] Wire `.tracks` routing in ContentView
 - [ ] Green
-- [ ] Commit: `feat(ui): TracksMatrixView with add / delete / select flow`
+- [ ] Commit: `feat(ui): TracksMatrixView 8x8 grid with populated + empty slot handling`
 
 ---
 
-## Task 7: Reorder implementation
+## Task 7: "Move to slot…" reorder
 
-**Scope:** MVP reorder. Start with context-menu Move Up / Move Down on each card (simplest, reliable); drag-drop as a follow-up.
+**Scope:** Reorder via a context-menu "Move to slot…" picker on populated cells. Opens a small modal showing slot indices 1–64 with populated ones marked; tapping an empty slot moves the track there; tapping an occupied slot swaps. Simpler and more reliable than drag-drop in `LazyVGrid`.
 
 **Files:**
-- Modify: `Sources/UI/TrackCard.swift` — add Move Up / Move Down context-menu items that call a passed-in callback
-- Modify: `Sources/UI/TracksMatrixView.swift` — wire the callback through to `document.model.reorderTracks`
+- Create: `Sources/UI/MoveToSlotSheet.swift`
+- Modify: `Sources/UI/TrackCard.swift` — add "Move to slot…" context-menu item
+- Modify: `Sources/UI/TracksMatrixView.swift` — host the sheet
+
+**Behaviour:**
+
+- "Move to slot…" opens `MoveToSlotSheet` presenting a mini 8×8 grid of slot numbers.
+- Populated slots render as a filled button with that slot's track-type glyph (click = swap).
+- Empty slots render hollow with just the slot number (click = move).
+- The track's current slot is visually marked as "here" and is non-interactive.
 
 **Tests:**
 
-1. Move Up on the second track moves it to position 0.
-2. Move Up on the first track is a no-op.
-3. Move Down on the last track is a no-op.
-4. After reorder, `selectedTrackID` still points at the same track (which is now at a different index).
+1. Open sheet → 64 buttons visible; 1 marked "here".
+2. Tap empty slot 10 for a track at slot 2 → calls `moveTrack(fromSlot: 2, toSlot: 10)`; slot 2 empty, slot 10 holds the track.
+3. Tap populated slot 5 for a track at slot 2 → calls `moveTrack(fromSlot: 2, toSlot: 5)` which swaps.
+4. Tap the "here" cell → no-op.
 
 - [ ] Tests
-- [ ] Implement
+- [ ] Implement MoveToSlotSheet
+- [ ] Wire context menu
 - [ ] Green
-- [ ] Commit: `feat(ui): track reorder via context-menu move-up/down`
+- [ ] Commit: `feat(ui): move-to-slot picker for track reorder`
 
 ---
 
@@ -454,20 +620,24 @@ Also add the `section-tracks` and `track-card-*` identifiers to the screens-tour
 |---|---|
 | `WorkspaceSection.tracks` case + nav button | Task 1 |
 | `selectedTrackID` invariant enforced (closes codex review-queue item) | Task 2 |
-| `TrackCard` component | Task 3 |
-| `AddTrackSheet` type picker | Task 4 |
-| Document-model mutations with per-type defaults | Task 5 |
-| `TracksMatrixView` grid + add/delete/select flow | Task 6 |
-| Track reorder UX | Task 7 |
+| Minimal `TrackCard` (type glyph + name only, nav-focused) | Task 3 |
+| `EmptyTrackCell` + `CreateTrackSheet` (one-tap type-picker) | Task 4 |
+| `trackSlots` fixed 64-slot grid + slot-aware mutations + change-type | Task 5 |
+| `TracksMatrixView` 8×8 grid of populated + empty cells | Task 6 |
+| "Move to slot…" reorder | Task 7 |
 | Snapshot + screens-tour coverage (when qa-infra lands) | Task 8 |
 | Wiki | Task 9 |
 | Tag | Task 10 |
 
 ## Open questions resolved for this plan
 
-- **Section naming collision:** `.track` (singular, the existing detail-view case) vs `.tracks` (new matrix case). Keep both. Nav buttons in the chrome: ["Song", "Phrase", "Tracks", "Track", "Mixer", "Perform"] — "Tracks" takes you to the matrix; "Track" takes you to the selected track's detail. Visually distinguish by icon + subtle label weight. Alternative (not chosen): merge into one `.track` case that shows the matrix when nothing is selected and the detail when one is — rejected because it conflates "pick" and "edit" affordances in one nav slot.
-- **Reorder UX:** context-menu Move Up / Move Down in MVP. `LazyVGrid` + drag-drop works on macOS but is finicky with grid-to-grid reordering; worth a dedicated follow-up if the user finds context-menu slow.
-- **Empty-state:** when the document has zero tracks, the matrix shows a centred "No tracks yet — Add one" with an embedded Add button (redundant with the header button but improves discoverability).
-- **Selection mirror to Phrase view:** the Phrase view already shows per-track rails. Selecting a track in the matrix should also highlight that track's row in the Phrase view. Since `selectedTrackID` is the shared state, this comes for free — the Phrase view just reads the same ID.
-- **`selectedTrackID` invariant is Task 2's concern** — it touches init + remove + reorder. Worth getting right once rather than sprinkling validation across call sites.
-- **Codex's review-queue item `important-selected-track-id-invariant.md` is closed by Task 2** — delete the critique file in the Task 2 commit.
+- **Section naming collision:** `.track` (singular, the existing detail-view case) vs `.tracks` (new matrix case). Keep both. Nav buttons in the chrome: ["Song", "Phrase", "Tracks", "Track", "Mixer", "Perform"] — "Tracks" takes you to the matrix; "Track" takes you to the selected track's detail.
+- **64-slot grid layout:** fixed 8×8. Cells are square (1:1 aspect ratio). Grid uses `LazyVGrid` with 8 flexible columns so it scales with window width but keeps the aspect.
+- **Empty-state:** no special empty-state. A fresh document renders 64 empty cells; the user taps one to create. This is the one-and-only track-creation flow in the Tracks view.
+- **Card minimalism:** the card shows only type glyph + name. Destination pills, pattern previews, mute indicators all live in the Track detail view. The matrix is nav; the detail is edit.
+- **Change type is destructive:** the data-model spec says `TrackType` is immutable. The UX "Change Type…" action does a destroy + recreate in the same slot under the hood. Phrase references to the old track ID are cleaned up during the change. The name is preserved where possible.
+- **Reorder via picker, not drag:** `LazyVGrid` drag-drop across cells is finicky on macOS; a "Move to slot…" picker is reliable and keyboard-accessible. Drag-drop can land as polish later.
+- **Selection mirror to Phrase view:** `selectedTrackID` is shared; Phrase view reads the same ID so highlights propagate for free.
+- **`selectedTrackID` invariant:** Task 2's concern. Init + every mutation that touches `tracks` or `trackSlots` runs `normaliseSelection`. Closes codex's review-queue item `important-selected-track-id-invariant.md`; critique file deleted in the Task 2 commit.
+- **Slot index width:** 0..63 (internal), 1..64 (displayed). Code uses 0-based; UI labels use 1-based where labels are shown. Currently no visible labels per slot — deferred until the 8×8 grid feels unlabelled-sparse.
+- **Slot count upper bound:** `TracksLayout.slotCount = 64`. Fixed. Going beyond 64 would need either a multi-bank UI (MPC-style pages) or an expanded single grid; both are future plans.
