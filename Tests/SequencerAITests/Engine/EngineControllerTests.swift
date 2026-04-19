@@ -154,6 +154,75 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(controller.statusSummary, "Audio: Mock AU Instrument via Main Mixer (Muted)")
     }
 
+    func test_effective_destination_uses_group_shared_destination_and_pitch_offset() {
+        let controller = EngineController(client: nil, endpoint: nil)
+        let groupID = UUID(uuidString: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee") ?? UUID()
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "66666666-6666-6666-6666-666666666666") ?? UUID(),
+            name: "Kick",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let group = TrackGroup(
+            id: groupID,
+            name: "Kit",
+            memberIDs: [track.id],
+            sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: 2),
+            noteMapping: [track.id: 12]
+        )
+        let document = SeqAIDocumentModel(
+            version: 1,
+            tracks: [track],
+            trackGroups: [group],
+            selectedTrackID: track.id,
+            phrases: [PhraseModel.default(tracks: [track])],
+            selectedPhraseID: PhraseModel.default(tracks: [track]).id
+        )
+
+        controller.apply(documentModel: document)
+
+        let resolved = controller.effectiveDestination(for: track.id)
+        XCTAssertEqual(resolved.destination, .midi(port: .sequencerAIOut, channel: 9, noteOffset: 2))
+        XCTAssertEqual(resolved.pitchOffset, 12)
+    }
+
+    func test_effective_destination_returns_none_when_inherited_group_has_no_shared_destination() {
+        let controller = EngineController(client: nil, endpoint: nil)
+        let groupID = UUID(uuidString: "bbbbbbbb-cccc-dddd-eeee-ffffffffffff") ?? UUID()
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "77777777-7777-7777-7777-777777777777") ?? UUID(),
+            name: "Hat",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let group = TrackGroup(id: groupID, name: "Kit", memberIDs: [track.id], sharedDestination: nil)
+        let phrase = PhraseModel.default(tracks: [track])
+        let document = SeqAIDocumentModel(
+            version: 1,
+            tracks: [track],
+            trackGroups: [group],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+
+        let resolved = controller.effectiveDestination(for: track.id)
+        XCTAssertEqual(resolved.destination, .none)
+        XCTAssertEqual(resolved.pitchOffset, 0)
+    }
+
     func test_multiple_audio_tracks_all_play_when_transport_ticks() {
         var createdSinks: [CapturingAudioSink] = []
         let controller = EngineController(
@@ -204,6 +273,66 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(createdSinks[0].receivedEvents.first?.first?.pitch, 48)
         XCTAssertEqual(createdSinks[1].receivedEvents.first?.first?.pitch, 72)
         XCTAssertEqual(createdSinks[1].selectedInstrument, .testInstrument)
+    }
+
+    func test_group_inherited_audio_destination_reuses_one_host_and_applies_pitch_offsets() {
+        var createdSinks: [CapturingAudioSink] = []
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioOutputFactory: {
+                let sink = CapturingAudioSink()
+                createdSinks.append(sink)
+                return sink
+            }
+        )
+        let groupID = UUID(uuidString: "12121212-3434-5656-7878-909090909090") ?? UUID()
+        let kick = StepSequenceTrack(
+            id: UUID(uuidString: "abababab-abab-abab-abab-abababababab") ?? UUID(),
+            name: "Kick",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let snare = StepSequenceTrack(
+            id: UUID(uuidString: "cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd") ?? UUID(),
+            name: "Snare",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let group = TrackGroup(
+            id: groupID,
+            name: "Kit",
+            memberIDs: [kick.id, snare.id],
+            sharedDestination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
+            noteMapping: [kick.id: 0, snare.id: 12]
+        )
+        let phrase = PhraseModel.default(tracks: [kick, snare])
+        let document = SeqAIDocumentModel(
+            version: 1,
+            tracks: [kick, snare],
+            trackGroups: [group],
+            selectedTrackID: kick.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        XCTAssertEqual(createdSinks.count, 1)
+        let playedPitches = createdSinks[0].receivedEvents.flatMap { $0 }.map(\.pitch).sorted()
+        XCTAssertEqual(playedPitches, [60, 72])
+        XCTAssertEqual(createdSinks[0].selectedInstrument, .testInstrument)
     }
 }
 

@@ -38,6 +38,21 @@ final class AUWindowHostTests: XCTestCase {
 
         host.close(for: trackID)
     }
+
+    @MainActor
+    func test_group_window_key_reuses_existing_window() {
+        let host = AUWindowHost()
+        let presenter = StubAudioUnitPresenter()
+        let groupID = UUID()
+
+        host.open(for: .group(groupID), presenter: presenter, title: "Drums (Shared)") { _ in }
+        host.open(for: .group(groupID), presenter: presenter, title: "Drums (Shared)") { _ in }
+
+        XCTAssertTrue(host.isOpen(for: .group(groupID)))
+        XCTAssertEqual(presenter.requestCount, 1)
+
+        host.close(for: .group(groupID))
+    }
 }
 
 private final class StubAudioUnitPresenter: AudioUnitWindowPresentable {

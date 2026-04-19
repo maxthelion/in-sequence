@@ -25,9 +25,9 @@ extension AVAudioUnit: AudioUnitWindowPresentable {
 final class AUWindowHost: NSObject, NSWindowDelegate {
     static let shared = AUWindowHost()
 
-    private struct WindowKey: Hashable {
-        let trackID: UUID
-        let tag: VoiceTag
+    enum WindowKey: Hashable {
+        case track(UUID)
+        case group(TrackGroupID)
     }
 
     private struct WindowEntry {
@@ -39,13 +39,11 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
     private var windows: [WindowKey: WindowEntry] = [:]
 
     func open(
-        for trackID: UUID,
-        tag: VoiceTag = defaultVoiceTag,
+        for key: WindowKey,
         presenter: AudioUnitWindowPresentable,
         title: String,
         stateWriteback: @escaping (Data?) -> Void
     ) {
-        let key = WindowKey(trackID: trackID, tag: tag)
         if let existing = windows[key] {
             existing.window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -75,16 +73,32 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         }
     }
 
-    func close(for trackID: UUID, tag: VoiceTag = defaultVoiceTag) {
-        let key = WindowKey(trackID: trackID, tag: tag)
+    func open(
+        for trackID: UUID,
+        presenter: AudioUnitWindowPresentable,
+        title: String,
+        stateWriteback: @escaping (Data?) -> Void
+    ) {
+        open(for: .track(trackID), presenter: presenter, title: title, stateWriteback: stateWriteback)
+    }
+
+    func close(for key: WindowKey) {
         guard let entry = windows[key] else {
             return
         }
         entry.window.close()
     }
 
-    func isOpen(for trackID: UUID, tag: VoiceTag = defaultVoiceTag) -> Bool {
-        windows[WindowKey(trackID: trackID, tag: tag)] != nil
+    func close(for trackID: UUID) {
+        close(for: .track(trackID))
+    }
+
+    func isOpen(for key: WindowKey) -> Bool {
+        windows[key] != nil
+    }
+
+    func isOpen(for trackID: UUID) -> Bool {
+        isOpen(for: .track(trackID))
     }
 
     func windowWillClose(_ notification: Notification) {

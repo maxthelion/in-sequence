@@ -137,7 +137,7 @@ struct TrackDestinationEditor: View {
             get: { document.model.selectedTrack.output },
             set: {
                 if $0 != .auInstrument {
-                    AUWindowHost.shared.close(for: track.id)
+                    AUWindowHost.shared.close(for: currentAUWindowKey)
                 }
                 document.model.selectedTrack.output = $0
                 if $0 == .auInstrument {
@@ -184,10 +184,34 @@ struct TrackDestinationEditor: View {
     }
 
     private var currentAUStateBlob: Data? {
+        if case .inheritGroup = track.destination,
+           let group = document.model.group(for: track.id),
+           case let .auInstrument(_, stateBlob)? = group.sharedDestination
+        {
+            return stateBlob
+        }
         if case let .auInstrument(_, stateBlob) = track.defaultDestination {
             return stateBlob
         }
         return nil
+    }
+
+    private var currentAUWindowKey: AUWindowHost.WindowKey {
+        if case .inheritGroup = track.destination,
+           let groupID = track.groupID
+        {
+            return .group(groupID)
+        }
+        return .track(track.id)
+    }
+
+    private var currentAUWindowTitle: String {
+        if case .group(let groupID) = currentAUWindowKey,
+           let group = document.model.trackGroups.first(where: { $0.id == groupID })
+        {
+            return "\(group.name) (Shared)"
+        }
+        return track.name
     }
 
     private func openCurrentAudioUnitWindow() {
@@ -196,18 +220,32 @@ struct TrackDestinationEditor: View {
         }
 
         AUWindowHost.shared.open(
-            for: track.id,
+            for: currentAUWindowKey,
             presenter: audioUnit,
-            title: track.name
+            title: currentAUWindowTitle
         ) { stateBlob in
-            guard let trackIndex = document.model.tracks.firstIndex(where: { $0.id == track.id }),
-                  case let .auInstrument(componentID, _) = document.model.tracks[trackIndex].defaultDestination
-            else {
-                return
-            }
+            switch currentAUWindowKey {
+            case .group(let groupID):
+                guard let groupIndex = document.model.trackGroups.firstIndex(where: { $0.id == groupID }),
+                      case let .auInstrument(componentID, _)? = document.model.trackGroups[groupIndex].sharedDestination
+                else {
+                    return
+                }
 
-            document.model.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-            recordVoiceSnapshot(destination: document.model.tracks[trackIndex].defaultDestination)
+                document.model.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+                if let destination = document.model.trackGroups[groupIndex].sharedDestination {
+                    recordVoiceSnapshot(destination: destination)
+                }
+            case .track(let trackID):
+                guard let trackIndex = document.model.tracks.firstIndex(where: { $0.id == trackID }),
+                      case let .auInstrument(componentID, _) = document.model.tracks[trackIndex].defaultDestination
+                else {
+                    return
+                }
+
+                document.model.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+                recordVoiceSnapshot(destination: document.model.tracks[trackIndex].defaultDestination)
+            }
         }
     }
 

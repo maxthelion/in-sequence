@@ -14,6 +14,7 @@ final class MidiOut: Block {
     var endpoint: MIDIEndpoint?
 
     private var channel: UInt8
+    private var noteOffset: Int
     private var pendingNoteOffs: [UInt64: [UInt8]] = [:]
 
     init(
@@ -26,6 +27,7 @@ final class MidiOut: Block {
         self.client = client
         self.endpoint = endpoint
         self.channel = Self.defaultChannel
+        self.noteOffset = 0
 
         for (key, value) in params {
             apply(paramKey: key, value: value)
@@ -48,13 +50,14 @@ final class MidiOut: Block {
 
         if case let .notes(events)? = context.inputs["notes"] {
             for event in events where event.gate {
+                let shiftedPitch = Self.shiftedPitch(for: event.pitch, noteOffset: noteOffset)
                 builder.addNoteOn(
                     channel: channel,
-                    pitch: event.pitch,
+                    pitch: shiftedPitch,
                     velocity: event.velocity,
                     timestamp: timestamp
                 )
-                pendingNoteOffs[context.tickIndex + UInt64(event.length), default: []].append(event.pitch)
+                pendingNoteOffs[context.tickIndex + UInt64(event.length), default: []].append(shiftedPitch)
             }
         }
 
@@ -71,13 +74,17 @@ final class MidiOut: Block {
     }
 
     func apply(paramKey: String, value: ParamValue) {
-        guard case let ("channel", .number(nextChannel)) = (paramKey, value),
-              let channel = Self.midiChannel(from: Int(nextChannel.rounded()))
-        else {
+        switch (paramKey, value) {
+        case let ("channel", .number(nextChannel)):
+            guard let channel = Self.midiChannel(from: Int(nextChannel.rounded())) else {
+                return
+            }
+            self.channel = channel
+        case let ("noteOffset", .number(nextOffset)):
+            noteOffset = Int(nextOffset.rounded())
+        default:
             return
         }
-
-        self.channel = channel
     }
 
     func flushPendingNoteOffs(now: TimeInterval) {
@@ -116,6 +123,10 @@ final class MidiOut: Block {
             return nil
         }
         return UInt8(value)
+    }
+
+    private static func shiftedPitch(for pitch: UInt8, noteOffset: Int) -> UInt8 {
+        UInt8(min(max(Int(pitch) + noteOffset, 0), 127))
     }
 
     private static func timestamp(from now: TimeInterval) -> MIDITimeStamp {
