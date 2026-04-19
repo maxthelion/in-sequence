@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16 at `/Applications/Xcode.app`. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
-**Status:** <STATUS_PREFIX> <COMPLETED_MARKER> TBD. Tag `v0.0.6-midi-routing` at TBD.
+**Status:** Completed and verified by `xcodebuild test` (`184` passed, `3` skipped). Tag `v0.0.6-midi-routing`.
 
 **Depends on:** `2026-04-19-track-destinations.md` — needs `Destination`, `Voicing`, `AudioInstrumentHost`. Executes after that plan lands.
 
@@ -107,10 +107,10 @@ public enum RouteDestination: Codable, Equatable, Sendable {
 3. A route with `source: .chordGenerator(...)` and `destination: .chordContext(...)` round-trips cleanly (the common chord-gen setup).
 4. Identity: `route.id` survives round-trip.
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(document): Route value type + RouteSource/Filter/Destination`
+- [x] Tests
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(document): Route value type + RouteSource/Filter/Destination`
 
 ---
 
@@ -137,10 +137,10 @@ public enum RouteDestination: Codable, Equatable, Sendable {
 4. `routes(targeting:)` returns only routes whose destination track matches.
 5. Legacy document (no `routes` key in JSON) decodes with empty list.
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(document): routes list on project model`
+- [x] Tests
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(document): routes list on project model`
 
 ---
 
@@ -200,10 +200,10 @@ public final class MIDIRouter {
 7. `source: .chordGenerator(A)` with input `chordContext: someChord` → dispatcher called with `chord(...)`; without chord → not called.
 8. `applyRoutesSnapshot([])` mid-session → next tick emits nothing.
 
-- [ ] Tests (8 cases)
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(engine): MIDIRouter fan-out core`
+- [x] Tests (8 cases)
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(engine): MIDIRouter fan-out core`
 
 ---
 
@@ -244,10 +244,10 @@ public final class ChordContextSink: Block {
 2. Feed `.chord(Gmin)` → published with Gmin.
 3. Feed a non-chord stream (unexpected input) → no publish, no crash.
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(engine): ChordContextSink block`
+- [x] Tests
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(engine): ChordContextSink block`
 
 ---
 
@@ -274,11 +274,11 @@ public final class ChordContextSink: Block {
 4. Disabling the route (`enabled = false` via CommandQueue) stops delivery within 2 ticks.
 5. `document.routes` change without restart: router picks it up on the next tick.
 
-- [ ] Tests
-- [ ] Implement router wiring + dispatcher
-- [ ] Track input buffer handling (new internal type in EngineController; bounded ring)
-- [ ] Green
-- [ ] Commit: `feat(engine): MIDIRouter wired into tick; track-to-track and chord-context fan-out`
+- [x] Tests
+- [x] Implement router wiring + dispatcher
+- [x] Track input buffer handling (new internal type in EngineController; bounded ring)
+- [x] Green
+- [x] Commit: `feat(engine): MIDIRouter wired into tick; track-to-track and chord-context fan-out`
 
 ---
 
@@ -308,11 +308,11 @@ public final class ChordContextSink: Block {
 4. Deleting a route emits `.removeRoute(id)`.
 5. Route list filters by source track when entered from a track's inspector.
 
-- [ ] Tests
-- [ ] Implement the two views
-- [ ] Integrate into DetailView
-- [ ] Green
-- [ ] Commit: `feat(ui): RoutesListView + RouteEditorSheet (inspector surface)`
+- [x] Tests
+- [x] Implement the two views
+- [x] Integrate into DetailView
+- [x] Green
+- [x] Commit: `feat(ui): RoutesListView + RouteEditorSheet (inspector surface)`
 
 ---
 
@@ -335,10 +335,10 @@ public final class ChordContextSink: Block {
 2. Add a route in the document; pill on the source track updates within a frame.
 3. Click opens the filtered list (verify target view opens).
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(ui): track "Routes out" pill surfaces project routes`
+- [x] Tests
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(ui): track "Routes out" pill surfaces project routes`
 
 ---
 
@@ -350,18 +350,18 @@ public final class ChordContextSink: Block {
 - Create: `wiki/pages/routing.md`
 - Modify: `wiki/pages/project-layout.md`
 
-- [ ] Wiki page
-- [ ] project-layout updated
-- [ ] Commit: `docs(wiki): routing page + project-layout update`
+- [x] Wiki page
+- [x] project-layout updated
+- [x] Commit: `docs(wiki): routing page + project-layout update`
 
 ---
 
 ## Task 9: Tag + mark completed
 
-- [ ] Replace every `- [ ]` in this file with `- [x]` for completed steps
-- [ ] Add a `Status:` line after `Parent spec` in this file's header, following the placeholder-token pattern
-- [ ] Commit: `docs(plan): mark midi-routing completed`
-- [ ] Tag: `git tag -a v0.0.6-midi-routing -m "MIDI routing engine complete: Route model, MIDIRouter fan-out, track-to-track + chord-context routing, inspector UI"`
+- [x] Replace every `- [ ]` in this file with `- [x]` for completed steps
+- [x] Add a `Status:` line after `Parent spec` in this file's header, following the placeholder-token pattern
+- [x] Commit: `docs(plan): mark midi-routing completed`
+- [x] Tag: `git tag -a v0.0.6-midi-routing -m "MIDI routing engine complete: Route model, MIDIRouter fan-out, track-to-track + chord-context routing, inspector UI"`
 
 ---
 

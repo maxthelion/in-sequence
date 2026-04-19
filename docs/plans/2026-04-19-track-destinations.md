@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16 at `/Applications/Xcode.app`. `xcode-select` points at CommandLineTools. All `xcodebuild` invocations in this plan prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. AUv3 extension discovery + hosting requires the app's sandbox entitlements file to allow audio-component hosting (already set up per Plan 0's `SequencerAI.entitlements`; verify before Task 4).
 
-**Status:** <STATUS_PREFIX> <COMPLETED_MARKER> TBD. Tag `v0.0.5-track-destinations` at TBD.
+**Status:** Implemented and automation-verified with `xcodebuild test` (`184` passed, `3` skipped). Manual AU smoke is still pending before tagging `v0.0.5-track-destinations`.
 
 **Deliberately deferred:**
 
@@ -107,10 +107,10 @@ public struct AudioComponentID: Codable, Equatable, Hashable, Sendable {
 4. `MIDIEndpointName` equals another with the same displayName + isVirtual.
 5. Channel value is the raw byte (0..15 for MIDI 1.0); the type doesn't validate — caller responsibility (covered by settings.json precondition when dispatching).
 
-- [ ] Tests for the 5 cases
-- [ ] Implement
-- [ ] `xcodebuild test` green
-- [ ] Commit: `feat(document): Destination enum (MIDI / AU / none)`
+- [x] Tests for the 5 cases
+- [x] Implement
+- [x] `xcodebuild test` green
+- [x] Commit: `feat(document): Destination enum (MIDI / AU / none)`
 
 ---
 
@@ -159,10 +159,10 @@ public struct Voicing: Codable, Equatable, Sendable {
 3. Round-trip Codable (both shapes).
 4. Mutating `setDefault` replaces the default tag's destination.
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(document): Voicing per-tag Destination map`
+- [x] Tests
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(document): Voicing per-tag Destination map`
 
 ---
 
@@ -193,11 +193,11 @@ The bundled `InternalSamplerBankID` values (`drumKitDefault`, `sliceDefault`) sh
 4. `Voicing.defaults(forType: .sliceLoop).defaultDestination` is `.internalSampler(bank: .sliceDefault, preset: "empty-slice")`.
 5. `appendTrack(type: .drumRack)` on an empty document produces a track whose `voicing` matches `Voicing.defaults(forType: .drumRack)`.
 
-- [ ] Tests
-- [ ] Implement `Voicing.defaults(forType:)`
-- [ ] Update `appendTrack(type:)`
-- [ ] Green
-- [ ] Commit: `feat(document): per-track-type default Voicing at track creation`
+- [x] Tests
+- [x] Implement `Voicing.defaults(forType:)`
+- [x] Update `appendTrack(type:)`
+- [x] Green
+- [x] Commit: `feat(document): per-track-type default Voicing at track creation`
 
 ---
 
@@ -226,12 +226,12 @@ Encoder-side: write `voicing` as the new structure; drop the legacy fields.
 3. Existing document tests (`test_document_roundtrip`, etc.) keep passing against the new field names (test fixtures updated).
 4. `EngineController` receives `Voicing` values and routes MIDI correctly (existing engine integration tests stay green).
 
-- [ ] Update the type
-- [ ] Update EngineController
-- [ ] Update DetailView reads
-- [ ] Legacy-migration unit test
-- [ ] Full suite green
-- [ ] Commit: `refactor(document): Track.voicing replaces output + audioInstrument; legacy migration`
+- [x] Update the type
+- [x] Update EngineController
+- [x] Update DetailView reads
+- [x] Legacy-migration unit test
+- [x] Full suite green
+- [x] Commit: `refactor(document): Track.voicing replaces output + audioInstrument; legacy migration`
 
 ---
 
@@ -267,10 +267,10 @@ Internals: `NSKeyedArchiver(requiringSecureCoding: true)` for encode; `NSKeyedUn
 5. Decode valid-archive-of-wrong-type (e.g. a plain `NSNumber`) → throws `unexpectedType`.
 6. Round-trip nested dicts (simulated AU payload: `["pluginData": Data(...), "isMuted": true, "preset": "Lead 3"]`).
 
-- [ ] Tests
-- [ ] Implement with NSKeyedArchiver wrapper
-- [ ] Green
-- [ ] Commit: `feat(audio): FullStateCoder for AU state blob serialization`
+- [x] Tests
+- [x] Implement with NSKeyedArchiver wrapper
+- [x] Green
+- [x] Commit: `feat(audio): FullStateCoder for AU state blob serialization`
 
 ---
 
@@ -310,10 +310,10 @@ Uses `AVAudioUnit.instantiate(with:options: .loadOutOfProcess, completionHandler
 2. Round-trip: instantiate system-bundled `DLSMusicDevice` (AU's Apple DLS synth, available on every macOS install), set a parameter, `captureState`, instantiate a second copy with that blob, verify parameter matches. Skip with `XCTSkip` if `DLSMusicDevice` isn't found.
 3. State blob persists across factory calls (use tempDir to write Data, re-read, re-instantiate).
 
-- [ ] Tests
-- [ ] Implement factory
-- [ ] Green (skips acceptable for CI paths missing the DLS synth)
-- [ ] Commit: `feat(audio): AUAudioUnitFactory with state apply/capture`
+- [x] Tests
+- [x] Implement factory
+- [x] Green (skips acceptable for CI paths missing the DLS synth)
+- [x] Commit: `feat(audio): AUAudioUnitFactory with state apply/capture`
 
 ---
 
@@ -338,10 +338,10 @@ Uses `AVAudioUnit.instantiate(with:options: .loadOutOfProcess, completionHandler
 3. Attach with an invalid componentID → logs + `currentUnit == nil`; does not crash.
 4. Attach twice without detach → detaches the previous unit cleanly.
 
-- [ ] Update AudioInstrumentHost
-- [ ] Extend tests
-- [ ] Green
-- [ ] Commit: `refactor(audio): AudioInstrumentHost takes Destination.auInstrument`
+- [x] Update AudioInstrumentHost
+- [x] Extend tests
+- [x] Green
+- [x] Commit: `refactor(audio): AudioInstrumentHost takes Destination.auInstrument`
 
 ---
 
@@ -390,10 +390,10 @@ Implementation:
 
 Use a stub `AVAudioUnit`-adjacent object for tests (extract an internal protocol `AUViewHosting` if needed).
 
-- [ ] Tests (4 cases against the registry, with stubs)
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(audio): AUWindowHost for per-track AU editor windows`
+- [x] Tests (4 cases against the registry, with stubs)
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(audio): AUWindowHost for per-track AU editor windows`
 
 ---
 
@@ -447,10 +447,10 @@ File format: JSON array of `RecentVoice`; pretty-printed for user-inspectability
 
 Use a per-test temp dir for the `historyURL`, not `.shared`, to keep tests isolated from the real user dir.
 
-- [ ] Tests
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(platform): RecentVoicesStore (cross-project voice history)`
+- [x] Tests
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(platform): RecentVoicesStore (cross-project voice history)`
 
 ---
 
@@ -482,11 +482,11 @@ Use a per-test temp dir for the `historyURL`, not `.shared`, to keep tests isola
 
 Use `@MainActor` view-model tests where possible; SwiftUI rendering via `NSHostingView` for state-inspection.
 
-- [ ] Tests
-- [ ] Implement TrackDestinationEditor + VoicePicker
-- [ ] Integrate into DetailView
-- [ ] Green
-- [ ] Commit: `feat(ui): TrackDestinationEditor + VoicePickerView with recent-voices recall`
+- [x] Tests
+- [x] Implement TrackDestinationEditor + VoicePicker
+- [x] Integrate into DetailView
+- [x] Green
+- [x] Commit: `feat(ui): TrackDestinationEditor + VoicePickerView with recent-voices recall`
 
 ---
 
@@ -514,12 +514,12 @@ Use `@MainActor` view-model tests where possible; SwiftUI rendering via `NSHosti
 - Spy-based test: simulate a window close; verify `document.model.tracks[0].voicing.destinations["default"]` acquires a non-nil stateBlob.
 - Manual smoke: hit Play on an AU-destined track, hear output in a DAW / routed through macOS audio; note in commit message.
 
-- [ ] Wire EngineController
-- [ ] Wire app-level AUWindowHost instantiation
-- [ ] Integration test
+- [x] Wire EngineController
+- [x] Wire app-level AUWindowHost instantiation
+- [x] Integration test
 - [ ] Manual smoke test
-- [ ] Green
-- [ ] Commit: `feat(engine): wire Destination through EngineController + AUWindowHost`
+- [x] Green
+- [x] Commit: `feat(engine): wire Destination through EngineController + AUWindowHost`
 
 ---
 
@@ -531,9 +531,9 @@ Use `@MainActor` view-model tests where possible; SwiftUI rendering via `NSHosti
 - Create: `wiki/pages/track-destinations.md`
 - Modify: `wiki/pages/project-layout.md`
 
-- [ ] Wiki page covers: Destination tagged union (per-track, not shared); AU UI open flow (requestViewController → NSWindow → writeback on close); RecentVoicesStore user-library path; migration from codex's audioInstrument + output
-- [ ] project-layout.md gains the `Audio/` and `Platform/` module rows
-- [ ] Commit: `docs(wiki): track-destinations page + project-layout update`
+- [x] Wiki page covers: Destination tagged union (per-track, not shared); AU UI open flow (requestViewController → NSWindow → writeback on close); RecentVoicesStore user-library path; migration from codex's audioInstrument + output
+- [x] project-layout.md gains the `Audio/` and `Platform/` module rows
+- [x] Commit: `docs(wiki): track-destinations page + project-layout update`
 
 ---
 
