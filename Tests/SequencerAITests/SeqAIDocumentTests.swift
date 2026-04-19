@@ -23,7 +23,10 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedTrack.stepAccents, Array(repeating: false, count: 16))
         XCTAssertEqual(model.selectedTrack.trackType, .instrument)
         XCTAssertEqual(model.selectedTrack.output, .midiOut)
-        XCTAssertEqual(model.selectedTrack.audioInstrument, .builtInSynth)
+        XCTAssertEqual(
+            model.selectedTrack.defaultDestination,
+            .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
         XCTAssertEqual(model.selectedTrack.mix, .default)
         XCTAssertEqual(model.phrases.count, 1)
         XCTAssertEqual(model.selectedPhrase.name, "Phrase A")
@@ -214,7 +217,10 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(decoded.selectedTrack.stepAccents, [false, false, false, false])
         XCTAssertEqual(decoded.selectedTrack.trackType, .instrument)
         XCTAssertEqual(decoded.selectedTrack.output, .midiOut)
-        XCTAssertEqual(decoded.selectedTrack.audioInstrument, .builtInSynth)
+        XCTAssertEqual(
+            decoded.selectedTrack.defaultDestination,
+            .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
         XCTAssertEqual(decoded.selectedTrack.mix, .default)
         XCTAssertEqual(decoded.phrases.count, 1)
         XCTAssertEqual(decoded.selectedPatternIndex(for: decoded.selectedTrack.id), 0)
@@ -277,6 +283,45 @@ final class SeqAIDocumentModelTests: XCTestCase {
         let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
 
         XCTAssertEqual(decoded.selectedTrack.trackType, .sliceLoop)
+    }
+
+    func test_decodes_legacy_output_and_audio_instrument_into_voicing() throws {
+        let testInstrument = AudioInstrumentChoice.testInstrument
+        let json = """
+        {
+          "version": 1,
+          "tracks": [
+            {
+              "id": "12121212-3434-5656-7878-909090909090",
+              "name": "Lead",
+              "trackType": "instrument",
+              "pitches": [60, 64, 67],
+              "stepPattern": [true, false, true, false],
+              "stepAccents": [false, false, true, false],
+              "output": "auInstrument",
+              "audioInstrument": {
+                "name": "Test Synth",
+                "manufacturerName": "Codex",
+                "componentType": \(testInstrument.componentType),
+                "componentSubType": \(testInstrument.componentSubType),
+                "componentManufacturer": \(testInstrument.componentManufacturer)
+              },
+              "velocity": 100,
+              "gateLength": 4
+            }
+          ],
+          "selectedTrackID": "12121212-3434-5656-7878-909090909090"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
+
+        XCTAssertEqual(decoded.selectedTrack.output, .auInstrument)
+        XCTAssertEqual(decoded.selectedTrack.audioInstrument, .testInstrument)
+        XCTAssertEqual(
+            decoded.selectedTrack.defaultDestination,
+            .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil)
+        )
     }
 
     func test_cycle_step_moves_between_off_on_and_accented() {
@@ -485,5 +530,183 @@ final class SeqAIDocumentModelTests: XCTestCase {
         let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
 
         XCTAssertEqual(decoded.selectedSourceMode(for: decoded.selectedTrack.id), .generator)
+    }
+
+    func test_new_document_starts_with_empty_routes() {
+        XCTAssertTrue(SeqAIDocumentModel.empty.routes.isEmpty)
+    }
+
+    func test_document_roundtrip_preserves_routes() throws {
+        var model = SeqAIDocumentModel.empty
+        let route = Route(
+            source: .track(model.selectedTrack.id),
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
+        model.routes = [route]
+
+        let data = try JSONEncoder().encode(model)
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: data)
+
+        XCTAssertEqual(decoded.routes, [route])
+    }
+
+    func test_routes_helpers_filter_by_source_and_target_track() {
+        let sourceTrack = StepSequenceTrack(
+            id: UUID(uuidString: "66666666-6666-6666-6666-666666666666") ?? UUID(),
+            name: "Source",
+            pitches: [60],
+            stepPattern: [true],
+            velocity: 100,
+            gateLength: 4
+        )
+        let targetTrack = StepSequenceTrack(
+            id: UUID(uuidString: "77777777-7777-7777-7777-777777777777") ?? UUID(),
+            name: "Target",
+            pitches: [67],
+            stepPattern: [true],
+            velocity: 100,
+            gateLength: 4
+        )
+        let phrase = PhraseModel.default(tracks: [sourceTrack, targetTrack])
+        let sourcedRoute = Route(source: .track(sourceTrack.id), destination: .voicing(targetTrack.id))
+        let unrelatedRoute = Route(
+            source: .track(targetTrack.id),
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
+        let model = SeqAIDocumentModel(
+            version: 1,
+            tracks: [sourceTrack, targetTrack],
+            routes: [sourcedRoute, unrelatedRoute],
+            selectedTrackID: sourceTrack.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        XCTAssertEqual(model.routesSourced(from: sourceTrack.id), [sourcedRoute])
+        XCTAssertEqual(model.routesTargeting(targetTrack.id), [sourcedRoute])
+    }
+
+    func test_make_default_route_prefers_another_track_voicing() {
+        let sourceTrack = StepSequenceTrack(
+            id: UUID(uuidString: "AAAAAAA1-1111-1111-1111-111111111111") ?? UUID(),
+            name: "Source",
+            pitches: [60],
+            stepPattern: [true],
+            velocity: 100,
+            gateLength: 4
+        )
+        let targetTrack = StepSequenceTrack(
+            id: UUID(uuidString: "BBBBBBB2-2222-2222-2222-222222222222") ?? UUID(),
+            name: "Target",
+            pitches: [67],
+            stepPattern: [true],
+            velocity: 100,
+            gateLength: 4
+        )
+        let model = SeqAIDocumentModel(version: 1, tracks: [sourceTrack, targetTrack], selectedTrackID: sourceTrack.id)
+
+        let route = model.makeDefaultRoute(from: sourceTrack.id)
+
+        XCTAssertEqual(route.source, .track(sourceTrack.id))
+        XCTAssertEqual(route.destination, .voicing(targetTrack.id))
+    }
+
+    func test_upsert_and_remove_route_mutate_document_routes() {
+        var model = SeqAIDocumentModel.empty
+        let route = Route(
+            id: UUID(uuidString: "CCCCCCC3-3333-3333-3333-333333333333") ?? UUID(),
+            source: .track(model.selectedTrack.id),
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
+
+        model.upsertRoute(route)
+        XCTAssertEqual(model.routes, [route])
+
+        var editedRoute = route
+        editedRoute.enabled = false
+        model.upsertRoute(editedRoute)
+        XCTAssertEqual(model.routes, [editedRoute])
+
+        model.removeRoute(id: route.id)
+        XCTAssertTrue(model.routes.isEmpty)
+    }
+
+    func test_track_midi_helpers_update_default_destination() {
+        var track = StepSequenceTrack.default
+
+        track.setMIDIPort(MIDIEndpointName(displayName: "External Port", isVirtual: false))
+        track.setMIDIChannel(5)
+        track.setMIDINoteOffset(12)
+
+        XCTAssertEqual(
+            track.defaultDestination,
+            .midi(
+                port: MIDIEndpointName(displayName: "External Port", isVirtual: false),
+                channel: 5,
+                noteOffset: 12
+            )
+        )
+        XCTAssertEqual(track.midiPortName?.displayName, "External Port")
+        XCTAssertEqual(track.midiChannel, 5)
+        XCTAssertEqual(track.midiNoteOffset, 12)
+    }
+
+    func test_legacy_document_without_routes_decodes_empty_route_list() throws {
+        let json = """
+        {
+          "version": 1,
+          "tracks": [
+            {
+              "id": "88888888-8888-8888-8888-888888888888",
+              "name": "Lead",
+              "trackType": "instrument",
+              "pitches": [60],
+              "stepPattern": [true],
+              "stepAccents": [false],
+              "voicing": {
+                "destinations": {
+                  "default": {
+                    "auInstrument": {
+                      "componentID": {
+                        "type": "aumu",
+                        "subtype": "DLSs",
+                        "manufacturer": "appl",
+                        "version": 0
+                      },
+                      "stateBlob": null
+                    }
+                  }
+                }
+              },
+              "mix": {
+                "level": 0.8,
+                "pan": 0.0,
+                "isMuted": false
+              },
+              "velocity": 100,
+              "gateLength": 4
+            }
+          ],
+          "selectedTrackID": "88888888-8888-8888-8888-888888888888",
+          "phrases": [
+            {
+              "id": "99999999-9999-9999-9999-999999999999",
+              "name": "Phrase A",
+              "lengthBars": 8,
+              "stepsPerBar": 16,
+              "abstractRows": [],
+              "trackPatternIndexes": {
+                "88888888-8888-8888-8888-888888888888": 0
+              },
+              "trackLayerStates": []
+            }
+          ],
+          "selectedPhraseID": "99999999-9999-9999-9999-999999999999"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: json)
+
+        XCTAssertTrue(decoded.routes.isEmpty)
     }
 }

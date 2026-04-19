@@ -32,6 +32,15 @@ func registerCoreBlocks(_ registry: BlockRegistry) throws {
             MidiOut(id: blockID, params: params)
         }
     )
+    try registry.register(
+        BlockKind(
+            id: "chord-context-sink",
+            inputs: ChordContextSink.inputs,
+            outputs: ChordContextSink.outputs
+        ) { blockID, _ in
+            ChordContextSink(id: blockID) { _ in }
+        }
+    )
 }
 
 final class BlockRegistry {

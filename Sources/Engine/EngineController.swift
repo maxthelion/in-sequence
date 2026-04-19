@@ -1,8 +1,9 @@
+import AVFoundation
 import Foundation
 import Observation
 
 @Observable
-final class EngineController {
+final class EngineController: RouterDispatcher {
     private struct PipelineEntry: Equatable {
         let trackID: UUID
         let output: TrackOutputDestination
@@ -12,7 +13,7 @@ final class EngineController {
         let trackID: UUID
         let generatorBlockID: BlockID
         let mix: TrackMixSettings
-        let instrument: AudioInstrumentChoice
+        let destination: Destination
     }
 
     private let midiClient: MIDIClient?
@@ -21,6 +22,8 @@ final class EngineController {
     private let audioOutputFactory: (() -> TrackPlaybackSink)?
     private let stepsPerBar: Int
     private let stateLock = NSLock()
+    @ObservationIgnored
+    private lazy var router = MIDIRouter(dispatcher: self)
 
     let registry: BlockRegistry
     let commandQueue: CommandQueue
@@ -39,7 +42,13 @@ final class EngineController {
     private var midiOutBlocksByTrackID: [UUID: MidiOut] = [:]
     private var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
     private var audioOutputsByTrackID: [UUID: TrackPlaybackSink] = [:]
+    private var routeMidiOutputs: [Destination: MidiOut] = [:]
     private var pipelineShape: [PipelineEntry] = []
+    private var routedNoteEvents: [RouteDestination: [NoteEvent]] = [:]
+    private var routedChords: [(RouteDestination, Chord, String?)] = []
+    private var routedMIDINotes: [Destination: [NoteEvent]] = [:]
+    private var routeDispatchNow: TimeInterval = 0
+    private(set) var chordContextByLane: [String: Chord] = [:]
 
     init(
         client: MIDIClient? = MIDISession.shared.client,
@@ -62,6 +71,7 @@ final class EngineController {
         do {
             try registerCoreBlocks(registry)
             try buildPipeline(for: .empty)
+            router.applyRoutesSnapshot(SeqAIDocumentModel.empty.routes)
         } catch {
             NSLog("EngineController setup failed: \(error)")
         }
@@ -108,6 +118,7 @@ final class EngineController {
         let selectedTrack = documentModel.selectedTrack
         selectedOutput = selectedTrack.output
         currentTrackMix = selectedTrack.mix
+        router.applyRoutesSnapshot(documentModel.routes)
 
         do {
             if withStateLock({ pipelineShape != Self.pipelineShape(for: documentModel) || executor == nil }) {
@@ -147,6 +158,33 @@ final class EngineController {
         sharedAudioOutput?.availableInstruments ?? AudioInstrumentChoice.defaultChoices
     }
 
+    var availableMIDIDestinationNames: [MIDIEndpointName] {
+        var names: [MIDIEndpointName] = []
+        if let endpoint {
+            names.append(MIDIEndpointName(displayName: endpoint.displayName, isVirtual: true))
+        } else {
+            names.append(.sequencerAIOut)
+        }
+
+        let discovered = (midiClient?.destinations ?? []).map {
+            MIDIEndpointName(displayName: $0.displayName, isVirtual: false)
+        }
+        for name in discovered where !names.contains(name) {
+            names.append(name)
+        }
+        return names.sorted { lhs, rhs in
+            if lhs == .sequencerAIOut { return true }
+            if rhs == .sequencerAIOut { return false }
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        }
+    }
+
+    func currentAudioUnit(for trackID: UUID) -> AVAudioUnit? {
+        withStateLock {
+            audioOutputsByTrackID[trackID]?.currentAudioUnit
+        }
+    }
+
     var statusSummary: String {
         guard canStart else {
             return "Engine unavailable"
@@ -170,12 +208,22 @@ final class EngineController {
             return host.isAvailable
                 ? "Audio: \(host.displayName) via Main Mixer\(selectedTrack.mix.isMuted ? " (Muted)" : "")"
                 : "Audio instrument unavailable"
+        case .internalSampler:
+            return "Internal sampler pending"
+        case .none:
+            return "No default output"
         }
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
-        let (executor, audioRuntimes, audioOutputs) = withStateLock {
-            (self.executor, self.audioTrackRuntimes, self.audioOutputsByTrackID)
+        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel) = withStateLock {
+            (
+                self.executor,
+                self.audioTrackRuntimes,
+                self.audioOutputsByTrackID,
+                self.generatorIDsByTrackID,
+                self.currentDocumentModel
+            )
         }
 
         guard let executor else {
@@ -194,7 +242,33 @@ final class EngineController {
                 continue
             }
 
+            host.setDestination(runtime.destination)
             host.play(noteEvents: events, bpm: executor.currentBPM, stepsPerBar: stepsPerBar)
+        }
+
+        routeDispatchNow = now
+        routedNoteEvents = [:]
+        routedChords = []
+        routedMIDINotes = [:]
+        let trackInputs = documentModel.tracks.compactMap { track -> RouterTickInput? in
+            guard let generatorID = generatorIDs[track.id],
+                  case let .notes(events)? = outputs[generatorID]?["notes"]
+            else {
+                return nil
+            }
+
+            return RouterTickInput(sourceTrack: track.id, notes: events, chordContext: nil)
+        }
+        router.tick(trackInputs)
+        flushRoutedEvents(bpm: executor.currentBPM)
+    }
+
+    func dispatch(_ event: RouterEvent) {
+        switch event {
+        case let .note(destination, noteEvent):
+            routedNoteEvents[destination, default: []].append(noteEvent)
+        case let .chord(destination, chord, lane):
+            routedChords.append((destination, chord, lane))
         }
     }
 
@@ -229,8 +303,10 @@ final class EngineController {
                     trackID: track.id,
                     generatorBlockID: generatorBlockID,
                     mix: track.mix,
-                    instrument: track.audioInstrument
+                    destination: track.defaultDestination
                 )
+            case .internalSampler, .none:
+                break
             }
         }
 
@@ -252,6 +328,151 @@ final class EngineController {
         currentDocumentModel = documentModel
         selectedOutput = documentModel.selectedTrack.output
         currentTrackMix = documentModel.selectedTrack.mix
+    }
+
+    private func flushRoutedEvents(bpm: Double) {
+        for (destination, notes) in routedNoteEvents where !notes.isEmpty {
+            flushRoutedNotes(notes, to: destination, bpm: bpm)
+        }
+
+        let midiDestinationsToTick = Set(routeMidiOutputs.keys).union(routedMIDINotes.keys)
+        for destination in midiDestinationsToTick {
+            guard case let .midi(port, channel, _) = destination,
+                  let port,
+                  let midiOut = routeMidiOut(for: destination, port: port, channel: channel)
+            else {
+                continue
+            }
+
+            let notes = routedMIDINotes[destination] ?? []
+            _ = midiOut.tick(
+                context: TickContext(
+                    tickIndex: transportTickIndex,
+                    bpm: bpm,
+                    inputs: ["notes": .notes(notes)],
+                    now: routeDispatchNow
+                )
+            )
+        }
+
+        for (destination, chord, lane) in routedChords {
+            guard case let .chordContext(broadcastTag) = destination else {
+                continue
+            }
+            chordContextByLane[broadcastTag ?? lane ?? "default"] = chord
+        }
+    }
+
+    private func flushRoutedNotes(_ notes: [NoteEvent], to destination: RouteDestination, bpm: Double) {
+        switch destination {
+        case let .midi(port, channel, noteOffset):
+            let adjustedNotes = notes.map { note in
+                let shifted = min(max(Int(note.pitch) + noteOffset, 0), 127)
+                return NoteEvent(
+                    pitch: UInt8(shifted),
+                    velocity: note.velocity,
+                    length: note.length,
+                    gate: note.gate,
+                    voiceTag: note.voiceTag
+                )
+            }
+            routedMIDINotes[.midi(port: port, channel: channel, noteOffset: noteOffset), default: []]
+                .append(contentsOf: adjustedNotes)
+
+        case let .voicing(trackID):
+            guard let track = currentDocumentModel.tracks.first(where: { $0.id == trackID }) else {
+                return
+            }
+            flushConcreteDestination(track.defaultDestination, notes: notes, bpm: bpm, track: track)
+
+        case let .trackInput(trackID, tag):
+            guard let track = currentDocumentModel.tracks.first(where: { $0.id == trackID }) else {
+                return
+            }
+            let voiceTag = tag ?? Voicing.defaultTag
+            flushConcreteDestination(track.voicing.destination(for: voiceTag), notes: notes, bpm: bpm, track: track)
+
+        case .chordContext:
+            return
+        }
+    }
+
+    private func flushConcreteDestination(
+        _ destination: Destination,
+        notes: [NoteEvent],
+        bpm: Double,
+        track: StepSequenceTrack?
+    ) {
+        switch destination {
+        case let .midi(port, channel, noteOffset):
+            if let track, track.mix.isMuted {
+                return
+            }
+            guard let port else {
+                return
+            }
+            let adjustedNotes = notes.map { note in
+                let shifted = min(max(Int(note.pitch) + noteOffset, 0), 127)
+                return NoteEvent(
+                    pitch: UInt8(shifted),
+                    velocity: note.velocity,
+                    length: note.length,
+                    gate: note.gate,
+                    voiceTag: note.voiceTag
+                )
+            }
+            routedMIDINotes[.midi(port: port, channel: channel, noteOffset: noteOffset), default: []]
+                .append(contentsOf: adjustedNotes)
+
+        case .auInstrument:
+            guard let track,
+                  !track.mix.isMuted,
+                  let host = audioOutputsByTrackID[track.id]
+            else {
+                return
+            }
+            host.setDestination(destination)
+            host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
+
+        case .internalSampler, .none:
+            return
+        }
+    }
+
+    private func routeMidiOut(
+        for destination: Destination,
+        port: MIDIEndpointName,
+        channel: UInt8
+    ) -> MidiOut? {
+        guard let resolvedEndpoint = resolveEndpoint(named: port) else {
+            return nil
+        }
+
+        let midiOut = routeMidiOutputs[destination] ?? {
+            let block = MidiOut(
+                id: "route-\(destination.hashValue)",
+                client: midiClient,
+                endpoint: resolvedEndpoint
+            )
+            routeMidiOutputs[destination] = block
+            return block
+        }()
+
+        midiOut.client = midiClient
+        midiOut.endpoint = resolvedEndpoint
+        midiOut.apply(paramKey: "channel", value: .number(Double(channel)))
+        return midiOut
+    }
+
+    private func resolveEndpoint(named port: MIDIEndpointName) -> MIDIEndpoint? {
+        if port.isVirtual,
+           let endpoint,
+           endpoint.displayName == port.displayName
+        {
+            return endpoint
+        }
+
+        return midiClient?.destinations.first(where: { $0.displayName == port.displayName })
     }
 
     private func syncTrackParams(for documentModel: SeqAIDocumentModel) {
@@ -298,7 +519,7 @@ final class EngineController {
                 return created
             }
 
-            host?.selectInstrument(track.audioInstrument)
+            host?.setDestination(track.defaultDestination)
             host?.setMix(track.mix)
             if isRunning {
                 host?.startIfNeeded()
@@ -314,7 +535,7 @@ final class EngineController {
                             trackID: $0.id,
                             generatorBlockID: generatorIDsByTrackID[$0.id] ?? Self.generatorBlockID(for: $0.id),
                             mix: $0.mix,
-                            instrument: $0.audioInstrument
+                            destination: $0.defaultDestination
                         )
                     )
                 }

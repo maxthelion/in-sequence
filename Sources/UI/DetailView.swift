@@ -53,15 +53,6 @@ struct DetailView: View {
         track.trackType == .instrument && selectedSourceMode.isImplemented ? "Live now" : "Placeholder"
     }
 
-    private var destinationSummary: String {
-        switch track.output {
-        case .midiOut:
-            return "MIDI sink"
-        case .auInstrument:
-            return "AU sink"
-        }
-    }
-
     var body: some View {
         ScrollView {
             workspace
@@ -256,11 +247,6 @@ struct DetailView: View {
             VStack(alignment: .leading, spacing: 18) {
                 StudioPanel(title: "Destination", eyebrow: "Project-scoped identity and current sink", accent: StudioTheme.success) {
                     VStack(alignment: .leading, spacing: 14) {
-                        HStack(spacing: 10) {
-                            StudioMetricPill(title: "Track", value: track.name, accent: StudioTheme.success)
-                            StudioMetricPill(title: "Destination", value: destinationSummary, accent: StudioTheme.violet)
-                        }
-
                         TextField("Track Name", text: trackNameBinding)
                             .textFieldStyle(.roundedBorder)
 
@@ -271,29 +257,16 @@ struct DetailView: View {
                         }
                         .pickerStyle(.segmented)
 
-                        Picker("Output", selection: trackOutputBinding) {
-                            ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
-                                Text(destination.label).tag(destination)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        if document.model.selectedTrack.output == .auInstrument {
-                            Picker("Instrument", selection: audioInstrumentBinding) {
-                                ForEach(engineController.availableAudioInstruments, id: \.self) { instrument in
-                                    Text(instrument.displayName).tag(instrument)
-                                }
-                            }
-                        }
+                        TrackDestinationEditor(document: $document)
                     }
                 }
 
-                StudioPanel(title: "Routing", eyebrow: "Future sink-side controls and placeholders", accent: StudioTheme.violet) {
-                    VStack(spacing: 12) {
-                        ForEach(destinationPlaceholderTiles, id: \.title) { tile in
-                            StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
-                        }
-                    }
+                StudioPanel(
+                    title: "Routing",
+                    eyebrow: "\(document.model.routesSourced(from: track.id).count) outbound project routes from this track",
+                    accent: StudioTheme.violet
+                ) {
+                    RoutesListView(document: $document)
                 }
 
                 StudioPanel(title: "Track Contract", eyebrow: "What lives here versus elsewhere", accent: StudioTheme.amber) {
@@ -420,20 +393,6 @@ struct DetailView: View {
         )
     }
 
-    private var trackOutputBinding: Binding<TrackOutputDestination> {
-        Binding(
-            get: { document.model.selectedTrack.output },
-            set: { document.model.selectedTrack.output = $0 }
-        )
-    }
-
-    private var audioInstrumentBinding: Binding<AudioInstrumentChoice> {
-        Binding(
-            get: { document.model.selectedTrack.audioInstrument },
-            set: { document.model.selectedTrack.audioInstrument = $0 }
-        )
-    }
-
     private var selectedPatternIndexBinding: Binding<Int> {
         Binding(
             get: { document.model.selectedPatternIndex(for: track.id) },
@@ -503,21 +462,6 @@ struct DetailView: View {
         }
     }
 
-    private var destinationPlaceholderTiles: [(title: String, detail: String, accent: Color)] {
-        var tiles: [(title: String, detail: String, accent: Color)] = [
-            ("Current Sink", track.output == .midiOut ? "The track currently targets a MIDI output endpoint." : "The track currently targets a hosted AU instrument through the app mixer.", StudioTheme.success),
-            ("Bus / Sends", "Main-alt bus selection, send levels, and phrase concrete-row routing are planned here, not in the source editor.", StudioTheme.amber),
-            ("FX / Treatment", "Per-track insert effects, AU MIDI processors, and destination-specific treatment belong on the sink side of the layout.", StudioTheme.violet)
-        ]
-
-        if track.trackType == .drumRack || track.trackType == .sliceLoop {
-            tiles.append(("Voice Routes", "Tagged voices will each need their own route target so kick, snare, hats, or slices can hit different buses or instruments.", StudioTheme.cyan))
-        } else {
-            tiles.append(("Single Voice Route", "For non-tagged tracks this side stays simple: one source stream, one destination chain, optional transforms in between.", StudioTheme.cyan))
-        }
-
-        return tiles
-    }
 }
 
 private struct SongPhraseRefCard: View {

@@ -5,6 +5,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
     var tracks: [StepSequenceTrack]
     var generatorPool: [GeneratorPoolEntry]
     var clipPool: [ClipPoolEntry]
+    var routes: [Route]
     var patternBanks: [TrackPatternBank]
     var selectedTrackID: UUID
     var phrases: [PhraseModel]
@@ -15,6 +16,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         case tracks
         case generatorPool
         case clipPool
+        case routes
         case patternBanks
         case selectedTrackID
         case phrases
@@ -29,6 +31,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         ],
         generatorPool: GeneratorPoolEntry.defaultPool,
         clipPool: [],
+        routes: [],
         patternBanks: [
             TrackPatternBank.default(for: .default, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])
         ],
@@ -110,10 +113,46 @@ struct SeqAIDocumentModel: Codable, Equatable {
         selectedSourceRef(for: trackID).mode
     }
 
+    func routesSourced(from trackID: UUID) -> [Route] {
+        routes.filter { route in
+            switch route.source {
+            case let .track(sourceTrackID), let .chordGenerator(sourceTrackID):
+                return sourceTrackID == trackID
+            }
+        }
+    }
+
+    func routesTargeting(_ trackID: UUID) -> [Route] {
+        routes.filter { $0.destination.targetTrackID == trackID }
+    }
+
     mutating func setSelectedPatternIndex(_ index: Int, for trackID: UUID) {
         var phrase = selectedPhrase
         phrase.setPatternIndex(index, for: trackID)
         selectedPhrase = phrase
+    }
+
+    func makeDefaultRoute(from trackID: UUID) -> Route {
+        if let targetTrack = tracks.first(where: { $0.id != trackID }) {
+            return Route(source: .track(trackID), destination: .voicing(targetTrack.id))
+        }
+
+        return Route(
+            source: .track(trackID),
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
+    }
+
+    mutating func upsertRoute(_ route: Route) {
+        if let index = routes.firstIndex(where: { $0.id == route.id }) {
+            routes[index] = route
+        } else {
+            routes.append(route)
+        }
+    }
+
+    mutating func removeRoute(id: UUID) {
+        routes.removeAll { $0.id == id }
     }
 
     mutating func setPatternSourceMode(_ mode: TrackSourceMode, for trackID: UUID, slotIndex: Int) {
@@ -265,6 +304,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         tracks: [StepSequenceTrack],
         generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
         clipPool: [ClipPoolEntry] = [],
+        routes: [Route] = [],
         patternBanks: [TrackPatternBank] = [],
         selectedTrackID: UUID,
         phrases: [PhraseModel],
@@ -274,6 +314,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         self.tracks = tracks
         self.generatorPool = generatorPool
         self.clipPool = clipPool
+        self.routes = routes
         self.patternBanks = patternBanks.isEmpty
             ? Self.defaultPatternBanks(for: tracks, generatorPool: generatorPool, clipPool: clipPool)
             : patternBanks
@@ -303,6 +344,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
             let resolvedTracks = decodedTracks
             let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
             let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
+            let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
             var resolvedSelectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID) ?? resolvedTracks[0].id
             if !resolvedTracks.contains(where: { $0.id == resolvedSelectedTrackID }) {
                 resolvedSelectedTrackID = resolvedTracks[0].id
@@ -345,6 +387,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
             tracks = resolvedTracks
             generatorPool = resolvedGeneratorPool
             clipPool = resolvedClipPool
+            routes = resolvedRoutes
             patternBanks = migrated.patternBanks
             selectedTrackID = resolvedSelectedTrackID
             phrases = migrated.phrases
@@ -356,6 +399,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         tracks = [fallbackTrack]
         generatorPool = GeneratorPoolEntry.defaultPool
         clipPool = []
+        routes = []
         patternBanks = Self.defaultPatternBanks(for: tracks, generatorPool: generatorPool, clipPool: clipPool)
         selectedTrackID = fallbackTrack.id
         phrases = [.default(tracks: tracks, generatorPool: generatorPool, clipPool: clipPool)]
@@ -368,6 +412,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         try container.encode(tracks, forKey: .tracks)
         try container.encode(generatorPool, forKey: .generatorPool)
         try container.encode(clipPool, forKey: .clipPool)
+        try container.encode(routes, forKey: .routes)
         try container.encode(patternBanks, forKey: .patternBanks)
         try container.encode(selectedTrackID, forKey: .selectedTrackID)
         try container.encode(phrases, forKey: .phrases)
@@ -504,8 +549,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var pitches: [Int]
     var stepPattern: [Bool]
     var stepAccents: [Bool]
-    var output: TrackOutputDestination
-    var audioInstrument: AudioInstrumentChoice
+    var voicing: Voicing
     var mix: TrackMixSettings
     var velocity: Int
     var gateLength: Int
@@ -518,6 +562,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case pitches
         case stepPattern
         case stepAccents
+        case voicing
         case output
         case audioInstrument
         case mix
@@ -532,8 +577,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
-        output: .midiOut,
-        audioInstrument: .builtInSynth,
+        voicing: .single(.midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)),
         mix: .default,
         velocity: 100,
         gateLength: 4
@@ -546,6 +590,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [Int],
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
+        voicing: Voicing? = nil,
         output: TrackOutputDestination = .midiOut,
         audioInstrument: AudioInstrumentChoice = .builtInSynth,
         mix: TrackMixSettings = .default,
@@ -558,8 +603,11 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.pitches = pitches
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
-        self.output = output
-        self.audioInstrument = audioInstrument
+        self.voicing = voicing ?? Self.legacyVoicing(
+            output: output,
+            audioInstrument: audioInstrument,
+            trackType: trackType
+        )
         self.mix = mix
         self.velocity = velocity
         self.gateLength = gateLength
@@ -619,8 +667,17 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepPattern = try container.decode([Bool].self, forKey: .stepPattern)
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
         stepAccents = Self.normalizedAccents(decodedAccents, stepCount: stepPattern.count)
-        output = try container.decodeIfPresent(TrackOutputDestination.self, forKey: .output) ?? .midiOut
-        audioInstrument = try container.decodeIfPresent(AudioInstrumentChoice.self, forKey: .audioInstrument) ?? .builtInSynth
+        if let decodedVoicing = try container.decodeIfPresent(Voicing.self, forKey: .voicing) {
+            voicing = decodedVoicing
+        } else {
+            let legacyOutput = try container.decodeIfPresent(TrackOutputDestination.self, forKey: .output) ?? .midiOut
+            let legacyInstrument = try container.decodeIfPresent(AudioInstrumentChoice.self, forKey: .audioInstrument) ?? .builtInSynth
+            voicing = Self.legacyVoicing(
+                output: legacyOutput,
+                audioInstrument: legacyInstrument,
+                trackType: trackType
+            )
+        }
         mix = try container.decodeIfPresent(TrackMixSettings.self, forKey: .mix) ?? .default
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
@@ -634,11 +691,101 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(pitches, forKey: .pitches)
         try container.encode(stepPattern, forKey: .stepPattern)
         try container.encode(stepAccents, forKey: .stepAccents)
-        try container.encode(output, forKey: .output)
-        try container.encode(audioInstrument, forKey: .audioInstrument)
+        try container.encode(voicing, forKey: .voicing)
         try container.encode(mix, forKey: .mix)
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)
+    }
+
+    var defaultDestination: Destination {
+        voicing.defaultDestination
+    }
+
+    var output: TrackOutputDestination {
+        get {
+            switch defaultDestination {
+            case .midi:
+                return .midiOut
+            case .auInstrument:
+                return .auInstrument
+            case .internalSampler:
+                return .internalSampler
+            case .none:
+                return .none
+            }
+        }
+        set {
+            switch newValue {
+            case .midiOut:
+                let port: MIDIEndpointName?
+                let channel: UInt8
+                let noteOffset: Int
+                if case let .midi(existingPort, existingChannel, existingOffset) = defaultDestination {
+                    port = existingPort
+                    channel = existingChannel
+                    noteOffset = existingOffset
+                } else {
+                    port = .sequencerAIOut
+                    channel = 0
+                    noteOffset = 0
+                }
+                voicing.setDefault(.midi(port: port, channel: channel, noteOffset: noteOffset))
+            case .auInstrument:
+                voicing.setDefault(.auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil))
+            case .internalSampler:
+                voicing.setDefault(Voicing.defaults(forType: trackType).defaultDestination)
+            case .none:
+                voicing.setDefault(.none)
+            }
+        }
+    }
+
+    var midiPortName: MIDIEndpointName? {
+        if case let .midi(port, _, _) = defaultDestination {
+            return port
+        }
+        return nil
+    }
+
+    var midiChannel: UInt8 {
+        if case let .midi(_, channel, _) = defaultDestination {
+            return channel
+        }
+        return 0
+    }
+
+    var midiNoteOffset: Int {
+        if case let .midi(_, _, noteOffset) = defaultDestination {
+            return noteOffset
+        }
+        return 0
+    }
+
+    mutating func setMIDIPort(_ port: MIDIEndpointName?) {
+        voicing.setDefault(.midi(port: port, channel: midiChannel, noteOffset: midiNoteOffset))
+    }
+
+    mutating func setMIDIChannel(_ channel: UInt8) {
+        voicing.setDefault(.midi(port: midiPortName, channel: channel, noteOffset: midiNoteOffset))
+    }
+
+    mutating func setMIDINoteOffset(_ noteOffset: Int) {
+        voicing.setDefault(.midi(port: midiPortName, channel: midiChannel, noteOffset: noteOffset))
+    }
+
+    var audioInstrument: AudioInstrumentChoice {
+        get {
+            switch defaultDestination {
+            case let .auInstrument(componentID, _):
+                return AudioInstrumentChoice.defaultChoices.first(where: { $0.audioComponentID == componentID })
+                    ?? AudioInstrumentChoice(audioComponentID: componentID)
+            default:
+                return .builtInSynth
+            }
+        }
+        set {
+            voicing.setDefault(.auInstrument(componentID: newValue.audioComponentID, stateBlob: nil))
+        }
     }
 
     private static func normalizedAccents(_ accents: [Bool]?, stepCount: Int) -> [Bool] {
@@ -650,6 +797,23 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             return accents
         }
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
+    }
+
+    private static func legacyVoicing(
+        output: TrackOutputDestination,
+        audioInstrument: AudioInstrumentChoice,
+        trackType: TrackType
+    ) -> Voicing {
+        switch output {
+        case .midiOut:
+            return .single(.midi(port: .sequencerAIOut, channel: 0, noteOffset: 0))
+        case .auInstrument:
+            return .single(.auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil))
+        case .internalSampler:
+            return Voicing.defaults(forType: trackType)
+        case .none:
+            return .single(.none)
+        }
     }
 }
 
@@ -704,13 +868,19 @@ enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
 enum TrackOutputDestination: String, Codable, CaseIterable, Equatable, Sendable {
     case midiOut
     case auInstrument
+    case internalSampler
+    case none
 
     var label: String {
         switch self {
         case .midiOut:
             return "Virtual MIDI Out"
         case .auInstrument:
-            return "Built-in AU Synth"
+            return "AU Instrument"
+        case .internalSampler:
+            return "Internal Sampler"
+        case .none:
+            return "No Default Output"
         }
     }
 }

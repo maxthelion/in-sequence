@@ -7,42 +7,45 @@ protocol TrackPlaybackSink: AnyObject {
     var isAvailable: Bool { get }
     var availableInstruments: [AudioInstrumentChoice] { get }
     var selectedInstrument: AudioInstrumentChoice { get }
+    var currentAudioUnit: AVAudioUnit? { get }
     func startIfNeeded()
     func stop()
     func setMix(_ mix: TrackMixSettings)
+    func setDestination(_ destination: Destination)
     func selectInstrument(_ choice: AudioInstrumentChoice)
+    func captureStateBlob() throws -> Data?
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int)
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
-    typealias AudioUnitLoader = @Sendable (
-        AudioComponentDescription,
-        @escaping @Sendable (AVAudioUnit?, Error?) -> Void
-    ) -> Void
-
     private let engine = AVAudioEngine()
     private let queue = DispatchQueue(label: "ai.sequencer.SequencerAI.AudioInstrumentHost")
     private let instrumentChoices: [AudioInstrumentChoice]
-    private let instantiateAudioUnit: AudioUnitLoader
+    private let factory: AUAudioUnitFactory
+    private let autoStartEngine: Bool
 
     private var instrument: AVAudioUnitMIDIInstrument?
     private var shouldBeRunning = false
     private var currentMix = TrackMixSettings.default
     private var currentChoice: AudioInstrumentChoice
+    private var currentDestination: Destination
     private var instantiationGeneration: UInt64 = 0
     private var pendingLoadGeneration: UInt64?
 
     init(
         instrumentChoices: [AudioInstrumentChoice] = AudioInstrumentChoice.defaultChoices,
         initialInstrument: AudioInstrumentChoice = .builtInSynth,
-        instantiateAudioUnit: @escaping AudioUnitLoader = { description, completion in
-            AVAudioUnit.instantiate(with: description, options: [], completionHandler: completion)
+        autoStartEngine: Bool = true,
+        instantiateAudioUnit: @escaping AUAudioUnitFactory.AudioUnitLoader = { description, completion in
+            AVAudioUnit.instantiate(with: description, options: [.loadOutOfProcess], completionHandler: completion)
         }
     ) {
         let resolvedChoices = instrumentChoices.isEmpty ? [.builtInSynth] : instrumentChoices
         self.instrumentChoices = resolvedChoices
         self.currentChoice = resolvedChoices.first(where: { $0 == initialInstrument }) ?? initialInstrument
-        self.instantiateAudioUnit = instantiateAudioUnit
+        self.currentDestination = .auInstrument(componentID: self.currentChoice.audioComponentID, stateBlob: nil)
+        self.autoStartEngine = autoStartEngine
+        self.factory = AUAudioUnitFactory(instantiateAudioUnit: instantiateAudioUnit)
     }
 
     var displayName: String {
@@ -61,13 +64,17 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         queue.sync { currentChoice }
     }
 
+    var currentAudioUnit: AVAudioUnit? {
+        queue.sync { instrument }
+    }
+
     func startIfNeeded() {
         queue.async { [weak self] in
             guard let self else {
                 return
             }
             self.shouldBeRunning = true
-            self.ensureInstrumentLoaded()
+            self.ensureInstrumentLoadedIfNeeded()
         }
     }
 
@@ -94,24 +101,44 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
-    func selectInstrument(_ choice: AudioInstrumentChoice) {
+    func setDestination(_ destination: Destination) {
         queue.async { [weak self] in
             guard let self else {
                 return
             }
 
-            let resolvedChoice = self.instrumentChoices.first(where: { $0 == choice }) ?? choice
-            guard resolvedChoice != self.currentChoice else {
+            guard destination != self.currentDestination else {
                 return
             }
 
-            self.currentChoice = resolvedChoice
-            self.instantiationGeneration &+= 1
-            self.pendingLoadGeneration = nil
-            self.disconnectCurrentInstrument()
-            if self.shouldBeRunning {
-                self.ensureInstrumentLoaded()
+            self.currentDestination = destination
+            switch destination {
+            case let .auInstrument(componentID, _):
+                self.currentChoice = self.instrumentChoices.first(where: { $0.audioComponentID == componentID })
+                    ?? AudioInstrumentChoice(audioComponentID: componentID)
+                self.instantiationGeneration &+= 1
+                self.pendingLoadGeneration = nil
+                self.disconnectCurrentInstrument()
+                if self.shouldBeRunning {
+                    self.ensureInstrumentLoadedIfNeeded()
+                }
+            case .midi, .internalSampler, .none:
+                self.pendingLoadGeneration = nil
+                self.disconnectCurrentInstrument()
             }
+        }
+    }
+
+    func selectInstrument(_ choice: AudioInstrumentChoice) {
+        setDestination(.auInstrument(componentID: choice.audioComponentID, stateBlob: nil))
+    }
+
+    func captureStateBlob() throws -> Data? {
+        try queue.sync {
+            guard let instrument else {
+                return nil
+            }
+            return try factory.captureState(instrument)
         }
     }
 
@@ -126,7 +153,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             }
 
             guard let instrument = self.instrument else {
-                self.ensureInstrumentLoaded()
+                self.ensureInstrumentLoadedIfNeeded()
                 return
             }
 
@@ -134,10 +161,14 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
             let tickDuration = 60.0 / max(bpm, 1) / Double(max(stepsPerBar, 1)) * 4.0
             for event in noteEvents where event.gate {
-                instrument.startNote(event.pitch, withVelocity: event.velocity, onChannel: 0)
+                Task { @MainActor [weak instrument] in
+                    instrument?.startNote(event.pitch, withVelocity: event.velocity, onChannel: 0)
+                }
                 let noteLength = tickDuration * Double(event.length)
                 self.queue.asyncAfter(deadline: .now() + noteLength) { [weak instrument] in
-                    instrument?.stopNote(event.pitch, onChannel: 0)
+                    Task { @MainActor in
+                        instrument?.stopNote(event.pitch, onChannel: 0)
+                    }
                 }
             }
         }
@@ -148,14 +179,19 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        for pitch in UInt8(0)...UInt8(127) {
-            instrument.stopNote(pitch, onChannel: 0)
+        Task { @MainActor [weak instrument] in
+            guard let instrument else {
+                return
+            }
+            for pitch in UInt8(0)...UInt8(127) {
+                instrument.stopNote(pitch, onChannel: 0)
+            }
         }
     }
 
-    private func instantiate(choice: AudioInstrumentChoice, generation: UInt64) {
+    private func instantiate(choice: AudioInstrumentChoice, stateBlob: Data?, generation: UInt64) {
         pendingLoadGeneration = generation
-        instantiateAudioUnit(choice.componentDescription) { [weak self] audioUnit, _ in
+        factory.instantiate(choice.audioComponentID, stateBlob: stateBlob) { [weak self] result in
             guard let self else {
                 return
             }
@@ -168,7 +204,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     return
                 }
                 self.pendingLoadGeneration = nil
-                guard let instrument = audioUnit as? AVAudioUnitMIDIInstrument else {
+                guard case let .success(audioUnit) = result,
+                      let instrument = audioUnit as? AVAudioUnitMIDIInstrument
+                else {
                     self.handleLoadFailure(for: choice, generation: generation)
                     return
                 }
@@ -197,7 +235,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         startEngineIfPossible()
     }
 
-    private func ensureInstrumentLoaded() {
+    private func ensureInstrumentLoadedIfNeeded() {
+        guard case let .auInstrument(_, stateBlob) = currentDestination else {
+            disconnectCurrentInstrument()
+            return
+        }
         guard instrument == nil else {
             startEngineIfPossible()
             return
@@ -206,7 +248,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        instantiate(choice: currentChoice, generation: instantiationGeneration)
+        instantiate(choice: currentChoice, stateBlob: stateBlob, generation: instantiationGeneration)
     }
 
     private func handleLoadFailure(for choice: AudioInstrumentChoice, generation: UInt64) {
@@ -223,8 +265,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
 
         currentChoice = fallbackChoice
+        currentDestination = .auInstrument(componentID: fallbackChoice.audioComponentID, stateBlob: nil)
         instantiationGeneration &+= 1
-        instantiate(choice: fallbackChoice, generation: instantiationGeneration)
+        instantiate(choice: fallbackChoice, stateBlob: nil, generation: instantiationGeneration)
     }
 
     private func disconnectCurrentInstrument() {
@@ -243,7 +286,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     }
 
     private func startEngineIfPossible() {
-        guard shouldBeRunning, instrument != nil, !engine.isRunning else {
+        guard autoStartEngine, shouldBeRunning, instrument != nil, !engine.isRunning else {
             return
         }
 
@@ -259,7 +302,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        instrument.pan = Float(currentMix.clampedPan)
-        instrument.volume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
+        Task { @MainActor [currentMix] in
+            instrument.pan = Float(currentMix.clampedPan)
+            instrument.volume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
+        }
     }
 }
