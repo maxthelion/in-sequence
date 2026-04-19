@@ -50,8 +50,16 @@ macOS-native app (Apple Silicon primary; Intel tolerated where it falls out for 
 - **Generator kind** — a code-defined block type (`random-notes-in-scale-mono`, `euclidean-drums`, `template-drum-kit`, `chord-generator`, `arp-source`, …). Declared in the block palette; each kind declares which track types it's compatible with. Kinds are the codebase taxonomy.
 - **Generator instance** — a user-configured instance of a kind (`"my punchy kick" = euclidean-drums(density=0.7, fills=0.3)`), living in the project's **generator pool**. Multiple instances of the same kind with different params coexist. Patterns reference instances by id.
 - **Clip** — concrete, stored step data with annotations, living in the project's **clip pool**. Has a compatibility tag (which track types may play it). Created by hand-authoring, freezing live generator output, or loading from the library.
-- **Phrase** — reusable, N-bar unit (default 8 bars × 16 steps = 128 steps). Stores **one pattern index (0..15) per track** plus a macro grid. The phrase does not carry source modes directly — it references the per-track pattern bank. Ghosts phatcontroller's phrase concept, but with an Elektron-style pattern-bank twist.
-- **Song** — ordered chain of phrase-refs, each specifying phrase id, repeat count, and optional per-ref overrides.
+- **Phrase** — reusable, N-bar unit (default 8 bars × 16 steps = 128 steps). A row in the phatcontroller-style grid: stores a **cell per (track × layer)**, where a cell carries an authored value (single, bars, per-step, or curve) or inherits the layer's per-track default. Phrases never carry source modes directly — the pattern-index layer resolves to the per-track pattern bank. Ghosts phatcontroller's phrase concept.
+- **Song** — the ordered list `project.phrases: [Phrase]`, played top-to-bottom. Not a separate data structure — there is no "song" object, no phrase-refs, no repeat-count sugar, no conditional refs. To play something twice, list the same phrase twice. To de-duplicate edits, phrases reference shared pool entries (patterns, generators, clips) — editing the pool affects every phrase using it.
+- **Layer** — a project-scoped definition of *what kind* of per-track per-phrase data goes in one column of the phrase grid. Each layer declares a value type (`boolean`, `scalar(0..127)`, `scalar(0..1)`, `patternIndex`, `chord`, `enumTag`, …), a per-track default value, and a target — what the layer's resolved value does at runtime (picks the pattern slot, drives a block param, writes a macro row, overrides a voice route, mutes). Users can add custom layers. The shipped-by-default layers include `Pattern`, `Mute`, `Volume`, `Transpose`, `Intensity`, `Density`, `Tension`, `Register`, `Variance`, `Brightness`, `FillFlag`, `Swing`.
+- **Cell** — what's stored at the intersection of a phrase, a track, and a layer. A tagged union:
+  - `.inheritDefault` — use the layer's per-track default (the "orange strip")
+  - `.single(Value)` — one value for the whole phrase
+  - `.bars([Value])` — one value per bar of the phrase
+  - `.steps([Value])` — one value per step of the phrase (step-level authoring)
+  - `.curve(ControlPoints)` — a time-varying curve over the phrase's duration
+  The runtime expands every cell into a per-step value stream that blocks consume via the `interpret` transform.
 - **Stream** — a typed value flow through the system. Every output of every block is a stream.
 - **Sink** — a block that terminates a stream outside the pipeline DAG: MIDI-out, audio-param, chord-context broadcast, macro-row writer.
 - **Pipeline** — a directed path from source through transforms to sink within a phrase. The source is determined by the active pattern on that track in that phrase; extra transforms are a power-user escape hatch in the Graph view.
@@ -171,80 +179,106 @@ Following phatcontroller and Octatrack's part/pattern split: **tracks are projec
   - **Generator pool** — user-configured `GeneratorInstance`s (e.g. "my punchy kick", "verse-lead-wander"), each an instance of a registered `GeneratorKind`, with params. Patterns reference these
   - **Clip pool** — stored clips with annotations, tagged by track-type compatibility. Grows as the user hand-authors, freezes, or imports. Patterns reference these
   - Template library, saved fill presets, chord-generator library (library-scoped imports that feed the pools)
+  - **Layer definitions** — the list of layers this project uses (pattern, mute, volume, intensity, …) plus their per-track defaults. Users can add/remove/rename layers
+  - **Phrase list** — `phrases: [Phrase]` in playback order. This IS the song; there is no separate song object
 - **Phrase-scoped (can vary per phrase):**
-  - Per-track **pattern index** — integer 0..15 picking one of the track's pattern slots. Every track always has a pattern index in every phrase; default is 0
-  - Macro grid values (authored rows + generator-sourced row assignments)
-  - Chord-gen pipeline configuration (progression, tension mapping)
+  - **Cell values** for every `(track, layer)` pair — `.inheritDefault`, `.single`, `.bars`, `.steps`, or `.curve`. One cell per (track, layer) intersection
+  - Chord-gen pipeline configuration (progression, tension mapping) — carried on a layer or on the phrase itself
   - Power-user graph override: extra transform blocks beyond the default pipeline implied by the track's type and active pattern's source mode (Graph view only)
-- **Phrase-ref-scoped (per-use overrides):**
-  - Macro-row value offsets applied only on one usage of a phrase in the song
 
-A voice preset swap at project scope instantly propagates to every phrase. A clip edit stays in one phrase. This means adding a new track to a song is a one-place operation; changing its sound across the whole song is also a one-place operation; tweaking its notes for one section is local.
+A voice preset swap at project scope instantly propagates to every phrase. A layer-default change in the project's orange strip instantly propagates to every phrase that isn't overriding it. A pool edit (generator instance or clip) affects every pattern slot (and therefore every phrase) that references it. Adding a new track creates a new column in the phrase grid; every phrase gets `.inheritDefault` cells for every layer on that track, so nothing new explicit is authored.
 
-## The three layers
+## The two layers (song + phrase)
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│ SONG                                                       │
-│   [phrase-ref A ×2]  [phrase-ref A-fill ×1]  [ref B ×4]   │
+│ PROJECT.PHRASES  (the song — ordered phrase list)          │
+│                                                            │
+│   ┌──────────── phrase grid ────────────┐                 │
+│   │         track1 track2 … trackN      │                 │
+│   │ phrase0   [c]   [c]  …   [c]        │ ← cells for the  │
+│   │ phrase1   [c]   [c]  …   [c]        │   active layer   │
+│   │ phrase2   [c]   [c]  …   [c]        │                 │
+│   │ …                                   │                 │
+│   └─────────────────────────────────────┘                 │
+│   Layer selector: [Pattern][Mute][Volume][Intensity]…     │
+│   Each cell = .inheritDefault | .single | .bars           │
+│               | .steps | .curve                            │
 └───────────────────────┬───────────────────────────────────┘
-                        │ emits song-clock: (abs-step, bar, repeat)
+                        │ at tick time, each cell expands to
+                        │ a per-step value; layers with target
+                        │ .patternIndex pick the track's
+                        │ pattern slot; the other layers
+                        │ fan out as scalar/boolean streams
                         ▼
 ┌───────────────────────────────────────────────────────────┐
-│ PHRASE                                                     │
-│   ├ macro coordinator                                      │
-│   │   clock + bar/repeat counters                          │
-│   │   abstract expression vector (intensity, tension, ...) │
-│   │   concrete rows (mute, bus, send, fill-flag)           │
-│   └ pipeline graph                                         │
-│       ├ chord-gen pipeline      → chord-context            │
-│       ├ fill-ramp pipeline      → macro-row[intensity]     │
-│       ├ track 1 pipeline        → midi-out ch1             │
-│       ├ track N pipeline        → midi-out chN             │
-│       └ drum pipeline           → voice-route (multi-sink) │
+│ PIPELINE (per track, within the current phrase)            │
+│   active pattern's source → transforms → sink              │
+│   (chord-gen / voice-route / midi-out / audio-param …)    │
 └───────────────────────┬───────────────────────────────────┘
                         │ emits MIDI events + audio routing
                         ▼
                    EXTERNAL / ENGINE
 ```
 
-### Song layer
+Only two conceptual levels:
 
-A song is an ordered list of **phrase-refs**. Each phrase-ref specifies:
+- **The song** = the ordered phrase list. Playhead steps top-to-bottom. No phrase-refs, no repeat-count sugar, no conditionals.
+- **The phrase** = one row of the grid, containing cells for every (track, layer). At tick-time, cells expand to per-step streams that feed the pipeline's blocks.
 
-- `phrase-id` — which phrase to play
-- `repeats` — integer
-- optional `overrides` — macro-row value overrides for this ref only (e.g., "play phrase A with intensity +0.2 on this occurrence")
-- optional `conditional` — a condition under which this ref replaces or supplements another (Octatrack-style A:B cycle conditional at song level; supports the "every 8th bar/phrase is different" use case without inventing a new mechanism)
+### Phrase layer (macro coordinator via layers)
 
-The song layer is the thinnest. Most expression happens at the phrase level.
+Each phrase, during its N-bar lifetime, evaluates every `(track, layer)` cell and emits the corresponding per-step stream. The macro coordinator's job is no longer "author abstract rows as phrase-wide streams"; it's "evaluate this phrase's cells and fan them out to the right targets."
 
-### Phrase layer (macro coordinator)
+**Clock output** (unchanged, read by every block):
 
-Each phrase emits per-step for the duration of its length:
+- `absSongStep` — step index across the full phrase list
+- `phraseStep` — step within the current phrase (0 .. N-1)
+- `barInPhrase` — 0 .. phraseBarCount - 1
+- `phraseIndex` — which phrase is playing (not `repeat-count` — phrases play once each in order)
 
-- Clock: absolute song-step, phrase-relative step, bar-in-phrase, repeat-count
-- **Abstract expression vector** (authored as rows on a grid, or stream-sourced from generators):
-  - `intensity` (0–1)
-  - `density` (0–1)
-  - `register` (0–1)
-  - `tension` (0–1)
-  - `variance` (0–1)
-  - `brightness` (0–1)
-- **Concrete rows**:
-  - `mute` (per-track, toggle)
-  - `bus` (per-track, enum: main / alt)
-  - `send-A`, `send-B` (per-track, 0–127)
-  - `fill-flag` (toggle)
-  - `repeat-active`, `repeat-amount` (note-repeat macro)
-  - `order-preset` (categorical step-order override)
-  - `global-transpose` (semitones)
-  - `swing-amount` (0–1)
-  - `crossfader` (0–1, for audio-side)
-- **Structured-but-broadcast**:
-  - `chord-context` — the output of a chord-gen pipeline, broadcast as `(root, chord-type, scale)`; consumers subscribe and choose interpretation mode
+**Layer evaluation** (the thing that replaces "abstract expression vector" + "concrete rows"):
 
-Abstract rows are pluggable per row between **authored source** (user-drawn values across the phrase's steps) and **generated source** (a generator pipeline writes to the row). Switching authored ↔ generated is a toggle.
+For each active layer, for each track, the tick reads `phrase.cells[(trackID, layerID)]`:
+
+- `.inheritDefault` → use `layer.defaults[trackID]`
+- `.single(v)` → `v` for every step
+- `.bars([v0, v1, …])` → step function, each `v_i` held for one bar
+- `.steps([v0, v1, …])` → per-step values; array length must match `phrase.stepCount`
+- `.curve(controlPoints)` → sampled at each step
+
+The resulting per-step value is then routed by the layer's `target`:
+
+- `target = .patternIndex` → the track's active pattern slot for that step. Cells of type `patternIndex` usually author a single value per phrase (one pattern for the whole phrase), but `.bars` or `.steps` subdivisions allow pattern-switching mid-phrase — the song/phrase grid thereby carries *intra-phrase* pattern variation without invoking phrase-ref overrides.
+- `target = .macroRow(rowName)` → writes to a named macro row that blocks read via the `interpret` transform. This is the bridge to the spec's existing macro-interpret machinery: the `intensity`, `density`, `tension`, etc. rows become `Layer`s targeting `.macroRow("intensity")`, `.macroRow("density")`, and so on.
+- `target = .blockParam(blockID, paramKey)` → writes directly into a block param (equivalent to a per-step param-lock originating from the phrase grid).
+- `target = .voiceRouteOverride(tag)` → per-phrase override of the drum voice-route destination for a named tag.
+- `target = .mute` → phrase-scoped per-track mute.
+
+Chord-context broadcast (root / chord-type / scale) stays a pipeline-emitted stream from a `chord-generator`-sourced track, not a layer. The `chord-generator`'s params can themselves be driven by layers (a `Tension` layer targeting `.blockParam(chordGenID, "tensionBias")`).
+
+### Default layers shipped with a new project
+
+| Layer name   | Value type       | Target                          | Notes |
+|--------------|------------------|---------------------------------|-------|
+| `Pattern`    | `patternIndex`   | `.patternIndex`                 | Defaults to 0 per track. The "what plays" layer |
+| `Mute`       | `boolean`        | `.mute`                         | Defaults to `false` per track |
+| `Volume`     | `scalar(0..127)` | `.macroRow("volume")`           | Defaults set per track; consumed by a track-level gain block or passed to audio-side when the audio engine lands |
+| `Transpose`  | `scalar(-24..24)`| `.macroRow("transpose")`        | Semitones |
+| `Intensity`  | `scalar(0..1)`   | `.macroRow("intensity")`        | Abstract row — per-track interpretation as before |
+| `Density`    | `scalar(0..1)`   | `.macroRow("density")`          | |
+| `Tension`    | `scalar(0..1)`   | `.macroRow("tension")`          | |
+| `Register`   | `scalar(0..1)`   | `.macroRow("register")`         | |
+| `Variance`   | `scalar(0..1)`   | `.macroRow("variance")`         | |
+| `Brightness` | `scalar(0..1)`   | `.macroRow("brightness")`       | |
+| `FillFlag`   | `boolean`        | `.macroRow("fill-flag")`        | Boolean per phrase; drives fill-aware blocks |
+| `Swing`      | `scalar(0..1)`   | `.macroRow("swing-amount")`     | Timing jitter input |
+
+Users add custom layers via the "+" button in the layer selector. The project's `layers: [Layer]` list is the authoritative set.
+
+### Per-track interpretation (unchanged)
+
+Blocks downstream of the macro-row streams continue to interpret them per track. A `monoMelodic` track's `interpret(row: "intensity", target: note-generator.density-bias)` says "intensity = velocity + a little density on this voice"; a drum track's interpret can say "intensity = hat density + snare ghost probability". The layer → macro-row mechanism just changes how the rows are authored and stored; the `interpret` transform downstream is identical.
 
 ### Pipeline layer
 
@@ -273,8 +307,8 @@ Connections are type-checked at graph authoring time.
 
 Every block receives the macro coordinator's tick, exposing:
 
-- Clock counters (absolute step, phrase-step, bar-in-phrase, repeat)
-- Current abstract-row values (snapshot at this step)
+- Clock counters (`absSongStep`, `phraseStep`, `barInPhrase`, `phraseIndex`)
+- Current **macro-row values** (snapshot at this step) — these are the per-step values produced by evaluating the current phrase's cells in all layers whose `target` is `.macroRow(rowName)`. A layer called "Intensity" with target `.macroRow("intensity")` populates the `intensity` row at each tick from its cell value (single / bars / steps / curve). Blocks read these named rows via the `interpret` transform.
 - Subscribed upstream streams
 
 Blocks do not reach "around" the macro coordinator; all musical state comes through it. This makes phrase behavior fully inspectable and freeze-able.
@@ -442,9 +476,11 @@ Annotations may also be **stream-driven** rather than static: `play-prob` can bi
 
 Two mechanisms, equal footing:
 
-### Phrase variants (pre-programmed)
+### Dedicated phrase rows (pre-programmed)
 
-A phrase can have named variants: `phrase-A`, `phrase-A-fill-1`. A variant is a full phrase with the same track graph but different macro-row values and/or different source configurations. The song chain points at variants directly or via conditional refs.
+A fill is just another phrase in the list. If you want a fill every 8 bars in an 8-bar song, insert a fill phrase after every 8 regular phrases — or, more compactly, have a short 1-bar fill phrase inserted once. Because phrases share pool entries (patterns, generators, clips) for the tracks that are the same as the surrounding phrases, the fill phrase only differs in whichever cells are overridden (e.g. a different pattern index on the snare, higher intensity on the hats). Editing the surrounding phrases doesn't disturb the fill and vice versa.
+
+There is no longer a separate "phrase variant" concept — variants were a way of expressing "mostly phrase A, slightly different"; in the layer/cell model, overrides are the cell-level delta from defaults, so each phrase is already just its deltas.
 
 ### Fill presets (performance, or scheduled)
 
@@ -465,7 +501,7 @@ The time-varying counterpart to a fill preset. A **Take** is a recorded N-bar se
 
 **Capture flow:** In Perform view, press **Capture** → dialog asks how many bars (4/8/16/custom) → app arms, next N bars are recorded → saved to library as `take-NN` with auto-name (renameable in Library view).
 
-**Playback:** Triggered from the Perform pad grid (momentary / latched / one-shot), or scheduled on a phrase-ref in the song as an Octatrack-arranger-style row action.
+**Playback:** Triggered from the Perform pad grid (momentary / latched / one-shot), or attached to a specific phrase row in the song so the take auto-plays when that phrase begins (Octatrack-arranger-style row action, now realised as a per-phrase attachment rather than a phrase-ref override).
 
 **Composition mode (per Take):**
 - **Relative (default)** — values stored as offsets from the baseline captured context; replaying applies those offsets to whatever the current phrase has. A Take that spiked `intensity` 0.5 → 0.7 reads as `+0.2 peak` and produces a spike to 0.5 when run on a phrase at baseline 0.3. Preserves shape across contexts.
@@ -531,12 +567,12 @@ Several views are specializations rather than alternatives:
 
 The design's validation: this user story should feel natural.
 
-1. **Start fast.** User adds 6 tracks; each gets a default voice preset (bass, lead, pad, kick, snare, hat) with pre-wired pipelines and sensible defaults. Chord-gen runs with a default progression. Hit play; immediately hear a coherent groove.
+1. **Start fast.** User adds 6 tracks; each gets a default voice preset (bass, lead, pad, kick, snare, hat), a default generator instance seeded in pattern slot 0 of its pattern bank, and a default cell of `.inheritDefault` on every layer. Chord-gen runs with a default progression. Hit play; immediately hear a coherent groove.
 2. **Shape the voices.** Per track, tweak local params (pitch range, preferred intervals) or swap voice preset.
-3. **Phrase the arrangement.** Open macro grid. Draw `intensity` ramp over 8 bars. Draw `tension` bump on bar 6. Chord-gen's output responds; bass register drops; lead pushes dissonance; snare density increases. One authoring gesture → every voice responds in-character.
-4. **Stamp what works.** On the bass, hit freeze. A clip is captured from the last 16 steps. Pipeline's source is now `clip-reader` instead of the live generator. Optionally populate step annotations (jitter velocity ±5, 80% play-prob on off-beats).
-5. **Sweep.** Create `phrase-A-fill-1` variant with `intensity=1, tension=0.8, repeat-active=on` on the last bar. Add to song as every-8th conditional ref.
-6. **Perform.** Live, hold a `breakdown` fill preset over bars 14–16. Sounds right because abstract. Captured into a new variant if wanted.
+3. **Phrase the arrangement.** Open the phrase grid. In the Intensity layer, draw an 8-bar ramp on the bass cell. In the Tension layer, set a `.bars` cell on the pad with a bump at bar 6. The chord-gen's output responds; bass register drops; lead pushes dissonance; snare density increases. One authoring gesture → every voice responds in-character.
+4. **Stamp what works.** On the bass, hit freeze. A clip is captured from the last 16 steps and appended to `clipPool`. The bass track's pattern slot 0 is rewired from `.generator(id)` to `.clip(newClipID)`. Optionally populate step annotations (jitter velocity ±5, 80% play-prob on off-beats).
+5. **Sweep.** Add a new phrase row to the list — call it `fill`. In its Pattern layer, set a different pattern index on the snare and hats. In the Intensity layer, set `.single(1.0)`. Insert the `fill` row after every 8 regular phrase rows to get a regular fill.
+6. **Perform.** Live, hold a `breakdown` fill preset over bars 14–16. Sounds right because abstract. Captured into a take if wanted; attached to a phrase row so it auto-replays there.
 
 ## Components inventory (block palette sketch)
 
@@ -613,11 +649,11 @@ Likely sub-specs, ordered for MVP:
 0. **App scaffold** — Xcode project, Swift package layout, SwiftUI app shell, document-based architecture, `~/Library/Application Support/sequencer-ai/` bootstrap, CoreMIDI device discovery + virtual endpoints
 1. **Core engine** — Swift tick loop driven from the audio render clock, pipeline DAG executor, block registry, typed streams, lock-free UI↔render command queue, basic block set (note-gen, clip-reader, force-to-scale, quantise-to-chord, interpret, midi-out)
 2. **Macro coordinator and phrase model** — abstract/concrete rows, authored-source blocks, phrase structure
-3. **Song model** — phrase-ref chain, conditional refs, phrase variants
+3. **Song model** — ordered `phrases: [Phrase]` list, song-clock + transport driving top-to-bottom playback, phrase-insertion / reorder / duplicate UX
 4. **Chord layer** — chord-generator, chord-context plumbing, consumption modes
 5. **Drums and tagged streams** — voice-tag on note-stream, voice-route sink, template library, drum-gen
 6. **Step annotations** — clip-reader honors annotations, annotation editor UI
-7. **Fills** — fill preset overlays, conditional phrase-refs at song level
+7. **Fills** — fill preset overlays (phrase-attached takes + live-triggered performance overlays). Pre-programmed fills are just additional phrase rows, already covered by the phrase-list model
 8. **Perform layer** — live fill triggering, capture into variants
 9. **Note-repeat & step-order blocks**
 10. **Audio-side** — bus routing, crossfader, FX chain (probably split into its own spec)
@@ -636,7 +672,7 @@ Known ambiguities deliberately left for the first implementation plan to resolve
 - **(Resolved)** Library format & location: hybrid — bundled defaults read-only from app bundle; user content in `~/Library/Application Support/sequencer-ai/library/`; merged at runtime; Library view shows both with source flagged. JSON format throughout.
 - **(Resolved)** Performance capture: not into phrase variants, but into **Takes** (reusable time-varying macros). Capture button prompts bar-count, records next N bars, saves to library with auto-name. Default relative composition (offsets from captured baseline); per-take absolute-lock toggle. Triggered from perform pad grid or scheduled in song.
 - **(Resolved)** Cycle policy: cycles forbidden in the DAG; `tap-prev` provides the one-tick-delayed escape hatch for legitimate feedback-like cases. Validation runs **both at authoring time** (graph editor refuses offending connections) **and at runtime** (on phrase load, for defense against externally-edited files and library-import migrations).
-- **(Resolved)** State lifetime for stateful blocks (accumulators, Markov chains, conditional counters, LFO phase, random seeds): configurable per block. Default = **persist across repeats of the same phrase-ref** but reset between refs. Each stateful block exposes a lifetime setting (`reset-per-tick` / `reset-per-bar` / `reset-per-ref-start` (default) / `reset-per-ref-switch` / `persist-across-song`) for explicit overrides.
+- **(Resolved)** State lifetime for stateful blocks (accumulators, Markov chains, conditional counters, LFO phase, random seeds): configurable per block. Default = **persist within a phrase** but reset at phrase boundaries. Each stateful block exposes a lifetime setting (`reset-per-tick` / `reset-per-bar` / `reset-per-phrase-start` (default) / `reset-on-pattern-switch` / `persist-across-song`) for explicit overrides. The old `reset-per-ref-start` / `reset-per-ref-switch` values translate to `reset-per-phrase-start` / `reset-on-pattern-switch` respectively under the layer/cell model.
 - **(Resolved)** AUv3 hosting: strictly out-of-process (Apple's AUv3 default; matches the [[phat]] app's own `.loadOutOfProcess`). State persisted via `AUAudioUnit.fullState` captured into the project document's Codable serialization. Standard macOS app-sandbox + AU entitlements. Implementation detail lives in the audio-engine sub-spec.
 - **(Resolved)** Document model: classic macOS — one window per document, SwiftUI `DocumentGroup` / NSDocumentController. Enables side-by-side comparison and inter-project drag-drop without a custom tab bar.
 - **(Resolved)** One song per `.seqai` document. Cross-song reuse via the library folder. Extension to multi-song-per-doc is a future option (wrap a list around the root song) if the need arises.
@@ -648,7 +684,7 @@ Known ambiguities deliberately left for the first implementation plan to resolve
 - **(Resolved)** Chord-context granularity: per-step stream in the data layer (no loss of resolution). Chord-gen output blocks default to "quantise to bar" — one chord per bar for the clean common case. Per-block toggle off quantise-to-bar for jazz-style mid-bar changes.
 - **(Resolved)** Voice-route fan-out: yes. Each tag maps to a **list** of destinations; every destination receives the event. Drum view surfaces "+ destination" per tag for layering (kick → sub-bus + external-gate-trigger, etc.).
 - **(Resolved)** Phrase variant storage: **full copy**. Variants are independent after creation; edits to the base do not ripple. Predictable, simpler data model. A linked-variant mode could be added later if the ripple workflow becomes wanted.
-- **(Resolved)** BPM stacking: **project default + phrase-ref override, most-specific wins**. No phrase-level BPM. Tempo ramps between refs can be added later as a song-row feature without breaking this model.
+- **(Resolved)** BPM stacking: **project default + per-phrase BPM override layer, most-specific wins**. BPM becomes a layer (`target = .macroRow("bpm")` or a dedicated transport-side target) so a phrase can set its own tempo. Tempo ramps can be added later by setting a `.curve` cell on the BPM layer for a phrase.
 - **(Resolved)** Lockable-param registry: each block declares its own `lockableParams: [...]` list. Core blocks (note-generator, note-repeat, step-order, quantise-to-chord, voice-route, interpret, force-to-scale, filter/envelope blocks) ship with curated lockable lists tuned to the musical use-cases. Custom blocks opt in explicitly. Unspecified → no lockable params.
 - **(Resolved)** Note entry: four methods, all simultaneous — mouse-on-grid, computer-keyboard-as-piano (DAW standard), external MIDI input, on-screen View controller (Polyend-Play-style). All always available.
 - **(Resolved)** Bundled content: curated starter kit targeting ~20 drum templates (Techno / House / DnB / HipHop / Jazz / Trap / Breakbeat / Exotic), 8 voice presets (Bass / Lead / Pad / Arp / Pluck / Sub / Noise / Drone), 6 fill presets (Drop / Build / Breakdown / Reverse / Half-time / Tension), 4 chord-gen presets (Pop / Jazz / Minor / Dark). Category list and approximate counts committed so Library view and pad grids are designed for the right volume. Actual content authored in a dedicated content sub-spec late in development.
