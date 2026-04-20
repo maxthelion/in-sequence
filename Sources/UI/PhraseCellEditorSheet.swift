@@ -20,15 +20,15 @@ struct PhraseCellEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private var phrase: PhraseModel? {
-        document.model.phrases.first(where: { $0.id == target.phraseID })
+        document.project.phrases.first(where: { $0.id == target.phraseID })
     }
 
     private var track: StepSequenceTrack? {
-        document.model.tracks.first(where: { $0.id == target.trackID })
+        document.project.tracks.first(where: { $0.id == target.trackID })
     }
 
     private var layer: PhraseLayerDefinition? {
-        document.model.layer(id: target.layerID)
+        document.project.layer(id: target.layerID)
     }
 
     private var isTargetAvailable: Bool {
@@ -312,6 +312,6 @@ struct PhraseCellEditorSheet: View {
     }
 
     private func mutatePhrase(phraseID: UUID, _ update: (inout PhraseModel) -> Void) {
-        document.model.updatePhrase(id: phraseID, update)
+        document.project.updatePhrase(id: phraseID, update)
     }
 }

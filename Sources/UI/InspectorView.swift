@@ -5,7 +5,7 @@ struct InspectorView: View {
     @Environment(EngineController.self) private var engineController
 
     private var track: StepSequenceTrack {
-        document.model.selectedTrack
+        document.project.selectedTrack
     }
 
     private var pitchesText: Binding<String> {
@@ -23,7 +23,7 @@ struct InspectorView: View {
                     return
                 }
 
-                document.model.selectedTrack.pitches = parsed
+                document.project.selectedTrack.pitches = parsed
             }
         )
     }
@@ -31,7 +31,7 @@ struct InspectorView: View {
     var body: some View {
         Form {
             Section("Track") {
-                TextField("Name", text: $document.model.selectedTrack.name)
+                TextField("Name", text: $document.project.selectedTrack.name)
                 LabeledContent("Destination", value: destinationSummary)
                 TextField("Pitches", text: pitchesText)
                     .textFieldStyle(.roundedBorder)
@@ -43,7 +43,7 @@ struct InspectorView: View {
             Section("Mixer") {
                 HStack {
                     Text("Level")
-                    Slider(value: $document.model.selectedTrack.mix.level, in: 0...1)
+                    Slider(value: $document.project.selectedTrack.mix.level, in: 0...1)
                     Text("\(Int((track.mix.clampedLevel * 100).rounded()))%")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
@@ -51,17 +51,17 @@ struct InspectorView: View {
 
                 HStack {
                     Text("Pan")
-                    Slider(value: $document.model.selectedTrack.mix.pan, in: -1...1)
+                    Slider(value: $document.project.selectedTrack.mix.pan, in: -1...1)
                     Text(panLabel)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
 
-                Toggle("Mute", isOn: $document.model.selectedTrack.mix.isMuted)
+                Toggle("Mute", isOn: $document.project.selectedTrack.mix.isMuted)
             }
 
             Section("Generator") {
-                Stepper(value: $document.model.selectedTrack.velocity, in: 1...127) {
+                Stepper(value: $document.project.selectedTrack.velocity, in: 1...127) {
                     HStack {
                         Text("Velocity")
                         Spacer()
@@ -71,7 +71,7 @@ struct InspectorView: View {
                     }
                 }
 
-                Stepper(value: $document.model.selectedTrack.gateLength, in: 1...16) {
+                Stepper(value: $document.project.selectedTrack.gateLength, in: 1...16) {
                     HStack {
                         Text("Gate Length")
                         Spacer()
@@ -108,7 +108,7 @@ struct InspectorView: View {
 
     private var destinationSummary: String {
         if case .inheritGroup = track.destination,
-           let group = document.model.group(for: track.id)
+           let group = document.project.group(for: track.id)
         {
             return group.sharedDestination?.summary ?? "Inherited from group"
         }

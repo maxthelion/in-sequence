@@ -75,7 +75,7 @@ Note how MIDI is three files, not one `MIDIEverything.swift`. That's the pattern
 
 ## 4. Dependencies & coupling
 
-- [ ] **Dependencies flow inward.** Domain → platform → UI, not the other way. `SeqAIDocumentModel` shouldn't know about SwiftUI. `MIDIClient` shouldn't know about `@Observable`. Core engine shouldn't depend on audio engine.
+- [ ] **Dependencies flow inward.** Domain → platform → UI, not the other way. `Project` shouldn't know about SwiftUI. `MIDIClient` shouldn't know about `@Observable`. Core engine shouldn't depend on audio engine.
 - [ ] **Hard-coded singletons are a cost.** `MIDISession.shared` is fine at the app-composition boundary; lower-level code shouldn't reach for it. Pass the session (or what's actually needed) explicitly.
 - [ ] **No hidden coupling via globals.** Mutable global state is a coupling surface that isn't documented anywhere. If something needs shared state, name the sharer.
 - [ ] **Interfaces are smaller than implementations.** Callers take the narrow interface (`protocol MIDIOutput { func send(_: …) }`) not the concrete class. Easier to test, easier to replace, easier to reason about.

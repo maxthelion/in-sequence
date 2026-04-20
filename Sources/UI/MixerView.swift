@@ -7,13 +7,13 @@ struct MixerView: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 14) {
-                ForEach(Array(document.model.tracks.enumerated()), id: \.element.id) { index, track in
+                ForEach(Array(document.project.tracks.enumerated()), id: \.element.id) { index, track in
                     MixerChannelStrip(
-                        track: $document.model.tracks[index],
+                        track: $document.project.tracks[index],
                         destinationLabel: destinationLabel(for: track),
-                        isSelected: track.id == document.model.selectedTrackID,
+                        isSelected: track.id == document.project.selectedTrackID,
                         onSelect: {
-                            document.model.selectTrack(id: track.id)
+                            document.project.selectTrack(id: track.id)
                             onEditTrack?(track.id)
                         }
                     )
@@ -26,7 +26,7 @@ struct MixerView: View {
 
     private func destinationLabel(for track: StepSequenceTrack) -> String {
         if case .inheritGroup = track.destination,
-           let group = document.model.group(for: track.id),
+           let group = document.project.group(for: track.id),
            let sharedDestination = group.sharedDestination
         {
             return sharedDestination.kindLabel

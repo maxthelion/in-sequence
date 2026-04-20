@@ -176,11 +176,11 @@ internal func Track.hash(into: inout Hasher)
 - Create: `Tests/__Characterization__/Documents/full.input.json` + `.decoded.txt` — exercises every field
 - Create: `Tests/SequencerAITests/Characterization/DocumentRoundTripTests.swift`
 
-**Canonical rendering:** a deterministic dump of the decoded `SeqAIDocumentModel` — track names + types + destinations + pattern banks + generator pool + phrases + routes, formatted as indented text, sorted by ID where order isn't semantic. Helper `CanonicalRenderer.render(_:) -> String` in `CharacterizationFixtures.swift`.
+**Canonical rendering:** a deterministic dump of the decoded `Project` — track names + types + destinations + pattern banks + generator pool + phrases + routes, formatted as indented text, sorted by ID where order isn't semantic. Helper `CanonicalRenderer.render(_:) -> String` in `CharacterizationFixtures.swift`.
 
 **Tests (one per fixture):**
 
-1. `test_minimal_document_decodes_as_expected`: load `minimal.input.json`, decode to `SeqAIDocumentModel`, render canonically, compare against `minimal.decoded.txt`.
+1. `test_minimal_document_decodes_as_expected`: load `minimal.input.json`, decode to `Project`, render canonically, compare against `minimal.decoded.txt`.
 2. Similar for each fixture.
 3. `test_legacy_drumrack_migrates_to_flat_tracks_and_group` is a SEPARATE test that additionally asserts the shape conforms to the post-reshape model (will fail until reshape plan executes — correct: characterization is pinning current behaviour, which we will change deliberately).
 
@@ -207,7 +207,7 @@ internal func Track.hash(into: inout Hasher)
 **Fixture builder:**
 
 ```swift
-func buildDocument(scenario: String) -> SeqAIDocumentModel { ... }
+func buildDocument(scenario: String) -> Project { ... }
 func runEngineFor(_ ticks: Int, seed: UInt64) -> [MIDIEventTrace] { ... }
 ```
 

@@ -7,11 +7,11 @@ struct TrackWorkspaceView: View {
     @FocusState private var trackNameFieldFocused: Bool
 
     private var track: StepSequenceTrack {
-        document.model.selectedTrack
+        document.project.selectedTrack
     }
 
     private var outboundRouteCount: Int {
-        document.model.routesSourced(from: track.id).count
+        document.project.routesSourced(from: track.id).count
     }
 
     private var sourceAccent: Color {
@@ -106,15 +106,15 @@ struct TrackWorkspaceView: View {
 
     private func commitTrackName() {
         guard let editingTrackID,
-              let index = document.model.tracks.firstIndex(where: { $0.id == editingTrackID })
+              let index = document.project.tracks.firstIndex(where: { $0.id == editingTrackID })
         else {
             self.editingTrackID = nil
             draftTrackName = ""
             return
         }
 
-        document.model.tracks[index].name = draftTrackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? document.model.tracks[index].name
+        document.project.tracks[index].name = draftTrackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? document.project.tracks[index].name
             : draftTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
         self.editingTrackID = nil
         draftTrackName = ""

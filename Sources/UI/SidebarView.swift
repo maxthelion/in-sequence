@@ -12,16 +12,16 @@ struct SidebarView: View {
                 globalRow(title: "Tracks", systemImage: "square.grid.3x3", sectionValue: .tracks)
             }
             Section("Tracks") {
-                ForEach(document.model.tracks, id: \.id) { track in
+                ForEach(document.project.tracks, id: \.id) { track in
                     Button {
-                        document.model.selectTrack(id: track.id)
+                        document.project.selectTrack(id: track.id)
                         section = .track
                     } label: {
                         SidebarRow(
                             title: track.name,
-                            systemImage: track.id == document.model.selectedTrackID ? "pianokeys.inverse" : "pianokeys",
+                            systemImage: track.id == document.project.selectedTrackID ? "pianokeys.inverse" : "pianokeys",
                             trailingText: "\(track.stepPattern.filter { $0 }.count)",
-                            isSelected: track.id == document.model.selectedTrackID && section == .track
+                            isSelected: track.id == document.project.selectedTrackID && section == .track
                         )
                     }
                     .buttonStyle(.plain)
@@ -29,15 +29,15 @@ struct SidebarView: View {
 
                 HStack(spacing: 8) {
                     Button("Add Track") {
-                        document.model.appendTrack()
+                        document.project.appendTrack()
                     }
                     .buttonStyle(.borderedProminent)
 
                     Button("Remove") {
-                        document.model.removeSelectedTrack()
+                        document.project.removeSelectedTrack()
                     }
                     .buttonStyle(.bordered)
-                    .disabled(document.model.tracks.count <= 1)
+                    .disabled(document.project.tracks.count <= 1)
                 }
                 .padding(.top, 4)
             }

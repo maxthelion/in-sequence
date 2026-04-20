@@ -6,19 +6,19 @@ struct TrackDestinationEditor: View {
     @State private var recentVoices: [RecentVoice] = []
 
     private var track: StepSequenceTrack {
-        document.model.selectedTrack
+        document.project.selectedTrack
     }
 
     private func log(_ message: String) {
         NSLog("[TrackDestinationEditor] \(message)")
     }
 
-    private var currentWriteTarget: SeqAIDocumentModel.DestinationWriteTarget {
-        document.model.destinationWriteTarget(for: track.id)
+    private var currentWriteTarget: Project.DestinationWriteTarget {
+        document.project.destinationWriteTarget(for: track.id)
     }
 
     private var editedDestination: Destination {
-        document.model.resolvedDestination(for: track.id)
+        document.project.resolvedDestination(for: track.id)
     }
 
     private var currentChoice: TrackDestinationChoice {
@@ -103,7 +103,7 @@ struct TrackDestinationEditor: View {
     }
 
     private var groupInheritanceDetail: String {
-        guard let group = document.model.group(for: track.id) else {
+        guard let group = document.project.group(for: track.id) else {
             return "This track is marked as inheriting a group destination, but it is no longer attached to a group."
         }
         if let destination = group.sharedDestination {
@@ -205,25 +205,25 @@ struct TrackDestinationEditor: View {
 
         switch choice {
         case .inheritGroup:
-            document.model.selectedTrack.destination = .inheritGroup
+            document.project.selectedTrack.destination = .inheritGroup
         case .midiOut:
             let nextDestination = editedDestination.kind == .midi
                 ? editedDestination
                 : Destination.midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
-            document.model.setEditedDestination(nextDestination, for: track.id)
+            document.project.setEditedDestination(nextDestination, for: track.id)
         case .auInstrument:
-            document.model.setEditedDestination(
+            document.project.setEditedDestination(
                 .auInstrument(componentID: currentAudioInstrumentChoice.audioComponentID, stateBlob: nil),
                 for: track.id
             )
             saveCurrentVoiceSnapshot()
         case .internalSampler:
-            let defaultDestination = SeqAIDocumentModel.defaultDestination(for: document.model.selectedTrack.trackType)
+            let defaultDestination = Project.defaultDestination(for: document.project.selectedTrack.trackType)
             if case .internalSampler = defaultDestination {
-                document.model.setEditedDestination(defaultDestination, for: track.id)
+                document.project.setEditedDestination(defaultDestination, for: track.id)
             }
         case .none:
-            document.model.setEditedDestination(.none, for: track.id)
+            document.project.setEditedDestination(.none, for: track.id)
         }
     }
 
@@ -241,7 +241,7 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { currentAudioInstrumentChoice },
             set: {
-                document.model.setEditedDestination(
+                document.project.setEditedDestination(
                     .auInstrument(componentID: $0.audioComponentID, stateBlob: nil),
                     for: track.id
                 )
@@ -254,7 +254,7 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { editedDestination.midiPort },
             set: { port in
-                document.model.setEditedMIDIPort(port, for: track.id)
+                document.project.setEditedMIDIPort(port, for: track.id)
             }
         )
     }
@@ -264,7 +264,7 @@ struct TrackDestinationEditor: View {
             get: { Int(editedDestination.midiChannel) + 1 },
             set: { channel in
                 let clampedChannel = UInt8(max(0, min(15, channel - 1)))
-                document.model.setEditedMIDIChannel(clampedChannel, for: track.id)
+                document.project.setEditedMIDIChannel(clampedChannel, for: track.id)
             }
         )
     }
@@ -273,7 +273,7 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { editedDestination.midiNoteOffset },
             set: { noteOffset in
-                document.model.setEditedMIDINoteOffset(noteOffset, for: track.id)
+                document.project.setEditedMIDINoteOffset(noteOffset, for: track.id)
             }
         )
     }
@@ -301,7 +301,7 @@ struct TrackDestinationEditor: View {
 
     private var currentAUWindowTitle: String {
         if case .group(let groupID) = currentAUWindowKey,
-           let group = document.model.trackGroups.first(where: { $0.id == groupID })
+           let group = document.project.trackGroups.first(where: { $0.id == groupID })
         {
             return "\(group.name) (Shared)"
         }
@@ -327,25 +327,25 @@ struct TrackDestinationEditor: View {
         ) { stateBlob in
             switch windowKey {
             case .group(let groupID):
-                guard let groupIndex = document.model.trackGroups.firstIndex(where: { $0.id == groupID }),
-                      case let .auInstrument(componentID, _)? = document.model.trackGroups[groupIndex].sharedDestination
+                guard let groupIndex = document.project.trackGroups.firstIndex(where: { $0.id == groupID }),
+                      case let .auInstrument(componentID, _)? = document.project.trackGroups[groupIndex].sharedDestination
                 else {
                     return
                 }
 
-                document.model.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-                if let destination = document.model.trackGroups[groupIndex].sharedDestination {
+                document.project.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+                if let destination = document.project.trackGroups[groupIndex].sharedDestination {
                     recordVoiceSnapshot(destination: destination.withoutTransientState)
                 }
             case .track(let trackID):
-                guard let trackIndex = document.model.tracks.firstIndex(where: { $0.id == trackID }),
-                      case let .auInstrument(componentID, _) = document.model.tracks[trackIndex].destination
+                guard let trackIndex = document.project.tracks.firstIndex(where: { $0.id == trackID }),
+                      case let .auInstrument(componentID, _) = document.project.tracks[trackIndex].destination
                 else {
                     return
                 }
 
-                document.model.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-                recordVoiceSnapshot(destination: document.model.tracks[trackIndex].destination.withoutTransientState)
+                document.project.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+                recordVoiceSnapshot(destination: document.project.tracks[trackIndex].destination.withoutTransientState)
             }
         }
     }
@@ -372,13 +372,13 @@ struct TrackDestinationEditor: View {
     }
 
     private func recallRecentVoice(_ voice: RecentVoice) {
-        document.model.setEditedDestination(voice.destination, for: track.id)
+        document.project.setEditedDestination(voice.destination, for: track.id)
         RecentVoicesStore.shared.touch(id: voice.id)
         refreshRecentVoices()
     }
 
     private func saveCurrentVoiceSnapshot() {
-        guard let destination = document.model.voiceSnapshotDestination(for: track.id) else {
+        guard let destination = document.project.voiceSnapshotDestination(for: track.id) else {
             return
         }
         recordVoiceSnapshot(destination: destination)
@@ -405,7 +405,7 @@ struct TrackDestinationEditor: View {
     }
 
     private var phraseSummary: String {
-        document.model.selectedPhrase.name
+        document.project.selectedPhrase.name
     }
 
     private func refreshRecentVoices() {

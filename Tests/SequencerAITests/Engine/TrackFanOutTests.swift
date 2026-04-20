@@ -39,7 +39,7 @@ final class TrackFanOutTests: XCTestCase {
                 noteOffset: 0
             )
         )
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [sourceTrack],
             generatorPool: [generator],
@@ -98,7 +98,7 @@ final class TrackFanOutTests: XCTestCase {
                 noteOffset: 0
             )
         )
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [sourceTrack],
             generatorPool: [generator],
@@ -161,7 +161,7 @@ final class TrackFanOutTests: XCTestCase {
                 noteOffset: 0
             )
         )
-        let activeDocument = SeqAIDocumentModel(
+        let activeDocument = Project(
             version: 1,
             tracks: [sourceTrack],
             generatorPool: [generator],
@@ -182,7 +182,7 @@ final class TrackFanOutTests: XCTestCase {
 
         var detachedTrack = sourceTrack
         detachedTrack.destination = .none
-        let detachedDocument = SeqAIDocumentModel(
+        let detachedDocument = Project(
             version: 1,
             tracks: [detachedTrack],
             routes: [],

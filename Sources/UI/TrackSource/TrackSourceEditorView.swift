@@ -4,18 +4,18 @@ struct TrackSourceEditorView: View {
     @Binding var document: SeqAIDocument
     let accent: Color
 
-    private var track: StepSequenceTrack { document.model.selectedTrack }
-    private var phrase: PhraseModel { document.model.selectedPhrase }
-    private var selectedPatternIndex: Int { document.model.selectedPatternIndex(for: track.id) }
-    private var selectedPattern: TrackPatternSlot { document.model.selectedPattern(for: track.id) }
+    private var track: StepSequenceTrack { document.project.selectedTrack }
+    private var phrase: PhraseModel { document.project.selectedPhrase }
+    private var selectedPatternIndex: Int { document.project.selectedPatternIndex(for: track.id) }
+    private var selectedPattern: TrackPatternSlot { document.project.selectedPattern(for: track.id) }
     private var occupiedPatternSlots: Set<Int> {
-        Set(document.model.phrases.map { $0.patternIndex(for: track.id, layers: document.model.layers) })
+        Set(document.project.phrases.map { $0.patternIndex(for: track.id, layers: document.project.layers) })
     }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
-    private var compatibleGenerators: [GeneratorPoolEntry] { document.model.compatibleGenerators(for: track) }
-    private var compatibleClips: [ClipPoolEntry] { document.model.compatibleClips(for: track) }
-    private var currentGenerator: GeneratorPoolEntry? { document.model.generatorEntry(id: selectedPattern.sourceRef.generatorID) }
-    private var currentClip: ClipPoolEntry? { document.model.clipEntry(id: selectedPattern.sourceRef.clipID) }
+    private var compatibleGenerators: [GeneratorPoolEntry] { document.project.compatibleGenerators(for: track) }
+    private var compatibleClips: [ClipPoolEntry] { document.project.compatibleClips(for: track) }
+    private var currentGenerator: GeneratorPoolEntry? { document.project.generatorEntry(id: selectedPattern.sourceRef.generatorID) }
+    private var currentClip: ClipPoolEntry? { document.project.clipEntry(id: selectedPattern.sourceRef.clipID) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -70,7 +70,7 @@ struct TrackSourceEditorView: View {
                     clipChoices: compatibleClips,
                     accent: accent
                 ) { updated in
-                    document.model.updateGeneratorEntry(id: generator.id) { entry in
+                    document.project.updateGeneratorEntry(id: generator.id) { entry in
                         entry.params = updated
                     }
                 }
@@ -106,7 +106,7 @@ struct TrackSourceEditorView: View {
                         .pickerStyle(.menu)
 
                         ClipContentPreview(content: clip.content) { updated in
-                            document.model.updateClipEntry(id: clip.id) { entry in
+                            document.project.updateClipEntry(id: clip.id) { entry in
                                 entry.content = updated
                             }
                         }
@@ -118,8 +118,8 @@ struct TrackSourceEditorView: View {
 
     private var selectedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: { document.model.selectedPatternIndex(for: track.id) },
-            set: { document.model.setSelectedPatternIndex($0, for: track.id) }
+            get: { document.project.selectedPatternIndex(for: track.id) },
+            set: { document.project.setSelectedPatternIndex($0, for: track.id) }
         )
     }
 
@@ -130,15 +130,15 @@ struct TrackSourceEditorView: View {
                 switch newValue {
                 case .generator:
                     if let generator = compatibleGenerators.first {
-                        document.model.setPatternGeneratorID(generator.id, for: track.id, slotIndex: selectedPatternIndex)
+                        document.project.setPatternGeneratorID(generator.id, for: track.id, slotIndex: selectedPatternIndex)
                     } else {
-                        document.model.setPatternSourceMode(.generator, for: track.id, slotIndex: selectedPatternIndex)
+                        document.project.setPatternSourceMode(.generator, for: track.id, slotIndex: selectedPatternIndex)
                     }
                 case .clip:
-                    if let clip = document.model.ensureCompatibleClip(for: track) {
-                        document.model.setPatternClipID(clip.id, for: track.id, slotIndex: selectedPatternIndex)
+                    if let clip = document.project.ensureCompatibleClip(for: track) {
+                        document.project.setPatternClipID(clip.id, for: track.id, slotIndex: selectedPatternIndex)
                     } else {
-                        document.model.setPatternSourceMode(.clip, for: track.id, slotIndex: selectedPatternIndex)
+                        document.project.setPatternSourceMode(.clip, for: track.id, slotIndex: selectedPatternIndex)
                     }
                 }
             }
@@ -150,7 +150,7 @@ struct TrackSourceEditorView: View {
             get: { selectedPattern.sourceRef.generatorID },
             set: { newValue in
                 guard let newValue else { return }
-                document.model.setPatternGeneratorID(newValue, for: track.id, slotIndex: selectedPatternIndex)
+                document.project.setPatternGeneratorID(newValue, for: track.id, slotIndex: selectedPatternIndex)
             }
         )
     }
@@ -160,7 +160,7 @@ struct TrackSourceEditorView: View {
             get: { selectedPattern.sourceRef.clipID },
             set: { newValue in
                 guard let newValue else { return }
-                document.model.setPatternClipID(newValue, for: track.id, slotIndex: selectedPatternIndex)
+                document.project.setPatternClipID(newValue, for: track.id, slotIndex: selectedPatternIndex)
             }
         )
     }
@@ -423,49 +423,12 @@ private func pitchDisplayLabel(_ pitch: PitchAlgo) -> String {
     }
 }
 
-private enum StepAlgoKind: String, CaseIterable, Identifiable {
-    case manual
-    case euclidean
-    case randomWeighted
-    case perStepProbability
-    case fromClipSteps
-
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .manual:
-            return "Manual"
-        case .euclidean:
-            return "Euclidean"
-        case .randomWeighted:
-            return "Weighted"
-        case .perStepProbability:
-            return "Probability"
-        case .fromClipSteps:
-            return "From Clip"
-        }
-    }
-}
-
 private struct StepAlgoEditor: View {
     let step: StepAlgo
     let clipChoices: [ClipPoolEntry]
     let onChange: (StepAlgo) -> Void
 
-    private var kind: StepAlgoKind {
-        switch step {
-        case .manual:
-            return .manual
-        case .euclidean:
-            return .euclidean
-        case .randomWeighted:
-            return .randomWeighted
-        case .perStepProbability:
-            return .perStepProbability
-        case .fromClipSteps:
-            return .fromClipSteps
-        }
-    }
+    private var kind: StepAlgoKind { step.kind }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -473,7 +436,7 @@ private struct StepAlgoEditor: View {
                 "Step Type",
                 selection: Binding(
                     get: { kind },
-                    set: { onChange(defaultStepAlgo(for: $0, clipChoices: clipChoices, current: step)) }
+                    set: { onChange($0.defaultAlgo(clipChoices: clipChoices, current: step)) }
                 )
             ) {
                 ForEach(StepAlgoKind.allCases) { kind in
@@ -535,24 +498,7 @@ private struct PitchAlgoEditor: View {
     let onChange: (PitchAlgo) -> Void
     @State private var manualPitchDraft = ""
 
-    private var kind: PitchAlgoKind {
-        switch pitch {
-        case .manual:
-            return .manual
-        case .randomInScale:
-            return .randomInScale
-        case .randomInChord:
-            return .randomInChord
-        case .intervalProb:
-            return .intervalProb
-        case .markov:
-            return .markov
-        case .fromClipPitches:
-            return .fromClipPitches
-        case .external:
-            return .external
-        }
-    }
+    private var kind: PitchAlgoKind { pitch.kind }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -560,7 +506,7 @@ private struct PitchAlgoEditor: View {
                 "Pitch Type",
                 selection: Binding(
                     get: { kind },
-                    set: { onChange(defaultPitchAlgo(for: $0, clipChoices: clipChoices, current: pitch)) }
+                    set: { onChange($0.defaultAlgo(clipChoices: clipChoices, current: pitch)) }
                 )
             ) {
                 ForEach(PitchAlgoKind.allCases) { kind in
@@ -760,116 +706,6 @@ private struct NoteShapeEditor: View {
     }
 }
 
-private struct ClipContentPreview: View {
-    let content: ClipContent
-    let onChange: ((ClipContent) -> Void)?
-
-    init(content: ClipContent, onChange: ((ClipContent) -> Void)? = nil) {
-        self.content = content
-        self.onChange = onChange
-    }
-
-    var body: some View {
-        switch content {
-        case let .stepSequence(stepPattern, pitches):
-            VStack(alignment: .leading, spacing: 14) {
-                StepGridView(stepStates: stepPattern.map { $0 ? .on : .off }) { index in
-                    guard let onChange else { return }
-                    var nextPattern = stepPattern
-                    guard nextPattern.indices.contains(index) else { return }
-                    nextPattern[index].toggle()
-                    onChange(.stepSequence(stepPattern: nextPattern, pitches: pitches))
-                }
-                .allowsHitTesting(onChange != nil)
-
-                TextField(
-                    "Comma-separated MIDI notes",
-                    text: Binding(
-                        get: { pitches.map(String.init).joined(separator: ", ") },
-                        set: { newValue in
-                            guard let onChange else { return }
-                            let parsed = newValue
-                                .split(separator: ",")
-                                .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-                                .filter { (0...127).contains($0) }
-                            if !parsed.isEmpty {
-                                onChange(.stepSequence(stepPattern: stepPattern, pitches: parsed))
-                            }
-                        }
-                    )
-                )
-                .textFieldStyle(.roundedBorder)
-            }
-        case let .pianoRoll(lengthBars, stepsPerBar, notes):
-            VStack(alignment: .leading, spacing: 14) {
-                ClipPianoRollPreview(lengthBars: lengthBars, stepsPerBar: stepsPerBar, notes: notes)
-                    .frame(height: 180)
-                Text("\(notes.count) notes across \(lengthBars) bars")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-        case let .sliceTriggers(stepPattern, sliceIndexes):
-            VStack(alignment: .leading, spacing: 14) {
-                StepGridView(stepStates: stepPattern.map { $0 ? .on : .off }) { index in
-                    guard let onChange else { return }
-                    var nextPattern = stepPattern
-                    guard nextPattern.indices.contains(index) else { return }
-                    nextPattern[index].toggle()
-                    onChange(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes))
-                }
-                .allowsHitTesting(onChange != nil)
-
-                TextField(
-                    "Comma-separated slice indexes",
-                    text: Binding(
-                        get: { sliceIndexes.map(String.init).joined(separator: ", ") },
-                        set: { newValue in
-                            guard let onChange else { return }
-                            let parsed = newValue
-                                .split(separator: ",")
-                                .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-                            if !parsed.isEmpty {
-                                onChange(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed))
-                            }
-                        }
-                    )
-                )
-                .textFieldStyle(.roundedBorder)
-            }
-        }
-    }
-}
-
-private enum PitchAlgoKind: String, CaseIterable, Identifiable {
-    case manual
-    case randomInScale
-    case randomInChord
-    case intervalProb
-    case markov
-    case fromClipPitches
-    case external
-
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .manual:
-            return "Manual"
-        case .randomInScale:
-            return "Scale"
-        case .randomInChord:
-            return "Chord"
-        case .intervalProb:
-            return "Intervals"
-        case .markov:
-            return "Markov"
-        case .fromClipPitches:
-            return "From Clip"
-        case .external:
-            return "External"
-        }
-    }
-}
-
 private struct GeneratorTabBar: View {
     @Binding var selectedTab: GeneratorEditorTab
 
@@ -1035,199 +871,6 @@ private struct SourceParameterStepperRow: View {
     }
 }
 
-private struct GeneratedNotesPreview: View {
-    let generatorParams: GeneratorParams
-    let clipChoices: [ClipPoolEntry]
-
-    var body: some View {
-        let preview = previewSteps(for: generatorParams, clipChoices: clipChoices)
-        VStack(alignment: .leading, spacing: 12) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(preview.indices, id: \.self) { index in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("\(index + 1)")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundStyle(StudioTheme.mutedText)
-                            VStack(alignment: .leading, spacing: 4) {
-                                if preview[index].isEmpty {
-                                    Text("—")
-                                        .foregroundStyle(StudioTheme.mutedText)
-                                } else {
-                                    ForEach(preview[index], id: \.self) { label in
-                                        Text(label)
-                                            .foregroundStyle(StudioTheme.text)
-                                    }
-                                }
-                            }
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                        }
-                        .frame(width: 84, alignment: .leading)
-                        .padding(10)
-                        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                }
-            }
-            Text("Preview is generated from the current step and pitch settings.")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-    }
-}
-
-private struct PreviewRNG: RandomNumberGenerator {
-    private var state: UInt64 = 0x5EEDC0DE
-
-    mutating func next() -> UInt64 {
-        state = 2862933555777941757 &* state &+ 3037000493
-        return state
-    }
-}
-
-private func previewSteps(for params: GeneratorParams, clipChoices: [ClipPoolEntry], count: Int = 16) -> [[String]] {
-    var rng = PreviewRNG()
-
-    switch params {
-    case let .mono(step, pitch, _):
-        var lastPitch: Int?
-        return (0..<count).map { stepIndex in
-            guard stepFiresPreview(step, stepIndex: stepIndex, clipChoices: clipChoices, rng: &rng) else {
-                return []
-            }
-            let picked = pickPitchPreview(pitch, stepIndex: stepIndex, lastPitch: lastPitch, clipChoices: clipChoices, rng: &rng)
-            lastPitch = picked
-            return ["\(picked)"]
-        }
-    case let .poly(step, pitches, _):
-        return (0..<count).map { stepIndex in
-            guard stepFiresPreview(step, stepIndex: stepIndex, clipChoices: clipChoices, rng: &rng) else {
-                return []
-            }
-            return pitches.map { "\(pickPitchPreview($0, stepIndex: stepIndex, lastPitch: nil, clipChoices: clipChoices, rng: &rng))" }
-        }
-    case let .drum(steps, _):
-        let keys = steps.keys.sorted()
-        return (0..<count).map { stepIndex in
-            keys.compactMap { key in
-                guard let step = steps[key],
-                      stepFiresPreview(step, stepIndex: stepIndex, clipChoices: clipChoices, rng: &rng) else {
-                    return nil
-                }
-                return key
-            }
-        }
-    case .template:
-        return Array(repeating: ["Template"], count: count)
-    case let .slice(step, sliceIndexes):
-        let slices = sliceIndexes.isEmpty ? [0] : sliceIndexes
-        var nextSlice = 0
-        return (0..<count).map { stepIndex in
-            guard stepFiresPreview(step, stepIndex: stepIndex, clipChoices: clipChoices, rng: &rng) else {
-                return []
-            }
-            let label = "S\(slices[nextSlice % slices.count])"
-            nextSlice += 1
-            return [label]
-        }
-    }
-}
-
-private func stepFiresPreview<R: RandomNumberGenerator>(_ step: StepAlgo, stepIndex: Int, clipChoices: [ClipPoolEntry], rng: inout R) -> Bool {
-    switch step {
-    case let .fromClipSteps(clipID):
-        guard let clip = clipChoices.first(where: { $0.id == clipID }) else { return false }
-        switch clip.content {
-        case let .stepSequence(stepPattern, _):
-            return stepPattern[stepIndex % max(1, stepPattern.count)]
-        case let .pianoRoll(_, _, notes):
-            return notes.contains(where: { $0.startStep == stepIndex })
-        case let .sliceTriggers(stepPattern, _):
-            return stepPattern[stepIndex % max(1, stepPattern.count)]
-        }
-    default:
-        return step.fires(at: stepIndex, totalSteps: 16, rng: &rng)
-    }
-}
-
-private func pickPitchPreview<R: RandomNumberGenerator>(_ pitch: PitchAlgo, stepIndex: Int, lastPitch: Int?, clipChoices: [ClipPoolEntry], rng: inout R) -> Int {
-    switch pitch {
-    case let .fromClipPitches(clipID, pickMode):
-        guard let clip = clipChoices.first(where: { $0.id == clipID }) else { return 60 }
-        let pitches = clipPitches(for: clip)
-        guard !pitches.isEmpty else { return 60 }
-        switch pickMode {
-        case .sequential:
-            return pitches[stepIndex % pitches.count]
-        case .random:
-            return pitches.randomElement(using: &rng) ?? 60
-        }
-    case .external:
-        return 60
-    default:
-        return pitch.pick(
-            context: PitchContext(lastPitch: lastPitch, scaleRoot: 60, scaleID: .major, currentChord: nil, stepIndex: stepIndex),
-            rng: &rng
-        )
-    }
-}
-
-private func clipPitches(for clip: ClipPoolEntry) -> [Int] {
-    switch clip.content {
-    case let .stepSequence(_, pitches):
-        return pitches
-    case let .pianoRoll(_, _, notes):
-        return Array(Set(notes.map(\.pitch))).sorted()
-    case .sliceTriggers:
-        return [60]
-    }
-}
-
-private func defaultStepAlgo(for kind: StepAlgoKind, clipChoices: [ClipPoolEntry], current: StepAlgo) -> StepAlgo {
-    switch kind {
-    case .manual:
-        if case let .manual(pattern) = current {
-            return .manual(pattern: pattern)
-        }
-        return .manual(pattern: Array(repeating: false, count: 16))
-    case .euclidean:
-        return .euclidean(pulses: 4, steps: 16, offset: 0)
-    case .randomWeighted:
-        return .randomWeighted(density: 0.5)
-    case .perStepProbability:
-        return .perStepProbability(probs: Array(repeating: 0.5, count: 16))
-    case .fromClipSteps:
-        if let clipID = clipChoices.first?.id {
-            return .fromClipSteps(clipID: clipID)
-        }
-        return .manual(pattern: Array(repeating: false, count: 16))
-    }
-}
-
-private func defaultPitchAlgo(for kind: PitchAlgoKind, clipChoices: [ClipPoolEntry], current: PitchAlgo) -> PitchAlgo {
-    switch kind {
-    case .manual:
-        if case let .manual(pitches, pickMode) = current {
-            return .manual(pitches: pitches, pickMode: pickMode)
-        }
-        return .manual(pitches: [60, 64, 67], pickMode: .sequential)
-    case .randomInScale:
-        return .randomInScale(root: 60, scale: .major, spread: 12)
-    case .randomInChord:
-        return .randomInChord(root: 60, chord: .majorTriad, inverted: false, spread: 12)
-    case .intervalProb:
-        return .intervalProb(root: 60, scale: .major, degreeWeights: Array(repeating: 0.5, count: 7))
-    case .markov:
-        return .markov(root: 60, scale: .major, styleID: .balanced, leap: 0.35, color: 0.2)
-    case .fromClipPitches:
-        if let clipID = clipChoices.first?.id {
-            return .fromClipPitches(clipID: clipID, pickMode: .sequential)
-        }
-        return .manual(pitches: [60], pickMode: .sequential)
-    case .external:
-        return .external(port: "External MIDI", channel: 0, holdMode: .pool)
-    }
-}
-
 private func stepAlgoAccentColor(for kind: StepAlgoKind) -> Color {
     switch kind {
     case .manual:
@@ -1240,216 +883,6 @@ private func stepAlgoAccentColor(for kind: StepAlgoKind) -> Color {
         return StudioTheme.violet
     case .fromClipSteps:
         return StudioTheme.violet
-    }
-}
-
-private struct ClipPianoRollPreview: View {
-    let lengthBars: Int
-    let stepsPerBar: Int
-    let notes: [ClipNote]
-
-    private var totalSteps: Int { max(1, lengthBars * stepsPerBar) }
-    private var pitchRange: ClosedRange<Int> {
-        let pitches = notes.map(\.pitch)
-        return (pitches.min() ?? 48)...(pitches.max() ?? 72)
-    }
-
-    var body: some View {
-        GeometryReader { geometry in
-            let pitchCount = max(1, pitchRange.upperBound - pitchRange.lowerBound + 1)
-            let stepWidth = geometry.size.width / CGFloat(totalSteps)
-            let noteHeight = geometry.size.height / CGFloat(pitchCount)
-
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.white.opacity(0.03))
-
-                VStack(spacing: 0) {
-                    ForEach(Array(pitchRange.reversed()), id: \.self) { _ in
-                        Rectangle()
-                            .fill(Color.white.opacity(0.03))
-                            .frame(height: noteHeight)
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                HStack(spacing: 0) {
-                    ForEach(0..<totalSteps, id: \.self) { index in
-                        Rectangle()
-                            .fill(index % stepsPerBar == 0 ? Color.white.opacity(0.08) : Color.white.opacity(0.03))
-                            .frame(width: stepWidth)
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                ForEach(notes) { note in
-                    let yIndex = pitchRange.upperBound - note.pitch
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(StudioTheme.violet.opacity(0.82))
-                        .frame(
-                            width: max(stepWidth * CGFloat(note.lengthSteps) - 2, 6),
-                            height: max(noteHeight - 3, 6)
-                        )
-                        .offset(
-                            x: stepWidth * CGFloat(note.startStep) + 1,
-                            y: noteHeight * CGFloat(yIndex) + 1.5
-                        )
-                }
-            }
-        }
-    }
-}
-
-private struct AlgorithmSummaryCard: View {
-    let title: String
-    let detail: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            Text(detail)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-        )
-    }
-}
-
-private struct WrapRow: View {
-    let items: [String]
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(items, id: \.self) { item in
-                Text(item)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.04), in: Capsule())
-                    .foregroundStyle(StudioTheme.text)
-            }
-        }
-    }
-}
-
-private struct TrackSourceModePalette: View {
-    let trackType: TrackType
-    @Binding var selectedSource: TrackSourceMode
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(TrackSourceMode.available(for: trackType), id: \.self) { source in
-                Button {
-                    selectedSource = source
-                } label: {
-                    Text(source.label)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(selectedSource == source ? StudioTheme.text : StudioTheme.mutedText)
-                        .padding(.vertical, 7)
-                        .padding(.horizontal, 12)
-                        .background(fill(for: source), in: Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(stroke(for: source), lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func accent(for source: TrackSourceMode) -> Color {
-        switch source {
-        case .generator:
-            return StudioTheme.cyan
-        case .clip:
-            return StudioTheme.violet
-        }
-    }
-
-    private func fill(for source: TrackSourceMode) -> Color {
-        selectedSource == source ? accent(for: source).opacity(0.14) : Color.white.opacity(0.03)
-    }
-
-    private func stroke(for source: TrackSourceMode) -> Color {
-        selectedSource == source ? accent(for: source).opacity(0.52) : StudioTheme.border
-    }
-}
-
-private struct TrackPatternSlotPalette: View {
-    @Binding var selectedSlot: Int
-    let occupiedSlots: Set<Int>
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
-                Button {
-                    selectedSlot = slotIndex
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("\(slotIndex + 1)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(StudioTheme.text)
-
-                        Circle()
-                            .fill(indicatorFill(for: slotIndex))
-                            .frame(width: 6, height: 6)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(backgroundFill(for: slotIndex))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(borderColor(for: slotIndex), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func backgroundFill(for slotIndex: Int) -> Color {
-        if selectedSlot == slotIndex {
-            return StudioTheme.success.opacity(0.2)
-        }
-        if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.08)
-        }
-        return Color.white.opacity(0.03)
-    }
-
-    private func borderColor(for slotIndex: Int) -> Color {
-        if selectedSlot == slotIndex {
-            return StudioTheme.success.opacity(0.7)
-        }
-        if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.28)
-        }
-        return StudioTheme.border
-    }
-
-    private func indicatorFill(for slotIndex: Int) -> Color {
-        if selectedSlot == slotIndex {
-            return StudioTheme.success
-        }
-        if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.6)
-        }
-        return Color.white.opacity(0.08)
     }
 }
 

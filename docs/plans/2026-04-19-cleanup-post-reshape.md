@@ -28,7 +28,7 @@
 
 ## Task 1: Delete `StepSequenceTrack.output` accessor
 
-**Scope:** Remove the getter/setter pair at `Sources/Document/SeqAIDocumentModel.swift:1014-1054`. The getter silently coerces `.inheritGroup → .none` on every read (destroys inheritance). The setter has no `.inheritGroup` arm (cannot express inheritance). Every UI binding to `track.output` is a latent bug.
+**Scope:** Remove the getter/setter pair at `Sources/Document/Project.swift:1014-1054`. The getter silently coerces `.inheritGroup → .none` on every read (destroys inheritance). The setter has no `.inheritGroup` arm (cannot express inheritance). Every UI binding to `track.output` is a latent bug.
 
 **Follow-on:** Compiler surfaces readers — the expected set is `InspectorView.swift:35` Picker, `TrackDestinationEditor.swift:30-39`, `MixerView.swift:40`, plus tests. Migrate each: UI Pickers bind to `$track.destination: Destination` directly, presenting a dedicated `.inheritGroup` affordance where relevant.
 
@@ -40,7 +40,7 @@
 
 ## Task 2: Delete `StepSequenceTrack.audioInstrument` accessor
 
-**Scope:** Remove the getter/setter at `Sources/Document/SeqAIDocumentModel.swift:1090-1103`. The getter's `default: return .builtInSynth` swallows every non-AU destination — MIDI-out, silent, and group-inheriting all report "Built-In Synth." Every UI using it to display an instrument label lies; every setter that writes an AU destination into a non-AU track is destructive.
+**Scope:** Remove the getter/setter at `Sources/Document/Project.swift:1090-1103`. The getter's `default: return .builtInSynth` swallows every non-AU destination — MIDI-out, silent, and group-inheriting all report "Built-In Synth." Every UI using it to display an instrument label lies; every setter that writes an AU destination into a non-AU track is destructive.
 
 **Follow-on:** Mixer strip label, Inspector row. Migrate to display a destination-aware label computed inline or via a method on `Destination`.
 
@@ -51,13 +51,13 @@
 
 ## Task 3: Delete `TrackOutputDestination` enum
 
-**Scope:** The 4-case parallel enum at `Sources/Document/SeqAIDocumentModel.swift` exists only to feed the (now-deleted) `track.output` accessor, `StepSequenceTrack` init's `output:` param, and `defaultDestination(output:)` helper. With Task 1 done, its remaining consumers are the init param (Task 4) and the helper (also Task 4). Delete the enum alongside them.
+**Scope:** The 4-case parallel enum at `Sources/Document/Project.swift` exists only to feed the (now-deleted) `track.output` accessor, `StepSequenceTrack` init's `output:` param, and `defaultDestination(output:)` helper. With Task 1 done, its remaining consumers are the init param (Task 4) and the helper (also Task 4). Delete the enum alongside them.
 
 **Note:** Bundled with Task 4 — the three pieces must die together for the build to stay green.
 
 ## Task 4: Delete `StepSequenceTrack` init `output:` / `audioInstrument:` params + `defaultDestination(output:audioInstrument:trackType:)` helper
 
-**Scope:** Remove the legacy initializer params at `SeqAIDocumentModel.swift:916-918` and the helper at `1116-1136`. Five test files still construct tracks via `output: .midiOut` / `.auInstrument`. Migrate them to pass `destination:` directly.
+**Scope:** Remove the legacy initializer params at `Project.swift:916-918` and the helper at `1116-1136`. Five test files still construct tracks via `output: .midiOut` / `.auInstrument`. Migrate them to pass `destination:` directly.
 
 **Follow-on:** Delete `TrackOutputDestination` (Task 3) in the same commit since its last reader is gone.
 
@@ -80,7 +80,7 @@
 
 ## Task 6: Delete `DrumKitPreset.Member.defaultGeneratorKindID`
 
-**Scope:** The field at `SeqAIDocumentModel.swift:37, 56-72` is authored into every preset but read by nothing. Delete the field and the preset-entry authorship.
+**Scope:** The field at `Project.swift:37, 56-72` is authored into every preset but read by nothing. Delete the field and the preset-entry authorship.
 
 - [x] Delete field
 - [x] Green

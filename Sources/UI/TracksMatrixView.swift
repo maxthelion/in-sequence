@@ -12,8 +12,8 @@ struct TracksMatrixView: View {
     ]
 
     private var groupedSections: [GroupedTrackSection] {
-        document.model.trackGroups.compactMap { group in
-            let members = document.model.tracksInGroup(group.id)
+        document.project.trackGroups.compactMap { group in
+            let members = document.project.tracksInGroup(group.id)
             guard !members.isEmpty else {
                 return nil
             }
@@ -22,20 +22,20 @@ struct TracksMatrixView: View {
     }
 
     private var ungroupedTracks: [StepSequenceTrack] {
-        document.model.tracks.filter { $0.groupID == nil }
+        document.project.tracks.filter { $0.groupID == nil }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
-                eyebrow: "\(document.model.tracks.count) tracks • flat matrix with grouped drum-kit bundles",
+                eyebrow: "\(document.project.tracks.count) tracks • flat matrix with grouped drum-kit bundles",
                 accent: StudioTheme.cyan
             ) {
                 VStack(alignment: .leading, spacing: 18) {
                     actionBar
 
-                    if document.model.tracks.isEmpty {
+                    if document.project.tracks.isEmpty {
                         StudioPlaceholderTile(
                             title: "No Tracks Yet",
                             detail: "Create a mono, poly, slice, or drum-kit bundle to start building the matrix.",
@@ -69,20 +69,20 @@ struct TracksMatrixView: View {
     private var createTrackButtons: some View {
         Group {
             Button("Add Mono") {
-                document.model.appendTrack(trackType: .monoMelodic)
+                document.project.appendTrack(trackType: .monoMelodic)
                 onOpenTrack()
             }
             .buttonStyle(.borderedProminent)
             .tint(StudioTheme.cyan)
 
             Button("Add Poly") {
-                document.model.appendTrack(trackType: .polyMelodic)
+                document.project.appendTrack(trackType: .polyMelodic)
                 onOpenTrack()
             }
             .buttonStyle(.bordered)
 
             Button("Add Slice") {
-                document.model.appendTrack(trackType: .slice)
+                document.project.appendTrack(trackType: .slice)
                 onOpenTrack()
             }
             .buttonStyle(.bordered)
@@ -90,7 +90,7 @@ struct TracksMatrixView: View {
             Menu("Add Drum Kit") {
                 ForEach(DrumKitPreset.allCases, id: \.self) { preset in
                     Button(preset.displayName) {
-                        _ = document.model.addDrumKit(preset)
+                        _ = document.project.addDrumKit(preset)
                         onOpenTrack()
                     }
                 }
@@ -129,10 +129,10 @@ struct TracksMatrixView: View {
                 TrackMatrixCard(
                     track: track,
                     group: group,
-                    patternIndex: document.model.selectedPatternIndex(for: track.id),
-                    isSelected: track.id == document.model.selectedTrackID
+                    patternIndex: document.project.selectedPatternIndex(for: track.id),
+                    isSelected: track.id == document.project.selectedTrackID
                 ) {
-                    document.model.selectTrack(id: track.id)
+                    document.project.selectTrack(id: track.id)
                     onOpenTrack()
                 }
             }
@@ -406,7 +406,7 @@ private struct CreateTrackSheet: View {
 
     private func createButton(title: String, detail: String, type: TrackType, accent: Color) -> some View {
         Button {
-            document.model.appendTrack(trackType: type)
+            document.project.appendTrack(trackType: type)
             dismiss()
             onOpenTrack()
         } label: {

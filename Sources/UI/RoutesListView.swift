@@ -7,11 +7,11 @@ struct RoutesListView: View {
     @State private var editingRoute: Route?
 
     private var selectedTrack: StepSequenceTrack {
-        document.model.selectedTrack
+        document.project.selectedTrack
     }
 
     private var routes: [Route] {
-        document.model.routesSourced(from: selectedTrack.id)
+        document.project.routesSourced(from: selectedTrack.id)
     }
 
     var body: some View {
@@ -20,7 +20,7 @@ struct RoutesListView: View {
                 StudioMetricPill(title: "Routes Out", value: "\(routes.count)", accent: StudioTheme.violet)
                 Spacer()
                 Button("Add Route") {
-                    editingRoute = document.model.makeDefaultRoute(from: selectedTrack.id)
+                    editingRoute = document.project.makeDefaultRoute(from: selectedTrack.id)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.cyan)
@@ -41,7 +41,7 @@ struct RoutesListView: View {
                         ) {
                             editingRoute = route
                         } onDelete: {
-                            document.model.removeRoute(id: route.id)
+                            document.project.removeRoute(id: route.id)
                         }
                     }
                 }
@@ -49,17 +49,17 @@ struct RoutesListView: View {
         }
         .sheet(item: $editingRoute) { route in
             RouteEditorSheet(
-                tracks: document.model.tracks,
+                tracks: document.project.tracks,
                 midiEndpoints: engineController.availableMIDIDestinationNames,
                 initialRoute: route
             ) { savedRoute in
-                document.model.upsertRoute(savedRoute)
+                document.project.upsertRoute(savedRoute)
             }
         }
     }
 
     private func trackLookup(_ trackID: UUID) -> StepSequenceTrack? {
-        document.model.tracks.first(where: { $0.id == trackID })
+        document.project.tracks.first(where: { $0.id == trackID })
     }
 }
 

@@ -91,7 +91,7 @@ final class EngineControllerTests: XCTestCase {
                 slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(leadGenerator.id))]
             )
         ]
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [bass, lead],
             generatorPool: generators,
@@ -165,7 +165,7 @@ final class EngineControllerTests: XCTestCase {
             trackID: track.id,
             slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
         )
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [track],
             generatorPool: [generator],
@@ -216,7 +216,7 @@ final class EngineControllerTests: XCTestCase {
             trackID: track.id,
             slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
         )
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [track],
             generatorPool: GeneratorPoolEntry.defaultPool,
@@ -267,7 +267,7 @@ final class EngineControllerTests: XCTestCase {
             trackID: track.id,
             slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
         )
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [track],
             generatorPool: GeneratorPoolEntry.defaultPool,
@@ -301,7 +301,7 @@ final class EngineControllerTests: XCTestCase {
             velocity: 96,
             gateLength: 2
         )
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [synthTrack],
             selectedTrackID: synthTrack.id
@@ -363,7 +363,7 @@ final class EngineControllerTests: XCTestCase {
             sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: 2),
             noteMapping: [track.id: 12]
         )
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [track],
             trackGroups: [group],
@@ -395,7 +395,7 @@ final class EngineControllerTests: XCTestCase {
         )
         let group = TrackGroup(id: groupID, name: "Kit", memberIDs: [track.id], sharedDestination: nil)
         let phrase = PhraseModel.default(tracks: [track])
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [track],
             trackGroups: [group],
@@ -475,7 +475,7 @@ final class EngineControllerTests: XCTestCase {
                 slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(leadGenerator.id))]
             )
         ]
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [bassTrack, leadTrack],
             generatorPool: generators,
@@ -589,7 +589,7 @@ final class EngineControllerTests: XCTestCase {
                 slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(snareGenerator.id))]
             )
         ]
-        let document = SeqAIDocumentModel(
+        let document = Project(
             version: 1,
             tracks: [kick, snare],
             trackGroups: [group],

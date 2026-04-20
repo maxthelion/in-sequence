@@ -1,9 +1,9 @@
 import XCTest
 @testable import SequencerAI
 
-final class SeqAIDocumentModelTests: XCTestCase {
+final class ProjectTests: XCTestCase {
     func test_empty_uses_project_scoped_layers() {
-        let model = SeqAIDocumentModel.empty
+        let model = Project.empty
 
         XCTAssertEqual(model.layers.map(\.id), [
             "pattern",
@@ -43,7 +43,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
     }
 
     func test_set_selected_pattern_index_writes_pattern_layer_cell() {
-        var model = SeqAIDocumentModel.empty
+        var model = Project.empty
 
         model.setSelectedPatternIndex(7, for: model.selectedTrack.id)
 
@@ -52,7 +52,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
     }
 
     func test_append_track_syncs_layer_defaults_and_phrase_cells() {
-        var model = SeqAIDocumentModel.empty
+        var model = Project.empty
 
         model.appendTrack(trackType: .polyMelodic)
 
@@ -90,7 +90,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
             }
         )
 
-        let model = SeqAIDocumentModel(
+        let model = Project(
             version: 1,
             tracks: [track],
             generatorPool: GeneratorPoolEntry.defaultPool,
@@ -154,7 +154,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
     }
 
     func test_add_drum_kit_creates_group_and_inherit_cells() throws {
-        var model = SeqAIDocumentModel.empty
+        var model = Project.empty
 
         let groupID = try XCTUnwrap(model.addDrumKit(.kit808))
 
@@ -171,7 +171,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
     }
 
     func test_set_phrase_cell_can_fan_out_to_multiple_tracks() throws {
-        var model = SeqAIDocumentModel.empty
+        var model = Project.empty
         let groupID = try XCTUnwrap(model.addDrumKit(.kit808))
         let memberIDs = try XCTUnwrap(model.trackGroups.first(where: { $0.id == groupID })?.memberIDs)
         let intensityLayer = try XCTUnwrap(model.layers.first(where: { $0.id == "intensity" }))
@@ -188,7 +188,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         let track = StepSequenceTrack.default
         let layers = PhraseLayerDefinition.defaultSet(for: [track])
         let phraseID = UUID()
-        let model = SeqAIDocumentModel(
+        let model = Project(
             version: 1,
             tracks: [track],
             generatorPool: GeneratorPoolEntry.defaultPool,
@@ -213,7 +213,7 @@ final class SeqAIDocumentModelTests: XCTestCase {
         )
 
         let data = try JSONEncoder().encode(model)
-        let decoded = try JSONDecoder().decode(SeqAIDocumentModel.self, from: data)
+        let decoded = try JSONDecoder().decode(Project.self, from: data)
 
         XCTAssertEqual(decoded.layers, model.layers)
         XCTAssertEqual(decoded.selectedPhrase.cells, model.selectedPhrase.cells)

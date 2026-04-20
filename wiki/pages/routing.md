@@ -56,7 +56,7 @@ This is the minimum useful set for the current engine:
 
 Routes live on the document, not on individual tracks:
 
-- `SeqAIDocumentModel.routes: [Route]`
+- `Project.routes: [Route]`
 
 That makes them project-scoped wiring rather than per-track view state. The document also exposes helpers for:
 

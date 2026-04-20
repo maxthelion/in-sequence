@@ -10,7 +10,7 @@ Verified end-to-end by: creating a new project, dragging 10 WAV files onto the a
 
 ```
 MyProject.seqai/
-├── document.json               # the existing SeqAIDocumentModel serialised form
+├── document.json               # the existing Project serialised form
 └── Samples/
     ├── sample-<UUID>.wav       # copied on import; filename is the sample's UUID for durability
     ├── sample-<UUID>.aif
@@ -58,7 +58,7 @@ Sources/
     AudioSampleCategory.swift                # NEW — enum + display
     SamplerSettings.swift                    # NEW — per-Destination sampler knobs
     Destination.swift                        # MODIFIED — add .sample case
-    SeqAIDocumentModel.swift                 # MODIFIED — audioSamplePool: AudioSamplePool field
+    Project.swift                 # MODIFIED — audioSamplePool: AudioSamplePool field
   Audio/
     SampleImporter.swift                     # NEW — file copy into package + pool registration
     SampleClassifier.swift                   # NEW — filename regex heuristics
@@ -262,7 +262,7 @@ public enum Destination: Codable, Equatable, Sendable {
 
 ## Task 4: Package-based `SeqAIDocument`
 
-**Scope:** Migrate the FileDocument to a package directory. `document.json` inside the package holds the current `SeqAIDocumentModel` JSON; `Samples/` directory hosts copied-in audio files.
+**Scope:** Migrate the FileDocument to a package directory. `document.json` inside the package holds the current `Project` JSON; `Samples/` directory hosts copied-in audio files.
 
 **Files:**
 - Modify: `Sources/Document/SeqAIDocument.swift` — change `FileDocument` → `ReferenceFileDocument`; conform to package UTType; implement `read(configuration:)` and `snapshot`/`fileWrapper(snapshot:configuration:)` appropriately
@@ -471,13 +471,13 @@ Fixtures: pre-generate tiny test WAV files (0.1 seconds of silence) in the test 
 **Scope:** Add the field; thread through Codable with a legacy default.
 
 **Files:**
-- Modify: `Sources/Document/SeqAIDocumentModel.swift`
+- Modify: `Sources/Document/Project.swift`
 - Modify: `Tests/SequencerAITests/Document/SeqAIDocumentTests.swift`
 
 **Change:**
 
 ```swift
-public struct SeqAIDocumentModel: Codable, Equatable {
+public struct Project: Codable, Equatable {
     // existing fields ...
     public var audioSamplePool: AudioSamplePool = AudioSamplePool()
     // ...
@@ -572,7 +572,7 @@ public final class SamplePreviewPlayer {
   - Filename
   - Guessed category (dropdown, user-editable)
   - Remove button
-- Confirm imports all remaining rows via `SampleImporter`; appends to `document.model.audioSamplePool.samples`
+- Confirm imports all remaining rows via `SampleImporter`; appends to `document.project.audioSamplePool.samples`
 - Cancel abandons — no files copied
 
 **Tests:**
@@ -675,7 +675,7 @@ Prev/next walk `pool.samples(in: sample.category)`; wrap. Random picks one from 
 **Scope:** Update the reshape plan's `addDrumKit(preset:)` flow to prefer pool samples when available.
 
 **Files:**
-- Modify: `Sources/Document/SeqAIDocumentModel.swift` — `addDrumKit(_:)` method (added by reshape plan); this plan updates its body
+- Modify: `Sources/Document/Project.swift` — `addDrumKit(_:)` method (added by reshape plan); this plan updates its body
 - Modify: `Tests/SequencerAITests/Document/DrumKitPresetTests.swift` (from reshape plan)
 
 **Logic change:**

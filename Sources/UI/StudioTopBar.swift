@@ -58,7 +58,7 @@ struct StudioTopBar: View {
                 Spacer()
 
                 StudioMetricPill(title: "Mode", value: section.title, accent: StudioTheme.amber)
-                StudioMetricPill(title: "Track", value: document.model.selectedTrack.name, accent: StudioTheme.violet)
+                StudioMetricPill(title: "Track", value: document.project.selectedTrack.name, accent: StudioTheme.violet)
                 StudioMetricPill(
                     title: "Engine",
                     value: engineController.isRunning ? "Running" : "Ready",

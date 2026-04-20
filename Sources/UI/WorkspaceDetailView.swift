@@ -34,7 +34,7 @@ struct WorkspaceDetailView: View {
             TrackWorkspaceView(document: $document)
         case .mixer:
             MixerWorkspaceView(document: $document) { trackID in
-                document.model.selectTrack(id: trackID)
+                document.project.selectTrack(id: trackID)
                 section = .track
             }
         case .live:

@@ -71,7 +71,7 @@ Older documents stored:
 - `output`
 - `audioInstrument`
 
-`SeqAIDocumentModel` now migrates those fields into `voicing.defaultDestination` during decode. New saves write only the `voicing` shape.
+`Project` now migrates those fields into `voicing.defaultDestination` during decode. New saves write only the `voicing` shape.
 
 That migration keeps older documents loadable while simplifying the live model the engine and UI see.
 

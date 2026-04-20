@@ -45,7 +45,7 @@ Currently: `SequencerAIApp.swift`.
 
 Everything about the `.seqai` document. `FileDocument` conformance, the `Codable` model that's serialized, UTType declarations, phrase/pattern/generator model types, and the pure generator-algo value types used by document data. **No UI, no engine, no platform concerns.** This module may depend on `Musical/` for shipped lookup tables, but should remain importable into a hypothetical CLI tool that only processes documents.
 
-Currently: `SeqAIDocument.swift`, `SeqAIDocumentModel.swift`, `PhraseModel.swift`, `Destination.swift`, `TrackGroup.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. Fresh-model document state now centers on inline `Destination`, optional `track.groupID`, project-scoped `trackGroups`, and per-track pattern banks. See [[document-model]], [[generator-algos]], [[track-destinations]], and [[routing]].
+Currently: `SeqAIDocument.swift`, `Project.swift`, `PhraseModel.swift`, `Destination.swift`, `TrackGroup.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. Fresh-model document state now centers on inline `Destination`, optional `track.groupID`, project-scoped `trackGroups`, and per-track pattern banks. See [[document-model]], [[generator-algos]], [[track-destinations]], and [[routing]].
 
 ### `Sources/Musical/`
 

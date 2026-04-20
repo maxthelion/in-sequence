@@ -2,13 +2,13 @@
 title: "Document Model"
 category: "data-model"
 tags: [document, seqai, codable, persistence, versioning, filedocument]
-summary: The .seqai file format, the Codable SeqAIDocumentModel that backs it, and the forward-compatible versioning approach.
+summary: The .seqai file format, the Codable Project that backs it, and the forward-compatible versioning approach.
 last-modified-by: user
 ---
 
 ## What a `.seqai` file is
 
-A `.seqai` document is a pretty-printed JSON file produced by serializing `SeqAIDocumentModel` through `JSONEncoder`. It's the user's project. One song per document (decision recorded in the north-star spec's Open Questions).
+A `.seqai` document is a pretty-printed JSON file produced by serializing `Project` through `JSONEncoder`. It's the user's project. One song per document (decision recorded in the north-star spec's Open Questions).
 
 Current scaffold content (the model grows with each later plan):
 
@@ -38,16 +38,16 @@ extension UTType {
 
 ## `FileDocument` conformance
 
-`SeqAIDocument` is a `FileDocument` value type that holds a `SeqAIDocumentModel` and handles read/write to `FileWrapper`:
+`SeqAIDocument` is a `FileDocument` value type that holds a `Project` and handles read/write to `FileWrapper`:
 
 ```swift
 struct SeqAIDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.seqAIDocument] }
     static var writableContentTypes: [UTType] { [.seqAIDocument] }
 
-    var model: SeqAIDocumentModel
+    var model: Project
 
-    init(model: SeqAIDocumentModel = .empty) { … }
+    init(model: Project = .empty) { … }
     init(configuration: ReadConfiguration) throws { … }           // JSONDecoder
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { … }  // JSONEncoder, pretty + sorted
 }
@@ -58,11 +58,11 @@ Output formatting uses `[.prettyPrinted, .sortedKeys]` so diffs are stable and m
 ## Model shape
 
 ```swift
-// Sources/Document/SeqAIDocumentModel.swift
-struct SeqAIDocumentModel: Codable, Equatable {
+// Sources/Document/Project.swift
+struct Project: Codable, Equatable {
     var version: Int
 
-    static let empty = SeqAIDocumentModel(version: 1)
+    static let empty = Project(version: 1)
 }
 ```
 
@@ -72,13 +72,13 @@ Intentionally tiny. Additions arrive via subsequent plans, always keeping `versi
 
 ### Rule
 
-Every schema change to `SeqAIDocumentModel` that could cause an older reader to misinterpret a newer file must increment `version`. Additive changes that an older reader could safely ignore (new optional fields) should keep `version` stable — `JSONDecoder` drops unknown keys.
+Every schema change to `Project` that could cause an older reader to misinterpret a newer file must increment `version`. Additive changes that an older reader could safely ignore (new optional fields) should keep `version` stable — `JSONDecoder` drops unknown keys.
 
 ### Reading old documents
 
 When we need to read a file with a lower `version`, a migration path will be introduced via a `Codable` shim that reads the old shape and constructs the new one. The plan (added in a future sub-spec) is:
 
-- `SeqAIDocumentModelV1`, `SeqAIDocumentModelV2`, … as separate Codable types
+- `ProjectV1`, `ProjectV2`, … as separate Codable types
 - A top-level decoder that peeks at `version`, dispatches to the right Vn decoder, and then lifts to current
 - A single `upgrade(_:)` pipeline for the lift chain
 

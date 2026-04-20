@@ -99,7 +99,7 @@ final class TrackDestinationEditingTests: XCTestCase {
     private func makeModel(
         tracks: [StepSequenceTrack],
         groups: [TrackGroup] = []
-    ) -> SeqAIDocumentModel {
+    ) -> Project {
         let generatorPool = GeneratorPoolEntry.defaultPool
         let clipPool: [ClipPoolEntry] = []
         let layers = PhraseLayerDefinition.defaultSet(for: tracks)
@@ -112,7 +112,7 @@ final class TrackDestinationEditingTests: XCTestCase {
             )
         ]
 
-        return SeqAIDocumentModel(
+        return Project(
             version: 1,
             tracks: tracks,
             trackGroups: groups,

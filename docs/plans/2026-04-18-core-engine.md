@@ -508,7 +508,7 @@ func test_engine_emits_expected_midi_for_N_ticks() throws {
 
 **Scope:** Expose the engine to the SwiftUI app: a single `EngineController` (`@Observable`, macOS 14+) that owns an `Executor`, `TickClock`, `CommandQueue`, and `BlockRegistry`. Bound to Play/Stop in `TransportBar.swift` (Plan 0 placeholder).
 
-**Where does the hard-coded `note-gen → midi-out` pipeline live?** In `EngineController.buildDefaultPipeline()` — a private method called during `EngineController.init()`. Rationale: the document model (`SeqAIDocumentModel`) should NOT yet encode pipelines; that's phrase-scoped and belongs to sub-spec 2 (phrase model). Keeping the pipeline inside `EngineController` means Plan 2 can lift it into the document without rewriting anything in `SeqAIDocumentModel`.
+**Where does the hard-coded `note-gen → midi-out` pipeline live?** In `EngineController.buildDefaultPipeline()` — a private method called during `EngineController.init()`. Rationale: the document model (`Project`) should NOT yet encode pipelines; that's phrase-scoped and belongs to sub-spec 2 (phrase model). Keeping the pipeline inside `EngineController` means Plan 2 can lift it into the document without rewriting anything in `Project`.
 
 The Architecture header's claim that "Engine does not touch the document model here" holds.
 

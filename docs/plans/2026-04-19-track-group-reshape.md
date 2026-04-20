@@ -43,7 +43,7 @@ Sources/
   Document/
     Destination.swift
     PhraseModel.swift
-    SeqAIDocumentModel.swift
+    Project.swift
     TrackGroup.swift
   Engine/
     EngineController.swift
@@ -74,7 +74,7 @@ wiki/pages/
 **Files:**
 
 - Modify: `Sources/Document/PhraseModel.swift`
-- Modify: `Sources/Document/SeqAIDocumentModel.swift`
+- Modify: `Sources/Document/Project.swift`
 - Modify: `Tests/SequencerAITests/SeqAIDocumentTests.swift`
 
 **Done when:**
@@ -97,7 +97,7 @@ wiki/pages/
 **Files:**
 
 - Modify: `Sources/Document/Destination.swift`
-- Modify: `Sources/Document/SeqAIDocumentModel.swift`
+- Modify: `Sources/Document/Project.swift`
 - Modify: `Sources/Document/TrackGroup.swift`
 - Modify: `Sources/Engine/EngineController.swift`
 - Modify: `Tests/SequencerAITests/Engine/EngineControllerTests.swift`
@@ -122,7 +122,7 @@ wiki/pages/
 
 **Files:**
 
-- Modify: `Sources/Document/SeqAIDocumentModel.swift`
+- Modify: `Sources/Document/Project.swift`
 - Modify: `Tests/SequencerAITests/SeqAIDocumentTests.swift`
 
 **Done when:**

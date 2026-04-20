@@ -46,7 +46,7 @@ final class EngineController: RouterDispatcher {
     private(set) var selectedOutput: Destination.Kind
 
     private var currentTrackMix = TrackMixSettings.default
-    private var currentDocumentModel: SeqAIDocumentModel = .empty
+    private var currentDocumentModel: Project = .empty
     private var generatorIDsByTrackID: [UUID: BlockID] = [:]
     private var midiOutBlocksByTrackID: [UUID: MidiOut] = [:]
     private var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
@@ -85,7 +85,7 @@ final class EngineController: RouterDispatcher {
         do {
             try registerCoreBlocks(registry)
             try buildPipeline(for: .empty)
-            router.applyRoutesSnapshot(SeqAIDocumentModel.empty.routes)
+            router.applyRoutesSnapshot(Project.empty.routes)
         } catch {
             NSLog("EngineController setup failed: \(error)")
         }
@@ -134,7 +134,7 @@ final class EngineController: RouterDispatcher {
         _ = commandQueue.enqueue(.setParam(blockID: blockID, paramKey: paramKey, value: value))
     }
 
-    func apply(documentModel: SeqAIDocumentModel) {
+    func apply(documentModel: Project) {
         flushDetachedMIDINoteOffs(from: currentDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         currentDocumentModel = documentModel
         let selectedTrack = documentModel.selectedTrack
@@ -159,7 +159,7 @@ final class EngineController: RouterDispatcher {
         let layers = PhraseLayerDefinition.defaultSet(for: [track])
         let phrase = PhraseModel.default(tracks: [track], layers: layers)
         apply(
-            documentModel: SeqAIDocumentModel(
+            documentModel: Project(
                 version: 1,
                 tracks: [track],
                 layers: layers,
@@ -327,7 +327,7 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func buildPipeline(for documentModel: SeqAIDocumentModel) throws {
+    private func buildPipeline(for documentModel: Project) throws {
         var blocks: [BlockID: Block] = [:]
         var wiring: [BlockID: [PortID: (BlockID, PortID)]] = [:]
         var generatorIDs: [UUID: BlockID] = [:]
@@ -533,7 +533,7 @@ final class EngineController: RouterDispatcher {
         return midiClient?.destinations.first(where: { $0.displayName == port.displayName })
     }
 
-    private func syncTrackParams(for documentModel: SeqAIDocumentModel) {
+    private func syncTrackParams(for documentModel: Project) {
         let generatorIDs = withStateLock { generatorIDsByTrackID }
         for track in documentModel.tracks {
             guard let generatorBlockID = generatorIDs[track.id] else {
@@ -546,7 +546,7 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func syncMidiOutputs(for documentModel: SeqAIDocumentModel) {
+    private func syncMidiOutputs(for documentModel: Project) {
         let midiOutBlocks = withStateLock { midiOutBlocksByTrackID }
         for track in documentModel.tracks {
             let (destination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
@@ -567,7 +567,7 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func syncAudioOutputs(for documentModel: SeqAIDocumentModel) {
+    private func syncAudioOutputs(for documentModel: Project) {
         let desiredAudioTracks = documentModel.tracks.compactMap { track -> (StepSequenceTrack, Destination, Int, AudioOutputKey)? in
             let (destination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
             guard case .auInstrument = destination,
@@ -644,7 +644,7 @@ final class EngineController: RouterDispatcher {
 
     private static func sourceParams(
         for track: StepSequenceTrack,
-        in documentModel: SeqAIDocumentModel
+        in documentModel: Project
     ) -> [String: ParamValue] {
         if let program = noteProgram(for: track, in: documentModel),
            let encoded = encode(program: program)
@@ -668,7 +668,7 @@ final class EngineController: RouterDispatcher {
 
     private static func noteProgram(
         for track: StepSequenceTrack,
-        in documentModel: SeqAIDocumentModel
+        in documentModel: Project
     ) -> NoteGenerator.NoteProgram? {
         let patternIndex = documentModel.selectedPhrase.patternIndex(for: track.id, layers: documentModel.layers)
         let slot = documentModel.patternBank(for: track.id).slot(at: patternIndex)
@@ -956,7 +956,7 @@ final class EngineController: RouterDispatcher {
         "out-\(trackID.uuidString.lowercased())"
     }
 
-    private static func pipelineShape(for documentModel: SeqAIDocumentModel) -> [PipelineEntry] {
+    private static func pipelineShape(for documentModel: Project) -> [PipelineEntry] {
         documentModel.tracks.map {
             PipelineEntry(
                 trackID: $0.id,
@@ -974,8 +974,8 @@ final class EngineController: RouterDispatcher {
     }
 
     private func flushDetachedMIDINoteOffs(
-        from previousDocument: SeqAIDocumentModel,
-        to nextDocument: SeqAIDocumentModel,
+        from previousDocument: Project,
+        to nextDocument: Project,
         now: TimeInterval
     ) {
         let previousTracks = Dictionary(uniqueKeysWithValues: previousDocument.tracks.map { ($0.id, $0) })
@@ -1036,7 +1036,7 @@ final class EngineController: RouterDispatcher {
         return "\(bar):\(beat):\(step)"
     }
 
-    private static func effectiveDestination(for trackID: UUID, in documentModel: SeqAIDocumentModel) -> (destination: Destination, pitchOffset: Int) {
+    private static func effectiveDestination(for trackID: UUID, in documentModel: Project) -> (destination: Destination, pitchOffset: Int) {
         guard let track = documentModel.tracks.first(where: { $0.id == trackID }) else {
             return (.none, 0)
         }
@@ -1055,7 +1055,7 @@ final class EngineController: RouterDispatcher {
         return (track.destination, 0)
     }
 
-    private static func audioOutputKey(for track: StepSequenceTrack, in documentModel: SeqAIDocumentModel) -> AudioOutputKey? {
+    private static func audioOutputKey(for track: StepSequenceTrack, in documentModel: Project) -> AudioOutputKey? {
         let (destination, _) = effectiveDestination(for: track.id, in: documentModel)
         guard case .auInstrument = destination else {
             return nil

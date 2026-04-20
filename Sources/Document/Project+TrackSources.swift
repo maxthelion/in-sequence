@@ -1,6 +1,6 @@
 import Foundation
 
-extension SeqAIDocumentModel {
+extension Project {
     func compatibleGenerators(for track: StepSequenceTrack) -> [GeneratorPoolEntry] {
         generatorPool.filter { $0.trackType == track.trackType }
     }

@@ -17,9 +17,9 @@ struct ContentView: View {
             .padding(18)
         }
         .onAppear {
-            engineController.apply(documentModel: document.model)
+            engineController.apply(documentModel: document.project)
         }
-        .onChange(of: document.model) { _, newModel in
+        .onChange(of: document.project) { _, newModel in
             engineController.apply(documentModel: newModel)
         }
     }

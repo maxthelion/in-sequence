@@ -31,7 +31,7 @@
 Sources/
   Document/
     Route.swift                        # NEW — Route value type + RouteDestination + RouteFilter
-    SeqAIDocumentModel.swift           # MODIFIED — document.routes: [Route]
+    Project.swift           # MODIFIED — document.routes: [Route]
   Engine/
     MIDIRouter.swift                   # NEW — tick-synchronous fan-out
     EngineController.swift             # MODIFIED — hold router; snapshot routes per tick;
@@ -119,12 +119,12 @@ public enum RouteDestination: Codable, Equatable, Sendable {
 **Scope:** Add the list to the document model. Legacy decoder defaults to empty.
 
 **Files:**
-- Modify: `Sources/Document/SeqAIDocumentModel.swift`
+- Modify: `Sources/Document/Project.swift`
 - Modify: `Tests/SequencerAITests/SeqAIDocumentTests.swift`
 
 **Changes:**
 
-- `var routes: [Route] = []` on `SeqAIDocumentModel`
+- `var routes: [Route] = []` on `Project`
 - Codable: write and read the field; decoder defaults to `[]` when absent
 - Convenience: `document.routes(sourcedFrom: TrackID) -> [Route]` filter helper
 - Convenience: `document.routes(targeting: TrackID) -> [Route]` reverse filter

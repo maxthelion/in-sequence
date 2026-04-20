@@ -9,23 +9,23 @@ struct SeqAIDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.seqAIDocument] }
     static var writableContentTypes: [UTType] { [.seqAIDocument] }
 
-    var model: SeqAIDocumentModel
+    var project: Project
 
-    init(model: SeqAIDocumentModel = .empty) {
-        self.model = model
+    init(project: Project = .empty) {
+        self.project = project
     }
 
     init(configuration: ReadConfiguration) throws {
         guard let data = configuration.file.regularFileContents else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        self.model = try JSONDecoder().decode(SeqAIDocumentModel.self, from: data)
+        self.project = try JSONDecoder().decode(Project.self, from: data)
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(model)
+        let data = try encoder.encode(project)
         return FileWrapper(regularFileWithContents: data)
     }
 }

@@ -33,7 +33,7 @@ Sources/
     DetailView.swift
     StudioTopBar.swift
   Document/
-    SeqAIDocumentModel.swift
+    Project.swift
     TrackGroup.swift
 Tests/
   SequencerAITests/
@@ -96,7 +96,7 @@ Tests/
 **Files:**
 
 - Modify: `Sources/UI/TracksMatrixView.swift`
-- Modify: `Sources/Document/SeqAIDocumentModel.swift`
+- Modify: `Sources/Document/Project.swift`
 - Modify: `Tests/SequencerAITests/SeqAIDocumentTests.swift`
 
 **Creation actions:**

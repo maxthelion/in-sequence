@@ -31,7 +31,7 @@ Sources/
   Document/
     Destination.swift                  # NEW — enum .midi | .auInstrument
     Voicing.swift                      # NEW — per-tag Destination map (extracted from PhraseModel.swift)
-    SeqAIDocumentModel.swift           # MODIFIED — Track.voicing: Voicing; legacy migration
+    Project.swift           # MODIFIED — Track.voicing: Voicing; legacy migration
   Audio/
     AUAudioUnitFactory.swift           # NEW — wraps AVAudioUnit instantiation + fullState codec
     AUWindowHost.swift                 # NEW — @MainActor, manages NSWindow per (trackID, tag)
@@ -48,7 +48,7 @@ Tests/
     Document/
       DestinationTests.swift
       VoicingTests.swift
-      SeqAIDocumentModelTests.swift    # MODIFIED — legacy migration assertions
+      ProjectTests.swift    # MODIFIED — legacy migration assertions
     Audio/
       FullStateCoderTests.swift
       AUAudioUnitFactoryTests.swift    # mock-based where we can; integration-tagged where we can't
@@ -168,7 +168,7 @@ public struct Voicing: Codable, Equatable, Sendable {
 
 ## Task 2b: Per-track-type default voicing at track creation
 
-**Scope:** When a track is created via `SeqAIDocumentModel.appendTrack(type:)`, it lands with a type-appropriate default `Voicing`. This is distinct from Task 2 (which just gives us the type); here we add the factory logic.
+**Scope:** When a track is created via `Project.appendTrack(type:)`, it lands with a type-appropriate default `Voicing`. This is distinct from Task 2 (which just gives us the type); here we add the factory logic.
 
 **Per-type defaults:**
 
@@ -181,7 +181,7 @@ public struct Voicing: Codable, Equatable, Sendable {
 The bundled `InternalSamplerBankID` values (`drumKitDefault`, `sliceDefault`) ship with the app. Their audio is hosted by an internal AU (added in a later audio plan) — for now, `Destination.internalSampler` decodes cleanly and gets an explicit TODO in the engine wiring (Task 10) saying "plays silence until internal-sampler AU ships."
 
 **Files:**
-- Modify: `Sources/Document/SeqAIDocumentModel.swift` — `appendTrack(type:)` consults a new helper `Voicing.defaults(forType:)`
+- Modify: `Sources/Document/Project.swift` — `appendTrack(type:)` consults a new helper `Voicing.defaults(forType:)`
 - Modify: `Sources/Document/Voicing.swift` — add the `defaults(forType:)` static
 - Modify: `Tests/SequencerAITests/Document/VoicingTests.swift` — add per-type default assertions
 
@@ -206,7 +206,7 @@ The bundled `InternalSamplerBankID` values (`drumKitDefault`, `sliceDefault`) sh
 **Scope:** Codex's current `StepSequenceTrack` has `output: TrackOutputDestination` (enum) and `audioInstrument: AudioInstrumentChoice` separately. Collapse into `var voicing: Voicing`. Legacy decoder migrates old documents.
 
 **Files:**
-- Modify: `Sources/Document/SeqAIDocumentModel.swift` — change `StepSequenceTrack` fields and update its Codable
+- Modify: `Sources/Document/Project.swift` — change `StepSequenceTrack` fields and update its Codable
 - Modify: `Sources/Engine/EngineController.swift` — read from `track.voicing.defaultDestination` instead of `track.output` + `track.audioInstrument`
 - Modify: `Sources/UI/DetailView.swift` — read/write through the new field
 - Modify: `Tests/SequencerAITests/SeqAIDocumentTests.swift` — assertion updates
@@ -503,7 +503,7 @@ Use `@MainActor` view-model tests where possible; SwiftUI rendering via `NSHosti
 
 - Opening a document: for each track with `.auInstrument` destination, EngineController asks AudioInstrumentHost to attach. The AU loads with its stored state. No window pops up — the user explicitly clicks Edit to open.
 - User edits in the AU window: parameter automation flows live.
-- User closes the AU window: AUWindowHost captures state via FullStateCoder, the writeback closure updates `document.model.tracks[i].voicing.destinations["default"] = .auInstrument(..., stateBlob: newBlob)`.
+- User closes the AU window: AUWindowHost captures state via FullStateCoder, the writeback closure updates `document.project.tracks[i].voicing.destinations["default"] = .auInstrument(..., stateBlob: newBlob)`.
 - Switching voicing to `.midi`: AudioInstrumentHost detaches AU; any open window for that track closes and writes state back.
 - Save document: new stateBlob persists.
 - Reopen: AU re-attaches with saved state; Edit button works; round-trip identical.
@@ -511,7 +511,7 @@ Use `@MainActor` view-model tests where possible; SwiftUI rendering via `NSHosti
 **Tests:**
 
 - Integration-tagged test: load a document with a known AU destination and a pre-captured state blob; verify `AudioInstrumentHost.currentUnit?.auAudioUnit.fullState` matches after attachment.
-- Spy-based test: simulate a window close; verify `document.model.tracks[0].voicing.destinations["default"]` acquires a non-nil stateBlob.
+- Spy-based test: simulate a window close; verify `document.project.tracks[0].voicing.destinations["default"]` acquires a non-nil stateBlob.
 - Manual smoke: hit Play on an AU-destined track, hear output in a DAW / routed through macOS audio; note in commit message.
 
 - [x] Wire EngineController
