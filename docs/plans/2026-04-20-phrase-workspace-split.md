@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Decompose the 1900-LOC `Sources/UI/PhraseWorkspaceView.swift` and the 357-LOC `Sources/UI/PhraseCellPreview.swift` along clean responsibility boundaries. Two separate workspace views are currently cohabiting one file; cell preview, editors, curve visualisation, and pure value-layer helpers are all mixed into one file. This split is explicitly fresh-model-only: it assumes the no-legacy destination/group cleanup has already landed, and it must not preserve or reintroduce compatibility bridges while moving code around. Verified by: both workspace views compile and render identically to pre-split; existing test suite green; the new `PatternIndexCellPreview` renders an 8-slot indicator instead of the current scalar-at-100%-fill hack; no SwiftUI file exceeds 600 LOC after the split.
+**Goal:** Decompose the current 1240-LOC `Sources/UI/PhraseWorkspaceView.swift` and the 356-LOC `Sources/UI/PhraseCellPreview.swift` along clean responsibility boundaries. Two separate workspace views are still cohabiting one file; cell preview, editors, curve visualisation, and pure value-layer helpers are still mixed across UI files. This split is explicitly fresh-model-only: it assumes the no-legacy destination/group cleanup has already landed, and it must not preserve or reintroduce compatibility bridges while moving code around. Verified by: both workspace views compile and render identically to pre-split; existing test suite green; the new `PatternIndexCellPreview` renders an 8-slot indicator instead of the current scalar-at-100%-fill hack; no SwiftUI file touched by this plan exceeds 600 LOC after the split.
 
 **Architecture:** Pure structural decomposition. No behaviour changes except fixing the pattern-index render. Each split is driven by a single responsibility rule:
 
@@ -14,13 +14,15 @@
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md`. Follow-up to `docs/plans/2026-04-19-tracks-matrix.md` (which landed `PhraseCellPreview` consolidation in commits `9ca0abc`/`1bc2593`).
 
-**Depends on:** `cleanup-post-reshape` plan MUST land first. This plan assumes the clean, post-bridge model — no `track.output`, no `track.audioInstrument`, no `TrackOutputDestination`, no `GeneratorKind.drumKit`/`.templateGenerator`. The split is executed against that cleaned model, not the hybrid one. Running the split before the cleanup would either cement the bridges into the new file layout or require a second round of edits per new file.
+**Depends on:** `cleanup-post-reshape` and the destination-editor cleanup MUST land first. In practice this means the post-bridge model on `main` after `60fa69b` and `0df85d7`: no `track.output`, no `track.audioInstrument`, no `TrackOutputDestination`, no `GeneratorKind.drumKit`/`.templateGenerator`, and no destination writes bypassing the model. The split is executed against that cleaned model, not the hybrid one.
+
+If `document-as-project-refactor` lands first, execute this split directly against `Project` / `document.project` call sites and do not preserve the old names during the move.
 
 Can run before or after `characterization`. Running BEFORE characterization means the goldens pin the post-split module structure, which is probably what we want — otherwise the characterization plan pins the current 1900-LOC file and the split becomes a golden-breaking refactor.
 
 **Deliberately deferred:**
 
-- **Further UI decomposition beyond workspace-level.** `DetailView.swift`, `TrackSourceEditorView.swift`, `InspectorView.swift`, `TrackDestinationEditor.swift` are also large; scope-creeping into them turns a ~2-hour refactor into a rewrite. (A separate `track-source-split` plan is the natural follow-up.)
+- **Further UI decomposition beyond workspace-level.** `WorkspaceDetailView.swift`, `TrackSourceEditorView.swift`, `InspectorView.swift`, and `TrackDestinationEditor.swift` are also large; scope-creeping into them turns a ~2-hour refactor into a rewrite. The workspace-router split is already happening separately, and the track-source split has its own follow-up plan.
 - **SwiftUI snapshot tests for the new views.** Covered by `qa-infrastructure` plan.
 
 **Status:** `<STATUS_PREFIX>` `<COMPLETED_MARKER>` TBD. Tag TBD.
@@ -90,7 +92,7 @@ Prefer method form where it reads well (`value.cycled(for:)`, `value.label(for:)
 
 **Files:**
 - Create: `Sources/UI/LiveWorkspaceView.swift`
-- Modify: `Sources/UI/PhraseWorkspaceView.swift` — remove the moved types; adjust `DetailView.swift:238` call site if anything breaks (it shouldn't — `LiveWorkspaceView` stays same type).
+- Modify: `Sources/UI/PhraseWorkspaceView.swift` — remove the moved types; adjust the `WorkspaceDetailView.swift` call site if anything breaks (it shouldn't — `LiveWorkspaceView` stays the same type).
 
 **Symbols moved:**
 - `struct LiveWorkspaceView`
@@ -103,7 +105,7 @@ Prefer method form where it reads well (`value.cycled(for:)`, `value.label(for:)
 - If a `LiveWorkspaceViewTests.swift` doesn't exist, add a one-test smoke that instantiates the view (no assertion body — SwiftUI compile-time + render-time checks cover it).
 
 - [ ] Extract the types
-- [ ] Verify `DetailView.swift` still compiles
+- [ ] Verify the workspace router (`WorkspaceDetailView.swift` in the current tree) still compiles
 - [ ] Green
 - [ ] Commit: `refactor(ui): extract LiveWorkspaceView to its own file`
 
@@ -182,7 +184,7 @@ Two static factories on `CellPreviewMetrics` (`.matrix`, `.live`) keep call site
 
 **Checks:**
 - Full `xcodebuild test` passes.
-- `find Sources/UI -name '*.swift' | xargs wc -l` shows no file over 1000 LOC (today `PhraseWorkspaceView.swift` is 1909 — target after Task 2 is ~1000; `DetailView` at 787 and `TrackSourceEditorView` at ~1100 are out of scope for this plan).
+- `find Sources/UI -name '*.swift' | xargs wc -l` shows no file over 1000 LOC among the files this plan touched (today `PhraseWorkspaceView.swift` is 1240 LOC; target after Task 2 is comfortably below that, while `TrackSourceEditorView.swift` at 1487 LOC and the already-split workspace files are out of scope for this plan).
 - `grep -rn 'import SwiftUI' Sources/Document/` returns zero lines (Document must not import SwiftUI; proves Task 1 cleanly moved only non-UI helpers).
 - Manual smoke: launch the app, open a project, exercise phrase matrix editing + live workspace — both render identically, pattern-index cells now show a slot indicator instead of a solid fill.
 
@@ -219,6 +221,6 @@ Two static factories on `CellPreviewMetrics` (`.matrix`, `.live`) keep call site
 - **`Style` fate:** deleted. The fork only existed to name two call sites; when they live in different files, each constructs its own metrics struct.
 - **Boolean mute special-case location:** stays in `BooleanCellPreview` (it's a layer-id-keyed visual variant and only applies to boolean). If a second layer ever needs a special-case render, consider a `PhraseLayerVisualStyle` value on `PhraseLayerDefinition` itself — but until then, the `layer.id == "mute"` check is localised to one file.
 - **PatternIndex visual:** 8 horizontal mini-pills (labels "P1"…"P8"), current index accented, others dimmed. Matches the existing `PatternIndexPicker` aesthetic without being interactive — they're a preview, not an editor. Exact sizing to match `booleanHeight` so cells remain uniform.
-- **Why not also split `DetailView` and `TrackSourceEditorView`:** out of scope. This plan's charter is the two files directly discussed in the associated review; expanding it turns a mechanical split into an unbounded UI rewrite. Follow-up plans can take them.
+- **Why not also continue the workspace-router split or tackle `TrackSourceEditorView`:** out of scope. This plan's charter is the two phrase/live files directly discussed in the associated review; the router split is already underway elsewhere in the tree, and the track-source work has its own dedicated follow-up plan.
 - **Relationship to `cleanup-post-reshape`:** **sequential, not orthogonal.** Cleanup lands first and produces the clean model this plan targets. This plan's file moves, extractions, and renames are executed against the post-cleanup codebase; any UI bindings touched during the split go directly to `track.destination` / `Destination` (never through retired accessors). Both should land before `characterization` so the goldens pin the intended shape.
 - **No-legacy stance:** this plan is executed with a deletion-favouring posture (per `adversarial-2026-04-20-overly-accepting.md`). If during the split any cell preview, editor, or helper reads a legacy shape that the cleanup plan was supposed to have deleted, treat that as a cleanup-plan regression to fix in-place, not a compatibility case to preserve.
