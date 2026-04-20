@@ -1,0 +1,14 @@
+{
+  "files": {
+    "clap/clap-808.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "hatClosed/hat-closed-1.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "hatClosed/hat-closed-2.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "kick/kick-acoustic.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "kick/kick-punch.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "kick/kick-tr808.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "ride/ride-1.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "snare/snare-acoustic.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
+    "snare/snare-clap.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969"
+  },
+  "version": "v0.0.15-coordinator-scheduling-11-g6a6250c"
+}
