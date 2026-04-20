@@ -1,5 +1,7 @@
 import Foundation
 
+/// NSLock-backed FIFO queue for timer-driven prepare/dispatch callers.
+/// Safe for the current scheduling queue; not intended for the audio render thread.
 final class EventQueue {
     private var events: [ScheduledEvent] = []
     private let lock = NSLock()
@@ -36,6 +38,8 @@ final class EventQueue {
     }
 
     var isEmpty: Bool {
-        count == 0
+        lock.lock()
+        defer { lock.unlock() }
+        return events.isEmpty
     }
 }

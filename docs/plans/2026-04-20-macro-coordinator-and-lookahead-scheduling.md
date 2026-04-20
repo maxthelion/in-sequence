@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Establish the **prepare / dispatch** split in the engine tick loop, with an `EventQueue` sitting between phases; introduce a `MacroCoordinator` that evaluates phrase-layer cells per-step and produces a `LayerSnapshot` in the prepare phase; wire the existing `.mute` phrase layer end-to-end as a walking skeleton so future layers (volume, transpose, intensity, …) slot into a proven pattern. Verified by: `EngineController.processTick` is a two-line dispatcher (`dispatchTick(now:)` then `prepareTick(upcomingStep:now:)`); a new test proves a track whose current step's mute cell resolves to `true` emits zero AU and routed events while other tracks play; `.bars`/`.steps` cell modes on the mute layer are honored (not collapsed to step 0); no regression on existing MIDI/AU/routing tests; full suite green.
+**Goal:** Establish the **prepare / dispatch** split in the engine tick loop, with an `EventQueue` sitting between phases; introduce a `MacroCoordinator` that evaluates phrase-layer cells per-step and produces a `LayerSnapshot` in the prepare phase; wire the existing `.mute` phrase layer end-to-end as a walking skeleton so future layers (volume, transpose, intensity, …) slot into a proven pattern. Verified by: `EngineController.processTick` is a two-line dispatcher (`dispatchTick()` then `prepareTick(upcomingStep:now:)`); a new test proves a track whose current step's mute cell resolves to `true` emits zero AU and routed events while other tracks play; `.bars`/`.steps` cell modes on the mute layer are honored (not collapsed to step 0); no regression on existing MIDI/AU/routing tests; full suite green.
 
 **Architecture:**
 
@@ -12,7 +12,7 @@ The render path should be as cheap as possible. Three concerns, put on three sid
 2. **Coordinator (prepare-phase, cheap).** Between steps, the `MacroCoordinator` reads the current phrase's cells for each active layer at the upcoming step and emits a plain-struct `LayerSnapshot`. No random draws, no algorithm evaluation — just `resolvedValue(for:trackID:stepIndex:)` reads and switch statements.
 3. **Event queue (between prepare and dispatch).** Prepare runs the existing executor + router machinery, applies the snapshot (mute filter in this plan), and enqueues `ScheduledEvent`s. Dispatch drains the queue and fires. Dispatch is constant-cost: drain an array, switch on payload kind, call sink.
 
-The prepare/dispatch pair runs inside one `TickClock` callback for this plan — `dispatchTick(now:)` drains events produced by the previous callback's prepare, then `prepareTick(upcomingStep: tickIndex + 1, now:)` populates the queue for the next callback. This gets the *shape* right without committing to dual-timer offsets or render-thread dispatch yet. Both unlocks become swap-in follow-ups: the queue contract doesn't change when dispatch moves to the audio render thread, only the consumer does.
+The prepare/dispatch pair runs inside one `TickClock` callback for this plan — `dispatchTick()` drains events produced by the previous callback's prepare, then `prepareTick(upcomingStep: tickIndex + 1, now:)` populates the queue for the next callback. This gets the *shape* right without committing to dual-timer offsets or render-thread dispatch yet. Both unlocks become swap-in follow-ups: the queue contract doesn't change when dispatch moves to the audio render thread, only the consumer does.
 
 Scope for the coordinator's first outing is intentionally narrow: **only the `.mute` layer.** Mute is a boolean, the simplest layer to wire, and exercises the full chain (phrase cell → coordinator → snapshot → apply → dispatch filter → tests). Volume, transpose, intensity, and friends are each a follow-up plan of the same shape: add a field to `LayerSnapshot`, add a case to the coordinator's evaluation, add an application point in prepare. Three such follow-ups should clarify what's reusable; don't extract a `PhraseLayerBlock` abstraction before that.
 
@@ -378,7 +378,7 @@ Replace the existing `processTick(tickIndex:now:)` body with:
 
 ```swift
 func processTick(tickIndex: UInt64, now: TimeInterval) {
-    dispatchTick(now: now)
+    dispatchTick()
     prepareTick(upcomingStep: tickIndex &+ 1, now: now)
 }
 ```
@@ -452,7 +452,7 @@ private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
 Add `dispatchTick`:
 
 ```swift
-private func dispatchTick(now: TimeInterval) {
+private func dispatchTick() {
     let events = eventQueue.drain()
     let audioOutputs = withStateLock { audioOutputsByTrackID }
 
@@ -788,4 +788,4 @@ The coordinator is the seam that lets phrase layers reach runtime without each g
 - **Generator re-seed on phrase change.** `perStepProbability` / `randomWeighted` / `markov` re-rolls are bound to document apply, not phrase boundaries. A separate plan will introduce explicit re-seed hooks. Worth noting so the implementer doesn't try to retrofit them here.
 - **When do we add `phraseStep` / `barInPhrase` / `absSongStep` to the snapshot?** The spec mentions them as coordinator output consumed by blocks via `interpret`. No block reads them today, so they're deferred. First consumer will probably be the song-transport plan (the first thing that cares about "which phrase am I in?").
 - **`processTick` public surface.** It's `func processTick(...)` on `EngineController` — currently called only from the clock callback and the test harness. Keeping the signature stable preserves test compatibility. If tests find the two-line version awkward to drive (e.g. they want to observe queue state between prepare and dispatch), expose `prepareTick` / `dispatchTick` as internal instead of private.
-- **Mute semantics: source-side or output-side?** A muted track today should not emit its own AU / routed AU / MIDI events — clear. But should a muted track still act as a **route source**? If track A is muted and has a route `A → voicing(B)`, does B play A's notes? Current plan filters A out of the router's `trackInputs`, meaning mute = source-mute (A falls silent everywhere, including on B). DAW convention varies: Ableton output-mutes (routes still work); Elektron source-mutes. Spec §"Phrase layer evaluation" calls `.mute` *"phrase-scoped per-track mute"* without disambiguating. Decision deferred to the implementer at Task 3; if source-mute feels wrong under manual smoke (Task 6), it's a one-line change to move the filter from `trackInputs` construction to the individual sink-branches of `flushRoutedEvents` (leaving route dispatch alive but suppressing the muted track's *own* output).
+- **Mute semantics: source-side or output-side?** Resolved: **source-mute**. Muted tracks are filtered before routing, so downstream routes sourced from the muted track fall silent too. See `wiki/pages/macro-coordinator.md`.

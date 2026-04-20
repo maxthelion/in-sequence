@@ -10,6 +10,7 @@ final class MacroCoordinator {
             return .empty
         }
 
+        assert(phrase.stepCount > 0, "Phrase stepCount must be positive for coordinator evaluation.")
         let stepInPhrase = Int(upcomingGlobalStep % UInt64(max(1, phrase.stepCount)))
         guard let muteLayer = project.layers.first(where: { $0.target == .mute }) else {
             return .empty

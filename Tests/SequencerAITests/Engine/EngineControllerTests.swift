@@ -517,6 +517,30 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(sink.prepareCallCount, 1)
     }
 
+    func test_processTick_doesNotReapplyUnchangedAudioDestinationEveryDispatch() {
+        let sink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        let track = StepSequenceTrack(
+            name: "Stable AU",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 100,
+            gateLength: 2
+        )
+
+        controller.apply(track: track)
+        XCTAssertEqual(sink.receivedDestinations.count, 1)
+
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.processTick(tickIndex: 1, now: 0.1)
+        controller.processTick(tickIndex: 2, now: 0.2)
+
+        XCTAssertEqual(sink.receivedDestinations.count, 1)
+        XCTAssertEqual(sink.receivedEvents.count, 2)
+    }
+
     func test_group_inherited_audio_destination_reuses_one_host_and_applies_pitch_offsets() {
         var createdSinks: [CapturingAudioSink] = []
         let controller = EngineController(
@@ -605,6 +629,7 @@ final class EngineControllerTests: XCTestCase {
 
         controller.apply(documentModel: document)
         controller.processTick(tickIndex: 0, now: 0)
+        controller.processTick(tickIndex: 1, now: 0.1)
 
         XCTAssertEqual(createdSinks.count, 1)
         let playedPitches = createdSinks[0].receivedEvents.flatMap { $0 }.map(\.pitch).sorted()

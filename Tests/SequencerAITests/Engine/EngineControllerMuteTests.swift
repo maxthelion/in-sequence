@@ -106,6 +106,7 @@ final class EngineControllerMuteTests: XCTestCase {
 
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: 0)
+        controller.processTick(tickIndex: 1, now: 0.1)
 
         XCTAssertEqual(createdSinks.count, 2)
         XCTAssertEqual(createdSinks[0].receivedEvents.flatMap { $0 }.map(\.pitch), [60])

@@ -153,7 +153,7 @@ The current tick loop is split into two phases:
 
 That split lives in [EngineController.swift](/Users/maxwilliams/dev/sequencer-ai/Sources/Engine/EngineController.swift:1):
 
-- `dispatchTick(now:)`
+- `dispatchTick()`
 - `prepareTick(upcomingStep:now:)`
 - `processTick(tickIndex:now:)` as the coordinator between them
 
@@ -170,6 +170,8 @@ The coordinator side is documented in [[macro-coordinator]].
 - chord-context broadcasts
 
 MIDI still sends directly from `MidiOut` during prepare for now. A later plan can move MIDI into the queue without changing the prepare/dispatch boundary.
+
+`ScheduledEvent.scheduledHostTime` is currently a forward-compatible placeholder. The queue drains immediately on dispatch; no sink is yet deferring work against host time.
 
 ## Routing layer
 

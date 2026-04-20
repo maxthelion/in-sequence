@@ -55,6 +55,7 @@ final class EngineController: RouterDispatcher {
     private var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
     private var audioOutputsByTrackID: [UUID: TrackPlaybackSink] = [:]
     private var audioOutputKeysByTrackID: [UUID: AudioOutputKey] = [:]
+    private var lastDestinationByOutputKey: [AudioOutputKey: Destination] = [:]
     private var routeMidiOutputs: [Destination: MidiOut] = [:]
     private var pipelineShape: [PipelineEntry] = []
     private var routedNoteEvents: [RouteDestination: [NoteEvent]] = [:]
@@ -62,6 +63,9 @@ final class EngineController: RouterDispatcher {
     private var routedMIDINotes: [Destination: [NoteEvent]] = [:]
     private var routeDispatchNow: TimeInterval = 0
     private(set) var chordContextByLane: [String: Chord] = [:]
+    // Threading: written in prepareTick and read in flushConcreteDestination.
+    // Both currently run on the clock-callback thread within one processTick call.
+    // Do not read or mutate from other threads without revisiting this contract.
     private var currentLayerSnapshot = LayerSnapshot.empty
 
     private func log(_ message: String) {
@@ -260,10 +264,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
-        if eventQueue.isEmpty {
-            prepareTick(upcomingStep: tickIndex, now: now)
-        }
-        dispatchTick(now: now)
+        dispatchTick()
         prepareTick(upcomingStep: tickIndex &+ 1, now: now)
     }
 
@@ -278,6 +279,7 @@ final class EngineController: RouterDispatcher {
             )
         }
 
+        assert(executor != nil, "EngineController.prepareTick called without an executor.")
         guard let executor else {
             return
         }
@@ -345,10 +347,9 @@ final class EngineController: RouterDispatcher {
         flushRoutedEvents(bpm: executor.currentBPM)
     }
 
-    private func dispatchTick(now: TimeInterval) {
-        _ = now
+    private func dispatchTick() {
         let events = eventQueue.drain()
-        let audioOutputs = withStateLock { audioOutputsByTrackID }
+        let (audioOutputs, outputKeys) = withStateLock { (audioOutputsByTrackID, audioOutputKeysByTrackID) }
 
         for event in events {
             switch event.payload {
@@ -356,14 +357,14 @@ final class EngineController: RouterDispatcher {
                 guard let host = audioOutputs[trackID] else {
                     continue
                 }
-                host.setDestination(destination)
+                applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .routedAU(trackID, destination, notes, bpm, stepsPerBar):
                 guard let host = audioOutputs[trackID] else {
                     continue
                 }
-                host.setDestination(destination)
+                applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .chordContextBroadcast(lane, chord):
@@ -372,6 +373,30 @@ final class EngineController: RouterDispatcher {
             case .routedMIDI:
                 break
             }
+        }
+    }
+
+    private func applyDestinationIfNeeded(
+        _ destination: Destination,
+        trackID: UUID,
+        host: TrackPlaybackSink,
+        outputKeys: [UUID: AudioOutputKey]
+    ) {
+        guard let outputKey = outputKeys[trackID] else {
+            host.setDestination(destination)
+            return
+        }
+
+        let shouldApply = withStateLock {
+            if lastDestinationByOutputKey[outputKey] == destination {
+                return false
+            }
+            lastDestinationByOutputKey[outputKey] = destination
+            return true
+        }
+
+        if shouldApply {
+            host.setDestination(destination)
         }
     }
 
@@ -656,9 +681,11 @@ final class EngineController: RouterDispatcher {
 
         let previousOutputs = withStateLock { audioOutputsByTrackID }
         let previousKeys = withStateLock { audioOutputKeysByTrackID }
+        let previousDestinations = withStateLock { lastDestinationByOutputKey }
         var hostsByKey: [AudioOutputKey: TrackPlaybackSink] = [:]
         var nextOutputs: [UUID: TrackPlaybackSink] = [:]
         var nextKeys: [UUID: AudioOutputKey] = [:]
+        var nextDestinations: [AudioOutputKey: Destination] = [:]
 
         for (track, destination, _, key) in desiredAudioTracks {
             let host = hostsByKey[key] ?? {
@@ -683,7 +710,10 @@ final class EngineController: RouterDispatcher {
             nextOutputs[track.id] = host
             nextKeys[track.id] = key
             log("syncAudioOutputs track=\(track.name) key=\(String(describing: key)) destination=\(destination.summary)")
-            host.setDestination(destination)
+            if previousDestinations[key] != destination {
+                host.setDestination(destination)
+            }
+            nextDestinations[key] = destination
             host.setMix(track.mix)
             host.prepareIfNeeded()
             if isRunning {
@@ -699,6 +729,7 @@ final class EngineController: RouterDispatcher {
         withStateLock {
             audioOutputsByTrackID = nextOutputs
             audioOutputKeysByTrackID = nextKeys
+            lastDestinationByOutputKey = nextDestinations
             audioTrackRuntimes = Dictionary(
                 uniqueKeysWithValues: desiredAudioTracks.map {
                     (

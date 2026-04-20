@@ -42,10 +42,22 @@ final class EventQueueTests: XCTestCase {
     func test_concurrentEnqueueAndDrain_doesNotCorruptState() {
         let queue = EventQueue()
         let chord = Chord(root: 60, chordType: "majorTriad", scale: "major")
-        let group = DispatchGroup()
+        let producers = DispatchGroup()
+        let drainerFinished = DispatchGroup()
+        let stopDraining = DispatchSemaphore(value: 0)
+        let drainedStore = LockedLaneStore()
+
+        drainerFinished.enter()
+        DispatchQueue.global().async {
+            while stopDraining.wait(timeout: .now()) == .timedOut {
+                drainedStore.append(queue.drain())
+            }
+            drainedStore.append(queue.drain())
+            drainerFinished.leave()
+        }
 
         for index in 0..<100 {
-            DispatchQueue.global().async(group: group) {
+            DispatchQueue.global().async(group: producers) {
                 queue.enqueue(
                     ScheduledEvent(
                         scheduledHostTime: Double(index),
@@ -55,10 +67,29 @@ final class EventQueueTests: XCTestCase {
             }
         }
 
-        group.wait()
+        producers.wait()
+        stopDraining.signal()
+        drainerFinished.wait()
 
-        XCTAssertEqual(queue.count, 100)
-        XCTAssertEqual(queue.drain().count, 100)
+        let drainedLanes = Set(drainedStore.events.compactMap { event -> String? in
+            guard case let .chordContextBroadcast(lane, _) = event.payload else {
+                return nil
+            }
+            return lane
+        })
+
+        XCTAssertEqual(drainedLanes.count, 100)
         XCTAssertTrue(queue.isEmpty)
+    }
+}
+
+private final class LockedLaneStore: @unchecked Sendable {
+    private let lock = NSLock()
+    private(set) var events: [ScheduledEvent] = []
+
+    func append(_ newEvents: [ScheduledEvent]) {
+        lock.lock()
+        defer { lock.unlock() }
+        events.append(contentsOf: newEvents)
     }
 }

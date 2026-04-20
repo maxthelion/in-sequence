@@ -20,6 +20,16 @@ For each active layer, for each track, the coordinator calls `PhraseModel.resolv
 
 Future layers add fields such as `volume`, `transpose`, or `intensity`; the expansion is additive.
 
+## Mute semantics
+
+`.mute` currently uses **source-mute** semantics.
+
+- a muted track does not emit its own AU or MIDI output
+- a muted track is also filtered out before the router sees it
+- routes sourced from that track therefore fall silent too
+
+This is the current intentional behavior, locked in by the engine mute tests. If a later product decision wants DAW-style output-mute instead, the change belongs in the routing/apply boundary rather than in phrase-layer evaluation itself.
+
 ## What it does not do
 
 - Compute notes. Note material is pre-generated; the coordinator only evaluates modulations applied on top.

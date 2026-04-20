@@ -1,7 +1,7 @@
 import Foundation
 
 struct LayerSnapshot: Equatable, Sendable {
-    var mute: [UUID: Bool]
+    let mute: [UUID: Bool]
 
     static let empty = LayerSnapshot(mute: [:])
 
