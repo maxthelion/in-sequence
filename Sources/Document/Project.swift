@@ -31,37 +31,28 @@ struct Project: Codable, Equatable {
         phrases: [PhraseModel],
         selectedPhraseID: UUID
     ) {
-        let resolvedLayers = layers.isEmpty
-            ? PhraseLayerDefinition.defaultSet(for: tracks)
-            : layers.map { $0.synced(with: tracks) }
-        let resolvedPatternBanks = patternBanks.isEmpty
-            ? Self.defaultPatternBanks(for: tracks, generatorPool: generatorPool, clipPool: clipPool)
-            : patternBanks
-                .filter { bank in tracks.contains(where: { $0.id == bank.trackID }) }
-                .map { bank in
-                    bank.synced(
-                        track: tracks.first(where: { $0.id == bank.trackID }) ?? .default,
-                        generatorPool: generatorPool,
-                        clipPool: clipPool
-                    )
-                }
-        let resolvedSelectedTrackID = tracks.contains(where: { $0.id == selectedTrackID }) ? selectedTrackID : tracks[0].id
-        let resolvedPhrases = phrases.isEmpty
-            ? [.default(tracks: tracks, layers: resolvedLayers, generatorPool: generatorPool, clipPool: clipPool)]
-            : phrases.map { $0.synced(with: tracks, layers: resolvedLayers) }
-        let resolvedSelectedPhraseID = resolvedPhrases.contains(where: { $0.id == selectedPhraseID }) ? selectedPhraseID : resolvedPhrases[0].id
+        let normalized = Self.normalize(
+            tracks: tracks,
+            generatorPool: generatorPool,
+            clipPool: clipPool,
+            layers: layers.isEmpty ? nil : layers,
+            patternBanks: patternBanks.isEmpty ? nil : patternBanks,
+            phrases: phrases.isEmpty ? nil : phrases,
+            selectedTrackID: selectedTrackID,
+            selectedPhraseID: selectedPhraseID
+        )
 
         self.version = version
         self.tracks = tracks
         self.trackGroups = trackGroups
         self.generatorPool = generatorPool
         self.clipPool = clipPool
-        self.layers = resolvedLayers
+        self.layers = normalized.layers
         self.routes = routes
-        self.patternBanks = resolvedPatternBanks
-        self.selectedTrackID = resolvedSelectedTrackID
-        self.phrases = resolvedPhrases
-        self.selectedPhraseID = resolvedSelectedPhraseID
+        self.patternBanks = normalized.patternBanks
+        self.selectedTrackID = normalized.selectedTrackID
+        self.phrases = normalized.phrases
+        self.selectedPhraseID = normalized.selectedPhraseID
         syncPhrasesWithTracks()
     }
 }

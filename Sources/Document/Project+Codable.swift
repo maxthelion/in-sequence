@@ -1,6 +1,14 @@
 import Foundation
 
 extension Project {
+struct NormalizedFields {
+        var layers: [PhraseLayerDefinition]
+        var patternBanks: [TrackPatternBank]
+        var phrases: [PhraseModel]
+        var selectedTrackID: UUID
+        var selectedPhraseID: UUID
+    }
+
     private enum CodingKeys: String, CodingKey {
         case version
         case tracks
@@ -13,6 +21,68 @@ extension Project {
         case selectedTrackID
         case phrases
         case selectedPhraseID
+    }
+
+static func normalize(
+        tracks: [StepSequenceTrack],
+        generatorPool: [GeneratorPoolEntry],
+        clipPool: [ClipPoolEntry],
+        layers decodedLayers: [PhraseLayerDefinition]?,
+        patternBanks decodedPatternBanks: [TrackPatternBank]?,
+        phrases decodedPhrases: [PhraseModel]?,
+        selectedTrackID decodedSelectedTrackID: UUID?,
+        selectedPhraseID decodedSelectedPhraseID: UUID?
+    ) -> NormalizedFields {
+        let resolvedLayers: [PhraseLayerDefinition] = {
+            guard let decodedLayers, !decodedLayers.isEmpty else {
+                return PhraseLayerDefinition.defaultSet(for: tracks)
+            }
+            return decodedLayers.map { $0.synced(with: tracks) }
+        }()
+
+        let resolvedPatternBanks: [TrackPatternBank] = {
+            guard let decodedPatternBanks, !decodedPatternBanks.isEmpty else {
+                return Self.defaultPatternBanks(for: tracks, generatorPool: generatorPool, clipPool: clipPool)
+            }
+            return decodedPatternBanks
+                .filter { bank in tracks.contains(where: { $0.id == bank.trackID }) }
+                .map { bank in
+                    bank.synced(
+                        track: tracks.first(where: { $0.id == bank.trackID }) ?? .default,
+                        generatorPool: generatorPool,
+                        clipPool: clipPool
+                    )
+                }
+        }()
+
+        let resolvedPhrases: [PhraseModel] = {
+            guard let decodedPhrases, !decodedPhrases.isEmpty else {
+                return [.default(tracks: tracks, layers: resolvedLayers, generatorPool: generatorPool, clipPool: clipPool)]
+            }
+            return decodedPhrases.map { $0.synced(with: tracks, layers: resolvedLayers) }
+        }()
+
+        let resolvedSelectedTrackID: UUID = {
+            if let decodedSelectedTrackID, tracks.contains(where: { $0.id == decodedSelectedTrackID }) {
+                return decodedSelectedTrackID
+            }
+            return tracks[0].id
+        }()
+
+        let resolvedSelectedPhraseID: UUID = {
+            if let decodedSelectedPhraseID, resolvedPhrases.contains(where: { $0.id == decodedSelectedPhraseID }) {
+                return decodedSelectedPhraseID
+            }
+            return resolvedPhrases[0].id
+        }()
+
+        return NormalizedFields(
+            layers: resolvedLayers,
+            patternBanks: resolvedPatternBanks,
+            phrases: resolvedPhrases,
+            selectedTrackID: resolvedSelectedTrackID,
+            selectedPhraseID: resolvedSelectedPhraseID
+        )
     }
 
     init(version: Int, tracks: [StepSequenceTrack], selectedTrackID: UUID) {
@@ -48,49 +118,29 @@ extension Project {
         let resolvedTrackGroups = try container.decodeIfPresent([TrackGroup].self, forKey: .trackGroups) ?? []
         let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
         let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
-        let resolvedLayers = (try container.decodeIfPresent([PhraseLayerDefinition].self, forKey: .layers) ?? PhraseLayerDefinition.defaultSet(for: resolvedTracks))
-            .map { $0.synced(with: resolvedTracks) }
         let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
-        let decodedPatternBanks = try container.decodeIfPresent([TrackPatternBank].self, forKey: .patternBanks) ?? []
-        let resolvedPatternBanks = decodedPatternBanks.isEmpty
-            ? Self.defaultPatternBanks(for: resolvedTracks, generatorPool: resolvedGeneratorPool, clipPool: resolvedClipPool)
-            : decodedPatternBanks.map { bank in
-                bank.synced(
-                    track: resolvedTracks.first(where: { $0.id == bank.trackID }) ?? .default,
-                    generatorPool: resolvedGeneratorPool,
-                    clipPool: resolvedClipPool
-                )
-            }
-        let decodedPhrases = try container.decodeIfPresent([PhraseModel].self, forKey: .phrases) ?? []
-        let resolvedPhrases = decodedPhrases.isEmpty
-            ? [.default(tracks: resolvedTracks, layers: resolvedLayers, generatorPool: resolvedGeneratorPool, clipPool: resolvedClipPool)]
-            : decodedPhrases.map { $0.synced(with: resolvedTracks, layers: resolvedLayers) }
-        let decodedSelectedTrackID = try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID)
-        let resolvedSelectedTrackID: UUID
-        if let decodedSelectedTrackID, resolvedTracks.contains(where: { $0.id == decodedSelectedTrackID }) {
-            resolvedSelectedTrackID = decodedSelectedTrackID
-        } else {
-            resolvedSelectedTrackID = resolvedTracks[0].id
-        }
-        let decodedSelectedPhraseID = try container.decodeIfPresent(UUID.self, forKey: .selectedPhraseID)
-        let resolvedSelectedPhraseID: UUID
-        if let decodedSelectedPhraseID, resolvedPhrases.contains(where: { $0.id == decodedSelectedPhraseID }) {
-            resolvedSelectedPhraseID = decodedSelectedPhraseID
-        } else {
-            resolvedSelectedPhraseID = resolvedPhrases[0].id
-        }
+        let normalized = Self.normalize(
+            tracks: resolvedTracks,
+            generatorPool: resolvedGeneratorPool,
+            clipPool: resolvedClipPool,
+            layers: try container.decodeIfPresent([PhraseLayerDefinition].self, forKey: .layers),
+            patternBanks: try container.decodeIfPresent([TrackPatternBank].self, forKey: .patternBanks),
+            phrases: try container.decodeIfPresent([PhraseModel].self, forKey: .phrases),
+            selectedTrackID: try container.decodeIfPresent(UUID.self, forKey: .selectedTrackID),
+            selectedPhraseID: try container.decodeIfPresent(UUID.self, forKey: .selectedPhraseID)
+        )
 
         version = resolvedVersion
         tracks = resolvedTracks
         trackGroups = resolvedTrackGroups
         generatorPool = resolvedGeneratorPool
         clipPool = resolvedClipPool
-        layers = resolvedLayers
+        layers = normalized.layers
         routes = resolvedRoutes
-        patternBanks = resolvedPatternBanks
-        selectedTrackID = resolvedSelectedTrackID
-        phrases = resolvedPhrases
-        selectedPhraseID = resolvedSelectedPhraseID
+        patternBanks = normalized.patternBanks
+        selectedTrackID = normalized.selectedTrackID
+        phrases = normalized.phrases
+        selectedPhraseID = normalized.selectedPhraseID
         syncPhrasesWithTracks()
     }
 
