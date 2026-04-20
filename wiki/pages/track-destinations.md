@@ -29,6 +29,7 @@ This keeps routing and document persistence aligned: a track can have no default
 - `.midi(port, channel, noteOffset)`
 - `.auInstrument(componentID, stateBlob)`
 - `.internalSampler(bankID, preset)`
+- `.sample(sampleID:, settings:)` — plays a file from the read-only Application Support sample library; editor is `SamplerDestinationWidget` (see [[drum-track-mvp]])
 - `.none`
 
 `Destination` is the concrete "where notes go" value. It is intentionally portable:
