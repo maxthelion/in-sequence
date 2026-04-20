@@ -42,6 +42,7 @@ Pods/
 # Behaviour-tree generated files — churn-on-every-run. Durable state
 # (review-queue/, inbox/, work-item.md, candidates.md, last-*-sha) is committed.
 .claude/state/next-action.md
+.claude/state/perf-raw/
 
 # Octowiki runtime state (regenerable caches / queues)
 wiki/.meta/

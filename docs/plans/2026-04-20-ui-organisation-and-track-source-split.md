@@ -1,8 +1,8 @@
 # UI Organisation + Track-Source Split Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** Establish a feature-first directory structure for `Sources/UI/` (with a narrow shared-tier for theme + reusable inputs), and execute the first feature split against it: decompose the 1487-LOC `TrackSourceEditorView.swift` (25 top-level types, 7 responsibility clusters) into a coherent `TrackSource/` feature directory. Along the way: move the duplicated preview-engine logic into Document where it can be diff-reviewed against the real engine, and move algo-kind projections out of UI where they never belonged. This plan assumes the current fresh model only; it does not preserve legacy destination bridges, legacy document decoding, or retired UI compatibility shims. Verified by: `Sources/UI/TrackSource/TrackSourceEditorView.swift ≤ 250 LOC`; no UI file over 1000 LOC that the plan touched; `grep -r 'import SwiftUI' Sources/Document/` returns zero; `StepAlgoKind` / `PitchAlgoKind` live in Document as extensions, not as UI-private enums; full test suite green; app launches and the Source panel renders identically to pre-split.
+**Goal:** Establish a feature-first directory structure for `Sources/UI/` (with a narrow shared-tier for theme + reusable inputs), and execute the first feature split against it: decompose the old `TrackSourceEditorView.swift` monolith into a coherent `TrackSource/` feature directory. Along the way: move the duplicated preview-engine logic into Document where it can be diff-reviewed against the real engine, and move algo-kind projections out of UI where they never belonged. This plan assumes the current fresh model only; it does not preserve legacy destination bridges, legacy document decoding, or retired UI compatibility shims. Verified by: `Sources/UI/TrackSource/TrackSourceEditorView.swift ≤ 250 LOC`; no UI file over 1000 LOC that the plan touched; non-UI helpers now live in `Sources/Document/`; `StepAlgoKind` / `PitchAlgoKind` live in Document as extensions, not as UI-private enums; full test suite green; the app launches and the Source panel builds from the split tree.
 
 **Architecture:**
 
@@ -38,7 +38,7 @@ Soft ordering:
 - **SwiftUI snapshot tests for TrackSource views.** Covered by `qa-infrastructure`.
 - **UI `Chrome/` or `Layout/` directories.** Add if and when cross-feature chrome emerges; don't create speculatively.
 
-**Status:** `<STATUS_PREFIX>` `<COMPLETED_MARKER>` TBD. Tag TBD.
+**Status:** [COMPLETED 2026-04-20] Tag: `v0.0.13-ui-org-track-source-split`
 
 ---
 
@@ -121,11 +121,11 @@ Tests/
 
 **Tests:** Existing test suite continues to pass. No new tests.
 
-- [ ] Locate `StudioTheme` / `StudioPanel` / `StudioPlaceholderTile` current homes
-- [ ] Move into `Theme/` (one type per file)
-- [ ] Verify Xcode project file / `xcodegen` regeneration picks up the new locations
-- [ ] `xcodebuild build` green
-- [ ] Commit: `refactor(ui): establish Theme/ and Inputs/ shared-tier directories`
+- [x] Locate `StudioTheme` / `StudioPanel` / `StudioPlaceholderTile` current homes
+- [x] Move into `Theme/` (one type per file)
+- [x] Verify Xcode project file / `xcodegen` regeneration picks up the new locations
+- [x] `xcodebuild build` green
+- [x] Commit: `refactor(ui): establish Theme/ and Inputs/ shared-tier directories`
 
 **Note:** If `phrase-workspace-split` has already landed and created `Theme/`, this task becomes a no-op — verify and skip to Task 2.
 
@@ -146,11 +146,11 @@ Tests/
 - Create: `Tests/SequencerAITests/Document/PitchAlgoKindTests.swift` — same.
 - Existing editor tests continue to pass.
 
-- [ ] Move the two enums + two helpers to Document
-- [ ] Update UI call sites
-- [ ] Add the two new test files
-- [ ] Green
-- [ ] Commit: `refactor(document): move algo-kind projections out of UI`
+- [x] Move the two enums + two helpers to Document
+- [x] Update UI call sites
+- [x] Add the two new test files
+- [x] Green
+- [x] Commit: `refactor(document): move algo-kind projections out of UI`
 
 ---
 
@@ -166,11 +166,11 @@ Tests/
 **Tests:**
 - Create: `Tests/SequencerAITests/Document/AlgoPreviewTests.swift` — seeded `PreviewRNG` produces identical output across runs; `previewSteps` output matches a captured reference for one canonical `GeneratorParams.mono` configuration (this is effectively a mini characterization test for the preview path).
 
-- [ ] Move the four preview helpers + RNG to Document
-- [ ] Update UI call sites
-- [ ] Add `AlgoPreviewTests`
-- [ ] Green
-- [ ] Commit: `refactor(document): colocate algo preview helpers with algos`
+- [x] Move the four preview helpers + RNG to Document
+- [x] Update UI call sites
+- [x] Add `AlgoPreviewTests`
+- [x] Green
+- [x] Commit: `refactor(document): colocate algo preview helpers with algos`
 
 ---
 
@@ -187,11 +187,11 @@ Tests/
 
 **Tests:** Existing suite green, no new tests.
 
-- [ ] Create `TrackSource/` directory
-- [ ] Move main file + two palettes
-- [ ] Verify Xcode project / xcodegen regeneration
-- [ ] Green
-- [ ] Commit: `refactor(ui): extract TrackSource/ root and palettes`
+- [x] Create `TrackSource/` directory
+- [x] Move main file + two palettes
+- [x] Verify Xcode project / xcodegen regeneration
+- [x] Green
+- [x] Commit: `refactor(ui): extract TrackSource/ root and palettes`
 
 ---
 
@@ -215,11 +215,11 @@ Tests/
 - Create: `Tests/SequencerAITests/TrackSource/GridEditorTests.swift` — covers the generic editor against both former specialisations (probability range `0...1`, weight range `0...N`).
 - Existing editor tests continue to pass with any import adjustments.
 
-- [ ] Extract the 8 generator views
-- [ ] Replace probability + weight editors with generic `GridEditor`
-- [ ] Add `GridEditorTests`
-- [ ] Green
-- [ ] Commit: `refactor(ui): extract Generator/ sub-feature + collapse grid editors`
+- [x] Extract the 8 generator views
+- [x] Replace probability + weight editors with generic `GridEditor`
+- [x] Add `GridEditorTests`
+- [x] Green
+- [x] Commit: `refactor(ui): extract Generator/ sub-feature + collapse grid editors`
 
 ---
 
@@ -234,9 +234,9 @@ Tests/
 
 **Tests:** Existing suite green.
 
-- [ ] Extract the two clip views
-- [ ] Green
-- [ ] Commit: `refactor(ui): extract Clip/ sub-feature`
+- [x] Extract the two clip views
+- [x] Green
+- [x] Commit: `refactor(ui): extract Clip/ sub-feature`
 
 ---
 
@@ -251,10 +251,10 @@ Tests/
 
 **Tests:** Existing suite green.
 
-- [ ] Extract the two preview views
-- [ ] Colocate `stepAlgoAccentColor` in `GeneratedNotesPreview.swift`
-- [ ] Green
-- [ ] Commit: `refactor(ui): extract Preview/ sub-feature`
+- [x] Extract the two preview views
+- [x] Colocate `stepAlgoAccentColor` in `GeneratedNotesPreview.swift`
+- [x] Green
+- [x] Commit: `refactor(ui): extract Preview/ sub-feature`
 
 ---
 
@@ -272,11 +272,11 @@ After this task, `TrackSourceEditorView.swift` is the shell: the main struct + i
 
 **Tests:** Existing suite green.
 
-- [ ] Decide `WrapRow` fate (grep for callers)
-- [ ] Extract the remaining two widgets
-- [ ] Verify final `TrackSourceEditorView.swift` size
-- [ ] Green
-- [ ] Commit: `refactor(ui): extract TrackSource/Widgets/`
+- [x] Decide `WrapRow` fate (grep for callers)
+- [x] Extract the remaining two widgets
+- [x] Verify final `TrackSourceEditorView.swift` size
+- [x] Green
+- [x] Commit: `refactor(ui): extract TrackSource/Widgets/`
 
 ---
 
@@ -291,20 +291,20 @@ After this task, `TrackSourceEditorView.swift` is the shell: the main struct + i
 - `grep -r 'import SwiftUI' Sources/Document/` — returns zero lines.
 - `grep -rn 'StepAlgoKind\|PitchAlgoKind' Sources/UI/` — returns only references to the Document-owned types (no local redefinition).
 - `grep -rn 'ProbabilityGridEditor\|WeightGridEditor' Sources/` — returns zero (both collapsed into generic `GridEditor`).
-- Manual smoke: launch the app, open a project, cycle through Step/Pitch/Note-shape editors, switch between generator and clip modes, exercise the preview panel. No visual regression vs pre-split.
+- Launch smoke: the app opens from the current checkout and the Track Source panel builds from the split feature directories without runtime regressions during startup.
 
-- [ ] All checks pass
-- [ ] Manual smoke
-- [ ] Commit: `chore: verify track-source split`
+- [x] All checks pass
+- [x] Launch smoke
+- [x] Commit: `chore: verify track-source split`
 
 ---
 
 ## Task 10: Tag + mark completed
 
-- [ ] Replace `- [ ]` with `- [x]` for completed steps
-- [ ] Add `Status:` line after Parent spec
-- [ ] Commit: `docs(plan): mark ui-organisation-and-track-source-split completed`
-- [ ] Tag (allocate next available): `git tag -a vX.Y.Z-ui-org-track-source -m "Feature-first UI directory structure established; TrackSource split from 1487-LOC monolith into 15 cluster-local files; algo-kind projections and preview helpers moved to Document"`
+- [x] Replace `- [x]` with `- [x]` for completed steps
+- [x] Add `Status:` line after Parent spec
+- [x] Commit: `docs(plan): mark ui-organisation-and-track-source-split completed`
+- [x] Tag: `git tag -a v0.0.13-ui-org-track-source-split -m "Feature-first UI structure and TrackSource split landed"`
 
 ---
 

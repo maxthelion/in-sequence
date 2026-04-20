@@ -1,8 +1,8 @@
 # Test Performance Investigation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** Understand where `xcodebuild test` time actually goes, apply the config-only wins that require no refactor, and produce the data needed to decide whether a structural change (SPM split, test-target slicing) is worth the cost. Verified by: a committed `.claude/state/test-perf-baseline.md` with cold/warm wall-clock + compile-vs-execute ratios; config wins (parallel tests, coverage off, derivedData path) applied and re-measured; a go/no-go decision on structural work based on data, not hunch; a `scripts/measure-test-time.sh` that anyone can run to reproduce the numbers.
+**Goal:** Understand where `xcodebuild test` time actually goes, apply the config-only wins that require no refactor, and produce the data needed to decide whether a structural change (SPM split, test-target slicing) is worth the cost. This run hit the plan’s early-stop condition, so the practical verification is a committed `.claude/state/test-perf-baseline.md` with cold/warm wall-clock numbers plus a committed `.claude/state/test-perf-followup-findings.md` that makes a data-backed no-go decision on further work for the current tree.
 
 **Architecture:** Three phases, cheap before expensive:
 
@@ -23,18 +23,13 @@ Bounded by a soft 1-day time cap. Perf investigation is a tarpit; the point is e
 - **CI-side optimisation** (self-hosted runners, caching strategies, pre-warmed images). GitHub Actions macos-latest is what it is; this plan targets local/overnight dev-machine runs.
 - **Build-system alternatives** (Bazel, Tuist beyond xcodegen). Massive scope, not paying off for a 184-test project.
 
-**Status:** `<STATUS_PREFIX>` `<COMPLETED_MARKER>` TBD. Tag TBD (likely no tag — infrastructure plan, no user-visible ship).
+**Status:** ✅ Completed early after Task 1 stop condition (`cold < 60s`). No tag.
 
 ---
 
 ## File Structure
 
 ```
-scripts/
-  measure-test-time.sh                   # NEW — reproducible timing capture
-  perf/
-    parse-xcresult-timings.sh            # NEW — per-test-class duration extraction from .xcresult
-    (optional) run-subset.sh             # NEW — convenience for -only-testing filters
 .claude/state/
   test-perf-baseline.md                  # NEW — recorded numbers + analysis
   test-perf-followup-findings.md         # NEW — what structural change (if any) is warranted
@@ -42,10 +37,6 @@ docs/
   plans/
     2026-04-20-test-performance-investigation.md    # this file
     (conditional follow-up if Task 6 recommends one)
-project.yml
-  # preferred home for persistent scheme / build-setting edits per Task 4
-SequencerAI.xcodeproj
-  # regenerated from project.yml via xcodegen; don't hand-edit unless measurement proves it unavoidable
 ```
 
 ---
@@ -66,9 +57,9 @@ Capture output to `.claude/state/perf-raw/baseline-run-1.log` (gitignored) and d
 - Three times recorded: cold, warm-incremental, warm-noop.
 - If cold is < 60s, the investigation is probably over. Note this and proceed to Task 2 only if cold > 60s.
 
-- [ ] Run the three timings
-- [ ] Record in baseline doc
-- [ ] Commit: `chore(perf): baseline xcodebuild test timings`
+- [x] Run the three timings
+- [x] Record in baseline doc
+- [x] Commit: `chore(perf): baseline xcodebuild test timings`
 
 ---
 
@@ -88,6 +79,7 @@ Capture output to `.claude/state/perf-raw/baseline-run-1.log` (gitignored) and d
 - [ ] Run timing summary
 - [ ] Distill into baseline doc
 - [ ] Commit: `chore(perf): compile-vs-execute ratio recorded`
+  Closed early per the Task 1 stop condition; not needed for the current tree.
 
 ---
 
@@ -109,6 +101,7 @@ Capture output to `.claude/state/perf-raw/baseline-run-1.log` (gitignored) and d
 - [ ] Run against a fresh `.xcresult`
 - [ ] Record top-10 in baseline doc
 - [ ] Commit: `feat(scripts): parse-xcresult-timings`
+  Closed early per the Task 1 stop condition; not needed for the current tree.
 
 ---
 
@@ -138,6 +131,7 @@ Capture output to `.claude/state/perf-raw/baseline-run-1.log` (gitignored) and d
 - [ ] Apply + measure each candidate
 - [ ] Keep the winners; revert losers
 - [ ] Commit (may be several commits): `perf(test): <flag> reduces warm run from X to Y`
+  Closed early per the Task 1 stop condition; not needed for the current tree.
 
 ---
 
@@ -155,6 +149,7 @@ Capture output to `.claude/state/perf-raw/baseline-run-1.log` (gitignored) and d
 
 - [ ] Grep + document
 - [ ] Commit: `chore(perf): surface test-execution hotspots`
+  Closed early per the Task 1 stop condition; not needed for the current tree.
 
 ---
 
@@ -178,9 +173,9 @@ Write the recommendation (with the data that supports it) to `.claude/state/test
 - Decision section written and committed.
 - If a follow-up plan is warranted, its stub file exists and is linked.
 
-- [ ] Make the call based on data
-- [ ] Write decision + (optional) follow-up plan stub
-- [ ] Commit: `docs(perf): test performance decision and (optional) follow-up plan`
+- [x] Make the call based on data
+- [x] Write decision + (optional) follow-up plan stub
+- [x] Commit: `docs(perf): test performance decision and (optional) follow-up plan`
 
 ---
 
@@ -203,6 +198,7 @@ Write the recommendation (with the data that supports it) to `.claude/state/test
 - [ ] Write script
 - [ ] Verify reproducibility
 - [ ] Commit: `feat(scripts): reproducible measure-test-time`
+  Closed early per the Task 1 stop condition; not needed for the current tree.
 
 ---
 
@@ -219,15 +215,16 @@ Write the recommendation (with the data that supports it) to `.claude/state/test
 
 - [ ] Document convention in the real repo guidance files (`AGENTS.md`, then the execution skill if needed)
 - [ ] Commit: `docs(plan): per-task xcodebuild test-filter rule`
+  Closed early per the Task 1 stop condition; not needed for the current tree.
 
 ---
 
 ## Task 9: Close
 
-- [ ] Replace `- [ ]` with `- [x]` for completed steps
-- [ ] Add `Status:` line after Parent spec
-- [ ] Commit: `docs(plan): mark test-performance-investigation completed`
-- [ ] Tag (optional; infrastructure): if tagging, `git tag -a vX.Y.Z-test-perf -m "Test-time baseline recorded; config wins applied; structural decision made"`
+- [x] Replace `- [ ]` with `- [x]` for completed steps
+- [x] Add `Status:` line after Parent spec
+- [x] Commit: `docs(plan): mark test-performance-investigation completed`
+- [x] Tag (optional; infrastructure): skipped by design
 
 ---
 

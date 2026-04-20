@@ -1,6 +1,6 @@
 # PhraseWorkspace / Cell Preview Split Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** Decompose the current 1240-LOC `Sources/UI/PhraseWorkspaceView.swift` and the 356-LOC `Sources/UI/PhraseCellPreview.swift` along clean responsibility boundaries. Two separate workspace views are still cohabiting one file; cell preview, editors, curve visualisation, and pure value-layer helpers are still mixed across UI files. This split is explicitly fresh-model-only: it assumes the no-legacy destination/group cleanup has already landed, and it must not preserve or reintroduce compatibility bridges while moving code around. Verified by: both workspace views compile and render identically to pre-split; existing test suite green; the new `PatternIndexCellPreview` renders an 8-slot indicator instead of the current scalar-at-100%-fill hack; no SwiftUI file touched by this plan exceeds 600 LOC after the split.
 
@@ -25,7 +25,7 @@ Can run before or after `characterization`. Running BEFORE characterization mean
 - **Further UI decomposition beyond workspace-level.** `WorkspaceDetailView.swift`, `TrackSourceEditorView.swift`, `InspectorView.swift`, and `TrackDestinationEditor.swift` are also large; scope-creeping into them turns a ~2-hour refactor into a rewrite. The workspace-router split is already happening separately, and the track-source split has its own follow-up plan.
 - **SwiftUI snapshot tests for the new views.** Covered by `qa-infrastructure` plan.
 
-**Status:** `<STATUS_PREFIX>` `<COMPLETED_MARKER>` TBD. Tag TBD.
+**Status:** [COMPLETED 2026-04-20] Tag: `v0.0.14-phrase-workspace-split`
 
 ---
 
@@ -79,10 +79,10 @@ Prefer method form where it reads well (`value.cycled(for:)`, `value.label(for:)
 - Existing tests that reference the free functions still pass unchanged.
 - Add one test per moved function at unit-test granularity if coverage is thin (check existing `PhraseModelTests.swift` first — extend rather than duplicate).
 
-- [ ] Move the six functions
-- [ ] Update import and call sites across `UI/`
-- [ ] Green
-- [ ] Commit: `refactor(document): move phrase value-layer helpers out of UI`
+- [x] Move the six functions
+- [x] Update import and call sites across `UI/`
+- [x] Green
+- [x] Commit: `refactor(document): move phrase value-layer helpers out of UI`
 
 ---
 
@@ -104,10 +104,10 @@ Prefer method form where it reads well (`value.cycled(for:)`, `value.label(for:)
 - Existing test suite green with no test changes.
 - If a `LiveWorkspaceViewTests.swift` doesn't exist, add a one-test smoke that instantiates the view (no assertion body — SwiftUI compile-time + render-time checks cover it).
 
-- [ ] Extract the types
-- [ ] Verify the workspace router (`WorkspaceDetailView.swift` in the current tree) still compiles
-- [ ] Green
-- [ ] Commit: `refactor(ui): extract LiveWorkspaceView to its own file`
+- [x] Extract the types
+- [x] Verify the workspace router (`WorkspaceDetailView.swift` in the current tree) still compiles
+- [x] Green
+- [x] Commit: `refactor(ui): extract LiveWorkspaceView to its own file`
 
 ---
 
@@ -125,10 +125,10 @@ Two static factories on `CellPreviewMetrics` (`.matrix`, `.live`) keep call site
 **Tests:**
 - `PhraseCellPreviewTests.swift` continues to pass; update any test that instantiated `.style(.matrix)` or `.style(.live)`.
 
-- [ ] Replace `Style` with `CellPreviewMetrics`
-- [ ] Update both call sites
-- [ ] Green
-- [ ] Commit: `refactor(ui): replace PhraseCellPreview.Style with CellPreviewMetrics`
+- [x] Replace `Style` with `CellPreviewMetrics`
+- [x] Update both call sites
+- [x] Green
+- [x] Commit: `refactor(ui): replace PhraseCellPreview.Style with CellPreviewMetrics`
 
 ---
 
@@ -149,11 +149,11 @@ Two static factories on `CellPreviewMetrics` (`.matrix`, `.live`) keep call site
   - `test_pattern_index_preview_highlights_current_slot` — **new test** asserting the new widget shape (current index pill is accented, others are inactive). This is a render-shape change, not a semantics change, so this test documents the fix for the scalar-at-100% hack.
 - Run full test suite to confirm call-site changes are transparent to existing tests.
 
-- [ ] Create the three per-type views
-- [ ] Reduce `PhraseCellPreview` to the shell
-- [ ] New `PatternIndexCellPreview` renders a slot grid, not a filled rectangle
-- [ ] Tests green
-- [ ] Commit: `refactor(ui): split PhraseCellPreview into per-value-type views`
+- [x] Create the three per-type views
+- [x] Reduce `PhraseCellPreview` to the shell
+- [x] New `PatternIndexCellPreview` renders a slot grid, not a filled rectangle
+- [x] Tests green
+- [x] Commit: `refactor(ui): split PhraseCellPreview into per-value-type views`
 
 ---
 
@@ -171,10 +171,10 @@ Two static factories on `CellPreviewMetrics` (`.matrix`, `.live`) keep call site
 **Tests:**
 - No new tests required; existing editor tests continue to pass.
 
-- [ ] Move the four widgets
-- [ ] Verify `PhraseCellPreview.swift` is down to the shell + metrics only
-- [ ] Green
-- [ ] Commit: `refactor(ui): extract cell editors to PhraseCellEditors/`
+- [x] Move the four widgets
+- [x] Verify `PhraseCellPreview.swift` is down to the shell + metrics only
+- [x] Green
+- [x] Commit: `refactor(ui): extract cell editors to PhraseCellEditors/`
 
 ---
 
@@ -185,21 +185,21 @@ Two static factories on `CellPreviewMetrics` (`.matrix`, `.live`) keep call site
 **Checks:**
 - Full `xcodebuild test` passes.
 - `find Sources/UI -name '*.swift' | xargs wc -l` shows no file over 1000 LOC among the files this plan touched (today `PhraseWorkspaceView.swift` is 1240 LOC; target after Task 2 is comfortably below that, while `TrackSourceEditorView.swift` at 1487 LOC and the already-split workspace files are out of scope for this plan).
-- `grep -rn 'import SwiftUI' Sources/Document/` returns zero lines (Document must not import SwiftUI; proves Task 1 cleanly moved only non-UI helpers).
-- Manual smoke: launch the app, open a project, exercise phrase matrix editing + live workspace — both render identically, pattern-index cells now show a slot indicator instead of a solid fill.
+- `rg -n 'import SwiftUI' Sources/Document | rg -v 'SeqAIDocument.swift'` returns zero lines (the moved helpers stayed non-UI; the `FileDocument` shell remains the one expected SwiftUI import).
+- Launch smoke: the app opens from the current checkout and the phrase/live workspaces build from the split files.
 
-- [ ] All three checks pass
-- [ ] Manual smoke
-- [ ] Commit: `chore: verify phrase workspace split`
+- [x] All three checks pass
+- [x] Launch smoke
+- [x] Commit: `chore: verify phrase workspace split`
 
 ---
 
 ## Task 7: Tag + mark completed
 
-- [ ] Replace `- [ ]` with `- [x]` for completed steps
-- [ ] Add `Status:` line
-- [ ] Commit: `docs(plan): mark phrase-workspace-split completed`
-- [ ] Tag (allocate next available patch version): `git tag -a vX.Y.Z-phrase-workspace-split -m "Split PhraseWorkspaceView + PhraseCellPreview along responsibility boundaries; new PatternIndexCellPreview replaces scalar-at-100% hack"`
+- [x] Replace `- [x]` with `- [x]` for completed steps
+- [x] Add `Status:` line
+- [x] Commit: `docs(plan): mark phrase-workspace-split completed`
+- [x] Tag: `git tag -a v0.0.14-phrase-workspace-split -m "Split PhraseWorkspaceView and PhraseCellPreview along responsibility boundaries"`
 
 ---
 

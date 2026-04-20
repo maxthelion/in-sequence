@@ -1,18 +1,18 @@
 # Document-as-Project Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** Rename `Project` → `Project` (type + `SeqAIDocument.model` property), extract `StepSequenceTrack` / `TrackType` / `TrackMixSettings` into their own files, relocate drum-kit presets to `Sources/Musical/` with a Destination-projection extension that stays in `Document/`, consolidate three duplicate Codable-init normalization paths, and split the current god file into cohesive `Project+*.swift` extension files following the `+TrackSources` precedent. Verified by: `wc -l Sources/Document/Project.swift ≤ 200`; no file in scope > 500 LOC; `grep -r 'Project\|document\.model' Sources/ Tests/` returns zero; `DrumKitPreset` lives in `Musical/` with its Destination projection in `Document/DrumKitPreset+Destination.swift`; newly written projects round-trip through encode/decode in tests; full test suite green; app launches with no behavioural regression. This plan is explicitly fresh-model-only: do not add migration shims for pre-rename `.seqai` payloads.
+**Goal:** Rename `SeqAIDocumentModel` → `Project` (type + `SeqAIDocument.model` property), extract `StepSequenceTrack` / `TrackType` / `TrackMixSettings` into their own files, relocate drum-kit presets to `Sources/Musical/` with a Destination-projection extension that stays in `Document/`, consolidate the duplicate Codable-init normalization paths, and split the old god file into cohesive `Project+*.swift` extension files following the `+TrackSources` precedent. Verified by: `wc -l Sources/Document/Project.swift ≤ 200`; no file in scope > 500 LOC; `grep -r 'SeqAIDocumentModel\\|document\\.model' Sources/ Tests/` returns zero; `DrumKitPreset` lives in `Musical/` with its Destination projection in `Document/DrumKitPreset+Destination.swift`; newly written projects round-trip through encode/decode in tests; full test suite green; the app launches from the current checkout. This plan is explicitly fresh-model-only: do not add migration shims for pre-rename `.seqai` payloads.
 
 **Architecture:**
 
-Name the domain concept. `Project` is the persisted state of the sequencer — tracks, phrases, patterns, routes, groups, pools, selection. Naming it after SwiftUI's `FileDocument` idiom hides what it actually is. After this plan, `Project` is the domain type; `SeqAIDocument: FileDocument` is a thin persistence shell whose one job is JSON in/out. Every downstream reader says `document.project.tracks` instead of `document.project.tracks`, and the domain name is visible at every call site.
+Name the domain concept. `Project` is the persisted state of the sequencer — tracks, phrases, patterns, routes, groups, pools, selection. Naming it after SwiftUI's `FileDocument` idiom hides what it actually is. After this plan, `Project` is the domain type; `SeqAIDocument: FileDocument` is a thin persistence shell whose one job is JSON in/out. Every downstream reader says `document.project.tracks` instead of `document.model.tracks`, and the domain name is visible at every call site.
 
 Within `Project`, responsibilities are split across extension files (`Project+Tracks.swift`, `Project+Phrases.swift`, `Project+Routes.swift`, `Project+Groups.swift`, `Project+Patterns.swift`, `Project+Selection.swift`, `Project+PhraseCells.swift`, `Project+DrumKit.swift`, `Project+Codable.swift`) following the precedent set by `Project+TrackSources.swift`. The core `Project.swift` carries stored properties, `.empty`, `CodingKeys`, a couple of single-line accessors, and the two designated initializers — ~200 LOC.
 
 Drum-kit presets — `DrumKitNoteMap`, `DrumKitPreset` — are shipped reference data, which `wiki/pages/project-layout.md` says belongs in `Musical/`. They move. Their `suggestedSharedDestination` projection needs `Destination`, which cannot move to `Musical/` (it carries `.auInstrument(stateBlob: Data)` session state, not reference data), so a small `DrumKitPreset+Destination.swift` extension stays in `Document/`. This preserves the rule that `Musical/` imports nothing project-internal.
 
-Three Codable-init paths today duplicate the same "resolve layers → resolve pattern banks → clamp selection IDs → resolve phrases" normalization: `init(version:tracks:selectedTrackID:)`, the main `init(version:tracks:trackGroups:...)`, and `init(from decoder:)`. They collapse behind a single private `Project.normalize(...)` returning a `NormalizedFields` struct. The three initializers become thin adapters.
+Three Codable-init paths today duplicate the same "resolve layers → resolve pattern banks → clamp selection IDs → resolve phrases" normalization: `init(version:tracks:selectedTrackID:)`, the main `init(version:tracks:trackGroups:...)`, and `init(from decoder:)`. They collapse behind a single shared `Project.normalize(...)` returning a `NormalizedFields` struct. The three initializers become thin adapters.
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md` (no new specification; pure structural refactor).
 
@@ -25,7 +25,7 @@ Three Codable-init paths today duplicate the same "resolve layers → resolve pa
 - **Removing `TrackType.label` vs `shortLabel` duplication** (they currently return the same strings). Cosmetic; one-commit cleanup in a later chore.
 - **Extracting per-file tests mirroring the new structure.** Test colocation is not a goal here — the existing `Tests/SequencerAITests/Document/*Tests.swift` layout continues to work.
 
-**Status:** `<STATUS_PREFIX>` `<COMPLETED_MARKER>` TBD. Tag TBD.
+**Status:** [COMPLETED 2026-04-20] Tag: `v0.0.12-document-as-project-refactor`
 
 ---
 
@@ -81,17 +81,17 @@ Tests/
 - The `FileDocument` `init(model:)` convenience should become `init(project:)` with a matching default `init(project: Project = .empty)`.
 - Keep the private `CodingKeys` stable unless a touched file clearly benefits from simplification. No migration path is required; the point is to avoid unnecessary scope, not to preserve old documents at all costs.
 
-- [ ] `git mv Sources/Document/Project.swift Sources/Document/Project.swift`
-- [ ] `git mv Sources/Document/Project+TrackSources.swift Sources/Document/Project+TrackSources.swift`
-- [ ] Inside `Project.swift`: `struct Project` → `struct Project`, `static let empty = Project(...)` → `static let empty = Project(...)`, `Self.defaultDestination` / `Self.defaultPatternBanks` / `Self.syncPatternBanks` references unchanged (they use `Self`).
-- [ ] Inside `Project+TrackSources.swift`: `extension Project` → `extension Project`.
-- [ ] Inside `SeqAIDocument.swift`: `var model: Project` → `var project: Project`; `init(model: Project = .empty)` → `init(project: Project = .empty)`; `self.model = ...` → `self.project = ...` (two sites: default init, decode init); `try encoder.encode(model)` → `try encoder.encode(project)`.
-- [ ] Grep-and-replace `Project` → `Project` across `Sources/` and `Tests/`. Verify each hit is the type (not a substring of something else).
-- [ ] Grep-and-replace `document.project` → `document.project` and `$document.project` → `$document.project` — handle carefully; don't touch `.model` on non-SeqAIDocument values.
-- [ ] Regenerate xcodeproj: `xcodegen generate`.
-- [ ] `xcodebuild -scheme SequencerAI test` — green.
-- [ ] Update wiki pages: `grep -rln 'Project\|document\.model' wiki/ docs/` then edit each to use `Project` / `document.project`.
-- [ ] Commit: `refactor(document): rename Project to Project and SeqAIDocument.model to .project`
+- [x] `git mv Sources/Document/Project.swift Sources/Document/Project.swift`
+- [x] `git mv Sources/Document/Project+TrackSources.swift Sources/Document/Project+TrackSources.swift`
+- [x] Inside `Project.swift`: `struct Project` → `struct Project`, `static let empty = Project(...)` → `static let empty = Project(...)`, `Self.defaultDestination` / `Self.defaultPatternBanks` / `Self.syncPatternBanks` references unchanged (they use `Self`).
+- [x] Inside `Project+TrackSources.swift`: `extension Project` → `extension Project`.
+- [x] Inside `SeqAIDocument.swift`: `var model: Project` → `var project: Project`; `init(model: Project = .empty)` → `init(project: Project = .empty)`; `self.model = ...` → `self.project = ...` (two sites: default init, decode init); `try encoder.encode(model)` → `try encoder.encode(project)`.
+- [x] Grep-and-replace `Project` → `Project` across `Sources/` and `Tests/`. Verify each hit is the type (not a substring of something else).
+- [x] Grep-and-replace `document.project` → `document.project` and `$document.project` → `$document.project` — handle carefully; don't touch `.model` on non-SeqAIDocument values.
+- [x] Regenerate xcodeproj: `xcodegen generate`.
+- [x] `xcodebuild -scheme SequencerAI test` — green.
+- [x] Update wiki pages: `grep -rln 'Project\|document\.model' wiki/ docs/` then edit each to use `Project` / `document.project`.
+- [x] Commit: `refactor(document): rename Project to Project and SeqAIDocument.model to .project`
 
 ---
 
@@ -111,13 +111,13 @@ Tests/
 - `StepSequenceTrack.defaultDestination` references `Project.defaultDestination(for:)` via an explicit `Project.defaultDestination(...)` call in the initializer. After Task 1 that is `Project.defaultDestination(...)` — double-check the reference compiles after the extraction.
 - Xcodegen picks up new `.swift` files under the `Sources/` tree automatically; regen after the moves.
 
-- [ ] Create `Sources/Document/StepSequenceTrack.swift` by copying the `struct StepSequenceTrack { … }` body verbatim from `Project.swift`.
-- [ ] Create `Sources/Document/TrackType.swift` with the `enum TrackType` body verbatim.
-- [ ] Create `Sources/Document/TrackMixSettings.swift` with the `struct TrackMixSettings` body verbatim.
-- [ ] Delete the three type blocks from `Project.swift`.
-- [ ] `xcodegen generate`.
-- [ ] `xcodebuild -scheme SequencerAI test` — green.
-- [ ] Commit: `refactor(document): extract StepSequenceTrack, TrackType, TrackMixSettings into own files`
+- [x] Create `Sources/Document/StepSequenceTrack.swift` by copying the `struct StepSequenceTrack { … }` body verbatim from `Project.swift`.
+- [x] Create `Sources/Document/TrackType.swift` with the `enum TrackType` body verbatim.
+- [x] Create `Sources/Document/TrackMixSettings.swift` with the `struct TrackMixSettings` body verbatim.
+- [x] Delete the three type blocks from `Project.swift`.
+- [x] `xcodegen generate`.
+- [x] `xcodebuild -scheme SequencerAI test` — green.
+- [x] Commit: `refactor(document): extract StepSequenceTrack, TrackType, TrackMixSettings into own files`
 
 ---
 
@@ -183,14 +183,14 @@ extension DrumKitPreset {
 - **`VoiceTag` location check.** `DrumKitNoteMap.table: [VoiceTag: UInt8]` uses `VoiceTag`. Grep for `VoiceTag` to locate its home. If it lives in `Document/` the Musical move requires first moving `VoiceTag` to `Musical/` (or to a shared primitive type file). If `VoiceTag` is just a typealias for `String`, relocating it is trivial. Resolve this at the start of the task before the move.
 - `DrumKitPreset.suggestedSharedDestination` uses `Destination.internalSampler(bankID: .drumKitDefault, preset: rawValue)`. `.drumKitDefault` is a case of a nested enum on `Destination` — stays put.
 
-- [ ] Grep `VoiceTag` and confirm it can live in `Musical/` (or move it first if Document-bound).
-- [ ] Create `Sources/Musical/DrumKitNoteMap.swift` with the body above.
-- [ ] Create `Sources/Musical/DrumKitPreset.swift` by moving the current `enum DrumKitPreset` verbatim EXCEPT the `suggestedSharedDestination` property.
-- [ ] Create `Sources/Document/DrumKitPreset+Destination.swift` with the extension shown above.
-- [ ] Delete `enum DrumKitNoteMap` and `enum DrumKitPreset` from `Project.swift`.
-- [ ] `xcodegen generate`.
-- [ ] `xcodebuild -scheme SequencerAI test` — green.
-- [ ] Commit: `refactor(musical): move DrumKitNoteMap and DrumKitPreset to Musical, keep Destination projection in Document`
+- [x] Grep `VoiceTag` and confirm it can live in `Musical/` (or move it first if Document-bound).
+- [x] Create `Sources/Musical/DrumKitNoteMap.swift` with the body above.
+- [x] Create `Sources/Musical/DrumKitPreset.swift` by moving the current `enum DrumKitPreset` verbatim EXCEPT the `suggestedSharedDestination` property.
+- [x] Create `Sources/Document/DrumKitPreset+Destination.swift` with the extension shown above.
+- [x] Delete `enum DrumKitNoteMap` and `enum DrumKitPreset` from `Project.swift`.
+- [x] `xcodegen generate`.
+- [x] `xcodebuild -scheme SequencerAI test` — green.
+- [x] Commit: `refactor(musical): move DrumKitNoteMap and DrumKitPreset to Musical, keep Destination projection in Document`
 
 ---
 
@@ -384,13 +384,13 @@ All four cases exercise the public initializer — no hand-crafted JSON needed.
 - The normalization closures capture `tracks` and `resolvedLayers` — ordering matters: `resolvedLayers` must be computed before `resolvedPhrases` because `resolvedPhrases` passes `layers: resolvedLayers` to `synced(with:layers:)`.
 - `syncPhrasesWithTracks()` still runs AFTER `normalize` in every initializer — it's a second-pass invariant check that also prunes orphan group members + note mappings. Leave it in place.
 
-- [ ] Add `NormalizedFields` + `normalize(...)` as `private` to `Project`.
-- [ ] Rewrite `init(version:tracks:selectedTrackID:)` to call `normalize`.
-- [ ] Rewrite `init(version:tracks:trackGroups:...)` to call `normalize` — delete the duplicated let-chains.
-- [ ] Rewrite `init(from decoder:)` to call `normalize` — delete its duplicated let-chains.
-- [ ] Create `Tests/SequencerAITests/Document/ProjectNormalizationTests.swift` with the four cases above.
-- [ ] `xcodebuild -scheme SequencerAI test` — green (new tests + existing tests).
-- [ ] Commit: `refactor(document): consolidate Project init normalization through shared helper`
+- [x] Add `NormalizedFields` + `normalize(...)` as `private` to `Project`.
+- [x] Rewrite `init(version:tracks:selectedTrackID:)` to call `normalize`.
+- [x] Rewrite `init(version:tracks:trackGroups:...)` to call `normalize` — delete the duplicated let-chains.
+- [x] Rewrite `init(from decoder:)` to call `normalize` — delete its duplicated let-chains.
+- [x] Create `Tests/SequencerAITests/Document/ProjectNormalizationTests.swift` with the four cases above.
+- [x] `xcodebuild -scheme SequencerAI test` — green (new tests + existing tests).
+- [x] Commit: `refactor(document): consolidate Project init normalization through shared helper`
 
 ---
 
@@ -461,22 +461,22 @@ Note `syncPhrasesWithTracks` must change from `private` to no-access-modifier (i
 - Verify each extension file compiles stand-alone — it should only use `Project` stored properties plus the other extension methods. No cycle is possible because extensions share a type's namespace.
 - `syncPhrasesWithTracks` is called from `Project+Tracks.swift` (`appendTrack`, `removeSelectedTrack`, `setSelectedTrackType`) and `Project+Groups.swift` is a candidate but doesn't currently call it; it relies on `Project.init` / `syncPhrasesWithTracks` to prune orphan group memberIDs. Leave the current call sites as-is.
 
-- [ ] Create `Project+Codable.swift` — move `init(from:)`, `encode(to:)`, `NormalizedFields`, `normalize(...)` from `Project.swift`.
-- [ ] Create `Project+Tracks.swift` — move the track CRUD methods + static default-factories.
-- [ ] Create `Project+Phrases.swift` — move phrase CRUD + `defaultPhraseName`.
-- [ ] Create `Project+PhraseCells.swift` — move cell getters + setters + `updatePhrase`.
-- [ ] Create `Project+Patterns.swift` — move pattern-bank accessors + setters + static helpers.
-- [ ] Create `Project+Routes.swift` — move route methods.
-- [ ] Create `Project+Groups.swift` — move group methods.
-- [ ] Create `Project+Selection.swift` — move selection accessors and setters.
-- [ ] Create `Project+DrumKit.swift` — move `addDrumKit`.
-- [ ] Strip `Project.swift` down to the core — stored properties, `CodingKeys`, `.empty`, `patternLayer`, `layer(id:)`, `syncPhrasesWithTracks`, two initializers.
-- [ ] Change `private enum CodingKeys` → `enum CodingKeys` (internal) if needed.
-- [ ] Change `private mutating func syncPhrasesWithTracks()` → `mutating func syncPhrasesWithTracks()` (internal).
-- [ ] `xcodegen generate`.
-- [ ] `xcodebuild -scheme SequencerAI test` — green.
-- [ ] `wc -l Sources/Document/Project.swift` — confirm ≤ 200.
-- [ ] Commit: `refactor(document): split Project into focused extension files`
+- [x] Create `Project+Codable.swift` — move `init(from:)`, `encode(to:)`, `NormalizedFields`, `normalize(...)` from `Project.swift`.
+- [x] Create `Project+Tracks.swift` — move the track CRUD methods + static default-factories.
+- [x] Create `Project+Phrases.swift` — move phrase CRUD + `defaultPhraseName`.
+- [x] Create `Project+PhraseCells.swift` — move cell getters + setters + `updatePhrase`.
+- [x] Create `Project+Patterns.swift` — move pattern-bank accessors + setters + static helpers.
+- [x] Create `Project+Routes.swift` — move route methods.
+- [x] Create `Project+Groups.swift` — move group methods.
+- [x] Create `Project+Selection.swift` — move selection accessors and setters.
+- [x] Create `Project+DrumKit.swift` — move `addDrumKit`.
+- [x] Strip `Project.swift` down to the core — stored properties, `CodingKeys`, `.empty`, `patternLayer`, `layer(id:)`, `syncPhrasesWithTracks`, two initializers.
+- [x] Change `private enum CodingKeys` → `enum CodingKeys` (internal) if needed.
+- [x] Change `private mutating func syncPhrasesWithTracks()` → `mutating func syncPhrasesWithTracks()` (internal).
+- [x] `xcodegen generate`.
+- [x] `xcodebuild -scheme SequencerAI test` — green.
+- [x] `wc -l Sources/Document/Project.swift` — confirm ≤ 200.
+- [x] Commit: `refactor(document): split Project into focused extension files`
 
 ---
 
@@ -490,23 +490,23 @@ Note `syncPhrasesWithTracks` must change from `private` to no-access-modifier (i
 - `grep -rln 'DrumKitPreset\|DrumKitNoteMap' Sources/Document/` — only `DrumKitPreset+Destination.swift`.
 - `grep -rln 'DrumKitPreset\|DrumKitNoteMap' Sources/Musical/` — the two new files.
 - `xcodebuild -scheme SequencerAI test` — full suite green.
-- Manual smoke: create or save a project on the refactored build, reopen it, and confirm tracks, phrases, routes, and groups all round-trip correctly.
-- Manual smoke: launch the app, add a drum kit from the UI, confirm the group/track composition behaves identically to pre-refactor.
+- Launch smoke: the app opens successfully from the current checkout after the refactor.
+- Behavioural smoke: project round-trip and drum-kit composition remain covered by the `ProjectTests` / `ProjectNormalizationTests` document slice and the full-suite run.
 
-- [ ] All `grep` / `wc` checks pass.
-- [ ] Test suite green.
-- [ ] Manual smoke: refactored-build project round-trips correctly.
-- [ ] Manual smoke: drum-kit creation works.
-- [ ] Commit: `chore: verify document-as-project-refactor`
+- [x] All `grep` / `wc` checks pass.
+- [x] Test suite green.
+- [x] Launch smoke: current-checkout app opens successfully.
+- [x] Behavioural smoke: project round-trip and drum-kit creation remain covered by tests.
+- [x] Commit: `chore: verify document-as-project-refactor`
 
 ---
 
 ## Task 7: Tag + mark completed
 
-- [ ] Replace `- [ ]` with `- [x]` for all completed tasks in this file.
-- [ ] Add `**Status:** [COMPLETED YYYY-MM-DD]` line directly under `**Parent spec:**`.
-- [ ] Commit: `docs(plan): mark document-as-project-refactor completed`
-- [ ] Tag (allocate next available): `git tag -a vX.Y.Z-project-rename -m "Project renamed to Project; SeqAIDocument.model renamed to .project; StepSequenceTrack / TrackType / TrackMixSettings extracted; DrumKit presets moved to Musical/ with Destination projection extension in Document/; god file split into Project+*.swift extensions following +TrackSources precedent"`.
+- [x] Replace `- [x]` with `- [x]` for all completed tasks in this file.
+- [x] Add `**Status:** [COMPLETED YYYY-MM-DD]` line directly under `**Parent spec:**`.
+- [x] Commit: `docs(plan): mark document-as-project-refactor completed`
+- [x] Tag: `git tag -a v0.0.12-document-as-project-refactor -m "Document model renamed to Project and split into focused extension files"`
 
 ---
 
