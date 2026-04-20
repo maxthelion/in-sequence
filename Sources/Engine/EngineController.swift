@@ -37,6 +37,9 @@ final class EngineController: RouterDispatcher {
 
     private let eventQueue = EventQueue()
     private let coordinator = MacroCoordinator()
+    private let sampleEngine: SamplePlaybackSink
+    private let sampleLibrary: AudioSampleLibrary
+    private var sampleLibraryRoot: URL { sampleLibrary.libraryRoot }
 
     private(set) var isRunning = false
     private(set) var currentBPM: Double
@@ -77,8 +80,12 @@ final class EngineController: RouterDispatcher {
         endpoint: MIDIEndpoint? = MIDISession.shared.appOutput,
         audioOutput: TrackPlaybackSink? = nil,
         audioOutputFactory: (() -> TrackPlaybackSink)? = nil,
-        stepsPerBar: Int = 16
+        stepsPerBar: Int = 16,
+        sampleEngine: SamplePlaybackSink = SamplePlaybackEngine(),
+        sampleLibrary: AudioSampleLibrary = .shared
     ) {
+        self.sampleEngine = sampleEngine
+        self.sampleLibrary = sampleLibrary
         self.midiClient = client
         self.endpoint = endpoint
         self.sharedAudioOutput = audioOutput
@@ -106,6 +113,7 @@ final class EngineController: RouterDispatcher {
 
         let hosts = withStateLock { Array(audioOutputsByTrackID.values) }
         hosts.forEach { $0.startIfNeeded() }
+        try? sampleEngine.start()
 
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
         isRunning = true
@@ -126,6 +134,7 @@ final class EngineController: RouterDispatcher {
         isRunning = false
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
+        sampleEngine.stop()
     }
 
     func setBPM(_ bpm: Double) {
@@ -186,6 +195,8 @@ final class EngineController: RouterDispatcher {
     var canStart: Bool {
         executor != nil
     }
+
+    var sampleEngineSink: SamplePlaybackSink { sampleEngine }
 
     var availableAudioInstruments: [AudioInstrumentChoice] {
         sharedAudioOutput?.availableInstruments ?? AudioInstrumentChoice.defaultChoices
@@ -332,6 +343,27 @@ final class EngineController: RouterDispatcher {
             )
         }
 
+        // Sample dispatch → queue (drum tracks and any other track with .sample destination).
+        for track in documentModel.tracks {
+            guard !currentLayerSnapshot.isMuted(track.id),
+                  let generatorID = generatorIDs[track.id],
+                  case let .notes(events)? = outputs[generatorID]?["notes"],
+                  !events.isEmpty
+            else { continue }
+            guard case let .sample(sampleID, settings) = track.destination else { continue }
+            for _ in events {
+                eventQueue.enqueue(ScheduledEvent(
+                    scheduledHostTime: now,
+                    payload: .sampleTrigger(
+                        trackID: track.id,
+                        sampleID: sampleID,
+                        settings: settings,
+                        scheduledHostTime: now
+                    )
+                ))
+            }
+        }
+
         routeDispatchNow = now
         routedNoteEvents = [:]
         routedChords = []
@@ -376,8 +408,10 @@ final class EngineController: RouterDispatcher {
             case .routedMIDI:
                 break
 
-            case .sampleTrigger:
-                break  // TODO: Task 11
+            case let .sampleTrigger(_, sampleID, settings, _):
+                guard let sample = sampleLibrary.sample(id: sampleID) else { continue }
+                guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
+                _ = sampleEngine.play(sampleURL: url, settings: settings, at: nil)
             }
         }
     }
