@@ -1,14 +1,20 @@
 {
   "files": {
-    "clap/clap-808.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "hatClosed/hat-closed-1.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "hatClosed/hat-closed-2.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "kick/kick-acoustic.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "kick/kick-punch.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "kick/kick-tr808.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "ride/ride-1.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "snare/snare-acoustic.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969",
-    "snare/snare-clap.wav": "f971a9aaa8626894132d1d3d7139e0f06b01f3beb894f680f5033eccfbbcd969"
+    "clap/clap-01.wav": "5f13263ea50d67177545c4aadf1d2114e7aa6ef10fd8ba5b597ae8ef36df7d22",
+    "clap/clap-02.wav": "cc32347433848ec537604495a6d99478f7119fb5dd87fe468bb97f7e80e290ad",
+    "hatClosed/hat-closed-01.wav": "abc33579c7b79ec1d5e2558e1a662aa573adb633a74606433d5c0275c2e1d704",
+    "hatClosed/hat-closed-02.wav": "f3ec0d04a5f2f420c90eeba1256b7889cdbd4cac826c157283657cd045a4e8cc",
+    "hatClosed/hat-closed-03.wav": "59491d0077dff3393476b0a78246e4269b56103fb608bee7fca4d0bd5b646d56",
+    "hatOpen/hat-open-01.wav": "3f1b7cb99f84add3a7b390131c5f3519099b399a59dfd77bcbf8e250ee871aad",
+    "hatOpen/hat-open-02.wav": "4bea6531836541a9d3d580f4215edc316ab182b12dc88f5bfed2388ad5f82373",
+    "kick/kick-01.wav": "a5ccd209c9118bf6af61c9012338926f8909a4b61cd4e6185f037d859e52cadf",
+    "kick/kick-02.wav": "c3d34ef682bcd905e5b6040a8fe969b1d7ea070326f9f4bfb1aac9725d673c1b",
+    "kick/kick-03.wav": "6525ec2cdc4679c55eb31165b732dfcec4bd9398d1ab3e8a7e027b2d3cc9d233",
+    "ride/ride-01.wav": "e494505f5c5ef8349a91cdc7c5c10a9935f9528ccb8742b3b799d0fc8e073102",
+    "ride/ride-02.wav": "3582052d236b0d4639e5130fbf25e9eeea6b750378f2f95b600d3a5cc52d744b",
+    "snare/snare-01.wav": "58053778e27054a080dd377402db3e9f56cbabc05b0368da237f94080a06037a",
+    "snare/snare-02.wav": "bd79be3a2bcce4ec857239d9e9909bf8582ffd81b348eb10db5d791427a2271d",
+    "snare/snare-03.wav": "00060c611f02284ec18c2fb1eb02c8b980c6b3da157c53216274371a545a5f90"
   },
-  "version": "v0.0.15-coordinator-scheduling-11-g6a6250c"
+  "version": "v0.0.16-drum-track-mvp"
 }
