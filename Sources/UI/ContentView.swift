@@ -11,7 +11,7 @@ struct ContentView: View {
 
             VStack(spacing: 14) {
                 StudioTopBar(section: $section, document: $document)
-                DetailView(document: $document, section: $section)
+                WorkspaceDetailView(document: $document, section: $section)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(18)
