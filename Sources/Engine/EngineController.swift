@@ -69,10 +69,36 @@ final class EngineController: RouterDispatcher {
     // Threading: written in prepareTick and read in flushConcreteDestination.
     // Both currently run on the clock-callback thread within one processTick call.
     // Do not read or mutate from other threads without revisiting this contract.
+    @ObservationIgnored
     private var currentLayerSnapshot = LayerSnapshot.empty
+
+    // Non-observable mirror of `transportTickIndex`, maintained on the clock thread.
+    // Tick-thread code that needs the current tick reads this instead of the
+    // @Observable `transportTickIndex` (which now lands on the main thread via
+    // `publishToMain`). Safe for tick-thread reads/writes without observer callbacks.
+    @ObservationIgnored
+    private var tickIndexOnClockThread: UInt64 = 0
 
     private func log(_ message: String) {
         NSLog("[EngineController] \(message)")
+    }
+
+    /// Apply a mutation to `@Observable` state from any thread without deadlocking.
+    ///
+    /// SwiftUI observers register tracking callbacks that run synchronously inside
+    /// the `ObservationRegistrar`'s `willSet`/`didSet`. When the tick-clock queue
+    /// writes an observed property, those callbacks may re-enter the main thread —
+    /// and if main is blocked in `clock.stop()`'s `queue.sync`, it deadlocks.
+    ///
+    /// This helper hops writes to the main thread when called off-main, and runs
+    /// inline when already on main (so synchronous test drivers of `processTick`
+    /// still see writes before the next XCTAssert).
+    private func publishToMain(_ body: @escaping () -> Void) {
+        if Thread.isMainThread {
+            body()
+        } else {
+            DispatchQueue.main.async(execute: body)
+        }
     }
 
     init(
@@ -305,10 +331,13 @@ final class EngineController: RouterDispatcher {
         )
 
         let outputs = executor.tick(now: now)
-        currentBPM = executor.currentBPM
+        let newCurrentBPM = executor.currentBPM
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
-        transportTickIndex = completedStep
-        transportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
+        let newTransportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
+
+        // Tick-thread mirror — tick-internal reads (e.g. MIDI routing context) use this.
+        tickIndexOnClockThread = completedStep
+
         let triggeredNoteCount = outputs.values.reduce(0) { partial, ports in
             partial + ports.values.reduce(0) { nested, stream in
                 if case let .notes(events) = stream {
@@ -317,9 +346,23 @@ final class EngineController: RouterDispatcher {
                 return nested
             }
         }
-        if triggeredNoteCount > 0 {
-            lastNoteTriggerUptime = now
-            lastNoteTriggerCount = triggeredNoteCount
+        let newNoteTrigger: (uptime: TimeInterval, count: Int)? =
+            triggeredNoteCount > 0 ? (now, triggeredNoteCount) : nil
+
+        // Publish UI-observed state on the main thread so @Observable's
+        // synchronous notification callbacks don't re-enter main while the
+        // main thread is blocked in clock.stop()'s queue.sync.
+        publishToMain { [weak self] in
+            guard let self else { return }
+            if self.currentBPM != newCurrentBPM {
+                self.currentBPM = newCurrentBPM
+            }
+            self.transportTickIndex = completedStep
+            self.transportPosition = newTransportPosition
+            if let trigger = newNoteTrigger {
+                self.lastNoteTriggerUptime = trigger.uptime
+                self.lastNoteTriggerCount = trigger.count
+            }
         }
 
         for runtime in audioRuntimes.values where !runtime.mix.isMuted && !currentLayerSnapshot.isMuted(runtime.trackID) {
@@ -404,7 +447,9 @@ final class EngineController: RouterDispatcher {
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .chordContextBroadcast(lane, chord):
-                chordContextByLane[lane] = chord
+                publishToMain { [weak self] in
+                    self?.chordContextByLane[lane] = chord
+                }
 
             case .routedMIDI:
                 break
@@ -531,7 +576,7 @@ final class EngineController: RouterDispatcher {
             let notes = routedMIDINotes[destination] ?? []
             _ = midiOut.tick(
                 context: TickContext(
-                    tickIndex: transportTickIndex,
+                    tickIndex: tickIndexOnClockThread,
                     bpm: bpm,
                     inputs: ["notes": .notes(notes)],
                     now: routeDispatchNow
