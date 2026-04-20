@@ -46,3 +46,6 @@ Pods/
 
 # Octowiki runtime state (regenerable caches / queues)
 wiki/.meta/
+
+# Git worktrees (isolated workspaces for feature branches)
+.worktrees/
