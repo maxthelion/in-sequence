@@ -17,6 +17,13 @@ struct SequencerAIApp: App {
             NSLog("AppSupportBootstrap failed: \(error)")
         }
 
+        do {
+            _ = try SampleLibraryBootstrap.ensureLibraryInstalled()
+        } catch {
+            NSLog("[SequencerAIApp] sample library bootstrap failed: \(error)")
+        }
+        _ = AudioSampleLibrary.shared   // warm the singleton; subsequent reads are cheap
+
         // Touch the shared session so MIDI is initialized at app launch.
         _ = MIDISession.shared
     }
