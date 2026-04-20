@@ -20,19 +20,30 @@ extension Project {
     }
 
     @discardableResult
-    mutating func addDrumKit(_ preset: DrumKitPreset) -> TrackGroupID? {
+    mutating func addDrumKit(
+        _ preset: DrumKitPreset,
+        library: AudioSampleLibrary = .shared
+    ) -> TrackGroupID? {
         guard !preset.members.isEmpty else {
             return nil
         }
 
         let groupID = TrackGroupID()
-        let newTracks = preset.members.map { member in
-            StepSequenceTrack(
+        let fallback: Destination = .internalSampler(bankID: .drumKitDefault, preset: preset.rawValue)
+
+        let newTracks = preset.members.map { member -> StepSequenceTrack in
+            let destination: Destination = {
+                guard let category = AudioSampleCategory(voiceTag: member.tag),
+                      let sample = library.firstSample(in: category)
+                else { return fallback }
+                return .sample(sampleID: sample.id, settings: .default)
+            }()
+            return StepSequenceTrack(
                 name: member.trackName,
                 trackType: .monoMelodic,
                 pitches: [DrumKitNoteMap.baselineNote],
                 stepPattern: member.seedPattern,
-                destination: .inheritGroup,
+                destination: destination,
                 groupID: groupID,
                 velocity: StepSequenceTrack.default.velocity,
                 gateLength: StepSequenceTrack.default.gateLength
@@ -40,21 +51,17 @@ extension Project {
         }
 
         tracks.append(contentsOf: newTracks)
+        patternBanks.append(contentsOf: newTracks.map { track in
+            TrackPatternBank.default(for: track, generatorPool: generatorPool, clipPool: clipPool)
+        })
         trackGroups.append(
             TrackGroup(
                 id: groupID,
                 name: preset.displayName,
                 color: preset.suggestedGroupColor,
                 memberIDs: newTracks.map(\.id),
-                sharedDestination: preset.suggestedSharedDestination,
-                noteMapping: Dictionary(
-                    uniqueKeysWithValues: zip(newTracks, preset.members).map { track, member in
-                        (
-                            track.id,
-                            Int(DrumKitNoteMap.note(for: member.tag)) - DrumKitNoteMap.baselineNote
-                        )
-                    }
-                )
+                sharedDestination: nil,
+                noteMapping: [:]
             )
         )
         selectedTrackID = newTracks.first?.id ?? selectedTrackID

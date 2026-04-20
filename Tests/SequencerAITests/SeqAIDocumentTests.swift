@@ -161,7 +161,18 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(model.trackGroups.count, 1)
         XCTAssertEqual(model.trackGroups[0].id, groupID)
         XCTAssertEqual(model.trackGroups[0].memberIDs.count, DrumKitPreset.kit808.members.count)
-        XCTAssertTrue(model.tracks.suffix(DrumKitPreset.kit808.members.count).allSatisfy { $0.destination == .inheritGroup })
+        // Per-member destinations: each track has either .sample or .internalSampler (fallback).
+        // None should be .inheritGroup since the new implementation assigns individual destinations.
+        XCTAssertTrue(model.tracks.suffix(DrumKitPreset.kit808.members.count).allSatisfy { track in
+            switch track.destination {
+            case .sample, .internalSampler: return true
+            default: return false
+            }
+        })
+        // sharedDestination is nil — per-member samples, no shared sampler
+        XCTAssertNil(model.trackGroups[0].sharedDestination)
+        // noteMapping is empty — samples are pre-pitched, no MIDI transpose needed
+        XCTAssertEqual(model.trackGroups[0].noteMapping, [:])
         XCTAssertTrue(model.phrases.allSatisfy { phrase in
             model.trackGroups[0].memberIDs.allSatisfy { memberID in
                 phrase.cell(for: "pattern", trackID: memberID) == .inheritDefault
