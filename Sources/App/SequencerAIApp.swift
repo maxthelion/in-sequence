@@ -26,6 +26,7 @@ struct SequencerAIApp: App {
             ContentView(document: file.$document)
                 .environment(engineController)
         }
+        .defaultSize(width: 1500, height: 960)
 
         Settings {
             PreferencesView()
