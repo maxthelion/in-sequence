@@ -1,6 +1,3 @@
-// Sources/Document/AudioSampleCategory.swift
-import Foundation
-
 enum AudioSampleCategory: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
     case kick, snare, sidestick, clap
     case hatClosed, hatOpen, hatPedal
