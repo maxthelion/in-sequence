@@ -35,6 +35,9 @@ final class EngineController: RouterDispatcher {
     let commandQueue: CommandQueue
     let clock: TickClock
 
+    private let eventQueue = EventQueue()
+    private let coordinator = MacroCoordinator()
+
     private(set) var isRunning = false
     private(set) var currentBPM: Double
     private(set) var transportTickIndex: UInt64 = 0
@@ -59,6 +62,7 @@ final class EngineController: RouterDispatcher {
     private var routedMIDINotes: [Destination: [NoteEvent]] = [:]
     private var routeDispatchNow: TimeInterval = 0
     private(set) var chordContextByLane: [String: Chord] = [:]
+    private var currentLayerSnapshot = LayerSnapshot.empty
 
     private func log(_ message: String) {
         NSLog("[EngineController] \(message)")
@@ -99,6 +103,7 @@ final class EngineController: RouterDispatcher {
         let hosts = withStateLock { Array(audioOutputsByTrackID.values) }
         hosts.forEach { $0.startIfNeeded() }
 
+        prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
         isRunning = true
         clock.start { [weak self] tickIndex, now in
             self?.processTick(tickIndex: tickIndex, now: now)
@@ -255,6 +260,14 @@ final class EngineController: RouterDispatcher {
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
+        if eventQueue.isEmpty {
+            prepareTick(upcomingStep: tickIndex, now: now)
+        }
+        dispatchTick(now: now)
+        prepareTick(upcomingStep: tickIndex &+ 1, now: now)
+    }
+
+    private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
         let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel) = withStateLock {
             (
                 self.executor,
@@ -269,10 +282,17 @@ final class EngineController: RouterDispatcher {
             return
         }
 
+        currentLayerSnapshot = coordinator.snapshot(
+            upcomingGlobalStep: upcomingStep,
+            project: documentModel,
+            phraseID: documentModel.selectedPhraseID
+        )
+
         let outputs = executor.tick(now: now)
         currentBPM = executor.currentBPM
-        transportTickIndex = tickIndex
-        transportPosition = Self.transportString(for: tickIndex, stepsPerBar: stepsPerBar)
+        let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
+        transportTickIndex = completedStep
+        transportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
         let triggeredNoteCount = outputs.values.reduce(0) { partial, ports in
             partial + ports.values.reduce(0) { nested, stream in
                 if case let .notes(events) = stream {
@@ -286,18 +306,24 @@ final class EngineController: RouterDispatcher {
             lastNoteTriggerCount = triggeredNoteCount
         }
 
-        for runtime in audioRuntimes.values where !runtime.mix.isMuted {
+        for runtime in audioRuntimes.values where !runtime.mix.isMuted && !currentLayerSnapshot.isMuted(runtime.trackID) {
             guard case let .notes(events)? = outputs[runtime.generatorBlockID]?["notes"],
-                  let host = audioOutputs[runtime.trackID]
+                  audioOutputs[runtime.trackID] != nil
             else {
                 continue
             }
 
-            host.setDestination(runtime.destination)
-            host.play(
-                noteEvents: Self.shifted(events, by: runtime.pitchOffset),
-                bpm: executor.currentBPM,
-                stepsPerBar: stepsPerBar
+            eventQueue.enqueue(
+                ScheduledEvent(
+                    scheduledHostTime: now,
+                    payload: .trackAU(
+                        trackID: runtime.trackID,
+                        destination: runtime.destination,
+                        notes: Self.shifted(events, by: runtime.pitchOffset),
+                        bpm: executor.currentBPM,
+                        stepsPerBar: stepsPerBar
+                    )
+                )
             )
         }
 
@@ -306,7 +332,8 @@ final class EngineController: RouterDispatcher {
         routedChords = []
         routedMIDINotes = [:]
         let trackInputs = documentModel.tracks.compactMap { track -> RouterTickInput? in
-            guard let generatorID = generatorIDs[track.id],
+            guard !currentLayerSnapshot.isMuted(track.id),
+                  let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"]
             else {
                 return nil
@@ -316,6 +343,36 @@ final class EngineController: RouterDispatcher {
         }
         router.tick(trackInputs)
         flushRoutedEvents(bpm: executor.currentBPM)
+    }
+
+    private func dispatchTick(now: TimeInterval) {
+        _ = now
+        let events = eventQueue.drain()
+        let audioOutputs = withStateLock { audioOutputsByTrackID }
+
+        for event in events {
+            switch event.payload {
+            case let .trackAU(trackID, destination, notes, bpm, stepsPerBar):
+                guard let host = audioOutputs[trackID] else {
+                    continue
+                }
+                host.setDestination(destination)
+                host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
+
+            case let .routedAU(trackID, destination, notes, bpm, stepsPerBar):
+                guard let host = audioOutputs[trackID] else {
+                    continue
+                }
+                host.setDestination(destination)
+                host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
+
+            case let .chordContextBroadcast(lane, chord):
+                chordContextByLane[lane] = chord
+
+            case .routedMIDI:
+                break
+            }
+        }
     }
 
     func dispatch(_ event: RouterEvent) {
@@ -419,7 +476,15 @@ final class EngineController: RouterDispatcher {
             guard case let .chordContext(broadcastTag) = destination else {
                 continue
             }
-            chordContextByLane[broadcastTag ?? lane ?? "default"] = chord
+            eventQueue.enqueue(
+                ScheduledEvent(
+                    scheduledHostTime: routeDispatchNow,
+                    payload: .chordContextBroadcast(
+                        lane: broadcastTag ?? lane ?? "default",
+                        chord: chord
+                    )
+                )
+            )
         }
     }
 
@@ -481,12 +546,23 @@ final class EngineController: RouterDispatcher {
         case .auInstrument:
             guard let track,
                   !track.mix.isMuted,
-                  let host = audioOutputsByTrackID[track.id]
+                  !currentLayerSnapshot.isMuted(track.id),
+                  audioOutputsByTrackID[track.id] != nil
             else {
                 return
             }
-            host.setDestination(destination)
-            host.play(noteEvents: Self.shifted(notes, by: pitchOffset), bpm: bpm, stepsPerBar: stepsPerBar)
+            eventQueue.enqueue(
+                ScheduledEvent(
+                    scheduledHostTime: routeDispatchNow,
+                    payload: .routedAU(
+                        trackID: track.id,
+                        destination: destination,
+                        notes: Self.shifted(notes, by: pitchOffset),
+                        bpm: bpm,
+                        stepsPerBar: stepsPerBar
+                    )
+                )
+            )
 
         case .internalSampler, .inheritGroup, .none:
             return
