@@ -396,6 +396,25 @@ struct SeqAIDocumentModel: Codable, Equatable {
         selectedPhraseID = nextPhrase.id
     }
 
+    mutating func insertPhrase(below phraseID: UUID) {
+        guard let index = phrases.firstIndex(where: { $0.id == phraseID }) else {
+            appendPhrase()
+            return
+        }
+
+        var nextPhrase = PhraseModel.default(
+            tracks: tracks,
+            layers: layers,
+            generatorPool: generatorPool,
+            clipPool: clipPool
+        )
+        nextPhrase.id = UUID()
+        nextPhrase.name = Self.defaultPhraseName(for: phrases.count)
+        let insertionIndex = min(index + 1, phrases.count)
+        phrases.insert(nextPhrase.synced(with: tracks, layers: layers), at: insertionIndex)
+        selectedPhraseID = nextPhrase.id
+    }
+
     mutating func duplicateSelectedPhrase() {
         guard !phrases.isEmpty else {
             return
@@ -409,6 +428,19 @@ struct SeqAIDocumentModel: Codable, Equatable {
         selectedPhraseID = duplicate.id
     }
 
+    mutating func duplicatePhrase(id phraseID: UUID) {
+        guard let index = phrases.firstIndex(where: { $0.id == phraseID }) else {
+            return
+        }
+
+        var duplicate = phrases[index]
+        duplicate.id = UUID()
+        duplicate.name = "\(phrases[index].name) Copy"
+        let insertionIndex = min(index + 1, phrases.count)
+        phrases.insert(duplicate.synced(with: tracks, layers: layers), at: insertionIndex)
+        selectedPhraseID = duplicate.id
+    }
+
     mutating func removeSelectedPhrase() {
         guard phrases.count > 1 else {
             return
@@ -416,6 +448,17 @@ struct SeqAIDocumentModel: Codable, Equatable {
 
         phrases.remove(at: selectedPhraseIndex)
         selectedPhraseID = phrases[min(selectedPhraseIndex, phrases.count - 1)].id
+    }
+
+    mutating func removePhrase(id phraseID: UUID) {
+        guard phrases.count > 1,
+              let index = phrases.firstIndex(where: { $0.id == phraseID }) else {
+            return
+        }
+
+        phrases.remove(at: index)
+        let nextIndex = min(index, phrases.count - 1)
+        selectedPhraseID = phrases[nextIndex].id
     }
 
     mutating func appendTrack(trackType: TrackType = .monoMelodic) {

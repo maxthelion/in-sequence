@@ -5,6 +5,8 @@ struct DetailView: View {
     @Binding var section: WorkspaceSection
     @Environment(EngineController.self) private var engineController
     @State private var liveLayerID = "pattern"
+    @State private var isEditingTrackName = false
+    @FocusState private var trackNameFieldFocused: Bool
 
     private var track: StepSequenceTrack {
         document.model.selectedTrack
@@ -26,25 +28,8 @@ struct DetailView: View {
         )
     }
 
-    private var selectedPattern: TrackPatternSlot {
-        document.model.selectedPattern(for: track.id)
-    }
-
-    private var selectedSourceMode: TrackSourceMode {
-        selectedPattern.sourceRef.mode
-    }
-
     private var outboundRouteCount: Int {
         document.model.routesSourced(from: track.id).count
-    }
-
-    private var stepStates: [StepVisualState] {
-        track.stepPattern.enumerated().map { index, isEnabled in
-            guard isEnabled else {
-                return .off
-            }
-            return track.stepAccents[index] ? .accented : .on
-        }
     }
 
     private var sourceAccent: Color {
@@ -132,7 +117,7 @@ struct DetailView: View {
 
     private var phraseWorkspace: some View {
         PhraseWorkspaceView(document: $document)
-            .padding(20)
+            .padding(10)
     }
 
     private var tracksWorkspace: some View {
@@ -143,153 +128,40 @@ struct DetailView: View {
     }
 
     private var trackWorkspace: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 18) {
-                trackSourceColumn
-                    .frame(minWidth: 640, maxWidth: .infinity, alignment: .topLeading)
+        VStack(alignment: .leading, spacing: 18) {
+            trackWorkspaceHeader
 
-                trackDestinationColumn
-                    .frame(width: 360, alignment: .topLeading)
-            }
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 18) {
+                    trackSourceColumn
+                        .frame(minWidth: 640, maxWidth: .infinity, alignment: .topLeading)
 
-            VStack(alignment: .leading, spacing: 18) {
-                trackSourceColumn
-                trackDestinationColumn
+                    trackDestinationColumn
+                        .frame(width: 360, alignment: .topLeading)
+                }
+
+                VStack(alignment: .leading, spacing: 18) {
+                    trackSourceColumn
+                    trackDestinationColumn
+                }
             }
         }
         .padding(20)
+        .onChange(of: isEditingTrackName) {
+            if isEditingTrackName {
+                trackNameFieldFocused = true
+            }
+        }
     }
 
     private var trackSourceColumn: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Source", eyebrow: sourceEyebrow, accent: sourceAccent) {
-                VStack(alignment: .leading, spacing: 16) {
-                    PatternSlotPalette(
-                        selectedSlot: selectedPatternIndexBinding,
-                        occupiedSlots: occupiedPatternSlots
-                    )
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("SOURCE")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-
-                        SourceModePalette(trackType: track.trackType, selectedSource: selectedPatternSourceModeBinding)
-                    }
-
-                    TextField("Pattern Name", text: patternNameBinding)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-
-            if track.trackType == .monoMelodic && selectedSourceMode == .generator {
-                StudioPanel(title: track.name, eyebrow: engineController.statusSummary, accent: StudioTheme.cyan) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        StepGridView(stepStates: stepStates) { index in
-                            document.model.selectedTrack.cycleStep(at: index)
-                        }
-
-                        HStack(spacing: 10) {
-                            Button("Accent Downbeats") {
-                                document.model.selectedTrack.accentDownbeats()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(StudioTheme.amber)
-
-                            Button("Clear Accents") {
-                                document.model.selectedTrack.clearAccents()
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(track.accentedStepCount == 0)
-                        }
-
-                        Text("This source is the current MVP note generator: one monophonic step pattern, one pitch cycle, and immediate velocity and gate controls.")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                }
-
-                StudioPanel(title: "Pitch Cycle", eyebrow: "Selected pitches used by the note generator", accent: StudioTheme.violet) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(Array(track.pitches.enumerated()), id: \.offset) { index, pitch in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("STEP \(index + 1)")
-                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                        .tracking(0.8)
-                                        .foregroundStyle(StudioTheme.mutedText)
-                                    Text("\(pitch)")
-                                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                                        .foregroundStyle(StudioTheme.text)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .stroke(StudioTheme.border, lineWidth: 1)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                StudioPanel(title: "Generator", eyebrow: "Immediate controls for the manual mono source", accent: StudioTheme.amber) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Pitches")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-
-                        TextField("Comma-separated MIDI notes", text: pitchesBinding)
-                            .textFieldStyle(.roundedBorder)
-
-                        ParameterSliderRow(title: "Velocity", value: Double(track.velocity), range: 1...127, accent: StudioTheme.amber) { newValue in
-                            document.model.selectedTrack.velocity = Int(newValue.rounded())
-                        }
-
-                        ParameterSliderRow(title: "Gate Length", value: Double(track.gateLength), range: 1...16, accent: StudioTheme.violet) { newValue in
-                            document.model.selectedTrack.gateLength = Int(newValue.rounded())
-                        }
-                    }
-                }
-            } else if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
-                StudioPanel(title: selectedSourceMode.label, eyebrow: "Pattern-slot placeholder", accent: sourceAccent) {
-                    VStack(spacing: 12) {
-                        ForEach(instrumentSourcePlaceholderTiles, id: \.title) { tile in
-                            StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
-                        }
-                    }
-                }
-            } else {
-                StudioPanel(title: track.trackType.label, eyebrow: "Planned source editor coverage", accent: sourceAccent) {
-                    VStack(spacing: 12) {
-                        ForEach(trackTypePlaceholderTiles, id: \.title) { tile in
-                            StudioPlaceholderTile(title: tile.title, detail: tile.detail, accent: tile.accent)
-                        }
-                    }
-                }
-            }
-        }
+        TrackSourceEditorView(document: $document, accent: sourceAccent)
     }
 
     private var trackDestinationColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Destination", eyebrow: "Project-scoped identity and current sink", accent: StudioTheme.success) {
-                VStack(alignment: .leading, spacing: 14) {
-                    TextField("Track Name", text: trackNameBinding)
-                        .textFieldStyle(.roundedBorder)
-
-                    Picker("Track Type", selection: trackTypeBinding) {
-                        ForEach(TrackType.allCases, id: \.self) { trackType in
-                            Text(trackType.label).tag(trackType)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    TrackDestinationEditor(document: $document)
-                }
+            StudioPanel(title: "Destination", eyebrow: "Current sink and routing target", accent: StudioTheme.success) {
+                TrackDestinationEditor(document: $document)
             }
 
             if outboundRouteCount > 0 {
@@ -301,6 +173,31 @@ struct DetailView: View {
                     RoutesListView(document: $document)
                 }
             }
+        }
+    }
+
+    private var trackWorkspaceHeader: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                if isEditingTrackName {
+                    TextField("Track Name", text: trackNameBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($trackNameFieldFocused)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .onSubmit {
+                            isEditingTrackName = false
+                        }
+                } else {
+                    Text(track.name)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+                        .onTapGesture(count: 2) {
+                            isEditingTrackName = true
+                        }
+                }
+            }
+
+            Spacer()
         }
     }
 
@@ -362,62 +259,10 @@ struct DetailView: View {
         .padding(20)
     }
 
-    private var pitchesBinding: Binding<String> {
-        Binding(
-            get: {
-                document.model.selectedTrack.pitches.map(String.init).joined(separator: ", ")
-            },
-            set: { newValue in
-                let parsed = newValue
-                    .split(separator: ",")
-                    .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-                    .filter { (0...127).contains($0) }
-
-                guard !parsed.isEmpty else {
-                    return
-                }
-
-                document.model.selectedTrack.pitches = parsed
-            }
-        )
-    }
-
     private var trackNameBinding: Binding<String> {
         Binding(
             get: { document.model.selectedTrack.name },
             set: { document.model.selectedTrack.name = $0 }
-        )
-    }
-
-    private var trackTypeBinding: Binding<TrackType> {
-        Binding(
-            get: { document.model.selectedTrack.trackType },
-            set: { document.model.setSelectedTrackType($0) }
-        )
-    }
-
-    private var selectedPatternIndexBinding: Binding<Int> {
-        Binding(
-            get: { document.model.selectedPatternIndex(for: track.id) },
-            set: { document.model.setSelectedPatternIndex($0, for: track.id) }
-        )
-    }
-
-    private var selectedPatternSourceModeBinding: Binding<TrackSourceMode> {
-        Binding(
-            get: { document.model.selectedSourceMode(for: track.id) },
-            set: { newValue in
-                document.model.setPatternSourceMode(newValue, for: track.id, slotIndex: selectedPatternIndex)
-            }
-        )
-    }
-
-    private var patternNameBinding: Binding<String> {
-        Binding(
-            get: { selectedPattern.name ?? "" },
-            set: { newValue in
-                document.model.setPatternName(newValue, for: track.id, slotIndex: selectedPatternIndex)
-            }
         )
     }
 
@@ -433,40 +278,7 @@ struct DetailView: View {
         ]
     }
 
-    private var trackTypePlaceholderTiles: [(title: String, detail: String, accent: Color)] {
-        switch track.trackType {
-        case .monoMelodic:
-            return []
-        case .polyMelodic:
-            return [
-                ("Poly Source", "Poly tracks will author multi-note events instead of the current monophonic step lane.", StudioTheme.cyan),
-                ("Chord-Aware Editing", "This is where chord clips, voiced generators, and held-note editing will land.", StudioTheme.violet),
-                ("Shared Destination Story", "Poly tracks still route into the same destination model on the right.", StudioTheme.amber)
-            ]
-        case .slice:
-            return [
-                ("Slice Trigger Source", "A sliced loop behaves like a tagged note source where slices are the voices.", StudioTheme.violet),
-                ("Planned Editor", "Waveform, slice boundaries, tags, and slice-trigger lanes will live here once the audio-side plans land.", StudioTheme.cyan),
-                ("Shared Destination Story", "Slice tags route through the same future voice-route destination model as grouped mono tracks.", StudioTheme.amber)
-            ]
-        }
-    }
-
-    private var instrumentSourcePlaceholderTiles: [(title: String, detail: String, accent: Color)] {
-        switch selectedSourceMode {
-        case .generator:
-            return []
-        case .clip:
-            return [
-                ("Clip Reader", "This slot points at a shared clip-pool entry instead of a generator instance.", StudioTheme.violet),
-                ("Shared Pool Semantics", "Editing the clip entry will affect every pattern slot and phrase that references it.", StudioTheme.cyan),
-                ("Current Gap", "The pattern bank now persists clip slots; the actual clip editor and freeze flow are still ahead.", StudioTheme.amber)
-            ]
-        }
-    }
-
 }
-
 private struct SongPhraseRefCard: View {
     let title: String
     let repeats: Int
@@ -551,184 +363,6 @@ private struct PhrasePipelineNode: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-}
-
-private struct SourceModePalette: View {
-    let trackType: TrackType
-    @Binding var selectedSource: TrackSourceMode
-
-    var body: some View {
-        HStack(spacing: 10) {
-            ForEach(TrackSourceMode.available(for: trackType), id: \.self) { source in
-                Button {
-                    selectedSource = source
-                } label: {
-                    HStack(spacing: 8) {
-                        Text(source.label)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(StudioTheme.text)
-
-                        if !source.isImplemented {
-                            Text("Planned")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .tracking(0.8)
-                                .foregroundStyle(accent(for: source))
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 12)
-                    .background(fill(for: source), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(stroke(for: source), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func accent(for source: TrackSourceMode) -> Color {
-        switch source {
-        case .generator:
-            return StudioTheme.cyan
-        case .clip:
-            return StudioTheme.violet
-        }
-    }
-
-    private func fill(for source: TrackSourceMode) -> Color {
-        selectedSource == source ? accent(for: source).opacity(0.14) : Color.white.opacity(0.03)
-    }
-
-    private func stroke(for source: TrackSourceMode) -> Color {
-        selectedSource == source ? accent(for: source).opacity(0.52) : StudioTheme.border
-    }
-}
-
-private struct PatternSlotPalette: View {
-    @Binding var selectedSlot: Int
-    let occupiedSlots: Set<Int>
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("PATTERN BANK")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(spacing: 6) {
-                ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
-                    Button {
-                        selectedSlot = slotIndex
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text("\(slotIndex + 1)")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundStyle(StudioTheme.text)
-
-                            Circle()
-                                .fill(indicatorFill(for: slotIndex))
-                                .frame(width: 6, height: 6)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(backgroundFill(for: slotIndex))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(borderColor(for: slotIndex), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func backgroundFill(for slotIndex: Int) -> Color {
-        if selectedSlot == slotIndex {
-            return StudioTheme.success.opacity(0.2)
-        }
-        if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.08)
-        }
-        return Color.white.opacity(0.03)
-    }
-
-    private func borderColor(for slotIndex: Int) -> Color {
-        if selectedSlot == slotIndex {
-            return StudioTheme.success.opacity(0.7)
-        }
-        if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.28)
-        }
-        return StudioTheme.border
-    }
-
-    private func indicatorFill(for slotIndex: Int) -> Color {
-        if selectedSlot == slotIndex {
-            return StudioTheme.success
-        }
-        if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.6)
-        }
-        return Color.white.opacity(0.08)
-    }
-}
-
-private struct ParameterSliderRow: View {
-    let title: String
-    let value: Double
-    let range: ClosedRange<Double>
-    let accent: Color
-    let onChange: (Double) -> Void
-
-    @State private var draftValue: Double = 0
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title.uppercased())
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Spacer()
-                Text(formattedValue)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
-            }
-
-            Slider(
-                value: Binding(
-                    get: { value },
-                    set: { onChange($0) }
-                ),
-                in: range
-            )
-            .tint(accent)
-        }
-    }
-
-    private var formattedValue: String {
-        if range.upperBound <= 1.0 && range.lowerBound >= 0 {
-            return "\(Int((value * 100).rounded()))%"
-        }
-        if range.lowerBound == -1 && range.upperBound == 1 {
-            if value < -0.05 {
-                return "L\(Int(abs(value) * 100))"
-            }
-            if value > 0.05 {
-                return "R\(Int(value * 100))"
-            }
-            return "C"
-        }
-        return "\(Int(value.rounded()))"
     }
 }
 

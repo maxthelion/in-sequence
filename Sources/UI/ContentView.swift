@@ -3,7 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
-    @State private var section: WorkspaceSection = .track
+    @State private var section: WorkspaceSection = .tracks
 
     var body: some View {
         ZStack {

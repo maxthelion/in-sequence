@@ -8,6 +8,10 @@ struct TrackDestinationEditor: View {
         document.model.selectedTrack
     }
 
+    private func log(_ message: String) {
+        NSLog("[TrackDestinationEditor] \(message)")
+    }
+
     private var recentVoices: [RecentVoice] {
         RecentVoicesStore.shared.load().filter {
             switch $0.destination {
@@ -21,12 +25,7 @@ struct TrackDestinationEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Picker("Output", selection: trackOutputBinding) {
-                ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
-                    Text(destination.label).tag(destination)
-                }
-            }
-            .pickerStyle(.segmented)
+            destinationSelector
 
             switch track.output {
             case .midiOut:
@@ -42,6 +41,30 @@ struct TrackDestinationEditor: View {
             Text(track.defaultDestination.summary)
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(StudioTheme.mutedText)
+        }
+    }
+
+    private var destinationSelector: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("OUTPUT")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .tracking(0.9)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
+                    Button {
+                        trackOutputBinding.wrappedValue = destination
+                    } label: {
+                        DestinationChoiceCard(
+                            title: destination.label,
+                            detail: destinationDetail(for: destination),
+                            isSelected: track.output == destination
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -93,11 +116,10 @@ struct TrackDestinationEditor: View {
 
             HStack(spacing: 10) {
                 Button("Edit Plug-in Window") {
-                    openCurrentAudioUnitWindow()
+                    prepareAndOpenCurrentAudioUnitWindow()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.success)
-                .disabled(engineController.currentAudioUnit(for: track.id) == nil)
 
                 if let stateBlob = currentAUStateBlob {
                     Text("State \(ByteCountFormatter.string(fromByteCount: Int64(stateBlob.count), countStyle: .file))")
@@ -216,8 +238,11 @@ struct TrackDestinationEditor: View {
 
     private func openCurrentAudioUnitWindow() {
         guard let audioUnit = engineController.currentAudioUnit(for: track.id) else {
+            log("openCurrentAudioUnitWindow no live audio unit track=\(track.name) trackID=\(track.id)")
             return
         }
+
+        log("openCurrentAudioUnitWindow track=\(track.name) trackID=\(track.id) key=\(String(describing: currentAUWindowKey))")
 
         AUWindowHost.shared.open(
             for: currentAUWindowKey,
@@ -246,6 +271,23 @@ struct TrackDestinationEditor: View {
                 document.model.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
                 recordVoiceSnapshot(destination: document.model.tracks[trackIndex].defaultDestination)
             }
+        }
+    }
+
+    private func prepareAndOpenCurrentAudioUnitWindow() {
+        log("prepareAndOpenCurrentAudioUnitWindow track=\(track.name) trackID=\(track.id) destination=\(track.destination.summary)")
+        engineController.prepareAudioUnit(for: track.id)
+
+        Task { @MainActor in
+            for _ in 0..<20 {
+                if engineController.currentAudioUnit(for: track.id) != nil {
+                    log("prepareAndOpenCurrentAudioUnitWindow live audio unit available")
+                    openCurrentAudioUnitWindow()
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            log("prepareAndOpenCurrentAudioUnitWindow timed out waiting for live audio unit")
         }
     }
 
@@ -280,6 +322,19 @@ struct TrackDestinationEditor: View {
     private var phraseSummary: String {
         document.model.selectedPhrase.name
     }
+
+    private func destinationDetail(for destination: TrackOutputDestination) -> String {
+        switch destination {
+        case .midiOut:
+            return "Send note data to a MIDI endpoint"
+        case .auInstrument:
+            return "Host an Audio Unit instrument in-app"
+        case .internalSampler:
+            return "Play through the built-in sampler path"
+        case .none:
+            return "No sink unless routes handle the notes"
+        }
+    }
 }
 
 private struct DestinationField<Content: View>: View {
@@ -301,6 +356,36 @@ private struct DestinationField<Content: View>: View {
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
+        )
+    }
+}
+
+private struct DestinationChoiceCard: View {
+    let title: String
+    let detail: String
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(2)
+
+            Text(detail)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+        .padding(12)
+        .background(
+            (isSelected ? StudioTheme.success.opacity(0.14) : Color.white.opacity(0.03)),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(isSelected ? StudioTheme.success.opacity(0.6) : StudioTheme.border, lineWidth: 1)
         )
     }
 }

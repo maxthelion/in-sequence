@@ -63,6 +63,52 @@ final class SeqAIDocumentModelTests: XCTestCase {
         XCTAssertEqual(model.selectedPhrase.cell(for: "pattern", trackID: newTrack.id), .inheritDefault)
         XCTAssertEqual(model.layers.first(where: { $0.id == "pattern" })?.defaultValue(for: newTrack.id), .index(0))
         XCTAssertEqual(model.layers.first(where: { $0.id == "volume" })?.defaultValue(for: newTrack.id), .scalar(newTrack.mix.level * 127))
+        XCTAssertEqual(model.selectedPattern(for: newTrack.id).sourceRef.mode, TrackSourceMode.generator)
+        XCTAssertNotNil(model.selectedPattern(for: newTrack.id).sourceRef.generatorID)
+    }
+
+    func test_init_heals_poly_pattern_slots_with_nil_generator_ids() throws {
+        let track = StepSequenceTrack(
+            name: "Poly",
+            trackType: .polyMelodic,
+            pitches: [60, 64, 67],
+            stepPattern: Array(repeating: true, count: 16),
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 100,
+            gateLength: 4
+        )
+        let phrase = PhraseModel.default(
+            tracks: [track],
+            layers: PhraseLayerDefinition.defaultSet(for: [track]),
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: ClipPoolEntry.defaultPool
+        )
+        let nilGeneratorBank = TrackPatternBank(
+            trackID: track.id,
+            slots: (0..<TrackPatternBank.slotCount).map {
+                TrackPatternSlot(slotIndex: $0, sourceRef: .generator(nil))
+            }
+        )
+
+        let model = SeqAIDocumentModel(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: ClipPoolEntry.defaultPool,
+            layers: PhraseLayerDefinition.defaultSet(for: [track]),
+            routes: [],
+            patternBanks: [nilGeneratorBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        XCTAssertEqual(model.selectedPattern(for: track.id).sourceRef.mode, TrackSourceMode.generator)
+        XCTAssertNotNil(model.selectedPattern(for: track.id).sourceRef.generatorID)
+        let polyGeneratorID = try XCTUnwrap(
+            GeneratorPoolEntry.defaultPool.first(where: { $0.trackType == .polyMelodic })?.id
+        )
+        XCTAssertEqual(model.selectedPattern(for: track.id).sourceRef.generatorID, polyGeneratorID)
     }
 
     func test_phrase_sync_removes_missing_tracks_and_layers() {

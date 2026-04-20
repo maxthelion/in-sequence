@@ -6,7 +6,7 @@ struct MixerView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 14) {
                 ForEach(Array(document.model.tracks.enumerated()), id: \.element.id) { index, track in
                     MixerChannelStrip(
                         track: $document.model.tracks[index],
@@ -30,16 +30,18 @@ private struct MixerChannelStrip: View {
     let onSelect: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(track.name)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
                     Text(track.output.label)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
                 }
 
                 Spacer()
@@ -54,53 +56,37 @@ private struct MixerChannelStrip: View {
                 }
             }
 
-            HStack(alignment: .bottom, spacing: 10) {
-                GeometryReader { proxy in
-                    ZStack(alignment: .bottom) {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(0.05))
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .bottom, spacing: 12) {
+                    VStack(alignment: .center, spacing: 8) {
+                        VerticalLevelFader(level: $track.mix.level, isMuted: track.mix.isMuted)
+                            .frame(width: 36, height: 150)
 
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(track.mix.isMuted ? Color.white.opacity(0.18) : StudioTheme.cyan)
-                            .frame(height: max(10, proxy.size.height * track.mix.clampedLevel))
-                    }
-                }
-                .frame(width: 28, height: 140)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Level")
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .tracking(0.8)
-                                .foregroundStyle(StudioTheme.mutedText)
-                            Spacer()
-                            Text("\(Int((track.mix.clampedLevel * 100).rounded()))%")
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(StudioTheme.text)
-                        }
-
-                        Slider(value: $track.mix.level, in: 0...1)
-                            .tint(StudioTheme.cyan)
+                        Text("\(Int((track.mix.clampedLevel * 100).rounded()))%")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(StudioTheme.text)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Pan")
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .tracking(0.8)
-                                .foregroundStyle(StudioTheme.mutedText)
-                            Spacer()
+                        Text("Pan")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .tracking(0.8)
+                            .foregroundStyle(StudioTheme.mutedText)
+
+                        HStack(spacing: 8) {
+                            Slider(value: $track.mix.pan, in: -1...1)
+                                .tint(StudioTheme.violet)
+                                .frame(width: 88)
+
                             Text(panLabel)
                                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(StudioTheme.text)
+                                .frame(width: 28, alignment: .trailing)
                         }
-
-                        Slider(value: $track.mix.pan, in: -1...1)
-                            .tint(StudioTheme.violet)
                     }
+                    .padding(.bottom, 4)
                 }
             }
 
@@ -130,7 +116,7 @@ private struct MixerChannelStrip: View {
             }
         }
         .padding(16)
-        .frame(width: 240, alignment: .topLeading)
+        .frame(width: 200, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 18)
                 .fill(StudioTheme.panelFill)
@@ -150,6 +136,44 @@ private struct MixerChannelStrip: View {
         default:
             return "C"
         }
+    }
+}
+
+private struct VerticalLevelFader: View {
+    @Binding var level: Double
+    let isMuted: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            let height = proxy.size.height
+            let filledHeight = max(12, height * clampedLevel)
+
+            ZStack(alignment: .bottom) {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isMuted ? Color.white.opacity(0.18) : StudioTheme.cyan)
+                    .frame(height: filledHeight)
+
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color.white.opacity(0.18))
+                    .frame(width: 16, height: 4)
+                    .offset(y: -filledHeight + 10)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let next = 1 - (value.location.y / max(height, 1))
+                        level = min(max(next, 0), 1)
+                    }
+            )
+        }
+    }
+
+    private var clampedLevel: Double {
+        min(max(level, 0), 1)
     }
 }
 

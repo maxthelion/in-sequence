@@ -60,10 +60,48 @@ final class EngineControllerTests: XCTestCase {
             velocity: 111,
             gateLength: 2
         )
+        let bassGenerator = monoGeneratorEntry(
+            id: UUID(uuidString: "aaaaaaaa-1111-1111-1111-111111111111")!,
+            name: "Bass Program",
+            trackType: bass.trackType,
+            pattern: [true, false],
+            pitch: 36,
+            velocity: 90,
+            gateLength: 4
+        )
+        let leadGenerator = monoGeneratorEntry(
+            id: UUID(uuidString: "bbbbbbbb-2222-2222-2222-222222222222")!,
+            name: "Lead Program",
+            trackType: lead.trackType,
+            pattern: [false, true],
+            pitch: 72,
+            velocity: 127,
+            gateLength: 2
+        )
+        let generators = [bassGenerator, leadGenerator]
+        let layers = PhraseLayerDefinition.defaultSet(for: [bass, lead])
+        let phrase = PhraseModel.default(tracks: [bass, lead], layers: layers, generatorPool: generators, clipPool: [])
+        let patternBanks = [
+            TrackPatternBank(
+                trackID: bass.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(bassGenerator.id))]
+            ),
+            TrackPatternBank(
+                trackID: lead.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(leadGenerator.id))]
+            )
+        ]
         let document = SeqAIDocumentModel(
             version: 1,
             tracks: [bass, lead],
-            selectedTrackID: lead.id
+            generatorPool: generators,
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: patternBanks,
+            selectedTrackID: lead.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
         )
 
         controller.apply(documentModel: document)
@@ -96,6 +134,157 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(secondLeadNotes.first?.velocity, 127)
         XCTAssertEqual(secondLeadNotes.first?.length, 2)
         XCTAssertTrue(audioSink.receivedMixes.isEmpty)
+    }
+
+    func test_apply_document_model_uses_selected_generator_pool_source_over_legacy_track_fields() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "12121212-1212-1212-1212-121212121212") ?? UUID(),
+            name: "Generator Driven",
+            pitches: [48],
+            stepPattern: [false, false, false, false],
+            stepAccents: [false, false, false, false],
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            velocity: 80,
+            gateLength: 2
+        )
+        let generator = GeneratorPoolEntry(
+            id: UUID(uuidString: "34343434-3434-3434-3434-343434343434")!,
+            name: "Upbeat",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .mono(
+                step: .manual(pattern: [true, false, false, false]),
+                pitch: .manual(pitches: [72], pickMode: .sequential),
+                shape: NoteShape(velocity: 99, gateLength: 3, accent: false)
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [])
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+        )
+        let document = SeqAIDocumentModel(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+
+        let generatorBlockID = "gen-\(track.id.uuidString.lowercased())"
+        let firstTick = controller.executor?.tick(now: 0)
+        guard case let .notes(events)? = firstTick?[generatorBlockID]?["notes"] else {
+            return XCTFail("expected generator events")
+        }
+
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events.first?.pitch, 72)
+        XCTAssertEqual(events.first?.velocity, 99)
+        XCTAssertEqual(events.first?.length, 3)
+    }
+
+    func test_apply_document_model_uses_selected_clip_source_over_legacy_track_fields() {
+        let controller = EngineController(client: nil, endpoint: nil)
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "56565656-5656-5656-5656-565656565656") ?? UUID(),
+            name: "Clip Driven",
+            pitches: [48],
+            stepPattern: [false, false, false, false],
+            stepAccents: [false, false, false, false],
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            velocity: 80,
+            gateLength: 2
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(uuidString: "78787878-7878-7878-7878-787878787878")!,
+            name: "Clip",
+            trackType: .monoMelodic,
+            content: .stepSequence(stepPattern: [true, false, false, false], pitches: [65])
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [clip])
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        let document = SeqAIDocumentModel(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+
+        let generatorBlockID = "gen-\(track.id.uuidString.lowercased())"
+        let firstTick = controller.executor?.tick(now: 0)
+        guard case let .notes(events)? = firstTick?[generatorBlockID]?["notes"] else {
+            return XCTFail("expected clip-backed events")
+        }
+
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events.first?.pitch, 65)
+        XCTAssertEqual(events.first?.velocity, 100)
+        XCTAssertEqual(events.first?.length, 4)
+    }
+
+    func test_process_tick_marks_recent_note_trigger_when_selected_source_emits_notes() {
+        let controller = EngineController(client: nil, endpoint: nil)
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "90909090-9090-9090-9090-909090909090") ?? UUID(),
+            name: "Activity",
+            pitches: [48],
+            stepPattern: [false, false, false, false],
+            stepAccents: [false, false, false, false],
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            velocity: 80,
+            gateLength: 2
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(uuidString: "91919191-9191-9191-9191-919191919191")!,
+            name: "Activity Clip",
+            trackType: .monoMelodic,
+            content: .stepSequence(stepPattern: [true, false, false, false], pitches: [67])
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [clip])
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        let document = SeqAIDocumentModel(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 12.5)
+
+        XCTAssertEqual(controller.lastNoteTriggerUptime, 12.5)
+        XCTAssertEqual(controller.lastNoteTriggerCount, 1)
     }
 
     func test_selected_au_output_routes_note_events_to_audio_sink() throws {
@@ -258,10 +447,48 @@ final class EngineControllerTests: XCTestCase {
             velocity: 100,
             gateLength: 2
         )
+        let bassGenerator = monoGeneratorEntry(
+            id: UUID(uuidString: "cccccccc-3333-3333-3333-333333333333")!,
+            name: "Bass Audio Program",
+            trackType: bassTrack.trackType,
+            pattern: [true],
+            pitch: 48,
+            velocity: 90,
+            gateLength: 2
+        )
+        let leadGenerator = monoGeneratorEntry(
+            id: UUID(uuidString: "dddddddd-4444-4444-4444-444444444444")!,
+            name: "Lead Audio Program",
+            trackType: leadTrack.trackType,
+            pattern: [true],
+            pitch: 72,
+            velocity: 100,
+            gateLength: 2
+        )
+        let generators = [bassGenerator, leadGenerator]
+        let layers = PhraseLayerDefinition.defaultSet(for: [bassTrack, leadTrack])
+        let phrase = PhraseModel.default(tracks: [bassTrack, leadTrack], layers: layers, generatorPool: generators, clipPool: [])
+        let patternBanks = [
+            TrackPatternBank(
+                trackID: bassTrack.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(bassGenerator.id))]
+            ),
+            TrackPatternBank(
+                trackID: leadTrack.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(leadGenerator.id))]
+            )
+        ]
         let document = SeqAIDocumentModel(
             version: 1,
             tracks: [bassTrack, leadTrack],
-            selectedTrackID: leadTrack.id
+            generatorPool: generators,
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: patternBanks,
+            selectedTrackID: leadTrack.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
         )
 
         controller.apply(documentModel: document)
@@ -273,6 +500,25 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(createdSinks[0].receivedEvents.first?.first?.pitch, 48)
         XCTAssertEqual(createdSinks[1].receivedEvents.first?.first?.pitch, 72)
         XCTAssertEqual(createdSinks[1].selectedInstrument, .testInstrument)
+    }
+
+    func test_apply_document_model_prepares_audio_unit_hosts_before_playback() {
+        let sink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        let track = StepSequenceTrack(
+            name: "Prepared",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            output: .auInstrument,
+            audioInstrument: .builtInSynth,
+            velocity: 100,
+            gateLength: 2
+        )
+
+        controller.apply(track: track)
+
+        XCTAssertGreaterThanOrEqual(sink.prepareCallCount, 1)
     }
 
     func test_group_inherited_audio_destination_reuses_one_host_and_applies_pitch_offsets() {
@@ -316,11 +562,46 @@ final class EngineControllerTests: XCTestCase {
             sharedDestination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
             noteMapping: [kick.id: 0, snare.id: 12]
         )
-        let phrase = PhraseModel.default(tracks: [kick, snare])
+        let kickGenerator = monoGeneratorEntry(
+            id: UUID(uuidString: "eeeeeeee-5555-5555-5555-555555555555")!,
+            name: "Kick Program",
+            trackType: kick.trackType,
+            pattern: [true],
+            pitch: 60,
+            velocity: 100,
+            gateLength: 2
+        )
+        let snareGenerator = monoGeneratorEntry(
+            id: UUID(uuidString: "ffffffff-6666-6666-6666-666666666666")!,
+            name: "Snare Program",
+            trackType: snare.trackType,
+            pattern: [true],
+            pitch: 60,
+            velocity: 100,
+            gateLength: 2
+        )
+        let generators = [kickGenerator, snareGenerator]
+        let layers = PhraseLayerDefinition.defaultSet(for: [kick, snare])
+        let phrase = PhraseModel.default(tracks: [kick, snare], layers: layers, generatorPool: generators, clipPool: [])
+        let patternBanks = [
+            TrackPatternBank(
+                trackID: kick.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(kickGenerator.id))]
+            ),
+            TrackPatternBank(
+                trackID: snare.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(snareGenerator.id))]
+            )
+        ]
         let document = SeqAIDocumentModel(
             version: 1,
             tracks: [kick, snare],
             trackGroups: [group],
+            generatorPool: generators,
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: patternBanks,
             selectedTrackID: kick.id,
             phrases: [phrase],
             selectedPhraseID: phrase.id
@@ -336,6 +617,28 @@ final class EngineControllerTests: XCTestCase {
     }
 }
 
+private func monoGeneratorEntry(
+    id: UUID,
+    name: String,
+    trackType: TrackType,
+    pattern: [Bool],
+    pitch: Int,
+    velocity: Int,
+    gateLength: Int
+) -> GeneratorPoolEntry {
+    GeneratorPoolEntry(
+        id: id,
+        name: name,
+        trackType: trackType,
+        kind: .monoGenerator,
+        params: .mono(
+            step: .manual(pattern: pattern),
+            pitch: .manual(pitches: [pitch], pickMode: .sequential),
+            shape: NoteShape(velocity: velocity, gateLength: gateLength, accent: false)
+        )
+    )
+}
+
 private final class CapturingAudioSink: TrackPlaybackSink {
     let displayName = "Mock AU Instrument"
     var isAvailable = true
@@ -344,9 +647,14 @@ private final class CapturingAudioSink: TrackPlaybackSink {
     var currentAudioUnit: AVAudioUnit? = nil
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
+    private(set) var prepareCallCount = 0
     private(set) var receivedEvents: [[NoteEvent]] = []
     private(set) var receivedMixes: [TrackMixSettings] = []
     private(set) var receivedDestinations: [Destination] = []
+
+    func prepareIfNeeded() {
+        prepareCallCount += 1
+    }
 
     func startIfNeeded() {
         startCallCount += 1

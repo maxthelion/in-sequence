@@ -17,6 +17,13 @@ struct TransportBar: View {
         )
     }
 
+    private var noteActivityIsHot: Bool {
+        guard engineController.lastNoteTriggerUptime > 0 else {
+            return false
+        }
+        return ProcessInfo.processInfo.systemUptime - engineController.lastNoteTriggerUptime < 0.18
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             Button {
@@ -68,6 +75,16 @@ struct TransportBar: View {
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(StudioTheme.text)
+
+            Circle()
+                .fill(noteActivityIsHot ? StudioTheme.amber : StudioTheme.mutedText.opacity(0.35))
+                .frame(width: 10, height: 10)
+                .overlay(
+                    Circle()
+                        .stroke((noteActivityIsHot ? StudioTheme.amber : StudioTheme.border).opacity(0.8), lineWidth: 1)
+                )
+                .animation(.easeOut(duration: 0.12), value: noteActivityIsHot)
+                .help(noteActivityIsHot ? "Note triggered" : "No recent note trigger")
 
             Text(engineController.statusSummary)
                 .foregroundStyle(StudioTheme.mutedText)

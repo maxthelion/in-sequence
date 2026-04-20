@@ -599,7 +599,7 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
     }
 
     var isImplemented: Bool {
-        self == .generator
+        true
     }
 
     static func available(for trackType: TrackType) -> [TrackSourceMode] {
@@ -651,7 +651,7 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             return .defaultMono
         case .polyGenerator:
             return .poly(
-                step: .manual(pattern: Array(repeating: false, count: 16)),
+                step: .manual(pattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
                 pitches: [.manual(pitches: [60, 64, 67], pickMode: .random)],
                 shape: .default
             )
@@ -708,12 +708,18 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
         ),
         .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2") ?? UUID(),
+            name: "Poly Chords",
+            kind: .polyGenerator,
+            trackType: .polyMelodic
+        ),
+        .makeDefault(
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
             name: "Drum Pattern",
             kind: .drumKit,
             trackType: .monoMelodic
         ),
         .makeDefault(
-            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4") ?? UUID(),
             name: "Slice Trigger",
             kind: .sliceGenerator,
             trackType: .slice
@@ -725,6 +731,51 @@ struct ClipPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable {
     var id: UUID
     var name: String
     var trackType: TrackType
+    var content: ClipContent
+
+    static let defaultPool: [ClipPoolEntry] = [
+        ClipPoolEntry(
+            id: UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1") ?? UUID(),
+            name: "Mono Step Clip",
+            trackType: .monoMelodic,
+            content: .stepSequence(
+                stepPattern: [true, false, true, false, true, false, false, true, true, false, true, false, true, false, false, true],
+                pitches: [60, 62, 64, 67]
+            )
+        ),
+        ClipPoolEntry(
+            id: UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2") ?? UUID(),
+            name: "Chord Roll",
+            trackType: .polyMelodic,
+            content: .pianoRoll(
+                lengthBars: 2,
+                stepsPerBar: 16,
+                notes: [
+                    ClipNote(pitch: 60, startStep: 0, lengthSteps: 8, velocity: 100),
+                    ClipNote(pitch: 64, startStep: 0, lengthSteps: 8, velocity: 92),
+                    ClipNote(pitch: 67, startStep: 0, lengthSteps: 8, velocity: 88),
+                    ClipNote(pitch: 62, startStep: 8, lengthSteps: 8, velocity: 100),
+                    ClipNote(pitch: 65, startStep: 8, lengthSteps: 8, velocity: 92),
+                    ClipNote(pitch: 69, startStep: 8, lengthSteps: 8, velocity: 88),
+                    ClipNote(pitch: 59, startStep: 16, lengthSteps: 8, velocity: 96),
+                    ClipNote(pitch: 62, startStep: 16, lengthSteps: 8, velocity: 88),
+                    ClipNote(pitch: 67, startStep: 16, lengthSteps: 8, velocity: 84),
+                    ClipNote(pitch: 55, startStep: 24, lengthSteps: 8, velocity: 96),
+                    ClipNote(pitch: 60, startStep: 24, lengthSteps: 8, velocity: 88),
+                    ClipNote(pitch: 64, startStep: 24, lengthSteps: 8, velocity: 84),
+                ]
+            )
+        ),
+        ClipPoolEntry(
+            id: UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3") ?? UUID(),
+            name: "Slice Lane",
+            trackType: .slice,
+            content: .sliceTriggers(
+                stepPattern: [true, false, false, true, false, false, true, false, true, false, false, true, false, true, false, false],
+                sliceIndexes: [0, 2, 4, 5]
+            )
+        )
+    ]
 }
 
 struct SourceRef: Codable, Equatable, Hashable, Sendable {

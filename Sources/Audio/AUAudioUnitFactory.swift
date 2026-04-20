@@ -19,7 +19,7 @@ final class AUAudioUnitFactory {
         instantiateAudioUnit: @escaping AudioUnitLoader = { description, completion in
             AVAudioUnit.instantiate(
                 with: description,
-                options: [.loadOutOfProcess],
+                options: [],
                 completionHandler: completion
             )
         }

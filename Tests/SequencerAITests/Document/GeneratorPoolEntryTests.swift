@@ -3,13 +3,30 @@ import XCTest
 @testable import SequencerAI
 
 final class GeneratorPoolEntryTests: XCTestCase {
-    func test_default_pool_has_three_entries_with_compatible_track_types() {
-        XCTAssertEqual(GeneratorPoolEntry.defaultPool.count, 3)
+    func test_default_pool_has_four_entries_with_compatible_track_types() {
+        XCTAssertEqual(GeneratorPoolEntry.defaultPool.count, 4)
         XCTAssertTrue(
             GeneratorPoolEntry.defaultPool.allSatisfy { entry in
                 entry.kind.compatibleWith.contains(entry.trackType)
             }
         )
+    }
+
+    func test_default_pool_includes_poly_generator() {
+        let polyEntry = GeneratorPoolEntry.defaultPool.first(where: { $0.trackType == .polyMelodic })
+
+        XCTAssertEqual(polyEntry?.kind, .polyGenerator)
+    }
+
+    func test_default_poly_generator_has_active_steps() {
+        guard let polyEntry = GeneratorPoolEntry.defaultPool.first(where: { $0.trackType == .polyMelodic }),
+              case let .poly(step, _, _) = polyEntry.params,
+              case let .manual(pattern) = step
+        else {
+            return XCTFail("expected a manual default poly generator")
+        }
+
+        XCTAssertTrue(pattern.contains(true))
     }
 
     func test_default_pool_uses_kind_default_params() {

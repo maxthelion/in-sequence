@@ -5,12 +5,14 @@ struct PhraseWorkspaceView: View {
     @Environment(EngineController.self) private var engineController
 
     @State private var selectedLayerID = "pattern"
-    @State private var selectedBarPage = 0
-    @State private var showingCellEditor = false
+    @State private var editingCellTarget: PhraseCellEditorTarget?
+    @State private var trackPage = 0
 
-    private let phraseColumnWidth: CGFloat = 150
-    private let trackColumnWidth: CGFloat = 132
+    private let phraseColumnWidth: CGFloat = 118
+    private let trackColumnWidth: CGFloat = 126
+    private let actionColumnWidth: CGFloat = 92
     private let gridSpacing: CGFloat = 10
+    private let trackPageSize = 8
 
     private var phrases: [PhraseModel] { document.model.phrases }
     private var tracks: [StepSequenceTrack] { document.model.tracks }
@@ -24,8 +26,18 @@ struct PhraseWorkspaceView: View {
             ?? PhraseLayerDefinition.defaultSet(for: tracks).first!
     }
 
-    private var selectedCell: PhraseCell {
-        selectedPhrase.cell(for: selectedLayer.id, trackID: selectedTrack.id)
+    private var selectedLayerIndex: Int {
+        layers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
+    }
+
+    private var trackPageCount: Int {
+        max(1, Int(ceil(Double(tracks.count) / Double(trackPageSize))))
+    }
+
+    private var visibleTrackSlots: [StepSequenceTrack?] {
+        let startIndex = min(trackPage * trackPageSize, tracks.count)
+        let pagedTracks = Array(tracks.dropFirst(startIndex).prefix(trackPageSize))
+        return pagedTracks.map(Optional.some) + Array(repeating: nil, count: max(0, trackPageSize - pagedTracks.count))
     }
 
     private var playbackPhraseIndex: Int? {
@@ -60,88 +72,186 @@ struct PhraseWorkspaceView: View {
                 accent: layerAccent(selectedLayer.id)
             ) {
                 VStack(alignment: .leading, spacing: 16) {
-                    topBar
                     layerBar
                     matrix
                 }
             }
         }
-        .padding(20)
-        .sheet(isPresented: $showingCellEditor) {
-            StudioPanel(
-                title: "Cell Editor",
-                eyebrow: "\(selectedPhrase.name) • \(selectedTrack.name) • \(selectedLayer.name)",
-                accent: layerAccent(selectedLayer.id)
-            ) {
-                cellEditor
-            }
-            .padding(24)
-            .frame(minWidth: 680, minHeight: 420)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 10)
+        .sheet(item: $editingCellTarget) { target in
+            PhraseCellEditorSheet(
+                document: $document,
+                target: target,
+                accent: layerAccent(target.layerID)
+            )
         }
         .onAppear {
             if document.model.layer(id: selectedLayerID) == nil {
                 selectedLayerID = document.model.patternLayer?.id ?? layers.first?.id ?? "pattern"
             }
+            clampTrackPage()
         }
-        .onChange(of: selectedPhrase.id) {
-            selectedBarPage = min(selectedBarPage, max(0, selectedPhrase.lengthBars - 1))
+        .onChange(of: document.model.selectedTrackID) {
+            syncTrackPageToSelection()
         }
-    }
-
-    private var topBar: some View {
-        HStack {
-            Spacer()
-
-            HStack(spacing: 10) {
-                Button("Add Phrase") {
-                    document.model.appendPhrase()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.cyan)
-
-                Button("Duplicate") {
-                    document.model.duplicateSelectedPhrase()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Remove") {
-                    document.model.removeSelectedPhrase()
-                }
-                .buttonStyle(.bordered)
-                .disabled(phrases.count == 1)
-            }
+        .onChange(of: tracks.count) {
+            clampTrackPage()
+        }
+        .onChange(of: phrases.map(\.id)) {
+            dismissInvalidEditorTarget()
+        }
+        .onChange(of: tracks.map(\.id)) {
+            dismissInvalidEditorTarget()
+        }
+        .onChange(of: layers.map(\.id)) {
+            dismissInvalidEditorTarget()
         }
     }
 
     private var layerBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(layers) { layer in
-                    Button {
-                        selectedLayerID = layer.id
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(layer.name.uppercased())
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .tracking(0.9)
-                                .foregroundStyle(StudioTheme.text)
+        HStack(spacing: 12) {
+            Button {
+                cycleLayer(by: -1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.04), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
 
-                            Text(layerSubtitle(layer))
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .foregroundStyle(StudioTheme.mutedText)
-                        }
-                        .frame(width: 180, alignment: .leading)
-                        .padding(12)
-                        .background(layerFill(layer, isSelected: selectedLayer.id == layer.id), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(layerAccent(layer.id).opacity(selectedLayer.id == layer.id ? 0.7 : 0.18), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+            HStack(spacing: 10) {
+                Text(selectedLayer.name.uppercased())
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(StudioTheme.text)
+
+                Rectangle()
+                    .fill(layerAccent(selectedLayer.id))
+                    .frame(width: 28, height: 3)
+                    .clipShape(Capsule())
+
+                Text(layerSubtitle(selectedLayer))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(layerAccent(selectedLayer.id))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(layerAccent(selectedLayer.id).opacity(0.16), in: Capsule())
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(layerAccent(selectedLayer.id).opacity(0.28), lineWidth: 1)
+            )
+
+            Button {
+                cycleLayer(by: 1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.04), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                trackPageButton(systemImage: "chevron.left", action: { cycleTrackPage(by: -1) }, isEnabled: trackPage > 0)
+
+                Text("Tracks \(trackPage + 1) / \(trackPageCount)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.white.opacity(0.04), in: Capsule())
+
+                trackPageButton(systemImage: "chevron.right", action: { cycleTrackPage(by: 1) }, isEnabled: trackPage < trackPageCount - 1)
             }
         }
+    }
+
+    private func cycleLayer(by delta: Int) {
+        guard !layers.isEmpty else {
+            return
+        }
+
+        let nextIndex = (selectedLayerIndex + delta + layers.count) % layers.count
+        selectedLayerID = layers[nextIndex].id
+    }
+
+    private func cycleTrackPage(by delta: Int) {
+        trackPage = min(max(trackPage + delta, 0), trackPageCount - 1)
+    }
+
+    private func syncTrackPageToSelection() {
+        guard let selectedIndex = tracks.firstIndex(where: { $0.id == document.model.selectedTrackID }) else {
+            return
+        }
+        trackPage = min(max(selectedIndex / trackPageSize, 0), trackPageCount - 1)
+    }
+
+    private func clampTrackPage() {
+        trackPage = min(max(trackPage, 0), trackPageCount - 1)
+        syncTrackPageToSelection()
+    }
+
+    private func dismissInvalidEditorTarget() {
+        guard let editingCellTarget else {
+            return
+        }
+
+        let phraseExists = phrases.contains(where: { $0.id == editingCellTarget.phraseID })
+        let trackExists = tracks.contains(where: { $0.id == editingCellTarget.trackID })
+        let layerExists = layers.contains(where: { $0.id == editingCellTarget.layerID })
+
+        if !(phraseExists && trackExists && layerExists) {
+            self.editingCellTarget = nil
+        }
+    }
+
+    private func handleSingleTap(on phraseID: UUID, trackID: UUID) {
+        document.model.selectPhrase(id: phraseID)
+        document.model.selectTrack(id: trackID)
+
+        if selectedLayer.valueType == .boolean {
+            toggleBooleanCell(phraseID: phraseID, trackID: trackID)
+        }
+    }
+
+    private func openCellEditor(phraseID: UUID, trackID: UUID) {
+        document.model.selectPhrase(id: phraseID)
+        document.model.selectTrack(id: trackID)
+        editingCellTarget = PhraseCellEditorTarget(
+            phraseID: phraseID,
+            trackID: trackID,
+            layerID: selectedLayer.id
+        )
+    }
+
+    @ViewBuilder
+    private func trackPageButton(systemImage: String, action: @escaping () -> Void, isEnabled: Bool) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(0.5))
+                .frame(width: 28, height: 28)
+                .background(Color.white.opacity(0.04), in: Circle())
+                .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
     }
 
     private var matrix: some View {
@@ -149,21 +259,30 @@ struct PhraseWorkspaceView: View {
             VStack(alignment: .leading, spacing: gridSpacing) {
                 HStack(spacing: gridSpacing) {
                     Color.clear
-                        .frame(width: phraseColumnWidth, height: 58)
+                        .frame(width: phraseColumnWidth, height: 52)
 
-                    ForEach(tracks, id: \.id) { track in
-                        Button {
-                            document.model.selectTrack(id: track.id)
-                        } label: {
-                            PhraseMatrixTrackHeaderCell(
-                                track: track,
-                                isSelected: selectedTrack.id == track.id,
-                                accent: track.groupID == nil ? layerAccent(selectedLayer.id) : StudioTheme.success
-                            )
+                    ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
+                        Group {
+                            if let track {
+                                Button {
+                                    document.model.selectTrack(id: track.id)
+                                } label: {
+                                    PhraseMatrixTrackHeaderCell(
+                                        track: track,
+                                        isSelected: selectedTrack.id == track.id,
+                                        accent: track.groupID == nil ? layerAccent(selectedLayer.id) : StudioTheme.success
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                PhraseMatrixEmptyTrackHeaderCell()
+                            }
                         }
-                        .buttonStyle(.plain)
                         .frame(width: trackColumnWidth)
                     }
+
+                    Color.clear
+                        .frame(width: actionColumnWidth, height: 52)
                 }
 
                 ForEach(Array(phrases.enumerated()), id: \.element.id) { index, phrase in
@@ -177,311 +296,68 @@ struct PhraseWorkspaceView: View {
                         }
                         .frame(width: phraseColumnWidth)
 
-                        ForEach(tracks, id: \.id) { track in
-                            PhraseGridCell(
-                                layer: selectedLayer,
-                                cell: phrase.cell(for: selectedLayer.id, trackID: track.id),
-                                phrase: phrase,
-                                track: track,
-                                isSelected: phrase.id == document.model.selectedPhraseID && track.id == document.model.selectedTrackID,
-                                accent: layerAccent(selectedLayer.id)
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                document.model.selectPhrase(id: phrase.id)
-                                document.model.selectTrack(id: track.id)
-                                if selectedLayer.valueType == .boolean {
-                                    toggleBooleanCell(phraseID: phrase.id, trackID: track.id)
+                        ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
+                            Group {
+                                if let track {
+                                    PhraseGridCell(
+                                        layer: selectedLayer,
+                                        cell: phrase.cell(for: selectedLayer.id, trackID: track.id),
+                                        phrase: phrase,
+                                        track: track,
+                                        isSelected: phrase.id == document.model.selectedPhraseID && track.id == document.model.selectedTrackID,
+                                        accent: layerAccent(selectedLayer.id)
+                                    )
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        TapGesture(count: 2)
+                                            .exclusively(before: TapGesture())
+                                            .onEnded { value in
+                                                switch value {
+                                                case .first:
+                                                    openCellEditor(phraseID: phrase.id, trackID: track.id)
+                                                case .second:
+                                                    handleSingleTap(on: phrase.id, trackID: track.id)
+                                                }
+                                            }
+                                    )
+                                } else {
+                                    PhraseGridEmptyCell()
                                 }
-                            }
-                            .onTapGesture(count: 2) {
-                                document.model.selectPhrase(id: phrase.id)
-                                document.model.selectTrack(id: track.id)
-                                selectedBarPage = 0
-                                showingCellEditor = true
                             }
                             .frame(width: trackColumnWidth)
                         }
+
+                        PhraseRowActions(
+                            canRemove: phrases.count > 1,
+                            onInsertBelow: {
+                                document.model.insertPhrase(below: phrase.id)
+                            },
+                            onDuplicate: {
+                                document.model.duplicatePhrase(id: phrase.id)
+                            },
+                            onRemove: {
+                                document.model.removePhrase(id: phrase.id)
+                            }
+                        )
+                        .frame(width: actionColumnWidth)
                     }
                 }
             }
-            .padding(2)
+            .padding(.vertical, 2)
         }
         .frame(minHeight: 280)
     }
 
-    private var cellEditor: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                ForEach(selectedLayer.availableModes, id: \.self) { mode in
-                    Button {
-                        mutateSelectedPhrase { phrase in
-                            phrase.setCellMode(mode, for: selectedLayer, trackID: selectedTrack.id)
-                        }
-                    } label: {
-                        Text(mode.label)
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                selectedCell.editMode == mode ? layerAccent(selectedLayer.id).opacity(0.2) : Color.white.opacity(0.04),
-                                in: Capsule()
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(selectedCell.editMode == mode ? StudioTheme.text : StudioTheme.mutedText)
-                }
-            }
-
-            switch selectedCell {
-            case .inheritDefault:
-                StudioPlaceholderTile(
-                    title: "Using Track Default",
-                    detail: cellSummary(selectedCell, layer: selectedLayer, phrase: selectedPhrase, track: selectedTrack),
-                    accent: layerAccent(selectedLayer.id)
-                )
-            case let .single(value):
-                singleValueEditor(value: value)
-            case let .bars(values):
-                barsEditor(values: values)
-            case let .steps(values):
-                stepsEditor(values: values)
-            case let .curve(points):
-                curveEditor(points: points)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func singleValueEditor(value: PhraseCellValue) -> some View {
-        switch selectedLayer.valueType {
-        case .boolean:
-            Toggle("Enabled", isOn: Binding(
-                get: {
-                    if case let .bool(isOn) = value.normalized(for: selectedLayer) { return isOn }
-                    return false
-                },
-                set: { newValue in
-                    mutateSelectedPhrase { phrase in
-                        phrase.setCell(.single(.bool(newValue)), for: selectedLayer.id, trackID: selectedTrack.id)
-                    }
-                }
-            ))
-            .toggleStyle(.switch)
-        case .patternIndex:
-            PatternIndexPicker(
-                selectedIndex: Binding(
-                    get: {
-                        if case let .index(index) = value.normalized(for: selectedLayer) { return index }
-                        return 0
-                    },
-                    set: { newIndex in
-                        mutateSelectedPhrase { phrase in
-                            phrase.setCell(.single(.index(newIndex)), for: selectedLayer.id, trackID: selectedTrack.id)
-                        }
-                    }
-                )
-            )
-        case .scalar:
-            ScalarValueEditor(
-                title: selectedLayer.name,
-                range: selectedLayer.scalarRange,
-                value: Binding(
-                    get: {
-                        if case let .scalar(scalar) = value.normalized(for: selectedLayer) { return scalar }
-                        return selectedLayer.minValue
-                    },
-                    set: { newValue in
-                        mutateSelectedPhrase { phrase in
-                            phrase.setCell(.single(.scalar(newValue)), for: selectedLayer.id, trackID: selectedTrack.id)
-                        }
-                    }
-                )
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func barsEditor(values: [PhraseCellValue]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(values.enumerated()), id: \.offset) { index, value in
-                HStack(spacing: 12) {
-                    Text("Bar \(index + 1)")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(width: 44, alignment: .leading)
-
-                    valueEditor(for: value) { newValue in
-                        var nextValues = values
-                        nextValues[index] = newValue
-                        mutateSelectedPhrase { phrase in
-                            phrase.setCell(.bars(nextValues), for: selectedLayer.id, trackID: selectedTrack.id)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func stepsEditor(values: [PhraseCellValue]) -> some View {
-        let pageCount = max(1, selectedPhrase.lengthBars)
-        let activePage = min(selectedBarPage, pageCount - 1)
-        let start = activePage * selectedPhrase.stepsPerBar
-        let end = min(start + selectedPhrase.stepsPerBar, values.count)
-
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                ForEach(0..<pageCount, id: \.self) { index in
-                    Button {
-                        selectedBarPage = index
-                    } label: {
-                        Text("Bar \(index + 1)")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(index == activePage ? layerAccent(selectedLayer.id).opacity(0.2) : Color.white.opacity(0.04), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8), spacing: 8) {
-                ForEach(start..<end, id: \.self) { stepIndex in
-                    Button {
-                        mutateSelectedPhrase { phrase in
-                            var nextValues = values
-                            nextValues[stepIndex] = cycleValue(nextValues[stepIndex])
-                            phrase.setCell(.steps(nextValues), for: selectedLayer.id, trackID: selectedTrack.id)
-                        }
-                    } label: {
-                        VStack(spacing: 6) {
-                            Text("\(stepIndex - start + 1)")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(StudioTheme.mutedText)
-                            Text(valueLabel(values[stepIndex], layer: selectedLayer))
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(StudioTheme.text)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(layerAccent(selectedLayer.id).opacity(0.25), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func curveEditor(points: [Double]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                ForEach(PhraseCurvePreset.allCases, id: \.self) { preset in
-                    Button(preset.label) {
-                        mutateSelectedPhrase { phrase in
-                            phrase.setCell(.curve(preset.points(in: selectedLayer.scalarRange)), for: selectedLayer.id, trackID: selectedTrack.id)
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
-            PhraseCurvePreview(points: points, range: selectedLayer.scalarRange, accent: layerAccent(selectedLayer.id))
-                .frame(height: 120)
-        }
-    }
-
-    @ViewBuilder
-    private func valueEditor(
-        for value: PhraseCellValue,
-        onChange: @escaping (PhraseCellValue) -> Void
-    ) -> some View {
-        switch selectedLayer.valueType {
-        case .boolean:
-            Toggle("", isOn: Binding(
-                get: {
-                    if case let .bool(isOn) = value.normalized(for: selectedLayer) { return isOn }
-                    return false
-                },
-                set: { onChange(.bool($0)) }
-            ))
-            .labelsHidden()
-        case .patternIndex:
-            PatternIndexPicker(
-                selectedIndex: Binding(
-                    get: {
-                        if case let .index(index) = value.normalized(for: selectedLayer) { return index }
-                        return 0
-                    },
-                    set: { onChange(.index($0)) }
-                )
-            )
-        case .scalar:
-            ScalarValueEditor(
-                title: nil,
-                range: selectedLayer.scalarRange,
-                value: Binding(
-                    get: {
-                        if case let .scalar(scalar) = value.normalized(for: selectedLayer) { return scalar }
-                        return selectedLayer.minValue
-                    },
-                    set: { onChange(.scalar($0)) }
-                )
-            )
-        }
-    }
-
-    private func mutateSelectedPhrase(_ update: (inout PhraseModel) -> Void) {
-        var phrase = document.model.selectedPhrase
-        update(&phrase)
-        document.model.selectedPhrase = phrase
-    }
-
-    private func cycleValue(_ value: PhraseCellValue) -> PhraseCellValue {
-        switch selectedLayer.valueType {
-        case .boolean:
-            if case let .bool(isOn) = value.normalized(for: selectedLayer) {
-                return .bool(!isOn)
-            }
-            return .bool(true)
-        case .patternIndex:
-            if case let .index(index) = value.normalized(for: selectedLayer) {
-                return .index((index + 1) % TrackPatternBank.slotCount)
-            }
-            return .index(0)
-        case .scalar:
-            let current: Double
-            if case let .scalar(scalar) = value.normalized(for: selectedLayer) {
-                current = scalar
-            } else {
-                current = selectedLayer.minValue
-            }
-            let step = (selectedLayer.maxValue - selectedLayer.minValue) / 4
-            let next = current + step
-            if next > selectedLayer.maxValue {
-                return .scalar(selectedLayer.minValue)
-            }
-            return .scalar(next)
-        }
-    }
-
     private func toggleBooleanCell(phraseID: UUID, trackID: UUID) {
+        guard selectedLayer.valueType == .boolean else {
+            assertionFailure("toggleBooleanCell called for non-boolean layer \(selectedLayer.id)")
+            return
+        }
+
         document.model.updatePhrase(id: phraseID) { phrase in
             let currentCell = phrase.cell(for: selectedLayer.id, trackID: trackID)
-            let toggledValue: PhraseCellValue
-
-            switch phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0) {
-            case let .bool(isOn):
-                toggledValue = .bool(!isOn)
-            case let .index(index):
-                toggledValue = .bool(index == 0)
-            case let .scalar(value):
-                toggledValue = .bool(value <= selectedLayer.minValue)
-            }
+            let resolvedValue = phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
+            let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
 
             switch currentCell {
             case .inheritDefault, .curve:
@@ -495,25 +371,37 @@ struct PhraseWorkspaceView: View {
             }
         }
     }
+}
 
-    private func cellSummary(
-        _ cell: PhraseCell,
-        layer: PhraseLayerDefinition,
-        phrase: PhraseModel,
-        track: StepSequenceTrack
-    ) -> String {
-        switch cell {
-        case .inheritDefault:
-            return "Uses the track default for \(layer.name.lowercased()) on \(track.name)."
-        case let .single(value):
-            return "Whole phrase uses \(valueLabel(value, layer: layer))."
-        case .bars:
-            return "One authored value per bar across \(phrase.lengthBars) bars."
-        case .steps:
-            return "Per-step authoring across \(phrase.stepCount) steps."
-        case .curve:
-            return "Interpolated scalar curve over the phrase duration."
+private struct PhraseRowActions: View {
+    let canRemove: Bool
+    let onInsertBelow: () -> Void
+    let onDuplicate: () -> Void
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            actionButton(systemImage: "plus", action: onInsertBelow)
+            actionButton(systemImage: "plus.square.on.square", action: onDuplicate)
+            actionButton(systemImage: "trash", action: onRemove, isDisabled: !canRemove)
         }
+        .frame(maxHeight: .infinity, alignment: .center)
+    }
+
+    private func actionButton(systemImage: String, action: @escaping () -> Void, isDisabled: Bool = false) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(0.55) : StudioTheme.text)
+                .frame(width: 24, height: 24)
+                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
     }
 }
 
@@ -522,7 +410,6 @@ struct LiveWorkspaceView: View {
     @Binding var selectedLayerID: String
     @Environment(EngineController.self) private var engineController
     @State private var collapseGroups = true
-    @State private var selectedScopeID: String?
     @State private var selectedBarPage = 0
 
     private let columns = [
@@ -533,6 +420,14 @@ struct LiveWorkspaceView: View {
         document.model.layer(id: selectedLayerID)
             ?? document.model.patternLayer
             ?? document.model.layers.first!
+    }
+
+    private var layers: [PhraseLayerDefinition] {
+        document.model.layers
+    }
+
+    private var selectedLayerIndex: Int {
+        layers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
     }
 
     private var editingPhrase: PhraseModel {
@@ -622,10 +517,6 @@ struct LiveWorkspaceView: View {
         return scopes
     }
 
-    private var selectedScope: LiveLaneScope? {
-        visibleScopes.first(where: { $0.id == selectedScopeID }) ?? visibleScopes.first
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             topBar
@@ -633,117 +524,103 @@ struct LiveWorkspaceView: View {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(visibleScopes) { scope in
                     Button {
-                        selectedScopeID = scope.id
+                        performPrimaryAction(on: scope)
                     } label: {
                         LiveScopeCard(
                             scope: scope,
+                            layer: selectedLayer,
+                            cell: editableCell(for: scope),
                             modeLabel: currentMode(for: scope)?.label ?? "Mixed",
                             summary: liveValueLabel(for: scope),
-                            isSelected: selectedScope?.id == scope.id,
                             isMixed: sharedCell(for: scope) == nil
                         )
                     }
                     .buttonStyle(.plain)
                 }
             }
-
-            if let selectedScope {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(selectedScope.title.uppercased())
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .tracking(1.0)
-                            .foregroundStyle(StudioTheme.text)
-
-                        Rectangle()
-                            .fill(selectedScope.accent)
-                            .frame(width: 34, height: 3)
-                            .clipShape(Capsule())
-
-                        Text("editing \(editingPhrase.name.lowercased())")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-
-                    if sharedCell(for: selectedScope) == nil {
-                        StudioPlaceholderTile(
-                            title: "Mixed Member Values",
-                            detail: "This aggregate lane currently differs across its member tracks. Editing here fans the next value or mode out to all \(selectedScope.trackIDs.count) members.",
-                            accent: selectedScope.accent
-                        )
-                    }
-
-                    HStack(spacing: 8) {
-                        ForEach(selectedLayer.availableModes, id: \.self) { mode in
-                            Button {
-                                document.model.setPhraseCellMode(
-                                    mode,
-                                    layer: selectedLayer,
-                                    trackIDs: selectedScope.trackIDs,
-                                    phraseID: editingPhraseID
-                                )
-                            } label: {
-                                Text(mode.label)
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        currentMode(for: selectedScope) == mode
-                                            ? selectedScope.accent.opacity(0.2)
-                                            : Color.white.opacity(0.04),
-                                        in: Capsule()
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(
-                                currentMode(for: selectedScope) == mode ? StudioTheme.text : StudioTheme.mutedText
-                            )
-                        }
-                    }
-
-                    liveEditor(for: selectedScope, cell: editableCell(for: selectedScope))
-                }
-                .padding(16)
-                .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(selectedScope.accent.opacity(0.16), lineWidth: 1)
-                )
-            }
-        }
-        .onAppear(perform: syncSelectedScope)
-        .onChange(of: collapseGroups) {
-            syncSelectedScope()
-        }
-        .onChange(of: document.model.selectedTrackID) {
-            if !collapseGroups {
-                selectedScopeID = LiveLaneScope.trackID(document.model.selectedTrackID)
-            }
-        }
-        .onChange(of: editingPhraseID) {
-            selectedBarPage = 0
         }
     }
 
     private var topBar: some View {
-        HStack(spacing: 10) {
-            StudioMetricPill(title: "Editing", value: editingPhrase.name, accent: StudioTheme.violet)
-            StudioMetricPill(title: "Layer", value: selectedLayer.name, accent: accent)
-            StudioMetricPill(title: "Mode", value: engineController.transportMode.label, accent: StudioTheme.amber)
-            StudioMetricPill(title: "Lanes", value: "\(visibleScopes.count)", accent: StudioTheme.cyan)
+        HStack(spacing: 12) {
+            Button {
+                cycleLayer(by: -1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.04), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 10) {
+                Text(selectedLayer.name.uppercased())
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(StudioTheme.text)
+
+                Rectangle()
+                    .fill(accent)
+                    .frame(width: 28, height: 3)
+                    .clipShape(Capsule())
+
+                Text(layerSubtitle(selectedLayer))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(accent.opacity(0.16), in: Capsule())
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(accent.opacity(0.28), lineWidth: 1)
+            )
+
+            Button {
+                cycleLayer(by: 1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.04), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text(editingPhrase.name)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(StudioTheme.violet)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(StudioTheme.violet.opacity(0.14), in: Capsule())
 
             if !document.model.trackGroups.isEmpty {
                 Toggle("Collapse groups", isOn: $collapseGroups)
                     .toggleStyle(.switch)
                     .labelsHidden()
-
-                Text(collapseGroups ? "Grouped" : "Expanded")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
             }
-
-            Spacer()
         }
+    }
+
+    private func cycleLayer(by delta: Int) {
+        guard !layers.isEmpty else {
+            return
+        }
+
+        let nextIndex = (selectedLayerIndex + delta + layers.count) % layers.count
+        selectedLayerID = layers[nextIndex].id
     }
 
     @ViewBuilder
@@ -968,6 +845,68 @@ struct LiveWorkspaceView: View {
         }
     }
 
+    private var currentStepIndexInPhrase: Int {
+        let stepCount = max(1, editingPhrase.stepCount)
+        return Int(engineController.transportTickIndex) % stepCount
+    }
+
+    private var currentBarIndexInPhrase: Int {
+        min(max(0, currentStepIndexInPhrase / max(1, editingPhrase.stepsPerBar)), max(editingPhrase.lengthBars - 1, 0))
+    }
+
+    private func performPrimaryAction(on scope: LiveLaneScope) {
+        let cell = editableCell(for: scope)
+        let trackIDs = scope.trackIDs
+
+        switch cell {
+        case .inheritDefault:
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? document.model.selectedTrackID, stepIndex: currentStepIndexInPhrase)
+            document.model.setPhraseCell(
+                .single(cycleLiveValue(seedValue)),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
+        case let .single(value):
+            document.model.setPhraseCell(
+                .single(cycleLiveValue(value)),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
+        case let .bars(values):
+            guard !values.isEmpty else { return }
+            var nextValues = values
+            let index = min(currentBarIndexInPhrase, nextValues.count - 1)
+            nextValues[index] = cycleLiveValue(nextValues[index])
+            document.model.setPhraseCell(
+                .bars(nextValues),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
+        case let .steps(values):
+            guard !values.isEmpty else { return }
+            var nextValues = values
+            let index = min(currentStepIndexInPhrase, nextValues.count - 1)
+            nextValues[index] = cycleLiveValue(nextValues[index])
+            document.model.setPhraseCell(
+                .steps(nextValues),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
+        case .curve:
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? document.model.selectedTrackID, stepIndex: currentStepIndexInPhrase)
+            document.model.setPhraseCell(
+                .single(cycleLiveValue(seedValue)),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
+        }
+    }
+
     private func sharedCell(for scope: LiveLaneScope) -> PhraseCell? {
         let cells = scope.trackIDs.map { editingPhrase.cell(for: selectedLayer.id, trackID: $0) }
         guard let first = cells.first else {
@@ -1028,38 +967,7 @@ struct LiveWorkspaceView: View {
     }
 
     private func cycleLiveValue(_ value: PhraseCellValue) -> PhraseCellValue {
-        switch selectedLayer.valueType {
-        case .boolean:
-            if case let .bool(isOn) = value.normalized(for: selectedLayer) {
-                return .bool(!isOn)
-            }
-            return .bool(true)
-        case .patternIndex:
-            if case let .index(index) = value.normalized(for: selectedLayer) {
-                return .index((index + 1) % TrackPatternBank.slotCount)
-            }
-            return .index(0)
-        case .scalar:
-            let current: Double
-            if case let .scalar(scalar) = value.normalized(for: selectedLayer) {
-                current = scalar
-            } else {
-                current = selectedLayer.minValue
-            }
-            let step = (selectedLayer.maxValue - selectedLayer.minValue) / 4
-            let next = current + step
-            if next > selectedLayer.maxValue {
-                return .scalar(selectedLayer.minValue)
-            }
-            return .scalar(next)
-        }
-    }
-
-    private func syncSelectedScope() {
-        if let selectedScopeID, visibleScopes.contains(where: { $0.id == selectedScopeID }) {
-            return
-        }
-        selectedScopeID = visibleScopes.first?.id
+        cycledValue(value, for: selectedLayer)
     }
 
     private var accent: Color {
@@ -1073,20 +981,6 @@ struct LiveWorkspaceView: View {
         }
     }
 
-    private func liveValueLabel(_ cell: PhraseCell) -> String {
-        switch cell {
-        case .inheritDefault:
-            return "Default"
-        case let .single(value):
-            return valueLabel(value, layer: selectedLayer)
-        case let .bars(values):
-            return "\(values.count) Bars"
-        case let .steps(values):
-            return "\(values.count) Steps"
-        case let .curve(points):
-            return "\(points.count) Pt Curve"
-        }
-    }
 }
 
 private struct LiveLaneScope: Identifiable, Equatable {
@@ -1117,13 +1011,14 @@ private struct LiveLaneScope: Identifiable, Equatable {
 
 private struct LiveScopeCard: View {
     let scope: LiveLaneScope
+    let layer: PhraseLayerDefinition
+    let cell: PhraseCell
     let modeLabel: String
     let summary: String
-    let isSelected: Bool
     let isMixed: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(modeLabel.uppercased())
                     .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -1153,20 +1048,40 @@ private struct LiveScopeCard: View {
                 .foregroundStyle(StudioTheme.mutedText)
                 .lineLimit(2)
 
-            Text(summary)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            PhraseCellPreview(
+                layer: layer,
+                cell: cell,
+                resolvedValue: resolvedValue,
+                accent: scope.accent,
+                summary: summary,
+                isMixed: isMixed,
+                style: .live
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background((isSelected ? scope.accent.opacity(0.15) : Color.white.opacity(0.03)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(scope.accent.opacity(isSelected ? 0.6 : 0.14), lineWidth: 1)
+                .stroke(scope.accent.opacity(0.16), lineWidth: 1)
         )
     }
+
+    private var resolvedValue: PhraseCellValue {
+        switch cell {
+        case .inheritDefault:
+            return layer.defaultValue(for: scope.trackIDs.first ?? UUID())
+        case let .single(value):
+            return value
+        case let .bars(values):
+            return values.first ?? layer.defaultValue(for: scope.trackIDs.first ?? UUID())
+        case let .steps(values):
+            return values.first ?? layer.defaultValue(for: scope.trackIDs.first ?? UUID())
+        case let .curve(points):
+            return .scalar(points.first ?? layer.minValue)
+        }
+    }
+
 }
 
 private struct PhraseMatrixTrackHeaderCell: View {
@@ -1185,12 +1100,24 @@ private struct PhraseMatrixTrackHeaderCell: View {
                 .foregroundStyle(StudioTheme.mutedText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
         .background((isSelected ? accent.opacity(0.15) : Color.white.opacity(0.03)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(accent.opacity(isSelected ? 0.6 : 0.12), lineWidth: 1)
         )
+    }
+}
+
+private struct PhraseMatrixEmptyTrackHeaderCell: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(Color.white.opacity(0.015))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+            )
     }
 }
 
@@ -1247,7 +1174,14 @@ private struct PhraseGridCell: View {
                 Spacer()
             }
 
-            cellPreview
+            PhraseCellPreview(
+                layer: layer,
+                cell: cell,
+                resolvedValue: phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0),
+                accent: accent,
+                summary: valueLabel(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0), layer: layer),
+                style: .matrix
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
@@ -1257,234 +1191,17 @@ private struct PhraseGridCell: View {
                 .stroke(accent.opacity(isSelected ? 0.6 : 0.12), lineWidth: 1)
         )
     }
-
-    @ViewBuilder
-    private var cellPreview: some View {
-        switch layer.valueType {
-        case .boolean:
-            booleanPreview
-        case .scalar:
-            scalarPreview
-        case .patternIndex:
-            patternPreview
-        }
-    }
-
-    private func previewText(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 22, weight: .bold, design: .rounded))
-            .foregroundStyle(StudioTheme.text)
-    }
-
-    private var resolvedValue: PhraseCellValue {
-        phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0)
-    }
-
-    private var booleanState: Bool {
-        if case let .bool(isOn) = resolvedValue.normalized(for: layer) {
-            return isOn
-        }
-        return false
-    }
-
-    private var booleanLabel: String {
-        if layer.id == "mute" {
-            return booleanState ? "Muted" : "Live"
-        }
-        return booleanState ? "On" : "Off"
-    }
-
-    private var booleanFill: Color {
-        if layer.id == "mute" {
-            return booleanState ? Color.red.opacity(0.7) : StudioTheme.success.opacity(0.55)
-        }
-        return booleanState ? accent.opacity(0.65) : Color.white.opacity(0.04)
-    }
-
-    private var booleanPreview: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(booleanFill)
-
-            Text(booleanLabel)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-        }
-        .frame(height: 72)
-    }
-
-    private var scalarPreview: some View {
-        GeometryReader { geometry in
-            let scalar = scalarValue(for: resolvedValue, layer: layer)
-            let ratio = scalarRatio(scalar, layer: layer)
-            let fillHeight = max(6, geometry.size.height * ratio)
-
-            ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.white.opacity(0.04))
-
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(accent.opacity(0.8))
-                    .frame(height: fillHeight)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Spacer()
-                    Text(valueLabel(resolvedValue, layer: layer))
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(StudioTheme.text)
-
-                    Text(cellSummary(cell, layer: layer, phrase: phrase))
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(StudioTheme.text.opacity(0.85))
-                        .lineLimit(1)
-                }
-                .padding(10)
-            }
-        }
-        .frame(height: 84)
-    }
-
-    private var patternPreview: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(0.04))
-
-            VStack(alignment: .leading, spacing: 4) {
-                previewText(valueLabel(resolvedValue, layer: layer))
-
-                Text(cellSummary(cell, layer: layer, phrase: phrase))
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(10)
-        }
-        .frame(height: 84)
-    }
 }
 
-private struct ScalarValueEditor: View {
-    let title: String?
-    let range: ClosedRange<Double>
-    @Binding var value: Double
-
+private struct PhraseGridEmptyCell: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let title {
-                Text(title.uppercased())
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-
-            HStack(spacing: 10) {
-                Slider(value: $value, in: range)
-                Text(formattedValue)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .frame(width: 54, alignment: .trailing)
-            }
-        }
-    }
-
-    private var formattedValue: String {
-        if range.upperBound <= 1.01 && range.lowerBound >= 0 {
-            return "\(Int((value * 100).rounded()))%"
-        }
-        if range.lowerBound < 0 {
-            return "\(Int(value.rounded()))"
-        }
-        return "\(Int(value.rounded()))"
-    }
-}
-
-private struct PatternIndexPicker: View {
-    @Binding var selectedIndex: Int
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(0..<TrackPatternBank.slotCount, id: \.self) { index in
-                    Button {
-                        selectedIndex = index
-                    } label: {
-                        Text("P\(index + 1)")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(index == selectedIndex ? StudioTheme.violet.opacity(0.2) : Color.white.opacity(0.04), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-}
-
-private struct PhraseCurvePreview: View {
-    let points: [Double]
-    let range: ClosedRange<Double>
-    let accent: Color
-
-    var body: some View {
-        GeometryReader { geometry in
-            Path { path in
-                let sampled = (0..<64).map { index in
-                    PhraseCurveSampler.sample(points: points, at: index, stepCount: 64, range: range)
-                }
-
-                for (index, value) in sampled.enumerated() {
-                    let x = geometry.size.width * CGFloat(Double(index) / Double(max(1, sampled.count - 1)))
-                    let yRatio = (value - range.lowerBound) / max(0.0001, range.upperBound - range.lowerBound)
-                    let y = geometry.size.height * CGFloat(1 - yRatio)
-                    if index == 0 {
-                        path.move(to: CGPoint(x: x, y: y))
-                    } else {
-                        path.addLine(to: CGPoint(x: x, y: y))
-                    }
-                }
-            }
-            .stroke(accent, lineWidth: 3)
-        }
-        .padding(12)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-}
-
-private enum PhraseCurvePreset: CaseIterable {
-    case flat
-    case rise
-    case fall
-    case swell
-
-    var label: String {
-        switch self {
-        case .flat:
-            return "Flat"
-        case .rise:
-            return "Rise"
-        case .fall:
-            return "Fall"
-        case .swell:
-            return "Swell"
-        }
-    }
-
-    func points(in range: ClosedRange<Double>) -> [Double] {
-        let low = range.lowerBound
-        let high = range.upperBound
-        let mid = (low + high) / 2
-
-        switch self {
-        case .flat:
-            return [mid, mid, mid, mid]
-        case .rise:
-            return [low, low, mid, high]
-        case .fall:
-            return [high, mid, low, low]
-        case .swell:
-            return [low, high, high, low]
-        }
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(Color.white.opacity(0.015))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+            )
+            .frame(maxWidth: .infinity, minHeight: 120, maxHeight: .infinity)
     }
 }
 
@@ -1518,52 +1235,5 @@ private func layerSubtitle(_ layer: PhraseLayerDefinition) -> String {
         return "block param"
     case .voiceRouteOverride:
         return "voice route"
-    }
-}
-
-private func valueLabel(_ value: PhraseCellValue, layer: PhraseLayerDefinition) -> String {
-    switch value.normalized(for: layer) {
-    case let .bool(isOn):
-        return isOn ? "On" : "Off"
-    case let .index(index):
-        return "P\(index + 1)"
-    case let .scalar(scalar):
-        if layer.maxValue <= 1.01 && layer.minValue >= 0 {
-            return "\(Int((scalar * 100).rounded()))%"
-        }
-        if layer.id == "transpose" {
-            return "\(Int(scalar.rounded())) st"
-        }
-        return "\(Int(scalar.rounded()))"
-    }
-}
-
-private func scalarValue(for value: PhraseCellValue, layer: PhraseLayerDefinition) -> Double {
-    switch value.normalized(for: layer) {
-    case let .scalar(scalar):
-        return scalar
-    case let .index(index):
-        return Double(index)
-    case let .bool(isOn):
-        return isOn ? layer.maxValue : layer.minValue
-    }
-}
-
-private func scalarRatio(_ value: Double, layer: PhraseLayerDefinition) -> Double {
-    (value - layer.minValue) / max(0.0001, layer.maxValue - layer.minValue)
-}
-
-private func cellSummary(_ cell: PhraseCell, layer: PhraseLayerDefinition, phrase: PhraseModel) -> String {
-    switch cell {
-    case .inheritDefault:
-        return "Default"
-    case let .single(value):
-        return valueLabel(value, layer: layer)
-    case let .bars(values):
-        return "\(values.count) bars"
-    case let .steps(values):
-        return "\(values.count) steps"
-    case .curve:
-        return "\(phrase.lengthBars) bar curve"
     }
 }

@@ -1,4 +1,26 @@
+import Foundation
+
 final class NoteGenerator: Block {
+    struct ProgrammedNote: Codable, Equatable, Sendable {
+        var pitch: Int
+        var velocity: Int
+        var length: Int
+        var voiceTag: String?
+    }
+
+    struct NoteProgram: Codable, Equatable, Sendable {
+        var cycleLength: Int
+        var steps: [[ProgrammedNote]]
+
+        var normalized: NoteProgram {
+            let resolvedCycleLength = max(1, cycleLength)
+            let normalizedSteps = (0..<resolvedCycleLength).map { index in
+                steps.indices.contains(index) ? steps[index] : []
+            }
+            return NoteProgram(cycleLength: resolvedCycleLength, steps: normalizedSteps)
+        }
+    }
+
     static let defaultPitches: [UInt8] = [60, 62, 64, 65, 67, 69, 71, 72]
     static let defaultStepPattern: [Bool] = Array(repeating: true, count: 16)
     static let defaultAccentPattern: [Bool] = Array(repeating: false, count: 16)
@@ -18,6 +40,7 @@ final class NoteGenerator: Block {
     private var accentPattern: [Bool]
     private var velocity: UInt8
     private var gateLength: UInt16
+    private var noteProgram: NoteProgram?
 
     init(id: BlockID, params: [String: ParamValue] = [:]) {
         self.id = id
@@ -33,6 +56,13 @@ final class NoteGenerator: Block {
     }
 
     func tick(context: TickContext) -> [PortID: Stream] {
+        if let noteProgram {
+            let program = noteProgram.normalized
+            let stepIndex = Int(context.tickIndex % UInt64(program.cycleLength))
+            let events = program.steps[stepIndex].compactMap(Self.noteEvent(from:))
+            return ["notes": .notes(events)]
+        }
+
         guard !pitches.isEmpty, !stepPattern.isEmpty else {
             return ["notes": .notes([])]
         }
@@ -90,6 +120,15 @@ final class NoteGenerator: Block {
             }
             gateLength = UInt16(nextGateLength.rounded())
 
+        case let ("noteProgram", .text(encodedProgram)):
+            guard let data = encodedProgram.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(NoteProgram.self, from: data)
+            else {
+                noteProgram = nil
+                return
+            }
+            noteProgram = decoded.normalized
+
         default:
             return
         }
@@ -104,6 +143,24 @@ final class NoteGenerator: Block {
 
     private static func normalizedPattern(_ pattern: [Bool], stepCount: Int) -> [Bool] {
         Array(pattern.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - pattern.count))
+    }
+
+    private static func noteEvent(from programmed: ProgrammedNote) -> NoteEvent? {
+        guard let pitch = midiByte(from: programmed.pitch),
+              let velocity = midiByte(from: programmed.velocity),
+              programmed.length >= 0,
+              programmed.length <= Int(UInt16.max)
+        else {
+            return nil
+        }
+
+        return NoteEvent(
+            pitch: pitch,
+            velocity: velocity,
+            length: UInt16(programmed.length),
+            gate: true,
+            voiceTag: programmed.voiceTag
+        )
     }
 }
 

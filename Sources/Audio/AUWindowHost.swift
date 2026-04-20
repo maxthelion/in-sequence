@@ -38,6 +38,10 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
 
     private var windows: [WindowKey: WindowEntry] = [:]
 
+    private func log(_ message: String) {
+        NSLog("[AUWindowHost] \(message)")
+    }
+
     func open(
         for key: WindowKey,
         presenter: AudioUnitWindowPresentable,
@@ -45,16 +49,19 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         stateWriteback: @escaping (Data?) -> Void
     ) {
         if let existing = windows[key] {
+            log("open reuse existing key=\(String(describing: key)) title=\(title)")
             existing.window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
+        log("open request key=\(String(describing: key)) title=\(title)")
         presenter.requestHostedViewController { [weak self] controller in
             guard let self else {
                 return
             }
 
+            self.log("requestHostedViewController completed key=\(String(describing: key)) controller=\(controller.map { String(describing: type(of: $0)) } ?? "nil")")
             let contentController = controller ?? NSViewController()
             let window = NSWindow(contentViewController: contentController)
             let preferred = contentController.preferredContentSize
@@ -68,6 +75,7 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
                 window: window,
                 stateWriteback: stateWriteback
             )
+            self.log("window opened key=\(String(describing: key)) size=\(Int(size.width))x\(Int(size.height))")
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
         }
@@ -86,6 +94,7 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         guard let entry = windows[key] else {
             return
         }
+        log("close key=\(String(describing: key))")
         entry.window.close()
     }
 
@@ -110,8 +119,10 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
 
         if let presenter = match.value.presenter {
             let state = try? presenter.captureHostedState()
+            log("windowWillClose writeback key=\(String(describing: match.key)) state=\((state ?? nil)?.count ?? 0) bytes")
             match.value.stateWriteback(state ?? nil)
         } else {
+            log("windowWillClose writeback key=\(String(describing: match.key)) presenter gone")
             match.value.stateWriteback(nil)
         }
 

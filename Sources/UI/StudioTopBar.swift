@@ -5,6 +5,10 @@ struct StudioTopBar: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
 
+    private var visibleSections: [WorkspaceSection] {
+        WorkspaceSection.allCases.filter { $0 != .track }
+    }
+
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 18) {
@@ -25,7 +29,7 @@ struct StudioTopBar: View {
             }
 
             HStack(spacing: 10) {
-                ForEach(WorkspaceSection.allCases, id: \.self) { sectionValue in
+                ForEach(visibleSections, id: \.self) { sectionValue in
                     Button {
                         section = sectionValue
                     } label: {

@@ -40,6 +40,8 @@ final class EngineController: RouterDispatcher {
     private(set) var transportTickIndex: UInt64 = 0
     private(set) var transportPosition = "1:1:1"
     private(set) var transportMode: TransportMode = .free
+    private(set) var lastNoteTriggerUptime: TimeInterval = 0
+    private(set) var lastNoteTriggerCount: Int = 0
     private(set) var executor: Executor?
     private(set) var selectedOutput: TrackOutputDestination
 
@@ -57,6 +59,10 @@ final class EngineController: RouterDispatcher {
     private var routedMIDINotes: [Destination: [NoteEvent]] = [:]
     private var routeDispatchNow: TimeInterval = 0
     private(set) var chordContextByLane: [String: Chord] = [:]
+
+    private func log(_ message: String) {
+        NSLog("[EngineController] \(message)")
+    }
 
     init(
         client: MIDIClient? = MIDISession.shared.client,
@@ -109,6 +115,8 @@ final class EngineController: RouterDispatcher {
         let hosts = withStateLock { Array(audioOutputsByTrackID.values) }
         hosts.forEach { $0.stop() }
         isRunning = false
+        lastNoteTriggerUptime = 0
+        lastNoteTriggerCount = 0
     }
 
     func setBPM(_ bpm: Double) {
@@ -201,6 +209,14 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    func prepareAudioUnit(for trackID: UUID) {
+        log("prepareAudioUnit trackID=\(trackID)")
+        syncAudioOutputs(for: currentDocumentModel)
+        let host = withStateLock { audioOutputsByTrackID[trackID] }
+        log("prepareAudioUnit hostFound=\(host != nil)")
+        host?.prepareIfNeeded()
+    }
+
     func effectiveDestination(for trackID: UUID) -> (destination: Destination, pitchOffset: Int) {
         Self.effectiveDestination(for: trackID, in: currentDocumentModel)
     }
@@ -257,6 +273,18 @@ final class EngineController: RouterDispatcher {
         currentBPM = executor.currentBPM
         transportTickIndex = tickIndex
         transportPosition = Self.transportString(for: tickIndex, stepsPerBar: stepsPerBar)
+        let triggeredNoteCount = outputs.values.reduce(0) { partial, ports in
+            partial + ports.values.reduce(0) { nested, stream in
+                if case let .notes(events) = stream {
+                    return nested + events.count
+                }
+                return nested
+            }
+        }
+        if triggeredNoteCount > 0 {
+            lastNoteTriggerUptime = now
+            lastNoteTriggerCount = triggeredNoteCount
+        }
 
         for runtime in audioRuntimes.values where !runtime.mix.isMuted {
             guard case let .notes(events)? = outputs[runtime.generatorBlockID]?["notes"],
@@ -309,7 +337,7 @@ final class EngineController: RouterDispatcher {
         for track in documentModel.tracks {
             let (effectiveDestination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
             let generatorBlockID = Self.generatorBlockID(for: track.id)
-            let generator = NoteGenerator(id: generatorBlockID, params: Self.generatorParams(for: track))
+            let generator = NoteGenerator(id: generatorBlockID, params: Self.sourceParams(for: track, in: documentModel))
             blocks[generatorBlockID] = generator
             generatorIDs[track.id] = generatorBlockID
 
@@ -512,7 +540,7 @@ final class EngineController: RouterDispatcher {
                 continue
             }
 
-            for (paramKey, value) in Self.generatorParams(for: track) {
+            for (paramKey, value) in Self.sourceParams(for: track, in: documentModel) {
                 setParam(blockID: generatorBlockID, paramKey: paramKey, value: value)
             }
         }
@@ -578,8 +606,10 @@ final class EngineController: RouterDispatcher {
 
             nextOutputs[track.id] = host
             nextKeys[track.id] = key
+            log("syncAudioOutputs track=\(track.name) key=\(String(describing: key)) destination=\(destination.summary)")
             host.setDestination(destination)
             host.setMix(track.mix)
+            host.prepareIfNeeded()
             if isRunning {
                 host.startIfNeeded()
             }
@@ -612,14 +642,305 @@ final class EngineController: RouterDispatcher {
         removedHosts.forEach { $0.stop() }
     }
 
-    private static func generatorParams(for track: StepSequenceTrack) -> [String: ParamValue] {
+    private static func sourceParams(
+        for track: StepSequenceTrack,
+        in documentModel: SeqAIDocumentModel
+    ) -> [String: ParamValue] {
+        if let program = noteProgram(for: track, in: documentModel),
+           let encoded = encode(program: program)
+        {
+            return ["noteProgram": .text(encoded)]
+        }
+
+        return legacyGeneratorParams(for: track)
+    }
+
+    private static func legacyGeneratorParams(for track: StepSequenceTrack) -> [String: ParamValue] {
         [
+            "noteProgram": .text(""),
             "pitches": .integers(track.pitches),
             "stepPattern": .integers(track.stepPattern.map { $0 ? 1 : 0 }),
             "accentPattern": .integers(track.stepAccents.map { $0 ? 1 : 0 }),
             "velocity": .number(Double(track.velocity)),
             "gateLength": .number(Double(track.gateLength))
         ]
+    }
+
+    private static func noteProgram(
+        for track: StepSequenceTrack,
+        in documentModel: SeqAIDocumentModel
+    ) -> NoteGenerator.NoteProgram? {
+        let patternIndex = documentModel.selectedPhrase.patternIndex(for: track.id, layers: documentModel.layers)
+        let slot = documentModel.patternBank(for: track.id).slot(at: patternIndex)
+
+        switch slot.sourceRef.mode {
+        case .generator:
+            guard let generator = documentModel.generatorEntry(id: slot.sourceRef.generatorID) else {
+                return nil
+            }
+            return noteProgram(for: generator, track: track, clipPool: documentModel.clipPool)
+        case .clip:
+            guard let clip = documentModel.clipEntry(id: slot.sourceRef.clipID) else {
+                return nil
+            }
+            return noteProgram(for: clip)
+        }
+    }
+
+    private static func noteProgram(
+        for generator: GeneratorPoolEntry,
+        track: StepSequenceTrack,
+        clipPool: [ClipPoolEntry]
+    ) -> NoteGenerator.NoteProgram? {
+        switch generator.params {
+        case let .mono(step, pitch, shape):
+            let cycleLength = max(stepCycleLength(step, clipPool: clipPool), 1)
+            var rng = SystemRandomNumberGenerator()
+            var lastPitch: Int?
+            let steps = (0..<cycleLength).map { stepIndex in
+                guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
+                    return [NoteGenerator.ProgrammedNote]()
+                }
+                let pickedPitch = resolvedPitch(
+                    pitch,
+                    stepIndex: stepIndex,
+                    lastPitch: lastPitch,
+                    clipPool: clipPool
+                )
+                lastPitch = pickedPitch
+                return [
+                    NoteGenerator.ProgrammedNote(
+                        pitch: pickedPitch,
+                        velocity: clampedMIDI(shape.velocity),
+                        length: max(1, shape.gateLength),
+                        voiceTag: nil
+                    )
+                ]
+            }
+            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
+
+        case let .poly(step, pitches, shape):
+            let cycleLength = max(stepCycleLength(step, clipPool: clipPool), 1)
+            var rng = SystemRandomNumberGenerator()
+            let steps = (0..<cycleLength).map { stepIndex in
+                guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
+                    return [NoteGenerator.ProgrammedNote]()
+                }
+                return pitches.map { pitch in
+                    NoteGenerator.ProgrammedNote(
+                        pitch: resolvedPitch(pitch, stepIndex: stepIndex, lastPitch: nil, clipPool: clipPool),
+                        velocity: clampedMIDI(shape.velocity),
+                        length: max(1, shape.gateLength),
+                        voiceTag: nil
+                    )
+                }
+            }
+            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
+
+        case let .drum(stepsByVoice, shape):
+            let cycleLength = max(stepsByVoice.values.map { stepCycleLength($0, clipPool: clipPool) }.max() ?? 1, 1)
+            var rng = SystemRandomNumberGenerator()
+            let steps = (0..<cycleLength).map { stepIndex in
+                stepsByVoice.compactMap { (voiceTag: String, step: StepAlgo) -> NoteGenerator.ProgrammedNote? in
+                    guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
+                        return nil
+                    }
+                    return NoteGenerator.ProgrammedNote(
+                        pitch: Int(DrumKitNoteMap.note(for: voiceTag)),
+                        velocity: clampedMIDI(shape.velocity),
+                        length: max(1, shape.gateLength),
+                        voiceTag: voiceTag
+                    )
+                }
+            }
+            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
+
+        case .template:
+            return nil
+
+        case let .slice(step, sliceIndexes):
+            let cycleLength = max(stepCycleLength(step, clipPool: clipPool), 1)
+            var rng = SystemRandomNumberGenerator()
+            let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
+            let steps = (0..<cycleLength).map { stepIndex in
+                guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
+                    return [NoteGenerator.ProgrammedNote]()
+                }
+                let sliceIndex = resolvedIndexes[stepIndex % resolvedIndexes.count]
+                return [
+                    NoteGenerator.ProgrammedNote(
+                        pitch: clampedMIDI(60 + sliceIndex),
+                        velocity: clampedMIDI(track.velocity),
+                        length: max(1, track.gateLength),
+                        voiceTag: nil
+                    )
+                ]
+            }
+            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
+        }
+    }
+
+    private static func noteProgram(for clip: ClipPoolEntry) -> NoteGenerator.NoteProgram? {
+        switch clip.content {
+        case let .stepSequence(stepPattern, pitches):
+            let cycleLength = max(stepPattern.count, 1)
+            let resolvedPitches = pitches.isEmpty ? [60] : pitches
+            let steps = (0..<cycleLength).map { stepIndex in
+                guard stepPattern.indices.contains(stepIndex), stepPattern[stepIndex] else {
+                    return [NoteGenerator.ProgrammedNote]()
+                }
+                return [
+                    NoteGenerator.ProgrammedNote(
+                        pitch: clampedMIDI(resolvedPitches[stepIndex % resolvedPitches.count]),
+                        velocity: 100,
+                        length: 4,
+                        voiceTag: nil
+                    )
+                ]
+            }
+            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
+
+        case let .pianoRoll(lengthBars, stepsPerBar, notes):
+            let cycleLength = max(1, lengthBars * stepsPerBar)
+            var steps = Array(repeating: [NoteGenerator.ProgrammedNote](), count: cycleLength)
+            for note in notes {
+                let clampedStart = min(max(note.startStep, 0), cycleLength - 1)
+                steps[clampedStart].append(
+                    NoteGenerator.ProgrammedNote(
+                        pitch: clampedMIDI(note.pitch),
+                        velocity: clampedMIDI(note.velocity),
+                        length: max(1, note.lengthSteps),
+                        voiceTag: nil
+                    )
+                )
+            }
+            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
+
+        case let .sliceTriggers(stepPattern, sliceIndexes):
+            let cycleLength = max(stepPattern.count, 1)
+            let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
+            let steps = (0..<cycleLength).map { stepIndex in
+                guard stepPattern.indices.contains(stepIndex), stepPattern[stepIndex] else {
+                    return [NoteGenerator.ProgrammedNote]()
+                }
+                let sliceIndex = resolvedIndexes[stepIndex % resolvedIndexes.count]
+                return [
+                    NoteGenerator.ProgrammedNote(
+                        pitch: clampedMIDI(60 + sliceIndex),
+                        velocity: 100,
+                        length: 4,
+                        voiceTag: nil
+                    )
+                ]
+            }
+            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
+        }
+    }
+
+    private static func stepCycleLength(_ step: StepAlgo, clipPool: [ClipPoolEntry]) -> Int {
+        switch step {
+        case let .manual(pattern):
+            return max(pattern.count, 1)
+        case .randomWeighted:
+            return 16
+        case let .euclidean(_, steps, _):
+            return max(steps, 1)
+        case let .perStepProbability(probs):
+            return max(probs.count, 1)
+        case let .fromClipSteps(clipID):
+            guard let clip = clipPool.first(where: { $0.id == clipID }) else {
+                return 16
+            }
+            switch clip.content {
+            case let .stepSequence(stepPattern, _), let .sliceTriggers(stepPattern, _):
+                return max(stepPattern.count, 1)
+            case let .pianoRoll(lengthBars, stepsPerBar, _):
+                return max(1, lengthBars * stepsPerBar)
+            }
+        }
+    }
+
+    private static func stepFires<R: RandomNumberGenerator>(
+        _ step: StepAlgo,
+        at stepIndex: Int,
+        totalSteps: Int,
+        clipPool: [ClipPoolEntry],
+        rng: inout R
+    ) -> Bool {
+        switch step {
+        case let .fromClipSteps(clipID):
+            guard let clip = clipPool.first(where: { $0.id == clipID }) else {
+                return false
+            }
+            switch clip.content {
+            case let .stepSequence(stepPattern, _), let .sliceTriggers(stepPattern, _):
+                guard !stepPattern.isEmpty else { return false }
+                return stepPattern[stepIndex % stepPattern.count]
+            case let .pianoRoll(lengthBars, stepsPerBar, notes):
+                let cycleLength = max(1, lengthBars * stepsPerBar)
+                let normalizedStep = stepIndex % cycleLength
+                return notes.contains { $0.startStep == normalizedStep }
+            }
+        default:
+            return step.fires(at: stepIndex, totalSteps: totalSteps, rng: &rng)
+        }
+    }
+
+    private static func resolvedPitch(
+        _ pitch: PitchAlgo,
+        stepIndex: Int,
+        lastPitch: Int?,
+        clipPool: [ClipPoolEntry]
+    ) -> Int {
+        switch pitch {
+        case let .fromClipPitches(clipID, pickMode):
+            guard let clip = clipPool.first(where: { $0.id == clipID }) else {
+                return 60
+            }
+            let pool: [Int]
+            switch clip.content {
+            case let .stepSequence(_, pitches):
+                pool = pitches
+            case let .pianoRoll(_, _, notes):
+                pool = notes.map(\.pitch)
+            case let .sliceTriggers(_, sliceIndexes):
+                pool = sliceIndexes.map { 60 + $0 }
+            }
+            guard !pool.isEmpty else {
+                return 60
+            }
+            switch pickMode {
+            case .sequential:
+                return pool[stepIndex % pool.count]
+            case .random:
+                return pool.randomElement() ?? 60
+            }
+        default:
+            var rng = SystemRandomNumberGenerator()
+            return pitch.pick(
+                context: PitchContext(
+                    lastPitch: lastPitch,
+                    scaleRoot: lastPitch ?? 60,
+                    scaleID: .major,
+                    currentChord: nil,
+                    stepIndex: stepIndex
+                ),
+                rng: &rng
+            )
+        }
+    }
+
+    private static func clampedMIDI(_ value: Int) -> Int {
+        min(max(value, 0), 127)
+    }
+
+    private static func encode(program: NoteGenerator.NoteProgram) -> String? {
+        guard let data = try? JSONEncoder().encode(program),
+              let string = String(data: data, encoding: .utf8)
+        else {
+            return nil
+        }
+        return string
     }
 
     private static func generatorBlockID(for trackID: UUID) -> BlockID {

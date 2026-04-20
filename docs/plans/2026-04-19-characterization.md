@@ -6,7 +6,7 @@
 
 **Architecture:** Characterization outputs land in `Tests/__Characterization__/` (committed, diff-able). The pin-capture logic is per-layer:
 
-1. **API surface:** A Swift executable `scripts/DumpAPI/` built as a standalone SPM package. Walks `Sources/**/*.swift` via `swift-syntax`, emits a canonical text dump of every `public` declaration per module. Output files: `Tests/__Characterization__/API/<Module>.api.txt`.
+1. **API surface:** A Swift executable `scripts/DumpAPI/` built as a standalone SPM package. Walks `Sources/**/*.swift` via `swift-syntax`, emits a canonical text dump of every non-`private`/`fileprivate` declaration per directory. Because this is a single-target Xcode app with no explicit `public` modifier usage, the pinned surface is implicit-internal + explicit `internal` + any future `public`/`open` — i.e. every declaration a refactor could observably change for another file. Output files: `Tests/__Characterization__/API/<Module>.api.txt`.
 2. **Document + migration goldens:** Fixture JSON files covering one "minimal doc" + one "legacy drumRack doc" + one "legacy instrument" + one full-featured modern doc. Each has a `.input.json` (the document as shipped) and `.decoded.txt` (a canonical rendering of the decoded model). `characterize` writes `.decoded.txt`; `verify` decodes `.input.json` and compares.
 3. **Engine tick traces:** Scenario fixtures construct an `EngineController` with fixed seed + fixed document, tick for N beats, record the MIDI event sequence as a text log (`Tests/__Characterization__/Engine/<scenario>.log`).
 4. **Algo outputs:** Pairs of `<Algo>.<variant>.seed-<N>.txt` goldens — input params + RNG seed → enumerated output (which steps fire, which pitches picked). Many of these already exist as assertions inside unit tests; this task systematises them as golden files.
@@ -92,7 +92,9 @@ Tests/
 
 ## Task 1: `DumpAPI` SPM tool
 
-**Scope:** Standalone Swift command-line tool that reads `Sources/**/*.swift` and emits canonical text dumps of every `public` top-level declaration per module. Uses swift-syntax. Cross-platform.
+**Scope:** Standalone Swift command-line tool that reads `Sources/**/*.swift` and emits canonical text dumps of every non-`private`/`fileprivate` top-level declaration per module. Uses swift-syntax. Cross-platform.
+
+**Access-control note:** This is a single-target Xcode app; `Sources/` contains zero `public`/`open` declarations and 98 implicit-internal type declarations across 9 directories. "API surface" here therefore means **every declaration that another file could reference** — i.e. everything NOT marked `private` or `fileprivate`. `public`/`open` is treated as a synonym for "definitely in scope," but implicit-internal and explicit `internal` declarations ARE included. This matches the Feathers intent: pin whatever a refactor could observably change.
 
 **Files:**
 - Create: `scripts/DumpAPI/Package.swift`
@@ -106,27 +108,33 @@ Tests/
 dump-api <module-directory> > <module>.api.txt
 ```
 
-Walks the directory, parses each `.swift` file via `SwiftSyntaxParser`, visits every `public` / `open` top-level declaration (struct, class, enum, typealias, protocol, extension of public types, public functions, public variables). For each, emits a one-line canonical signature. Enum cases with associated values get their own line. Output sorted deterministically (lexicographic by fully-qualified name).
+Walks the directory, parses each `.swift` file via `SwiftSyntaxParser`, visits every top-level declaration (struct, class, enum, actor, typealias, protocol, extension, function, variable) AND their members, emitting a one-line canonical signature per declaration. **Skip** any declaration explicitly marked `private` or `fileprivate`. Include everything else (no modifier = implicit-internal = in scope; `internal` = in scope; `public`/`open` = in scope). Enum cases with associated values get their own line. Extensions emit as `extension TypeName: Protocol, ...` plus one line per non-private member. Output sorted deterministically (lexicographic by fully-qualified name, then by signature).
 
-Example output snippet:
+Each declaration line is prefixed with its effective access level (`internal` for implicit-internal) so that future promotions from internal → public show up as diffs.
+
+Example output snippet (adapted to the actual codebase):
 
 ```
-public typealias TrackGroupID = UUID
-public struct TrackGroup: Codable, Equatable, Identifiable, Sendable
-public struct TrackGroup { let id: TrackGroupID }
-public struct TrackGroup { var name: String }
-public struct TrackGroup { var color: String }
-public struct TrackGroup { var memberIDs: [TrackID] }
-public struct TrackGroup { var sharedDestination: Destination? }
+internal typealias TrackID = UUID
+internal struct Track: Codable, Equatable, Identifiable
+internal struct Track { let id: TrackID }
+internal struct Track { var name: String }
+internal struct Track { var destination: Destination }
+internal enum TrackType: String, Codable { case instrument }
+internal enum TrackType: String, Codable { case drumRack }
+internal enum TrackType: String, Codable { case group }
+internal extension Track: Hashable
+internal func Track.hash(into: inout Hasher)
 ...
 ```
 
 **Tests:**
 
-1. Running against a fixture directory containing a single file with one public struct produces the expected text dump.
-2. Private / internal declarations are omitted.
+1. Running against a fixture directory with one implicit-internal struct + one explicit-private struct produces output containing only the internal one.
+2. `private` and `fileprivate` declarations are omitted; `public`, `open`, `internal`, and no-modifier declarations are all included.
 3. Output is deterministic across multiple runs.
-4. Adding a new public method to any type changes the dump.
+4. Adding a new non-private method to any type changes the dump.
+5. Changing a declaration's access level from `internal` to `public` shows up as a diff (the `internal` prefix changes to `public`).
 
 - [ ] Write `APISurfaceTests` with fixture-based assertions
 - [ ] Implement the tool
@@ -138,7 +146,7 @@ public struct TrackGroup { var sharedDestination: Destination? }
 
 ## Task 2: API surface goldens
 
-**Scope:** Generate the initial `Tests/__Characterization__/API/<Module>.api.txt` files for every module in `Sources/`. These become the baselines.
+**Scope:** Generate the initial `Tests/__Characterization__/API/<Module>.api.txt` files for every directory under `Sources/` (treated as a module for characterization purposes). These become the baselines. Expected baseline size: ~98 type declarations + their members across 9 directories → on the order of several hundred lines total. Empty output for a directory is a bug (means the tool missed implicit-internal decls).
 
 **Files:**
 - Create: `Tests/__Characterization__/API/Document.api.txt` (etc. — one per module)
@@ -269,7 +277,7 @@ RNG is explicitly seeded (for generators using `.randomWeighted` etc.). Time is 
 2. `DEVELOPER_DIR=... xcodebuild test -only-testing:SequencerAITests/Characterization/*` — runs the test classes in compare mode
 3. Exit status reflects failures
 
-**Tests:** manual verification — a deliberate breaking change (rename a public method) fails verify; running `characterize --yes` then verify passes.
+**Tests:** manual verification — a deliberate breaking change (rename any non-private method, e.g. on `Track` or `EngineController`) fails verify; running `characterize --yes` then verify passes.
 
 - [ ] Write both scripts
 - [ ] Wire `-resetGoldens=1` handling into the test classes
