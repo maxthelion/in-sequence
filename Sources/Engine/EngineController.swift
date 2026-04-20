@@ -375,6 +375,9 @@ final class EngineController: RouterDispatcher {
 
             case .routedMIDI:
                 break
+
+            case .sampleTrigger:
+                break  // TODO: Task 11
             }
         }
     }
