@@ -29,6 +29,7 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
     case midi(port: MIDIEndpointName?, channel: UInt8, noteOffset: Int)
     case auInstrument(componentID: AudioComponentID, stateBlob: Data?)
     case internalSampler(bankID: InternalSamplerBankID, preset: String)
+    case sample(sampleID: UUID, settings: SamplerSettings)
     case inheritGroup
     case none
 
@@ -36,6 +37,7 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
         case midi
         case auInstrument
         case internalSampler
+        case sample
         case inheritGroup
         case none
     }
@@ -48,6 +50,8 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
             return .auInstrument
         case .internalSampler:
             return .internalSampler
+        case .sample:
+            return .sample
         case .inheritGroup:
             return .inheritGroup
         case .none:
@@ -63,6 +67,8 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
             return "AU"
         case .internalSampler:
             return "Internal"
+        case .sample:
+            return "Sampler"
         case .inheritGroup:
             return "Group"
         case .none:
@@ -74,7 +80,7 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
         switch self {
         case let .auInstrument(componentID, _):
             return .auInstrument(componentID: componentID, stateBlob: nil)
-        case .midi, .internalSampler, .inheritGroup, .none:
+        case .midi, .internalSampler, .sample, .inheritGroup, .none:
             return self
         }
     }
@@ -122,6 +128,9 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
             return componentID.displayKey
         case let .internalSampler(bankID, preset):
             return "\(bankID.rawValue) • \(preset)"
+        case let .sample(sampleID, settings):
+            let gainLabel = settings.gain == 0 ? "" : String(format: " • %+.1f dB", settings.gain)
+            return "Sample \(sampleID.uuidString.prefix(8))\(gainLabel)"
         case .inheritGroup:
             return "Inherited from group"
         case .none:

@@ -258,6 +258,9 @@ final class EngineController: RouterDispatcher {
                 : "Audio instrument unavailable"
         case .internalSampler:
             return "Internal sampler pending"
+        case .sample:
+            // TODO: Task 11 will wire sample dispatch
+            return "Sample playback pending"
         case .inheritGroup, .none:
             return "No default output"
         }
@@ -447,7 +450,8 @@ final class EngineController: RouterDispatcher {
                     destination: effectiveDestination,
                     pitchOffset: pitchOffset
                 )
-            case .internalSampler, .inheritGroup, .none:
+            case .internalSampler, .sample, .inheritGroup, .none:
+                // TODO: Task 11 will wire .sample dispatch
                 break
             }
         }
@@ -589,7 +593,8 @@ final class EngineController: RouterDispatcher {
                 )
             )
 
-        case .internalSampler, .inheritGroup, .none:
+        case .internalSampler, .sample, .inheritGroup, .none:
+            // TODO: Task 11 will wire .sample dispatch
             return
         }
     }

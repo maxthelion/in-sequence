@@ -388,7 +388,7 @@ struct TrackDestinationEditor: View {
         switch destination {
         case .none, .inheritGroup:
             return
-        case .midi, .auInstrument, .internalSampler:
+        case .midi, .auInstrument, .internalSampler, .sample:
             break
         }
 
@@ -413,7 +413,7 @@ struct TrackDestinationEditor: View {
             switch $0.destination {
             case .none, .inheritGroup:
                 return false
-            case .midi, .auInstrument, .internalSampler:
+            case .midi, .auInstrument, .internalSampler, .sample:
                 return true
             }
         }
@@ -438,6 +438,9 @@ private enum TrackDestinationChoice: String, CaseIterable, Identifiable {
         case .auInstrument:
             self = .auInstrument
         case .internalSampler:
+            self = .internalSampler
+        case .sample:
+            // TODO: Task 13 will add a dedicated .sample choice
             self = .internalSampler
         case .none:
             self = .none
