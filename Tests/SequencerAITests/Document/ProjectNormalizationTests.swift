@@ -102,6 +102,48 @@ final class ProjectNormalizationTests: XCTestCase {
         )
     }
 
+    func test_init_filters_pattern_banks_for_tracks_that_do_not_exist() {
+        let track = StepSequenceTrack.default
+        let strayBank = TrackPatternBank.default(
+            for: StepSequenceTrack(
+                name: "Stray",
+                trackType: .monoMelodic,
+                pitches: [48],
+                stepPattern: Array(repeating: true, count: 16),
+                destination: .none,
+                velocity: 96,
+                gateLength: 4
+            ),
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: []
+        )
+
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [],
+            layers: PhraseLayerDefinition.defaultSet(for: [track]),
+            routes: [],
+            patternBanks: [
+                TrackPatternBank.default(for: track, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: []),
+                strayBank,
+            ],
+            selectedTrackID: track.id,
+            phrases: [
+                PhraseModel.default(
+                    tracks: [track],
+                    layers: PhraseLayerDefinition.defaultSet(for: [track]),
+                    generatorPool: GeneratorPoolEntry.defaultPool,
+                    clipPool: []
+                )
+            ],
+            selectedPhraseID: UUID()
+        )
+
+        XCTAssertEqual(project.patternBanks.map(\.trackID), [track.id])
+    }
+
     private func generatorPoolJSON() throws -> String {
         try jsonString(for: GeneratorPoolEntry.defaultPool)
     }

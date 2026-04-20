@@ -10,11 +10,7 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
         HStack(spacing: 6) {
             ForEach(Array(values.enumerated()), id: \.offset) { index, value in
                 Button {
-                    var next = values
-                    guard next.indices.contains(index) else { return }
-                    let currentIndex = allowedValues.firstIndex(where: { abs(Double($0 - value)) < 0.01 }) ?? 0
-                    next[index] = allowedValues[(currentIndex + 1) % allowedValues.count]
-                    onChange(next)
+                    onChange(cycledValues(tapping: index))
                 } label: {
                     VStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -35,7 +31,16 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
         .frame(height: 96)
     }
 
-    private func normalizedFill(for value: Value) -> Double {
+    func cycledValues(tapping index: Int) -> [Value] {
+        var next = values
+        guard next.indices.contains(index) else { return next }
+        let value = next[index]
+        let currentIndex = allowedValues.firstIndex(where: { abs(Double($0 - value)) < 0.01 }) ?? 0
+        next[index] = allowedValues[(currentIndex + 1) % allowedValues.count]
+        return next
+    }
+
+    func normalizedFill(for value: Value) -> Double {
         guard let maxValue = allowedValues.max(), maxValue > .zero else { return 0 }
         return min(max(Double(value / maxValue), 0), 1)
     }

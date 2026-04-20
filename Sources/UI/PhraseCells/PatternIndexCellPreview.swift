@@ -8,7 +8,7 @@ struct PatternIndexCellPreview: View {
     let isMixed: Bool
     let metrics: CellPreviewMetrics
 
-    private let slotCount = 8
+    let slotCount = 8
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -43,21 +43,21 @@ struct PatternIndexCellPreview: View {
         .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private var activeIndex: Int? {
+    var activeIndex: Int? {
         if case let .index(index) = resolvedValue.normalized(for: layer) {
             return min(max(index, 0), slotCount - 1)
         }
         return nil
     }
 
-    private func slotFill(for index: Int) -> Color {
+    func slotFill(for index: Int) -> Color {
         guard let activeIndex else {
             return Color.white.opacity(0.05)
         }
         return index == activeIndex ? accent.opacity(0.85) : Color.white.opacity(0.06)
     }
 
-    private func slotStroke(for index: Int) -> Color {
+    func slotStroke(for index: Int) -> Color {
         guard let activeIndex else {
             return StudioTheme.border.opacity(0.4)
         }

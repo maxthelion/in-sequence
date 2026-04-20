@@ -19,14 +19,14 @@ struct BooleanCellPreview: View {
         .frame(height: metrics.booleanHeight)
     }
 
-    private var booleanState: Bool {
+    var booleanState: Bool {
         if case let .bool(isOn) = resolvedValue.normalized(for: layer) {
             return isOn
         }
         return false
     }
 
-    private var booleanLabel: String {
+    var booleanLabel: String {
         if isMixed {
             return "Mixed"
         }
@@ -36,7 +36,7 @@ struct BooleanCellPreview: View {
         return booleanState ? "On" : "Off"
     }
 
-    private var booleanFill: Color {
+    var booleanFill: Color {
         if layer.id == "mute" {
             return booleanState ? Color.red.opacity(metrics.muteOnOpacity) : StudioTheme.success.opacity(0.55)
         }

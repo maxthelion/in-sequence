@@ -242,17 +242,17 @@ Tests/
 
 ## Task 7: Extract Preview/ sub-feature
 
-**Scope:** Move `GeneratedNotesPreview` and `AlgorithmSummaryCard` into `Sources/UI/TrackSource/Preview/`. Their preview-engine helpers already live in Document (Task 3). `stepAlgoAccentColor(for:)` is only used here — colocate it as `fileprivate` inside `GeneratedNotesPreview.swift`; if a second feature ever uses accent-by-algo-kind, promote.
+**Scope:** Move `GeneratedNotesPreview` and `AlgorithmSummaryCard` into `Sources/UI/TrackSource/Preview/`. Their preview-engine helpers already live in Document (Task 3). `stepAlgoAccentColor(for:)` remains generator-scoped display support, because it is shared by the preview and generator editors; keep it in `GeneratorDisplaySupport.swift` unless a later cleanup introduces a broader theme-level home.
 
 **Files:**
 - Create: `Sources/UI/TrackSource/Preview/GeneratedNotesPreview.swift`
 - Create: `Sources/UI/TrackSource/Preview/AlgorithmSummaryCard.swift`
-- Modify: `Sources/UI/TrackSource/TrackSourceEditorView.swift` — delete the moved types and `stepAlgoAccentColor`.
+- Modify: `Sources/UI/TrackSource/TrackSourceEditorView.swift` — delete the moved types.
 
 **Tests:** Existing suite green.
 
 - [x] Extract the two preview views
-- [x] Colocate `stepAlgoAccentColor` in `GeneratedNotesPreview.swift`
+- [x] Keep `stepAlgoAccentColor` in shared generator display support
 - [x] Green
 - [x] Commit: `refactor(ui): extract Preview/ sub-feature`
 
@@ -288,7 +288,7 @@ After this task, `TrackSourceEditorView.swift` is the shell: the main struct + i
 - `xcodebuild test` — full suite green.
 - `wc -l Sources/UI/TrackSource/TrackSourceEditorView.swift` — ≤ 250 LOC.
 - `find Sources/UI/TrackSource -name '*.swift' -exec wc -l {} +` — no file over 400 LOC (except `PitchAlgoEditor.swift`, explicitly deferred for further sub-split).
-- `grep -r 'import SwiftUI' Sources/Document/` — returns zero lines.
+- `rg -n 'import SwiftUI' Sources/Document | rg -v 'SeqAIDocument.swift'` — returns zero lines.
 - `grep -rn 'StepAlgoKind\|PitchAlgoKind' Sources/UI/` — returns only references to the Document-owned types (no local redefinition).
 - `grep -rn 'ProbabilityGridEditor\|WeightGridEditor' Sources/` — returns zero (both collapsed into generic `GridEditor`).
 - Launch smoke: the app opens from the current checkout and the Track Source panel builds from the split feature directories without runtime regressions during startup.

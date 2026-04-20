@@ -9,10 +9,13 @@ struct ScalarCellPreview: View {
     let isMixed: Bool
     let metrics: CellPreviewMetrics
 
+    var clampedFillRatio: Double {
+        min(max(scalarRatio(scalarValue(for: resolvedValue, layer: layer), layer: layer), 0), 1)
+    }
+
     var body: some View {
         GeometryReader { geometry in
-            let clampedRatio = min(max(scalarRatio(scalarValue(for: resolvedValue, layer: layer), layer: layer), 0), 1)
-            let fillHeight = max(6, geometry.size.height * clampedRatio)
+            let fillHeight = max(6, geometry.size.height * clampedFillRatio)
 
             ZStack(alignment: .bottomLeading) {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
