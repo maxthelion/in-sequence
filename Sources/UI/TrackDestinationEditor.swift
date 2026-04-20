@@ -33,13 +33,17 @@ struct TrackDestinationEditor: View {
     }
 
     private var availableChoices: [TrackDestinationChoice] {
-        var choices: [TrackDestinationChoice] = [.midiOut, .auInstrument]
+        var choices: [TrackDestinationChoice] = [.midiOut, .auInstrument, .sample]
         if supportsInternalSamplerChoice {
             choices.append(.internalSampler)
         }
         choices.append(.none)
         if track.groupID != nil {
             choices.insert(.inheritGroup, at: 0)
+        }
+        // Hide the sampler choice if the library is empty — there would be no sane default to assign.
+        if AudioSampleLibrary.shared.samples.isEmpty {
+            choices.removeAll(where: { $0 == .sample })
         }
         return choices
     }
@@ -57,6 +61,8 @@ struct TrackDestinationEditor: View {
                 auEditor
             case .internalSampler:
                 internalSamplerEditor
+            case .sample:
+                samplerEditor
             case .none:
                 noneEditor
             }
@@ -182,6 +188,17 @@ struct TrackDestinationEditor: View {
         }
     }
 
+    private var samplerEditor: some View {
+        SamplerDestinationWidget(
+            destination: Binding(
+                get: { editedDestination },
+                set: { document.project.setEditedDestination($0, for: track.id) }
+            ),
+            library: AudioSampleLibrary.shared,
+            sampleEngine: engineController.sampleEngineSink
+        )
+    }
+
     private var internalSamplerEditor: some View {
         StudioPlaceholderTile(
             title: "Internal Sampler",
@@ -222,6 +239,19 @@ struct TrackDestinationEditor: View {
             if case .internalSampler = defaultDestination {
                 document.project.setEditedDestination(defaultDestination, for: track.id)
             }
+        case .sample:
+            if case .sample = editedDestination {
+                return
+            }
+            guard let seed = AudioSampleLibrary.shared.firstSample(in: .kick) else {
+                // Library empty — no default. UI hides the choice in this case, so this branch
+                // is defensive.
+                return
+            }
+            document.project.setEditedDestination(
+                .sample(sampleID: seed.id, settings: .default),
+                for: track.id
+            )
         case .none:
             document.project.setEditedDestination(.none, for: track.id)
         }
@@ -425,6 +455,7 @@ private enum TrackDestinationChoice: String, CaseIterable, Identifiable {
     case midiOut
     case auInstrument
     case internalSampler
+    case sample
     case none
 
     var id: String { rawValue }
@@ -440,8 +471,7 @@ private enum TrackDestinationChoice: String, CaseIterable, Identifiable {
         case .internalSampler:
             self = .internalSampler
         case .sample:
-            // TODO: Task 13 will add a dedicated .sample choice
-            self = .internalSampler
+            self = .sample
         case .none:
             self = .none
         }
@@ -457,6 +487,8 @@ private enum TrackDestinationChoice: String, CaseIterable, Identifiable {
             return "AU Instrument"
         case .internalSampler:
             return "Internal Sampler"
+        case .sample:
+            return "Sampler"
         case .none:
             return "No Default Output"
         }
@@ -472,6 +504,8 @@ private enum TrackDestinationChoice: String, CaseIterable, Identifiable {
             return "Host an Audio Unit instrument in-app"
         case .internalSampler:
             return "Play through the built-in sampler path"
+        case .sample:
+            return "Play one-shot sample files"
         case .none:
             return "No sink unless routes handle the notes"
         }
