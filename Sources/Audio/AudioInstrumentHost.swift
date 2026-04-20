@@ -21,6 +21,7 @@ protocol TrackPlaybackSink: AnyObject {
 final class AudioInstrumentHost: TrackPlaybackSink {
     private let engine = AVAudioEngine()
     private let queue = DispatchQueue(label: "ai.sequencer.SequencerAI.AudioInstrumentHost")
+    private let snapshotLock = NSLock()
     private let instrumentChoices: [AudioInstrumentChoice]
     private let factory: AUAudioUnitFactory
     private let autoStartEngine: Bool
@@ -32,6 +33,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var currentDestination: Destination
     private var instantiationGeneration: UInt64 = 0
     private var pendingLoadGeneration: UInt64?
+    private var snapshotChoice: AudioInstrumentChoice
+    private var snapshotAudioUnit: AVAudioUnit?
+    private var snapshotAvailable = false
 
     private func log(_ message: String) {
         NSLog("[AudioInstrumentHost] \(message)")
@@ -91,14 +95,15 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         self.currentDestination = .auInstrument(componentID: self.currentChoice.audioComponentID, stateBlob: nil)
         self.autoStartEngine = autoStartEngine
         self.factory = AUAudioUnitFactory(instantiateAudioUnit: instantiateAudioUnit)
+        self.snapshotChoice = self.currentChoice
     }
 
     var displayName: String {
-        queue.sync { currentChoice.displayName }
+        withSnapshot { snapshotChoice.displayName }
     }
 
     var isAvailable: Bool {
-        queue.sync { instrument != nil }
+        withSnapshot { snapshotAvailable }
     }
 
     var availableInstruments: [AudioInstrumentChoice] {
@@ -106,11 +111,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     }
 
     var selectedInstrument: AudioInstrumentChoice {
-        queue.sync { currentChoice }
+        withSnapshot { snapshotChoice }
     }
 
     var currentAudioUnit: AVAudioUnit? {
-        queue.sync { instrument }
+        withSnapshot { snapshotAudioUnit }
     }
 
     func prepareIfNeeded() {
@@ -174,6 +179,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             case let .auInstrument(componentID, _):
                 self.currentChoice = self.instrumentChoices.first(where: { $0.audioComponentID == componentID })
                     ?? AudioInstrumentChoice(audioComponentID: componentID)
+                self.updateSnapshotChoice(self.currentChoice)
                 self.instantiationGeneration &+= 1
                 self.pendingLoadGeneration = nil
                 self.disconnectCurrentInstrument()
@@ -292,6 +298,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         disconnectCurrentInstrument()
         performOnMain {
             self.instrument = nextInstrument
+            self.updateSnapshotInstrument(nextInstrument)
             if nextInstrument.engine == nil {
                 self.engine.attach(nextInstrument)
             }
@@ -338,6 +345,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
 
         currentChoice = fallbackChoice
+        updateSnapshotChoice(fallbackChoice)
         currentDestination = .auInstrument(componentID: fallbackChoice.audioComponentID, stateBlob: nil)
         instantiationGeneration &+= 1
         instantiate(choice: fallbackChoice, stateBlob: nil, generation: instantiationGeneration)
@@ -359,6 +367,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.engine.disconnectNodeOutput(instrument)
             self.engine.detach(instrument)
             self.instrument = nil
+            self.updateSnapshotInstrument(nil)
         }
     }
 
@@ -386,5 +395,24 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             instrument.pan = Float(currentMix.clampedPan)
             instrument.volume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
         }
+    }
+
+    private func withSnapshot<T>(_ body: () -> T) -> T {
+        snapshotLock.lock()
+        defer { snapshotLock.unlock() }
+        return body()
+    }
+
+    private func updateSnapshotChoice(_ choice: AudioInstrumentChoice) {
+        snapshotLock.lock()
+        snapshotChoice = choice
+        snapshotLock.unlock()
+    }
+
+    private func updateSnapshotInstrument(_ instrument: AVAudioUnit?) {
+        snapshotLock.lock()
+        snapshotAudioUnit = instrument
+        snapshotAvailable = instrument != nil
+        snapshotLock.unlock()
     }
 }
