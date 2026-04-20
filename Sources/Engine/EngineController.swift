@@ -345,7 +345,8 @@ final class EngineController: RouterDispatcher {
 
         // Sample dispatch → queue (drum tracks and any other track with .sample destination).
         for track in documentModel.tracks {
-            guard !currentLayerSnapshot.isMuted(track.id),
+            guard !track.mix.isMuted,
+                  !currentLayerSnapshot.isMuted(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"],
                   !events.isEmpty

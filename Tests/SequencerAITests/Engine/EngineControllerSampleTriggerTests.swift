@@ -100,7 +100,10 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         }
         controller.stop()
 
-        XCTAssertGreaterThan(spy.playCalls.count, 0, "sample should have played")
+        // start() pre-queues one tick, then each processTick dispatches-then-prepares.
+        // The TickClock may fire one additional background tick before stop(), so the
+        // count is at least 4 (the 4 manually-driven ticks) but may be higher.
+        XCTAssertGreaterThanOrEqual(spy.playCalls.count, 4, "at least one play per fired tick; 4 ticks driven")
     }
 
     func test_muteCell_suppressesSampleDispatch() {
@@ -136,6 +139,41 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         controller.stop()
 
         XCTAssertEqual(spy.playCalls.count, 0, "muted track should not dispatch sample triggers")
+    }
+
+    func test_mixMute_suppressesSampleDispatch() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let kick = library.firstSample(in: .kick) else { XCTFail(); return }
+        let spy = SpySamplePlaybackSink()
+
+        var track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        track.mix.isMuted = true
+
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+
+        let controller = EngineController(
+            client: nil, endpoint: nil,
+            sampleEngine: spy, sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.start()
+        let now = ProcessInfo.processInfo.systemUptime
+        for step in 0..<4 {
+            controller.processTick(tickIndex: UInt64(step), now: now + Double(step) * 0.125)
+        }
+        controller.stop()
+
+        XCTAssertEqual(spy.playCalls.count, 0, "mix-muted track should not dispatch sample triggers")
     }
 
     func test_orphanSampleID_noCrash() {
