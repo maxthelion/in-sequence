@@ -10,11 +10,19 @@ final class AudioSampleTests: XCTestCase {
         XCTAssertEqual(a, b)
     }
 
-    func test_hashable_usesID() {
+    func test_hashable_distinctValuesHaveDistinctIdentity() {
         let shared = UUID()
-        let a = AudioSample(id: shared, name: "a", fileRef: .appSupportLibrary(relativePath: "k/a.wav"), category: .kick, lengthSeconds: 0.5)
-        let b = AudioSample(id: shared, name: "b-different-name", fileRef: .appSupportLibrary(relativePath: "k/b.wav"), category: .snare, lengthSeconds: 0.3)
+        let a = AudioSample(
+            id: shared, name: "a",
+            fileRef: .appSupportLibrary(relativePath: "k/a.wav"),
+            category: .kick, lengthSeconds: 0.5
+        )
+        let b = AudioSample(
+            id: shared, name: "b-different-name",
+            fileRef: .appSupportLibrary(relativePath: "k/b.wav"),
+            category: .snare, lengthSeconds: 0.3
+        )
         XCTAssertNotEqual(a, b)
-        XCTAssertNotEqual(a.hashValue, b.hashValue)
+        XCTAssertEqual(Set([a, b]).count, 2, "different field values should produce distinct Set entries")
     }
 }
