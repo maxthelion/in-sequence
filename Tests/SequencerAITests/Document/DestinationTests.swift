@@ -41,4 +41,14 @@ final class DestinationTests: XCTestCase {
             MIDIEndpointName(displayName: "SequencerAI Out", isVirtual: true)
         )
     }
+
+    func test_without_transient_state_strips_au_state_blob() {
+        let componentID = AudioInstrumentChoice.testInstrument.audioComponentID
+        let destination = Destination.auInstrument(componentID: componentID, stateBlob: Data([0xDE, 0xAD]))
+
+        XCTAssertEqual(
+            destination.withoutTransientState,
+            .auInstrument(componentID: componentID, stateBlob: nil)
+        )
+    }
 }

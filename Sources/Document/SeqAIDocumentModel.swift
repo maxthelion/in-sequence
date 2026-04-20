@@ -90,6 +90,11 @@ enum DrumKitPreset: String, CaseIterable, Sendable {
 }
 
 struct SeqAIDocumentModel: Codable, Equatable {
+    enum DestinationWriteTarget: Equatable, Sendable {
+        case track(UUID)
+        case group(TrackGroupID)
+    }
+
     var version: Int
     var tracks: [StepSequenceTrack]
     var trackGroups: [TrackGroup]
@@ -253,6 +258,80 @@ struct SeqAIDocumentModel: Codable, Equatable {
             return nil
         }
         return trackGroups.first(where: { $0.id == groupID })
+    }
+
+    func destinationWriteTarget(for trackID: UUID) -> DestinationWriteTarget {
+        guard let track = tracks.first(where: { $0.id == trackID }) else {
+            return .track(trackID)
+        }
+        if case .inheritGroup = track.destination,
+           let groupID = track.groupID,
+           trackGroups.contains(where: { $0.id == groupID })
+        {
+            return .group(groupID)
+        }
+        return .track(trackID)
+    }
+
+    func destination(for target: DestinationWriteTarget) -> Destination? {
+        switch target {
+        case .track(let trackID):
+            return tracks.first(where: { $0.id == trackID })?.destination
+        case .group(let groupID):
+            return trackGroups.first(where: { $0.id == groupID })?.sharedDestination
+        }
+    }
+
+    func resolvedDestination(for trackID: UUID) -> Destination {
+        let target = destinationWriteTarget(for: trackID)
+        return destination(for: target)
+            ?? tracks.first(where: { $0.id == trackID })?.destination
+            ?? .none
+    }
+
+    mutating func setDestination(_ destination: Destination, for target: DestinationWriteTarget) {
+        switch target {
+        case .track(let trackID):
+            guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }) else {
+                return
+            }
+            tracks[trackIndex].destination = destination
+        case .group(let groupID):
+            guard let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID }) else {
+                return
+            }
+            trackGroups[groupIndex].sharedDestination = destination
+        }
+    }
+
+    mutating func setEditedDestination(_ destination: Destination, for trackID: UUID) {
+        setDestination(destination, for: destinationWriteTarget(for: trackID))
+    }
+
+    func voiceSnapshotDestination(for trackID: UUID) -> Destination? {
+        let target = destinationWriteTarget(for: trackID)
+        return destination(for: target)?.withoutTransientState
+    }
+
+    mutating func setEditedMIDIPort(_ port: MIDIEndpointName?, for trackID: UUID) {
+        let target = destinationWriteTarget(for: trackID)
+        let updated = (destination(for: target) ?? .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0))
+            .settingMIDIPort(port)
+        setDestination(updated, for: target)
+    }
+
+    mutating func setEditedMIDIChannel(_ channel: UInt8, for trackID: UUID) {
+        let target = destinationWriteTarget(for: trackID)
+        let updated = (destination(for: target) ?? .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0))
+            .settingMIDIChannel(channel)
+        setDestination(updated, for: target)
+    }
+
+    mutating func setEditedMIDINoteOffset(_ noteOffset: Int, for trackID: UUID) {
+        let target = destinationWriteTarget(for: trackID)
+        let updated = (destination(for: target) ?? .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0))
+            .settingMIDINoteOffset(noteOffset)
+        setDestination(updated, for: target)
     }
 
     func tracksInGroup(_ groupID: TrackGroupID) -> [StepSequenceTrack] {
@@ -1001,7 +1080,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     }
 
     var defaultDestination: Destination {
-        destination
+        destination.withoutTransientState
     }
 
     var midiPortName: MIDIEndpointName? {

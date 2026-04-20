@@ -70,6 +70,48 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
         }
     }
 
+    var withoutTransientState: Destination {
+        switch self {
+        case let .auInstrument(componentID, _):
+            return .auInstrument(componentID: componentID, stateBlob: nil)
+        case .midi, .internalSampler, .inheritGroup, .none:
+            return self
+        }
+    }
+
+    var midiPort: MIDIEndpointName? {
+        if case let .midi(port, _, _) = self {
+            return port
+        }
+        return nil
+    }
+
+    var midiChannel: UInt8 {
+        if case let .midi(_, channel, _) = self {
+            return channel
+        }
+        return 0
+    }
+
+    var midiNoteOffset: Int {
+        if case let .midi(_, _, noteOffset) = self {
+            return noteOffset
+        }
+        return 0
+    }
+
+    func settingMIDIPort(_ port: MIDIEndpointName?) -> Destination {
+        .midi(port: port, channel: midiChannel, noteOffset: midiNoteOffset)
+    }
+
+    func settingMIDIChannel(_ channel: UInt8) -> Destination {
+        .midi(port: midiPort, channel: channel, noteOffset: midiNoteOffset)
+    }
+
+    func settingMIDINoteOffset(_ noteOffset: Int) -> Destination {
+        .midi(port: midiPort, channel: midiChannel, noteOffset: noteOffset)
+    }
+
     var summary: String {
         switch self {
         case let .midi(port, channel, noteOffset):
