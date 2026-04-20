@@ -15,6 +15,15 @@ final class AUAudioUnitFactory {
 
     private let instantiateAudioUnit: AudioUnitLoader
 
+    private func performOnMain(_ work: @escaping @Sendable () -> Void) {
+        if Thread.isMainThread {
+            work()
+            return
+        }
+
+        DispatchQueue.main.async(execute: work)
+    }
+
     init(
         instantiateAudioUnit: @escaping AudioUnitLoader = { description, completion in
             AVAudioUnit.instantiate(
@@ -40,22 +49,28 @@ final class AUAudioUnitFactory {
             componentFlagsMask: 0
         )
 
-        instantiateAudioUnit(description) { audioUnit, error in
-            if let error {
-                completion(.failure(.instantiationFailed(Int32((error as NSError).code))))
-                return
-            }
+        performOnMain { [instantiateAudioUnit] in
+            instantiateAudioUnit(description) { audioUnit, error in
+                self.performOnMain {
+                    if let error {
+                        completion(.failure(.instantiationFailed(Int32((error as NSError).code))))
+                        return
+                    }
 
-            guard let audioUnit else {
-                completion(.failure(.instantiationFailed(-1)))
-                return
-            }
+                    guard let audioUnit else {
+                        completion(.failure(.instantiationFailed(-1)))
+                        return
+                    }
 
-            do {
-                audioUnit.auAudioUnit.fullState = try FullStateCoder.decode(stateBlob)
-                completion(.success(audioUnit))
-            } catch {
-                completion(.failure(.stateDecodeFailed))
+                    do {
+                        if let fullState = try FullStateCoder.decode(stateBlob) {
+                            audioUnit.auAudioUnit.fullState = fullState
+                        }
+                        completion(.success(audioUnit))
+                    } catch {
+                        completion(.failure(.stateDecodeFailed))
+                    }
+                }
             }
         }
     }

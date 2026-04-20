@@ -223,21 +223,26 @@ struct TrackDestinationEditor: View {
         switch choice {
         case .inheritGroup:
             document.project.selectedTrack.destination = .inheritGroup
+            engineController.apply(documentModel: document.project)
         case .midiOut:
             let nextDestination = editedDestination.kind == .midi
                 ? editedDestination
                 : Destination.midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
             document.project.setEditedDestination(nextDestination, for: track.id)
+            engineController.apply(documentModel: document.project)
         case .auInstrument:
             document.project.setEditedDestination(
                 .auInstrument(componentID: currentAudioInstrumentChoice.audioComponentID, stateBlob: nil),
                 for: track.id
             )
+            engineController.apply(documentModel: document.project)
+            engineController.prepareAudioUnit(for: track.id)
             saveCurrentVoiceSnapshot()
         case .internalSampler:
             let defaultDestination = Project.defaultDestination(for: document.project.selectedTrack.trackType)
             if case .internalSampler = defaultDestination {
                 document.project.setEditedDestination(defaultDestination, for: track.id)
+                engineController.apply(documentModel: document.project)
             }
         case .sample:
             if case .sample = editedDestination {
@@ -254,6 +259,7 @@ struct TrackDestinationEditor: View {
             )
         case .none:
             document.project.setEditedDestination(.none, for: track.id)
+            engineController.apply(documentModel: document.project)
         }
     }
 
@@ -275,6 +281,9 @@ struct TrackDestinationEditor: View {
                     .auInstrument(componentID: $0.audioComponentID, stateBlob: nil),
                     for: track.id
                 )
+                log("audioInstrumentBinding set track=\(track.name) component=\($0.audioComponentID.displayKey)")
+                engineController.apply(documentModel: document.project)
+                engineController.prepareAudioUnit(for: track.id)
                 saveCurrentVoiceSnapshot()
             }
         )
@@ -285,6 +294,7 @@ struct TrackDestinationEditor: View {
             get: { editedDestination.midiPort },
             set: { port in
                 document.project.setEditedMIDIPort(port, for: track.id)
+                engineController.apply(documentModel: document.project)
             }
         )
     }
@@ -295,6 +305,7 @@ struct TrackDestinationEditor: View {
             set: { channel in
                 let clampedChannel = UInt8(max(0, min(15, channel - 1)))
                 document.project.setEditedMIDIChannel(clampedChannel, for: track.id)
+                engineController.apply(documentModel: document.project)
             }
         )
     }
@@ -304,6 +315,7 @@ struct TrackDestinationEditor: View {
             get: { editedDestination.midiNoteOffset },
             set: { noteOffset in
                 document.project.setEditedMIDINoteOffset(noteOffset, for: track.id)
+                engineController.apply(documentModel: document.project)
             }
         )
     }
@@ -403,6 +415,10 @@ struct TrackDestinationEditor: View {
 
     private func recallRecentVoice(_ voice: RecentVoice) {
         document.project.setEditedDestination(voice.destination, for: track.id)
+        engineController.apply(documentModel: document.project)
+        if case .auInstrument = voice.destination {
+            engineController.prepareAudioUnit(for: track.id)
+        }
         RecentVoicesStore.shared.touch(id: voice.id)
         refreshRecentVoices()
     }

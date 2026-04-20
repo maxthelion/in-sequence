@@ -49,10 +49,17 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         stateWriteback: @escaping (Data?) -> Void
     ) {
         if let existing = windows[key] {
-            log("open reuse existing key=\(String(describing: key)) title=\(title)")
-            existing.window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
+            if let existingPresenter = existing.presenter, existingPresenter === presenter {
+                log("open reuse existing key=\(String(describing: key)) title=\(title)")
+                existing.window.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+                return
+            }
+
+            log("open replacing existing key=\(String(describing: key)) title=\(title)")
+            windows.removeValue(forKey: key)
+            existing.window.delegate = nil
+            existing.window.close()
         }
 
         log("open request key=\(String(describing: key)) title=\(title)")
@@ -62,7 +69,10 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
             }
 
             self.log("requestHostedViewController completed key=\(String(describing: key)) controller=\(controller.map { String(describing: type(of: $0)) } ?? "nil")")
-            let contentController = controller ?? NSViewController()
+            guard let contentController = controller else {
+                self.log("open aborted key=\(String(describing: key)) title=\(title) controller=nil")
+                return
+            }
             let window = NSWindow(contentViewController: contentController)
             let preferred = contentController.preferredContentSize
             let size = preferred == .zero ? NSSize(width: 720, height: 480) : preferred
@@ -95,6 +105,9 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
             return
         }
         log("close key=\(String(describing: key))")
+        writeBackState(for: key, entry: entry)
+        windows.removeValue(forKey: key)
+        entry.window.delegate = nil
         entry.window.close()
     }
 
@@ -110,6 +123,17 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         isOpen(for: .track(trackID))
     }
 
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard let match = windows.first(where: { $0.value.window === sender }) else {
+            return true
+        }
+
+        log("windowShouldClose hide key=\(String(describing: match.key))")
+        writeBackState(for: match.key, entry: match.value)
+        sender.orderOut(nil)
+        return false
+    }
+
     func windowWillClose(_ notification: Notification) {
         guard let closingWindow = notification.object as? NSWindow,
               let match = windows.first(where: { $0.value.window === closingWindow })
@@ -117,22 +141,25 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
             return
         }
 
-        if let presenter = match.value.presenter {
+        log("windowWillClose remove key=\(String(describing: match.key))")
+        windows.removeValue(forKey: match.key)
+    }
+
+    private func writeBackState(for key: WindowKey, entry: WindowEntry) {
+        if let presenter = entry.presenter {
             let state: Data?
             do {
                 state = try presenter.captureHostedState()
             } catch {
                 assertionFailure("AUWindowHost state capture failed: \(error)")
-                NSLog("[AUWindowHost] state capture failed key=\(String(describing: match.key)) error=\(error)")
+                NSLog("[AUWindowHost] state capture failed key=\(String(describing: key)) error=\(error)")
                 state = nil
             }
-            log("windowWillClose writeback key=\(String(describing: match.key)) state=\((state ?? nil)?.count ?? 0) bytes")
-            match.value.stateWriteback(state ?? nil)
+            log("state writeback key=\(String(describing: key)) state=\((state ?? nil)?.count ?? 0) bytes")
+            entry.stateWriteback(state ?? nil)
         } else {
-            log("windowWillClose writeback key=\(String(describing: match.key)) presenter gone")
-            match.value.stateWriteback(nil)
+            log("state writeback key=\(String(describing: key)) presenter gone")
+            entry.stateWriteback(nil)
         }
-
-        windows.removeValue(forKey: match.key)
     }
 }
