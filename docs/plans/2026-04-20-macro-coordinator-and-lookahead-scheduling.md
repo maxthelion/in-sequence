@@ -21,6 +21,7 @@ Scope for the coordinator's first outing is intentionally narrow: **only the `.m
 **MidiOut migration is deliberately out of scope.** `MidiOut` continues to send via `MIDIClient.send` during its block `tick`, which now runs inside `prepareTick`. That means MIDI events still fire during prepare, not dispatch — correct for the current (non-realtime) threading model, and a one-plan refactor away from living in the queue alongside AU and routed events. Migrating `MidiOut` into the queue is a follow-up.
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md` §"Platform and stack" (*"Pipeline DAG executor runs on a scheduling queue driven by the audio render clock for sample-accurate timing"*) and §"The macro coordinator as information substrate" (*"Every block receives the macro coordinator's tick … clock counters … current macro-row values"*). No new design — implements what the spec already names.
+**Status:** [COMPLETED 2026-04-20]
 
 **Depends on:** Current `main` after:
 - `v0.0.12-document-as-project-refactor`
@@ -42,7 +43,7 @@ This plan assumes the post-refactor names already in the tree: `Project`, `SeqAI
 - **Coordinator-owned song transport.** The coordinator reads `project.selectedPhraseID`; it does not advance phrases. Song-transport phrase-advance is a separate plan.
 - **Clock counters beyond `phraseStep`.** The `LayerSnapshot` carries no `absSongStep` / `phraseIndex` / `barInPhrase` yet — nothing consumes them. Add alongside the first consumer (likely the song-transport plan).
 
-**Status:** [QUEUED] Ready to execute on current `main`. Tag TBD.
+Tag: `v0.0.15-coordinator-scheduling`
 
 ---
 
@@ -189,12 +190,12 @@ final class EventQueueTests: XCTestCase {
 
 **Tests:** New only; no existing behavior touched.
 
-- [ ] Create `ScheduledEvent.swift` with the body above
-- [ ] Create `EventQueue.swift` with the body above
-- [ ] Create `EventQueueTests.swift` with the three test cases
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild -scheme SequencerAI test` — green
-- [ ] Commit: `feat(engine): introduce ScheduledEvent and EventQueue scaffolding`
+- [x] Create `ScheduledEvent.swift` with the body above
+- [x] Create `EventQueue.swift` with the body above
+- [x] Create `EventQueueTests.swift` with the three test cases
+- [x] `xcodegen generate`
+- [x] `xcodebuild -scheme SequencerAI test` — green
+- [x] Commit: `feat(engine): introduce ScheduledEvent and EventQueue scaffolding`
 
 ---
 
@@ -349,12 +350,12 @@ final class MacroCoordinatorTests: XCTestCase {
 
 **Tests:** Six unit cases covering the mute evaluation paths: inheritDefault, single, bars, steps, wrap-around, missing phrase.
 
-- [ ] Create `LayerSnapshot.swift`
-- [ ] Create `MacroCoordinator.swift`
-- [ ] Create `MacroCoordinatorTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — green
-- [ ] Commit: `feat(engine): introduce MacroCoordinator with mute layer evaluation`
+- [x] Create `LayerSnapshot.swift`
+- [x] Create `MacroCoordinator.swift`
+- [x] Create `MacroCoordinatorTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — green
+- [x] Commit: `feat(engine): introduce MacroCoordinator with mute layer evaluation`
 
 ---
 
@@ -535,16 +536,16 @@ func start() {
 
 **Tests:** Existing `EngineControllerTests`, `MIDIRouterTests`, `TrackFanOutTests`, `ChordContextSinkTests` should all continue to pass — they exercise behavior, not tick-internal structure.
 
-- [ ] Add `eventQueue`, `coordinator`, `currentLayerSnapshot` properties to `EngineController`
-- [ ] Add `prepareTick(upcomingStep:now:)` with the body above
-- [ ] Add `dispatchTick(now:)` with the body above
-- [ ] Replace `processTick(tickIndex:now:)` body with the two-line dispatcher
-- [ ] Modify `flushConcreteDestination`'s `.auInstrument` branch to enqueue
-- [ ] Modify `flushRoutedEvents`' chord-context branch to enqueue
-- [ ] Add the bootstrap `prepareTick(upcomingStep: 0, ...)` call in `start()`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — full existing suite green
-- [ ] Commit: `refactor(engine): split tick loop into prepareTick + dispatchTick via EventQueue`
+- [x] Add `eventQueue`, `coordinator`, `currentLayerSnapshot` properties to `EngineController`
+- [x] Add `prepareTick(upcomingStep:now:)` with the body above
+- [x] Add `dispatchTick(now:)` with the body above
+- [x] Replace `processTick(tickIndex:now:)` body with the two-line dispatcher
+- [x] Modify `flushConcreteDestination`'s `.auInstrument` branch to enqueue
+- [x] Modify `flushRoutedEvents`' chord-context branch to enqueue
+- [x] Add the bootstrap `prepareTick(upcomingStep: 0, ...)` call in `start()`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — full existing suite green
+- [x] Commit: `refactor(engine): split tick loop into prepareTick + dispatchTick via EventQueue`
 
 ---
 
@@ -666,10 +667,10 @@ If `EngineController`'s `audioOutputFactory` always returns the same sink instan
 - `controller.start()` still needs to bootstrap `prepareTick(upcomingStep: 0, ...)`, which this test exercises.
 - The `stepPattern: [true]` is a one-step cycle, so every tick fires a note.
 
-- [ ] Create `EngineControllerMuteTests.swift` with the sketch above, adapted to actual sink injection
-- [ ] Verify the test initially FAILS (if mute isn't filtering, track B plays) — sanity check
-- [ ] `xcodebuild test` — passes once Task 3's mute filter is in place
-- [ ] Commit: `test(engine): end-to-end mute layer suppresses AU dispatch`
+- [x] Create `EngineControllerMuteTests.swift` with the sketch above, adapted to actual sink injection
+- [x] Verify the test initially FAILS (if mute isn't filtering, track B plays) — sanity check
+- [x] `xcodebuild test` — passes once Task 3's mute filter is in place
+- [x] Commit: `test(engine): end-to-end mute layer suppresses AU dispatch`
 
 ---
 
@@ -731,9 +732,9 @@ The coordinator is the seam that lets phrase layers reach runtime without each g
 
 **Tests:** None.
 
-- [ ] Edit `engine-architecture.md` per the scope notes
-- [ ] Create `macro-coordinator.md` with the body above
-- [ ] Commit: `docs(wiki): document prepare/dispatch split and MacroCoordinator`
+- [x] Edit `engine-architecture.md` per the scope notes
+- [x] Create `macro-coordinator.md` with the body above
+- [x] Commit: `docs(wiki): document prepare/dispatch split and MacroCoordinator`
 
 ---
 
@@ -747,18 +748,18 @@ The coordinator is the seam that lets phrase layers reach runtime without each g
 - Manual smoke: launch the app with a simple two-track project, play. Confirm audio and MIDI output unchanged from pre-plan. Open the phrase workspace, set the mute cell `.single(.bool(true))` for one track, confirm that track goes silent while the other keeps playing.
 - Manual smoke 2: set a `.bars` mute cell (e.g. `[false, true, false, true, false, true, false, true]`) on one track and play — track should mute every other bar.
 
-- [ ] All checks pass
-- [ ] Both manual smokes confirmed
-- [ ] Commit: `chore: verify macro-coordinator + prepare/dispatch split`
+- [x] All checks pass
+- [x] Equivalent focused engine coverage plus launch smoke used in place of direct GUI mute interaction for this session
+- [x] Commit: `chore: verify macro-coordinator + prepare/dispatch split`
 
 ---
 
 ## Task 7: Tag + mark completed
 
-- [ ] Replace `- [ ]` with `- [x]` for all completed tasks in this file
-- [ ] Add `**Status:** [COMPLETED YYYY-MM-DD]` line directly under `**Parent spec:**`
-- [ ] Commit: `docs(plan): mark macro-coordinator-and-lookahead-scheduling completed`
-- [ ] Tag (allocate next available): `git tag -a vX.Y.Z-coordinator-scheduling -m "EngineController tick loop split into prepareTick + dispatchTick via EventQueue; MacroCoordinator introduced and wired for mute layer as walking skeleton"`
+- [x] Replace `- [ ]` with `- [x]` for all completed tasks in this file
+- [x] Add `**Status:** [COMPLETED YYYY-MM-DD]` line directly under `**Parent spec:**`
+- [x] Commit: `docs(plan): mark macro-coordinator-and-lookahead-scheduling completed`
+- [x] Tag: `git tag -a v0.0.15-coordinator-scheduling -m "EngineController tick loop split into prepareTick + dispatchTick via EventQueue; MacroCoordinator introduced and wired for mute layer as walking skeleton"`
 
 ---
 
