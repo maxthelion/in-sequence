@@ -258,12 +258,19 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
             return .bool(false)
         case "volume":
             return .scalar(track.mix.level * 127)
-        case "transpose":
+        case "transpose",
+             "intensity",
+             "density",
+             "tension",
+             "register",
+             "variance",
+             "brightness",
+             "swing":
             return .scalar(0)
         case "fill-flag":
             return .bool(false)
         default:
-            return .scalar(0)
+            fatalError("Unknown built-in phrase layer id: \(id)")
         }
     }
 }
@@ -611,8 +618,6 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
 enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
     case monoGenerator
     case polyGenerator
-    case drumKit
-    case templateGenerator
     case sliceGenerator
 
     var label: String {
@@ -621,10 +626,6 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             return "Mono Generator"
         case .polyGenerator:
             return "Poly Generator"
-        case .drumKit:
-            return "Drum Kit"
-        case .templateGenerator:
-            return "Template Generator"
         case .sliceGenerator:
             return "Slice Generator"
         }
@@ -636,10 +637,6 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             return [.monoMelodic]
         case .polyGenerator:
             return [.polyMelodic]
-        case .drumKit:
-            return [.monoMelodic]
-        case .templateGenerator:
-            return Set(TrackType.allCases)
         case .sliceGenerator:
             return [.slice]
         }
@@ -655,10 +652,6 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
                 pitches: [.manual(pitches: [60, 64, 67], pickMode: .random)],
                 shape: .default
             )
-        case .drumKit:
-            return .defaultDrumKit
-        case .templateGenerator:
-            return .template(templateID: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!)
         case .sliceGenerator:
             return .slice(
                 step: .manual(pattern: Array(repeating: false, count: 16)),
@@ -711,12 +704,6 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
             name: "Poly Chords",
             kind: .polyGenerator,
             trackType: .polyMelodic
-        ),
-        .makeDefault(
-            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
-            name: "Drum Pattern",
-            kind: .drumKit,
-            trackType: .monoMelodic
         ),
         .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4") ?? UUID(),

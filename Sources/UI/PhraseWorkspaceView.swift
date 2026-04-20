@@ -1214,6 +1214,7 @@ private func layerAccent(_ layerID: String) -> Color {
     case "tension", "transpose":
         return StudioTheme.amber
     default:
+        assertionFailure("Unhandled phrase layer accent id: \(layerID)")
         return StudioTheme.cyan
     }
 }

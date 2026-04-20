@@ -2,7 +2,7 @@
 title: "Generator Algos"
 category: "architecture"
 tags: [generator, composition, musical, patterns, migration]
-summary: The generator-algo model for sequencer-ai: musical lookup tables, StepAlgo × PitchAlgo composition, GeneratorParams, and the legacy migration from the old flat GeneratorKind shape.
+summary: The generator-algo model for sequencer-ai: musical lookup tables, StepAlgo × PitchAlgo composition, GeneratorParams, and the current three-kind pool shape.
 last-modified-by: codex
 ---
 
@@ -59,22 +59,18 @@ The serializable generator pieces live under `Sources/Document/`:
 - `NoteShape`
 - `GeneratorParams`
 
-`GeneratorParams` is a tagged union keyed by `GeneratorKind`:
+`GeneratorParams` is a tagged union keyed by the currently supported generator families:
 
 - `mono`
 - `poly`
-- `drum`
-- `template`
 - `slice`
 
 ## Generator kinds and pool entries
 
-`GeneratorKind` now uses the spec's five-case roster:
+`GeneratorKind` now uses the current three-case roster:
 
 - `monoGenerator`
 - `polyGenerator`
-- `drumKit`
-- `templateGenerator`
 - `sliceGenerator`
 
 Each `GeneratorPoolEntry` now carries:
@@ -87,22 +83,17 @@ Each `GeneratorPoolEntry` now carries:
 
 `GeneratorPoolEntry.defaultPool` seeds three valid project defaults:
 
-- one instrument generator
-- one drum generator
+- one mono generator
+- one poly generator
 - one slice generator
 
-## Legacy migration
+## Current stance
 
-Two compatibility shims keep older documents loading cleanly:
+The repo now assumes the fresh model only:
 
-1. Legacy `GeneratorKind` values decode into the new names:
-   - `manualMono` → `monoGenerator`
-   - `drumPattern` → `drumKit`
-   - `sliceTrigger` → `sliceGenerator`
-
-2. Legacy `GeneratorPoolEntry` payloads that have no `params` field backfill from `kind.defaultParams`.
-
-That means older documents can load, be edited, and be re-saved into the new shape without a separate migration step.
+- no legacy `GeneratorKind` decode shims
+- no retired `drumKit` / `templateGenerator` cases
+- no compatibility-only backfill paths for old generator payloads
 
 ## Current limits
 

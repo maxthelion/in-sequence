@@ -24,14 +24,39 @@ enum InternalSamplerBankID: String, Codable, CaseIterable, Equatable, Hashable, 
 }
 
 enum Destination: Codable, Equatable, Hashable, Sendable {
+    // Adding a case? Audit EngineController routing, AudioInstrumentHost loading,
+    // TrackDestinationEditor selection/editing, and Mixer/Inspector summaries.
     case midi(port: MIDIEndpointName?, channel: UInt8, noteOffset: Int)
     case auInstrument(componentID: AudioComponentID, stateBlob: Data?)
     case internalSampler(bankID: InternalSamplerBankID, preset: String)
     case inheritGroup
     case none
 
-    var kindLabel: String {
+    enum Kind: Equatable, Hashable, Sendable {
+        case midi
+        case auInstrument
+        case internalSampler
+        case inheritGroup
+        case none
+    }
+
+    var kind: Kind {
         switch self {
+        case .midi:
+            return .midi
+        case .auInstrument:
+            return .auInstrument
+        case .internalSampler:
+            return .internalSampler
+        case .inheritGroup:
+            return .inheritGroup
+        case .none:
+            return .none
+        }
+    }
+
+    var kindLabel: String {
+        switch kind {
         case .midi:
             return "MIDI"
         case .auInstrument:

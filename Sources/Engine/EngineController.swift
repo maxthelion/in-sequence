@@ -6,7 +6,7 @@ import Observation
 final class EngineController: RouterDispatcher {
     private struct PipelineEntry: Equatable {
         let trackID: UUID
-        let output: TrackOutputDestination
+        let output: Destination.Kind
     }
 
     private struct AudioTrackRuntime {
@@ -43,7 +43,7 @@ final class EngineController: RouterDispatcher {
     private(set) var lastNoteTriggerUptime: TimeInterval = 0
     private(set) var lastNoteTriggerCount: Int = 0
     private(set) var executor: Executor?
-    private(set) var selectedOutput: TrackOutputDestination
+    private(set) var selectedOutput: Destination.Kind
 
     private var currentTrackMix = TrackMixSettings.default
     private var currentDocumentModel: SeqAIDocumentModel = .empty
@@ -80,7 +80,7 @@ final class EngineController: RouterDispatcher {
         self.commandQueue = CommandQueue(capacity: 256)
         self.clock = TickClock(stepsPerBar: stepsPerBar)
         self.currentBPM = 120
-        self.selectedOutput = .midiOut
+        self.selectedOutput = .midi
 
         do {
             try registerCoreBlocks(registry)
@@ -138,7 +138,7 @@ final class EngineController: RouterDispatcher {
         flushDetachedMIDINoteOffs(from: currentDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         currentDocumentModel = documentModel
         let selectedTrack = documentModel.selectedTrack
-        selectedOutput = Self.output(for: Self.effectiveDestination(for: selectedTrack.id, in: documentModel).destination)
+        selectedOutput = Self.effectiveDestination(for: selectedTrack.id, in: documentModel).destination.kind
         currentTrackMix = selectedTrack.mix
         router.applyRoutesSnapshot(documentModel.routes)
 
@@ -386,7 +386,7 @@ final class EngineController: RouterDispatcher {
 
         syncAudioOutputs(for: documentModel)
         currentDocumentModel = documentModel
-        selectedOutput = Self.output(for: Self.effectiveDestination(for: documentModel.selectedTrack.id, in: documentModel).destination)
+        selectedOutput = Self.effectiveDestination(for: documentModel.selectedTrack.id, in: documentModel).destination.kind
         currentTrackMix = documentModel.selectedTrack.mix
     }
 
@@ -935,12 +935,17 @@ final class EngineController: RouterDispatcher {
     }
 
     private static func encode(program: NoteGenerator.NoteProgram) -> String? {
-        guard let data = try? JSONEncoder().encode(program),
-              let string = String(data: data, encoding: .utf8)
-        else {
+        do {
+            let data = try JSONEncoder().encode(program)
+            guard let string = String(data: data, encoding: .utf8) else {
+                assertionFailure("EngineController note program encoding produced invalid UTF-8")
+                return nil
+            }
+            return string
+        } catch {
+            assertionFailure("EngineController note program encode failed: \(error)")
             return nil
         }
-        return string
     }
 
     private static func generatorBlockID(for trackID: UUID) -> BlockID {
@@ -955,7 +960,7 @@ final class EngineController: RouterDispatcher {
         documentModel.tracks.map {
             PipelineEntry(
                 trackID: $0.id,
-                output: Self.output(for: Self.effectiveDestination(for: $0.id, in: documentModel).destination)
+                output: Self.effectiveDestination(for: $0.id, in: documentModel).destination.kind
             )
         }
     }
@@ -1061,19 +1066,6 @@ final class EngineController: RouterDispatcher {
             return .group(groupID)
         }
         return .track(track.id)
-    }
-
-    private static func output(for destination: Destination) -> TrackOutputDestination {
-        switch destination {
-        case .midi:
-            return .midiOut
-        case .auInstrument:
-            return .auInstrument
-        case .internalSampler:
-            return .internalSampler
-        case .inheritGroup, .none:
-            return .none
-        }
     }
 
     private static func shifted(_ notes: [NoteEvent], by semitones: Int) -> [NoteEvent] {

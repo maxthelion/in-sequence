@@ -59,7 +59,6 @@ Each group carries:
 - `noteMapping`
 - `mute`
 - `solo`
-- `busSink`
 
 ## Effective destination
 

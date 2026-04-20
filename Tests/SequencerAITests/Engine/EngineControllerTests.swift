@@ -45,7 +45,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [36],
             stepPattern: [true, false],
             stepAccents: [false, false],
-            output: .midiOut,
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
             velocity: 90,
             gateLength: 4
         )
@@ -55,7 +55,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [72],
             stepPattern: [false, true],
             stepAccents: [false, true],
-            output: .midiOut,
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
             mix: TrackMixSettings(level: 0.72, pan: -0.15, isMuted: false),
             velocity: 111,
             gateLength: 2
@@ -296,8 +296,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [64],
             stepPattern: [true],
             stepAccents: [false],
-            output: .auInstrument,
-            audioInstrument: .testInstrument,
+            destination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
             mix: TrackMixSettings(level: 0.55, pan: 0.35, isMuted: false),
             velocity: 96,
             gateLength: 2
@@ -330,7 +329,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [67],
             stepPattern: [true],
             stepAccents: [false],
-            output: .auInstrument,
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
             mix: TrackMixSettings(level: 0.9, pan: 0, isMuted: true),
             velocity: 100,
             gateLength: 2
@@ -429,8 +428,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [48],
             stepPattern: [true],
             stepAccents: [false],
-            output: .auInstrument,
-            audioInstrument: .builtInSynth,
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
             mix: TrackMixSettings(level: 0.6, pan: -0.2, isMuted: false),
             velocity: 90,
             gateLength: 2
@@ -441,8 +439,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [72],
             stepPattern: [true],
             stepAccents: [true],
-            output: .auInstrument,
-            audioInstrument: .testInstrument,
+            destination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
             mix: TrackMixSettings(level: 0.8, pan: 0.3, isMuted: false),
             velocity: 100,
             gateLength: 2
@@ -510,8 +507,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [60],
             stepPattern: [true],
             stepAccents: [false],
-            output: .auInstrument,
-            audioInstrument: .builtInSynth,
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
             velocity: 100,
             gateLength: 2
         )

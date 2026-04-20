@@ -23,11 +23,47 @@ struct TrackDestinationEditor: View {
         }
     }
 
+    private var currentChoice: TrackDestinationChoice {
+        switch track.destination {
+        case .inheritGroup:
+            return .inheritGroup
+        case .midi:
+            return .midiOut
+        case .auInstrument:
+            return .auInstrument
+        case .internalSampler:
+            return .internalSampler
+        case .none:
+            return .none
+        }
+    }
+
+    private var availableChoices: [TrackDestinationChoice] {
+        var choices: [TrackDestinationChoice] = [.midiOut, .auInstrument, .internalSampler, .none]
+        if track.groupID != nil {
+            choices.insert(.inheritGroup, at: 0)
+        }
+        return choices
+    }
+
+    private var resolvedDestination: Destination {
+        if case .inheritGroup = track.destination,
+           let group = document.model.group(for: track.id),
+           let sharedDestination = group.sharedDestination
+        {
+            return sharedDestination
+        }
+
+        return track.destination
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             destinationSelector
 
-            switch track.output {
+            switch currentChoice {
+            case .inheritGroup:
+                inheritGroupEditor
             case .midiOut:
                 midiEditor
             case .auInstrument:
@@ -38,7 +74,7 @@ struct TrackDestinationEditor: View {
                 noneEditor
             }
 
-            Text(track.defaultDestination.summary)
+            Text(resolvedDestination.summary)
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(StudioTheme.mutedText)
         }
@@ -52,20 +88,38 @@ struct TrackDestinationEditor: View {
                 .foregroundStyle(StudioTheme.mutedText)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
+                ForEach(availableChoices) { destination in
                     Button {
-                        trackOutputBinding.wrappedValue = destination
+                        applyDestinationChoice(destination)
                     } label: {
                         DestinationChoiceCard(
                             title: destination.label,
-                            detail: destinationDetail(for: destination),
-                            isSelected: track.output == destination
+                            detail: destination.detail,
+                            isSelected: currentChoice == destination
                         )
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
+    }
+
+    private var inheritGroupEditor: some View {
+        StudioPlaceholderTile(
+            title: "Inherited from Group",
+            detail: groupInheritanceDetail,
+            accent: StudioTheme.success
+        )
+    }
+
+    private var groupInheritanceDetail: String {
+        guard let group = document.model.group(for: track.id) else {
+            return "This track is marked as inheriting a group destination, but it is no longer attached to a group."
+        }
+        if let destination = group.sharedDestination {
+            return "\(group.name) currently resolves to \(destination.summary)."
+        }
+        return "\(group.name) does not have a shared destination yet."
     }
 
     private var midiEditor: some View {
@@ -154,26 +208,58 @@ struct TrackDestinationEditor: View {
         )
     }
 
-    private var trackOutputBinding: Binding<TrackOutputDestination> {
-        Binding(
-            get: { document.model.selectedTrack.output },
-            set: {
-                if $0 != .auInstrument {
-                    AUWindowHost.shared.close(for: currentAUWindowKey)
-                }
-                document.model.selectedTrack.output = $0
-                if $0 == .auInstrument {
-                    recordVoiceSnapshot(destination: document.model.selectedTrack.defaultDestination)
-                }
+    private func applyDestinationChoice(_ choice: TrackDestinationChoice) {
+        if choice != .auInstrument {
+            AUWindowHost.shared.close(for: currentAUWindowKey)
+        }
+
+        switch choice {
+        case .inheritGroup:
+            document.model.selectedTrack.destination = .inheritGroup
+        case .midiOut:
+            let port: MIDIEndpointName?
+            let channel: UInt8
+            let noteOffset: Int
+            if case let .midi(existingPort, existingChannel, existingOffset) = track.destination {
+                port = existingPort
+                channel = existingChannel
+                noteOffset = existingOffset
+            } else {
+                port = .sequencerAIOut
+                channel = 0
+                noteOffset = 0
             }
-        )
+            document.model.selectedTrack.destination = .midi(port: port, channel: channel, noteOffset: noteOffset)
+        case .auInstrument:
+            document.model.selectedTrack.destination = .auInstrument(componentID: currentAudioInstrumentChoice.audioComponentID, stateBlob: nil)
+            recordVoiceSnapshot(destination: document.model.selectedTrack.defaultDestination)
+        case .internalSampler:
+            let defaultDestination = SeqAIDocumentModel.defaultDestination(for: document.model.selectedTrack.trackType)
+            if case .internalSampler = defaultDestination {
+                document.model.selectedTrack.destination = defaultDestination
+            } else {
+                document.model.selectedTrack.destination = .none
+            }
+        case .none:
+            document.model.selectedTrack.destination = .none
+        }
+    }
+
+    private var currentAudioInstrumentChoice: AudioInstrumentChoice {
+        switch resolvedDestination {
+        case let .auInstrument(componentID, _):
+            return AudioInstrumentChoice.defaultChoices.first(where: { $0.audioComponentID == componentID })
+                ?? AudioInstrumentChoice(audioComponentID: componentID)
+        default:
+            return .builtInSynth
+        }
     }
 
     private var audioInstrumentBinding: Binding<AudioInstrumentChoice> {
         Binding(
-            get: { document.model.selectedTrack.audioInstrument },
+            get: { currentAudioInstrumentChoice },
             set: {
-                document.model.selectedTrack.audioInstrument = $0
+                document.model.selectedTrack.destination = .auInstrument(componentID: $0.audioComponentID, stateBlob: nil)
                 recordVoiceSnapshot(destination: document.model.selectedTrack.defaultDestination)
             }
         )
@@ -181,22 +267,50 @@ struct TrackDestinationEditor: View {
 
     private var midiPortBinding: Binding<MIDIEndpointName?> {
         Binding(
-            get: { document.model.selectedTrack.midiPortName },
-            set: { document.model.selectedTrack.setMIDIPort($0) }
+            get: {
+                if case let .midi(port, _, _) = document.model.selectedTrack.destination {
+                    return port
+                }
+                return nil
+            },
+            set: { port in
+                let channel = UInt8(max(0, min(15, midiChannelBinding.wrappedValue - 1)))
+                let offset = midiOffsetBinding.wrappedValue
+                document.model.selectedTrack.destination = .midi(port: port, channel: channel, noteOffset: offset)
+            }
         )
     }
 
     private var midiChannelBinding: Binding<Int> {
         Binding(
-            get: { Int(document.model.selectedTrack.midiChannel) + 1 },
-            set: { document.model.selectedTrack.setMIDIChannel(UInt8(max(0, min(15, $0 - 1)))) }
+            get: {
+                if case let .midi(_, channel, _) = document.model.selectedTrack.destination {
+                    return Int(channel) + 1
+                }
+                return 1
+            },
+            set: { channel in
+                let clampedChannel = UInt8(max(0, min(15, channel - 1)))
+                let port = midiPortBinding.wrappedValue
+                let offset = midiOffsetBinding.wrappedValue
+                document.model.selectedTrack.destination = .midi(port: port, channel: clampedChannel, noteOffset: offset)
+            }
         )
     }
 
     private var midiOffsetBinding: Binding<Int> {
         Binding(
-            get: { document.model.selectedTrack.midiNoteOffset },
-            set: { document.model.selectedTrack.setMIDINoteOffset($0) }
+            get: {
+                if case let .midi(_, _, noteOffset) = document.model.selectedTrack.destination {
+                    return noteOffset
+                }
+                return 0
+            },
+            set: { noteOffset in
+                let port = midiPortBinding.wrappedValue
+                let channel = UInt8(max(0, min(15, midiChannelBinding.wrappedValue - 1)))
+                document.model.selectedTrack.destination = .midi(port: port, channel: channel, noteOffset: noteOffset)
+            }
         )
     }
 
@@ -206,13 +320,7 @@ struct TrackDestinationEditor: View {
     }
 
     private var currentAUStateBlob: Data? {
-        if case .inheritGroup = track.destination,
-           let group = document.model.group(for: track.id),
-           case let .auInstrument(_, stateBlob)? = group.sharedDestination
-        {
-            return stateBlob
-        }
-        if case let .auInstrument(_, stateBlob) = track.defaultDestination {
+        if case let .auInstrument(_, stateBlob) = resolvedDestination {
             return stateBlob
         }
         return nil
@@ -322,9 +430,36 @@ struct TrackDestinationEditor: View {
     private var phraseSummary: String {
         document.model.selectedPhrase.name
     }
+}
 
-    private func destinationDetail(for destination: TrackOutputDestination) -> String {
-        switch destination {
+private enum TrackDestinationChoice: String, CaseIterable, Identifiable {
+    case inheritGroup
+    case midiOut
+    case auInstrument
+    case internalSampler
+    case none
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .inheritGroup:
+            return "Inherit Group"
+        case .midiOut:
+            return "Virtual MIDI Out"
+        case .auInstrument:
+            return "AU Instrument"
+        case .internalSampler:
+            return "Internal Sampler"
+        case .none:
+            return "No Default Output"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .inheritGroup:
+            return "Follow the shared destination owned by this track's group"
         case .midiOut:
             return "Send note data to a MIDI endpoint"
         case .auInstrument:

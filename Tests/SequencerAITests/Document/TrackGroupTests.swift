@@ -17,7 +17,6 @@ final class TrackGroupTests: XCTestCase {
         XCTAssertEqual(decoded.noteMapping, [:])
         XCTAssertFalse(decoded.mute)
         XCTAssertFalse(decoded.solo)
-        XCTAssertNil(decoded.busSink)
     }
 
     func test_full_track_group_round_trips() throws {
@@ -32,8 +31,7 @@ final class TrackGroupTests: XCTestCase {
             sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: -12),
             noteMapping: [memberA: 36, memberB: 38],
             mute: true,
-            solo: true,
-            busSink: BusRef(id: "main-kit-bus")
+            solo: true
         )
 
         let data = try JSONEncoder().encode(group)
@@ -62,6 +60,5 @@ final class TrackGroupTests: XCTestCase {
         XCTAssertEqual(decoded.noteMapping, [:])
         XCTAssertFalse(decoded.mute)
         XCTAssertFalse(decoded.solo)
-        XCTAssertNil(decoded.busSink)
     }
 }

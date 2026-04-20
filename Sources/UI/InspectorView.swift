@@ -32,18 +32,7 @@ struct InspectorView: View {
         Form {
             Section("Track") {
                 TextField("Name", text: $document.model.selectedTrack.name)
-                Picker("Output", selection: $document.model.selectedTrack.output) {
-                    ForEach(TrackOutputDestination.allCases, id: \.self) { destination in
-                        Text(destination.label).tag(destination)
-                    }
-                }
-                if document.model.selectedTrack.output == .auInstrument {
-                    Picker("Instrument", selection: $document.model.selectedTrack.audioInstrument) {
-                        ForEach(engineController.availableAudioInstruments, id: \.self) { instrument in
-                            Text(instrument.displayName).tag(instrument)
-                        }
-                    }
-                }
+                LabeledContent("Destination", value: destinationSummary)
                 TextField("Pitches", text: pitchesText)
                     .textFieldStyle(.roundedBorder)
                 Text("Comma-separated MIDI notes")
@@ -107,14 +96,23 @@ struct InspectorView: View {
     }
 
     private var panLabel: String {
-        switch track.mix.clampedPan {
-        case let value where value < -0.05:
+        let value = track.mix.clampedPan
+        if value < -0.05 {
             return "L\(Int(abs(value) * 100))"
-        case let value where value > 0.05:
-            return "R\(Int(value * 100))"
-        default:
-            return "C"
         }
+        if value > 0.05 {
+            return "R\(Int(value * 100))"
+        }
+        return "C"
+    }
+
+    private var destinationSummary: String {
+        if case .inheritGroup = track.destination,
+           let group = document.model.group(for: track.id)
+        {
+            return group.sharedDestination?.summary ?? "Inherited from group"
+        }
+        return track.destination.summary
     }
 }
 

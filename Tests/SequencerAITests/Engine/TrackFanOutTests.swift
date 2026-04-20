@@ -24,11 +24,13 @@ final class TrackFanOutTests: XCTestCase {
             pitches: [60],
             stepPattern: [true],
             stepAccents: [false],
-            output: .midiOut,
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
             velocity: 100,
             gateLength: 2
         )
-        let phrase = PhraseModel.default(tracks: [sourceTrack])
+        let layers = PhraseLayerDefinition.defaultSet(for: [sourceTrack])
+        let generator = fanOutGeneratorEntry(for: sourceTrack)
+        let phrase = PhraseModel.default(tracks: [sourceTrack], layers: layers, generatorPool: [generator], clipPool: [])
         let route = Route(
             source: .track(sourceTrack.id),
             destination: .midi(
@@ -40,7 +42,11 @@ final class TrackFanOutTests: XCTestCase {
         let document = SeqAIDocumentModel(
             version: 1,
             tracks: [sourceTrack],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
             routes: [route],
+            patternBanks: [TrackPatternBank(trackID: sourceTrack.id, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))])],
             selectedTrackID: sourceTrack.id,
             phrases: [phrase],
             selectedPhraseID: phrase.id
@@ -77,11 +83,13 @@ final class TrackFanOutTests: XCTestCase {
             pitches: [60],
             stepPattern: [true] + Array(repeating: false, count: 15),
             stepAccents: Array(repeating: false, count: 16),
-            output: .midiOut,
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
             velocity: 100,
             gateLength: 8
         )
-        let phrase = PhraseModel.default(tracks: [sourceTrack])
+        let layers = PhraseLayerDefinition.defaultSet(for: [sourceTrack])
+        let generator = fanOutGeneratorEntry(for: sourceTrack)
+        let phrase = PhraseModel.default(tracks: [sourceTrack], layers: layers, generatorPool: [generator], clipPool: [])
         let route = Route(
             source: .track(sourceTrack.id),
             destination: .midi(
@@ -93,7 +101,11 @@ final class TrackFanOutTests: XCTestCase {
         let document = SeqAIDocumentModel(
             version: 1,
             tracks: [sourceTrack],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
             routes: [route],
+            patternBanks: [TrackPatternBank(trackID: sourceTrack.id, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))])],
             selectedTrackID: sourceTrack.id,
             phrases: [phrase],
             selectedPhraseID: phrase.id
@@ -134,11 +146,13 @@ final class TrackFanOutTests: XCTestCase {
             pitches: [64],
             stepPattern: [true],
             stepAccents: [false],
-            output: .midiOut,
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
             velocity: 100,
             gateLength: 8
         )
-        let phrase = PhraseModel.default(tracks: [sourceTrack])
+        let layers = PhraseLayerDefinition.defaultSet(for: [sourceTrack])
+        let generator = fanOutGeneratorEntry(for: sourceTrack)
+        let phrase = PhraseModel.default(tracks: [sourceTrack], layers: layers, generatorPool: [generator], clipPool: [])
         let route = Route(
             source: .track(sourceTrack.id),
             destination: .midi(
@@ -150,7 +164,11 @@ final class TrackFanOutTests: XCTestCase {
         let activeDocument = SeqAIDocumentModel(
             version: 1,
             tracks: [sourceTrack],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
             routes: [route],
+            patternBanks: [TrackPatternBank(trackID: sourceTrack.id, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))])],
             selectedTrackID: sourceTrack.id,
             phrases: [phrase],
             selectedPhraseID: phrase.id
@@ -163,7 +181,7 @@ final class TrackFanOutTests: XCTestCase {
         waitForNoteOnCount(routedPackets, expected: 1)
 
         var detachedTrack = sourceTrack
-        detachedTrack.output = .none
+        detachedTrack.destination = .none
         let detachedDocument = SeqAIDocumentModel(
             version: 1,
             tracks: [detachedTrack],
@@ -259,4 +277,18 @@ private func waitForNoteOffCount(
     while store.noteOffPackets.count < expected && Date() < deadline {
         RunLoop.current.run(until: Date().addingTimeInterval(0.01))
     }
+}
+
+private func fanOutGeneratorEntry(for track: StepSequenceTrack) -> GeneratorPoolEntry {
+    GeneratorPoolEntry(
+        id: UUID(),
+        name: "\(track.name) Generator",
+        trackType: track.trackType,
+        kind: .monoGenerator,
+        params: .mono(
+            step: .manual(pattern: track.stepPattern),
+            pitch: .manual(pitches: [track.pitches.first ?? 60], pickMode: .sequential),
+            shape: NoteShape(velocity: Int(track.velocity), gateLength: track.gateLength, accent: false)
+        )
+    )
 }

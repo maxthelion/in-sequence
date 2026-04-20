@@ -10,6 +10,7 @@ struct MixerView: View {
                 ForEach(Array(document.model.tracks.enumerated()), id: \.element.id) { index, track in
                     MixerChannelStrip(
                         track: $document.model.tracks[index],
+                        destinationLabel: destinationLabel(for: track),
                         isSelected: track.id == document.model.selectedTrackID,
                         onSelect: {
                             document.model.selectTrack(id: track.id)
@@ -22,10 +23,21 @@ struct MixerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
+
+    private func destinationLabel(for track: StepSequenceTrack) -> String {
+        if case .inheritGroup = track.destination,
+           let group = document.model.group(for: track.id),
+           let sharedDestination = group.sharedDestination
+        {
+            return sharedDestination.kindLabel
+        }
+        return track.destination.kindLabel
+    }
 }
 
 private struct MixerChannelStrip: View {
     @Binding var track: StepSequenceTrack
+    let destinationLabel: String
     let isSelected: Bool
     let onSelect: () -> Void
 
@@ -37,7 +49,7 @@ private struct MixerChannelStrip: View {
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
-                    Text(track.output.label)
+                    Text(destinationLabel)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
@@ -128,14 +140,14 @@ private struct MixerChannelStrip: View {
     }
 
     private var panLabel: String {
-        switch track.mix.clampedPan {
-        case let value where value < -0.05:
+        let value = track.mix.clampedPan
+        if value < -0.05 {
             return "L\(Int(abs(value) * 100))"
-        case let value where value > 0.05:
-            return "R\(Int(value * 100))"
-        default:
-            return "C"
         }
+        if value > 0.05 {
+            return "R\(Int(value * 100))"
+        }
+        return "C"
     }
 }
 

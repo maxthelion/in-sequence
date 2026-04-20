@@ -2,14 +2,6 @@ import Foundation
 
 typealias TrackGroupID = UUID
 
-struct BusRef: Codable, Equatable, Hashable, Sendable {
-    var id: String
-
-    init(id: String) {
-        self.id = id
-    }
-}
-
 struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
     var id: TrackGroupID
     var name: String
@@ -19,7 +11,6 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
     var noteMapping: [UUID: Int]
     var mute: Bool
     var solo: Bool
-    var busSink: BusRef?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -30,7 +21,6 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         case noteMapping
         case mute
         case solo
-        case busSink
     }
 
     init(
@@ -41,8 +31,7 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         sharedDestination: Destination? = nil,
         noteMapping: [UUID: Int] = [:],
         mute: Bool = false,
-        solo: Bool = false,
-        busSink: BusRef? = nil
+        solo: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -52,7 +41,6 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         self.noteMapping = noteMapping
         self.mute = mute
         self.solo = solo
-        self.busSink = busSink
     }
 
     init(from decoder: Decoder) throws {
@@ -65,6 +53,5 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         noteMapping = try container.decodeIfPresent([UUID: Int].self, forKey: .noteMapping) ?? [:]
         mute = try container.decodeIfPresent(Bool.self, forKey: .mute) ?? false
         solo = try container.decodeIfPresent(Bool.self, forKey: .solo) ?? false
-        busSink = try container.decodeIfPresent(BusRef.self, forKey: .busSink)
     }
 }

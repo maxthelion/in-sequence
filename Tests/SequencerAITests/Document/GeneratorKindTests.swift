@@ -3,8 +3,8 @@ import XCTest
 @testable import SequencerAI
 
 final class GeneratorKindTests: XCTestCase {
-    func test_generator_kind_has_five_cases() {
-        XCTAssertEqual(GeneratorKind.allCases.count, 5)
+    func test_generator_kind_has_three_cases() {
+        XCTAssertEqual(GeneratorKind.allCases.count, 3)
     }
 
     func test_every_kind_has_label_and_default_params() {
@@ -22,8 +22,8 @@ final class GeneratorKindTests: XCTestCase {
         XCTAssertTrue(GeneratorKind.monoGenerator.compatibleWith.contains(.monoMelodic))
     }
 
-    func test_drum_kit_targets_groupable_mono_tracks() {
-        XCTAssertEqual(GeneratorKind.drumKit.compatibleWith, [.monoMelodic])
+    func test_slice_generator_targets_slice_tracks() {
+        XCTAssertEqual(GeneratorKind.sliceGenerator.compatibleWith, [.slice])
     }
 
     func test_new_values_round_trip() throws {

@@ -101,18 +101,23 @@ final class RecentVoicesStore {
     }
 
     private func loadUnlocked() -> [RecentVoice] {
-        guard fileManager.fileExists(atPath: historyURL.path),
-              let data = try? Data(contentsOf: historyURL),
-              let decoded = try? decoder.decode([RecentVoice].self, from: data)
-        else {
+        guard fileManager.fileExists(atPath: historyURL.path) else {
             return []
         }
 
-        return decoded.sorted { lhs, rhs in
-            if lhs.lastUsed == rhs.lastUsed {
-                return lhs.firstSeen > rhs.firstSeen
+        do {
+            let data = try Data(contentsOf: historyURL)
+            let decoded = try decoder.decode([RecentVoice].self, from: data)
+            return decoded.sorted { lhs, rhs in
+                if lhs.lastUsed == rhs.lastUsed {
+                    return lhs.firstSeen > rhs.firstSeen
+                }
+                return lhs.lastUsed > rhs.lastUsed
             }
-            return lhs.lastUsed > rhs.lastUsed
+        } catch {
+            assertionFailure("RecentVoicesStore load failed: \(error)")
+            NSLog("RecentVoicesStore load failed: \(error)")
+            return []
         }
     }
 

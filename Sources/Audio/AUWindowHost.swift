@@ -118,7 +118,14 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         }
 
         if let presenter = match.value.presenter {
-            let state = try? presenter.captureHostedState()
+            let state: Data?
+            do {
+                state = try presenter.captureHostedState()
+            } catch {
+                assertionFailure("AUWindowHost state capture failed: \(error)")
+                NSLog("[AUWindowHost] state capture failed key=\(String(describing: match.key)) error=\(error)")
+                state = nil
+            }
             log("windowWillClose writeback key=\(String(describing: match.key)) state=\((state ?? nil)?.count ?? 0) bytes")
             match.value.stateWriteback(state ?? nil)
         } else {

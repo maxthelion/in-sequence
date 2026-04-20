@@ -34,7 +34,6 @@ enum DrumKitPreset: String, CaseIterable, Sendable {
     struct Member: Equatable, Sendable {
         let tag: VoiceTag
         let trackName: String
-        let defaultGeneratorKindID: String
         let seedPattern: [Bool]
     }
 
@@ -53,23 +52,23 @@ enum DrumKitPreset: String, CaseIterable, Sendable {
         switch self {
         case .kit808:
             return [
-                Member(tag: "kick", trackName: "Kick", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
-                Member(tag: "snare", trackName: "Snare", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
-                Member(tag: "hat-closed", trackName: "Hat", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]),
-                Member(tag: "clap", trackName: "Clap", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false]),
+                Member(tag: "kick", trackName: "Kick", seedPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
+                Member(tag: "snare", trackName: "Snare", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
+                Member(tag: "hat-closed", trackName: "Hat", seedPattern: [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false]),
+                Member(tag: "clap", trackName: "Clap", seedPattern: [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false]),
             ]
         case .acousticBasic:
             return [
-                Member(tag: "kick", trackName: "Kick", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, false, false, false, false, true, false, true, false, false, false, false, false, true, false]),
-                Member(tag: "snare", trackName: "Snare", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
-                Member(tag: "hat-closed", trackName: "Hat", defaultGeneratorKindID: "mono-generator", seedPattern: [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true]),
+                Member(tag: "kick", trackName: "Kick", seedPattern: [true, false, false, false, false, false, true, false, true, false, false, false, false, false, true, false]),
+                Member(tag: "snare", trackName: "Snare", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
+                Member(tag: "hat-closed", trackName: "Hat", seedPattern: [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true]),
             ]
         case .techno:
             return [
-                Member(tag: "kick", trackName: "Kick", defaultGeneratorKindID: "mono-generator", seedPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, true, false]),
-                Member(tag: "snare", trackName: "Snare", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
-                Member(tag: "hat-closed", trackName: "Hat", defaultGeneratorKindID: "mono-generator", seedPattern: [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true]),
-                Member(tag: "ride", trackName: "Ride", defaultGeneratorKindID: "mono-generator", seedPattern: [false, false, false, true, false, false, false, true, false, false, false, true, false, false, false, true]),
+                Member(tag: "kick", trackName: "Kick", seedPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, true, false]),
+                Member(tag: "snare", trackName: "Snare", seedPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
+                Member(tag: "hat-closed", trackName: "Hat", seedPattern: [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true]),
+                Member(tag: "ride", trackName: "Ride", seedPattern: [false, false, false, true, false, false, false, true, false, false, false, true, false, false, false, true]),
             ]
         }
     }
@@ -769,7 +768,7 @@ struct SeqAIDocumentModel: Codable, Equatable {
         }
     }
 
-    private static func defaultDestination(for trackType: TrackType) -> Destination {
+    static func defaultDestination(for trackType: TrackType) -> Destination {
         switch trackType {
         case .monoMelodic, .polyMelodic:
             return .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
@@ -913,8 +912,6 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepAccents: [Bool]? = nil,
         destination: Destination? = nil,
         groupID: TrackGroupID? = nil,
-        output: TrackOutputDestination = .midiOut,
-        audioInstrument: AudioInstrumentChoice = .builtInSynth,
         mix: TrackMixSettings = .default,
         velocity: Int,
         gateLength: Int
@@ -925,11 +922,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.pitches = pitches
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
-        self.destination = destination ?? Self.defaultDestination(
-            output: output,
-            audioInstrument: audioInstrument,
-            trackType: trackType
-        )
+        self.destination = destination ?? SeqAIDocumentModel.defaultDestination(for: trackType)
         self.groupID = groupID
         self.mix = mix
         self.velocity = velocity
@@ -1011,49 +1004,6 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         destination
     }
 
-    var output: TrackOutputDestination {
-        get {
-            switch defaultDestination {
-            case .midi:
-                return .midiOut
-            case .auInstrument:
-                return .auInstrument
-            case .internalSampler:
-                return .internalSampler
-            case .inheritGroup, .none:
-                return .none
-            }
-        }
-        set {
-            switch newValue {
-            case .midiOut:
-                let port: MIDIEndpointName?
-                let channel: UInt8
-                let noteOffset: Int
-                if case let .midi(existingPort, existingChannel, existingOffset) = defaultDestination {
-                    port = existingPort
-                    channel = existingChannel
-                    noteOffset = existingOffset
-                } else {
-                    port = .sequencerAIOut
-                    channel = 0
-                    noteOffset = 0
-                }
-                destination = .midi(port: port, channel: channel, noteOffset: noteOffset)
-            case .auInstrument:
-                destination = .auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil)
-            case .internalSampler:
-                destination = Self.defaultDestination(
-                    output: .internalSampler,
-                    audioInstrument: audioInstrument,
-                    trackType: trackType
-                )
-            case .none:
-                destination = .none
-            }
-        }
-    }
-
     var midiPortName: MIDIEndpointName? {
         if case let .midi(port, _, _) = defaultDestination {
             return port
@@ -1087,21 +1037,6 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         destination = .midi(port: midiPortName, channel: midiChannel, noteOffset: noteOffset)
     }
 
-    var audioInstrument: AudioInstrumentChoice {
-        get {
-            switch defaultDestination {
-            case let .auInstrument(componentID, _):
-                return AudioInstrumentChoice.defaultChoices.first(where: { $0.audioComponentID == componentID })
-                    ?? AudioInstrumentChoice(audioComponentID: componentID)
-            default:
-                return .builtInSynth
-            }
-        }
-        set {
-            destination = .auInstrument(componentID: newValue.audioComponentID, stateBlob: nil)
-        }
-    }
-
     private static func normalizedAccents(_ accents: [Bool]?, stepCount: Int) -> [Bool] {
         let fallback = Array(repeating: false, count: stepCount)
         guard let accents else {
@@ -1111,28 +1046,6 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             return accents
         }
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
-    }
-
-    private static func defaultDestination(
-        output: TrackOutputDestination,
-        audioInstrument: AudioInstrumentChoice,
-        trackType: TrackType
-    ) -> Destination {
-        switch output {
-        case .midiOut:
-            return .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
-        case .auInstrument:
-            return .auInstrument(componentID: audioInstrument.audioComponentID, stateBlob: nil)
-        case .internalSampler:
-            switch trackType {
-            case .monoMelodic, .polyMelodic:
-                return .none
-            case .slice:
-                return .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
-            }
-        case .none:
-            return .none
-        }
     }
 }
 
@@ -1160,26 +1073,6 @@ enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
             return "Poly"
         case .slice:
             return "Slice"
-        }
-    }
-}
-
-enum TrackOutputDestination: String, Codable, CaseIterable, Equatable, Sendable {
-    case midiOut
-    case auInstrument
-    case internalSampler
-    case none
-
-    var label: String {
-        switch self {
-        case .midiOut:
-            return "Virtual MIDI Out"
-        case .auInstrument:
-            return "AU Instrument"
-        case .internalSampler:
-            return "Internal Sampler"
-        case .none:
-            return "No Default Output"
         }
     }
 }

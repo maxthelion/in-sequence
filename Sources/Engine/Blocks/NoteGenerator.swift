@@ -121,13 +121,16 @@ final class NoteGenerator: Block {
             gateLength = UInt16(nextGateLength.rounded())
 
         case let ("noteProgram", .text(encodedProgram)):
-            guard let data = encodedProgram.data(using: .utf8),
-                  let decoded = try? JSONDecoder().decode(NoteProgram.self, from: data)
-            else {
+            guard let data = encodedProgram.data(using: .utf8) else {
                 noteProgram = nil
                 return
             }
-            noteProgram = decoded.normalized
+            do {
+                noteProgram = try JSONDecoder().decode(NoteProgram.self, from: data).normalized
+            } catch {
+                assertionFailure("NoteGenerator noteProgram decode failed: \(error)")
+                noteProgram = nil
+            }
 
         default:
             return

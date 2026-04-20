@@ -3,8 +3,8 @@ import XCTest
 @testable import SequencerAI
 
 final class GeneratorPoolEntryTests: XCTestCase {
-    func test_default_pool_has_four_entries_with_compatible_track_types() {
-        XCTAssertEqual(GeneratorPoolEntry.defaultPool.count, 4)
+    func test_default_pool_has_three_entries_with_compatible_track_types() {
+        XCTAssertEqual(GeneratorPoolEntry.defaultPool.count, 3)
         XCTAssertTrue(
             GeneratorPoolEntry.defaultPool.allSatisfy { entry in
                 entry.kind.compatibleWith.contains(entry.trackType)
@@ -56,11 +56,11 @@ final class GeneratorPoolEntryTests: XCTestCase {
     func test_make_default_seeds_params_from_kind() {
         let entry = GeneratorPoolEntry.makeDefault(
             id: UUID(uuidString: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")!,
-            name: "Default Drum",
-            kind: .drumKit,
-            trackType: .monoMelodic
+            name: "Default Slice",
+            kind: .sliceGenerator,
+            trackType: .slice
         )
 
-        XCTAssertEqual(entry.params, .defaultDrumKit)
+        XCTAssertEqual(entry.params, .slice(step: .manual(pattern: Array(repeating: false, count: 16)), sliceIndexes: []))
     }
 }
