@@ -69,7 +69,7 @@ struct TrackSourceEditorView: View {
             StudioPanel(title: "Generator", eyebrow: generator.kind.label, accent: accent) {
                 VStack(alignment: .leading, spacing: 14) {
                     if compatibleGenerators.count > 1 {
-                        Picker("Generator", selection: generatorIDBinding) {
+                        Picker("Generator", selection: attachedGeneratorIDBinding) {
                             ForEach(compatibleGenerators) { entry in
                                 Text(entry.name).tag(Optional(entry.id))
                             }
@@ -132,29 +132,12 @@ struct TrackSourceEditorView: View {
         )
     }
 
-    private var generatorIDBinding: Binding<UUID?> {
+    private var attachedGeneratorIDBinding: Binding<UUID?> {
         Binding(
             get: { bank.attachedGeneratorID },
             set: { newValue in
                 guard let newValue else { return }
-                var updatedBank = bank
-                updatedBank.attachedGeneratorID = newValue
-                for index in 0..<updatedBank.slots.count {
-                    let slot = updatedBank.slots[index]
-                    let newRef = SourceRef(
-                        mode: slot.sourceRef.mode,
-                        generatorID: newValue,
-                        clipID: slot.sourceRef.clipID
-                    )
-                    updatedBank.slots[index] = TrackPatternSlot(slotIndex: slot.slotIndex, name: slot.name, sourceRef: newRef)
-                }
-                if let bankIndex = document.project.patternBanks.firstIndex(where: { $0.trackID == track.id }) {
-                    document.project.patternBanks[bankIndex] = updatedBank.synced(
-                        track: track,
-                        generatorPool: document.project.generatorPool,
-                        clipPool: document.project.clipPool
-                    )
-                }
+                document.project.switchAttachedGenerator(to: newValue, for: track.id)
             }
         )
     }
