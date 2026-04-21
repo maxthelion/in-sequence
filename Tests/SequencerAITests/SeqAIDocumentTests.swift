@@ -63,8 +63,9 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(model.selectedPhrase.cell(for: "pattern", trackID: newTrack.id), .inheritDefault)
         XCTAssertEqual(model.layers.first(where: { $0.id == "pattern" })?.defaultValue(for: newTrack.id), .index(0))
         XCTAssertEqual(model.layers.first(where: { $0.id == "volume" })?.defaultValue(for: newTrack.id), .scalar(newTrack.mix.level * 127))
-        XCTAssertEqual(model.selectedPattern(for: newTrack.id).sourceRef.mode, TrackSourceMode.generator)
-        XCTAssertNotNil(model.selectedPattern(for: newTrack.id).sourceRef.generatorID)
+        // Per-track-owned-clips: new tracks start in clip mode with an owned clip, no generator attached.
+        XCTAssertEqual(model.selectedPattern(for: newTrack.id).sourceRef.mode, TrackSourceMode.clip)
+        XCTAssertNotNil(model.selectedPattern(for: newTrack.id).sourceRef.clipID)
     }
 
     func test_init_heals_poly_pattern_slots_with_nil_generator_ids() throws {

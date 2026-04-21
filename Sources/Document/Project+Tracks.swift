@@ -12,8 +12,10 @@ extension Project {
             gateLength: StepSequenceTrack.default.gateLength
         )
         tracks.append(nextTrack)
+        let ownedClip = Self.makeOwnedClip(for: nextTrack)
+        clipPool.append(ownedClip)
         patternBanks.append(
-            TrackPatternBank.default(for: nextTrack, generatorPool: generatorPool, clipPool: clipPool)
+            TrackPatternBank.default(for: nextTrack, initialClipID: ownedClip.id)
         )
         selectedTrackID = nextTrack.id
         syncPhrasesWithTracks()
@@ -140,5 +142,26 @@ extension Project {
         case .slice:
             return .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
         }
+    }
+
+    static func makeOwnedClip(for track: StepSequenceTrack) -> ClipPoolEntry {
+        guard let template = ClipPoolEntry.defaultPool.first(where: { $0.trackType == track.trackType }) else {
+            // No template for this trackType — synthesise an empty step-sequence clip.
+            return ClipPoolEntry(
+                id: UUID(),
+                name: "\(track.name) clip",
+                trackType: track.trackType,
+                content: .stepSequence(
+                    stepPattern: Array(repeating: false, count: 16),
+                    pitches: track.pitches
+                )
+            )
+        }
+        return ClipPoolEntry(
+            id: UUID(),
+            name: "\(track.name) clip",
+            trackType: template.trackType,
+            content: template.content
+        )
     }
 }
