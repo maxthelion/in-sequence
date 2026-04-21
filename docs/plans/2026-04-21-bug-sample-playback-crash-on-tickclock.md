@@ -1,7 +1,7 @@
 # Bug: Sample playback crash on TickClock after adding a drum kit
 
 **Date reported:** 2026-04-21
-**Status:** Open — not yet reproduced in isolation; fix not scoped
+**Status:** ✅ Fixed 2026-04-21 by `docs/plans/2026-04-21-fix-sample-playback-graph-mutation-on-tickclock.md`. Tag `v0.0.22-fix-sample-playback-graph-mutation`.
 **Severity:** High — crash aborts the app, no user recovery
 **Reporter:** maxwilliams (Max)
 
