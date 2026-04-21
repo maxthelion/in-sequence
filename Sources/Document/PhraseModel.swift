@@ -523,6 +523,11 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
         clipPool: [ClipPoolEntry]
     ) -> TrackPatternBank {
         let fallbackSourceRef = Self.defaultSourceRef(for: track, generatorPool: generatorPool)
+        let validatedAttachedID: UUID? = {
+            guard let attachedGeneratorID else { return nil }
+            let exists = generatorPool.contains(where: { $0.id == attachedGeneratorID && $0.trackType == track.trackType })
+            return exists ? attachedGeneratorID : nil
+        }()
         return TrackPatternBank(
             trackID: trackID,
             slots: slots.enumerated().map { index, slot in
@@ -533,7 +538,8 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
                     clipPool: clipPool,
                     fallbackSourceRef: fallbackSourceRef
                 )
-            }
+            },
+            attachedGeneratorID: validatedAttachedID
         )
     }
 
