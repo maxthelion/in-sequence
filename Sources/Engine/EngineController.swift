@@ -37,6 +37,9 @@ final class EngineController: RouterDispatcher {
 
     private let eventQueue = EventQueue()
     private let coordinator = MacroCoordinator()
+    private let sampleEngine: SamplePlaybackSink
+    private let sampleLibrary: AudioSampleLibrary
+    private var sampleLibraryRoot: URL { sampleLibrary.libraryRoot }
 
     private(set) var isRunning = false
     private(set) var currentBPM: Double
@@ -56,6 +59,7 @@ final class EngineController: RouterDispatcher {
     private var audioOutputsByTrackID: [UUID: TrackPlaybackSink] = [:]
     private var audioOutputKeysByTrackID: [UUID: AudioOutputKey] = [:]
     private var lastDestinationByOutputKey: [AudioOutputKey: Destination] = [:]
+    private var liveSampleTrackIDs: Set<UUID> = []
     private var routeMidiOutputs: [Destination: MidiOut] = [:]
     private var pipelineShape: [PipelineEntry] = []
     private var routedNoteEvents: [RouteDestination: [NoteEvent]] = [:]
@@ -66,10 +70,36 @@ final class EngineController: RouterDispatcher {
     // Threading: written in prepareTick and read in flushConcreteDestination.
     // Both currently run on the clock-callback thread within one processTick call.
     // Do not read or mutate from other threads without revisiting this contract.
+    @ObservationIgnored
     private var currentLayerSnapshot = LayerSnapshot.empty
+
+    // Non-observable mirror of `transportTickIndex`, maintained on the clock thread.
+    // Tick-thread code that needs the current tick reads this instead of the
+    // @Observable `transportTickIndex` (which now lands on the main thread via
+    // `publishToMain`). Safe for tick-thread reads/writes without observer callbacks.
+    @ObservationIgnored
+    private var tickIndexOnClockThread: UInt64 = 0
 
     private func log(_ message: String) {
         NSLog("[EngineController] \(message)")
+    }
+
+    /// Apply a mutation to `@Observable` state from any thread without deadlocking.
+    ///
+    /// SwiftUI observers register tracking callbacks that run synchronously inside
+    /// the `ObservationRegistrar`'s `willSet`/`didSet`. When the tick-clock queue
+    /// writes an observed property, those callbacks may re-enter the main thread —
+    /// and if main is blocked in `clock.stop()`'s `queue.sync`, it deadlocks.
+    ///
+    /// This helper hops writes to the main thread when called off-main, and runs
+    /// inline when already on main (so synchronous test drivers of `processTick`
+    /// still see writes before the next XCTAssert).
+    private func publishToMain(_ body: @escaping () -> Void) {
+        if Thread.isMainThread {
+            body()
+        } else {
+            DispatchQueue.main.async(execute: body)
+        }
     }
 
     init(
@@ -77,8 +107,12 @@ final class EngineController: RouterDispatcher {
         endpoint: MIDIEndpoint? = MIDISession.shared.appOutput,
         audioOutput: TrackPlaybackSink? = nil,
         audioOutputFactory: (() -> TrackPlaybackSink)? = nil,
-        stepsPerBar: Int = 16
+        stepsPerBar: Int = 16,
+        sampleEngine: SamplePlaybackSink = SamplePlaybackEngine(),
+        sampleLibrary: AudioSampleLibrary = .shared
     ) {
+        self.sampleEngine = sampleEngine
+        self.sampleLibrary = sampleLibrary
         self.midiClient = client
         self.endpoint = endpoint
         self.sharedAudioOutput = audioOutput
@@ -106,6 +140,7 @@ final class EngineController: RouterDispatcher {
 
         let hosts = withStateLock { Array(audioOutputsByTrackID.values) }
         hosts.forEach { $0.startIfNeeded() }
+        try? sampleEngine.start()
 
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
         isRunning = true
@@ -126,6 +161,7 @@ final class EngineController: RouterDispatcher {
         isRunning = false
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
+        sampleEngine.stop()
     }
 
     func setBPM(_ bpm: Double) {
@@ -186,6 +222,8 @@ final class EngineController: RouterDispatcher {
     var canStart: Bool {
         executor != nil
     }
+
+    var sampleEngineSink: SamplePlaybackSink { sampleEngine }
 
     var availableAudioInstruments: [AudioInstrumentChoice] {
         sharedAudioOutput?.availableInstruments ?? AudioInstrumentChoice.defaultChoices
@@ -258,6 +296,9 @@ final class EngineController: RouterDispatcher {
                 : "Audio instrument unavailable"
         case .internalSampler:
             return "Internal sampler pending"
+        case .sample:
+            // TODO: Task 11 will wire sample dispatch
+            return "Sample playback pending"
         case .inheritGroup, .none:
             return "No default output"
         }
@@ -291,10 +332,13 @@ final class EngineController: RouterDispatcher {
         )
 
         let outputs = executor.tick(now: now)
-        currentBPM = executor.currentBPM
+        let newCurrentBPM = executor.currentBPM
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
-        transportTickIndex = completedStep
-        transportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
+        let newTransportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
+
+        // Tick-thread mirror — tick-internal reads (e.g. MIDI routing context) use this.
+        tickIndexOnClockThread = completedStep
+
         let triggeredNoteCount = outputs.values.reduce(0) { partial, ports in
             partial + ports.values.reduce(0) { nested, stream in
                 if case let .notes(events) = stream {
@@ -303,9 +347,23 @@ final class EngineController: RouterDispatcher {
                 return nested
             }
         }
-        if triggeredNoteCount > 0 {
-            lastNoteTriggerUptime = now
-            lastNoteTriggerCount = triggeredNoteCount
+        let newNoteTrigger: (uptime: TimeInterval, count: Int)? =
+            triggeredNoteCount > 0 ? (now, triggeredNoteCount) : nil
+
+        // Publish UI-observed state on the main thread so @Observable's
+        // synchronous notification callbacks don't re-enter main while the
+        // main thread is blocked in clock.stop()'s queue.sync.
+        publishToMain { [weak self] in
+            guard let self else { return }
+            if self.currentBPM != newCurrentBPM {
+                self.currentBPM = newCurrentBPM
+            }
+            self.transportTickIndex = completedStep
+            self.transportPosition = newTransportPosition
+            if let trigger = newNoteTrigger {
+                self.lastNoteTriggerUptime = trigger.uptime
+                self.lastNoteTriggerCount = trigger.count
+            }
         }
 
         for runtime in audioRuntimes.values where !runtime.mix.isMuted && !currentLayerSnapshot.isMuted(runtime.trackID) {
@@ -327,6 +385,28 @@ final class EngineController: RouterDispatcher {
                     )
                 )
             )
+        }
+
+        // Sample dispatch → queue (drum tracks and any other track with .sample destination).
+        for track in documentModel.tracks {
+            guard !track.mix.isMuted,
+                  !currentLayerSnapshot.isMuted(track.id),
+                  let generatorID = generatorIDs[track.id],
+                  case let .notes(events)? = outputs[generatorID]?["notes"],
+                  !events.isEmpty
+            else { continue }
+            guard case let .sample(sampleID, settings) = track.destination else { continue }
+            for _ in events {
+                eventQueue.enqueue(ScheduledEvent(
+                    scheduledHostTime: now,
+                    payload: .sampleTrigger(
+                        trackID: track.id,
+                        sampleID: sampleID,
+                        settings: settings,
+                        scheduledHostTime: now
+                    )
+                ))
+            }
         }
 
         routeDispatchNow = now
@@ -368,10 +448,17 @@ final class EngineController: RouterDispatcher {
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .chordContextBroadcast(lane, chord):
-                chordContextByLane[lane] = chord
+                publishToMain { [weak self] in
+                    self?.chordContextByLane[lane] = chord
+                }
 
             case .routedMIDI:
                 break
+
+            case let .sampleTrigger(trackID, sampleID, settings, _):
+                guard let sample = sampleLibrary.sample(id: sampleID) else { continue }
+                guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
+                _ = sampleEngine.play(sampleURL: url, settings: settings, trackID: trackID, at: nil)
             }
         }
     }
@@ -447,7 +534,8 @@ final class EngineController: RouterDispatcher {
                     destination: effectiveDestination,
                     pitchOffset: pitchOffset
                 )
-            case .internalSampler, .inheritGroup, .none:
+            case .internalSampler, .sample, .inheritGroup, .none:
+                // TODO: Task 11 will wire .sample dispatch
                 break
             }
         }
@@ -489,7 +577,7 @@ final class EngineController: RouterDispatcher {
             let notes = routedMIDINotes[destination] ?? []
             _ = midiOut.tick(
                 context: TickContext(
-                    tickIndex: transportTickIndex,
+                    tickIndex: tickIndexOnClockThread,
                     bpm: bpm,
                     inputs: ["notes": .notes(notes)],
                     now: routeDispatchNow
@@ -589,7 +677,8 @@ final class EngineController: RouterDispatcher {
                 )
             )
 
-        case .internalSampler, .inheritGroup, .none:
+        case .internalSampler, .sample, .inheritGroup, .none:
+            // TODO: Task 11 will wire .sample dispatch
             return
         }
     }
@@ -747,6 +836,32 @@ final class EngineController: RouterDispatcher {
         }
 
         removedHosts.forEach { $0.stop() }
+
+        syncSampleMixers(for: documentModel)
+    }
+
+    /// Push per-track fader state to `sampleEngine`. Called from `syncAudioOutputs`
+    /// every time the document model changes, which includes fader moves via the
+    /// mixer UI. The engine creates per-track mixer nodes lazily on first use; this
+    /// just configures them.
+    private func syncSampleMixers(for documentModel: Project) {
+        var sampleTrackIDs: Set<UUID> = []
+        for track in documentModel.tracks {
+            guard case .sample = track.destination else { continue }
+            sampleTrackIDs.insert(track.id)
+            sampleEngine.setTrackMix(
+                trackID: track.id,
+                level: track.mix.clampedLevel,
+                pan: track.mix.clampedPan
+            )
+        }
+
+        let previouslyLiveTrackIDs = withStateLock { liveSampleTrackIDs }
+        for removed in previouslyLiveTrackIDs.subtracting(sampleTrackIDs) {
+            sampleEngine.removeTrack(trackID: removed)
+        }
+
+        withStateLock { liveSampleTrackIDs = sampleTrackIDs }
     }
 
     private static func sourceParams(

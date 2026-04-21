@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
-**Status:** Not started. Tag `v0.0.16-per-track-owned-clips` at completion.
+**Status:** ✅ Completed 2026-04-21. Tag v0.0.17-per-track-owned-clips.
 
 **Depends on:** nothing open — drum-track MVP is merged.
 
@@ -2110,12 +2110,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Seq
 
 - [ ] **Step 6: Update plan status + tag**
 
-Edit `docs/plans/2026-04-21-per-track-owned-clips-opt-in-generators.md`: change `**Status:** Not started.` to `**Status:** ✅ Completed 2026-04-21. Tag v0.0.16-per-track-owned-clips.`
+Edit `docs/plans/2026-04-21-per-track-owned-clips-opt-in-generators.md`: change `**Status:** Not started.` to `**Status:** ✅ Completed 2026-04-21. Tag v0.0.17-per-track-owned-clips.`
 
 ```bash
 git add docs/plans/2026-04-21-per-track-owned-clips-opt-in-generators.md
 git commit -m "docs(plan): mark per-track-owned-clips completed"
-git tag v0.0.16-per-track-owned-clips
+git tag v0.0.17-per-track-owned-clips
 ```
 
 - [ ] **Step 7: Update the wiki**

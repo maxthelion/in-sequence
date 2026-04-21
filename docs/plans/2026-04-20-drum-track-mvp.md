@@ -16,7 +16,9 @@ Verified end-to-end by: creating a fresh project, calling `Add Drum Kit (808)`, 
 
 **Parent spec:** `docs/specs/2026-04-20-drum-track-mvp-design.md` — the approved design doc for this plan. Upstream spec: `docs/specs/2026-04-18-north-star-design.md` §"Drum tracks as groups".
 
-**Status:** TBD. Tag `v0.0.16-drum-track-mvp` at completion.
+**Status:** [COMPLETED 2026-04-20]
+
+Tag `v0.0.16-drum-track-mvp` applied at completion.
 
 **Depends on:** Current `main` after:
 - `v0.0.15-coordinator-scheduling` — provides `ScheduledEvent`, `EventQueue`, and the `prepareTick` / `dispatchTick` split this plan extends with a new payload case.
@@ -225,11 +227,11 @@ final class AudioSampleCategoryTests: XCTestCase {
 }
 ```
 
-- [ ] Create `AudioSampleCategory.swift` with the body above
-- [ ] Create `AudioSampleCategoryTests.swift` with the five test cases
-- [ ] `xcodegen generate`
-- [ ] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme SequencerAI test` — green
-- [ ] Commit: `feat(document): AudioSampleCategory + VoiceTag bridge`
+- [x] Create `AudioSampleCategory.swift` with the body above
+- [x] Create `AudioSampleCategoryTests.swift` with the five test cases
+- [x] `xcodegen generate`
+- [x] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme SequencerAI test` — green
+- [x] Commit: `feat(document): AudioSampleCategory + VoiceTag bridge`
 
 ---
 
@@ -408,12 +410,12 @@ final class SamplerSettingsTests: XCTestCase {
 
 Note: the `test_decode_legacyDocument_usesDefaults` test requires the Swift compiler's synthesised `Codable` to honour default values on absent keys — this works because `SamplerSettings` uses stored-property defaults with synthesised `init(from:)`. If the synthesised decoder chokes on missing keys, implement a custom `init(from:)` that reads each key with `decodeIfPresent` and falls back to the struct default. Document this in the file if you write a custom decoder.
 
-- [ ] Create `AudioFileRef.swift`
-- [ ] Create `SamplerSettings.swift`
-- [ ] Create both test files with the cases above
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — green
-- [ ] Commit: `feat(document): AudioFileRef + SamplerSettings`
+- [x] Create `AudioFileRef.swift`
+- [x] Create `SamplerSettings.swift`
+- [x] Create both test files with the cases above
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — green
+- [x] Commit: `feat(document): AudioFileRef + SamplerSettings`
 
 ---
 
@@ -471,11 +473,11 @@ final class AudioSampleTests: XCTestCase {
 }
 ```
 
-- [ ] Create `AudioSample.swift`
-- [ ] Create `AudioSampleTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — green
-- [ ] Commit: `feat(document): AudioSample library value type`
+- [x] Create `AudioSample.swift`
+- [x] Create `AudioSampleTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — green
+- [x] Commit: `feat(document): AudioSample library value type`
 
 ---
 
@@ -628,11 +630,11 @@ final class DestinationSampleTests: XCTestCase {
 }
 ```
 
-- [ ] Modify `Destination.swift` as above (add `.sample` to enum, Kind, kind, kindLabel, withoutTransientState, summary)
-- [ ] Create `DestinationSampleTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — all existing `DestinationTests` plus the new file green
-- [ ] Commit: `feat(document): Destination.sample case`
+- [x] Modify `Destination.swift` as above (add `.sample` to enum, Kind, kind, kindLabel, withoutTransientState, summary)
+- [x] Create `DestinationSampleTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — all existing `DestinationTests` plus the new file green
+- [x] Commit: `feat(document): Destination.sample case`
 
 ---
 
@@ -719,16 +721,16 @@ targets:
 - `manifest.json` *must* be committed — it's compared against on first launch. The generator script is re-run after any content change.
 - The version string in the manifest doesn't have to match any specific tag — it's used only by the bootstrap for debug logging. The per-file SHA is what gates the refresh.
 
-- [ ] Create the `Resources/StarterSamples/` directory structure with at least the categories the 808 / Acoustic / Techno presets reference: `kick`, `snare`, `hatClosed`, `clap`, `ride`
-- [ ] Populate with starter WAVs (≥ 3 kicks, ≥ 2 snares, ≥ 2 hatClosed, ≥ 1 clap, ≥ 1 ride; mono, ≤ 1 s). Silent placeholders acceptable for now
-- [ ] Create `scripts/rebuild-sample-manifest.sh` and `chmod +x`
-- [ ] Run `./scripts/rebuild-sample-manifest.sh` — produces `Resources/StarterSamples/manifest.json`
-- [ ] Create `Tests/Fixtures/SampleLibraryFixture/` with ≥ 2 kicks, ≥ 1 snare, plus its own `manifest.json` (regenerate via the script by temporarily pointing the root)
-- [ ] Modify `project.yml` — add the `Resources/StarterSamples` folder as a bundled resource on the `SequencerAI` target
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild` — compiles (no test changes yet)
-- [ ] Verify the built `.app` contains the starter samples: `find $(xcodebuild -scheme SequencerAI -showBuildSettings | grep -m1 BUILT_PRODUCTS_DIR | awk '{print $3}')/SequencerAI.app -name "*.wav" | head`
-- [ ] Commit: `chore(resources): add StarterSamples bundle + manifest generator`
+- [x] Create the `Resources/StarterSamples/` directory structure with at least the categories the 808 / Acoustic / Techno presets reference: `kick`, `snare`, `hatClosed`, `clap`, `ride`
+- [x] Populate with starter WAVs (≥ 3 kicks, ≥ 2 snares, ≥ 2 hatClosed, ≥ 1 clap, ≥ 1 ride; mono, ≤ 1 s). Silent placeholders acceptable for now
+- [x] Create `scripts/rebuild-sample-manifest.sh` and `chmod +x`
+- [x] Run `./scripts/rebuild-sample-manifest.sh` — produces `Resources/StarterSamples/manifest.json`
+- [x] Create `Tests/Fixtures/SampleLibraryFixture/` with ≥ 2 kicks, ≥ 1 snare, plus its own `manifest.json` (regenerate via the script by temporarily pointing the root)
+- [x] Modify `project.yml` — add the `Resources/StarterSamples` folder as a bundled resource on the `SequencerAI` target
+- [x] `xcodegen generate`
+- [x] `xcodebuild` — compiles (no test changes yet)
+- [x] Verify the built `.app` contains the starter samples: `find $(xcodebuild -scheme SequencerAI -showBuildSettings | grep -m1 BUILT_PRODUCTS_DIR | awk '{print $3}')/SequencerAI.app -name "*.wav" | head`
+- [x] Commit: `chore(resources): add StarterSamples bundle + manifest generator`
 
 ---
 
@@ -954,11 +956,11 @@ final class SampleLibraryBootstrapTests: XCTestCase {
 }
 ```
 
-- [ ] Create `SampleLibraryBootstrap.swift` with the body above
-- [ ] Create `SampleLibraryBootstrapTests.swift` with the five test cases
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — new suite green
-- [ ] Commit: `feat(audio): SampleLibraryBootstrap with manifest-gated refresh`
+- [x] Create `SampleLibraryBootstrap.swift` with the body above
+- [x] Create `SampleLibraryBootstrapTests.swift` with the five test cases
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — new suite green
+- [x] Commit: `feat(audio): SampleLibraryBootstrap with manifest-gated refresh`
 
 ---
 
@@ -1203,11 +1205,11 @@ final class AudioSampleLibraryTests: XCTestCase {
 }
 ```
 
-- [ ] Create `AudioSampleLibrary.swift` with the body above (note the CryptoKit import inline)
-- [ ] Create `AudioSampleLibraryTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — new suite green
-- [ ] Commit: `feat(audio): AudioSampleLibrary with @Observable scan + stable UUIDv5 IDs`
+- [x] Create `AudioSampleLibrary.swift` with the body above (note the CryptoKit import inline)
+- [x] Create `AudioSampleLibraryTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — new suite green
+- [x] Commit: `feat(audio): AudioSampleLibrary with @Observable scan + stable UUIDv5 IDs`
 
 ---
 
@@ -1369,11 +1371,11 @@ final class WaveformDownsamplerTests: XCTestCase {
 }
 ```
 
-- [ ] Create `WaveformDownsampler.swift`
-- [ ] Create `WaveformDownsamplerTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — new suite green
-- [ ] Commit: `feat(audio): WaveformDownsampler with NSCache-backed results`
+- [x] Create `WaveformDownsampler.swift`
+- [x] Create `WaveformDownsamplerTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — new suite green
+- [x] Commit: `feat(audio): WaveformDownsampler with NSCache-backed results`
 
 ---
 
@@ -1433,11 +1435,11 @@ func test_sampleTriggerPayload_equatable() {
 }
 ```
 
-- [ ] Add `.sampleTrigger` case to `ScheduledEvent.Payload` at `Sources/Engine/ScheduledEvent.swift`
-- [ ] Add `test_sampleTriggerPayload_equatable` to `EventQueueTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — all engine tests still green
-- [ ] Commit: `feat(engine): ScheduledEvent.sampleTrigger payload`
+- [x] Add `.sampleTrigger` case to `ScheduledEvent.Payload` at `Sources/Engine/ScheduledEvent.swift`
+- [x] Add `test_sampleTriggerPayload_equatable` to `EventQueueTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — all engine tests still green
+- [x] Commit: `feat(engine): ScheduledEvent.sampleTrigger payload`
 
 ---
 
@@ -1656,11 +1658,11 @@ final class SamplePlaybackEngineTests: XCTestCase {
 
 Note: the integration tests don't assert on audible output (no output-tap). They exercise the API surface and guard against crashes. Gain-correctness is trusted to AVFoundation — an output-tap peak-amplitude test is deferred.
 
-- [ ] Create `SamplePlaybackEngine.swift`
-- [ ] Create `SamplePlaybackEngineTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — new suite green (or gracefully skips if AVAudioEngine won't start)
-- [ ] Commit: `feat(audio): SamplePlaybackEngine with voice pool + audition bus`
+- [x] Create `SamplePlaybackEngine.swift`
+- [x] Create `SamplePlaybackEngineTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — new suite green (or gracefully skips if AVAudioEngine won't start)
+- [x] Commit: `feat(audio): SamplePlaybackEngine with voice pool + audition bus`
 
 ---
 
@@ -1922,15 +1924,15 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
 - `AudioSampleLibrary.shared` is force-initialised at `EngineController` init time unless a test passes a different library — matches the pattern of `.shared` singletons elsewhere.
 - The spy sink's `start()` is marked `throws` to satisfy the protocol even though it never throws.
 
-- [ ] Introduce `SamplePlaybackSink` protocol + `SamplePlaybackEngine` conformance
-- [ ] Add `sampleEngine` + `sampleLibrary` properties to `EngineController`; extend initialiser
-- [ ] Add `sampleEngine.start()` / `stop()` calls in `EngineController.start()` / `stop()`
-- [ ] Add sample-enqueue loop to `prepareTick`
-- [ ] Add `.sampleTrigger` case handling to `dispatchTick`
-- [ ] Create `EngineControllerSampleTriggerTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — all existing engine tests green + new cases green
-- [ ] Commit: `feat(engine): dispatch .sample destinations through SamplePlaybackEngine`
+- [x] Introduce `SamplePlaybackSink` protocol + `SamplePlaybackEngine` conformance
+- [x] Add `sampleEngine` + `sampleLibrary` properties to `EngineController`; extend initialiser
+- [x] Add `sampleEngine.start()` / `stop()` calls in `EngineController.start()` / `stop()`
+- [x] Add sample-enqueue loop to `prepareTick`
+- [x] Add `.sampleTrigger` case handling to `dispatchTick`
+- [x] Create `EngineControllerSampleTriggerTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — all existing engine tests green + new cases green
+- [x] Commit: `feat(engine): dispatch .sample destinations through SamplePlaybackEngine`
 
 ---
 
@@ -2241,12 +2243,12 @@ final class SamplerDestinationWidgetTests: XCTestCase {
 
 SwiftUI view-rendering tests are awkward without ViewInspector or similar. The tests here verify the **data paths** the widget uses — library queries, clamp behaviour, sample resolution, spy-sink interaction. A full rendering test (matching a snapshot of the widget's layout) is deferred.
 
-- [ ] Create `WaveformView.swift`
-- [ ] Create `SamplerDestinationWidget.swift`
-- [ ] Create `SamplerDestinationWidgetTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — new suite green
-- [ ] Commit: `feat(ui): SamplerDestinationWidget with waveform + prev/next + audition + gain`
+- [x] Create `WaveformView.swift`
+- [x] Create `SamplerDestinationWidget.swift`
+- [x] Create `SamplerDestinationWidgetTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — new suite green
+- [x] Commit: `feat(ui): SamplerDestinationWidget with waveform + prev/next + audition + gain`
 
 ---
 
@@ -2402,13 +2404,13 @@ if AudioSampleLibrary.shared.samples.isEmpty {
 
 Be careful — this read happens every view update. Acceptable because `AudioSampleLibrary.samples` is a stored array, not computed. If it turns out to be hot, cache behind a `@State var` that refreshes on `.task`.
 
-- [ ] Add `.sample` case to `TrackDestinationChoice`
-- [ ] Update `availableChoices` / `applyDestinationChoice`
-- [ ] Add `samplerEditor` computed view + `.sample` branch in the main switch
-- [ ] Expose `sampleEngineSink` on `EngineController`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild` — compiles; manual check that the OUTPUT section shows "Sampler" card
-- [ ] Commit: `feat(ui): TrackDestinationEditor adds .sample branch + choice`
+- [x] Add `.sample` case to `TrackDestinationChoice`
+- [x] Update `availableChoices` / `applyDestinationChoice`
+- [x] Add `samplerEditor` computed view + `.sample` branch in the main switch
+- [x] Expose `sampleEngineSink` on `EngineController`
+- [x] `xcodegen generate`
+- [x] `xcodebuild` — compiles; manual check that the OUTPUT section shows "Sampler" card
+- [x] Commit: `feat(ui): TrackDestinationEditor adds .sample branch + choice`
 
 ---
 
@@ -2557,13 +2559,13 @@ final class DrumKitPresetSampleTests: XCTestCase {
 **Subtleties:**
 - `Project+Tracks.swift` currently builds the `TrackGroup` with a non-empty `noteMapping` using `DrumKitNoteMap.note(for: member.tag) - DrumKitNoteMap.baselineNote`. We're dropping that mapping (samples play at native pitch). If any downstream code consumes `noteMapping`, verify it handles empty without crashing. `grep -n noteMapping Sources` to confirm.
 
-- [ ] Rewrite `addDrumKit(_:library:)` body with the new per-member sample path + `sharedDestination: nil` + `noteMapping: [:]`
-- [ ] Delete `Sources/Document/DrumKitPreset+Destination.swift`
-- [ ] Verify `grep -rn suggestedSharedDestination Sources Tests` → zero results
-- [ ] Create `DrumKitPresetSampleTests.swift`
-- [ ] `xcodegen generate`
-- [ ] `xcodebuild test` — all existing tests green (existing drum-kit tests touching `sharedDestination` will need update — expected to be a small number; adjust them to assert `nil` instead of `.internalSampler(...)` )
-- [ ] Commit: `feat(document): addDrumKit assigns per-member sample destinations`
+- [x] Rewrite `addDrumKit(_:library:)` body with the new per-member sample path + `sharedDestination: nil` + `noteMapping: [:]`
+- [x] Delete `Sources/Document/DrumKitPreset+Destination.swift`
+- [x] Verify `grep -rn suggestedSharedDestination Sources Tests` → zero results
+- [x] Create `DrumKitPresetSampleTests.swift`
+- [x] `xcodegen generate`
+- [x] `xcodebuild test` — all existing tests green (existing drum-kit tests touching `sharedDestination` will need update — expected to be a small number; adjust them to assert `nil` instead of `.internalSampler(...)` )
+- [x] Commit: `feat(document): addDrumKit assigns per-member sample destinations`
 
 ---
 
@@ -2606,14 +2608,14 @@ If the app file name is different, the change is the same — add two lines to t
 
 **Tests:** None — launch-time wiring. The bootstrap itself is covered by Task 6's tests, and the library's behaviour on an empty directory is covered by Task 7's tests.
 
-- [ ] Find the `@main` struct; open its file
-- [ ] Add the `init()` with bootstrap + warm-up
-- [ ] `xcodebuild` — compiles
-- [ ] Launch the app manually from Xcode
-- [ ] Verify `~/Library/Application\ Support/sequencer-ai/samples/manifest.json` exists after first launch
-- [ ] Verify the starter samples are in place: `ls ~/Library/Application\ Support/sequencer-ai/samples/kick/`
-- [ ] Delete the Application Support directory and relaunch — files re-appear
-- [ ] Commit: `feat(app): bootstrap sample library on launch`
+- [x] Find the `@main` struct; open its file
+- [x] Add the `init()` with bootstrap + warm-up
+- [x] `xcodebuild` — compiles
+- [x] Launch the app manually from Xcode
+- [x] Verify `~/Library/Application\ Support/sequencer-ai/samples/manifest.json` exists after first launch
+- [x] Verify the starter samples are in place: `ls ~/Library/Application\ Support/sequencer-ai/samples/kick/`
+- [x] Delete the Application Support directory and relaunch — files re-appear
+- [x] Commit: `feat(app): bootstrap sample library on launch`
 
 ---
 
@@ -2678,10 +2680,10 @@ To route all drum members through one AU instead of per-member samples: set each
 
 **`wiki/pages/sequencerbox-domain-model.md`** — add vocabulary entries. Look for the existing bullet-list structure and match the format.
 
-- [ ] Create `wiki/pages/drum-track-mvp.md`
-- [ ] Modify `wiki/pages/track-destinations.md`
-- [ ] Modify `wiki/pages/sequencerbox-domain-model.md`
-- [ ] Commit: `docs(wiki): drum-track MVP page + destination model update`
+- [x] Create `wiki/pages/drum-track-mvp.md`
+- [x] Modify `wiki/pages/track-destinations.md`
+- [x] Modify `wiki/pages/sequencerbox-domain-model.md`
+- [x] Commit: `docs(wiki): drum-track MVP page + destination model update`
 
 ---
 
@@ -2730,18 +2732,18 @@ To route all drum members through one AU instead of per-member samples: set each
 | Wiki | 16 |
 | Tag + verify | 17 |
 
-- [ ] All verification checks pass
-- [ ] All manual smokes pass
-- [ ] Commit: `chore: verify drum-track MVP`
+- [x] All verification checks pass
+- [x] All manual smokes pass
+- [x] Commit: `chore: verify drum-track MVP`
 
 ---
 
 ## Task 18: Tag + mark completed
 
-- [ ] Replace `- [ ]` with `- [x]` for all completed tasks in this file
-- [ ] Add `**Status:** [COMPLETED YYYY-MM-DD]` line directly under `**Parent spec:**`
-- [ ] Commit: `docs(plan): mark drum-track-mvp completed`
-- [ ] Tag: `git tag -a v0.0.16-drum-track-mvp -m "Drum tracks play audio: Application Support sample library, Destination.sample + SamplerSettings, SamplePlaybackEngine with voice pool + audition, inline SamplerDestinationWidget with waveform + prev/next + gain, addDrumKit assigns per-member sample destinations"`
+- [x] Replace `- [ ]` with `- [x]` for all completed tasks in this file
+- [x] Add `**Status:** [COMPLETED YYYY-MM-DD]` line directly under `**Parent spec:**`
+- [x] Commit: `docs(plan): mark drum-track-mvp completed`
+- [x] Tag: `git tag -a v0.0.16-drum-track-mvp -m "Drum tracks play audio: Application Support sample library, Destination.sample + SamplerSettings, SamplePlaybackEngine with voice pool + audition, inline SamplerDestinationWidget with waveform + prev/next + gain, addDrumKit assigns per-member sample destinations"`
 
 ---
 

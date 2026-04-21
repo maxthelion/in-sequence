@@ -179,6 +179,16 @@ Default bundled song: `src/lib/songs/song3.js`.
 - **Flat pools + index references** — Clips, Sounds, Samples are stored once and referenced from multiple places.
 - **Mono/Poly split via subclassing** — `Clip` is abstract; `MonoClip` / `PolyClip` override `toggleNoteAtStep`.
 
+## sequencer-ai vocabulary additions
+
+Types introduced in sequencer-ai that extend or replace sequencerbox concepts:
+
+- **AudioFileRef** — how a destination references a sample on disk: `.appSupportLibrary(relativePath:)` today; `.projectPackage(filename:)` reserved for the future project-pool plan.
+- **AudioSample** — library entry for one sample file: stable UUID, name, `AudioFileRef`, `AudioSampleCategory`, optional duration. Not persisted.
+- **AudioSampleCategory** — the set of drum-voice tags (kick, snare, hatClosed, …) plus non-drum catch-alls. Bridges `VoiceTag` → category.
+- **AudioSampleLibrary** — process-global `@Observable` singleton holding the library scanned from Application Support. Source of truth for `Destination.sample` resolution.
+- **SamplerSettings** — per-destination sampler knobs (gain UI-exposed; transpose/attack/release reserved).
+
 ## Things worth revisiting for sequencer-ai
 
 Out of scope for this overview but worth separate pages later:

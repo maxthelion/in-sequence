@@ -63,8 +63,9 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(model.selectedPhrase.cell(for: "pattern", trackID: newTrack.id), .inheritDefault)
         XCTAssertEqual(model.layers.first(where: { $0.id == "pattern" })?.defaultValue(for: newTrack.id), .index(0))
         XCTAssertEqual(model.layers.first(where: { $0.id == "volume" })?.defaultValue(for: newTrack.id), .scalar(newTrack.mix.level * 127))
-        XCTAssertEqual(model.selectedPattern(for: newTrack.id).sourceRef.mode, TrackSourceMode.generator)
-        XCTAssertNotNil(model.selectedPattern(for: newTrack.id).sourceRef.generatorID)
+        // Per-track-owned-clips: new tracks start in clip mode with an owned clip, no generator attached.
+        XCTAssertEqual(model.selectedPattern(for: newTrack.id).sourceRef.mode, TrackSourceMode.clip)
+        XCTAssertNotNil(model.selectedPattern(for: newTrack.id).sourceRef.clipID)
     }
 
     func test_init_heals_poly_pattern_slots_with_nil_generator_ids() throws {
@@ -161,7 +162,18 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(model.trackGroups.count, 1)
         XCTAssertEqual(model.trackGroups[0].id, groupID)
         XCTAssertEqual(model.trackGroups[0].memberIDs.count, DrumKitPreset.kit808.members.count)
-        XCTAssertTrue(model.tracks.suffix(DrumKitPreset.kit808.members.count).allSatisfy { $0.destination == .inheritGroup })
+        // Per-member destinations: each track has either .sample or .internalSampler (fallback).
+        // None should be .inheritGroup since the new implementation assigns individual destinations.
+        XCTAssertTrue(model.tracks.suffix(DrumKitPreset.kit808.members.count).allSatisfy { track in
+            switch track.destination {
+            case .sample, .internalSampler: return true
+            default: return false
+            }
+        })
+        // sharedDestination is nil — per-member samples, no shared sampler
+        XCTAssertNil(model.trackGroups[0].sharedDestination)
+        // noteMapping is empty — samples are pre-pitched, no MIDI transpose needed
+        XCTAssertEqual(model.trackGroups[0].noteMapping, [:])
         XCTAssertTrue(model.phrases.allSatisfy { phrase in
             model.trackGroups[0].memberIDs.allSatisfy { memberID in
                 phrase.cell(for: "pattern", trackID: memberID) == .inheritDefault
@@ -195,7 +207,7 @@ final class ProjectTests: XCTestCase {
             clipPool: [],
             layers: layers,
             routes: [],
-            patternBanks: [TrackPatternBank.default(for: track, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])],
+            patternBanks: [TrackPatternBank.default(for: track, initialClipID: nil)],
             selectedTrackID: track.id,
             phrases: [
                 PhraseModel(

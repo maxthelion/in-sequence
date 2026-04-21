@@ -81,6 +81,24 @@ final class EventQueueTests: XCTestCase {
         XCTAssertEqual(drainedLanes.count, 100)
         XCTAssertTrue(queue.isEmpty)
     }
+    func test_sampleTriggerPayload_equatable() {
+        let trackID = UUID()
+        let sampleID = UUID()
+        let a = ScheduledEvent(
+            scheduledHostTime: 1.0,
+            payload: .sampleTrigger(trackID: trackID, sampleID: sampleID, settings: .default, scheduledHostTime: 1.0)
+        )
+        let b = ScheduledEvent(
+            scheduledHostTime: 1.0,
+            payload: .sampleTrigger(trackID: trackID, sampleID: sampleID, settings: .default, scheduledHostTime: 1.0)
+        )
+        let c = ScheduledEvent(
+            scheduledHostTime: 1.0,
+            payload: .sampleTrigger(trackID: trackID, sampleID: UUID(), settings: .default, scheduledHostTime: 1.0)
+        )
+        XCTAssertEqual(a, b)
+        XCTAssertNotEqual(a, c)
+    }
 }
 
 private final class LockedLaneStore: @unchecked Sendable {

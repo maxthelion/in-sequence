@@ -26,6 +26,8 @@ targets:
     platform: macOS
     sources:
       - path: Sources
+      - path: Resources/StarterSamples
+        type: folder
     resources:
       - path: Sources/Resources/Info.plist
         buildPhase: none

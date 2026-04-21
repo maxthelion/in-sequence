@@ -40,7 +40,7 @@ final class ProjectNormalizationTests: XCTestCase {
             clipPool: [],
             layers: PhraseLayerDefinition.defaultSet(for: [track]),
             routes: [],
-            patternBanks: [TrackPatternBank.default(for: track, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])],
+            patternBanks: [TrackPatternBank.default(for: track, initialClipID: nil)],
             selectedTrackID: UUID(),
             phrases: [phrase],
             selectedPhraseID: UUID()
@@ -83,8 +83,8 @@ final class ProjectNormalizationTests: XCTestCase {
           "layers": \(try jsonString(for: layers)),
           "routes": [],
           "patternBanks": \(try jsonString(for: [
-            TrackPatternBank.default(for: track, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: []),
-            TrackPatternBank.default(for: strayTrack, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: []),
+            TrackPatternBank.default(for: track, initialClipID: nil),
+            TrackPatternBank.default(for: strayTrack, initialClipID: nil),
           ])),
           "selectedTrackID": "\(track.id.uuidString)",
           "phrases": \(try jsonString(for: [phrase])),
@@ -114,8 +114,7 @@ final class ProjectNormalizationTests: XCTestCase {
                 velocity: 96,
                 gateLength: 4
             ),
-            generatorPool: GeneratorPoolEntry.defaultPool,
-            clipPool: []
+            initialClipID: nil
         )
 
         let project = Project(
@@ -126,7 +125,7 @@ final class ProjectNormalizationTests: XCTestCase {
             layers: PhraseLayerDefinition.defaultSet(for: [track]),
             routes: [],
             patternBanks: [
-                TrackPatternBank.default(for: track, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: []),
+                TrackPatternBank.default(for: track, initialClipID: nil),
                 strayBank,
             ],
             selectedTrackID: track.id,

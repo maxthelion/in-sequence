@@ -476,12 +476,35 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
 
     var trackID: UUID
     var slots: [TrackPatternSlot]
+    var attachedGeneratorID: UUID?
 
     var id: UUID { trackID }
 
-    init(trackID: UUID, slots: [TrackPatternSlot]) {
+    private enum CodingKeys: String, CodingKey {
+        case trackID
+        case slots
+        case attachedGeneratorID
+    }
+
+    init(trackID: UUID, slots: [TrackPatternSlot], attachedGeneratorID: UUID? = nil) {
         self.trackID = trackID
         self.slots = TrackPatternBank.normalizedSlots(slots)
+        self.attachedGeneratorID = attachedGeneratorID
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.trackID = try container.decode(UUID.self, forKey: .trackID)
+        let decodedSlots = try container.decode([TrackPatternSlot].self, forKey: .slots)
+        self.slots = TrackPatternBank.normalizedSlots(decodedSlots)
+        self.attachedGeneratorID = try container.decodeIfPresent(UUID.self, forKey: .attachedGeneratorID)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(trackID, forKey: .trackID)
+        try container.encode(slots, forKey: .slots)
+        try container.encodeIfPresent(attachedGeneratorID, forKey: .attachedGeneratorID)
     }
 
     func slot(at index: Int) -> TrackPatternSlot {
@@ -500,6 +523,11 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
         clipPool: [ClipPoolEntry]
     ) -> TrackPatternBank {
         let fallbackSourceRef = Self.defaultSourceRef(for: track, generatorPool: generatorPool)
+        let validatedAttachedID: UUID? = {
+            guard let attachedGeneratorID else { return nil }
+            let exists = generatorPool.contains(where: { $0.id == attachedGeneratorID && $0.trackType == track.trackType })
+            return exists ? attachedGeneratorID : nil
+        }()
         return TrackPatternBank(
             trackID: trackID,
             slots: slots.enumerated().map { index, slot in
@@ -510,19 +538,20 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
                     clipPool: clipPool,
                     fallbackSourceRef: fallbackSourceRef
                 )
-            }
+            },
+            attachedGeneratorID: validatedAttachedID
         )
     }
 
     static func `default`(
         for track: StepSequenceTrack,
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry]
+        initialClipID: UUID?
     ) -> TrackPatternBank {
-        let defaultSourceRef = defaultSourceRef(for: track, generatorPool: generatorPool)
+        let sourceRef = SourceRef(mode: .clip, generatorID: nil, clipID: initialClipID)
         return TrackPatternBank(
             trackID: track.id,
-            slots: (0..<slotCount).map { TrackPatternSlot(slotIndex: $0, sourceRef: defaultSourceRef) }
+            slots: (0..<slotCount).map { TrackPatternSlot(slotIndex: $0, sourceRef: sourceRef) },
+            attachedGeneratorID: nil
         )
     }
 
@@ -802,11 +831,11 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         case .generator:
             let compatibleID = generatorPool.first(where: { $0.id == generatorID && $0.trackType == trackType })?.id
                 ?? generatorPool.first(where: { $0.trackType == trackType })?.id
-            return .generator(compatibleID)
+            return SourceRef(mode: .generator, generatorID: compatibleID, clipID: clipID)
         case .clip:
             let compatibleID = clipPool.first(where: { $0.id == clipID && $0.trackType == trackType })?.id
                 ?? clipPool.first(where: { $0.trackType == trackType })?.id
-            return .clip(compatibleID)
+            return SourceRef(mode: .clip, generatorID: generatorID, clipID: compatibleID)
         }
     }
 }
