@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16. `xcodebuild` prefixed with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. No new or deleted files here, so `xcodegen generate` isn't required, but running it is harmless.
 
-**Status:** Not started. Tag `v0.0.21-remove-unnecessary-ui` at completion.
+**Status:** ✅ Completed 2026-04-21. Tag `v0.0.21-remove-unnecessary-ui`. Verified with full test suite.
 
 **Depends on:** nothing.
 
@@ -51,7 +51,7 @@ Sources/UI/
 - Modify: `Sources/UI/StudioTopBar.swift`
 - Modify: `Sources/UI/WorkspaceSection.swift`
 
-- [ ] **Step 1: Drop the subtitle `Text` from `StudioTopBar`**
+- [x] **Step 1: Drop the subtitle `Text` from `StudioTopBar`**
 
 Replace this block in `Sources/UI/StudioTopBar.swift`:
 
@@ -76,7 +76,7 @@ with:
                     .foregroundStyle(StudioTheme.text)
 ```
 
-- [ ] **Step 2: Build to confirm the Text rendering is gone (template still exists)**
+- [x] **Step 2: Build to confirm the Text rendering is gone (template still exists)**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -87,7 +87,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 Expected: build succeeds. The `subtitle` property on `WorkspaceSection` is still defined but now has zero callers.
 
-- [ ] **Step 3: Delete the `subtitle` property from `WorkspaceSection`**
+- [x] **Step 3: Delete the `subtitle` property from `WorkspaceSection`**
 
 In `Sources/UI/WorkspaceSection.swift`, delete the entire `var subtitle: String { … }` block, which includes the switch over all workspace-section cases:
 
@@ -114,11 +114,11 @@ In `Sources/UI/WorkspaceSection.swift`, delete the entire `var subtitle: String 
 
 Leave the `title` and `systemImage` properties intact — those are still used.
 
-- [ ] **Step 4: Verify no remaining callers**
+- [x] **Step 4: Verify no remaining callers**
 
 Run Grep with pattern `\.subtitle\b` against `Sources/UI/` to confirm nothing references `WorkspaceSection.subtitle`. If the grep returns any hits, they're on a different type (e.g., on a different struct's subtitle) — verify visually, don't blanket-remove.
 
-- [ ] **Step 5: Build + tests**
+- [x] **Step 5: Build + tests**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -129,7 +129,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: build succeeds, all tests pass. If any test asserted on `WorkspaceSection.subtitle`, delete that test — the property no longer exists.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/UI/StudioTopBar.swift Sources/UI/WorkspaceSection.swift
@@ -143,7 +143,7 @@ git commit -m "refactor(ui): drop WorkspaceSection.subtitle template and its top
 **Files:**
 - Modify: `Sources/UI/StudioTopBar.swift`
 
-- [ ] **Step 1: Delete the three `StudioMetricPill` calls**
+- [x] **Step 1: Delete the three `StudioMetricPill` calls**
 
 In `Sources/UI/StudioTopBar.swift`, find the section-buttons `HStack` that contains a `Spacer()` followed by three `StudioMetricPill(title: "Mode", …)`, `StudioMetricPill(title: "Track", …)`, and `StudioMetricPill(title: "Engine", …)` calls. Delete the three `StudioMetricPill(...)` calls. Keep the `Spacer()` — without the pills, it ensures the section-selector buttons stay left-aligned instead of expanding to fill.
 
@@ -154,7 +154,7 @@ After the edit, the tail of that HStack should be just:
             }
 ```
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -165,11 +165,11 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 Expected: build succeeds. `StudioMetricPill` is still imported / usable; it just no longer appears in the top bar.
 
-- [ ] **Step 3: Verify `StudioMetricPill` is still used elsewhere (it is — `RoutesListView.swift`)**
+- [x] **Step 3: Verify `StudioMetricPill` is still used elsewhere (it is — `RoutesListView.swift`)**
 
 Run Grep with pattern `StudioMetricPill` over `Sources/UI/`. Expected hits: the component definition (`Sources/UI/Theme/StudioMetricPill.swift`) and one consumer (`Sources/UI/RoutesListView.swift`). If the consumer list is empty (component becomes dead), that's grounds for a follow-up deletion, but do not delete the component as part of this task.
 
-- [ ] **Step 4: Full tests pass**
+- [x] **Step 4: Full tests pass**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -180,7 +180,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/UI/StudioTopBar.swift
@@ -194,7 +194,7 @@ git commit -m "refactor(ui): drop MODE/TRACK/ENGINE status pills from StudioTopB
 **Files:**
 - Modify: `Sources/UI/TracksMatrixView.swift`
 
-- [ ] **Step 1: Drop the `eyebrow:` argument on the TRACKS `StudioPanel`**
+- [x] **Step 1: Drop the `eyebrow:` argument on the TRACKS `StudioPanel`**
 
 In `Sources/UI/TracksMatrixView.swift`, replace:
 
@@ -217,7 +217,7 @@ with:
 
 `StudioPanel.eyebrow` has a default of `nil`, so omitting the argument is valid.
 
-- [ ] **Step 2: Build + tests**
+- [x] **Step 2: Build + tests**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -228,7 +228,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Sources/UI/TracksMatrixView.swift
@@ -242,7 +242,7 @@ git commit -m "refactor(ui): drop TRACKS panel eyebrow text"
 **Files:**
 - Modify: `Sources/UI/TracksMatrixView.swift` — the `matrixSections` body and the private `TrackSectionShell` struct
 
-- [ ] **Step 1: Replace the `TrackSectionShell(...)` invocation with the grid directly**
+- [x] **Step 1: Replace the `TrackSectionShell(...)` invocation with the grid directly**
 
 In `Sources/UI/TracksMatrixView.swift`, find `matrixSections` and replace:
 
@@ -292,11 +292,11 @@ with:
 
 This drops the Ungrouped header entirely and drops the `isCollapsed` / `toggleCollapse` arguments on `GroupSectionView` (Task 5 removes the corresponding parameters).
 
-- [ ] **Step 2: Delete the `TrackSectionShell` private struct**
+- [x] **Step 2: Delete the `TrackSectionShell` private struct**
 
 In the same file, find and delete the entire `private struct TrackSectionShell<Content: View>` declaration. No other caller exists — it was only used by the Ungrouped section.
 
-- [ ] **Step 3: Build (expected to fail — `GroupSectionView` still declares `isCollapsed` / `toggleCollapse`)**
+- [x] **Step 3: Build (expected to fail — `GroupSectionView` still declares `isCollapsed` / `toggleCollapse`)**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -314,7 +314,7 @@ Expected: compile error — `GroupSectionView` requires `isCollapsed` / `toggleC
 **Files:**
 - Modify: `Sources/UI/TracksMatrixView.swift` — the `@State` declaration, `toggleCollapse` method, and the entire `GroupSectionView` rewrite
 
-- [ ] **Step 1: Delete the `@State` and the `toggleCollapse` method**
+- [x] **Step 1: Delete the `@State` and the `toggleCollapse` method**
 
 In `TracksMatrixView`:
 
@@ -330,7 +330,7 @@ In `TracksMatrixView`:
   }
   ```
 
-- [ ] **Step 2: Simplify `GroupSectionView` to always render the grid**
+- [x] **Step 2: Simplify `GroupSectionView` to always render the grid**
 
 Replace the entire `GroupSectionView` struct in `Sources/UI/TracksMatrixView.swift` with:
 
@@ -387,7 +387,7 @@ Changes vs the old version:
 - Removed the `Button(isCollapsed ? "Expand" : "Collapse", action: toggleCollapse)` in the header.
 - Removed the `if isCollapsed { … ScrollView(.horizontal) … } else { grid }` branch — `grid` always renders.
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -398,7 +398,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 Expected: build succeeds. The Task 4 `matrixSections` already calls `GroupSectionView(section:grid:)` without the collapse args — so the two changes match.
 
-- [ ] **Step 4: Full tests pass**
+- [x] **Step 4: Full tests pass**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -409,7 +409,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all pass.
 
-- [ ] **Step 5: Commit Tasks 4 and 5 together**
+- [x] **Step 5: Commit Tasks 4 and 5 together**
 
 Tasks 4 and 5 are interdependent (Task 4's call-site change requires Task 5's struct change to compile), so commit them as one unit:
 
@@ -422,13 +422,13 @@ git commit -m "refactor(ui): drop Ungrouped header and drum-kit group collapse"
 
 ## Task 6: Visual verification + tag
 
-- [ ] **Step 1: Build and open the app**
+- [x] **Step 1: Build and open the app**
 
 ```bash
 ./scripts/open-latest-build.sh
 ```
 
-- [ ] **Step 2: Check the Tracks page**
+- [x] **Step 2: Check the Tracks page**
 
 - Top bar: `SequencerAI` title remains; subtitle below it is gone.
 - Top bar right side: no MODE / TRACK / ENGINE pills. The section-selector row ends with whitespace on the right.
@@ -436,12 +436,12 @@ git commit -m "refactor(ui): drop Ungrouped header and drum-kit group collapse"
 - Ungrouped tracks: grid renders directly, no `UNGROUPED · N standalone tracks` header.
 - Drum-kit group (add one with `Add Drum Kit > 808`): card renders with name + count badge + shared-destination summary, no Collapse button on the right. All member cards visible below — no way to collapse.
 
-- [ ] **Step 3: Sanity-check other workspaces**
+- [x] **Step 3: Sanity-check other workspaces**
 
 - Switch to Phrase, Mixer, Live, Library. Each should still render (subtitle removal doesn't break anything else).
 - Open the Track page on a selected track: the subtitle is also gone from the top bar; other Track-page chrome is unchanged.
 
-- [ ] **Step 4: Flip plan status + tag**
+- [x] **Step 4: Flip plan status + tag**
 
 Replace `**Status:** Not started.` with `**Status:** ✅ Completed 2026-04-21. Tag v0.0.21-remove-unnecessary-ui.`
 
