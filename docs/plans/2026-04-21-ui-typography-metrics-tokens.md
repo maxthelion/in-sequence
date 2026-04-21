@@ -18,7 +18,7 @@ No visual change is intended. This is a pure refactor — the output pixel-for-p
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. After adding files under `Sources/UI/Theme/`, run `xcodegen generate` to register them in the project.
 
-**Status:** Not started. Tag `v0.0.18-ui-tokens` at completion.
+**Status:** ✅ Completed 2026-04-21. Tag `v0.0.18-ui-tokens`. Verified with full test suite and launch smoke.
 
 **Depends on:** nothing. Can be executed against current `main`.
 
@@ -121,7 +121,7 @@ Extract the font recipes. Add a named enum token per recipe with ≥ 4 uses. Pro
 - Create: `Sources/UI/Theme/StudioTypography.swift`
 - Test: `Tests/SequencerAITests/UI/StudioTypographyTests.swift`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `Tests/SequencerAITests/UI/StudioTypographyTests.swift`:
 
@@ -156,7 +156,7 @@ final class StudioTypographyTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -169,7 +169,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: compile failure — `StudioTypography` does not exist.
 
-- [ ] **Step 3: Create the enum + modifier**
+- [x] **Step 3: Create the enum + modifier**
 
 Write `Sources/UI/Theme/StudioTypography.swift`:
 
@@ -230,7 +230,7 @@ extension View {
 }
 ```
 
-- [ ] **Step 4: Regenerate the xcodeproj**
+- [x] **Step 4: Regenerate the xcodeproj**
 
 ```bash
 xcodegen generate
@@ -238,7 +238,7 @@ xcodegen generate
 
 Expected: writes the project including the new file.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -251,7 +251,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: three tests pass.
 
-- [ ] **Step 6: Full suite stays green**
+- [x] **Step 6: Full suite stays green**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -263,7 +263,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all tests pass. No existing test should break — the new file only adds symbols.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Sources/UI/Theme/StudioTypography.swift Tests/SequencerAITests/UI/StudioTypographyTests.swift project.yml
@@ -278,7 +278,7 @@ Walk the repo replacing the 13 recipes measured in the census with the correspon
 
 **Files:** every file that currently contains one of the 13 measured recipes. Approximate list from the census: 18–20 files under `Sources/UI/`.
 
-- [ ] **Step 1: Replace all uses of the size-11 semibold recipe (15 callsites)**
+- [x] **Step 1: Replace all uses of the size-11 semibold recipe (15 callsites)**
 
 Pattern to replace:
 ```swift
@@ -292,7 +292,7 @@ Replace with:
 
 Use Grep to find, then Edit to replace one-by-one. Do not combine with any other refactor.
 
-- [ ] **Step 2: Build to verify no type errors**
+- [x] **Step 2: Build to verify no type errors**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -304,14 +304,14 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 Expected: build succeeds.
 
-- [ ] **Step 3: Commit the first recipe migration**
+- [x] **Step 3: Commit the first recipe migration**
 
 ```bash
 git add Sources/UI
 git commit -m "refactor(ui): migrate size-11 semibold font to .studioText(.eyebrow)"
 ```
 
-- [ ] **Step 4: Repeat steps 1–3 for each remaining recipe**
+- [x] **Step 4: Repeat steps 1–3 for each remaining recipe**
 
 Order by frequency (highest first). One commit per recipe so reverts stay surgical:
 
@@ -330,7 +330,7 @@ Order by frequency (highest first). One commit per recipe so reverts stay surgic
 
 Commit message template: `refactor(ui): migrate <recipe> font to .studioText(<token>)`.
 
-- [ ] **Step 5: Verify the full suite passes after all migrations**
+- [x] **Step 5: Verify the full suite passes after all migrations**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -342,7 +342,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: tests pass.
 
-- [ ] **Step 6: Visual parity check on three main surfaces**
+- [x] **Step 6: Visual parity check on three main surfaces**
 
 Build and open the app:
 
@@ -366,7 +366,7 @@ Extract the corner-radius and spacing scales. Corner radius tokens are drawn fro
 **Files:**
 - Create: `Sources/UI/Theme/StudioMetrics.swift`
 
-- [ ] **Step 1: Create the enum**
+- [x] **Step 1: Create the enum**
 
 Write `Sources/UI/Theme/StudioMetrics.swift`:
 
@@ -391,7 +391,7 @@ enum StudioMetrics {
 }
 ```
 
-- [ ] **Step 2: Regenerate + build**
+- [x] **Step 2: Regenerate + build**
 
 ```bash
 xcodegen generate && \
@@ -404,7 +404,7 @@ xcodegen generate && \
 
 Expected: build succeeds.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Sources/UI/Theme/StudioMetrics.swift project.yml
@@ -419,11 +419,11 @@ Migrate by radius role, commit each cluster separately. For oddball radii (4, 5,
 
 **Files:** ~20 files currently using `cornerRadius: N` literals.
 
-- [ ] **Step 1: Migrate `cornerRadius: 18` → `StudioMetrics.CornerRadius.panel` (27 callsites)**
+- [x] **Step 1: Migrate `cornerRadius: 18` → `StudioMetrics.CornerRadius.panel` (27 callsites)**
 
 Grep for `cornerRadius: 18`, Edit each to `cornerRadius: StudioMetrics.CornerRadius.panel`.
 
-- [ ] **Step 2: Build, commit**
+- [x] **Step 2: Build, commit**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -434,7 +434,7 @@ git add Sources/UI
 git commit -m "refactor(ui): panel corner radius → StudioMetrics.CornerRadius.panel"
 ```
 
-- [ ] **Step 3: Repeat for the remaining roles**
+- [x] **Step 3: Repeat for the remaining roles**
 
 Each as its own commit:
 - `cornerRadius: 16` → `.subPanel` (13)
@@ -444,7 +444,7 @@ Each as its own commit:
 
 Commit message template: `refactor(ui): <role> corner radius → StudioMetrics.CornerRadius.<token>`.
 
-- [ ] **Step 4: Audit the oddballs (4, 5, 6, 12, 22, 28, 30)**
+- [x] **Step 4: Audit the oddballs (4, 5, 6, 12, 22, 28, 30)**
 
 For each remaining literal corner radius, Read the callsite's ~20-line context. Decide:
 
@@ -456,7 +456,7 @@ Commit this audit pass once complete:
 git commit -m "refactor(ui): audit oddball corner radii; promote or annotate"
 ```
 
-- [ ] **Step 5: Full suite passes**
+- [x] **Step 5: Full suite passes**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -477,7 +477,7 @@ Corner radii and typography have natural multi-enum structure; opacity values ar
 - Create: `Sources/UI/Theme/StudioOpacity.swift`
 - Modify: ~20 files currently using `.opacity(0.0X)` literals in role-consistent ways.
 
-- [ ] **Step 1: Create the enum**
+- [x] **Step 1: Create the enum**
 
 Write `Sources/UI/Theme/StudioOpacity.swift`:
 
@@ -504,7 +504,7 @@ enum StudioOpacity {
 
 Note: the census distinguished 0.03 (25×) and 0.04 (18×). They are visually near-identical on the intended chrome backgrounds; Step 3 below collapses 0.04 → 0.03 intentionally. Audit during Task 5 Step 4 to confirm no callsite depends on the distinction.
 
-- [ ] **Step 2: Regenerate + build, commit**
+- [x] **Step 2: Regenerate + build, commit**
 
 ```bash
 xcodegen generate && \
@@ -514,7 +514,7 @@ git add Sources/UI/Theme/StudioOpacity.swift project.yml
 git commit -m "feat(ui): StudioOpacity semantic opacity constants"
 ```
 
-- [ ] **Step 3: Migrate the 12 highest-count opacity values**
+- [x] **Step 3: Migrate the 12 highest-count opacity values**
 
 Each its own commit, same pattern as Tasks 2 and 4:
 
@@ -535,7 +535,7 @@ For each: Grep, Edit per callsite, build, commit. Do not combine.
 
 Commit template: `refactor(ui): <value> opacity → StudioOpacity.<token>`.
 
-- [ ] **Step 4: Verify the 0.04 → subtleFill collapse is visually indistinguishable**
+- [x] **Step 4: Verify the 0.04 → subtleFill collapse is visually indistinguishable**
 
 Open the app:
 
@@ -545,7 +545,7 @@ Open the app:
 
 Focus on the callsites that previously used `0.04`. If any look visually different from main, back out the unification and keep `subtleFillAlt: 0.04` as a separate token.
 
-- [ ] **Step 5: Full suite passes**
+- [x] **Step 5: Full suite passes**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -567,7 +567,7 @@ The primary consumers of these tokens are `Sources/UI/Theme/StudioPanel.swift`, 
 - Audit: `Sources/UI/Theme/StudioMetricPill.swift`
 - Audit: `Sources/UI/Theme/StudioPlaceholderTile.swift`
 
-- [ ] **Step 1: Grep each file for remaining literal-style patterns**
+- [x] **Step 1: Grep each file for remaining literal-style patterns**
 
 For each file, run Grep with patterns:
 - `.font(.system(size:`
@@ -576,14 +576,14 @@ For each file, run Grep with patterns:
 
 Any match is a missed migration. Read the callsite, pick the correct token, Edit.
 
-- [ ] **Step 2: Commit if any fixes were made**
+- [x] **Step 2: Commit if any fixes were made**
 
 ```bash
 git add Sources/UI/Theme
 git commit -m "refactor(ui): complete theme-file migration to tokens"
 ```
 
-- [ ] **Step 3: Final test + visual check**
+- [x] **Step 3: Final test + visual check**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -603,11 +603,11 @@ Open the app one more time, verify the three main surfaces. If they match the pr
 **Files:**
 - Modify: `docs/plans/2026-04-21-ui-typography-metrics-tokens.md` (this plan) — set Status to Completed.
 
-- [ ] **Step 1: Flip the Status line**
+- [x] **Step 1: Flip the Status line**
 
 Replace `**Status:** Not started.` with `**Status:** ✅ Completed 2026-04-21. Tag v0.0.18-ui-tokens.`
 
-- [ ] **Step 2: Commit, tag**
+- [x] **Step 2: Commit, tag**
 
 ```bash
 git add docs/plans/2026-04-21-ui-typography-metrics-tokens.md
@@ -615,7 +615,7 @@ git commit -m "docs(plan): mark ui-typography-metrics-tokens completed"
 git tag -a v0.0.18-ui-tokens -m "UI token extraction: StudioTypography, StudioMetrics, StudioOpacity + ~60 callsite migrations"
 ```
 
-- [ ] **Step 3: Log follow-ups in a review-queue note**
+- [x] **Step 3: Log follow-ups in a review-queue note**
 
 Create `.claude/state/review-queue/followup-2026-04-21-ui-token-followups.md`:
 
