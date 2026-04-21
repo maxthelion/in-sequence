@@ -476,12 +476,35 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
 
     var trackID: UUID
     var slots: [TrackPatternSlot]
+    var attachedGeneratorID: UUID?
 
     var id: UUID { trackID }
 
-    init(trackID: UUID, slots: [TrackPatternSlot]) {
+    private enum CodingKeys: String, CodingKey {
+        case trackID
+        case slots
+        case attachedGeneratorID
+    }
+
+    init(trackID: UUID, slots: [TrackPatternSlot], attachedGeneratorID: UUID? = nil) {
         self.trackID = trackID
         self.slots = TrackPatternBank.normalizedSlots(slots)
+        self.attachedGeneratorID = attachedGeneratorID
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.trackID = try container.decode(UUID.self, forKey: .trackID)
+        let decodedSlots = try container.decode([TrackPatternSlot].self, forKey: .slots)
+        self.slots = TrackPatternBank.normalizedSlots(decodedSlots)
+        self.attachedGeneratorID = try container.decodeIfPresent(UUID.self, forKey: .attachedGeneratorID)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(trackID, forKey: .trackID)
+        try container.encode(slots, forKey: .slots)
+        try container.encodeIfPresent(attachedGeneratorID, forKey: .attachedGeneratorID)
     }
 
     func slot(at index: Int) -> TrackPatternSlot {
