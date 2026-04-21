@@ -32,15 +32,17 @@ extension Project {
 
         let groupID = TrackGroupID()
         let fallback: Destination = .internalSampler(bankID: .drumKitDefault, preset: preset.rawValue)
+        var newTracks: [StepSequenceTrack] = []
+        var newBanks: [TrackPatternBank] = []
 
-        let newTracks = preset.members.map { member -> StepSequenceTrack in
+        for member in preset.members {
             let destination: Destination = {
                 guard let category = AudioSampleCategory(voiceTag: member.tag),
                       let sample = library.firstSample(in: category)
                 else { return fallback }
                 return .sample(sampleID: sample.id, settings: .default)
             }()
-            return StepSequenceTrack(
+            let track = StepSequenceTrack(
                 name: member.trackName,
                 trackType: .monoMelodic,
                 pitches: [DrumKitNoteMap.baselineNote],
@@ -50,12 +52,22 @@ extension Project {
                 velocity: StepSequenceTrack.default.velocity,
                 gateLength: StepSequenceTrack.default.gateLength
             )
+            let clip = ClipPoolEntry(
+                id: UUID(),
+                name: member.trackName,
+                trackType: .monoMelodic,
+                content: .stepSequence(
+                    stepPattern: member.seedPattern,
+                    pitches: [DrumKitNoteMap.baselineNote]
+                )
+            )
+            clipPool.append(clip)
+            newTracks.append(track)
+            newBanks.append(TrackPatternBank.default(for: track, initialClipID: clip.id))
         }
 
         tracks.append(contentsOf: newTracks)
-        patternBanks.append(contentsOf: newTracks.map { track in
-            TrackPatternBank.default(for: track, generatorPool: generatorPool, clipPool: clipPool)
-        })
+        patternBanks.append(contentsOf: newBanks)
         trackGroups.append(
             TrackGroup(
                 id: groupID,
