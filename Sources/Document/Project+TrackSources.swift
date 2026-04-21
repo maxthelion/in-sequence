@@ -118,6 +118,33 @@ extension Project {
         patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
     }
 
+    mutating func setSlotBypassed(_ bypassed: Bool, trackID: UUID, slotIndex: Int) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return
+        }
+        var bank = patternBanks[bankIndex]
+        guard bank.attachedGeneratorID != nil else {
+            return
+        }
+
+        let clamped = min(max(slotIndex, 0), TrackPatternBank.slotCount - 1)
+        let existing = bank.slot(at: clamped)
+        let newMode: TrackSourceMode = bypassed ? .clip : .generator
+        let newRef = SourceRef(
+            mode: newMode,
+            generatorID: existing.sourceRef.generatorID,
+            clipID: existing.sourceRef.clipID
+        )
+        bank.setSlot(
+            TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef),
+            at: clamped
+        )
+        let track = tracks[trackIndex]
+        patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
+    }
+
     @discardableResult
     mutating func ensureCompatibleClip(for track: StepSequenceTrack) -> ClipPoolEntry? {
         if let existing = compatibleClips(for: track).first {
