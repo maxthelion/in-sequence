@@ -2,7 +2,7 @@
 title: "Track Groups"
 category: "architecture"
 tags: [tracks, groups, routing, drums, destinations]
-summary: The flat track-group model, shared destinations, and the drum-kit flow built on grouped mono tracks.
+summary: The flat track-group model, grouped drum bundles, and the create-time shared-destination flow.
 last-modified-by: codex
 ---
 
@@ -14,7 +14,7 @@ last-modified-by: codex
 - a track may optionally belong to one `TrackGroup`
 - a group may own a `sharedDestination`
 - member tracks can point at `.inheritGroup` to resolve through that shared destination
-- groups can also carry per-track `noteMapping` offsets so multiple mono tracks can feed one shared destination cleanly
+- groups can also carry per-track `noteMapping` offsets when several members intentionally feed one shared output
 
 This keeps the runtime simple: the engine still dispatches one track at a time, but grouped tracks can converge onto one AU or sampler host.
 
@@ -73,17 +73,18 @@ Grouped AU tracks therefore share one host when appropriate, while grouped MIDI 
 
 ## Drum-kit flow
 
-`DrumKitPreset` is the first user-facing entry point for groups.
+`DrumGroupPlan` is now the user-facing creation model for grouped drum tracks.
 
-`addDrumKit(_:)` currently:
+The Tracks workspace opens an `Add Drum Group` sheet that can:
 
-- appends several mono tracks
-- creates one `TrackGroup`
-- assigns `.inheritGroup` to each member
-- sets the group's `sharedDestination`
-- seeds `noteMapping` from `DrumKitNoteMap`
+- start from a blank four-row default or a `DrumKitPreset`
+- optionally prepopulate clip step patterns
+- optionally assign one shared destination to the group
+- opt individual members into `.inheritGroup` while others keep per-voice defaults
 
-So "Add Drum Kit" is really "append a coherent bundle of grouped mono tracks."
+`Project.addDrumGroup(plan:library:)` materialises that plan into flat member tracks, owned clips, pattern banks, and a `TrackGroup`.
+
+`addDrumKit(_:)` still exists, but only as a compatibility shim that delegates to `addDrumGroup(plan:)` with a templated plan and no shared destination.
 
 ## Related pages
 

@@ -2,7 +2,7 @@
 title: "Tracks Matrix"
 category: "ui"
 tags: [tracks, ui, groups, drums, creation]
-summary: The dedicated Tracks workspace: flat-track selection, grouped drum-kit bundles, and type-specific creation actions.
+summary: The dedicated Tracks workspace: flat-track selection, grouped drum bundles, and the Add Drum Group creation modal.
 last-modified-by: codex
 ---
 
@@ -20,7 +20,7 @@ The matrix is intentionally not a second full track editor. It is for:
 
 - scanning the current track roster quickly
 - seeing which tracks belong together
-- creating new tracks and drum-kit bundles
+- creating new tracks and drum groups
 - selecting a track and jumping into the dedicated `Track` workspace
 
 ## Layout
@@ -49,11 +49,21 @@ The top action row exposes the current type model directly:
 - `Add Mono`
 - `Add Poly`
 - `Add Slice`
-- `Add Drum Kit`
+- `Add Drum Group`
 
 The first three append one flat track each.
 
-`Add Drum Kit` uses `addDrumKit(_:)`, which appends a grouped bundle of mono tracks and creates the corresponding `TrackGroup` with shared destination and note mapping.
+`Add Drum Group` opens a modal that builds a `DrumGroupPlan`.
+
+That flow supports:
+
+- blank starter groups
+- preset-backed groups from `DrumKitPreset`
+- optional clip prepopulation
+- optional shared destination selection
+- per-member `Routes to shared` control
+
+Submitting the sheet calls `addDrumGroup(plan:)`, which appends the grouped bundle of mono tracks and creates the corresponding `TrackGroup`.
 
 After creation, the new track (or first drum-kit member) becomes selected and the app routes into the single-track workspace.
 
