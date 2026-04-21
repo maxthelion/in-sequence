@@ -7,7 +7,6 @@ struct SidebarView: View {
     var body: some View {
         List {
             Section("Arrangement") {
-                globalRow(title: "Song", systemImage: "rectangle.stack", sectionValue: .song)
                 globalRow(title: "Phrase", systemImage: "square.split.2x2", sectionValue: .phrase)
                 globalRow(title: "Tracks", systemImage: "square.grid.3x3", sectionValue: .tracks)
             }

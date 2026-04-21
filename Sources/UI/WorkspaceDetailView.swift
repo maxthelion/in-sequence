@@ -20,8 +20,6 @@ struct WorkspaceDetailView: View {
     @ViewBuilder
     private var workspace: some View {
         switch section {
-        case .song:
-            SongWorkspaceView()
         case .phrase:
             PhraseWorkspaceView(document: $document)
                 .padding(10)
