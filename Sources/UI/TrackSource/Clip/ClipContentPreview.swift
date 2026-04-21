@@ -21,24 +21,6 @@ struct ClipContentPreview: View {
                     onChange(.stepSequence(stepPattern: nextPattern, pitches: pitches))
                 }
                 .allowsHitTesting(onChange != nil)
-
-                TextField(
-                    "Comma-separated MIDI notes",
-                    text: Binding(
-                        get: { pitches.map(String.init).joined(separator: ", ") },
-                        set: { newValue in
-                            guard let onChange else { return }
-                            let parsed = newValue
-                                .split(separator: ",")
-                                .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-                                .filter { (0...127).contains($0) }
-                            if !parsed.isEmpty {
-                                onChange(.stepSequence(stepPattern: stepPattern, pitches: parsed))
-                            }
-                        }
-                    )
-                )
-                .textFieldStyle(.roundedBorder)
             }
         case let .pianoRoll(lengthBars, stepsPerBar, notes):
             VStack(alignment: .leading, spacing: 14) {

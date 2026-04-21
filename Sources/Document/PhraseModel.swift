@@ -547,10 +547,13 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
         for track: StepSequenceTrack,
         initialClipID: UUID?
     ) -> TrackPatternBank {
-        let sourceRef = SourceRef(mode: .clip, generatorID: nil, clipID: initialClipID)
+        let seededRef = SourceRef(mode: .clip, generatorID: nil, clipID: initialClipID)
+        let emptyRef = SourceRef(mode: .clip, generatorID: nil, clipID: nil)
         return TrackPatternBank(
             trackID: track.id,
-            slots: (0..<slotCount).map { TrackPatternSlot(slotIndex: $0, sourceRef: sourceRef) },
+            slots: (0..<slotCount).map { index in
+                TrackPatternSlot(slotIndex: index, sourceRef: index == 0 ? seededRef : emptyRef)
+            },
             attachedGeneratorID: nil
         )
     }
@@ -599,10 +602,19 @@ struct TrackPatternSlot: Codable, Equatable, Identifiable, Sendable {
             generatorPool: generatorPool,
             clipPool: clipPool
         )
+        let resolvedSourceRef: SourceRef = {
+            switch normalizedSourceRef.mode {
+            case .generator:
+                return normalizedSourceRef.isEmpty ? fallbackSourceRef : normalizedSourceRef
+            case .clip:
+                // Empty clip slots are valid in the lazy per-pattern model.
+                return normalizedSourceRef
+            }
+        }()
         return TrackPatternSlot(
             slotIndex: slotIndex,
             name: normalizedName,
-            sourceRef: normalizedSourceRef.isEmpty ? fallbackSourceRef : normalizedSourceRef
+            sourceRef: resolvedSourceRef
         )
     }
 
@@ -858,8 +870,10 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
                 ?? generatorPool.first(where: { $0.trackType == trackType })?.id
             return SourceRef(mode: .generator, generatorID: compatibleID, clipID: clipID)
         case .clip:
+            guard let clipID else {
+                return SourceRef(mode: .clip, generatorID: generatorID, clipID: nil)
+            }
             let compatibleID = clipPool.first(where: { $0.id == clipID && $0.trackType == trackType })?.id
-                ?? clipPool.first(where: { $0.trackType == trackType })?.id
             return SourceRef(mode: .clip, generatorID: generatorID, clipID: compatibleID)
         }
     }

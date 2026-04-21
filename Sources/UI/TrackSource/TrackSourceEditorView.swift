@@ -9,17 +9,27 @@ struct TrackSourceEditorView: View {
     private var selectedPatternIndex: Int { document.project.selectedPatternIndex(for: track.id) }
     private var selectedPattern: TrackPatternSlot { document.project.selectedPattern(for: track.id) }
     private var occupiedPatternSlots: Set<Int> {
-        Set(document.project.phrases.map { $0.patternIndex(for: track.id, layers: document.project.layers) })
+        Set(bank.slots.compactMap { slot in
+            guard let clip = document.project.clipEntry(id: slot.sourceRef.clipID),
+                  !clipIsEmpty(clip.content)
+            else {
+                return nil
+            }
+            return slot.slotIndex
+        })
     }
     private var attachedGenerator: GeneratorPoolEntry? {
         document.project.generatorEntry(id: bank.attachedGeneratorID)
     }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
     private var compatibleGenerators: [GeneratorPoolEntry] { document.project.compatibleGenerators(for: track) }
-    private var compatibleClips: [ClipPoolEntry] { document.project.compatibleClips(for: track) }
     private var generatedSourceInputClips: [ClipPoolEntry] { document.project.generatedSourceInputClips() }
     private var harmonicSidechainClips: [ClipPoolEntry] { document.project.harmonicSidechainClips() }
     private var currentClip: ClipPoolEntry? { document.project.clipEntry(id: selectedPattern.sourceRef.clipID) }
+    private var previewClipContent: ClipContent {
+        currentClip?.content
+            ?? .stepSequence(stepPattern: Array(repeating: false, count: 16), pitches: track.pitches)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -86,38 +96,15 @@ struct TrackSourceEditorView: View {
     private var clipPanel: some View {
         StudioPanel(
             title: "Clip",
-            eyebrow: currentClip == nil ? "No clip selected" : "Direct clip source",
+            eyebrow: "Pattern editor",
             accent: StudioTheme.violet
         ) {
-            VStack(alignment: .leading, spacing: 14) {
-                if compatibleClips.isEmpty {
-                    StudioPlaceholderTile(
-                        title: "No Compatible Clips",
-                        detail: "Create or import a compatible clip for this track type.",
-                        accent: StudioTheme.violet
-                    )
-                } else {
-                    Picker("Clip", selection: clipIDBinding) {
-                        Text("Choose Clip").tag(Optional<UUID>.none)
-                        ForEach(compatibleClips) { entry in
-                            Text(entry.name).tag(Optional(entry.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    if let clip = currentClip {
-                        ClipContentPreview(content: clip.content) { updated in
-                            document.project.updateClipEntry(id: clip.id) { entry in
-                                entry.content = updated
-                            }
-                        }
-                    } else {
-                        StudioPlaceholderTile(
-                            title: "No Clip For This Slot",
-                            detail: "Pick a clip from the pool for this pattern slot.",
-                            accent: StudioTheme.violet
-                        )
-                    }
+            ClipContentPreview(content: previewClipContent) { updated in
+                guard let clipID = document.project.ensureClipForCurrentPattern(trackID: track.id) else {
+                    return
+                }
+                document.project.updateClipEntry(id: clipID) { entry in
+                    entry.content = updated
                 }
             }
         }
@@ -127,16 +114,6 @@ struct TrackSourceEditorView: View {
         Binding(
             get: { document.project.selectedPatternIndex(for: track.id) },
             set: { document.project.setSelectedPatternIndex($0, for: track.id) }
-        )
-    }
-
-    private var clipIDBinding: Binding<UUID?> {
-        Binding(
-            get: { selectedPattern.sourceRef.clipID },
-            set: { newValue in
-                guard let newValue else { return }
-                document.project.setPatternClipID(newValue, for: track.id, slotIndex: selectedPatternIndex)
-            }
         )
     }
 }

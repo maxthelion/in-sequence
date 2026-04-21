@@ -27,6 +27,44 @@ extension Project {
         return clipPool.first(where: { $0.id == id })
     }
 
+    @discardableResult
+    mutating func ensureClipForCurrentPattern(trackID: UUID) -> UUID? {
+        let slotIndex = selectedPatternIndex(for: trackID)
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
+            NSLog("[Project] ensureClipForCurrentPattern missing pattern bank trackID=\(trackID)")
+            return nil
+        }
+
+        let bank = patternBanks[bankIndex]
+        let slot = bank.slot(at: slotIndex)
+        if let existing = slot.sourceRef.clipID {
+            return existing
+        }
+
+        guard let track = tracks.first(where: { $0.id == trackID }) else {
+            return nil
+        }
+
+        let newClip = ClipPoolEntry(
+            id: UUID(),
+            name: "\(track.name) pattern \(slotIndex + 1)",
+            trackType: track.trackType,
+            content: .stepSequence(
+                stepPattern: Array(repeating: false, count: 16),
+                pitches: track.pitches
+            )
+        )
+        clipPool.append(newClip)
+
+        let merged = SourceRef(
+            mode: .clip,
+            generatorID: slot.sourceRef.generatorID,
+            clipID: newClip.id
+        )
+        setPatternSourceRef(merged, for: trackID, slotIndex: slotIndex)
+        return newClip.id
+    }
+
     mutating func setPatternSourceRef(_ sourceRef: SourceRef, for trackID: UUID, slotIndex: Int) {
         guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
               let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })

@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. After creating new test files, run `xcodegen generate` before building or testing.
 
-**Status:** Not started. Tag `v0.0.26-clip-ui-tidy` at completion.
+**Status:** Completed on 2026-04-21. Focused verification passed: `ClipContentEmptyTests`, `TrackPatternBankDefaultSeedingTests`, `ProjectEnsureClipForCurrentPatternTests`. Tag `v0.0.26-clip-ui-tidy`.
 
 **Depends on:** nothing on the critical path. Can execute against current `main`. Does NOT depend on the step-pattern/clip model review (`docs/specs/2026-04-21-step-pattern-clip-model-review-design.md`); the review can run in parallel.
 
