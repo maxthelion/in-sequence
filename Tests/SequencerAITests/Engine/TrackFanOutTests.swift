@@ -286,8 +286,8 @@ private func fanOutGeneratorEntry(for track: StepSequenceTrack) -> GeneratorPool
         trackType: track.trackType,
         kind: .monoGenerator,
         params: .mono(
-            step: .manual(pattern: track.stepPattern),
-            pitch: .manual(pitches: [track.pitches.first ?? 60], pickMode: .sequential),
+            trigger: .native(.manual(pattern: track.stepPattern)),
+            pitch: .native(.manual(pitches: [track.pitches.first ?? 60], pickMode: .sequential)),
             shape: NoteShape(velocity: Int(track.velocity), gateLength: track.gateLength, accent: false)
         )
     )

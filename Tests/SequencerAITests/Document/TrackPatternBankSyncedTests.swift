@@ -57,7 +57,11 @@ final class TrackPatternBankSyncedTests: XCTestCase {
             name: "Poly",
             trackType: .polyMelodic,
             kind: .polyGenerator,
-            params: .poly(step: .manual(pattern: Array(repeating: false, count: 16)), pitches: [.manual(pitches: [60], pickMode: .random)], shape: .default)
+            params: .poly(
+                trigger: .native(.manual(pattern: Array(repeating: false, count: 16))),
+                pitches: [.native(.manual(pitches: [60], pickMode: .random))],
+                shape: .default
+            )
         )
         let bank = TrackPatternBank(
             trackID: track.id,

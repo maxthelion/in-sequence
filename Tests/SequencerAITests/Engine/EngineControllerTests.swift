@@ -37,15 +37,23 @@ final class EngineControllerTests: XCTestCase {
     }
 
     func test_apply_document_model_updates_note_generator_params() {
-        let audioSink = CapturingAudioSink()
-        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        var createdSinks: [CapturingAudioSink] = []
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioOutputFactory: {
+                let sink = CapturingAudioSink()
+                createdSinks.append(sink)
+                return sink
+            }
+        )
         let bass = StepSequenceTrack(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID(),
             name: "Bass",
             pitches: [36],
             stepPattern: [true, false],
             stepAccents: [false, false],
-            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
             velocity: 90,
             gateLength: 4
         )
@@ -55,7 +63,7 @@ final class EngineControllerTests: XCTestCase {
             pitches: [72],
             stepPattern: [false, true],
             stepAccents: [false, true],
-            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            destination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
             mix: TrackMixSettings(level: 0.72, pan: -0.15, isMuted: false),
             velocity: 111,
             gateLength: 2
@@ -105,46 +113,27 @@ final class EngineControllerTests: XCTestCase {
         )
 
         controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.processTick(tickIndex: 1, now: 0.1)
 
-        let bassGeneratorBlockID = "gen-\(bass.id.uuidString.lowercased())"
-        let leadGeneratorBlockID = "gen-\(lead.id.uuidString.lowercased())"
-        let firstTick = controller.executor?.tick(now: 0)
-        let secondTick = controller.executor?.tick(now: 0.1)
-
-        guard case let .notes(firstBassNotes)? = firstTick?[bassGeneratorBlockID]?["notes"] else {
-            return XCTFail("expected bass notes stream on first tick")
-        }
-        guard case let .notes(firstLeadNotes)? = firstTick?[leadGeneratorBlockID]?["notes"] else {
-            return XCTFail("expected lead notes stream on first tick")
-        }
-        guard case let .notes(secondBassNotes)? = secondTick?[bassGeneratorBlockID]?["notes"] else {
-            return XCTFail("expected bass notes stream on second tick")
-        }
-        guard case let .notes(secondLeadNotes)? = secondTick?[leadGeneratorBlockID]?["notes"] else {
-            return XCTFail("expected lead notes stream on second tick")
-        }
-
-        XCTAssertEqual(firstBassNotes.count, 1)
-        XCTAssertEqual(firstBassNotes.first?.pitch, 36)
-        XCTAssertEqual(firstBassNotes.first?.velocity, 90)
-        XCTAssertTrue(firstLeadNotes.isEmpty)
-        XCTAssertTrue(secondBassNotes.isEmpty)
-        XCTAssertEqual(secondLeadNotes.count, 1)
-        XCTAssertEqual(secondLeadNotes.first?.pitch, 72)
-        XCTAssertEqual(secondLeadNotes.first?.velocity, 127)
-        XCTAssertEqual(secondLeadNotes.first?.length, 2)
-        XCTAssertTrue(audioSink.receivedMixes.isEmpty)
+        XCTAssertEqual(createdSinks.count, 2)
+        XCTAssertEqual(createdSinks[0].receivedEvents.flatMap { $0 }.map(\.pitch), [36])
+        XCTAssertEqual(createdSinks[0].receivedEvents.flatMap { $0 }.map(\.velocity), [90])
+        XCTAssertEqual(createdSinks[1].receivedEvents.flatMap { $0 }.map(\.pitch), [72])
+        XCTAssertEqual(createdSinks[1].receivedEvents.flatMap { $0 }.map(\.velocity), [127])
+        XCTAssertEqual(createdSinks[1].receivedEvents.flatMap { $0 }.map(\.length), [2])
     }
 
     func test_apply_document_model_uses_selected_generator_pool_source_over_legacy_track_fields() throws {
-        let controller = EngineController(client: nil, endpoint: nil)
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
         let track = StepSequenceTrack(
             id: UUID(uuidString: "12121212-1212-1212-1212-121212121212") ?? UUID(),
             name: "Generator Driven",
             pitches: [48],
             stepPattern: [false, false, false, false],
             stepAccents: [false, false, false, false],
-            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            destination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
             velocity: 80,
             gateLength: 2
         )
@@ -154,8 +143,8 @@ final class EngineControllerTests: XCTestCase {
             trackType: .monoMelodic,
             kind: .monoGenerator,
             params: .mono(
-                step: .manual(pattern: [true, false, false, false]),
-                pitch: .manual(pitches: [72], pickMode: .sequential),
+                trigger: .native(.manual(pattern: [true, false, false, false])),
+                pitch: .native(.manual(pitches: [72], pickMode: .sequential)),
                 shape: NoteShape(velocity: 99, gateLength: 3, accent: false)
             )
         )
@@ -179,13 +168,9 @@ final class EngineControllerTests: XCTestCase {
         )
 
         controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
 
-        let generatorBlockID = "gen-\(track.id.uuidString.lowercased())"
-        let firstTick = controller.executor?.tick(now: 0)
-        guard case let .notes(events)? = firstTick?[generatorBlockID]?["notes"] else {
-            return XCTFail("expected generator events")
-        }
-
+        let events = audioSink.receivedEvents.flatMap { $0 }
         XCTAssertEqual(events.count, 1)
         XCTAssertEqual(events.first?.pitch, 72)
         XCTAssertEqual(events.first?.velocity, 99)
@@ -193,14 +178,15 @@ final class EngineControllerTests: XCTestCase {
     }
 
     func test_apply_document_model_uses_selected_clip_source_over_legacy_track_fields() {
-        let controller = EngineController(client: nil, endpoint: nil)
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
         let track = StepSequenceTrack(
             id: UUID(uuidString: "56565656-5656-5656-5656-565656565656") ?? UUID(),
             name: "Clip Driven",
             pitches: [48],
             stepPattern: [false, false, false, false],
             stepAccents: [false, false, false, false],
-            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
             velocity: 80,
             gateLength: 2
         )
@@ -230,13 +216,9 @@ final class EngineControllerTests: XCTestCase {
         )
 
         controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
 
-        let generatorBlockID = "gen-\(track.id.uuidString.lowercased())"
-        let firstTick = controller.executor?.tick(now: 0)
-        guard case let .notes(events)? = firstTick?[generatorBlockID]?["notes"] else {
-            return XCTFail("expected clip-backed events")
-        }
-
+        let events = audioSink.receivedEvents.flatMap { $0 }
         XCTAssertEqual(events.count, 1)
         XCTAssertEqual(events.first?.pitch, 65)
         XCTAssertEqual(events.first?.velocity, 100)
@@ -538,7 +520,7 @@ final class EngineControllerTests: XCTestCase {
         controller.processTick(tickIndex: 2, now: 0.2)
 
         XCTAssertEqual(sink.receivedDestinations.count, 1)
-        XCTAssertEqual(sink.receivedEvents.count, 2)
+        XCTAssertEqual(sink.receivedEvents.count, 3)
     }
 
     func test_group_inherited_audio_destination_reuses_one_host_and_applies_pitch_offsets() {
@@ -629,7 +611,6 @@ final class EngineControllerTests: XCTestCase {
 
         controller.apply(documentModel: document)
         controller.processTick(tickIndex: 0, now: 0)
-        controller.processTick(tickIndex: 1, now: 0.1)
 
         XCTAssertEqual(createdSinks.count, 1)
         let playedPitches = createdSinks[0].receivedEvents.flatMap { $0 }.map(\.pitch).sorted()
@@ -653,8 +634,8 @@ private func monoGeneratorEntry(
         trackType: trackType,
         kind: .monoGenerator,
         params: .mono(
-            step: .manual(pattern: pattern),
-            pitch: .manual(pitches: [pitch], pickMode: .sequential),
+            trigger: .native(.manual(pattern: pattern)),
+            pitch: .native(.manual(pitches: [pitch], pickMode: .sequential)),
             shape: NoteShape(velocity: velocity, gateLength: gateLength, accent: false)
         )
     )

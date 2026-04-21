@@ -14,10 +14,10 @@ enum StepAlgo: Codable, Equatable, Hashable, Sendable {
     ) -> Bool {
         switch self {
         case let .manual(pattern):
-            guard pattern.indices.contains(stepIndex) else {
+            guard !pattern.isEmpty, stepIndex >= 0 else {
                 return false
             }
-            return pattern[stepIndex]
+            return pattern[stepIndex % pattern.count]
 
         case let .randomWeighted(density):
             let normalizedDensity = min(max(density, 0), 1)
@@ -36,11 +36,11 @@ enum StepAlgo: Codable, Equatable, Hashable, Sendable {
             return mask[rotatedIndex]
 
         case let .perStepProbability(probs):
-            guard probs.indices.contains(stepIndex) else {
+            guard !probs.isEmpty, stepIndex >= 0 else {
                 return false
             }
 
-            let normalizedProbability = min(max(probs[stepIndex], 0), 1)
+            let normalizedProbability = min(max(probs[stepIndex % probs.count], 0), 1)
             return Double.random(in: 0..<1, using: &rng) < normalizedProbability
 
         case .fromClipSteps:

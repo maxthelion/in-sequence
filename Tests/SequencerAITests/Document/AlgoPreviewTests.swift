@@ -14,8 +14,8 @@ final class AlgoPreviewTests: XCTestCase {
 
     func test_preview_steps_matches_canonical_mono_reference() {
         let params = GeneratorParams.mono(
-            step: .manual(pattern: [true, false, true, false]),
-            pitch: .manual(pitches: [60, 64], pickMode: .sequential),
+            trigger: .native(.manual(pattern: [true, false, true, false])),
+            pitch: .native(.manual(pitches: [60, 64], pickMode: .sequential)),
             shape: .default
         )
 
@@ -26,7 +26,8 @@ final class AlgoPreviewTests: XCTestCase {
             [
                 ["60"], [],
                 ["60"], [],
-                [], [], [], []
+                ["60"], [],
+                ["60"], []
             ]
         )
     }
@@ -42,8 +43,8 @@ final class AlgoPreviewTests: XCTestCase {
             )
         )
         let params = GeneratorParams.mono(
-            step: .fromClipSteps(clipID: clip.id),
-            pitch: .fromClipPitches(clipID: clip.id, pickMode: .sequential),
+            trigger: .native(.fromClipSteps(clipID: clip.id)),
+            pitch: .native(.fromClipPitches(clipID: clip.id, pickMode: .sequential)),
             shape: .default
         )
 

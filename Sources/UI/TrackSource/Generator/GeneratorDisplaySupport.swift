@@ -1,5 +1,9 @@
 import SwiftUI
 
+func stepDisplayLabel(_ stage: StepStage) -> String {
+    stepDisplayLabel(stage.algo)
+}
+
 func stepDisplayLabel(_ step: StepAlgo) -> String {
     switch step {
     case .manual:
@@ -13,6 +17,10 @@ func stepDisplayLabel(_ step: StepAlgo) -> String {
     case .fromClipSteps:
         return "From Clip Steps"
     }
+}
+
+func pitchDisplayLabel(_ stage: PitchStage) -> String {
+    pitchDisplayLabel(stage.algo)
 }
 
 func pitchDisplayLabel(_ pitch: PitchAlgo) -> String {

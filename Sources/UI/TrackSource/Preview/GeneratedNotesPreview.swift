@@ -33,7 +33,7 @@ struct GeneratedNotesPreview: View {
                     }
                 }
             }
-            Text("Preview is generated from the current step and pitch settings.")
+            Text("Preview is generated from the current trigger stage and pitch expander.")
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(StudioTheme.mutedText)
         }

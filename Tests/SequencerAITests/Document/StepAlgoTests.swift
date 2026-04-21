@@ -3,14 +3,15 @@ import XCTest
 @testable import SequencerAI
 
 final class StepAlgoTests: XCTestCase {
-    func test_manual_pattern_reads_values_and_bounds_checks() {
+    func test_manual_pattern_cycles_across_step_indices() {
         let algo = StepAlgo.manual(pattern: [true, false, true, false])
         var rng = SplitMix64(seed: 1)
 
         XCTAssertTrue(algo.fires(at: 0, totalSteps: 4, rng: &rng))
         XCTAssertFalse(algo.fires(at: 1, totalSteps: 4, rng: &rng))
         XCTAssertTrue(algo.fires(at: 2, totalSteps: 4, rng: &rng))
-        XCTAssertFalse(algo.fires(at: 4, totalSteps: 4, rng: &rng))
+        XCTAssertTrue(algo.fires(at: 4, totalSteps: 4, rng: &rng))
+        XCTAssertFalse(algo.fires(at: 5, totalSteps: 4, rng: &rng))
     }
 
     func test_random_weighted_one_always_fires() {

@@ -20,8 +20,8 @@ final class GeneratorPoolEntryTests: XCTestCase {
 
     func test_default_poly_generator_has_active_steps() {
         guard let polyEntry = GeneratorPoolEntry.defaultPool.first(where: { $0.trackType == .polyMelodic }),
-              case let .poly(step, _, _) = polyEntry.params,
-              case let .manual(pattern) = step
+              case let .poly(trigger, _, _) = polyEntry.params,
+              case let .manual(pattern) = trigger.stepStage.algo
         else {
             return XCTFail("expected a manual default poly generator")
         }
@@ -42,8 +42,8 @@ final class GeneratorPoolEntryTests: XCTestCase {
             trackType: .polyMelodic,
             kind: .polyGenerator,
             params: .poly(
-                step: .euclidean(pulses: 5, steps: 16, offset: 0),
-                pitches: [.manual(pitches: [60, 64, 67], pickMode: .random)],
+                trigger: .native(.euclidean(pulses: 5, steps: 16, offset: 0)),
+                pitches: [.native(.manual(pitches: [60, 64, 67], pickMode: .random))],
                 shape: .default
             )
         )
@@ -61,6 +61,9 @@ final class GeneratorPoolEntryTests: XCTestCase {
             trackType: .slice
         )
 
-        XCTAssertEqual(entry.params, .slice(step: .manual(pattern: Array(repeating: false, count: 16)), sliceIndexes: []))
+        XCTAssertEqual(
+            entry.params,
+            .slice(trigger: .native(.manual(pattern: Array(repeating: false, count: 16))), sliceIndexes: [])
+        )
     }
 }

@@ -677,13 +677,21 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             return .defaultMono
         case .polyGenerator:
             return .poly(
-                step: .manual(pattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
-                pitches: [.manual(pitches: [60, 64, 67], pickMode: .random)],
+                trigger: .native(
+                    .init(
+                        algo: .manual(pattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
+                        basePitch: 60
+                    )
+                ),
+                pitches: [.native(.init(
+                    algo: .manual(pitches: [60, 64, 67], pickMode: .random),
+                    harmonicSidechain: .none
+                ))],
                 shape: .default
             )
         case .sliceGenerator:
             return .slice(
-                step: .manual(pattern: Array(repeating: false, count: 16)),
+                trigger: .native(.init(algo: .manual(pattern: Array(repeating: false, count: 16)), basePitch: 60)),
                 sliceIndexes: []
             )
         }

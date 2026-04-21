@@ -44,8 +44,8 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             trackType: trackType,
             kind: .monoGenerator,
             params: .mono(
-                step: .manual(pattern: [true]),
-                pitch: .manual(pitches: [DrumKitNoteMap.baselineNote], pickMode: .sequential),
+                trigger: .native(.manual(pattern: [true])),
+                pitch: .native(.manual(pitches: [DrumKitNoteMap.baselineNote], pickMode: .sequential)),
                 shape: NoteShape(velocity: 100, gateLength: 4, accent: false)
             )
         )
@@ -101,17 +101,12 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy, sampleLibrary: library
         )
         controller.apply(documentModel: project)
-        controller.start()
         let now = ProcessInfo.processInfo.systemUptime
         for step in 0..<4 {
             controller.processTick(tickIndex: UInt64(step), now: now + Double(step) * 0.125)
         }
-        controller.stop()
 
-        // start() pre-queues one tick, then each processTick dispatches-then-prepares.
-        // The TickClock may fire one additional background tick before stop(), so the
-        // count is at least 4 (the 4 manually-driven ticks) but may be higher.
-        XCTAssertGreaterThanOrEqual(spy.playCalls.count, 4, "at least one play per fired tick; 4 ticks driven")
+        XCTAssertEqual(spy.playCalls.count, 4, "manual processTick driving should dispatch one sample trigger per fired step")
     }
 
     func test_trackMix_appliedToSampleEngineOnDocumentApply() {
