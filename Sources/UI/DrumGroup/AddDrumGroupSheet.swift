@@ -38,8 +38,9 @@ struct AddDrumGroupSheet: View {
             .padding(20)
         }
         .frame(minWidth: 680, minHeight: 560)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(StudioTheme.stageFill)
-        .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous))
+        .presentationBackground(.clear)
         .sheet(
             isPresented: $isPresentingDestinationPicker,
             onDismiss: handleDestinationSheetDismiss

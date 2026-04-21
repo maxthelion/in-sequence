@@ -7,6 +7,7 @@ struct SamplerDestinationWidget: View {
 
     @State private var isAuditioning = false
     @State private var auditionTask: Task<Void, Never>?
+    @StateObject private var gainControl = ThrottledMixValue()
 
     private var currentSampleID: UUID? {
         if case let .sample(id, _) = destination { return id }
@@ -88,14 +89,12 @@ struct SamplerDestinationWidget: View {
                     .studioText(.eyebrow)
                     .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
-                Text(String(format: "%+.1f dB", currentSettings.gain))
+                Text(String(format: "%+.1f dB", displayedGain))
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(StudioTheme.text)
             }
-            Slider(value: gainBinding, in: -60...12) { editing in
-                if !editing, abs(currentSettings.gain) < 0.5 {
-                    updateGain(0)
-                }
+            Slider(value: gainBinding, in: -60...12) { isEditing in
+                handleGainEditingChanged(isEditing)
             }
         }
     }
@@ -142,12 +141,36 @@ struct SamplerDestinationWidget: View {
 
     private var gainBinding: Binding<Double> {
         Binding(
-            get: { currentSettings.gain },
-            set: { updateGain($0) }
+            get: { displayedGain },
+            set: { updateGainLive($0) }
         )
     }
 
-    private func updateGain(_ value: Double) {
+    private var displayedGain: Double {
+        gainControl.rendered(committed: currentSettings.gain)
+    }
+
+    private func handleGainEditingChanged(_ isEditing: Bool) {
+        if isEditing {
+            if !gainControl.isDragging {
+                gainControl.begin(with: currentSettings.gain)
+            }
+            return
+        }
+
+        guard let final = gainControl.commit() else { return }
+        let snapped = abs(final) < 0.5 ? 0 : final
+        commitGain(snapped)
+    }
+
+    private func updateGainLive(_ value: Double) {
+        if !gainControl.isDragging {
+            gainControl.begin(with: currentSettings.gain)
+        }
+        _ = gainControl.update(value)
+    }
+
+    private func commitGain(_ value: Double) {
         guard case let .sample(id, settings) = destination else { return }
         var next = settings
         next.gain = value

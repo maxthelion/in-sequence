@@ -7,6 +7,8 @@ struct SourceParameterSliderRow: View {
     let accent: Color
     let onChange: (Double) -> Void
 
+    @StateObject private var control = ThrottledMixValue()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -15,7 +17,7 @@ struct SourceParameterSliderRow: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
-                Text("\(Int(value.rounded()))")
+                Text("\(Int(displayedValue.rounded()))")
                     .studioText(.bodyEmphasis)
                     .monospacedDigit()
                     .foregroundStyle(StudioTheme.text)
@@ -23,12 +25,36 @@ struct SourceParameterSliderRow: View {
 
             Slider(
                 value: Binding(
-                    get: { value },
-                    set: { onChange($0) }
+                    get: { displayedValue },
+                    set: { updateLive($0) }
                 ),
-                in: range
+                in: range,
+                onEditingChanged: handleEditingChanged
             )
             .tint(accent)
         }
+    }
+
+    private var displayedValue: Double {
+        control.rendered(committed: value)
+    }
+
+    private func handleEditingChanged(_ isEditing: Bool) {
+        if isEditing {
+            if !control.isDragging {
+                control.begin(with: value)
+            }
+            return
+        }
+
+        guard let final = control.commit() else { return }
+        onChange(final)
+    }
+
+    private func updateLive(_ value: Double) {
+        if !control.isDragging {
+            control.begin(with: self.value)
+        }
+        _ = control.update(value)
     }
 }

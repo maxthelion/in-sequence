@@ -70,32 +70,14 @@ struct TrackSourceEditorView: View {
 
     @ViewBuilder
     private func generatorEditorPanel(for generator: GeneratorPoolEntry) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Generated Source", eyebrow: "Trigger → Pitch → Notes", accent: accent) {
-                VStack(alignment: .leading, spacing: 14) {
-                    if compatibleGenerators.count > 1 {
-                        Picker("Generator", selection: attachedGeneratorIDBinding) {
-                            ForEach(compatibleGenerators) { entry in
-                                Text(entry.name).tag(Optional(entry.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    }
-                    Text(generator.name)
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                }
-            }
-
-            GeneratorParamsEditorView(
-                generator: generator,
-                inputClipChoices: generatedSourceInputClips,
-                harmonicSidechainClipChoices: harmonicSidechainClips,
-                accent: accent
-            ) { updated in
-                document.project.updateGeneratorEntry(id: generator.id) { entry in
-                    entry.params = updated
-                }
+        GeneratorParamsEditorView(
+            generator: generator,
+            inputClipChoices: generatedSourceInputClips,
+            harmonicSidechainClipChoices: harmonicSidechainClips,
+            accent: accent
+        ) { updated in
+            document.project.updateGeneratorEntry(id: generator.id) { entry in
+                entry.params = updated
             }
         }
     }
@@ -145,16 +127,6 @@ struct TrackSourceEditorView: View {
         Binding(
             get: { document.project.selectedPatternIndex(for: track.id) },
             set: { document.project.setSelectedPatternIndex($0, for: track.id) }
-        )
-    }
-
-    private var attachedGeneratorIDBinding: Binding<UUID?> {
-        Binding(
-            get: { bank.attachedGeneratorID },
-            set: { newValue in
-                guard let newValue else { return }
-                document.project.switchAttachedGenerator(to: newValue, for: track.id)
-            }
         )
     }
 
