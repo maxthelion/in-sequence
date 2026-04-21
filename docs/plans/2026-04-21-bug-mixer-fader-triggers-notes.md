@@ -1,7 +1,7 @@
 # Bug: Mixer fader drag triggers unintended notes
 
 **Date reported:** 2026-04-21
-**Status:** Open — fix plan written: `docs/plans/2026-04-21-fix-mixer-fader-throttle-and-scoped-setmix.md`
+**Status:** ✅ Fixed 2026-04-21 by `docs/plans/2026-04-21-fix-mixer-fader-throttle-and-scoped-setmix.md`. Tag `v0.0.24-mixer-fader-throttle`.
 **Severity:** High — audible regression that makes the mixer unusable during playback; no data corruption.
 **Reporter:** maxwilliams (Max)
 

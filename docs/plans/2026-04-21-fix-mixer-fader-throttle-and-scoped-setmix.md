@@ -1,6 +1,6 @@
 # Throttle Mixer Faders + Scoped setMix Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Stop fader drags in the Mixer and Inspector from firing stray notes and thrashing the engine. Mix-only changes get a dedicated, lock-safe `EngineController.setMix(trackID:, mix:)` path that bypasses the full `apply(documentModel:)` pipeline. UI mixes a *live* mix during drag (zero document mutation, one scoped engine call per drag-tick) and commits the new mix to the document exactly once on drag-end.
 
@@ -18,7 +18,7 @@ A follow-up task audits the rest of the UI for other non-debounced input that hi
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. Run `xcodegen generate` after creating new files.
 
-**Status:** Not started. Tag `v0.0.24-mixer-fader-throttle` at completion.
+**Status:** ✅ Completed 2026-04-21. Tag `v0.0.24-mixer-fader-throttle`. Verified with focused engine + sample-trigger tests.
 
 **Depends on:** nothing on the critical path. Can execute against current `main` alongside other plans.
 
@@ -65,7 +65,7 @@ Does NOT write `currentDocumentModel`, does NOT modify `pipelineShape`, does NOT
 - Modify: `Sources/Engine/EngineController.swift`
 - Test: `Tests/SequencerAITests/Engine/EngineControllerSetMixScopedTests.swift`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `Tests/SequencerAITests/Engine/EngineControllerSetMixScopedTests.swift`:
 
@@ -153,7 +153,7 @@ final class EngineControllerSetMixScopedTests: XCTestCase {
 If `MockSamplePlaybackSink` is not yet in the tree (it lands with the per-track-voice-pool plan), create the minimum needed here:
 - Add `MockSamplePlaybackSink` to `Tests/SequencerAITests/Engine/MockSamplePlaybackSink.swift` with a `calls: [Call]` array and `Call` enum covering at least `setTrackMix(trackID:level:pan:)`, `start`, `stop`, `removeTrack`, `play`, `audition`, `stopAudition`, and `prepareTrack` (even if `prepareTrack` is not yet on the `SamplePlaybackSink` protocol, add it to the mock; the compiler will ignore the extra method).
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 xcodegen generate && \
@@ -167,7 +167,7 @@ xcodegen generate && \
 
 Expected: compile failure — `EngineController.setMix(trackID:, mix:)` does not exist.
 
-- [ ] **Step 3: Implement `setMix(trackID:, mix:)`**
+- [x] **Step 3: Implement `setMix(trackID:, mix:)`**
 
 In `Sources/Engine/EngineController.swift`, add the method near the other mix helpers (immediately after `func apply(track: StepSequenceTrack)`):
 
@@ -201,7 +201,7 @@ In `Sources/Engine/EngineController.swift`, add the method near the other mix he
 
 Important: `currentDocumentModel` is read here without `withStateLock`. The existing `apply(documentModel:)` also writes `currentDocumentModel` without the lock (this is logged for a separate race-fix plan). For the scoped `setMix` path, a stale read is harmless: either the track still has a `.sample` destination (we call the sample engine correctly) or it doesn't and the call is skipped — in either case no engine graph mutation or note emission occurs. Do NOT attempt to widen `withStateLock` here — that is the other plan.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -214,7 +214,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all three tests pass.
 
-- [ ] **Step 5: Run the full test suite**
+- [x] **Step 5: Run the full test suite**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -226,7 +226,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/Engine/EngineController.swift Tests/SequencerAITests/Engine/EngineControllerSetMixScopedTests.swift Tests/SequencerAITests/Engine/MockSamplePlaybackSink.swift
@@ -244,7 +244,7 @@ A small view/view-modifier that both `MixerView` and `InspectorView` consume. Ho
 
 This is a pure helper — no tests. Exercised transitively by `MixerView` / `InspectorView` in Task 3/4 and by the manual smoke in Task 6.
 
-- [ ] **Step 1: Create the helper**
+- [x] **Step 1: Create the helper**
 
 Write `Sources/UI/ThrottledMixControl.swift`:
 
@@ -297,7 +297,7 @@ final class ThrottledMixValue: ObservableObject {
 }
 ```
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 ```bash
 xcodegen generate && \
@@ -309,7 +309,7 @@ xcodegen generate && \
 
 Expected: build succeeds.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Sources/UI/ThrottledMixControl.swift project.yml
@@ -327,7 +327,7 @@ Rewire the `VerticalLevelFader` gesture and the pan `Slider` so the document is 
 
 This is UI work with no new automated tests. Exercised by the manual smoke in Task 6.
 
-- [ ] **Step 1: Add engine-controller access and a throttled-value state to the channel strip**
+- [x] **Step 1: Add engine-controller access and a throttled-value state to the channel strip**
 
 `MixerView.swift`'s channel strip needs two things it does not have today:
 - A reference to `EngineController` (via `@Environment(EngineController.self)`).
@@ -347,7 +347,7 @@ Also grab the track ID into a `let` to avoid capturing `self` in the drag closur
     private var trackID: UUID { track.id }
 ```
 
-- [ ] **Step 2: Rewire `VerticalLevelFader` to use a drag-aware binding**
+- [x] **Step 2: Rewire `VerticalLevelFader` to use a drag-aware binding**
 
 `VerticalLevelFader` currently takes `@Binding var level: Double` directly. Replace its usage in the channel strip (around `MixerView.swift:74`) with a drag-aware wrapper. The simplest refactor is to inline the gesture handling in the channel strip rather than keep it inside `VerticalLevelFader`. Replace the current `VerticalLevelFader` call site:
 
@@ -427,7 +427,7 @@ Add the handler methods to the channel-strip view struct:
     }
 ```
 
-- [ ] **Step 3: Rewire the pan `Slider`**
+- [x] **Step 3: Rewire the pan `Slider`**
 
 The pan slider at `MixerView.swift:90` needs the same pattern. Swift's native `Slider` supports an `onEditingChanged` callback and an implicit drag gesture. Replace:
 
@@ -478,7 +478,7 @@ Add the handlers:
 
 Note: for the level fader we drive `begin(with:)` implicitly on the first `update(...)` call (the helper handles nil `liveValue`). For the pan slider we use Swift's `onEditingChanged` to call `begin(...)` explicitly, because the slider's thumb can be clicked without dragging and we want to capture the pre-click value so a micro-move doesn't snap through the whole range. The asymmetry is intentional — both are correct for their respective gesture shapes.
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -489,7 +489,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 Expected: build succeeds. If `MixerView` does not have `@Environment(EngineController.self)` available because it receives the track through a non-environment pathway, trace the parent chain — `ContentView` already installs the environment via `environment(engineController)` (see `Sources/UI/ContentView.swift:14`), so any descendant can pull it via `@Environment(EngineController.self)`.
 
-- [ ] **Step 5: Run the full test suite**
+- [x] **Step 5: Run the full test suite**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -501,7 +501,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/UI/MixerView.swift
@@ -517,7 +517,7 @@ The Inspector shows level and pan for the selected track (seen at `Sources/UI/In
 **Files:**
 - Modify: `Sources/UI/InspectorView.swift`
 
-- [ ] **Step 1: Add engine-controller + throttled-value state**
+- [x] **Step 1: Add engine-controller + throttled-value state**
 
 Near the top of the inspector view struct, add:
 
@@ -527,7 +527,7 @@ Near the top of the inspector view struct, add:
     @StateObject private var panValue = ThrottledMixValue()
 ```
 
-- [ ] **Step 2: Replace the level slider**
+- [x] **Step 2: Replace the level slider**
 
 Locate the existing level `Slider` at `Sources/UI/InspectorView.swift:46`:
 
@@ -560,7 +560,7 @@ Slider(
 )
 ```
 
-- [ ] **Step 3: Replace the pan slider**
+- [x] **Step 3: Replace the pan slider**
 
 At `Sources/UI/InspectorView.swift:54`, apply the same pattern:
 
@@ -587,7 +587,7 @@ Slider(
 )
 ```
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -598,7 +598,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 Expected: build succeeds.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/UI/InspectorView.swift
@@ -619,7 +619,7 @@ The audit is **a report, not a code change**. Each site either:
 **Files:**
 - Modify (append report section): this plan file, at the bottom.
 
-- [ ] **Step 1: Survey the UI layer**
+- [x] **Step 1: Survey the UI layer**
 
 Use the Grep tool to find candidate call sites:
 
@@ -631,7 +631,7 @@ Use the Grep tool to find candidate call sites:
 
 Collect: file:line, the binding chain (`$document.project.foo.bar`), the gesture/control type, and whether a drag-end commit exists.
 
-- [ ] **Step 2: Append the audit report to this plan**
+- [x] **Step 2: Append the audit report to this plan**
 
 Append a new section titled "Audit (2026-04-21)" at the bottom of this file. For each site, use this format:
 
@@ -659,11 +659,11 @@ Known sites to include in the audit (use this as a seed; confirm each, add any o
 - `Sources/UI/RouteEditorSheet.swift` — sheet-scoped. Confirm it writes back on save, not on every keystroke.
 - `Sources/UI/TrackSource/Widgets/SourceParameterStepperRow.swift` — parameter stepper with `autorepeat` may fire at ~5 Hz and write `document.project`. Likely lower-frequency than a drag, but still worth confirming.
 
-- [ ] **Step 3: Triage**
+- [x] **Step 3: Triage**
 
 At the bottom of the appended audit section, add a "Follow-ups" subsection listing every site marked `high` or `medium` risk as candidates for a later plan. Do **not** fix them in this plan unless the audit surfaces one that is actively causing the same note-firing bug. Keep scope tight.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/plans/2026-04-21-fix-mixer-fader-throttle-and-scoped-setmix.md
@@ -676,13 +676,13 @@ git commit -m "docs(plan): append UI-input audit to mixer-fader throttle plan"
 
 **Files:** none beyond doc updates
 
-- [ ] **Step 1: Build and open the app**
+- [x] **Step 1: Build and open the app**
 
 ```bash
 ./scripts/open-latest-build.sh
 ```
 
-- [ ] **Step 2: Verify the repro is fixed**
+- [x] **Step 2: Verify the repro is fixed**
 
 - Open a document with at least one track routed to an AU instrument and at least one drum kit (sample destinations).
 - Press play.
@@ -691,11 +691,11 @@ git commit -m "docs(plan): append UI-input audit to mixer-fader throttle plan"
 - Pause playback. Drag faders. Expected: no audio (nothing was playing) and levels still visibly follow.
 - Resume playback. Release a fader in a new position. Expected: the level is committed and persists across tempo/transport changes.
 
-- [ ] **Step 3: Verify the audit report is present**
+- [x] **Step 3: Verify the audit report is present**
 
 Re-read `docs/plans/2026-04-21-fix-mixer-fader-throttle-and-scoped-setmix.md`. Confirm the "Audit (2026-04-21)" section exists at the bottom and that every high/medium-risk site is in the Follow-ups list.
 
-- [ ] **Step 4: Flip the bug-report status + mark this plan complete + tag**
+- [x] **Step 4: Flip the bug-report status + mark this plan complete + tag**
 
 Edit `docs/plans/2026-04-21-bug-mixer-fader-triggers-notes.md`: replace `**Status:** Open — fix plan written …` with:
 
@@ -717,7 +717,7 @@ git commit -m "docs(plan): mark mixer-fader-throttle fix completed"
 git tag -a v0.0.24-mixer-fader-throttle -m "Throttle mixer faders: scoped setMix + drag-end commits; UI-input audit attached"
 ```
 
-- [ ] **Step 5: Dispatch `wiki-maintainer` to note the engine-input invariant**
+- [x] **Step 5: Dispatch `wiki-maintainer` to note the engine-input invariant**
 
 Brief:
 - Diff range: `<previous-tag>..HEAD`.
