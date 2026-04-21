@@ -31,7 +31,7 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
                 ClipPoolEntry(
                     id: UUID(),
                     name: "Drum",
-                    trackType: .drum,
+                    trackType: .slice,
                     content: .sliceTriggers(stepPattern: [true, false, true, false], sliceIndexes: [0, 1, 0, 1])
                 ),
             ],
@@ -73,8 +73,8 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
         let drumClip = ClipPoolEntry(
             id: UUID(),
             name: "Drum Source",
-            trackType: .drum,
-            content: .sliceTriggers(stepPattern: [true, false, true, false], sliceIndexes: [0, 1, 0, 1])
+            trackType: .monoMelodic,
+            content: .stepSequence(stepPattern: [true, false, true, false], pitches: [])
         )
 
         let project = Project(
@@ -90,7 +90,7 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
             selectedPhraseID: phrase.id
         )
 
-        XCTAssertEqual(project.compatibleClips(for: monoTrack).map(\.id), [monoClip.id])
+        XCTAssertEqual(project.compatibleClips(for: monoTrack).map(\.id), [monoClip.id, drumClip.id])
         XCTAssertEqual(Set(project.harmonicSidechainClips().map(\.id)), Set([monoClip.id, polyClip.id]))
     }
 }
