@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
-**Status:** Not started. Tag `v0.0.17-per-track-owned-clips` at completion.
+**Status:** ✅ Completed 2026-04-21. Tag v0.0.17-per-track-owned-clips.
 
 **Depends on:** nothing open — drum-track MVP is merged.
 
