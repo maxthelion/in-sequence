@@ -8,25 +8,25 @@
 
 1. **`ProjectDelta` (value type)** — an enumeration describing a single meaningful change to the project state the engine cares about. Cheap to produce, cheap to pattern-match on.
 2. **`Project.deltas(from:)`** — a pure, allocation-minimal diff that produces `[ProjectDelta]` by comparing two `Project` snapshots field by field. O(fields) with O(n) for ordered collections where order matters.
-3. **`EngineController.apply(deltas:)`** — a dispatcher that routes each delta to a dedicated handler. `apply(documentModel:)` becomes `let deltas = documentModel.deltas(from: currentDocumentModel); apply(deltas: deltas); currentDocumentModel = documentModel`. Hot-path deltas (mix, pan, mute, selected-track) are O(1). Cold-path deltas fall back to a single `.coarseResync` delta that calls the old broad sync logic, so migration is staged — no big-bang rewrite.
+3. **`EngineController.apply(deltas:)`** — a dispatcher that routes each delta to a dedicated handler. `apply(documentModel:)` becomes `let deltas = documentModel.deltas(from: currentDocumentModel); apply(deltas: deltas); currentDocumentModel = documentModel`. In Phase 1, only `trackMixChanged` and `selectedTrackChanged` get dedicated handlers. Every other delta falls back to `.coarseResync`, which runs the existing broad sync path (`syncTrackParams`, `syncMidiOutputs`, `syncAudioOutputs`, plus pipeline rebuild checks) so migration can stay staged and reviewable.
 
-This composes with but is **independent of** the mixer-fader throttle plan (`docs/plans/2026-04-21-fix-mixer-fader-throttle-and-scoped-setmix.md`). The throttle reduces how often `apply` is called; this plan reduces how much each call costs. Together they put the engine update path on a sustainable footing. Either can land first.
+This builds directly on the already-landed mixer-fader throttle work (`v0.0.24-mixer-fader-throttle`). That fix reduced how often `apply(documentModel:)` is called from live fader drags; this plan reduces how much each remaining call costs. Together they put the engine update path on a sustainable footing.
 
 **Tech Stack:** Swift 5.9+, OSLog signposts for timing, XCTest. No new dependencies.
 
-**Parent context:** The 2026-04-21 mixer-fader audit (transcript) showed that `apply(documentModel:)` has unsynchronized writes (`currentDocumentModel`, `currentLayerSnapshot`) and a broad sync cost that is quadratic in practice (N tracks × per-frame drag rate). Throttling the UI avoids the symptom; this plan removes the underlying cost.
+**Parent context:** The 2026-04-21 mixer-fader audit (transcript) showed that `apply(documentModel:)` has unsynchronized writes (`currentDocumentModel`, `currentLayerSnapshot`) and a broad sync cost that grows with document size. Throttling the UI removed the most obvious per-frame storm; this plan addresses the remaining structural cost in the apply path itself.
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. Run `xcodegen generate` after creating any new files under `Sources/` or `Tests/`.
 
 **Status:** Not started. Tag `v0.0.25-engine-apply-deltas` at completion.
 
-**Depends on:** nothing on the critical path. `v0.0.24-mixer-fader-throttle` is complementary and can land before or after.
+**Depends on:** `v0.0.24-mixer-fader-throttle` on current `main`.
 
 **Scope decision (explicit):**
 
-- **In scope (Phase 1):** `ProjectDelta` + diff + dispatch skeleton. Hot-path handlers implemented for: `trackMixChanged`, `selectedTrackChanged`, `transportMutationHints` (a category we will call out explicitly per delta type). Cold paths emit `.coarseResync`, which calls the existing broad sync as-is.
+- **In scope (Phase 1):** `ProjectDelta` + diff + dispatch skeleton. Dedicated handlers are implemented only for `trackMixChanged` and `selectedTrackChanged`. All other delta categories are emitted by the diff but routed through `.coarseResync`, which reuses the existing broad sync path as-is.
 - **Deferred to a follow-up plan (Phase 2):** per-delta handlers for `trackDestinationChanged`, `tracksInsertedOrRemoved`, `routesChanged`, `patternBanksChanged`, `phrasesChanged`, `clipPoolChanged`, `layersChanged`, `trackGroupsChanged`. Their diff entries exist in Phase 1, but they all route to `.coarseResync` for now. The infra is there; the migration is staged task-by-task so each change is small, reviewable, and independently measurable.
-- **Out of scope (logged for another plan):** fixing the unsynchronized `currentDocumentModel` + `currentLayerSnapshot` races. Phase 1 intentionally keeps the existing locking shape; the delta approach narrows the race window but does not close it. Full race fix is its own plan.
+- **Out of scope (logged for another plan):** fixing the unsynchronized `currentDocumentModel` + `currentLayerSnapshot` races. Phase 1 intentionally keeps the existing locking shape; the delta approach narrows the race window but does not close it. This remains a residual correctness risk until the race-fix plan lands.
 
 ---
 
@@ -39,13 +39,13 @@ Sources/Document/
 
 Sources/Engine/
   EngineController.swift                          # MODIFIED — apply(documentModel:) delegates to apply(deltas:); new handlers
-  EngineControllerSignpost.swift                  # NEW — OSLog signpost helper for measuring apply + per-handler durations
+    EngineControllerSignpost.swift                  # NEW — OSLog signpost helper for measuring apply + per-handler durations (optional in Phase 1 if kept tiny)
 
 Tests/SequencerAITests/
   Document/
     ProjectDeltaDiffTests.swift                   # NEW — covers diff coverage per delta type
   Engine/
-    EngineControllerDeltaDispatchTests.swift      # NEW — verifies mix delta is O(1); coarse resync fallback still works
+    EngineControllerDeltaDispatchTests.swift      # NEW — verifies mix delta stays scoped and coarse resync fallback still works
 ```
 
 ---
