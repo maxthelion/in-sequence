@@ -7,7 +7,6 @@ struct TracksMatrixView: View {
 
     @State private var isPresentingCreateTrack = false
     @State private var isPresentingAddDrumGroup = false
-    @State private var collapsedGroupIDs: Set<TrackGroupID> = []
 
     private let columns = [
         GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 14)
@@ -31,7 +30,6 @@ struct TracksMatrixView: View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
-                eyebrow: "\(document.project.tracks.count) tracks • flat matrix with grouped drum-kit bundles",
                 accent: StudioTheme.cyan
             ) {
                 VStack(alignment: .leading, spacing: 18) {
@@ -113,20 +111,12 @@ struct TracksMatrixView: View {
     private var matrixSections: some View {
         VStack(alignment: .leading, spacing: 18) {
             if !ungroupedTracks.isEmpty {
-                TrackSectionShell(
-                    title: "Ungrouped",
-                    detail: "\(ungroupedTracks.count) standalone track\(ungroupedTracks.count == 1 ? "" : "s")",
-                    accent: StudioTheme.cyan
-                ) {
-                    tracksGrid(ungroupedTracks, group: nil)
-                }
+                tracksGrid(ungroupedTracks, group: nil)
             }
 
             ForEach(groupedSections) { section in
                 GroupSectionView(
                     section: section,
-                    isCollapsed: collapsedGroupIDs.contains(section.id),
-                    toggleCollapse: { toggleCollapse(for: section.id) },
                     grid: { tracksGrid(section.members, group: section.group) }
                 )
             }
@@ -150,13 +140,6 @@ struct TracksMatrixView: View {
         }
     }
 
-    private func toggleCollapse(for groupID: TrackGroupID) {
-        if collapsedGroupIDs.contains(groupID) {
-            collapsedGroupIDs.remove(groupID)
-        } else {
-            collapsedGroupIDs.insert(groupID)
-        }
-    }
 }
 
 private struct GroupedTrackSection: Identifiable {
@@ -166,39 +149,8 @@ private struct GroupedTrackSection: Identifiable {
     var id: TrackGroupID { group.id }
 }
 
-private struct TrackSectionShell<Content: View>: View {
-    let title: String
-    let detail: String
-    let accent: Color
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(title.uppercased())
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .tracking(1.0)
-                    .foregroundStyle(StudioTheme.text)
-
-                Rectangle()
-                    .fill(accent)
-                    .frame(width: 34, height: 3)
-                    .clipShape(Capsule())
-
-                Text(detail)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-
-            content
-        }
-    }
-}
-
 private struct GroupSectionView<Grid: View>: View {
     let section: GroupedTrackSection
-    let isCollapsed: Bool
-    let toggleCollapse: () -> Void
     @ViewBuilder let grid: Grid
 
     private var accent: Color {
@@ -227,33 +179,9 @@ private struct GroupSectionView<Grid: View>: View {
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
                 }
-
-                Spacer()
-
-                Button(isCollapsed ? "Expand" : "Collapse", action: toggleCollapse)
-                    .buttonStyle(.bordered)
             }
 
-            if isCollapsed {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(section.members, id: \.id) { track in
-                            Text(track.name)
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.white.opacity(0.04), in: Capsule())
-                                .overlay(
-                                    Capsule()
-                                        .stroke(accent.opacity(0.35), lineWidth: 1)
-                                )
-                                .foregroundStyle(StudioTheme.text)
-                        }
-                    }
-                }
-            } else {
-                grid
-            }
+            grid
         }
         .padding(16)
         .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 22, style: .continuous))

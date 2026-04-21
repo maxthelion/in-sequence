@@ -3,7 +3,6 @@ import SwiftUI
 struct StudioTopBar: View {
     @Binding var section: WorkspaceSection
     @Binding var document: SeqAIDocument
-    @Environment(EngineController.self) private var engineController
 
     private var visibleSections: [WorkspaceSection] {
         WorkspaceSection.allCases.filter { $0 != .track }
@@ -12,16 +11,9 @@ struct StudioTopBar: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("SequencerAI")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(StudioTheme.text)
-
-                    Text(section.subtitle.capitalized)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
+                Text("SequencerAI")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(StudioTheme.text)
 
                 Spacer(minLength: 20)
 
@@ -56,14 +48,6 @@ struct StudioTopBar: View {
                 }
 
                 Spacer()
-
-                StudioMetricPill(title: "Mode", value: section.title, accent: StudioTheme.amber)
-                StudioMetricPill(title: "Track", value: document.project.selectedTrack.name, accent: StudioTheme.violet)
-                StudioMetricPill(
-                    title: "Engine",
-                    value: engineController.isRunning ? "Running" : "Ready",
-                    accent: engineController.isRunning ? StudioTheme.success : StudioTheme.cyan
-                )
             }
         }
         .padding(20)

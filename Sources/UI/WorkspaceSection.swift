@@ -41,21 +41,4 @@ enum WorkspaceSection: String, CaseIterable, Hashable {
             return "books.vertical"
         }
     }
-
-    var subtitle: String {
-        switch self {
-        case .phrase:
-            return "macro grid and pipeline graph"
-        case .tracks:
-            return "track matrix, groups, and creation"
-        case .track:
-            return "pattern, routing, and voice"
-        case .mixer:
-            return "levels, pan, and output buses"
-        case .live:
-            return "live matrix and transport control"
-        case .library:
-            return "presets, templates, and phrases"
-        }
-    }
 }
