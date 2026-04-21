@@ -190,24 +190,11 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(documentModel: Project) {
-        flushDetachedMIDINoteOffs(from: currentDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
+        let previousDocumentModel = currentDocumentModel
+        flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
+        let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
-        let selectedTrack = documentModel.selectedTrack
-        selectedOutput = Self.effectiveDestination(for: selectedTrack.id, in: documentModel).destination.kind
-        currentTrackMix = selectedTrack.mix
-        router.applyRoutesSnapshot(documentModel.routes)
-
-        do {
-            if withStateLock({ pipelineShape != Self.pipelineShape(for: documentModel) || executor == nil }) {
-                try buildPipeline(for: documentModel)
-            } else {
-                syncTrackParams(for: documentModel)
-                syncMidiOutputs(for: documentModel)
-                syncAudioOutputs(for: documentModel)
-            }
-        } catch {
-            NSLog("EngineController apply failed: \(error)")
-        }
+        apply(deltas: deltas, documentModel: documentModel)
     }
 
     func apply(track: StepSequenceTrack) {
@@ -294,6 +281,64 @@ final class EngineController: RouterDispatcher {
         let host = withStateLock { audioOutputsByTrackID[trackID] }
         log("prepareAudioUnit hostFound=\(host != nil)")
         host?.prepareIfNeeded()
+    }
+
+    private func apply(deltas: [ProjectDelta], documentModel: Project) {
+        guard !deltas.isEmpty else {
+            return
+        }
+
+        guard deltas.allSatisfy(\.isPhaseOneHotPath) else {
+            applyBroadSync(documentModel: documentModel)
+            return
+        }
+
+        for delta in deltas {
+            switch delta {
+            case let .trackMixChanged(trackID, mix):
+                setMix(trackID: trackID, mix: mix)
+                if trackID == documentModel.selectedTrackID {
+                    currentTrackMix = mix
+                }
+
+            case let .selectedTrackChanged(trackID):
+                let selectedTrack = documentModel.tracks.first(where: { $0.id == trackID }) ?? documentModel.selectedTrack
+                selectedOutput = Self.effectiveDestination(for: trackID, in: documentModel).destination.kind
+                currentTrackMix = selectedTrack.mix
+
+            case .trackDestinationChanged,
+                 .trackParameterChanged,
+                 .tracksInsertedOrRemoved,
+                 .trackGroupsChanged,
+                 .routesChanged,
+                 .patternBanksChanged,
+                 .phrasesChanged,
+                 .clipPoolChanged,
+                 .layersChanged,
+                 .coarseResync:
+                applyBroadSync(documentModel: documentModel)
+                return
+            }
+        }
+    }
+
+    private func applyBroadSync(documentModel: Project) {
+        let selectedTrack = documentModel.selectedTrack
+        selectedOutput = Self.effectiveDestination(for: selectedTrack.id, in: documentModel).destination.kind
+        currentTrackMix = selectedTrack.mix
+        router.applyRoutesSnapshot(documentModel.routes)
+
+        do {
+            if withStateLock({ pipelineShape != Self.pipelineShape(for: documentModel) || executor == nil }) {
+                try buildPipeline(for: documentModel)
+            } else {
+                syncTrackParams(for: documentModel)
+                syncMidiOutputs(for: documentModel)
+                syncAudioOutputs(for: documentModel)
+            }
+        } catch {
+            NSLog("EngineController apply failed: \(error)")
+        }
     }
 
     func effectiveDestination(for trackID: UUID) -> (destination: Destination, pitchOffset: Int) {

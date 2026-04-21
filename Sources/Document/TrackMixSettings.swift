@@ -1,6 +1,6 @@
 import Foundation
 
-struct TrackMixSettings: Codable, Equatable, Sendable {
+struct TrackMixSettings: Codable, Equatable, Hashable, Sendable {
     var level: Double
     var pan: Double
     var isMuted: Bool
