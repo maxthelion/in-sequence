@@ -36,25 +36,31 @@ struct PhraseCellEditorSheet: View {
     }
 
     var body: some View {
-        Group {
-            if let phrase, let track, let layer {
-                StudioPanel(
-                    title: "Cell Editor",
-                    eyebrow: "\(phrase.name) • \(track.name) • \(layer.name)",
-                    accent: accent
-                ) {
-                    cellEditor(phrase: phrase, track: track, layer: layer)
-                }
-                .padding(24)
-                .frame(minWidth: 680, minHeight: 420)
-            } else {
-                Color.clear
-                    .frame(width: 1, height: 1)
-                    .onAppear {
-                        dismiss()
+        ZStack {
+            StudioTheme.stageFill
+                .ignoresSafeArea()
+
+            Group {
+                if let phrase, let track, let layer {
+                    StudioPanel(
+                        title: "Cell Editor",
+                        eyebrow: "\(phrase.name) • \(track.name) • \(layer.name)",
+                        accent: accent
+                    ) {
+                        cellEditor(phrase: phrase, track: track, layer: layer)
                     }
+                    .padding(24)
+                    .frame(minWidth: 680, minHeight: 420)
+                } else {
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .onAppear {
+                            dismiss()
+                        }
+                }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: isTargetAvailable) {
             if !isTargetAvailable {
                 dismiss()
