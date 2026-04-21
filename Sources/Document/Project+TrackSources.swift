@@ -20,7 +20,6 @@ extension Project {
     }
 
     mutating func setPatternSourceRef(_ sourceRef: SourceRef, for trackID: UUID, slotIndex: Int) {
-        // Still used by the clip picker path. Retained.
         guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
               let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
         else {
@@ -37,13 +36,15 @@ extension Project {
         patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
     }
 
-    mutating func setPatternGeneratorID(_ generatorID: UUID, for trackID: UUID, slotIndex: Int) {
-        // Unused by new UI; retained for compatibility with `Project+Phrases.swift` paths. Candidate for follow-up removal.
-        setPatternSourceRef(.generator(generatorID), for: trackID, slotIndex: slotIndex)
-    }
-
     mutating func setPatternClipID(_ clipID: UUID, for trackID: UUID, slotIndex: Int) {
-        setPatternSourceRef(.clip(clipID), for: trackID, slotIndex: slotIndex)
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
+            return
+        }
+        let bank = patternBanks[bankIndex]
+        let slot = bank.slot(at: slotIndex)
+        // Preserve the existing generatorID so bypass→change-clip→un-bypass re-engages the same generator.
+        let merged = SourceRef(mode: .clip, generatorID: slot.sourceRef.generatorID, clipID: clipID)
+        setPatternSourceRef(merged, for: trackID, slotIndex: slotIndex)
     }
 
     mutating func updateGeneratorEntry(id: UUID, _ update: (inout GeneratorPoolEntry) -> Void) {
@@ -112,6 +113,28 @@ extension Project {
             let newRef = SourceRef(
                 mode: .clip,
                 generatorID: existing.sourceRef.generatorID,
+                clipID: existing.sourceRef.clipID
+            )
+            bank.slots[index] = TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef)
+        }
+        let track = tracks[trackIndex]
+        patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
+    }
+
+    mutating func switchAttachedGenerator(to newGeneratorID: UUID, for trackID: UUID) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return
+        }
+
+        var bank = patternBanks[bankIndex]
+        bank.attachedGeneratorID = newGeneratorID
+        for index in 0..<bank.slots.count {
+            let existing = bank.slots[index]
+            let newRef = SourceRef(
+                mode: existing.sourceRef.mode,
+                generatorID: newGeneratorID,
                 clipID: existing.sourceRef.clipID
             )
             bank.slots[index] = TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef)
