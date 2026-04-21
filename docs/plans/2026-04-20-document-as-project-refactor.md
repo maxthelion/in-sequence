@@ -8,7 +8,13 @@
 
 Name the domain concept. `Project` is the persisted state of the sequencer — tracks, phrases, patterns, routes, groups, pools, selection. Naming it after SwiftUI's `FileDocument` idiom hides what it actually is. After this plan, `Project` is the domain type; `SeqAIDocument: FileDocument` is a thin persistence shell whose one job is JSON in/out. Every downstream reader says `document.project.tracks` instead of `document.model.tracks`, and the domain name is visible at every call site.
 
-Within `Project`, responsibilities are split across extension files (`Project+Tracks.swift`, `Project+Phrases.swift`, `Project+Routes.swift`, `Project+Groups.swift`, `Project+Patterns.swift`, `Project+Selection.swift`, `Project+PhraseCells.swift`, `Project+DrumKit.swift`, `Project+Codable.swift`) following the precedent set by `Project+TrackSources.swift`. The core `Project.swift` carries stored properties, `.empty`, `CodingKeys`, a couple of single-line accessors, and the two designated initializers — ~200 LOC.
+Within `Project`, responsibilities are split across extension files (`Project+Tracks.swift`, `Project+Phrases.swift`, `Project+Destinations.swift`, `Project+Patterns.swift`, `Project+Selection.swift`, `Project+Codable.swift`) following the precedent set by `Project+TrackSources.swift`. The core `Project.swift` carries stored properties, `.empty`, `CodingKeys`, a couple of single-line accessors, and the two designated initializers — ~200 LOC.
+
+Responsibility clusters that the original draft called out as their own files were consolidated during implementation where the coupling was tight:
+
+- Routes, groups, and destination-write-target logic all live in `Project+Destinations.swift` — they form one "external wiring" cluster and splitting them produced three sub-50-LOC files with weak identity.
+- Phrase-cell getters and setters (`updatePhrase`, `setPhraseCell`, `setPhraseCellMode`) live in `Project+Phrases.swift` alongside phrase CRUD — cell manipulation *is* phrase manipulation.
+- `addDrumKit(_:)` lives in `Project+Tracks.swift` — it is a track-creation entry point that happens to consume a `DrumKitPreset`.
 
 Drum-kit presets — `DrumKitNoteMap`, `DrumKitPreset` — are shipped reference data, which `wiki/pages/project-layout.md` says belongs in `Musical/`. They move. Their `suggestedSharedDestination` projection needs `Destination`, which cannot move to `Musical/` (it carries `.auInstrument(stateBlob: Data)` session state, not reference data), so a small `DrumKitPreset+Destination.swift` extension stays in `Document/`. This preserves the rule that `Musical/` imports nothing project-internal.
 
@@ -34,22 +40,19 @@ Three Codable-init paths today duplicate the same "resolve layers → resolve pa
 ```
 Sources/
   Document/
-    Project.swift                                 # RENAMED from Project.swift; shrunk to ~200 LOC
+    Project.swift                                 # RENAMED from SeqAIDocumentModel.swift; shrunk to ~60 LOC
     Project+Codable.swift                         # NEW — init(from:), encode(to:), NormalizedFields, normalize(...)
-    Project+Tracks.swift                          # NEW — appendTrack, removeSelectedTrack, setSelectedTrackType, default-factories
-    Project+Phrases.swift                         # NEW — appendPhrase, insertPhrase, duplicate*, remove*, defaultPhraseName
-    Project+PhraseCells.swift                     # NEW — cell(for:), updatePhrase, setPhraseCell, setPhraseCellMode
+    Project+Tracks.swift                          # NEW — appendTrack, removeSelectedTrack, setSelectedTrackType, default-factories, addDrumKit
+    Project+Phrases.swift                         # NEW — appendPhrase, insertPhrase, duplicate*, remove*, defaultPhraseName, updatePhrase, setPhraseCell, setPhraseCellMode
     Project+Patterns.swift                        # NEW — patternBank, selectedPattern*, setPatternSourceMode, setPatternName
-    Project+Routes.swift                          # NEW — routesSourced, routesTargeting, makeDefaultRoute, upsertRoute, removeRoute
-    Project+Groups.swift                          # NEW — group(for:), tracksInGroup, addGroup, addToGroup, removeFromGroup
+    Project+Destinations.swift                    # NEW — routes (sourced/targeting, makeDefaultRoute, upsertRoute, removeRoute), groups (group, tracksInGroup, addGroup, addToGroup, removeFromGroup), destinationWriteTarget
     Project+Selection.swift                       # NEW — selectedTrack, selectedPhrase, selectTrack, selectPhrase, indexes
-    Project+DrumKit.swift                         # NEW — addDrumKit (consumes Musical/DrumKitPreset)
-    Project+TrackSources.swift                    # RENAMED from Project+TrackSources.swift
-    StepSequenceTrack.swift                       # NEW — extracted from Project.swift:865-1050
-    TrackType.swift                               # NEW — extracted from Project.swift:1052-1078
-    TrackMixSettings.swift                        # NEW — extracted from Project.swift:1080-1094
+    Project+TrackSources.swift                    # existing — unchanged structurally, type renamed in body
+    StepSequenceTrack.swift                       # NEW — extracted from SeqAIDocumentModel.swift
+    TrackType.swift                               # NEW — extracted
+    TrackMixSettings.swift                        # NEW — extracted
     DrumKitPreset+Destination.swift               # NEW — suggestedSharedDestination projection
-    SeqAIDocument.swift                           # modified — `var model: Project` → `var project: Project`
+    SeqAIDocument.swift                           # modified — `var model: SeqAIDocumentModel` → `var project: Project`
     (unchanged: Destination.swift, PhraseModel.swift, Route.swift, TrackGroup.swift, StepAlgo.swift, PitchAlgo.swift, ClipContent.swift, NoteShape.swift, PitchContext.swift, GeneratorParams.swift)
   Musical/
     DrumKitNoteMap.swift                          # NEW — moved from Document/
@@ -58,8 +61,15 @@ Tests/
   SequencerAITests/
     Document/
       ProjectNormalizationTests.swift             # NEW — 4 cases exercising the new normalize(...) helper
-      (existing tests renamed in their bodies where they referenced Project)
+      (existing tests renamed in their bodies where they referenced SeqAIDocumentModel)
 ```
+
+**Divergence from the original draft:** the draft listed `Project+PhraseCells.swift`, `Project+Routes.swift`, `Project+Groups.swift`, and `Project+DrumKit.swift` as separate files. Implementation consolidated:
+- Routes + groups + destination targets → `Project+Destinations.swift` (one "external wiring" cluster).
+- Phrase-cell getters/setters → `Project+Phrases.swift` (cell manipulation is phrase manipulation).
+- `addDrumKit(_:)` → `Project+Tracks.swift` (track-creation entry point that consumes a `DrumKitPreset`).
+
+Architectural goals are met either way: `Project.swift` is 58 LOC (target ≤ 200), no extension file exceeds 500 LOC, and method clusters live in dedicated extensions.
 
 ---
 
@@ -401,14 +411,11 @@ All four cases exercise the public initializer — no hand-crafted JSON needed.
 **Files:** (all NEW, all in `Sources/Document/`)
 
 - `Project+Codable.swift` — `init(from decoder:)`, `encode(to:)`, private `NormalizedFields`, private `normalize(...)` (moved from `Project.swift` post-Task-4).
-- `Project+Tracks.swift` — `appendTrack(trackType:)`, `removeSelectedTrack()`, `setSelectedTrackType(_:)`, `static defaultTrackName(for:index:)`, `static defaultPitches(for:)`, `static defaultStepPattern(for:)`, `static defaultDestination(for:)` (kept `static` on `Project`, just relocated to this file).
-- `Project+Phrases.swift` — `appendPhrase()`, `insertPhrase(below:)`, `duplicateSelectedPhrase()`, `duplicatePhrase(id:)`, `removeSelectedPhrase()`, `removePhrase(id:)`, `static defaultPhraseName(for:)`.
-- `Project+PhraseCells.swift` — `cell(for:layerID:phraseID:)`, `updatePhrase(id:_:)`, `setPhraseCell`, `setPhraseCellMode`, `selectedPatternIndex(for:)`, `setSelectedPatternIndex`.
-- `Project+Patterns.swift` — `patternBank(for:)`, `selectedPattern(for:)`, `selectedSourceRef(for:)`, `selectedSourceMode(for:)`, `setPatternSourceMode`, `setPatternName`, private `defaultSourceRef(for:trackType:)`, `static defaultPatternBanks(...)`, `static syncPatternBanks(...)`.
-- `Project+Routes.swift` — `routesSourced(from:)`, `routesTargeting(_:)`, `makeDefaultRoute(from:)`, `upsertRoute`, `removeRoute`.
-- `Project+Groups.swift` — `group(for:)`, `tracksInGroup(_:)`, `addGroup`, `addToGroup`, `removeFromGroup`.
+- `Project+Tracks.swift` — `appendTrack(trackType:)`, `removeSelectedTrack()`, `setSelectedTrackType(_:)`, `static defaultTrackName(for:index:)`, `static defaultPitches(for:)`, `static defaultStepPattern(for:)`, `static defaultDestination(for:)`, and `addDrumKit(_:)` (track-creation entry point that happens to consume a `Musical/DrumKitPreset`).
+- `Project+Phrases.swift` — `appendPhrase()`, `insertPhrase(below:)`, `duplicateSelectedPhrase()`, `duplicatePhrase(id:)`, `removeSelectedPhrase()`, `removePhrase(id:)`, `static defaultPhraseName(for:)`, plus cell manipulation (`updatePhrase(id:_:)`, `setPhraseCell`, `setPhraseCellMode`) — consolidated here because cell manipulation is phrase manipulation.
+- `Project+Patterns.swift` — `patternBank(for:)`, `selectedPattern(for:)`, `selectedSourceRef(for:)`, `selectedSourceMode(for:)`, `setPatternSourceMode`, `setPatternName`, private `defaultSourceRef(for:trackType:)`, `static defaultPatternBanks(...)`, `static syncPatternBanks(...)`, plus `selectedPatternIndex(for:)` / `setSelectedPatternIndex` (pattern-layer cell accessors sit with the rest of pattern-bank code).
+- `Project+Destinations.swift` — one file covering the full "external wiring" cluster: routes (`routesSourced(from:)`, `routesTargeting(_:)`, `makeDefaultRoute(from:)`, `upsertRoute`, `removeRoute`), groups (`group(for:)`, `tracksInGroup(_:)`, `addGroup`, `addToGroup`, `removeFromGroup`), and `destinationWriteTarget(for:)`. Splitting these into separate `+Routes` / `+Groups` files produced sub-50-LOC files with weak independent identity, so they stayed colocated.
 - `Project+Selection.swift` — `selectedTrackIndex`, `selectedTrack` (computed property — stays unchanged for this plan), `selectedPhraseIndex`, `selectedPhrase`, `selectTrack(id:)`, `selectPhrase(id:)`.
-- `Project+DrumKit.swift` — `addDrumKit(_:)` (consumes `DrumKitPreset` from `Musical/`).
 
 `Project.swift` final contents:
 
@@ -462,14 +469,11 @@ Note `syncPhrasesWithTracks` must change from `private` to no-access-modifier (i
 - `syncPhrasesWithTracks` is called from `Project+Tracks.swift` (`appendTrack`, `removeSelectedTrack`, `setSelectedTrackType`) and `Project+Groups.swift` is a candidate but doesn't currently call it; it relies on `Project.init` / `syncPhrasesWithTracks` to prune orphan group memberIDs. Leave the current call sites as-is.
 
 - [x] Create `Project+Codable.swift` — move `init(from:)`, `encode(to:)`, `NormalizedFields`, `normalize(...)` from `Project.swift`.
-- [x] Create `Project+Tracks.swift` — move the track CRUD methods + static default-factories.
-- [x] Create `Project+Phrases.swift` — move phrase CRUD + `defaultPhraseName`.
-- [x] Create `Project+PhraseCells.swift` — move cell getters + setters + `updatePhrase`.
-- [x] Create `Project+Patterns.swift` — move pattern-bank accessors + setters + static helpers.
-- [x] Create `Project+Routes.swift` — move route methods.
-- [x] Create `Project+Groups.swift` — move group methods.
+- [x] Create `Project+Tracks.swift` — move the track CRUD methods + static default-factories + `addDrumKit(_:)`.
+- [x] Create `Project+Phrases.swift` — move phrase CRUD + `defaultPhraseName` + cell getters/setters (`updatePhrase`, `setPhraseCell`, `setPhraseCellMode`).
+- [x] Create `Project+Patterns.swift` — move pattern-bank accessors + setters + static helpers + pattern-layer cell accessors.
+- [x] Create `Project+Destinations.swift` — move route, group, and destination-write-target methods (consolidated from the planned separate `+Routes` / `+Groups` files).
 - [x] Create `Project+Selection.swift` — move selection accessors and setters.
-- [x] Create `Project+DrumKit.swift` — move `addDrumKit`.
 - [x] Strip `Project.swift` down to the core — stored properties, `CodingKeys`, `.empty`, `patternLayer`, `layer(id:)`, `syncPhrasesWithTracks`, two initializers.
 - [x] Change `private enum CodingKeys` → `enum CodingKeys` (internal) if needed.
 - [x] Change `private mutating func syncPhrasesWithTracks()` → `mutating func syncPhrasesWithTracks()` (internal).
