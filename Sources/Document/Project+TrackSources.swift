@@ -59,6 +59,40 @@ extension Project {
     }
 
     @discardableResult
+    mutating func attachNewGenerator(to trackID: UUID) -> GeneratorPoolEntry? {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return nil
+        }
+
+        let track = tracks[trackIndex]
+        guard let templateKind = GeneratorKind.allCases.first(where: { $0.compatibleWith.contains(track.trackType) }) else {
+            return nil
+        }
+
+        let nextIndex = generatorPool.filter { $0.trackType == track.trackType }.count + 1
+        let newEntry = GeneratorPoolEntry(
+            id: UUID(),
+            name: "\(templateKind.label) \(nextIndex)",
+            trackType: track.trackType,
+            kind: templateKind,
+            params: templateKind.defaultParams
+        )
+        generatorPool.append(newEntry)
+
+        var bank = patternBanks[bankIndex]
+        bank.attachedGeneratorID = newEntry.id
+        for index in 0..<bank.slots.count {
+            let existing = bank.slots[index]
+            let newRef = SourceRef(mode: .generator, generatorID: newEntry.id, clipID: existing.sourceRef.clipID)
+            bank.slots[index] = TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef)
+        }
+        patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
+        return newEntry
+    }
+
+    @discardableResult
     mutating func ensureCompatibleClip(for track: StepSequenceTrack) -> ClipPoolEntry? {
         if let existing = compatibleClips(for: track).first {
             return existing
