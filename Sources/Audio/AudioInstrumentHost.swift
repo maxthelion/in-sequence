@@ -11,6 +11,7 @@ protocol TrackPlaybackSink: AnyObject {
     func prepareIfNeeded()
     func startIfNeeded()
     func stop()
+    func shutdown()
     func setMix(_ mix: TrackMixSettings)
     func setDestination(_ destination: Destination)
     func selectInstrument(_ choice: AudioInstrumentChoice)
@@ -33,6 +34,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var currentDestination: Destination
     private var instantiationGeneration: UInt64 = 0
     private var pendingLoadGeneration: UInt64?
+    private var isShutdown = false
     private var snapshotChoice: AudioInstrumentChoice
     private var snapshotAudioUnit: AVAudioUnit?
     private var snapshotAvailable = false
@@ -123,6 +125,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             guard let self else {
                 return
             }
+            guard !self.isShutdown else {
+                self.log("prepareIfNeeded skipped - shutdown")
+                return
+            }
             self.log("prepareIfNeeded destination=\(self.currentDestination.summary) choice=\(self.currentChoice.displayName)")
             self.ensureInstrumentLoadedIfNeeded()
         }
@@ -131,6 +137,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     func startIfNeeded() {
         queue.async { [weak self] in
             guard let self else {
+                return
+            }
+            guard !self.isShutdown else {
+                self.log("startIfNeeded skipped - shutdown")
                 return
             }
             self.shouldBeRunning = true
@@ -152,9 +162,51 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
+    func shutdown() {
+        queue.async { [weak self] in
+            guard let self else {
+                return
+            }
+            guard !self.isShutdown else {
+                self.log("shutdown skipped - already shutdown")
+                return
+            }
+
+            self.log("shutdown start")
+            self.isShutdown = true
+            self.shouldBeRunning = false
+            self.pendingLoadGeneration = nil
+            self.instantiationGeneration &+= 1
+            self.currentDestination = .none
+            self.stopAllNotes()
+
+            self.performOnMain {
+                if self.engine.isRunning {
+                    self.engine.stop()
+                }
+                if let instrument = self.instrument {
+                    self.log("shutdown detach instrument")
+                    self.engine.disconnectNodeOutput(instrument)
+                    self.engine.detach(instrument)
+                    self.instrument = nil
+                }
+                self.updateSnapshotInstrument(nil)
+            }
+
+            self.snapshotLock.lock()
+            self.snapshotAvailable = false
+            self.snapshotAudioUnit = nil
+            self.snapshotLock.unlock()
+            self.log("shutdown complete")
+        }
+    }
+
     func setMix(_ mix: TrackMixSettings) {
         queue.async { [weak self] in
             guard let self else {
+                return
+            }
+            guard !self.isShutdown else {
                 return
             }
 
@@ -166,6 +218,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     func setDestination(_ destination: Destination) {
         queue.async { [weak self] in
             guard let self else {
+                return
+            }
+            guard !self.isShutdown else {
                 return
             }
 
@@ -199,6 +254,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
     func captureStateBlob() throws -> Data? {
         try queue.sync {
+            guard !isShutdown else {
+                return nil
+            }
             guard let instrument else {
                 return nil
             }
@@ -213,6 +271,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
         queue.async { [weak self] in
             guard let self else {
+                return
+            }
+            guard !self.isShutdown else {
                 return
             }
 
@@ -263,6 +324,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
             self.queue.async {
                 guard generation == self.instantiationGeneration else {
+                    return
+                }
+                guard !self.isShutdown else {
                     return
                 }
                 guard self.pendingLoadGeneration == generation else {

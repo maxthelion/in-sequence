@@ -174,6 +174,30 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    func shutdown() {
+        log("shutdown start")
+        let hosts = withStateLock { Self.uniqueHosts(Array(audioOutputsByTrackID.values)) }
+        if isRunning {
+            stop()
+        } else {
+            hosts.forEach { $0.stop() }
+            sampleEngine.stop()
+        }
+        hosts.forEach { $0.shutdown() }
+
+        withStateLock {
+            audioOutputsByTrackID = [:]
+            audioOutputKeysByTrackID = [:]
+            lastDestinationByOutputKey = [:]
+            audioTrackRuntimes = [:]
+            routeMidiOutputs = [:]
+            liveSampleTrackIDs = []
+            generatedEvaluationStatesByTrackID = [:]
+            preparedTickIndex = nil
+        }
+        log("shutdown complete")
+    }
+
     func setBPM(_ bpm: Double) {
         let clamped = min(max(bpm, 40), 300)
         currentBPM = clamped
@@ -1280,3 +1304,5 @@ final class EngineController: RouterDispatcher {
         return body()
     }
 }
+
+extension EngineController: EngineLifecycleControlling {}

@@ -127,6 +127,7 @@ private final class CapturingAudioSink: TrackPlaybackSink {
     func prepareIfNeeded() {}
     func startIfNeeded() {}
     func stop() {}
+    func shutdown() {}
     func setMix(_ mix: TrackMixSettings) {}
     func setDestination(_ destination: Destination) {
         if case let .auInstrument(componentID, _) = destination {

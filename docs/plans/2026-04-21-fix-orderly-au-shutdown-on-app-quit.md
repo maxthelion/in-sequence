@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. Run `xcodegen generate` after creating any new files under `Sources/`.
 
-**Status:** Not started. Tag `v0.0.23-orderly-au-shutdown` at completion.
+**Status:** Completed on 2026-04-21. Focused verification passed: `AUWindowHostCloseAllTests`, `EngineControllerShutdownTests`, `SequencerAIAppDelegateTests`. Tag `v0.0.25-orderly-au-shutdown`.
 
 **Depends on:** nothing on the critical path. Can execute against current `main` and land alongside other plans.
 

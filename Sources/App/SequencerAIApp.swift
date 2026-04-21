@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct SequencerAIApp: App {
+    @NSApplicationDelegateAdaptor(SequencerAIAppDelegate.self) private var appDelegate
     @State private var engineController = EngineController(
         audioOutput: AudioInstrumentHost(),
         audioOutputFactory: { AudioInstrumentHost() }
@@ -30,13 +31,21 @@ struct SequencerAIApp: App {
 
     var body: some Scene {
         DocumentGroup(newDocument: SeqAIDocument()) { file in
-            ContentView(document: file.$document)
-                .environment(engineController)
+            configuredContentView(for: file)
         }
         .defaultSize(width: 1500, height: 960)
 
         Settings {
             PreferencesView()
         }
+    }
+
+    @MainActor
+    private func configuredContentView(
+        for file: FileDocumentConfiguration<SeqAIDocument>
+    ) -> some View {
+        appDelegate.engineController = engineController
+        return ContentView(document: file.$document)
+            .environment(engineController)
     }
 }

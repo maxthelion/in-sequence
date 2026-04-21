@@ -666,6 +666,10 @@ private final class CapturingAudioSink: TrackPlaybackSink {
         stopCallCount += 1
     }
 
+    func shutdown() {
+        stopCallCount += 1
+    }
+
     func setMix(_ mix: TrackMixSettings) {
         receivedMixes.append(mix)
     }

@@ -9,6 +9,11 @@ protocol AudioUnitWindowPresentable: AnyObject {
     func captureHostedState() throws -> Data?
 }
 
+@MainActor
+protocol AUWindowHosting: AnyObject {
+    func closeAll()
+}
+
 extension AVAudioUnit: AudioUnitWindowPresentable {
     func requestHostedViewController(_ completion: @escaping (NSViewController?) -> Void) {
         auAudioUnit.requestViewController(completionHandler: { controller in
@@ -115,6 +120,17 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         close(for: .track(trackID))
     }
 
+    func closeAll() {
+        log("closeAll count=\(windows.count)")
+        let entries = windows
+        for (key, entry) in entries {
+            writeBackState(for: key, entry: entry)
+            entry.window.delegate = nil
+            entry.window.close()
+        }
+        windows.removeAll(keepingCapacity: false)
+    }
+
     func isOpen(for key: WindowKey) -> Bool {
         windows[key] != nil
     }
@@ -163,3 +179,5 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         }
     }
 }
+
+extension AUWindowHost: AUWindowHosting {}
