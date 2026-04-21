@@ -34,7 +34,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
-        destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+        destination: .none,
         groupID: nil,
         mix: .default,
         velocity: 100,

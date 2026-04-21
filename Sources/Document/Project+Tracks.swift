@@ -151,7 +151,7 @@ extension Project {
     static func defaultDestination(for trackType: TrackType) -> Destination {
         switch trackType {
         case .monoMelodic, .polyMelodic:
-            return .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+            return .none
         case .slice:
             return .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
         }

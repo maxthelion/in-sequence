@@ -4,6 +4,7 @@ struct TrackDestinationEditor: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
     @State private var recentVoices: [RecentVoice] = []
+    @State private var showingAddDestinationSheet = false
 
     private var track: StepSequenceTrack {
         document.project.selectedTrack
@@ -21,41 +22,104 @@ struct TrackDestinationEditor: View {
         document.project.resolvedDestination(for: track.id)
     }
 
-    private var currentChoice: TrackDestinationChoice {
-        TrackDestinationChoice(destination: editedDestination)
-    }
-
-    private var supportsInternalSamplerChoice: Bool {
-        if editedDestination.kind == .internalSampler {
-            return true
-        }
-        return track.trackType == .slice
-    }
-
-    private var availableChoices: [TrackDestinationChoice] {
-        var choices: [TrackDestinationChoice] = [.midiOut, .auInstrument, .sample]
-        if supportsInternalSamplerChoice {
-            choices.append(.internalSampler)
-        }
-        choices.append(.none)
-        if track.groupID != nil {
-            choices.insert(.inheritGroup, at: 0)
-        }
-        // Hide the sampler choice if the library is empty — there would be no sane default to assign.
-        if AudioSampleLibrary.shared.samples.isEmpty {
-            choices.removeAll(where: { $0 == .sample })
-        }
-        return choices
+    private var destinationSummary: DestinationSummary {
+        DestinationSummary.make(for: editedDestination, in: document.project, trackID: track.id)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            destinationSelector
+            if editedDestination == .none {
+                unsetState
+            } else {
+                setState
+            }
+        }
+        .task(id: track.id) {
+            refreshRecentVoices()
+        }
+        .sheet(isPresented: $showingAddDestinationSheet) {
+            AddDestinationSheet(
+                trackHasGroup: track.groupID != nil,
+                audioInstrumentChoices: engineController.availableAudioInstruments,
+                sampleLibrary: AudioSampleLibrary.shared
+            ) { destination in
+                applyAddedDestination(destination)
+            }
+            .presentationBackground(.clear)
+        }
+    }
 
-            switch currentChoice {
+    private var unsetState: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("OUTPUT")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .tracking(0.9)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No destination")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+
+                    Text("Set a destination to route notes for this track.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+                Spacer()
+
+                Button("Add Destination") {
+                    showingAddDestinationSheet = true
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(StudioTheme.success)
+            }
+            .padding(14)
+            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: 1)
+            )
+        }
+    }
+
+    private var setState: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: destinationSummary.iconName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(StudioTheme.success)
+                    .frame(width: 22)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(destinationSummary.typeLabel)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+
+                    Text(destinationSummary.detail)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+                Spacer()
+
+                Button("Remove") {
+                    clearDestination()
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(14)
+            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: 1)
+            )
+
+            switch editedDestination {
             case .inheritGroup:
                 inheritGroupEditor
-            case .midiOut:
+            case .midi:
                 midiEditor
             case .auInstrument:
                 auEditor
@@ -64,38 +128,7 @@ struct TrackDestinationEditor: View {
             case .sample:
                 samplerEditor
             case .none:
-                noneEditor
-            }
-
-            Text(editedDestination.summary)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-        .task(id: track.id) {
-            refreshRecentVoices()
-        }
-    }
-
-    private var destinationSelector: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("OUTPUT")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .tracking(0.9)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                ForEach(availableChoices) { destination in
-                    Button {
-                        applyDestinationChoice(destination)
-                    } label: {
-                        DestinationChoiceCard(
-                            title: destination.label,
-                            detail: destination.detail,
-                            isSelected: currentChoice == destination
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+                EmptyView()
             }
         }
     }
@@ -192,7 +225,10 @@ struct TrackDestinationEditor: View {
         SamplerDestinationWidget(
             destination: Binding(
                 get: { editedDestination },
-                set: { document.project.setEditedDestination($0, for: track.id) }
+                set: {
+                    document.project.setEditedDestination($0, for: track.id)
+                    engineController.apply(documentModel: document.project)
+                }
             ),
             library: AudioSampleLibrary.shared,
             sampleEngine: engineController.sampleEngineSink
@@ -207,60 +243,18 @@ struct TrackDestinationEditor: View {
         )
     }
 
-    private var noneEditor: some View {
-        StudioPlaceholderTile(
-            title: "Routing-Only Track",
-            detail: "This track has no default sink. It will still play if one or more project routes fan its notes to another track, endpoint, or chord-context lane.",
-            accent: StudioTheme.violet
-        )
+    private func applyAddedDestination(_ destination: Destination) {
+        document.project.setEditedDestination(destination, for: track.id)
+        engineController.apply(documentModel: document.project)
+        if case .auInstrument = destination {
+            engineController.prepareAudioUnit(for: track.id)
+        }
     }
 
-    private func applyDestinationChoice(_ choice: TrackDestinationChoice) {
-        if choice != .auInstrument {
-            AUWindowHost.shared.close(for: currentAUWindowKey)
-        }
-
-        switch choice {
-        case .inheritGroup:
-            document.project.selectedTrack.destination = .inheritGroup
-            engineController.apply(documentModel: document.project)
-        case .midiOut:
-            let nextDestination = editedDestination.kind == .midi
-                ? editedDestination
-                : Destination.midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
-            document.project.setEditedDestination(nextDestination, for: track.id)
-            engineController.apply(documentModel: document.project)
-        case .auInstrument:
-            document.project.setEditedDestination(
-                .auInstrument(componentID: currentAudioInstrumentChoice.audioComponentID, stateBlob: nil),
-                for: track.id
-            )
-            engineController.apply(documentModel: document.project)
-            engineController.prepareAudioUnit(for: track.id)
-            saveCurrentVoiceSnapshot()
-        case .internalSampler:
-            let defaultDestination = Project.defaultDestination(for: document.project.selectedTrack.trackType)
-            if case .internalSampler = defaultDestination {
-                document.project.setEditedDestination(defaultDestination, for: track.id)
-                engineController.apply(documentModel: document.project)
-            }
-        case .sample:
-            if case .sample = editedDestination {
-                return
-            }
-            guard let seed = AudioSampleLibrary.shared.firstSample(in: .kick) else {
-                // Library empty — no default. UI hides the choice in this case, so this branch
-                // is defensive.
-                return
-            }
-            document.project.setEditedDestination(
-                .sample(sampleID: seed.id, settings: .default),
-                for: track.id
-            )
-        case .none:
-            document.project.setEditedDestination(.none, for: track.id)
-            engineController.apply(documentModel: document.project)
-        }
+    private func clearDestination() {
+        AUWindowHost.shared.close(for: currentAUWindowKey)
+        document.project.setEditedDestination(.none, for: track.id)
+        engineController.apply(documentModel: document.project)
     }
 
     private var currentAudioInstrumentChoice: AudioInstrumentChoice {
@@ -466,68 +460,6 @@ struct TrackDestinationEditor: View {
     }
 }
 
-private enum TrackDestinationChoice: String, CaseIterable, Identifiable {
-    case inheritGroup
-    case midiOut
-    case auInstrument
-    case internalSampler
-    case sample
-    case none
-
-    var id: String { rawValue }
-
-    init(destination: Destination) {
-        switch destination {
-        case .inheritGroup:
-            self = .inheritGroup
-        case .midi:
-            self = .midiOut
-        case .auInstrument:
-            self = .auInstrument
-        case .internalSampler:
-            self = .internalSampler
-        case .sample:
-            self = .sample
-        case .none:
-            self = .none
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .inheritGroup:
-            return "Inherit Group"
-        case .midiOut:
-            return "Virtual MIDI Out"
-        case .auInstrument:
-            return "AU Instrument"
-        case .internalSampler:
-            return "Internal Sampler"
-        case .sample:
-            return "Sampler"
-        case .none:
-            return "No Default Output"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .inheritGroup:
-            return "Follow the shared destination owned by this track's group"
-        case .midiOut:
-            return "Send note data to a MIDI endpoint"
-        case .auInstrument:
-            return "Host an Audio Unit instrument in-app"
-        case .internalSampler:
-            return "Play through the built-in sampler path"
-        case .sample:
-            return "Play one-shot sample files"
-        case .none:
-            return "No sink unless routes handle the notes"
-        }
-    }
-}
-
 private struct DestinationField<Content: View>: View {
     let title: String
     @ViewBuilder var content: Content
@@ -547,36 +479,6 @@ private struct DestinationField<Content: View>: View {
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
-        )
-    }
-}
-
-private struct DestinationChoiceCard: View {
-    let title: String
-    let detail: String
-    let isSelected: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(2)
-
-            Text(detail)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(3)
-        }
-        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
-        .padding(12)
-        .background(
-            (isSelected ? StudioTheme.success.opacity(0.14) : Color.white.opacity(0.03)),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(isSelected ? StudioTheme.success.opacity(0.6) : StudioTheme.border, lineWidth: 1)
         )
     }
 }
