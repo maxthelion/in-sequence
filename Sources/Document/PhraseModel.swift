@@ -549,6 +549,18 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
         )
     }
 
+    static func `default`(
+        for track: StepSequenceTrack,
+        initialClipID: UUID?
+    ) -> TrackPatternBank {
+        let sourceRef = SourceRef(mode: .clip, generatorID: nil, clipID: initialClipID)
+        return TrackPatternBank(
+            trackID: track.id,
+            slots: (0..<slotCount).map { TrackPatternSlot(slotIndex: $0, sourceRef: sourceRef) },
+            attachedGeneratorID: nil
+        )
+    }
+
     private static func normalizedSlots(_ slots: [TrackPatternSlot]) -> [TrackPatternSlot] {
         (0..<slotCount).map { index in
             slots.first(where: { $0.slotIndex == index })?.normalized(slotIndex: index)
