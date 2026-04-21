@@ -36,6 +36,17 @@ Flag: wrong-subdirectory types, cross-module knowledge leaks, Platform concerns 
 
 Fix is usually "move this type" or "introduce an interface in the lower module."
 
+**Within `Sources/UI/`, also enforce feature-first organisation:**
+
+- **Feature-first, not granularity-first.** Code is grouped by the user-facing feature it serves (`TrackSource/`, `PhraseCells/`, `Inspector/`, `Mixer/`, …), not by a generic granularity tier (`Pages/`, `Components/`, `Widgets/`). A file placed in a granularity tier rather than its feature directory is a responsibility violation. Exception: the narrow shared tiers below.
+- **Shared tiers are `Theme/` and `Inputs/` only.** `Theme/` holds visual tokens and panel chrome already used by every feature (`StudioTheme`, `StudioPanel`, etc.). `Inputs/` holds shared input primitives that satisfy the rule of three. Nothing else belongs in a shared tier. No `Utils/`, `Common/`, `Helpers/`, `Shared/`.
+- **Rule of three for shared-tier promotion.** A widget stays in its feature's `Widgets/` directory until a **third** feature needs it — then it is promoted to `Inputs/`. Two consumers is NOT enough. Flag any item in `Inputs/` (or in Theme beyond true tokens) whose actual import count is < 3 — that's speculative promotion and a source of premature abstraction.
+- **Feature dirs own their feature-local widgets.** A widget used by one feature belongs in `<Feature>/Widgets/`, not at the top of `UI/`. Flag feature-specific names (`SourceParameterSliderRow`, `PhraseCellPreview`) that live in a shared tier.
+- **No cross-feature reach-in.** Feature A must not import from feature B's internals. A type that is imported by two features is a candidate for promotion (still needs rule-of-three satisfaction); a type that is deeply used across features but NOT promoted is a second kind of violation.
+- **Feature boundary tells correspond to directory boundaries.** If the code for "Track Source" is scattered between `UI/TrackSourceEditorView.swift`, `UI/Components/GeneratorTabBar.swift`, and `UI/Widgets/SourceParameterSliderRow.swift`, the diff that touches track source spans three unrelated directories. That's the smell this rule prevents.
+
+Fix for organisation violations is usually "move this file" (into the correct feature directory), "demote this widget" (back from shared tier to feature-local), or "rename the file" (if its contents no longer match its declared home).
+
 ### 2. Duplicate / parallel code paths [PRIORITY]
 
 For every new function / helper / extension / type, ask: did something already exist that could have been reused or extended? Hunt:
