@@ -85,6 +85,7 @@ struct PhraseWorkspaceView: View {
                 target: target,
                 accent: layerAccent(target.layerID)
             )
+            .presentationBackground(.clear)
         }
         .onAppear {
             if document.project.layer(id: selectedLayerID) == nil {
