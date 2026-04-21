@@ -92,6 +92,32 @@ extension Project {
         return newEntry
     }
 
+    mutating func removeAttachedGenerator(from trackID: UUID) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return
+        }
+
+        var bank = patternBanks[bankIndex]
+        guard bank.attachedGeneratorID != nil else {
+            return
+        }
+
+        bank.attachedGeneratorID = nil
+        for index in 0..<bank.slots.count {
+            let existing = bank.slots[index]
+            let newRef = SourceRef(
+                mode: .clip,
+                generatorID: existing.sourceRef.generatorID,
+                clipID: existing.sourceRef.clipID
+            )
+            bank.slots[index] = TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef)
+        }
+        let track = tracks[trackIndex]
+        patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
+    }
+
     @discardableResult
     mutating func ensureCompatibleClip(for track: StepSequenceTrack) -> ClipPoolEntry? {
         if let existing = compatibleClips(for: track).first {
