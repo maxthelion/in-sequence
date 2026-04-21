@@ -45,24 +45,6 @@ extension Project {
         selectedPhrase = phrase
     }
 
-    mutating func setPatternSourceMode(_ mode: TrackSourceMode, for trackID: UUID, slotIndex: Int) {
-        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
-              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
-        else {
-            return
-        }
-
-        let track = tracks[trackIndex]
-        var bank = patternBanks[bankIndex]
-        let slot = bank.slot(at: slotIndex)
-        let sourceRef = defaultSourceRef(for: mode, trackType: track.trackType)
-        bank.setSlot(
-            TrackPatternSlot(slotIndex: slot.slotIndex, name: slot.name, sourceRef: sourceRef),
-            at: slotIndex
-        )
-        patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
-    }
-
     mutating func setPatternName(_ name: String, for trackID: UUID, slotIndex: Int) {
         guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
               let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
@@ -78,14 +60,5 @@ extension Project {
             at: slotIndex
         )
         patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
-    }
-
-    private func defaultSourceRef(for mode: TrackSourceMode, trackType: TrackType) -> SourceRef {
-        switch mode {
-        case .generator:
-            return .generator(generatorPool.first(where: { $0.trackType == trackType })?.id)
-        case .clip:
-            return .clip(clipPool.first(where: { $0.trackType == trackType })?.id)
-        }
     }
 }
