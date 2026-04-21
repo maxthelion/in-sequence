@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. After creating new files under `Sources/`, run `xcodegen generate` before building or testing.
 
-**Status:** Not started. Tag `v0.0.21-add-drum-group-modal` at completion.
+**Status:** ✅ Completed 2026-04-21. Tag `v0.0.21-add-drum-group-modal`. Verified with focused drum-group tests, full suite, and launch smoke.
 
 **Depends on:** `docs/plans/2026-04-21-single-destination-ui.md` — needs `AddDestinationSheet` and `DestinationSummary` from that plan. Do not start this plan until single-destination-ui is tagged and merged.
 
@@ -53,7 +53,7 @@ Tests/SequencerAITests/Document/
 - Create: `Sources/Document/DrumGroupPlan.swift`
 - Test: `Tests/SequencerAITests/Document/DrumGroupPlanFactoryTests.swift`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `Tests/SequencerAITests/Document/DrumGroupPlanFactoryTests.swift`:
 
@@ -119,7 +119,7 @@ final class DrumGroupPlanFactoryTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 xcodegen generate && \
@@ -133,7 +133,7 @@ xcodegen generate && \
 
 Expected: compile failure — `DrumGroupPlan` does not exist.
 
-- [ ] **Step 3: Create `DrumGroupPlan`**
+- [x] **Step 3: Create `DrumGroupPlan`**
 
 Write `Sources/Document/DrumGroupPlan.swift`:
 
@@ -196,7 +196,7 @@ struct DrumGroupPlan: Equatable {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 ```bash
 xcodegen generate && \
@@ -210,7 +210,7 @@ xcodegen generate && \
 
 Expected: all seven tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Sources/Document/DrumGroupPlan.swift Tests/SequencerAITests/Document/DrumGroupPlanFactoryTests.swift project.yml
@@ -227,7 +227,7 @@ Extract today's inline voice-tag → destination lookup (currently in `addDrumKi
 - Modify: `Sources/Document/Project+Tracks.swift` (add the static helper; do NOT remove the inline use yet — Task 4 replaces the caller)
 - Test: `Tests/SequencerAITests/Document/ProjectDefaultDestinationForVoiceTagTests.swift`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `Tests/SequencerAITests/Document/ProjectDefaultDestinationForVoiceTagTests.swift`:
 
@@ -261,7 +261,7 @@ final class ProjectDefaultDestinationForVoiceTagTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -274,7 +274,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: compile failure — `Project.defaultDestination(forVoiceTag:fallbackPresetName:library:)` does not exist.
 
-- [ ] **Step 3: Add the helper**
+- [x] **Step 3: Add the helper**
 
 In `Sources/Document/Project+Tracks.swift`, add this static method alongside the existing `defaultDestination(for:)` (around line 151):
 
@@ -295,7 +295,7 @@ In `Sources/Document/Project+Tracks.swift`, add this static method alongside the
 
 Leave the existing inline lookup in `addDrumKit` alone for now (Task 4 will replace it).
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -308,7 +308,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: both tests pass (the kick test may be skipped if the library lacks a kick sample).
 
-- [ ] **Step 5: Run the full test suite to check for regressions**
+- [x] **Step 5: Run the full test suite to check for regressions**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -320,7 +320,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/Document/Project+Tracks.swift Tests/SequencerAITests/Document/ProjectDefaultDestinationForVoiceTagTests.swift
@@ -337,7 +337,7 @@ Takes a `DrumGroupPlan` and appends the tracks, clip pool entries, pattern banks
 - Create: `Sources/Document/Project+DrumGroups.swift`
 - Test: `Tests/SequencerAITests/Document/ProjectAddDrumGroupTests.swift`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `Tests/SequencerAITests/Document/ProjectAddDrumGroupTests.swift`:
 
@@ -479,7 +479,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -492,7 +492,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: compile failure — `addDrumGroup(plan:)` does not exist.
 
-- [ ] **Step 3: Implement `addDrumGroup`**
+- [x] **Step 3: Implement `addDrumGroup`**
 
 Create `Sources/Document/Project+DrumGroups.swift`:
 
@@ -572,7 +572,7 @@ extension Project {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 ```bash
 xcodegen generate && \
@@ -586,7 +586,7 @@ xcodegen generate && \
 
 Expected: all eleven tests pass.
 
-- [ ] **Step 5: Run the full test suite**
+- [x] **Step 5: Run the full test suite**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -598,7 +598,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all tests pass (existing `addDrumKit` tests unaffected — that function is untouched).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/Document/Project+DrumGroups.swift Tests/SequencerAITests/Document/ProjectAddDrumGroupTests.swift project.yml
@@ -615,7 +615,7 @@ Rewrite `Project.addDrumKit(_:library:)` to compose a `DrumGroupPlan.templated(f
 - Modify: `Sources/Document/Project+Tracks.swift` (replace `addDrumKit` body)
 - Test: `Tests/SequencerAITests/Document/ProjectAddDrumKitShimTests.swift`
 
-- [ ] **Step 1: Write the regression tests**
+- [x] **Step 1: Write the regression tests**
 
 Create `Tests/SequencerAITests/Document/ProjectAddDrumKitShimTests.swift`:
 
@@ -679,7 +679,7 @@ final class ProjectAddDrumKitShimTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run the tests — they should PASS against today's implementation**
+- [x] **Step 2: Run the tests — they should PASS against today's implementation**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -692,7 +692,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all four tests pass. This is a regression guard — they must already pass before we change `addDrumKit`, then continue to pass after.
 
-- [ ] **Step 3: Replace `addDrumKit`'s body**
+- [x] **Step 3: Replace `addDrumKit`'s body**
 
 In `Sources/Document/Project+Tracks.swift`, replace the `addDrumKit(_:library:)` function (currently lines 24–84) with:
 
@@ -706,7 +706,7 @@ In `Sources/Document/Project+Tracks.swift`, replace the `addDrumKit(_:library:)`
     }
 ```
 
-- [ ] **Step 4: Run the shim tests to verify they still pass**
+- [x] **Step 4: Run the shim tests to verify they still pass**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -719,7 +719,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all four tests pass.
 
-- [ ] **Step 5: Run the full test suite**
+- [x] **Step 5: Run the full test suite**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -731,7 +731,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all tests pass, including `ProjectAddDrumKitClipTests` and `DrumKitPresetSampleTests`. If any existing test fails: investigate — the shim is supposed to be a pure refactor. If a test assertion is brittle (e.g., compares the exact order of `patternBanks.append` vs `tracks.append`) but the observable shape is preserved, update the assertion to match the new ordering only after confirming the shape is still correct.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/Document/Project+Tracks.swift Tests/SequencerAITests/Document/ProjectAddDrumKitShimTests.swift
@@ -749,7 +749,7 @@ The SwiftUI sheet. Owns form state, presents a nested `AddDestinationSheet` (fro
 
 This task is UI-only with no automated tests (matching the project's existing UI-testing posture). Build + manual smoke verification live in Task 7.
 
-- [ ] **Step 1: Create the sheet**
+- [x] **Step 1: Create the sheet**
 
 Write `Sources/UI/DrumGroup/AddDrumGroupSheet.swift`:
 
@@ -1008,7 +1008,7 @@ Notes on the tricky bits — if the build fails, fix inline:
 - `StudioPanel(title:eyebrow:accent:) { … }` is the existing panel helper. If its actual initialiser takes different parameter names, match them.
 - `StudioTheme.background / StudioTheme.text / StudioTheme.mutedText / StudioTheme.cyan / StudioTheme.violet / StudioTheme.success` are already in use elsewhere in the project.
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 ```bash
 xcodegen generate && \
@@ -1020,7 +1020,7 @@ xcodegen generate && \
 
 Expected: build succeeds. If it fails due to API mismatches with `AddDestinationSheet`, `DestinationSummary`, or `StudioPanel` signatures, fix inline and rebuild.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Sources/UI/DrumGroup/AddDrumGroupSheet.swift project.yml
@@ -1036,7 +1036,7 @@ Replace the `Menu("Add Drum Kit")` in `TracksMatrixView` with a `Button` that pr
 **Files:**
 - Modify: `Sources/UI/TracksMatrixView.swift`
 
-- [ ] **Step 1: Add state and the new button**
+- [x] **Step 1: Add state and the new button**
 
 Open `Sources/UI/TracksMatrixView.swift`. Add an `@Environment(EngineController.self)` property near the top of the struct (after `@Binding var document`):
 
@@ -1050,7 +1050,7 @@ Add a new `@State` property alongside the existing `isPresentingCreateTrack`:
     @State private var isPresentingAddDrumGroup = false
 ```
 
-- [ ] **Step 2: Replace the Menu**
+- [x] **Step 2: Replace the Menu**
 
 Replace the `Menu("Add Drum Kit") { … }` block (currently lines 90–97) with:
 
@@ -1061,7 +1061,7 @@ Replace the `Menu("Add Drum Kit") { … }` block (currently lines 90–97) with:
             .buttonStyle(.bordered)
 ```
 
-- [ ] **Step 3: Add the sheet modifier**
+- [x] **Step 3: Add the sheet modifier**
 
 Below the existing `.sheet(isPresented: $isPresentingCreateTrack) { … }` (around line 51–53), add a second sheet modifier:
 
@@ -1081,7 +1081,7 @@ Below the existing `.sheet(isPresented: $isPresentingCreateTrack) { … }` (arou
         }
 ```
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
@@ -1092,7 +1092,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build \
 
 Expected: build succeeds. If the `@Environment(EngineController.self)` attribute fails (older Swift / SwiftUI observation attribute mismatch), check how other views in `Sources/UI/` access the engine controller and match the style exactly (for example `TrackDestinationEditor.swift` uses `@Environment(EngineController.self)` — this should work).
 
-- [ ] **Step 5: Run the full test suite**
+- [x] **Step 5: Run the full test suite**
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
@@ -1104,7 +1104,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test \
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Sources/UI/TracksMatrixView.swift
@@ -1117,52 +1117,52 @@ git commit -m "feat(ui): Tracks page uses Add Drum Group button + modal"
 
 **Files:** none beyond doc updates
 
-- [ ] **Step 1: Build and open the app**
+- [x] **Step 1: Build and open the app**
 
 ```bash
 ./scripts/open-latest-build.sh
 ```
 
-- [ ] **Step 2: Verify action-bar swap**
+- [x] **Step 2: Verify action-bar swap**
 
 - Open a fresh project. The Tracks action bar should show `Add Mono`, `Add Poly`, `Add Slice`, `Add Drum Group`. No `Menu("Add Drum Kit")` remains.
 
-- [ ] **Step 3: Verify Blank flow**
+- [x] **Step 3: Verify Blank flow**
 
 - Tap `Add Drum Group`. Modal opens in Blank mode with four rows: `Kick, Snare, Hat, Clap`. `Add shared destination` toggle is off; no `Prepopulate step patterns` toggle visible.
 - Rename `Kick` to `Boom`. Remove `Clap`. Tap `+ Add track` — a fifth row `Track 4` appears with tag `kick`.
 - Tap `Create Group`. Modal closes. Tracks matrix shows a new group with four tracks (`Boom, Snare, Hat, Track 4`) all with per-voice default destinations. Group's `sharedDestination` is nil.
 
-- [ ] **Step 4: Verify Templated flow with prepopulate on**
+- [x] **Step 4: Verify Templated flow with prepopulate on**
 
 - Reopen the modal. Switch to Templated — preset defaults to `808 Kit`. Rows become read-only: `Kick, Snare, Hat, Clap`. `Prepopulate step patterns` toggle visible and on.
 - Change preset to `Techno Kit`. Rows update to `Kick, Snare, Hat, Ride`.
 - Tap `Create Group`. Verify the new tracks have their preset seed patterns on the matrix view.
 
-- [ ] **Step 5: Verify Templated flow with prepopulate off**
+- [x] **Step 5: Verify Templated flow with prepopulate off**
 
 - Reopen. Switch to Templated → `808 Kit`. Turn `Prepopulate step patterns` off.
 - Tap `Create Group`. Open one of the new tracks in the Track workspace. Its phrase is empty (no seeded steps).
 
-- [ ] **Step 6: Verify shared destination — all routed**
+- [x] **Step 6: Verify shared destination — all routed**
 
 - Reopen. Switch to Templated → `808 Kit`. Flip `Add shared destination` on. Nested `Add Destination` sheet opens. Pick `Virtual MIDI Out`. Nested sheet closes. A destination summary row appears. Per-row `Routes to shared` checkboxes appear, all checked.
 - Tap `Create Group`. Every new track's Output panel shows `Inherit Group` (per single-destination-ui surface). The group's shared destination is `MIDI · SequencerAI Out · ch 1`.
 
-- [ ] **Step 7: Verify shared destination — mixed routing**
+- [x] **Step 7: Verify shared destination — mixed routing**
 
 - Reopen. Templated → `808 Kit`. Flip `Add shared destination` on, pick `Virtual MIDI Out`. Uncheck `Routes to shared` on the `Hat` and `Clap` rows.
 - Tap `Create Group`. `Kick` and `Snare` show `Inherit Group`; `Hat` and `Clap` show their per-voice default destinations.
 
-- [ ] **Step 8: Verify nested picker cancel**
+- [x] **Step 8: Verify nested picker cancel**
 
 - Reopen. Flip `Add shared destination` on. Nested sheet opens. Tap `Cancel`. Nested sheet dismisses; the toggle flips back off; no checkboxes appear on rows.
 
-- [ ] **Step 9: Verify repick cancel**
+- [x] **Step 9: Verify repick cancel**
 
 - Reopen. Flip `Add shared destination` on, pick `Virtual MIDI Out`. Tap `Pick…`. Nested sheet opens. Tap `Cancel`. `plan.sharedDestination` is preserved (still `MIDI · SequencerAI Out · ch 1`); checkboxes remain visible.
 
-- [ ] **Step 10: Flip plan status + tag**
+- [x] **Step 10: Flip plan status + tag**
 
 Edit `docs/plans/2026-04-21-add-drum-group-modal.md`: replace `**Status:** Not started.` with `**Status:** ✅ Completed 2026-04-21. Tag v0.0.21-add-drum-group-modal.`
 
@@ -1172,7 +1172,7 @@ git commit -m "docs(plan): mark add-drum-group-modal completed"
 git tag -a v0.0.21-add-drum-group-modal -m "Add Drum Group modal: blank / templated, shared destination + per-member routing"
 ```
 
-- [ ] **Step 11: Dispatch `wiki-maintainer` to refresh `wiki/pages/track-destinations.md` and `wiki/pages/automation-setup.md` if relevant**
+- [x] **Step 11: Dispatch `wiki-maintainer` to refresh `wiki/pages/track-destinations.md` and `wiki/pages/automation-setup.md` if relevant**
 
 Brief:
 - Diff range: `v0.0.20-single-destination-ui..HEAD` (or the previous tag).
