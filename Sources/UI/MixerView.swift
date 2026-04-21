@@ -3,6 +3,7 @@ import SwiftUI
 struct MixerView: View {
     @Binding var document: SeqAIDocument
     var onEditTrack: ((UUID) -> Void)? = nil
+    @Environment(EngineController.self) private var engineController
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -12,6 +13,7 @@ struct MixerView: View {
                         track: $document.project.tracks[index],
                         destinationLabel: destinationLabel(for: track),
                         isSelected: track.id == document.project.selectedTrackID,
+                        engineController: engineController,
                         onSelect: {
                             document.project.selectTrack(id: track.id)
                             onEditTrack?(track.id)
@@ -39,7 +41,11 @@ private struct MixerChannelStrip: View {
     @Binding var track: StepSequenceTrack
     let destinationLabel: String
     let isSelected: Bool
+    let engineController: EngineController
     let onSelect: () -> Void
+
+    @StateObject private var levelControl = ThrottledMixValue()
+    @StateObject private var panControl = ThrottledMixValue()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -71,10 +77,16 @@ private struct MixerChannelStrip: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .bottom, spacing: 12) {
                     VStack(alignment: .center, spacing: 8) {
-                        VerticalLevelFader(level: $track.mix.level, isMuted: track.mix.isMuted)
+                        VerticalLevelFader(
+                            level: displayedLevel,
+                            isMuted: track.mix.isMuted,
+                            onBegin: { beginLevelDrag() },
+                            onChange: { updateLevel($0) },
+                            onEnd: { commitLevel() }
+                        )
                             .frame(width: 36, height: 150)
 
-                        Text("\(Int((track.mix.clampedLevel * 100).rounded()))%")
+                        Text("\(Int((displayedLevel * 100).rounded()))%")
                             .studioText(.eyebrow)
                             .monospacedDigit()
                             .foregroundStyle(StudioTheme.text)
@@ -87,7 +99,14 @@ private struct MixerChannelStrip: View {
                             .foregroundStyle(StudioTheme.mutedText)
 
                         HStack(spacing: 8) {
-                            Slider(value: $track.mix.pan, in: -1...1)
+                            Slider(
+                                value: Binding(
+                                    get: { displayedPan },
+                                    set: { updatePan($0) }
+                                ),
+                                in: -1...1,
+                                onEditingChanged: handlePanEditingChanged
+                            )
                                 .tint(StudioTheme.violet)
                                 .frame(width: 88)
 
@@ -139,8 +158,16 @@ private struct MixerChannelStrip: View {
         )
     }
 
+    private var displayedLevel: Double {
+        levelControl.rendered(committed: track.mix.clampedLevel)
+    }
+
+    private var displayedPan: Double {
+        panControl.rendered(committed: track.mix.clampedPan)
+    }
+
     private var panLabel: String {
-        let value = track.mix.clampedPan
+        let value = displayedPan
         if value < -0.05 {
             return "L\(Int(abs(value) * 100))"
         }
@@ -149,11 +176,64 @@ private struct MixerChannelStrip: View {
         }
         return "C"
     }
+
+    private func beginLevelDrag() {
+        if !levelControl.isDragging {
+            levelControl.begin(with: track.mix.clampedLevel)
+        }
+    }
+
+    private func updateLevel(_ level: Double) {
+        let clamped = min(max(level, 0), 1)
+        if !levelControl.isDragging {
+            levelControl.begin(with: track.mix.clampedLevel)
+        }
+        guard levelControl.update(clamped) else { return }
+        var liveMix = track.mix
+        liveMix.level = clamped
+        liveMix.pan = displayedPan
+        engineController.setMix(trackID: track.id, mix: liveMix)
+    }
+
+    private func commitLevel() {
+        guard let final = levelControl.commit() else { return }
+        track.mix.level = min(max(final, 0), 1)
+    }
+
+    private func handlePanEditingChanged(_ isEditing: Bool) {
+        if isEditing {
+            if !panControl.isDragging {
+                panControl.begin(with: track.mix.clampedPan)
+            }
+        } else {
+            commitPan()
+        }
+    }
+
+    private func updatePan(_ pan: Double) {
+        let clamped = min(max(pan, -1), 1)
+        if !panControl.isDragging {
+            panControl.begin(with: track.mix.clampedPan)
+        }
+        guard panControl.update(clamped) else { return }
+        var liveMix = track.mix
+        liveMix.level = displayedLevel
+        liveMix.pan = clamped
+        engineController.setMix(trackID: track.id, mix: liveMix)
+    }
+
+    private func commitPan() {
+        guard let final = panControl.commit() else { return }
+        track.mix.pan = min(max(final, -1), 1)
+    }
 }
 
 private struct VerticalLevelFader: View {
-    @Binding var level: Double
+    let level: Double
     let isMuted: Bool
+    let onBegin: () -> Void
+    let onChange: (Double) -> Void
+    let onEnd: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -177,8 +257,12 @@ private struct VerticalLevelFader: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        onBegin()
                         let next = 1 - (value.location.y / max(height, 1))
-                        level = min(max(next, 0), 1)
+                        onChange(min(max(next, 0), 1))
+                    }
+                    .onEnded { _ in
+                        onEnd()
                     }
             )
         }

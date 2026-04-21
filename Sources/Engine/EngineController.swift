@@ -225,6 +225,28 @@ final class EngineController: RouterDispatcher {
         )
     }
 
+    /// Scoped mix update for high-frequency UI such as fader drags. This writes
+    /// directly to the live playback sinks without rebuilding the document-driven
+    /// engine pipeline or mutating `currentDocumentModel`.
+    func setMix(trackID: UUID, mix: TrackMixSettings) {
+        let host = withStateLock { audioOutputsByTrackID[trackID] }
+        host?.setMix(mix)
+
+        guard let track = currentDocumentModel.tracks.first(where: { $0.id == trackID }) else {
+            return
+        }
+
+        guard case .sample = track.destination else {
+            return
+        }
+
+        sampleEngine.setTrackMix(
+            trackID: trackID,
+            level: mix.clampedLevel,
+            pan: mix.clampedPan
+        )
+    }
+
     var registeredKindIDs: [String] {
         registry.kinds().map(\.id)
     }

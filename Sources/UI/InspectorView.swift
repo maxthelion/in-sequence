@@ -3,6 +3,8 @@ import SwiftUI
 struct InspectorView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
+    @StateObject private var levelControl = ThrottledMixValue()
+    @StateObject private var panControl = ThrottledMixValue()
 
     private var track: StepSequenceTrack {
         document.project.selectedTrack
@@ -43,15 +45,29 @@ struct InspectorView: View {
             Section("Mixer") {
                 HStack {
                     Text("Level")
-                    Slider(value: $document.project.selectedTrack.mix.level, in: 0...1)
-                    Text("\(Int((track.mix.clampedLevel * 100).rounded()))%")
+                    Slider(
+                        value: Binding(
+                            get: { levelControl.rendered(committed: track.mix.clampedLevel) },
+                            set: { updateLevel($0) }
+                        ),
+                        in: 0...1,
+                        onEditingChanged: handleLevelEditingChanged
+                    )
+                    Text("\(Int((levelControl.rendered(committed: track.mix.clampedLevel) * 100).rounded()))%")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
 
                 HStack {
                     Text("Pan")
-                    Slider(value: $document.project.selectedTrack.mix.pan, in: -1...1)
+                    Slider(
+                        value: Binding(
+                            get: { panControl.rendered(committed: track.mix.clampedPan) },
+                            set: { updatePan($0) }
+                        ),
+                        in: -1...1,
+                        onEditingChanged: handlePanEditingChanged
+                    )
                     Text(panLabel)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
@@ -96,7 +112,7 @@ struct InspectorView: View {
     }
 
     private var panLabel: String {
-        let value = track.mix.clampedPan
+        let value = panControl.rendered(committed: track.mix.clampedPan)
         if value < -0.05 {
             return "L\(Int(abs(value) * 100))"
         }
@@ -113,6 +129,50 @@ struct InspectorView: View {
             return group.sharedDestination?.summary ?? "Inherited from group"
         }
         return track.destination.summary
+    }
+
+    private func handleLevelEditingChanged(_ isEditing: Bool) {
+        if isEditing {
+            if !levelControl.isDragging {
+                levelControl.begin(with: track.mix.clampedLevel)
+            }
+        } else if let final = levelControl.commit() {
+            document.project.selectedTrack.mix.level = min(max(final, 0), 1)
+        }
+    }
+
+    private func updateLevel(_ level: Double) {
+        let clamped = min(max(level, 0), 1)
+        if !levelControl.isDragging {
+            levelControl.begin(with: track.mix.clampedLevel)
+        }
+        guard levelControl.update(clamped) else { return }
+        var liveMix = track.mix
+        liveMix.level = clamped
+        liveMix.pan = panControl.rendered(committed: track.mix.clampedPan)
+        engineController.setMix(trackID: track.id, mix: liveMix)
+    }
+
+    private func handlePanEditingChanged(_ isEditing: Bool) {
+        if isEditing {
+            if !panControl.isDragging {
+                panControl.begin(with: track.mix.clampedPan)
+            }
+        } else if let final = panControl.commit() {
+            document.project.selectedTrack.mix.pan = min(max(final, -1), 1)
+        }
+    }
+
+    private func updatePan(_ pan: Double) {
+        let clamped = min(max(pan, -1), 1)
+        if !panControl.isDragging {
+            panControl.begin(with: track.mix.clampedPan)
+        }
+        guard panControl.update(clamped) else { return }
+        var liveMix = track.mix
+        liveMix.level = levelControl.rendered(committed: track.mix.clampedLevel)
+        liveMix.pan = clamped
+        engineController.setMix(trackID: track.id, mix: liveMix)
     }
 }
 
