@@ -18,10 +18,10 @@ struct ScalarCellPreview: View {
             let fillHeight = max(6, geometry.size.height * clampedFillRatio)
 
             ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.white.opacity(0.04))
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
 
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .fill(accent.opacity(0.8))
                     .frame(height: fillHeight)
 

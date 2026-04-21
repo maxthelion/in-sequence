@@ -85,13 +85,13 @@ struct TrackWorkspaceView: View {
                     TextField("Track Name", text: $draftTrackName)
                         .textFieldStyle(.roundedBorder)
                         .focused($trackNameFieldFocused)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .studioText(.display)
                         .onSubmit {
                             commitTrackName()
                         }
                 } else {
                     Text(track.name)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .studioText(.display)
                         .foregroundStyle(StudioTheme.text)
                         .onTapGesture(count: 2) {
                             editingTrackID = track.id

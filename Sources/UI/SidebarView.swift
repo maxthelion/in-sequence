@@ -89,8 +89,8 @@ private struct SidebarRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge)
+                .fill(isSelected ? Color.accentColor.opacity(StudioOpacity.hoverFill) : Color.clear)
         )
     }
 }

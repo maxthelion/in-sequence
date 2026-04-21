@@ -163,19 +163,19 @@ private struct GroupSectionView<Grid: View>: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Text(section.group.name)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .studioText(.title)
                             .foregroundStyle(StudioTheme.text)
 
                         Text("\(section.members.count) tracks")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .studioText(.eyebrowBold)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(accent.opacity(0.18), in: Capsule())
+                            .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
                             .foregroundStyle(accent)
                     }
 
                     Text(section.group.sharedDestination?.summary ?? "Shared destination not assigned")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
                 }
@@ -184,10 +184,10 @@ private struct GroupSectionView<Grid: View>: View {
             grid
         }
         .padding(16)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(accent.opacity(0.16), lineWidth: 1)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: 1)
         )
     }
 }
@@ -251,7 +251,7 @@ private struct TrackMatrixCard: View {
                                 Text(pitchOffsetLabel)
                             }
                         }
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
                     }
@@ -261,15 +261,15 @@ private struct TrackMatrixCard: View {
 
                 if let group {
                     Text(group.name.uppercased())
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(accent)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(accent.opacity(0.14), in: Capsule())
+                        .background(accent.opacity(StudioOpacity.faintStroke), in: Capsule())
                 } else {
                     Text(track.defaultDestination.summary)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
                 }
@@ -277,12 +277,12 @@ private struct TrackMatrixCard: View {
             .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
             .padding(14)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isSelected ? accent.opacity(0.16) : Color.white.opacity(0.03))
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .fill(isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(isSelected ? accent.opacity(0.55) : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(isSelected ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
@@ -309,10 +309,10 @@ private struct TrackTypeBadge: View {
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(StudioTheme.text)
             .frame(width: 30, height: 30)
-            .background(accent.opacity(0.18), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(accent.opacity(0.45), lineWidth: 1)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
             )
     }
 }
@@ -329,7 +329,7 @@ private struct CreateTrackSheet: View {
                 .foregroundStyle(StudioTheme.text)
 
             Text("Choose the kind of track to append to the matrix. You can rename and edit the destination in the Track workspace right after creation.")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .studioText(.subtitleMuted)
                 .foregroundStyle(StudioTheme.mutedText)
 
             HStack(spacing: 12) {
@@ -351,18 +351,18 @@ private struct CreateTrackSheet: View {
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 Text(title)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .studioText(.title)
                     .foregroundStyle(StudioTheme.text)
                 Text(detail)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
             .padding(16)
-            .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(accent.opacity(StudioOpacity.mutedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(accent.opacity(0.35), lineWidth: 1)
             )
         }

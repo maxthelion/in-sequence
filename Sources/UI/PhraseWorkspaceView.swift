@@ -116,17 +116,17 @@ struct PhraseWorkspaceView: View {
                 cycleLayer(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .bold))
+                    .studioText(.chromeLabel)
                     .foregroundStyle(StudioTheme.text)
                     .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.04), in: Circle())
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                     .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
 
             HStack(spacing: 10) {
                 Text(selectedLayer.name.uppercased())
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .studioText(.bodyBold)
                     .tracking(1.0)
                     .foregroundStyle(StudioTheme.text)
 
@@ -136,32 +136,32 @@ struct PhraseWorkspaceView: View {
                     .clipShape(Capsule())
 
                 Text(layerSubtitle(selectedLayer))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
 
                 Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .studioText(.eyebrowBold)
                     .foregroundStyle(layerAccent(selectedLayer.id))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(layerAccent(selectedLayer.id).opacity(0.16), in: Capsule())
+                    .background(layerAccent(selectedLayer.id).opacity(StudioOpacity.hoverFill), in: Capsule())
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(layerAccent(selectedLayer.id).opacity(0.28), lineWidth: 1)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(layerAccent(selectedLayer.id).opacity(StudioOpacity.subtleStroke), lineWidth: 1)
             )
 
             Button {
                 cycleLayer(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
+                    .studioText(.chromeLabel)
                     .foregroundStyle(StudioTheme.text)
                     .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.04), in: Circle())
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                     .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
@@ -172,11 +172,11 @@ struct PhraseWorkspaceView: View {
                 trackPageButton(systemImage: "chevron.left", action: { cycleTrackPage(by: -1) }, isEnabled: trackPage > 0)
 
                 Text("Tracks \(trackPage + 1) / \(trackPageCount)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .studioText(.eyebrowBold)
                     .foregroundStyle(StudioTheme.mutedText)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(Color.white.opacity(0.04), in: Capsule())
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
 
                 trackPageButton(systemImage: "chevron.right", action: { cycleTrackPage(by: 1) }, isEnabled: trackPage < trackPageCount - 1)
             }
@@ -246,9 +246,9 @@ struct PhraseWorkspaceView: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(0.5))
+                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(StudioOpacity.ghostStroke))
                 .frame(width: 28, height: 28)
-                .background(Color.white.opacity(0.04), in: Circle())
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                 .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -393,11 +393,11 @@ private struct PhraseRowActions: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(0.55) : StudioTheme.text)
+                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.accentFill) : StudioTheme.text)
                 .frame(width: 24, height: 24)
-                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: 1)
                 )
         }
@@ -414,7 +414,7 @@ private struct PhraseMatrixTrackHeaderCell: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(track.name)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .studioText(.subtitle)
                 .foregroundStyle(StudioTheme.text)
             Text(track.trackType.label.uppercased())
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
@@ -424,9 +424,9 @@ private struct PhraseMatrixTrackHeaderCell: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        .background((isSelected ? accent.opacity(0.15) : Color.white.opacity(0.03)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(accent.opacity(isSelected ? 0.6 : 0.12), lineWidth: 1)
         )
     }
@@ -434,11 +434,11 @@ private struct PhraseMatrixTrackHeaderCell: View {
 
 private struct PhraseMatrixEmptyTrackHeaderCell: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
+        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
             .fill(Color.white.opacity(0.015))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
             )
     }
 }
@@ -453,24 +453,24 @@ private struct PhraseMatrixPhraseCell: View {
         Button(action: onSelect) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(phrase.name)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .studioText(.subtitle)
                     .foregroundStyle(StudioTheme.text)
 
                 Text("\(phrase.lengthBars) bars")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
 
                 if isPlaying {
                     Text("Playing")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .studioText(.eyebrowBold)
                         .foregroundStyle(StudioTheme.success)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .background((isSelected ? StudioTheme.violet.opacity(0.14) : Color.white.opacity(0.03)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background((isSelected ? StudioTheme.violet.opacity(StudioOpacity.faintStroke) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke((isPlaying ? StudioTheme.success : StudioTheme.violet).opacity(isSelected || isPlaying ? 0.6 : 0.12), lineWidth: 1)
             )
         }
@@ -490,7 +490,7 @@ private struct PhraseGridCell: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(cell.editMode.label.uppercased())
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(accent)
                 Spacer()
@@ -507,9 +507,9 @@ private struct PhraseGridCell: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background((isSelected ? accent.opacity(0.15) : Color.white.opacity(0.03)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(accent.opacity(isSelected ? 0.6 : 0.12), lineWidth: 1)
         )
     }
@@ -517,11 +517,11 @@ private struct PhraseGridCell: View {
 
 private struct PhraseGridEmptyCell: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
+        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
             .fill(Color.white.opacity(0.015))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
             )
             .frame(maxWidth: .infinity, minHeight: 120, maxHeight: .infinity)
     }

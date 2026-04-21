@@ -21,7 +21,7 @@ struct AddDestinationSheet: View {
                     Text(selectionMode == .choices
                          ? "Pick one output path for this track."
                          : "Select the Audio Unit to host for this track.")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                 }
 
@@ -85,7 +85,7 @@ struct AddDestinationSheet: View {
 
                     HStack {
                         Text(selectedAudioInstrument.displayName)
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .studioText(.body)
                             .foregroundStyle(StudioTheme.mutedText)
                         Spacer()
                         Button("Use Instrument") {
@@ -96,9 +96,9 @@ struct AddDestinationSheet: View {
                     }
                 }
                 .padding(16)
-                .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: 1)
                 )
             }
@@ -128,15 +128,15 @@ struct AddDestinationSheet: View {
                     .foregroundStyle(StudioTheme.text)
 
                 Text(detail)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
-            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: 1)
             )
         }

@@ -52,7 +52,7 @@ struct TrackDestinationEditor: View {
     private var unsetState: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("OUTPUT")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .studioText(.eyebrow)
                 .tracking(0.9)
                 .foregroundStyle(StudioTheme.mutedText)
 
@@ -63,7 +63,7 @@ struct TrackDestinationEditor: View {
                         .foregroundStyle(StudioTheme.text)
 
                     Text("Set a destination to route notes for this track.")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                 }
 
@@ -76,9 +76,9 @@ struct TrackDestinationEditor: View {
                 .tint(StudioTheme.success)
             }
             .padding(14)
-            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: 1)
             )
         }
@@ -94,11 +94,11 @@ struct TrackDestinationEditor: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(destinationSummary.typeLabel)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .studioText(.subtitle)
                         .foregroundStyle(StudioTheme.text)
 
                     Text(destinationSummary.detail)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                 }
 
@@ -110,9 +110,9 @@ struct TrackDestinationEditor: View {
                 .buttonStyle(.bordered)
             }
             .padding(14)
-            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: 1)
             )
 
@@ -168,7 +168,7 @@ struct TrackDestinationEditor: View {
                 DestinationField(title: "Channel") {
                     Stepper(value: midiChannelBinding, in: 1...16) {
                         Text("Ch \(midiChannelBinding.wrappedValue)")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .studioText(.bodyEmphasis)
                             .foregroundStyle(StudioTheme.text)
                     }
                 }
@@ -176,7 +176,7 @@ struct TrackDestinationEditor: View {
                 DestinationField(title: "Transpose") {
                     Stepper(value: midiOffsetBinding, in: -24...24) {
                         Text(midiOffsetLabel)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .studioText(.bodyEmphasis)
                             .foregroundStyle(StudioTheme.text)
                     }
                 }
@@ -206,17 +206,17 @@ struct TrackDestinationEditor: View {
 
                 if let stateBlob = currentAUStateBlob {
                     Text("State \(ByteCountFormatter.string(fromByteCount: Int64(stateBlob.count), countStyle: .file))")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     Text("No saved AU state yet")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                 }
             }
 
             Text("AU instruments are routed through the app mixer. Closing the plug-in window writes the latest AU fullState back into the document so reopen uses the tuned sound.")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .studioText(.body)
                 .foregroundStyle(StudioTheme.mutedText)
         }
     }
@@ -467,7 +467,7 @@ private struct DestinationField<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .studioText(.eyebrow)
                 .tracking(0.9)
                 .foregroundStyle(StudioTheme.mutedText)
 
@@ -475,9 +475,9 @@ private struct DestinationField<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
         )
     }

@@ -82,7 +82,7 @@ struct TrackSourceEditorView: View {
                         .pickerStyle(.menu)
                     }
                     Text(generator.name)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .studioText(.title)
                         .foregroundStyle(StudioTheme.text)
                 }
             }

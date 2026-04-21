@@ -36,7 +36,7 @@ struct TrackPatternSlotPalette: View {
             } label: {
                 HStack(spacing: 6) {
                     Text("\(slotIndex + 1)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.text)
 
                     Circle()
@@ -46,11 +46,11 @@ struct TrackPatternSlotPalette: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 9)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         .fill(backgroundFill(for: slotIndex, isBypassed: isBypassed))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         .stroke(borderColor(for: slotIndex, isBypassed: isBypassed), lineWidth: 1)
                 )
             }
@@ -82,16 +82,16 @@ struct TrackPatternSlotPalette: View {
     private func backgroundFill(for slotIndex: Int, isBypassed: Bool) -> Color {
         if isBypassed {
             return selectedSlot == slotIndex
-                ? StudioTheme.violet.opacity(0.2)
-                : StudioTheme.violet.opacity(0.12)
+                ? StudioTheme.violet.opacity(StudioOpacity.softStroke)
+                : StudioTheme.violet.opacity(StudioOpacity.mutedFill)
         }
         if selectedSlot == slotIndex {
-            return StudioTheme.success.opacity(0.2)
+            return StudioTheme.success.opacity(StudioOpacity.softStroke)
         }
         if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.08)
+            return StudioTheme.success.opacity(StudioOpacity.borderFaint)
         }
-        return Color.white.opacity(0.03)
+        return Color.white.opacity(StudioOpacity.subtleFill)
     }
 
     private func borderColor(for slotIndex: Int, isBypassed: Bool) -> Color {
@@ -104,7 +104,7 @@ struct TrackPatternSlotPalette: View {
             return StudioTheme.success.opacity(0.7)
         }
         if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.28)
+            return StudioTheme.success.opacity(StudioOpacity.subtleStroke)
         }
         return StudioTheme.border
     }
@@ -121,10 +121,10 @@ struct TrackPatternSlotPalette: View {
         if occupiedSlots.contains(slotIndex) {
             return StudioTheme.success.opacity(0.6)
         }
-        return Color.white.opacity(0.08)
+        return Color.white.opacity(StudioOpacity.borderFaint)
     }
 
     private func bypassBadgeFill(_ isBypassed: Bool) -> Color {
-        isBypassed ? StudioTheme.violet.opacity(0.55) : StudioTheme.cyan.opacity(0.55)
+        isBypassed ? StudioTheme.violet.opacity(StudioOpacity.accentFill) : StudioTheme.cyan.opacity(StudioOpacity.accentFill)
     }
 }

@@ -34,11 +34,11 @@ private struct StepGridCell: View {
         Button(action: action) {
             VStack(spacing: 10) {
                 Text("\(index + 1)")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .studioText(.eyebrow)
                     .tracking(0.8)
                     .foregroundStyle(labelStyle)
 
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .fill(fillColor)
                     .frame(height: 44)
                     .overlay {
@@ -56,9 +56,9 @@ private struct StepGridCell: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .padding(.horizontal, 4)
-            .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(outlineColor, lineWidth: 1)
             )
         }
@@ -70,7 +70,7 @@ private struct StepGridCell: View {
     private var fillColor: Color {
         switch state {
         case .off:
-            return Color.white.opacity(0.06)
+            return Color.white.opacity(StudioOpacity.borderSubtle)
         case .on:
             return StudioTheme.cyan.opacity(0.82)
         case .accented:
@@ -122,7 +122,7 @@ private struct StepGridCell: View {
     private var outlineColor: Color {
         switch state {
         case .off:
-            return Color.white.opacity(0.06)
+            return Color.white.opacity(StudioOpacity.borderSubtle)
         case .on:
             return StudioTheme.cyan.opacity(0.34)
         case .accented:

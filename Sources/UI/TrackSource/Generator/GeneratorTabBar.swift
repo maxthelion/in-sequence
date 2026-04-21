@@ -10,11 +10,11 @@ struct GeneratorTabBar: View {
                     selectedTab = tab
                 } label: {
                     Text(tab.title)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .studioText(.labelBold)
                         .foregroundStyle(selectedTab == tab ? StudioTheme.text : StudioTheme.mutedText)
                         .padding(.vertical, 7)
                         .padding(.horizontal, 12)
-                        .background(selectedTab == tab ? StudioTheme.cyan.opacity(0.14) : Color.white.opacity(0.03), in: Capsule())
+                        .background(selectedTab == tab ? StudioTheme.cyan.opacity(StudioOpacity.faintStroke) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                         .overlay(
                             Capsule()
                                 .stroke(selectedTab == tab ? StudioTheme.cyan.opacity(0.52) : StudioTheme.border, lineWidth: 1)

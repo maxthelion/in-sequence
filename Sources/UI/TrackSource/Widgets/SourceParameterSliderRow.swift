@@ -11,12 +11,12 @@ struct SourceParameterSliderRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title.uppercased())
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .studioText(.eyebrow)
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
                 Text("\(Int(value.rounded()))")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .studioText(.bodyEmphasis)
                     .monospacedDigit()
                     .foregroundStyle(StudioTheme.text)
             }

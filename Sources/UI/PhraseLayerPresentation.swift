@@ -16,7 +16,7 @@ func layerAccent(_ layerID: String) -> Color {
 
 func layerFill(_ layer: PhraseLayerDefinition, isSelected: Bool) -> Color {
     let accent = layerAccent(layer.id)
-    return isSelected ? accent.opacity(0.16) : accent.opacity(0.05)
+    return isSelected ? accent.opacity(StudioOpacity.hoverFill) : accent.opacity(0.05)
 }
 
 func layerSubtitle(_ layer: PhraseLayerDefinition) -> String {

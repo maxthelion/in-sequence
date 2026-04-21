@@ -81,11 +81,11 @@ struct PhraseCellEditorSheet: View {
                         }
                     } label: {
                         Text(mode.label)
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .studioText(.labelBold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
-                                cell.editMode == mode ? accent.opacity(0.2) : Color.white.opacity(0.04),
+                                cell.editMode == mode ? accent.opacity(StudioOpacity.softStroke) : Color.white.opacity(StudioOpacity.subtleFill),
                                 in: Capsule()
                             )
                     }
@@ -213,10 +213,10 @@ struct PhraseCellEditorSheet: View {
                         selectedBarPage = index
                     } label: {
                         Text("Bar \(index + 1)")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .studioText(.eyebrowBold)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(index == activePage ? accent.opacity(0.2) : Color.white.opacity(0.04), in: Capsule())
+                            .background(index == activePage ? accent.opacity(StudioOpacity.softStroke) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }
@@ -233,17 +233,17 @@ struct PhraseCellEditorSheet: View {
                     } label: {
                         VStack(spacing: 6) {
                             Text("\(stepIndex - start + 1)")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .studioText(.micro)
                                 .foregroundStyle(StudioTheme.mutedText)
                             Text(valueLabel(values[stepIndex], layer: layer))
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .studioText(.subtitle)
                                 .foregroundStyle(StudioTheme.text)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                                 .stroke(accent.opacity(0.25), lineWidth: 1)
                         )
                     }

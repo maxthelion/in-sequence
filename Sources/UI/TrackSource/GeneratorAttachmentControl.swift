@@ -11,7 +11,7 @@ struct GeneratorAttachmentControl: View {
             if let attached = attachedGenerator {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(attached.name)
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .studioText(.bodyBold)
                         .foregroundStyle(StudioTheme.text)
                     Text(attached.kind.label)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
@@ -22,23 +22,23 @@ struct GeneratorAttachmentControl: View {
 
                 Button(action: onRemove) {
                     Text("Remove")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.text)
                         .padding(.vertical, 7)
                         .padding(.horizontal, 12)
-                        .background(Color.white.opacity(0.06), in: Capsule())
+                        .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
                         .overlay(Capsule().stroke(StudioTheme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             } else {
                 Button(action: onAdd) {
                     Text("Add Generator")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.text)
                         .padding(.vertical, 7)
                         .padding(.horizontal, 14)
-                        .background(accent.opacity(0.18), in: Capsule())
-                        .overlay(Capsule().stroke(accent.opacity(0.5), lineWidth: 1))
+                        .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
+                        .overlay(Capsule().stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
 

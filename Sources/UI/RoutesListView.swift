@@ -78,7 +78,7 @@ private struct RouteRowView: View {
                         .foregroundStyle(StudioTheme.text)
 
                     Text(route.description(trackLookup: trackLookup))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                 }
 
@@ -86,14 +86,14 @@ private struct RouteRowView: View {
 
                 if !route.enabled {
                     Text("Disabled")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .studioText(.micro)
                         .tracking(0.8)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(StudioTheme.amber.opacity(0.12), in: Capsule())
+                        .background(StudioTheme.amber.opacity(StudioOpacity.mutedFill), in: Capsule())
                         .overlay(
                             Capsule()
-                                .stroke(StudioTheme.amber.opacity(0.28), lineWidth: 1)
+                                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
                         )
                 }
             }
@@ -109,9 +109,9 @@ private struct RouteRowView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
         )
     }

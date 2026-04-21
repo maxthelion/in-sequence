@@ -141,17 +141,17 @@ struct LiveWorkspaceView: View {
                 cycleLayer(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .bold))
+                    .studioText(.chromeLabel)
                     .foregroundStyle(StudioTheme.text)
                     .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.04), in: Circle())
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                     .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
 
             HStack(spacing: 10) {
                 Text(selectedLayer.name.uppercased())
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .studioText(.bodyBold)
                     .tracking(1.0)
                     .foregroundStyle(StudioTheme.text)
 
@@ -161,32 +161,32 @@ struct LiveWorkspaceView: View {
                     .clipShape(Capsule())
 
                 Text(layerSubtitle(selectedLayer))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
 
                 Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .studioText(.eyebrowBold)
                     .foregroundStyle(accent)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(accent.opacity(0.16), in: Capsule())
+                    .background(accent.opacity(StudioOpacity.hoverFill), in: Capsule())
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(accent.opacity(0.28), lineWidth: 1)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
             )
 
             Button {
                 cycleLayer(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
+                    .studioText(.chromeLabel)
                     .foregroundStyle(StudioTheme.text)
                     .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.04), in: Circle())
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                     .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
@@ -194,11 +194,11 @@ struct LiveWorkspaceView: View {
             Spacer()
 
             Text(editingPhrase.name)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.violet)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(StudioTheme.violet.opacity(0.14), in: Capsule())
+                .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: Capsule())
 
             if !document.project.trackGroups.isEmpty {
                 Toggle("Collapse groups", isOn: $collapseGroups)
@@ -392,7 +392,7 @@ private struct LiveScopeCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(modeLabel.uppercased())
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(scope.accent)
 
@@ -404,7 +404,7 @@ private struct LiveScopeCard: View {
                         .tracking(0.8)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.06), in: Capsule())
+                        .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
                         .foregroundStyle(StudioTheme.mutedText)
                 }
             }
@@ -431,10 +431,10 @@ private struct LiveScopeCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(scope.accent.opacity(0.16), lineWidth: 1)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(scope.accent.opacity(StudioOpacity.hoverFill), lineWidth: 1)
         )
     }
 

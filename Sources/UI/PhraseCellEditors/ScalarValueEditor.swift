@@ -9,7 +9,7 @@ struct ScalarValueEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             if let title {
                 Text(title.uppercased())
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .studioText(.eyebrow)
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
             }
@@ -17,7 +17,7 @@ struct ScalarValueEditor: View {
             HStack(spacing: 10) {
                 Slider(value: $value, in: range)
                 Text(formattedValue)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .studioText(.bodyBold)
                     .frame(width: 54, alignment: .trailing)
             }
         }

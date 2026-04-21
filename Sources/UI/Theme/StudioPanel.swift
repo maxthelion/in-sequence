@@ -11,7 +11,7 @@ struct StudioPanel<Content: View>: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(title.uppercased())
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .studioText(.bodyEmphasis)
                         .tracking(1.1)
                         .foregroundStyle(StudioTheme.text)
 
@@ -24,19 +24,19 @@ struct StudioPanel<Content: View>: View {
 
                 if let eyebrow {
                     Text(eyebrow)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                 }
             }
 
             content
         }
-        .padding(18)
-        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(StudioMetrics.Spacing.loose)
+        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 10)
+        .shadow(color: .black.opacity(StudioOpacity.subtleStroke), radius: StudioMetrics.CornerRadius.panel, x: 0, y: 10)
     }
 }

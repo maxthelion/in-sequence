@@ -8,20 +8,20 @@ struct StudioMetricPill: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .studioText(.microEmphasis)
                 .tracking(0.9)
                 .foregroundStyle(StudioTheme.mutedText)
 
             Text(value)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .studioText(.metricValue)
                 .foregroundStyle(StudioTheme.text)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(accent.opacity(0.08), in: Capsule())
+        .background(accent.opacity(StudioOpacity.borderFaint), in: Capsule())
         .overlay(
             Capsule()
-                .stroke(accent.opacity(0.24), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: 1)
         )
     }
 }

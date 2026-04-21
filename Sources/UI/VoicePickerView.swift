@@ -11,7 +11,7 @@ struct VoicePickerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .studioText(.eyebrow)
                 .tracking(0.9)
                 .foregroundStyle(StudioTheme.mutedText)
 
@@ -24,7 +24,7 @@ struct VoicePickerView: View {
                     }
                 } label: {
                     Label("Recall Recent Voice", systemImage: "clock.arrow.circlepath")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .studioText(.bodyEmphasis)
                 }
             }
 
@@ -39,7 +39,7 @@ struct VoicePickerView: View {
 
             HStack(spacing: 12) {
                 Text(selectedInstrument.displayName)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .studioText(.body)
                     .foregroundStyle(StudioTheme.text)
 
                 Spacer()

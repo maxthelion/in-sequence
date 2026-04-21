@@ -13,14 +13,14 @@ struct PolyLaneSelector: View {
                     selectedLane = laneIndex
                 } label: {
                     Text("Lane \(laneIndex + 1)")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .studioText(.eyebrowBold)
                         .foregroundStyle(selectedLane == laneIndex ? StudioTheme.text : StudioTheme.mutedText)
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
-                        .background(selectedLane == laneIndex ? StudioTheme.violet.opacity(0.16) : Color.white.opacity(0.03), in: Capsule())
+                        .background(selectedLane == laneIndex ? StudioTheme.violet.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                         .overlay(
                             Capsule()
-                                .stroke(selectedLane == laneIndex ? StudioTheme.violet.opacity(0.5) : StudioTheme.border, lineWidth: 1)
+                                .stroke(selectedLane == laneIndex ? StudioTheme.violet.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -30,7 +30,7 @@ struct PolyLaneSelector: View {
                 Image(systemName: "plus")
                     .font(.system(size: 11, weight: .bold))
                     .padding(8)
-                    .background(Color.white.opacity(0.03), in: Circle())
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
             }
             .buttonStyle(.plain)
 
@@ -39,7 +39,7 @@ struct PolyLaneSelector: View {
                     Image(systemName: "minus")
                         .font(.system(size: 11, weight: .bold))
                         .padding(8)
-                        .background(Color.white.opacity(0.03), in: Circle())
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                 }
                 .buttonStyle(.plain)
             }

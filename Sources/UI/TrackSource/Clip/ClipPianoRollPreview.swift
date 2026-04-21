@@ -18,26 +18,26 @@ struct ClipPianoRollPreview: View {
             let noteHeight = geometry.size.height / CGFloat(pitchCount)
 
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.white.opacity(0.03))
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
 
                 VStack(spacing: 0) {
                     ForEach(Array(pitchRange.reversed()), id: \.self) { _ in
                         Rectangle()
-                            .fill(Color.white.opacity(0.03))
+                            .fill(Color.white.opacity(StudioOpacity.subtleFill))
                             .frame(height: noteHeight)
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
 
                 HStack(spacing: 0) {
                     ForEach(0..<totalSteps, id: \.self) { index in
                         Rectangle()
-                            .fill(index % stepsPerBar == 0 ? Color.white.opacity(0.08) : Color.white.opacity(0.03))
+                            .fill(index % stepsPerBar == 0 ? Color.white.opacity(StudioOpacity.borderFaint) : Color.white.opacity(StudioOpacity.subtleFill))
                             .frame(width: stepWidth)
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
 
                 ForEach(notes) { note in
                     let yIndex = pitchRange.upperBound - note.pitch

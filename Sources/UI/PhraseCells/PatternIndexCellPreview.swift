@@ -40,7 +40,7 @@ struct PatternIndexCellPreview: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .frame(height: metrics.valueHeight)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
     }
 
     var activeIndex: Int? {
@@ -54,13 +54,13 @@ struct PatternIndexCellPreview: View {
         guard let activeIndex else {
             return Color.white.opacity(0.05)
         }
-        return index == activeIndex ? accent.opacity(0.85) : Color.white.opacity(0.06)
+        return index == activeIndex ? accent.opacity(0.85) : Color.white.opacity(StudioOpacity.borderSubtle)
     }
 
     func slotStroke(for index: Int) -> Color {
         guard let activeIndex else {
             return StudioTheme.border.opacity(0.4)
         }
-        return index == activeIndex ? accent.opacity(0.95) : StudioTheme.border.opacity(0.45)
+        return index == activeIndex ? accent.opacity(0.95) : StudioTheme.border.opacity(StudioOpacity.mediumStroke)
     }
 }

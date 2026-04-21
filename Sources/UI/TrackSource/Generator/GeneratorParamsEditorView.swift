@@ -135,7 +135,7 @@ struct GeneratorParamsEditorView: View {
                         if let trigger = triggers[key] {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(key.uppercased())
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .studioText(.eyebrow)
                                     .tracking(0.8)
                                     .foregroundStyle(StudioTheme.mutedText)
 

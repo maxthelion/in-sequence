@@ -46,7 +46,7 @@ private struct MixerChannelStrip: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(track.name)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .studioText(.title)
                         .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
                     Text(destinationLabel)
@@ -60,11 +60,11 @@ private struct MixerChannelStrip: View {
 
                 if isSelected {
                     Text("Selected")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .studioText(.micro)
                         .tracking(0.8)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(StudioTheme.cyan.opacity(0.15), in: Capsule())
+                        .background(StudioTheme.cyan.opacity(StudioOpacity.softFill), in: Capsule())
                 }
             }
 
@@ -75,14 +75,14 @@ private struct MixerChannelStrip: View {
                             .frame(width: 36, height: 150)
 
                         Text("\(Int((track.mix.clampedLevel * 100).rounded()))%")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .studioText(.eyebrow)
                             .monospacedDigit()
                             .foregroundStyle(StudioTheme.text)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Pan")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .studioText(.eyebrow)
                             .tracking(0.8)
                             .foregroundStyle(StudioTheme.mutedText)
 
@@ -92,7 +92,7 @@ private struct MixerChannelStrip: View {
                                 .frame(width: 88)
 
                             Text(panLabel)
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .studioText(.eyebrow)
                                 .monospacedDigit()
                                 .foregroundStyle(StudioTheme.text)
                                 .frame(width: 28, alignment: .trailing)
@@ -120,21 +120,21 @@ private struct MixerChannelStrip: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Label("\(track.activeStepCount) active steps", systemImage: "square.grid.2x2")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
                 Label("\(track.pitches.count) pitches", systemImage: "music.note")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
             }
         }
         .padding(16)
         .frame(width: 200, alignment: .topLeading)
         .background(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel)
                 .fill(StudioTheme.panelFill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel)
                 .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
         )
     }
@@ -161,15 +161,15 @@ private struct VerticalLevelFader: View {
             let filledHeight = max(12, height * clampedLevel)
 
             ZStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .fill(Color.white.opacity(0.05))
 
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isMuted ? Color.white.opacity(0.18) : StudioTheme.cyan)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan)
                     .frame(height: filledHeight)
 
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color.white.opacity(0.18))
+                    .fill(Color.white.opacity(StudioOpacity.selectedFill))
                     .frame(width: 16, height: 4)
                     .offset(y: -filledHeight + 10)
             }

@@ -9,13 +9,13 @@ struct SourceParameterStepperRow: View {
     var body: some View {
         HStack {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .studioText(.eyebrow)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
             Spacer()
             Stepper(value: Binding(get: { value }, set: onChange), in: range) {
                 Text("\(value)")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .studioText(.bodyEmphasis)
                     .foregroundStyle(StudioTheme.text)
                     .monospacedDigit()
             }

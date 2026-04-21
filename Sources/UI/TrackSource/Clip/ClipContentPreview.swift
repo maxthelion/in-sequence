@@ -45,7 +45,7 @@ struct ClipContentPreview: View {
                 ClipPianoRollPreview(lengthBars: lengthBars, stepsPerBar: stepsPerBar, notes: notes)
                     .frame(height: 180)
                 Text("\(notes.count) notes across \(lengthBars) bars")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
             }
         case let .sliceTriggers(stepPattern, sliceIndexes):

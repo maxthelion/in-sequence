@@ -9,7 +9,7 @@ struct BooleanCellPreview: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .fill(booleanFill)
 
             Text(booleanLabel)
@@ -38,8 +38,8 @@ struct BooleanCellPreview: View {
 
     var booleanFill: Color {
         if layer.id == "mute" {
-            return booleanState ? Color.red.opacity(metrics.muteOnOpacity) : StudioTheme.success.opacity(0.55)
+            return booleanState ? Color.red.opacity(metrics.muteOnOpacity) : StudioTheme.success.opacity(StudioOpacity.accentFill)
         }
-        return booleanState ? accent.opacity(metrics.booleanAccentOpacity) : Color.white.opacity(0.04)
+        return booleanState ? accent.opacity(metrics.booleanAccentOpacity) : Color.white.opacity(StudioOpacity.subtleFill)
     }
 }

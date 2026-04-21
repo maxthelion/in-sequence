@@ -12,7 +12,7 @@ struct StudioTopBar: View {
         VStack(spacing: 14) {
             HStack(spacing: 18) {
                 Text("SequencerAI")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .studioText(.display)
                     .foregroundStyle(StudioTheme.text)
 
                 Spacer(minLength: 20)
@@ -51,18 +51,18 @@ struct StudioTopBar: View {
             }
         }
         .padding(20)
-        .background(StudioTheme.chrome.opacity(0.92), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .background(StudioTheme.chrome.opacity(0.92), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chrome, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chrome, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
         )
     }
 
     private func buttonFill(for sectionValue: WorkspaceSection) -> Color {
-        section == sectionValue ? StudioTheme.cyan.opacity(0.16) : Color.white.opacity(0.03)
+        section == sectionValue ? StudioTheme.cyan.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill)
     }
 
     private func buttonStroke(for sectionValue: WorkspaceSection) -> Color {
-        section == sectionValue ? StudioTheme.cyan.opacity(0.45) : StudioTheme.border
+        section == sectionValue ? StudioTheme.cyan.opacity(StudioOpacity.mediumStroke) : StudioTheme.border
     }
 }

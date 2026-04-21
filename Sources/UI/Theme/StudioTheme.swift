@@ -5,7 +5,7 @@ enum StudioTheme {
     static let chrome = Color(red: 0.10, green: 0.11, blue: 0.13)
     static let panelTop = Color(red: 0.17, green: 0.18, blue: 0.21)
     static let panelBottom = Color(red: 0.11, green: 0.12, blue: 0.15)
-    static let border = Color.white.opacity(0.08)
+    static let border = Color.white.opacity(StudioOpacity.borderFaint)
     static let text = Color(red: 0.93, green: 0.94, blue: 0.96)
     static let mutedText = Color(red: 0.61, green: 0.64, blue: 0.70)
     static let cyan = Color(red: 0.00, green: 0.80, blue: 1.00)

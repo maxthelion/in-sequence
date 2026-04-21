@@ -30,7 +30,7 @@ struct LibraryWorkspaceView: View {
 
             StudioPanel(title: "Why This Exists Now", eyebrow: "Planned state coverage", accent: StudioTheme.cyan) {
                 Text("The app support bootstrap already creates the library folders. This placeholder keeps the destination visible in the shell now, so later plans can add preset browsers, phrase libraries, and sample/slice sets without another structural nav rewrite.")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .studioText(.subtitleMuted)
                     .foregroundStyle(StudioTheme.mutedText)
             }
         }

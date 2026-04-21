@@ -25,16 +25,16 @@ struct GeneratedNotesPreview: View {
                                     }
                                 }
                             }
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .studioText(.labelBold)
                         }
                         .frame(width: 84, alignment: .leading)
                         .padding(10)
-                        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                     }
                 }
             }
             Text("Preview is generated from the current trigger stage and pitch expander.")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)
         }
     }

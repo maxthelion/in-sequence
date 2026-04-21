@@ -44,12 +44,12 @@ struct SamplerDestinationWidget: View {
     private func header(sample: AudioSample) -> some View {
         HStack {
             Text(sample.name)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .studioText(.subtitle)
                 .foregroundStyle(StudioTheme.text)
             Spacer()
             let lengthLabel = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "—"
             Text("\(sample.category.displayName) • \(lengthLabel)")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)
         }
     }
@@ -60,8 +60,8 @@ struct SamplerDestinationWidget: View {
         return WaveformView(buckets: buckets)
             .frame(height: 60)
             .padding(8)
-            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(StudioTheme.border, lineWidth: 1))
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+            .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: 1))
     }
 
     private func controls(sample: AudioSample) -> some View {
@@ -85,7 +85,7 @@ struct SamplerDestinationWidget: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("Gain")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .studioText(.eyebrow)
                     .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
                 Text(String(format: "%+.1f dB", currentSettings.gain))
@@ -103,15 +103,15 @@ struct SamplerDestinationWidget: View {
     private var orphanTile: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Missing sample")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .studioText(.subtitle)
             Text("Sample \(currentSampleID?.uuidString.prefix(8) ?? "—") not in library.")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)
             Button("Replace with first in category") { replaceWithFirstInCurrentCategory() }
                 .buttonStyle(.bordered)
         }
         .padding(12)
-        .background(StudioTheme.amber.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .background(StudioTheme.amber.opacity(StudioOpacity.mutedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control))
     }
 
     private func stepSample(_ delta: Int) {

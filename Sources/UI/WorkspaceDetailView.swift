@@ -10,9 +10,9 @@ struct WorkspaceDetailView: View {
             workspace
                 .padding(6)
         }
-        .background(StudioTheme.stageFill, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .background(StudioTheme.stageFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
         )
     }

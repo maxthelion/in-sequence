@@ -27,6 +27,6 @@ struct PhraseCurvePreview: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
     }
 }

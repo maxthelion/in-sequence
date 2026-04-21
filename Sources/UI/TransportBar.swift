@@ -52,7 +52,7 @@ struct TransportBar: View {
                 .frame(width: 1, height: 26)
 
             Text("BPM")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .studioText(.eyebrow)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
@@ -88,7 +88,7 @@ struct TransportBar: View {
 
             Text(engineController.statusSummary)
                 .foregroundStyle(StudioTheme.mutedText)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .studioText(.label)
                 .lineLimit(1)
 
             Spacer()
@@ -113,17 +113,17 @@ private struct TransportModePicker: View {
                     selection = mode
                 } label: {
                     Text(mode.label)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .studioText(.eyebrow)
                         .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.mutedText)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(
                             Capsule()
-                                .fill(selection == mode ? StudioTheme.amber.opacity(0.18) : Color.white.opacity(0.02))
+                                .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : Color.white.opacity(0.02))
                         )
                         .overlay(
                             Capsule()
-                                .stroke(selection == mode ? StudioTheme.amber.opacity(0.45) : StudioTheme.border, lineWidth: 1)
+                                .stroke(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -140,10 +140,10 @@ private struct TransportButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(StudioTheme.text)
             .padding(12)
-            .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(accent.opacity(0.45), lineWidth: 1)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
             )
     }
 }

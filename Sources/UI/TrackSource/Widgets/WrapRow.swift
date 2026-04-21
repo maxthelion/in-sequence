@@ -7,10 +7,10 @@ struct WrapRow: View {
         HStack(spacing: 8) {
             ForEach(items, id: \.self) { item in
                 Text(item)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .studioText(.labelBold)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.04), in: Capsule())
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                     .foregroundStyle(StudioTheme.text)
             }
         }

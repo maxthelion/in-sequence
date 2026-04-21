@@ -23,17 +23,23 @@ struct AddDrumGroupSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            header
-            templateSection
-            tracksSection
-            optionsSection
-            Spacer(minLength: 0)
-            footer
+        ZStack {
+            StudioTheme.stageFill
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                templateSection
+                tracksSection
+                optionsSection
+                Spacer(minLength: 0)
+                footer
+            }
+            .padding(20)
         }
-        .padding(20)
         .frame(minWidth: 680, minHeight: 560)
-        .background(StudioTheme.background)
+        .background(StudioTheme.stageFill)
+        .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous))
         .sheet(
             isPresented: $isPresentingDestinationPicker,
             onDismiss: handleDestinationSheetDismiss
@@ -57,7 +63,7 @@ struct AddDrumGroupSheet: View {
                 .foregroundStyle(StudioTheme.text)
 
             Text("Start blank or from a preset, then optionally attach one shared destination for the group.")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .studioText(.body)
                 .foregroundStyle(StudioTheme.mutedText)
         }
     }
@@ -139,7 +145,7 @@ struct AddDrumGroupSheet: View {
             }
 
             Text(plan.members[index].tag)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)
                 .frame(maxWidth: 120, alignment: .leading)
 
@@ -219,11 +225,11 @@ struct AddDrumGroupSheet: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(summary.typeLabel.isEmpty ? "Destination" : summary.typeLabel)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .studioText(.bodyBold)
                     .foregroundStyle(StudioTheme.text)
 
                 Text(summary.detail.isEmpty ? destination.summary : summary.detail)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
                     .lineLimit(1)
             }
@@ -238,7 +244,7 @@ struct AddDrumGroupSheet: View {
             .buttonStyle(.bordered)
         }
         .padding(10)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
     }
 
     private var footer: some View {
