@@ -4,11 +4,11 @@ import AVFoundation
 
 final class EngineControllerSampleTriggerTests: XCTestCase {
     private final class SpySamplePlaybackSink: SamplePlaybackSink {
-        var playCalls: [(URL, SamplerSettings)] = []
+        var playCalls: [(URL, SamplerSettings, Double)] = []
         func start() throws {}
         func stop() {}
-        func play(sampleURL: URL, settings: SamplerSettings, at when: AVAudioTime?) -> VoiceHandle? {
-            playCalls.append((sampleURL, settings))
+        func play(sampleURL: URL, settings: SamplerSettings, mixLevel: Double, at when: AVAudioTime?) -> VoiceHandle? {
+            playCalls.append((sampleURL, settings, mixLevel))
             return nil
         }
         func audition(sampleURL: URL) {}
@@ -104,6 +104,44 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         // The TickClock may fire one additional background tick before stop(), so the
         // count is at least 4 (the 4 manually-driven ticks) but may be higher.
         XCTAssertGreaterThanOrEqual(spy.playCalls.count, 4, "at least one play per fired tick; 4 ticks driven")
+    }
+
+    func test_trackMixLevel_propagatesToSampleEngine() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let kick = library.firstSample(in: .kick) else {
+            XCTFail("fixture missing"); return
+        }
+        let spy = SpySamplePlaybackSink()
+
+        var track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        track.mix.level = 0.25       // non-default so we can distinguish from level 1.0
+
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+
+        let controller = EngineController(
+            client: nil, endpoint: nil,
+            sampleEngine: spy, sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.start()
+        let now = ProcessInfo.processInfo.systemUptime
+        controller.processTick(tickIndex: 0, now: now)
+        controller.stop()
+
+        XCTAssertFalse(spy.playCalls.isEmpty, "a trigger should have fired")
+        for (_, _, mixLevel) in spy.playCalls {
+            XCTAssertEqual(mixLevel, 0.25, accuracy: 1e-9, "fader level should arrive at the sample engine as-is")
+        }
     }
 
     func test_muteCell_suppressesSampleDispatch() {

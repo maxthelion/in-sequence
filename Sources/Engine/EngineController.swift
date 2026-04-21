@@ -395,6 +395,7 @@ final class EngineController: RouterDispatcher {
                   !events.isEmpty
             else { continue }
             guard case let .sample(sampleID, settings) = track.destination else { continue }
+            let mixLevel = track.mix.clampedLevel
             for _ in events {
                 eventQueue.enqueue(ScheduledEvent(
                     scheduledHostTime: now,
@@ -402,6 +403,7 @@ final class EngineController: RouterDispatcher {
                         trackID: track.id,
                         sampleID: sampleID,
                         settings: settings,
+                        mixLevel: mixLevel,
                         scheduledHostTime: now
                     )
                 ))
@@ -454,10 +456,10 @@ final class EngineController: RouterDispatcher {
             case .routedMIDI:
                 break
 
-            case let .sampleTrigger(_, sampleID, settings, _):
+            case let .sampleTrigger(_, sampleID, settings, mixLevel, _):
                 guard let sample = sampleLibrary.sample(id: sampleID) else { continue }
                 guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
-                _ = sampleEngine.play(sampleURL: url, settings: settings, at: nil)
+                _ = sampleEngine.play(sampleURL: url, settings: settings, mixLevel: mixLevel, at: nil)
             }
         }
     }

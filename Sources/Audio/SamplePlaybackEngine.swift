@@ -8,7 +8,7 @@ struct VoiceHandle: Equatable, Hashable {
 protocol SamplePlaybackSink: AnyObject {
     func start() throws
     func stop()
-    func play(sampleURL: URL, settings: SamplerSettings, at when: AVAudioTime?) -> VoiceHandle?
+    func play(sampleURL: URL, settings: SamplerSettings, mixLevel: Double, at when: AVAudioTime?) -> VoiceHandle?
     func audition(sampleURL: URL)
     func stopAudition()
 }
@@ -53,7 +53,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     @discardableResult
-    func play(sampleURL: URL, settings: SamplerSettings, at when: AVAudioTime? = nil) -> VoiceHandle? {
+    func play(sampleURL: URL, settings: SamplerSettings, mixLevel: Double = 1.0, at when: AVAudioTime? = nil) -> VoiceHandle? {
         guard isStarted else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
 
@@ -63,7 +63,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         nextVoiceIndex = (nextVoiceIndex &+ 1) % mainVoices.count
 
         voice.stop()
-        voice.volume = linearGain(dB: settings.gain)
+        let clampedMix = Float(min(max(mixLevel, 0), 1))
+        voice.volume = linearGain(dB: settings.gain) * clampedMix
         voice.scheduleFile(file, at: when, completionHandler: nil)
         voice.play()
 
