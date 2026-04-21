@@ -1,35 +1,38 @@
 import Foundation
 
 extension Project {
-    static let empty = Project(
-        version: 1,
-        tracks: [
-            .default
-        ],
-        trackGroups: [],
-        generatorPool: GeneratorPoolEntry.defaultPool,
-        clipPool: [],
-        layers: PhraseLayerDefinition.defaultSet(for: [.default]),
-        routes: [],
-        patternBanks: [
-            TrackPatternBank.default(for: .default, initialClipID: nil)
-        ],
-        selectedTrackID: StepSequenceTrack.default.id,
-        phrases: [
-            .default(
-                tracks: [.default],
-                layers: PhraseLayerDefinition.defaultSet(for: [.default]),
-                generatorPool: GeneratorPoolEntry.defaultPool,
-                clipPool: []
-            )
-        ],
-        selectedPhraseID: PhraseModel.default(
-            tracks: [.default],
-            layers: PhraseLayerDefinition.defaultSet(for: [.default]),
+    static let empty: Project = {
+        let defaultTrack = StepSequenceTrack.default
+        let ownedClip = makeOwnedClip(for: defaultTrack)
+        let seedClipPool = [ownedClip]
+        return Project(
+            version: 1,
+            tracks: [defaultTrack],
+            trackGroups: [],
             generatorPool: GeneratorPoolEntry.defaultPool,
-            clipPool: []
-        ).id
-    )
+            clipPool: seedClipPool,
+            layers: PhraseLayerDefinition.defaultSet(for: [defaultTrack]),
+            routes: [],
+            patternBanks: [
+                TrackPatternBank.default(for: defaultTrack, initialClipID: ownedClip.id)
+            ],
+            selectedTrackID: defaultTrack.id,
+            phrases: [
+                .default(
+                    tracks: [defaultTrack],
+                    layers: PhraseLayerDefinition.defaultSet(for: [defaultTrack]),
+                    generatorPool: GeneratorPoolEntry.defaultPool,
+                    clipPool: seedClipPool
+                )
+            ],
+            selectedPhraseID: PhraseModel.default(
+                tracks: [defaultTrack],
+                layers: PhraseLayerDefinition.defaultSet(for: [defaultTrack]),
+                generatorPool: GeneratorPoolEntry.defaultPool,
+                clipPool: seedClipPool
+            ).id
+        )
+    }()
 
     var selectedTrackIndex: Int {
         tracks.firstIndex(where: { $0.id == selectedTrackID }) ?? 0
