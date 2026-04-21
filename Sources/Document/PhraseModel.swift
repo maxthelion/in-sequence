@@ -802,11 +802,11 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         case .generator:
             let compatibleID = generatorPool.first(where: { $0.id == generatorID && $0.trackType == trackType })?.id
                 ?? generatorPool.first(where: { $0.trackType == trackType })?.id
-            return .generator(compatibleID)
+            return SourceRef(mode: .generator, generatorID: compatibleID, clipID: clipID)
         case .clip:
             let compatibleID = clipPool.first(where: { $0.id == clipID && $0.trackType == trackType })?.id
                 ?? clipPool.first(where: { $0.trackType == trackType })?.id
-            return .clip(compatibleID)
+            return SourceRef(mode: .clip, generatorID: generatorID, clipID: compatibleID)
         }
     }
 }
