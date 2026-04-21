@@ -5,16 +5,17 @@ struct TrackSourceEditorView: View {
     let accent: Color
 
     private var track: StepSequenceTrack { document.project.selectedTrack }
-    private var phrase: PhraseModel { document.project.selectedPhrase }
+    private var bank: TrackPatternBank { document.project.patternBank(for: track.id) }
     private var selectedPatternIndex: Int { document.project.selectedPatternIndex(for: track.id) }
     private var selectedPattern: TrackPatternSlot { document.project.selectedPattern(for: track.id) }
     private var occupiedPatternSlots: Set<Int> {
         Set(document.project.phrases.map { $0.patternIndex(for: track.id, layers: document.project.layers) })
     }
-    private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
+    private var attachedGenerator: GeneratorPoolEntry? {
+        document.project.generatorEntry(id: bank.attachedGeneratorID)
+    }
     private var compatibleGenerators: [GeneratorPoolEntry] { document.project.compatibleGenerators(for: track) }
     private var compatibleClips: [ClipPoolEntry] { document.project.compatibleClips(for: track) }
-    private var currentGenerator: GeneratorPoolEntry? { document.project.generatorEntry(id: selectedPattern.sourceRef.generatorID) }
     private var currentClip: ClipPoolEntry? { document.project.clipEntry(id: selectedPattern.sourceRef.clipID) }
 
     var body: some View {
@@ -23,72 +24,103 @@ struct TrackSourceEditorView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     TrackPatternSlotPalette(
                         selectedSlot: selectedPatternIndexBinding,
-                        occupiedSlots: occupiedPatternSlots
+                        occupiedSlots: occupiedPatternSlots,
+                        bypassState: bypassState,
+                        onBypassToggle: { slotIndex in
+                            let currentlyBypassed = (bank.slot(at: slotIndex).sourceRef.mode == .clip)
+                            document.project.setSlotBypassed(!currentlyBypassed, trackID: track.id, slotIndex: slotIndex)
+                        }
                     )
 
-                    TrackSourceModePalette(trackType: track.trackType, selectedSource: selectedSourceModeBinding)
+                    GeneratorAttachmentControl(
+                        attachedGenerator: attachedGenerator,
+                        accent: accent,
+                        onAdd: {
+                            _ = document.project.attachNewGenerator(to: track.id)
+                        },
+                        onRemove: {
+                            document.project.removeAttachedGenerator(from: track.id)
+                        }
+                    )
                 }
             }
 
-            switch selectedSourceMode {
-            case .generator:
-                generatorPanels
-            case .clip:
-                clipPanels
+            if let attached = attachedGenerator {
+                generatorEditorPanel(for: attached)
             }
+            clipPanel
         }
     }
 
-    private var generatorPanels: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if let generator = currentGenerator {
-                GeneratorParamsEditorView(
-                    generator: generator,
-                    clipChoices: compatibleClips,
-                    accent: accent
-                ) { updated in
-                    document.project.updateGeneratorEntry(id: generator.id) { entry in
-                        entry.params = updated
-                    }
-                }
-            } else {
-                StudioPanel(title: "Generator Params", eyebrow: "No source selected", accent: accent) {
-                    StudioPlaceholderTile(
-                        title: "Choose A Generator",
-                        detail: "A generator-backed pattern slot should show its step and pitch parameters here."
-                    )
-                }
-            }
+    private var bypassState: TrackPatternSlotPalette.BypassState {
+        guard bank.attachedGeneratorID != nil else {
+            return .notApplicable
         }
+        var bypassed: Set<Int> = []
+        for (index, slot) in bank.slots.enumerated() where slot.sourceRef.mode == .clip {
+            bypassed.insert(index)
+        }
+        return .applicable(bypassed: bypassed)
     }
 
-    private var clipPanels: some View {
+    @ViewBuilder
+    private func generatorEditorPanel(for generator: GeneratorPoolEntry) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            if compatibleClips.isEmpty {
-                StudioPanel(title: "Clip", eyebrow: "No clip selected", accent: StudioTheme.violet) {
-                    StudioPlaceholderTile(
-                        title: "No Clip For This Track Type",
-                        detail: "Create or attach a compatible clip to preview its notes here.",
-                        accent: StudioTheme.violet
-                    )
-                }
-            } else if let clip = currentClip {
-                StudioPanel(title: "Clip Notes", eyebrow: clipPreviewEyebrow(clip), accent: StudioTheme.violet) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Picker("Clip", selection: clipIDBinding) {
-                            ForEach(compatibleClips) { clip in
-                                Text(clip.name).tag(Optional(clip.id))
+            StudioPanel(title: "Generator", eyebrow: generator.kind.label, accent: accent) {
+                VStack(alignment: .leading, spacing: 14) {
+                    if compatibleGenerators.count > 1 {
+                        Picker("Generator", selection: generatorIDBinding) {
+                            ForEach(compatibleGenerators) { entry in
+                                Text(entry.name).tag(Optional(entry.id))
                             }
                         }
                         .pickerStyle(.menu)
+                    }
+                    Text(generator.name)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+                }
+            }
 
-                        ClipContentPreview(content: clip.content) { updated in
-                            document.project.updateClipEntry(id: clip.id) { entry in
-                                entry.content = updated
+            GeneratorParamsEditorView(
+                generator: generator,
+                clipChoices: compatibleClips,
+                accent: accent
+            ) { updated in
+                document.project.updateGeneratorEntry(id: generator.id) { entry in
+                    entry.params = updated
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var clipPanel: some View {
+        if let clip = currentClip {
+            StudioPanel(title: "Clip", eyebrow: clip.name, accent: StudioTheme.violet) {
+                VStack(alignment: .leading, spacing: 14) {
+                    if compatibleClips.count > 1 {
+                        Picker("Clip", selection: clipIDBinding) {
+                            ForEach(compatibleClips) { entry in
+                                Text(entry.name).tag(Optional(entry.id))
                             }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    ClipContentPreview(content: clip.content) { updated in
+                        document.project.updateClipEntry(id: clip.id) { entry in
+                            entry.content = updated
                         }
                     }
                 }
+            }
+        } else {
+            StudioPanel(title: "Clip", eyebrow: "No clip selected", accent: StudioTheme.violet) {
+                StudioPlaceholderTile(
+                    title: "No Clip For This Slot",
+                    detail: "Pick a clip from the pool or let the track create one via Add Generator.",
+                    accent: StudioTheme.violet
+                )
             }
         }
     }
@@ -100,23 +132,28 @@ struct TrackSourceEditorView: View {
         )
     }
 
-    private var selectedSourceModeBinding: Binding<TrackSourceMode> {
+    private var generatorIDBinding: Binding<UUID?> {
         Binding(
-            get: { selectedSourceMode },
+            get: { bank.attachedGeneratorID },
             set: { newValue in
-                switch newValue {
-                case .generator:
-                    if let generator = compatibleGenerators.first {
-                        document.project.setPatternGeneratorID(generator.id, for: track.id, slotIndex: selectedPatternIndex)
-                    } else {
-                        document.project.setPatternSourceMode(.generator, for: track.id, slotIndex: selectedPatternIndex)
-                    }
-                case .clip:
-                    if let clip = document.project.ensureCompatibleClip(for: track) {
-                        document.project.setPatternClipID(clip.id, for: track.id, slotIndex: selectedPatternIndex)
-                    } else {
-                        document.project.setPatternSourceMode(.clip, for: track.id, slotIndex: selectedPatternIndex)
-                    }
+                guard let newValue else { return }
+                var updatedBank = bank
+                updatedBank.attachedGeneratorID = newValue
+                for index in 0..<updatedBank.slots.count {
+                    let slot = updatedBank.slots[index]
+                    let newRef = SourceRef(
+                        mode: slot.sourceRef.mode,
+                        generatorID: newValue,
+                        clipID: slot.sourceRef.clipID
+                    )
+                    updatedBank.slots[index] = TrackPatternSlot(slotIndex: slot.slotIndex, name: slot.name, sourceRef: newRef)
+                }
+                if let bankIndex = document.project.patternBanks.firstIndex(where: { $0.trackID == track.id }) {
+                    document.project.patternBanks[bankIndex] = updatedBank.synced(
+                        track: track,
+                        generatorPool: document.project.generatorPool,
+                        clipPool: document.project.clipPool
+                    )
                 }
             }
         )
@@ -130,16 +167,5 @@ struct TrackSourceEditorView: View {
                 document.project.setPatternClipID(newValue, for: track.id, slotIndex: selectedPatternIndex)
             }
         )
-    }
-
-    private func clipPreviewEyebrow(_ clip: ClipPoolEntry) -> String {
-        switch clip.content {
-        case .stepSequence:
-            return "Step Sequencer"
-        case .pianoRoll:
-            return "Piano Roll"
-        case .sliceTriggers:
-            return "Slice Trigger Grid"
-        }
     }
 }

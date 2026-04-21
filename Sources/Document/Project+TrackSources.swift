@@ -20,6 +20,7 @@ extension Project {
     }
 
     mutating func setPatternSourceRef(_ sourceRef: SourceRef, for trackID: UUID, slotIndex: Int) {
+        // Still used by the clip picker path. Retained.
         guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
               let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
         else {
@@ -37,6 +38,7 @@ extension Project {
     }
 
     mutating func setPatternGeneratorID(_ generatorID: UUID, for trackID: UUID, slotIndex: Int) {
+        // Unused by new UI; retained for compatibility with `Project+Phrases.swift` paths. Candidate for follow-up removal.
         setPatternSourceRef(.generator(generatorID), for: trackID, slotIndex: slotIndex)
     }
 
