@@ -90,12 +90,15 @@ extension Project {
 
         tracks[selectedTrackIndex].trackType = trackType
         let updatedTrack = tracks[selectedTrackIndex]
-        let fallbackClipID = clipPool.first(where: { $0.trackType == trackType })?.id
+        // Always create a new owned clip for the updated track type so we never
+        // silently reuse another track's clip.
+        let ownedClip = Self.makeOwnedClip(for: updatedTrack)
+        clipPool.append(ownedClip)
         patternBanks = patternBanks.map { bank in
             guard bank.trackID == selectedTrackID else {
                 return bank
             }
-            return TrackPatternBank.default(for: updatedTrack, initialClipID: fallbackClipID)
+            return TrackPatternBank.default(for: updatedTrack, initialClipID: ownedClip.id)
         }
         syncPhrasesWithTracks()
     }
