@@ -26,61 +26,7 @@ extension Project {
         _ preset: DrumKitPreset,
         library: AudioSampleLibrary = .shared
     ) -> TrackGroupID? {
-        guard !preset.members.isEmpty else {
-            return nil
-        }
-
-        let groupID = TrackGroupID()
-        let fallback: Destination = .internalSampler(bankID: .drumKitDefault, preset: preset.rawValue)
-        var newTracks: [StepSequenceTrack] = []
-        var newBanks: [TrackPatternBank] = []
-
-        for member in preset.members {
-            let destination: Destination = {
-                guard let category = AudioSampleCategory(voiceTag: member.tag),
-                      let sample = library.firstSample(in: category)
-                else { return fallback }
-                return .sample(sampleID: sample.id, settings: .default)
-            }()
-            let track = StepSequenceTrack(
-                name: member.trackName,
-                trackType: .monoMelodic,
-                pitches: [DrumKitNoteMap.baselineNote],
-                stepPattern: member.seedPattern,
-                destination: destination,
-                groupID: groupID,
-                velocity: StepSequenceTrack.default.velocity,
-                gateLength: StepSequenceTrack.default.gateLength
-            )
-            let clip = ClipPoolEntry(
-                id: UUID(),
-                name: member.trackName,
-                trackType: .monoMelodic,
-                content: .stepSequence(
-                    stepPattern: member.seedPattern,
-                    pitches: [DrumKitNoteMap.baselineNote]
-                )
-            )
-            clipPool.append(clip)
-            newTracks.append(track)
-            newBanks.append(TrackPatternBank.default(for: track, initialClipID: clip.id))
-        }
-
-        tracks.append(contentsOf: newTracks)
-        patternBanks.append(contentsOf: newBanks)
-        trackGroups.append(
-            TrackGroup(
-                id: groupID,
-                name: preset.displayName,
-                color: preset.suggestedGroupColor,
-                memberIDs: newTracks.map(\.id),
-                sharedDestination: nil,
-                noteMapping: [:]
-            )
-        )
-        selectedTrackID = newTracks.first?.id ?? selectedTrackID
-        syncPhrasesWithTracks()
-        return groupID
+        addDrumGroup(plan: .templated(from: preset), library: library)
     }
 
     mutating func setSelectedTrackType(_ trackType: TrackType) {
