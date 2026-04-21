@@ -545,18 +545,6 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
 
     static func `default`(
         for track: StepSequenceTrack,
-        generatorPool: [GeneratorPoolEntry],
-        clipPool: [ClipPoolEntry]
-    ) -> TrackPatternBank {
-        let defaultSourceRef = defaultSourceRef(for: track, generatorPool: generatorPool)
-        return TrackPatternBank(
-            trackID: track.id,
-            slots: (0..<slotCount).map { TrackPatternSlot(slotIndex: $0, sourceRef: defaultSourceRef) }
-        )
-    }
-
-    static func `default`(
-        for track: StepSequenceTrack,
         initialClipID: UUID?
     ) -> TrackPatternBank {
         let sourceRef = SourceRef(mode: .clip, generatorID: nil, clipID: initialClipID)

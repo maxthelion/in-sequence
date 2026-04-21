@@ -12,7 +12,7 @@ extension Project {
         layers: PhraseLayerDefinition.defaultSet(for: [.default]),
         routes: [],
         patternBanks: [
-            TrackPatternBank.default(for: .default, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])
+            TrackPatternBank.default(for: .default, initialClipID: nil)
         ],
         selectedTrackID: StepSequenceTrack.default.id,
         phrases: [

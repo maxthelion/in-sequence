@@ -198,8 +198,9 @@ static func normalize(
         generatorPool: [GeneratorPoolEntry],
         clipPool: [ClipPoolEntry]
     ) -> [TrackPatternBank] {
-        tracks.map {
-            TrackPatternBank.default(for: $0, generatorPool: generatorPool, clipPool: clipPool)
+        tracks.map { track in
+            let fallbackClipID = clipPool.first(where: { $0.trackType == track.trackType })?.id
+            return TrackPatternBank.default(for: track, initialClipID: fallbackClipID)
         }
     }
 
@@ -210,8 +211,9 @@ static func normalize(
         clipPool: [ClipPoolEntry]
     ) -> [TrackPatternBank] {
         tracks.map { track in
+            let fallbackClipID = clipPool.first(where: { $0.trackType == track.trackType })?.id
             let existing = patternBanks.first(where: { $0.trackID == track.id })
-                ?? TrackPatternBank.default(for: track, generatorPool: generatorPool, clipPool: clipPool)
+                ?? TrackPatternBank.default(for: track, initialClipID: fallbackClipID)
             return existing.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
         }
     }

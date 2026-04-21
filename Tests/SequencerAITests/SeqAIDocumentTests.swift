@@ -207,7 +207,7 @@ final class ProjectTests: XCTestCase {
             clipPool: [],
             layers: layers,
             routes: [],
-            patternBanks: [TrackPatternBank.default(for: track, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [])],
+            patternBanks: [TrackPatternBank.default(for: track, initialClipID: nil)],
             selectedTrackID: track.id,
             phrases: [
                 PhraseModel(

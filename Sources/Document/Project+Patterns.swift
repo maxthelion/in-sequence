@@ -6,12 +6,12 @@ extension Project {
     }
 
     func patternBank(for trackID: UUID) -> TrackPatternBank {
-        patternBanks.first(where: { $0.trackID == trackID })
-            ?? TrackPatternBank.default(
-                for: tracks.first(where: { $0.id == trackID }) ?? .default,
-                generatorPool: generatorPool,
-                clipPool: clipPool
-            )
+        if let existing = patternBanks.first(where: { $0.trackID == trackID }) {
+            return existing
+        }
+        let track = tracks.first(where: { $0.id == trackID }) ?? .default
+        let fallbackClipID = clipPool.first(where: { $0.trackType == track.trackType })?.id
+        return TrackPatternBank.default(for: track, initialClipID: fallbackClipID)
     }
 
     func layer(id: String) -> PhraseLayerDefinition? {

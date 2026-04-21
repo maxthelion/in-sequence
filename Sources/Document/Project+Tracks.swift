@@ -89,15 +89,13 @@ extension Project {
         }
 
         tracks[selectedTrackIndex].trackType = trackType
+        let updatedTrack = tracks[selectedTrackIndex]
+        let fallbackClipID = clipPool.first(where: { $0.trackType == trackType })?.id
         patternBanks = patternBanks.map { bank in
             guard bank.trackID == selectedTrackID else {
                 return bank
             }
-            return TrackPatternBank.default(
-                for: tracks[selectedTrackIndex],
-                generatorPool: generatorPool,
-                clipPool: clipPool
-            )
+            return TrackPatternBank.default(for: updatedTrack, initialClipID: fallbackClipID)
         }
         syncPhrasesWithTracks()
     }
