@@ -41,29 +41,6 @@ struct TrackSourceEditorView: View {
 
     private var generatorPanels: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Generator", eyebrow: currentGenerator?.kind.label ?? "No generator selected", accent: accent) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Picker("Generator", selection: generatorIDBinding) {
-                        ForEach(compatibleGenerators) { generator in
-                            Text(generator.name).tag(Optional(generator.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    if let generator = currentGenerator {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(generator.name)
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundStyle(StudioTheme.text)
-
-                            Text(generatorSummary(generator))
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(StudioTheme.mutedText)
-                        }
-                    }
-                }
-            }
-
             if let generator = currentGenerator {
                 GeneratorParamsEditorView(
                     generator: generator,
@@ -145,16 +122,6 @@ struct TrackSourceEditorView: View {
         )
     }
 
-    private var generatorIDBinding: Binding<UUID?> {
-        Binding(
-            get: { selectedPattern.sourceRef.generatorID },
-            set: { newValue in
-                guard let newValue else { return }
-                document.project.setPatternGeneratorID(newValue, for: track.id, slotIndex: selectedPatternIndex)
-            }
-        )
-    }
-
     private var clipIDBinding: Binding<UUID?> {
         Binding(
             get: { selectedPattern.sourceRef.clipID },
@@ -165,22 +132,7 @@ struct TrackSourceEditorView: View {
         )
     }
 
-    private func generatorSummary(_ generator: GeneratorPoolEntry) -> String {
-        switch generator.params {
-        case let .mono(step, pitch, shape):
-            return "\(stepDisplayLabel(step)) steps • \(pitchDisplayLabel(pitch)) pitches • vel \(shape.velocity) • gate \(shape.gateLength)"
-        case let .poly(step, pitches, shape):
-            return "\(stepDisplayLabel(step)) steps • \(pitches.count) pitch lanes • vel \(shape.velocity) • gate \(shape.gateLength)"
-        case let .drum(steps, shape):
-            return "\(steps.count) drum lanes • vel \(shape.velocity) • gate \(shape.gateLength)"
-        case .template:
-            return "Template-driven source"
-        case let .slice(step, sliceIndexes):
-            return "\(stepDisplayLabel(step)) steps • \(sliceIndexes.count) slice indexes"
-        }
-    }
-
-private func clipPreviewEyebrow(_ clip: ClipPoolEntry) -> String {
+    private func clipPreviewEyebrow(_ clip: ClipPoolEntry) -> String {
         switch clip.content {
         case .stepSequence:
             return "Step Sequencer"
