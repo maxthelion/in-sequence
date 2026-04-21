@@ -12,7 +12,7 @@
 
 **Environment note:** Xcode 16. All `xcodebuild` invocations prefix `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. After creating files under `Sources/UI/TrackDestination/`, run `xcodegen generate`.
 
-**Status:** Not started. Tag `v0.0.20-single-destination-ui` at completion.
+**Status:** ✅ Completed — implemented on `main`, verified with focused destination tests and a full `xcodebuild test` pass on 2026-04-21. Tag `v0.0.20-single-destination-ui`.
 
 **Depends on:** nothing on the critical path. Can execute against current `main`.
 
