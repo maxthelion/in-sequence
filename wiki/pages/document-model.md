@@ -92,6 +92,51 @@ If a file's `version` is greater than the current code supports, `init(configura
 
 A document saved and reopened must be byte-exact when re-serialized (barring whitespace from `.prettyPrinted`, which `sortedKeys` neutralizes). Tests in `Tests/SequencerAITests/SeqAIDocumentTests.swift` verify this on the empty model; every time a field is added, a new round-trip test asserts its preservation.
 
+## TrackPatternBank and SourceRef
+
+### TrackPatternBank
+
+`TrackPatternBank` owns the pattern slots for one track and now carries an optional reference to an attached AI generator:
+
+```swift
+struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
+    var trackID: UUID
+    var slots: [TrackPatternSlot]
+    var attachedGeneratorID: UUID?
+}
+```
+
+`attachedGeneratorID` is `nil` by default — no generator is attached to any track at creation time. The user attaches one explicitly via `Project.attachNewGenerator(to:)`. Removing it calls `Project.removeAttachedGenerator(from:)`.
+
+`attachedGeneratorID` is serialised with `encodeIfPresent`, so older documents that omit the key decode cleanly with `nil` via `decodeIfPresent`.
+
+`TrackPatternBank.synced(track:generatorPool:clipPool:)` validates `attachedGeneratorID` against the pool on every sync: if the referenced entry no longer exists or no longer matches the track type, the field is set back to `nil`.
+
+### SourceRef — both IDs always present
+
+`SourceRef` carries a `generatorID` and a `clipID` simultaneously. The `mode` field (`TrackSourceMode`) picks which one drives playback for that slot — either `.generator` or `.clip`. Both IDs are preserved across mode switches.
+
+```
+mode = .generator → generatorID drives playback; clipID is retained for bypass fallback
+mode = .clip      → clipID drives playback; generatorID is retained to re-engage if bypass is reversed
+```
+
+The **preserve-opposite-ID invariant**: `SourceRef.normalized(trackType:generatorPool:clipPool:)` resolves each ID to the nearest compatible pool entry but does not zero out the ID that is not currently active. This means a slot can round-trip through attach → bypass → un-bypass without losing either reference.
+
+`setPatternClipID(_:for:slotIndex:)` merges the new clip ID with the existing `generatorID` so a clip change while bypassed does not discard the generator link.
+
+### Per-slot bypass (when a generator is attached)
+
+When `attachedGeneratorID != nil`, each slot independently chooses whether its generator is engaged or bypassed to the clip:
+
+- `setSlotBypassed(true, trackID:slotIndex:)` sets that slot's `mode` to `.clip` while preserving both IDs.
+- `setSlotBypassed(false, …)` restores `mode` to `.generator`.
+- Slots for tracks with no attached generator always use `.clip` mode; bypass is not applicable.
+
+### Default constructor
+
+`TrackPatternBank.default(for:initialClipID:)` creates a bank with all slots pointing to the supplied clip ID in `.clip` mode and `attachedGeneratorID = nil`. The old two-pool constructor (`default(for:generatorPool:clipPool:)`) no longer exists.
+
 ## What a document does *not* contain
 
 To keep `.seqai` portable:
@@ -106,3 +151,4 @@ To keep `.seqai` portable:
 - [[project-layout]] — where `Document/` sits in the module graph
 - [[app-support-layout]] — where library content and preferences live (outside the document)
 - [[code-review-checklist]] — the invariants any document-related change must satisfy
+- [[drum-track-mvp]] — how drum kit creation seeds per-part clips in the pool
