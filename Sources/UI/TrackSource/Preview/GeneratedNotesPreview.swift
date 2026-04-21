@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct GeneratedNotesPreview: View {
-    let generatorParams: GeneratorParams
+    let pipeline: GeneratedSourcePipeline
     let clipChoices: [ClipPoolEntry]
 
     var body: some View {
-        let preview = previewSteps(for: generatorParams, clipChoices: clipChoices)
+        let preview = previewSteps(for: pipeline, clipChoices: clipChoices)
         VStack(alignment: .leading, spacing: 12) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {

@@ -68,10 +68,54 @@ enum PitchStageNode: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+enum GeneratedSourcePipelineContent: Codable, Equatable, Hashable, Sendable {
+    case melodic(pitches: [PitchStageNode], shape: NoteShape)
+    case drum(triggers: [VoiceTag: TriggerStageNode], shape: NoteShape)
+    case slice(sliceIndexes: [Int])
+    case template(templateID: UUID)
+}
+
 struct GeneratedSourcePipeline: Codable, Equatable, Hashable, Sendable {
-    var trigger: TriggerStageNode
-    var pitches: [PitchStageNode]
-    var shape: NoteShape
+    var trigger: TriggerStageNode?
+    var content: GeneratedSourcePipelineContent
+
+    static func melodic(
+        trigger: TriggerStageNode,
+        pitches: [PitchStageNode],
+        shape: NoteShape
+    ) -> GeneratedSourcePipeline {
+        GeneratedSourcePipeline(
+            trigger: trigger,
+            content: .melodic(pitches: pitches, shape: shape)
+        )
+    }
+
+    static func drum(
+        triggers: [VoiceTag: TriggerStageNode],
+        shape: NoteShape
+    ) -> GeneratedSourcePipeline {
+        GeneratedSourcePipeline(
+            trigger: nil,
+            content: .drum(triggers: triggers, shape: shape)
+        )
+    }
+
+    static func slice(
+        trigger: TriggerStageNode,
+        sliceIndexes: [Int]
+    ) -> GeneratedSourcePipeline {
+        GeneratedSourcePipeline(
+            trigger: trigger,
+            content: .slice(sliceIndexes: sliceIndexes)
+        )
+    }
+
+    static func template(_ templateID: UUID) -> GeneratedSourcePipeline {
+        GeneratedSourcePipeline(
+            trigger: nil,
+            content: .template(templateID: templateID)
+        )
+    }
 }
 
 struct GeneratedSourceEvaluationState: Equatable, Sendable {
@@ -97,14 +141,18 @@ struct GeneratedSourceEvaluationState: Equatable, Sendable {
 }
 
 extension GeneratorParams {
-    var generatedSourcePipeline: GeneratedSourcePipeline? {
+    var generatedSourcePipeline: GeneratedSourcePipeline {
         switch self {
         case let .mono(trigger, pitch, shape):
-            return GeneratedSourcePipeline(trigger: trigger, pitches: [pitch], shape: shape)
+            return .melodic(trigger: trigger, pitches: [pitch], shape: shape)
         case let .poly(trigger, pitches, shape):
-            return GeneratedSourcePipeline(trigger: trigger, pitches: pitches, shape: shape)
-        case .drum, .template, .slice:
-            return nil
+            return .melodic(trigger: trigger, pitches: pitches, shape: shape)
+        case let .drum(triggers, shape):
+            return .drum(triggers: triggers, shape: shape)
+        case let .slice(trigger, sliceIndexes):
+            return .slice(trigger: trigger, sliceIndexes: sliceIndexes)
+        case let .template(templateID):
+            return .template(templateID)
         }
     }
 }

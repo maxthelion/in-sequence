@@ -802,6 +802,23 @@ struct ClipPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable {
     ]
 }
 
+extension ClipPoolEntry {
+    var pitchPool: [Int] {
+        switch content {
+        case let .stepSequence(_, pitches):
+            return pitches
+        case let .pianoRoll(_, _, notes):
+            return Array(Set(notes.map(\.pitch))).sorted()
+        case let .sliceTriggers(_, sliceIndexes):
+            return sliceIndexes.map { 60 + $0 }
+        }
+    }
+
+    var hasPitchMaterial: Bool {
+        !pitchPool.isEmpty
+    }
+}
+
 struct SourceRef: Codable, Equatable, Hashable, Sendable {
     var mode: TrackSourceMode
     var generatorID: UUID?

@@ -2,7 +2,8 @@ import SwiftUI
 
 struct PitchAlgoEditor: View {
     let stage: PitchStage
-    let clipChoices: [ClipPoolEntry]
+    let inputClipChoices: [ClipPoolEntry]
+    let harmonicSidechainClipChoices: [ClipPoolEntry]
     let onChange: (PitchStage) -> Void
     @State private var manualPitchDraft = ""
 
@@ -14,7 +15,7 @@ struct PitchAlgoEditor: View {
                 "Pitch Expander",
                 selection: Binding(
                     get: { kind },
-                    set: { onChange(PitchStage(algo: $0.defaultAlgo(clipChoices: clipChoices, current: stage.algo), harmonicSidechain: stage.harmonicSidechain)) }
+                    set: { onChange(PitchStage(algo: $0.defaultAlgo(clipChoices: inputClipChoices, current: stage.algo), harmonicSidechain: stage.harmonicSidechain)) }
                 )
             ) {
                 ForEach(PitchAlgoKind.allCases) { kind in
@@ -24,10 +25,10 @@ struct PitchAlgoEditor: View {
             .pickerStyle(.segmented)
 
             Picker("Harmonic Sidechain", selection: Binding(
-                get: { HarmonicSidechainPickerChoice(stage.harmonicSidechain) },
+                get: { HarmonicSidechainPickerChoice(stage.harmonicSidechain, clipChoices: harmonicSidechainClipChoices) },
                 set: { onChange(PitchStage(algo: stage.algo, harmonicSidechain: $0.value)) }
             )) {
-                ForEach(HarmonicSidechainPickerChoice.choices(from: clipChoices)) { choice in
+                ForEach(HarmonicSidechainPickerChoice.choices(from: harmonicSidechainClipChoices)) { choice in
                     Text(choice.title).tag(choice)
                 }
             }
@@ -166,7 +167,7 @@ struct PitchAlgoEditor: View {
                             onChange(PitchStage(algo: .fromClipPitches(clipID: newValue, pickMode: pickMode), harmonicSidechain: stage.harmonicSidechain))
                         }
                     )) {
-                        ForEach(clipChoices) { clip in
+                        ForEach(inputClipChoices) { clip in
                             Text(clip.name).tag(Optional(clip.id))
                         }
                     }

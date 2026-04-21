@@ -10,8 +10,12 @@ struct PreviewRNG: RandomNumberGenerator {
 }
 
 func previewSteps(for params: GeneratorParams, clipChoices: [ClipPoolEntry], count: Int = 16) -> [[String]] {
+    previewSteps(for: params.generatedSourcePipeline, clipChoices: clipChoices, count: count)
+}
+
+func previewSteps(for pipeline: GeneratedSourcePipeline, clipChoices: [ClipPoolEntry], count: Int = 16) -> [[String]] {
     GeneratedSourceEvaluator.previewNotes(
-        for: params,
+        for: pipeline,
         clipChoices: clipChoices,
         count: count
     ).map { notes in

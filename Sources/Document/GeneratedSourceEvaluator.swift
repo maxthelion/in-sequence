@@ -5,12 +5,23 @@ enum GeneratedSourceEvaluator {
         for params: GeneratorParams,
         clipChoices: [ClipPoolEntry]
     ) -> Int {
-        switch params {
-        case let .mono(trigger, _, _), let .poly(trigger, _, _), let .slice(trigger, _):
+        cycleLength(for: params.generatedSourcePipeline, clipChoices: clipChoices)
+    }
+
+    static func cycleLength(
+        for pipeline: GeneratedSourcePipeline,
+        clipChoices: [ClipPoolEntry]
+    ) -> Int {
+        switch pipeline.content {
+        case .melodic:
+            guard let trigger = pipeline.trigger else { return 1 }
             return max(triggerCycleLength(trigger, clipChoices: clipChoices), 1)
         case let .drum(triggers, _):
             let maxLength = triggers.values.map { triggerCycleLength($0, clipChoices: clipChoices) }.max() ?? 1
             return max(maxLength, 1)
+        case .slice:
+            guard let trigger = pipeline.trigger else { return 1 }
+            return max(triggerCycleLength(trigger, clipChoices: clipChoices), 1)
         case .template:
             return 1
         }
@@ -24,38 +35,33 @@ enum GeneratedSourceEvaluator {
         state: inout GeneratedSourceEvaluationState,
         rng: inout R
     ) -> [GeneratedNote] {
-        switch params {
-        case let .mono(trigger, pitch, shape):
-            let seeds = emittedSeeds(
-                from: trigger,
-                stepIndex: stepIndex,
-                totalSteps: cycleLength(for: params, clipChoices: clipChoices),
-                clipChoices: clipChoices,
-                rng: &rng,
-                voiceTag: nil
-            )
+        evaluateStep(
+            for: params.generatedSourcePipeline,
+            stepIndex: stepIndex,
+            clipChoices: clipChoices,
+            chordContext: chordContext,
+            state: &state,
+            rng: &rng
+        )
+    }
 
-            return seeds.flatMap { seed in
-                let laneIndex = 0
-                let notes = evaluatedPitchStage(
-                    pitch,
-                    seed: seed,
-                    stepIndex: stepIndex,
-                    clipChoices: clipChoices,
-                    chordContext: chordContext,
-                    laneIndex: laneIndex,
-                    shape: shape,
-                    state: &state,
-                    rng: &rng
-                )
-                return notes
+    static func evaluateStep<R: RandomNumberGenerator>(
+        for pipeline: GeneratedSourcePipeline,
+        stepIndex: Int,
+        clipChoices: [ClipPoolEntry],
+        chordContext: Chord?,
+        state: inout GeneratedSourceEvaluationState,
+        rng: inout R
+    ) -> [GeneratedNote] {
+        switch pipeline.content {
+        case let .melodic(pitches, shape):
+            guard let trigger = pipeline.trigger else {
+                return []
             }
-
-        case let .poly(trigger, pitches, shape):
             let seeds = emittedSeeds(
                 from: trigger,
                 stepIndex: stepIndex,
-                totalSteps: cycleLength(for: params, clipChoices: clipChoices),
+                totalSteps: cycleLength(for: pipeline, clipChoices: clipChoices),
                 clipChoices: clipChoices,
                 rng: &rng,
                 voiceTag: nil
@@ -78,7 +84,7 @@ enum GeneratedSourceEvaluator {
             }
 
         case let .drum(triggers, shape):
-            let totalSteps = cycleLength(for: params, clipChoices: clipChoices)
+            let totalSteps = cycleLength(for: pipeline, clipChoices: clipChoices)
             return triggers.keys.sorted().flatMap { voiceTag in
                 guard let trigger = triggers[voiceTag] else {
                     return [GeneratedNote]()
@@ -105,11 +111,14 @@ enum GeneratedSourceEvaluator {
         case .template:
             return []
 
-        case let .slice(trigger, sliceIndexes):
+        case let .slice(sliceIndexes):
+            guard let trigger = pipeline.trigger else {
+                return []
+            }
             let seeds = emittedSeeds(
                 from: trigger,
                 stepIndex: stepIndex,
-                totalSteps: cycleLength(for: params, clipChoices: clipChoices),
+                totalSteps: cycleLength(for: pipeline, clipChoices: clipChoices),
                 clipChoices: clipChoices,
                 rng: &rng,
                 voiceTag: nil
@@ -133,11 +142,25 @@ enum GeneratedSourceEvaluator {
         count: Int = 16,
         chordContext: Chord? = nil
     ) -> [[GeneratedNote]] {
+        previewNotes(
+            for: params.generatedSourcePipeline,
+            clipChoices: clipChoices,
+            count: count,
+            chordContext: chordContext
+        )
+    }
+
+    static func previewNotes(
+        for pipeline: GeneratedSourcePipeline,
+        clipChoices: [ClipPoolEntry],
+        count: Int = 16,
+        chordContext: Chord? = nil
+    ) -> [[GeneratedNote]] {
         var rng = PreviewRNG()
         var state = GeneratedSourceEvaluationState()
         return (0..<count).map { stepIndex in
             evaluateStep(
-                for: params,
+                for: pipeline,
                 stepIndex: stepIndex,
                 clipChoices: clipChoices,
                 chordContext: chordContext,
@@ -148,14 +171,7 @@ enum GeneratedSourceEvaluator {
     }
 
     static func clipPitchPool(for clip: ClipPoolEntry) -> [Int] {
-        switch clip.content {
-        case let .stepSequence(_, pitches):
-            return pitches
-        case let .pianoRoll(_, _, notes):
-            return Array(Set(notes.map(\.pitch))).sorted()
-        case let .sliceTriggers(_, sliceIndexes):
-            return sliceIndexes.map { 60 + $0 }
-        }
+        clip.pitchPool
     }
 
     static func clipStepPatternFires(

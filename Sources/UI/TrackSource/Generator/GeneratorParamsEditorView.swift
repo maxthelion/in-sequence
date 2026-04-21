@@ -2,7 +2,8 @@ import SwiftUI
 
 struct GeneratorParamsEditorView: View {
     let generator: GeneratorPoolEntry
-    let clipChoices: [ClipPoolEntry]
+    let inputClipChoices: [ClipPoolEntry]
+    let harmonicSidechainClipChoices: [ClipPoolEntry]
     let accent: Color
     let onUpdate: (GeneratorParams) -> Void
 
@@ -38,7 +39,7 @@ struct GeneratorParamsEditorView: View {
         case .steps:
             StudioPanel(title: "Trigger Stage", eyebrow: stepDisplayLabel(trigger.stepStage), accent: accent) {
                 VStack(alignment: .leading, spacing: 16) {
-                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: clipChoices) { nextStage in
+                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
                         onUpdate(.mono(trigger: .native(nextStage), pitch: pitch, shape: shape))
                     }
 
@@ -49,13 +50,20 @@ struct GeneratorParamsEditorView: View {
             }
         case .pitches:
             StudioPanel(title: "Pitch Expander", eyebrow: pitchDisplayLabel(pitch.pitchStage), accent: StudioTheme.violet) {
-                PitchAlgoEditor(stage: pitch.pitchStage, clipChoices: clipChoices) { nextStage in
+                PitchAlgoEditor(
+                    stage: pitch.pitchStage,
+                    inputClipChoices: inputClipChoices,
+                    harmonicSidechainClipChoices: harmonicSidechainClipChoices
+                ) { nextStage in
                     onUpdate(.mono(trigger: trigger, pitch: .native(nextStage), shape: shape))
                 }
             }
         case .notes:
             StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(generatorParams: .mono(trigger: trigger, pitch: pitch, shape: shape), clipChoices: clipChoices)
+                GeneratedNotesPreview(
+                    pipeline: .melodic(trigger: trigger, pitches: [pitch], shape: shape),
+                    clipChoices: inputClipChoices
+                )
             }
         }
     }
@@ -66,7 +74,7 @@ struct GeneratorParamsEditorView: View {
         case .steps:
             StudioPanel(title: "Trigger Stage", eyebrow: stepDisplayLabel(trigger.stepStage), accent: accent) {
                 VStack(alignment: .leading, spacing: 16) {
-                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: clipChoices) { nextStage in
+                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
                         onUpdate(.poly(trigger: .native(nextStage), pitches: pitches, shape: shape))
                     }
 
@@ -96,7 +104,11 @@ struct GeneratorParamsEditorView: View {
                     )
 
                     let laneIndex = min(selectedPolyLane, max(0, pitches.count - 1))
-                    PitchAlgoEditor(stage: pitches[laneIndex].pitchStage, clipChoices: clipChoices) { nextStage in
+                    PitchAlgoEditor(
+                        stage: pitches[laneIndex].pitchStage,
+                        inputClipChoices: inputClipChoices,
+                        harmonicSidechainClipChoices: harmonicSidechainClipChoices
+                    ) { nextStage in
                         var nextPitches = pitches
                         nextPitches[laneIndex] = .native(nextStage)
                         onUpdate(.poly(trigger: trigger, pitches: nextPitches, shape: shape))
@@ -105,7 +117,10 @@ struct GeneratorParamsEditorView: View {
             }
         case .notes:
             StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(generatorParams: .poly(trigger: trigger, pitches: pitches, shape: shape), clipChoices: clipChoices)
+                GeneratedNotesPreview(
+                    pipeline: .melodic(trigger: trigger, pitches: pitches, shape: shape),
+                    clipChoices: inputClipChoices
+                )
             }
         }
     }
@@ -124,7 +139,7 @@ struct GeneratorParamsEditorView: View {
                                     .tracking(0.8)
                                     .foregroundStyle(StudioTheme.mutedText)
 
-                                StepAlgoEditor(stage: trigger.stepStage, clipChoices: clipChoices) { nextStage in
+                                StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
                                     var nextTriggers = triggers
                                     nextTriggers[key] = .native(nextStage)
                                     onUpdate(.drum(triggers: nextTriggers, shape: shape))
@@ -144,7 +159,10 @@ struct GeneratorParamsEditorView: View {
             }
         case .notes:
             StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(generatorParams: .drum(triggers: triggers, shape: shape), clipChoices: clipChoices)
+                GeneratedNotesPreview(
+                    pipeline: .drum(triggers: triggers, shape: shape),
+                    clipChoices: inputClipChoices
+                )
             }
         }
     }
@@ -155,7 +173,7 @@ struct GeneratorParamsEditorView: View {
         case .steps:
             StudioPanel(title: "Trigger Stage", eyebrow: stepDisplayLabel(trigger.stepStage), accent: accent) {
                 VStack(alignment: .leading, spacing: 16) {
-                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: clipChoices) { nextStage in
+                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
                         onUpdate(.slice(trigger: .native(nextStage), sliceIndexes: sliceIndexes))
                     }
 
@@ -172,7 +190,10 @@ struct GeneratorParamsEditorView: View {
             }
         case .notes:
             StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(generatorParams: .slice(trigger: trigger, sliceIndexes: sliceIndexes), clipChoices: clipChoices)
+                GeneratedNotesPreview(
+                    pipeline: .slice(trigger: trigger, sliceIndexes: sliceIndexes),
+                    clipChoices: inputClipChoices
+                )
             }
         }
     }

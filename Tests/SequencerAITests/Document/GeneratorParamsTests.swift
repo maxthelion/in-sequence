@@ -88,4 +88,65 @@ final class GeneratorParamsTests: XCTestCase {
             XCTAssertEqual(decoded, value)
         }
     }
+
+    func test_generatedSourcePipeline_covers_all_generator_variants() {
+        let templateID = UUID(uuidString: "12121212-3434-5656-7878-909090909090")!
+        let values: [GeneratorParams] = [
+            .mono(
+                trigger: .native(.manual(pattern: [true, false]), basePitch: 60),
+                pitch: .native(.manual(pitches: [60, 64], pickMode: .sequential)),
+                shape: .default
+            ),
+            .poly(
+                trigger: .native(.manual(pattern: [true, false]), basePitch: 60),
+                pitches: [
+                    .native(.manual(pitches: [60], pickMode: .sequential)),
+                    .native(.manual(pitches: [67], pickMode: .sequential)),
+                ],
+                shape: .default
+            ),
+            .drum(
+                triggers: [
+                    "kick": .native(.manual(pattern: [true]), basePitch: 36),
+                    "hat": .native(.manual(pattern: [false, true]), basePitch: 42),
+                ],
+                shape: .default
+            ),
+            .slice(
+                trigger: .native(.manual(pattern: [true, false]), basePitch: 60),
+                sliceIndexes: [0, 2, 4]
+            ),
+            .template(templateID: templateID),
+        ]
+
+        for value in values {
+            switch (value, value.generatedSourcePipeline.content) {
+            case let (.mono(trigger, pitch, shape), .melodic(pitches, pipelineShape)):
+                XCTAssertEqual(value.generatedSourcePipeline.trigger, trigger)
+                XCTAssertEqual(pitches, [pitch])
+                XCTAssertEqual(pipelineShape, shape)
+
+            case let (.poly(trigger, pitches, shape), .melodic(pipelinePitches, pipelineShape)):
+                XCTAssertEqual(value.generatedSourcePipeline.trigger, trigger)
+                XCTAssertEqual(pipelinePitches, pitches)
+                XCTAssertEqual(pipelineShape, shape)
+
+            case let (.drum(triggers, shape), .drum(pipelineTriggers, pipelineShape)):
+                XCTAssertNil(value.generatedSourcePipeline.trigger)
+                XCTAssertEqual(pipelineTriggers, triggers)
+                XCTAssertEqual(pipelineShape, shape)
+
+            case let (.slice(trigger, indexes), .slice(pipelineIndexes)):
+                XCTAssertEqual(value.generatedSourcePipeline.trigger, trigger)
+                XCTAssertEqual(pipelineIndexes, indexes)
+
+            case let (.template(id), .template(pipelineID)):
+                XCTAssertNil(value.generatedSourcePipeline.trigger)
+                XCTAssertEqual(pipelineID, id)
+
+            default:
+                XCTFail("generatedSourcePipeline should preserve the generator variant shape")
+            }
+        }
+    }
 }
