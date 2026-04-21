@@ -72,6 +72,7 @@ final class EngineController: RouterDispatcher {
     // Do not read or mutate from other threads without revisiting this contract.
     @ObservationIgnored
     private var currentLayerSnapshot = LayerSnapshot.empty
+    private var generatedEvaluationStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:]
 
     // Non-observable mirror of `transportTickIndex`, maintained on the clock thread.
     // Tick-thread code that needs the current tick reads this instead of the
@@ -79,6 +80,8 @@ final class EngineController: RouterDispatcher {
     // `publishToMain`). Safe for tick-thread reads/writes without observer callbacks.
     @ObservationIgnored
     private var tickIndexOnClockThread: UInt64 = 0
+    @ObservationIgnored
+    private var preparedTickIndex: UInt64?
 
     private func log(_ message: String) {
         NSLog("[EngineController] \(message)")
@@ -143,6 +146,9 @@ final class EngineController: RouterDispatcher {
         try? sampleEngine.start()
 
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
+        withStateLock {
+            preparedTickIndex = 0
+        }
         isRunning = true
         clock.start { [weak self] tickIndex, now in
             self?.processTick(tickIndex: tickIndex, now: now)
@@ -162,6 +168,10 @@ final class EngineController: RouterDispatcher {
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
         sampleEngine.stop()
+        withStateLock {
+            generatedEvaluationStatesByTrackID = [:]
+            preparedTickIndex = nil
+        }
     }
 
     func setBPM(_ bpm: Double) {
@@ -305,18 +315,27 @@ final class EngineController: RouterDispatcher {
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
+        let needsBootstrap = withStateLock { preparedTickIndex != tickIndex }
+        if needsBootstrap {
+            prepareTick(upcomingStep: tickIndex, now: now)
+        }
         dispatchTick()
         prepareTick(upcomingStep: tickIndex &+ 1, now: now)
+        withStateLock {
+            preparedTickIndex = tickIndex &+ 1
+        }
     }
 
     private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
-        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel) = withStateLock {
+        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts) = withStateLock {
             (
                 self.executor,
                 self.audioTrackRuntimes,
                 self.audioOutputsByTrackID,
                 self.generatorIDsByTrackID,
-                self.currentDocumentModel
+                self.currentDocumentModel,
+                self.generatedEvaluationStatesByTrackID,
+                self.chordContextByLane
             )
         }
 
@@ -330,6 +349,38 @@ final class EngineController: RouterDispatcher {
             project: documentModel,
             phraseID: documentModel.selectedPhraseID
         )
+
+        var nextGeneratedStates = generatedStates
+        let harmonicSidechainChord = chordContexts["default"]
+        for track in documentModel.tracks {
+            guard let generatorBlockID = generatorIDs[track.id],
+                  let generator = Self.generatedSource(for: track, in: documentModel)
+            else {
+                continue
+            }
+
+            var rng = SystemRandomNumberGenerator()
+            var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
+            let notes = GeneratedSourceEvaluator.evaluateStep(
+                for: generator.params,
+                stepIndex: Int(upcomingStep),
+                clipChoices: documentModel.clipPool,
+                chordContext: harmonicSidechainChord,
+                state: &state,
+                rng: &rng
+            )
+            nextGeneratedStates[track.id] = state
+            _ = commandQueue.enqueue(
+                .setParam(
+                    blockID: generatorBlockID,
+                    paramKey: "liveStepNotes",
+                    value: .text(Self.encode(liveNotes: notes) ?? "")
+                )
+            )
+        }
+        withStateLock {
+            generatedEvaluationStatesByTrackID = nextGeneratedStates
+        }
 
         let outputs = executor.tick(now: now)
         let newCurrentBPM = executor.currentBPM
@@ -552,6 +603,8 @@ final class EngineController: RouterDispatcher {
             midiOutBlocksByTrackID = midiOutBlocks
             audioTrackRuntimes = audioRuntimes
             pipelineShape = Self.pipelineShape(for: documentModel)
+            generatedEvaluationStatesByTrackID = [:]
+            preparedTickIndex = nil
         }
 
         syncAudioOutputs(for: documentModel)
@@ -734,6 +787,10 @@ final class EngineController: RouterDispatcher {
                 setParam(blockID: generatorBlockID, paramKey: paramKey, value: value)
             }
         }
+        withStateLock {
+            generatedEvaluationStatesByTrackID = [:]
+            preparedTickIndex = nil
+        }
     }
 
     private func syncMidiOutputs(for documentModel: Project) {
@@ -868,138 +925,48 @@ final class EngineController: RouterDispatcher {
         for track: StepSequenceTrack,
         in documentModel: Project
     ) -> [String: ParamValue] {
-        if let program = noteProgram(for: track, in: documentModel),
+        if let program = clipNoteProgram(for: track, in: documentModel),
            let encoded = encode(program: program)
         {
-            return ["noteProgram": .text(encoded)]
+            return [
+                "noteProgram": .text(encoded),
+                "liveStepNotes": .text("")
+            ]
         }
 
-        return legacyGeneratorParams(for: track)
-    }
-
-    private static func legacyGeneratorParams(for track: StepSequenceTrack) -> [String: ParamValue] {
-        [
+        return [
             "noteProgram": .text(""),
-            "pitches": .integers(track.pitches),
-            "stepPattern": .integers(track.stepPattern.map { $0 ? 1 : 0 }),
-            "accentPattern": .integers(track.stepAccents.map { $0 ? 1 : 0 }),
-            "velocity": .number(Double(track.velocity)),
-            "gateLength": .number(Double(track.gateLength))
+            "liveStepNotes": .text("")
         ]
     }
 
-    private static func noteProgram(
+    private static func generatedSource(
         for track: StepSequenceTrack,
         in documentModel: Project
-    ) -> NoteGenerator.NoteProgram? {
+    ) -> GeneratorPoolEntry? {
         let patternIndex = documentModel.selectedPhrase.patternIndex(for: track.id, layers: documentModel.layers)
         let slot = documentModel.patternBank(for: track.id).slot(at: patternIndex)
 
         switch slot.sourceRef.mode {
         case .generator:
-            guard let generator = documentModel.generatorEntry(id: slot.sourceRef.generatorID) else {
-                return nil
-            }
-            return noteProgram(for: generator, track: track, clipPool: documentModel.clipPool)
+            return documentModel.generatorEntry(id: slot.sourceRef.generatorID)
         case .clip:
-            guard let clip = documentModel.clipEntry(id: slot.sourceRef.clipID) else {
-                return nil
-            }
-            return noteProgram(for: clip)
+            return nil
         }
     }
 
-    private static func noteProgram(
-        for generator: GeneratorPoolEntry,
-        track: StepSequenceTrack,
-        clipPool: [ClipPoolEntry]
+    private static func clipNoteProgram(
+        for track: StepSequenceTrack,
+        in documentModel: Project
     ) -> NoteGenerator.NoteProgram? {
-        switch generator.params {
-        case let .mono(step, pitch, shape):
-            let cycleLength = max(stepCycleLength(step, clipPool: clipPool), 1)
-            var rng = SystemRandomNumberGenerator()
-            var lastPitch: Int?
-            let steps = (0..<cycleLength).map { stepIndex in
-                guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
-                    return [NoteGenerator.ProgrammedNote]()
-                }
-                let pickedPitch = resolvedPitch(
-                    pitch,
-                    stepIndex: stepIndex,
-                    lastPitch: lastPitch,
-                    clipPool: clipPool
-                )
-                lastPitch = pickedPitch
-                return [
-                    NoteGenerator.ProgrammedNote(
-                        pitch: pickedPitch,
-                        velocity: clampedMIDI(shape.velocity),
-                        length: max(1, shape.gateLength),
-                        voiceTag: nil
-                    )
-                ]
-            }
-            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
-
-        case let .poly(step, pitches, shape):
-            let cycleLength = max(stepCycleLength(step, clipPool: clipPool), 1)
-            var rng = SystemRandomNumberGenerator()
-            let steps = (0..<cycleLength).map { stepIndex in
-                guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
-                    return [NoteGenerator.ProgrammedNote]()
-                }
-                return pitches.map { pitch in
-                    NoteGenerator.ProgrammedNote(
-                        pitch: resolvedPitch(pitch, stepIndex: stepIndex, lastPitch: nil, clipPool: clipPool),
-                        velocity: clampedMIDI(shape.velocity),
-                        length: max(1, shape.gateLength),
-                        voiceTag: nil
-                    )
-                }
-            }
-            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
-
-        case let .drum(stepsByVoice, shape):
-            let cycleLength = max(stepsByVoice.values.map { stepCycleLength($0, clipPool: clipPool) }.max() ?? 1, 1)
-            var rng = SystemRandomNumberGenerator()
-            let steps = (0..<cycleLength).map { stepIndex in
-                stepsByVoice.compactMap { (voiceTag: String, step: StepAlgo) -> NoteGenerator.ProgrammedNote? in
-                    guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
-                        return nil
-                    }
-                    return NoteGenerator.ProgrammedNote(
-                        pitch: Int(DrumKitNoteMap.note(for: voiceTag)),
-                        velocity: clampedMIDI(shape.velocity),
-                        length: max(1, shape.gateLength),
-                        voiceTag: voiceTag
-                    )
-                }
-            }
-            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
-
-        case .template:
+        let patternIndex = documentModel.selectedPhrase.patternIndex(for: track.id, layers: documentModel.layers)
+        let slot = documentModel.patternBank(for: track.id).slot(at: patternIndex)
+        guard slot.sourceRef.mode == .clip,
+              let clip = documentModel.clipEntry(id: slot.sourceRef.clipID)
+        else {
             return nil
-
-        case let .slice(step, sliceIndexes):
-            let cycleLength = max(stepCycleLength(step, clipPool: clipPool), 1)
-            var rng = SystemRandomNumberGenerator()
-            let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
-            let steps = (0..<cycleLength).map { stepIndex in
-                guard stepFires(step, at: stepIndex, totalSteps: cycleLength, clipPool: clipPool, rng: &rng) else {
-                    return [NoteGenerator.ProgrammedNote]()
-                }
-                let sliceIndex = resolvedIndexes[stepIndex % resolvedIndexes.count]
-                return [
-                    NoteGenerator.ProgrammedNote(
-                        pitch: clampedMIDI(60 + sliceIndex),
-                        velocity: clampedMIDI(track.velocity),
-                        length: max(1, track.gateLength),
-                        voiceTag: nil
-                    )
-                ]
-            }
-            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
         }
+        return noteProgram(for: clip)
     }
 
     private static func noteProgram(for clip: ClipPoolEntry) -> NoteGenerator.NoteProgram? {
@@ -1059,99 +1026,6 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private static func stepCycleLength(_ step: StepAlgo, clipPool: [ClipPoolEntry]) -> Int {
-        switch step {
-        case let .manual(pattern):
-            return max(pattern.count, 1)
-        case .randomWeighted:
-            return 16
-        case let .euclidean(_, steps, _):
-            return max(steps, 1)
-        case let .perStepProbability(probs):
-            return max(probs.count, 1)
-        case let .fromClipSteps(clipID):
-            guard let clip = clipPool.first(where: { $0.id == clipID }) else {
-                return 16
-            }
-            switch clip.content {
-            case let .stepSequence(stepPattern, _), let .sliceTriggers(stepPattern, _):
-                return max(stepPattern.count, 1)
-            case let .pianoRoll(lengthBars, stepsPerBar, _):
-                return max(1, lengthBars * stepsPerBar)
-            }
-        }
-    }
-
-    private static func stepFires<R: RandomNumberGenerator>(
-        _ step: StepAlgo,
-        at stepIndex: Int,
-        totalSteps: Int,
-        clipPool: [ClipPoolEntry],
-        rng: inout R
-    ) -> Bool {
-        switch step {
-        case let .fromClipSteps(clipID):
-            guard let clip = clipPool.first(where: { $0.id == clipID }) else {
-                return false
-            }
-            switch clip.content {
-            case let .stepSequence(stepPattern, _), let .sliceTriggers(stepPattern, _):
-                guard !stepPattern.isEmpty else { return false }
-                return stepPattern[stepIndex % stepPattern.count]
-            case let .pianoRoll(lengthBars, stepsPerBar, notes):
-                let cycleLength = max(1, lengthBars * stepsPerBar)
-                let normalizedStep = stepIndex % cycleLength
-                return notes.contains { $0.startStep == normalizedStep }
-            }
-        default:
-            return step.fires(at: stepIndex, totalSteps: totalSteps, rng: &rng)
-        }
-    }
-
-    private static func resolvedPitch(
-        _ pitch: PitchAlgo,
-        stepIndex: Int,
-        lastPitch: Int?,
-        clipPool: [ClipPoolEntry]
-    ) -> Int {
-        switch pitch {
-        case let .fromClipPitches(clipID, pickMode):
-            guard let clip = clipPool.first(where: { $0.id == clipID }) else {
-                return 60
-            }
-            let pool: [Int]
-            switch clip.content {
-            case let .stepSequence(_, pitches):
-                pool = pitches
-            case let .pianoRoll(_, _, notes):
-                pool = notes.map(\.pitch)
-            case let .sliceTriggers(_, sliceIndexes):
-                pool = sliceIndexes.map { 60 + $0 }
-            }
-            guard !pool.isEmpty else {
-                return 60
-            }
-            switch pickMode {
-            case .sequential:
-                return pool[stepIndex % pool.count]
-            case .random:
-                return pool.randomElement() ?? 60
-            }
-        default:
-            var rng = SystemRandomNumberGenerator()
-            return pitch.pick(
-                context: PitchContext(
-                    lastPitch: lastPitch,
-                    scaleRoot: lastPitch ?? 60,
-                    scaleID: .major,
-                    currentChord: nil,
-                    stepIndex: stepIndex
-                ),
-                rng: &rng
-            )
-        }
-    }
-
     private static func clampedMIDI(_ value: Int) -> Int {
         min(max(value, 0), 127)
     }
@@ -1166,6 +1040,25 @@ final class EngineController: RouterDispatcher {
             return string
         } catch {
             assertionFailure("EngineController note program encode failed: \(error)")
+            return nil
+        }
+    }
+
+    private static func encode(liveNotes: [GeneratedNote]) -> String? {
+        let programmed = liveNotes.map {
+            NoteGenerator.ProgrammedNote(
+                pitch: $0.pitch,
+                velocity: $0.velocity,
+                length: $0.length,
+                voiceTag: $0.voiceTag
+            )
+        }
+
+        do {
+            let data = try JSONEncoder().encode(programmed)
+            return String(data: data, encoding: .utf8)
+        } catch {
+            assertionFailure("EngineController liveStepNotes encode failed: \(error)")
             return nil
         }
     }

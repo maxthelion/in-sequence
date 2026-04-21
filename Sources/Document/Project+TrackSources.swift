@@ -9,6 +9,14 @@ extension Project {
         clipPool.filter { $0.trackType == track.trackType }
     }
 
+    func generatedSourceInputClips() -> [ClipPoolEntry] {
+        clipPool
+    }
+
+    func harmonicSidechainClips() -> [ClipPoolEntry] {
+        clipPool.filter(\.hasPitchMaterial)
+    }
+
     func generatorEntry(id: UUID?) -> GeneratorPoolEntry? {
         guard let id else { return nil }
         return generatorPool.first(where: { $0.id == id })

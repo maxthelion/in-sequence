@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct GeneratedNotesPreview: View {
-    let generatorParams: GeneratorParams
+    let pipeline: GeneratedSourcePipeline
     let clipChoices: [ClipPoolEntry]
 
     var body: some View {
-        let preview = previewSteps(for: generatorParams, clipChoices: clipChoices)
+        let preview = previewSteps(for: pipeline, clipChoices: clipChoices)
         VStack(alignment: .leading, spacing: 12) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -33,7 +33,7 @@ struct GeneratedNotesPreview: View {
                     }
                 }
             }
-            Text("Preview is generated from the current step and pitch settings.")
+            Text("Preview is generated from the current trigger stage and pitch expander.")
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(StudioTheme.mutedText)
         }

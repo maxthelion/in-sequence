@@ -41,6 +41,7 @@ final class NoteGenerator: Block {
     private var velocity: UInt8
     private var gateLength: UInt16
     private var noteProgram: NoteProgram?
+    private var liveStepNotes: [ProgrammedNote]?
 
     init(id: BlockID, params: [String: ParamValue] = [:]) {
         self.id = id
@@ -56,6 +57,11 @@ final class NoteGenerator: Block {
     }
 
     func tick(context: TickContext) -> [PortID: Stream] {
+        if let liveStepNotes {
+            self.liveStepNotes = nil
+            return ["notes": .notes(liveStepNotes.compactMap(Self.noteEvent(from:)))]
+        }
+
         if let noteProgram {
             let program = noteProgram.normalized
             let stepIndex = Int(context.tickIndex % UInt64(program.cycleLength))
@@ -121,6 +127,10 @@ final class NoteGenerator: Block {
             gateLength = UInt16(nextGateLength.rounded())
 
         case let ("noteProgram", .text(encodedProgram)):
+            if encodedProgram.isEmpty {
+                noteProgram = nil
+                return
+            }
             guard let data = encodedProgram.data(using: .utf8) else {
                 noteProgram = nil
                 return
@@ -130,6 +140,22 @@ final class NoteGenerator: Block {
             } catch {
                 assertionFailure("NoteGenerator noteProgram decode failed: \(error)")
                 noteProgram = nil
+            }
+
+        case let ("liveStepNotes", .text(encodedNotes)):
+            if encodedNotes.isEmpty {
+                liveStepNotes = nil
+                return
+            }
+            guard let data = encodedNotes.data(using: .utf8) else {
+                liveStepNotes = nil
+                return
+            }
+            do {
+                liveStepNotes = try JSONDecoder().decode([ProgrammedNote].self, from: data)
+            } catch {
+                assertionFailure("NoteGenerator liveStepNotes decode failed: \(error)")
+                liveStepNotes = nil
             }
 
         default:

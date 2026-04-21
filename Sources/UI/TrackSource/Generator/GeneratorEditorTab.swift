@@ -10,9 +10,9 @@ enum GeneratorEditorTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .steps:
-            return "Steps"
+            return "Trigger"
         case .pitches:
-            return "Pitches"
+            return "Pitch"
         case .notes:
             return "Notes"
         }

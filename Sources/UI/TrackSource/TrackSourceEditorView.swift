@@ -14,8 +14,11 @@ struct TrackSourceEditorView: View {
     private var attachedGenerator: GeneratorPoolEntry? {
         document.project.generatorEntry(id: bank.attachedGeneratorID)
     }
+    private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
     private var compatibleGenerators: [GeneratorPoolEntry] { document.project.compatibleGenerators(for: track) }
     private var compatibleClips: [ClipPoolEntry] { document.project.compatibleClips(for: track) }
+    private var generatedSourceInputClips: [ClipPoolEntry] { document.project.generatedSourceInputClips() }
+    private var harmonicSidechainClips: [ClipPoolEntry] { document.project.harmonicSidechainClips() }
     private var currentClip: ClipPoolEntry? { document.project.clipEntry(id: selectedPattern.sourceRef.clipID) }
 
     var body: some View {
@@ -45,10 +48,12 @@ struct TrackSourceEditorView: View {
                 }
             }
 
-            if let attached = attachedGenerator {
+            if selectedSourceMode == .generator, let attached = attachedGenerator {
                 generatorEditorPanel(for: attached)
             }
-            clipPanel
+            if selectedSourceMode == .clip {
+                clipPanel
+            }
         }
     }
 
@@ -66,7 +71,7 @@ struct TrackSourceEditorView: View {
     @ViewBuilder
     private func generatorEditorPanel(for generator: GeneratorPoolEntry) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Generator", eyebrow: generator.kind.label, accent: accent) {
+            StudioPanel(title: "Generated Source", eyebrow: "Trigger → Pitch → Notes", accent: accent) {
                 VStack(alignment: .leading, spacing: 14) {
                     if compatibleGenerators.count > 1 {
                         Picker("Generator", selection: attachedGeneratorIDBinding) {
@@ -84,7 +89,8 @@ struct TrackSourceEditorView: View {
 
             GeneratorParamsEditorView(
                 generator: generator,
-                clipChoices: compatibleClips,
+                inputClipChoices: generatedSourceInputClips,
+                harmonicSidechainClipChoices: harmonicSidechainClips,
                 accent: accent
             ) { updated in
                 document.project.updateGeneratorEntry(id: generator.id) { entry in
@@ -96,31 +102,41 @@ struct TrackSourceEditorView: View {
 
     @ViewBuilder
     private var clipPanel: some View {
-        if let clip = currentClip {
-            StudioPanel(title: "Clip", eyebrow: clip.name, accent: StudioTheme.violet) {
-                VStack(alignment: .leading, spacing: 14) {
-                    if compatibleClips.count > 1 {
-                        Picker("Clip", selection: clipIDBinding) {
-                            ForEach(compatibleClips) { entry in
-                                Text(entry.name).tag(Optional(entry.id))
+        StudioPanel(
+            title: "Clip",
+            eyebrow: currentClip == nil ? "No clip selected" : "Direct clip source",
+            accent: StudioTheme.violet
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                if compatibleClips.isEmpty {
+                    StudioPlaceholderTile(
+                        title: "No Compatible Clips",
+                        detail: "Create or import a compatible clip for this track type.",
+                        accent: StudioTheme.violet
+                    )
+                } else {
+                    Picker("Clip", selection: clipIDBinding) {
+                        Text("Choose Clip").tag(Optional<UUID>.none)
+                        ForEach(compatibleClips) { entry in
+                            Text(entry.name).tag(Optional(entry.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    if let clip = currentClip {
+                        ClipContentPreview(content: clip.content) { updated in
+                            document.project.updateClipEntry(id: clip.id) { entry in
+                                entry.content = updated
                             }
                         }
-                        .pickerStyle(.menu)
-                    }
-                    ClipContentPreview(content: clip.content) { updated in
-                        document.project.updateClipEntry(id: clip.id) { entry in
-                            entry.content = updated
-                        }
+                    } else {
+                        StudioPlaceholderTile(
+                            title: "No Clip For This Slot",
+                            detail: "Pick a clip from the pool for this pattern slot.",
+                            accent: StudioTheme.violet
+                        )
                     }
                 }
-            }
-        } else {
-            StudioPanel(title: "Clip", eyebrow: "No clip selected", accent: StudioTheme.violet) {
-                StudioPlaceholderTile(
-                    title: "No Clip For This Slot",
-                    detail: "Pick a clip from the pool or let the track create one via Add Generator.",
-                    accent: StudioTheme.violet
-                )
             }
         }
     }
