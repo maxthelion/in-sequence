@@ -2,9 +2,11 @@ import SwiftUI
 
 struct TracksMatrixView: View {
     @Binding var document: SeqAIDocument
+    @Environment(EngineController.self) private var engineController
     let onOpenTrack: () -> Void
 
     @State private var isPresentingCreateTrack = false
+    @State private var isPresentingAddDrumGroup = false
     @State private var collapsedGroupIDs: Set<TrackGroupID> = []
 
     private let columns = [
@@ -51,6 +53,20 @@ struct TracksMatrixView: View {
         .sheet(isPresented: $isPresentingCreateTrack) {
             CreateTrackSheet(document: $document, onOpenTrack: onOpenTrack)
         }
+        .sheet(isPresented: $isPresentingAddDrumGroup) {
+            AddDrumGroupSheet(
+                auInstruments: engineController.availableAudioInstruments,
+                onCreate: { plan in
+                    _ = document.project.addDrumGroup(plan: plan)
+                    isPresentingAddDrumGroup = false
+                    onOpenTrack()
+                },
+                onCancel: {
+                    isPresentingAddDrumGroup = false
+                }
+            )
+            .presentationBackground(.clear)
+        }
     }
 
     private var actionBar: some View {
@@ -87,13 +103,8 @@ struct TracksMatrixView: View {
             }
             .buttonStyle(.bordered)
 
-            Menu("Add Drum Kit") {
-                ForEach(DrumKitPreset.allCases, id: \.self) { preset in
-                    Button(preset.displayName) {
-                        _ = document.project.addDrumKit(preset)
-                        onOpenTrack()
-                    }
-                }
+            Button("Add Drum Group") {
+                isPresentingAddDrumGroup = true
             }
             .buttonStyle(.bordered)
         }
