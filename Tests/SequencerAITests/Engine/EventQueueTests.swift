@@ -86,15 +86,15 @@ final class EventQueueTests: XCTestCase {
         let sampleID = UUID()
         let a = ScheduledEvent(
             scheduledHostTime: 1.0,
-            payload: .sampleTrigger(trackID: trackID, sampleID: sampleID, settings: .default, mixLevel: 0.8, scheduledHostTime: 1.0)
+            payload: .sampleTrigger(trackID: trackID, sampleID: sampleID, settings: .default, scheduledHostTime: 1.0)
         )
         let b = ScheduledEvent(
             scheduledHostTime: 1.0,
-            payload: .sampleTrigger(trackID: trackID, sampleID: sampleID, settings: .default, mixLevel: 0.8, scheduledHostTime: 1.0)
+            payload: .sampleTrigger(trackID: trackID, sampleID: sampleID, settings: .default, scheduledHostTime: 1.0)
         )
         let c = ScheduledEvent(
             scheduledHostTime: 1.0,
-            payload: .sampleTrigger(trackID: trackID, sampleID: UUID(), settings: .default, mixLevel: 0.8, scheduledHostTime: 1.0)
+            payload: .sampleTrigger(trackID: trackID, sampleID: UUID(), settings: .default, scheduledHostTime: 1.0)
         )
         XCTAssertEqual(a, b)
         XCTAssertNotEqual(a, c)

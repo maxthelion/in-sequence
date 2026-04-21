@@ -6,13 +6,11 @@ struct ScheduledEvent: Equatable, Sendable {
         case routedAU(trackID: UUID, destination: Destination, notes: [NoteEvent], bpm: Double, stepsPerBar: Int)
         case routedMIDI(destination: Destination, channel: UInt8, notes: [NoteEvent], bpm: Double)
         case chordContextBroadcast(lane: String, chord: Chord)
-        /// `mixLevel` is `track.mix.level` (linear, [0, 1]) snapshotted at enqueue time.
-        /// Baked into the payload rather than looked up at dispatch so fader state doesn't
-        /// require a second lock round-trip per trigger; the trade-off is that fader moves
-        /// during an in-flight sample don't take effect until the next trigger — acceptable
-        /// for drum one-shots. Per-track mixer nodes (for live fader rides + pan) are a
-        /// follow-up.
-        case sampleTrigger(trackID: UUID, sampleID: UUID, settings: SamplerSettings, mixLevel: Double, scheduledHostTime: TimeInterval)
+        /// `trackID` identifies which per-track mixer node inside `SamplePlaybackEngine`
+        /// the voice routes to. The fader's `level` and `pan` are applied to that mixer
+        /// node via `SamplePlaybackSink.setTrackMix(...)` outside the trigger path, so
+        /// in-flight voices respond to live fader moves.
+        case sampleTrigger(trackID: UUID, sampleID: UUID, settings: SamplerSettings, scheduledHostTime: TimeInterval)
     }
 
     let scheduledHostTime: TimeInterval

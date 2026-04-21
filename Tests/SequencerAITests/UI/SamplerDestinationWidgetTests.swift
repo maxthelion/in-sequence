@@ -24,7 +24,9 @@ final class SamplerDestinationWidgetTests: XCTestCase {
         var stopAuditionCalls = 0
         func start() throws {}
         func stop() {}
-        func play(sampleURL: URL, settings: SamplerSettings, mixLevel: Double, at when: AVAudioTime?) -> VoiceHandle? { nil }
+        func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? { nil }
+        func setTrackMix(trackID: UUID, level: Double, pan: Double) {}
+        func removeTrack(trackID: UUID) {}
         func audition(sampleURL: URL) { auditionCalls += 1 }
         func stopAudition() { stopAuditionCalls += 1 }
     }

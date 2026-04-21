@@ -59,6 +59,7 @@ final class EngineController: RouterDispatcher {
     private var audioOutputsByTrackID: [UUID: TrackPlaybackSink] = [:]
     private var audioOutputKeysByTrackID: [UUID: AudioOutputKey] = [:]
     private var lastDestinationByOutputKey: [AudioOutputKey: Destination] = [:]
+    private var liveSampleTrackIDs: Set<UUID> = []
     private var routeMidiOutputs: [Destination: MidiOut] = [:]
     private var pipelineShape: [PipelineEntry] = []
     private var routedNoteEvents: [RouteDestination: [NoteEvent]] = [:]
@@ -395,7 +396,6 @@ final class EngineController: RouterDispatcher {
                   !events.isEmpty
             else { continue }
             guard case let .sample(sampleID, settings) = track.destination else { continue }
-            let mixLevel = track.mix.clampedLevel
             for _ in events {
                 eventQueue.enqueue(ScheduledEvent(
                     scheduledHostTime: now,
@@ -403,7 +403,6 @@ final class EngineController: RouterDispatcher {
                         trackID: track.id,
                         sampleID: sampleID,
                         settings: settings,
-                        mixLevel: mixLevel,
                         scheduledHostTime: now
                     )
                 ))
@@ -456,10 +455,10 @@ final class EngineController: RouterDispatcher {
             case .routedMIDI:
                 break
 
-            case let .sampleTrigger(_, sampleID, settings, mixLevel, _):
+            case let .sampleTrigger(trackID, sampleID, settings, _):
                 guard let sample = sampleLibrary.sample(id: sampleID) else { continue }
                 guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
-                _ = sampleEngine.play(sampleURL: url, settings: settings, mixLevel: mixLevel, at: nil)
+                _ = sampleEngine.play(sampleURL: url, settings: settings, trackID: trackID, at: nil)
             }
         }
     }
@@ -837,6 +836,32 @@ final class EngineController: RouterDispatcher {
         }
 
         removedHosts.forEach { $0.stop() }
+
+        syncSampleMixers(for: documentModel)
+    }
+
+    /// Push per-track fader state to `sampleEngine`. Called from `syncAudioOutputs`
+    /// every time the document model changes, which includes fader moves via the
+    /// mixer UI. The engine creates per-track mixer nodes lazily on first use; this
+    /// just configures them.
+    private func syncSampleMixers(for documentModel: Project) {
+        var sampleTrackIDs: Set<UUID> = []
+        for track in documentModel.tracks {
+            guard case .sample = track.destination else { continue }
+            sampleTrackIDs.insert(track.id)
+            sampleEngine.setTrackMix(
+                trackID: track.id,
+                level: track.mix.clampedLevel,
+                pan: track.mix.clampedPan
+            )
+        }
+
+        let previouslyLiveTrackIDs = withStateLock { liveSampleTrackIDs }
+        for removed in previouslyLiveTrackIDs.subtracting(sampleTrackIDs) {
+            sampleEngine.removeTrack(trackID: removed)
+        }
+
+        withStateLock { liveSampleTrackIDs = sampleTrackIDs }
     }
 
     private static func sourceParams(

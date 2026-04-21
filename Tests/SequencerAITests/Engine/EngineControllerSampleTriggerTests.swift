@@ -4,12 +4,20 @@ import AVFoundation
 
 final class EngineControllerSampleTriggerTests: XCTestCase {
     private final class SpySamplePlaybackSink: SamplePlaybackSink {
-        var playCalls: [(URL, SamplerSettings, Double)] = []
+        var playCalls: [(URL, SamplerSettings, UUID)] = []
+        var setTrackMixCalls: [(UUID, Double, Double)] = []
+        var removeTrackCalls: [UUID] = []
         func start() throws {}
         func stop() {}
-        func play(sampleURL: URL, settings: SamplerSettings, mixLevel: Double, at when: AVAudioTime?) -> VoiceHandle? {
-            playCalls.append((sampleURL, settings, mixLevel))
+        func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? {
+            playCalls.append((sampleURL, settings, trackID))
             return nil
+        }
+        func setTrackMix(trackID: UUID, level: Double, pan: Double) {
+            setTrackMixCalls.append((trackID, level, pan))
+        }
+        func removeTrack(trackID: UUID) {
+            removeTrackCalls.append(trackID)
         }
         func audition(sampleURL: URL) {}
         func stopAudition() {}
@@ -106,7 +114,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(spy.playCalls.count, 4, "at least one play per fired tick; 4 ticks driven")
     }
 
-    func test_trackMixLevel_propagatesToSampleEngine() {
+    func test_trackMix_appliedToSampleEngineOnDocumentApply() {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         guard let kick = library.firstSample(in: .kick) else {
             XCTFail("fixture missing"); return
@@ -121,7 +129,8 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             velocity: 100,
             gateLength: 4
         )
-        track.mix.level = 0.25       // non-default so we can distinguish from level 1.0
+        track.mix.level = 0.25
+        track.mix.pan = -0.5
 
         let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
         let layers = PhraseLayerDefinition.defaultSet(for: [track])
@@ -133,15 +142,47 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy, sampleLibrary: library
         )
         controller.apply(documentModel: project)
-        controller.start()
-        let now = ProcessInfo.processInfo.systemUptime
-        controller.processTick(tickIndex: 0, now: now)
-        controller.stop()
 
-        XCTAssertFalse(spy.playCalls.isEmpty, "a trigger should have fired")
-        for (_, _, mixLevel) in spy.playCalls {
-            XCTAssertEqual(mixLevel, 0.25, accuracy: 1e-9, "fader level should arrive at the sample engine as-is")
+        let last = spy.setTrackMixCalls.last(where: { $0.0 == track.id })
+        XCTAssertNotNil(last, "sample track should get a setTrackMix call")
+        XCTAssertEqual(last?.1 ?? -1, 0.25, accuracy: 1e-9, "fader level should reach sample engine")
+        XCTAssertEqual(last?.2 ?? 0, -0.5, accuracy: 1e-9, "pan should reach sample engine")
+    }
+
+    func test_destinationChangedAwayFromSample_triggersRemoveTrack() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let kick = library.firstSample(in: .kick) else {
+            XCTFail("fixture missing"); return
         }
+        let spy = SpySamplePlaybackSink()
+
+        var track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        var project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+
+        let controller = EngineController(
+            client: nil, endpoint: nil,
+            sampleEngine: spy, sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        XCTAssertTrue(spy.removeTrackCalls.isEmpty, "no removals on first apply")
+
+        // Flip the track's destination away from .sample — the sample engine should
+        // be told to tear down its mixer for this track.
+        track.destination = .midi(port: nil, channel: 0, noteOffset: 0)
+        project.tracks = [track]
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(spy.removeTrackCalls.contains(track.id), "track leaving .sample should trigger removeTrack on sample engine")
     }
 
     func test_muteCell_suppressesSampleDispatch() {

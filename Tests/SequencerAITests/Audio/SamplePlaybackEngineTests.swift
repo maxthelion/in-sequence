@@ -42,20 +42,20 @@ final class SamplePlaybackEngineTests: XCTestCase {
     func test_playReturnsHandle() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
-        let handle = engine.play(sampleURL: fixtureURL, settings: .default, at: nil)
+        let handle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: UUID(), at: nil)
         XCTAssertNotNil(handle)
     }
 
     func test_playWithoutStart_returnsNil() {
         let engine = SamplePlaybackEngine()
-        XCTAssertNil(engine.play(sampleURL: fixtureURL, settings: .default, at: nil))
+        XCTAssertNil(engine.play(sampleURL: fixtureURL, settings: .default, trackID: UUID(), at: nil))
     }
 
     func test_rapidPlays_doNotCrash() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
         for _ in 0..<20 {
-            _ = engine.play(sampleURL: fixtureURL, settings: .default, at: nil)
+            _ = engine.play(sampleURL: fixtureURL, settings: .default, trackID: UUID(), at: nil)
         }
     }
 
@@ -63,13 +63,13 @@ final class SamplePlaybackEngineTests: XCTestCase {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
         engine.audition(sampleURL: fixtureURL)
-        _ = engine.play(sampleURL: fixtureURL, settings: .default, at: nil)
+        _ = engine.play(sampleURL: fixtureURL, settings: .default, trackID: UUID(), at: nil)
     }
 
     func test_stopVoice_silencesThatVoice() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
-        guard let handle = engine.play(sampleURL: fixtureURL, settings: .default, at: nil) else {
+        guard let handle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: UUID(), at: nil) else {
             XCTFail("play returned nil in a started engine"); return
         }
         engine.stopVoice(handle)
@@ -79,6 +79,16 @@ final class SamplePlaybackEngineTests: XCTestCase {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID()).wav")
-        XCTAssertNil(engine.play(sampleURL: missing, settings: .default, at: nil))
+        XCTAssertNil(engine.play(sampleURL: missing, settings: .default, trackID: UUID(), at: nil))
+    }
+
+    func test_setTrackMix_doesNotCrash() {
+        let engine = SamplePlaybackEngine()
+        engine.setTrackMix(trackID: UUID(), level: 0.5, pan: 0.25)
+    }
+
+    func test_removeTrack_unknownIsNoOp() {
+        let engine = SamplePlaybackEngine()
+        engine.removeTrack(trackID: UUID())
     }
 }
