@@ -264,17 +264,23 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
-    /// Returns the live AU's preset lists, or `nil` if no AU is currently loaded.
-    /// Empty arrays are valid — they mean the AU exposes no presets of that kind.
-    func presetReadout() -> (factory: [AUPresetDescriptor], user: [AUPresetDescriptor])? {
+    /// Returns the live AU's preset lists plus the currently-loaded preset id, or
+    /// `nil` if no AU is currently loaded. Empty arrays are valid — they mean the AU
+    /// exposes no presets of that kind.
+    func presetReadout() -> PresetReadout? {
         queue.sync {
             guard !isShutdown, let instrument else {
                 return nil
             }
             let au = instrument.auAudioUnit
-            return AUPresetDescriptor.descriptors(
+            let descriptors = AUPresetDescriptor.descriptors(
                 factoryPresets: au.factoryPresets,
                 userPresets: au.userPresets
+            )
+            return PresetReadout(
+                factory: descriptors.factory,
+                user: descriptors.user,
+                currentID: AUPresetDescriptor.id(forCurrent: au.currentPreset)
             )
         }
     }

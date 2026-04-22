@@ -68,6 +68,22 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
                       "User descriptors key by name — number field should be -1 as a sentinel")
     }
 
+    // MARK: – Current id synthesis
+
+    func test_id_forCurrent_returns_nil_when_no_preset() {
+        XCTAssertNil(AUPresetDescriptor.id(forCurrent: nil))
+    }
+
+    func test_id_forCurrent_factory_uses_number_convention() {
+        let preset = makePreset(number: 7, name: "Lead")
+        XCTAssertEqual(AUPresetDescriptor.id(forCurrent: preset), "factory:7")
+    }
+
+    func test_id_forCurrent_user_uses_name_convention() {
+        let preset = makePreset(number: -3, name: "My Pad")
+        XCTAssertEqual(AUPresetDescriptor.id(forCurrent: preset), "user:My Pad")
+    }
+
     // MARK: – Resolve (pure)
 
     func test_resolve_returns_matching_factory_preset_by_number() {
