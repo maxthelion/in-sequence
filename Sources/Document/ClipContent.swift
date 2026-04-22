@@ -63,6 +63,18 @@ struct ClipStep: Codable, Equatable, Hashable, Sendable {
 enum ClipContent: Equatable, Hashable, Sendable {
     case noteGrid(lengthSteps: Int, steps: [ClipStep])
     case sliceTriggers(stepPattern: [Bool], sliceIndexes: [Int])
+
+    /// Number of steps in the clip — used to size macro lane values arrays.
+    var stepCount: Int {
+        switch self {
+        case let .stepSequence(stepPattern, _):
+            return stepPattern.count
+        case let .pianoRoll(lengthBars, stepsPerBar, _):
+            return max(1, lengthBars) * max(1, stepsPerBar)
+        case let .sliceTriggers(stepPattern, _):
+            return stepPattern.count
+        }
+    }
 }
 
 extension ClipContent {
