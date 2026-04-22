@@ -31,5 +31,7 @@ func layerSubtitle(_ layer: PhraseLayerDefinition) -> String {
         return "block param"
     case .voiceRouteOverride:
         return "voice route"
+    case .macroParam:
+        return "macro param"
     }
 }

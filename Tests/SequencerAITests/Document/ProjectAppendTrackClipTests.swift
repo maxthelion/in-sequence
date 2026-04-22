@@ -27,9 +27,12 @@ final class ProjectAppendTrackClipTests: XCTestCase {
         let expectedClipID = project.clipPool.last!.id
 
         XCTAssertNil(bank.attachedGeneratorID, "new track should have no generator attached")
-        for slot in bank.slots {
+        // Lazy allocation: only slot 0 is pre-seeded; others are empty clip refs.
+        XCTAssertEqual(bank.slots.first?.sourceRef.mode, .clip)
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, expectedClipID)
+        for slot in bank.slots.dropFirst() {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
-            XCTAssertEqual(slot.sourceRef.clipID, expectedClipID)
+            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) lazily allocated")
         }
     }
 

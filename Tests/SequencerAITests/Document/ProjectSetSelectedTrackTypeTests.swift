@@ -62,9 +62,12 @@ final class ProjectSetSelectedTrackTypeTests: XCTestCase {
 
         let bank = project.patternBank(for: trackA.id)
         let newClip = project.clipPool.last!
-        for slot in bank.slots {
+        // Lazy allocation: only slot 0 is pre-seeded with the new clip; others are empty clip refs.
+        XCTAssertEqual(bank.slots.first?.sourceRef.mode, .clip)
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, newClip.id, "slot 0 must point to the new owned clip")
+        for slot in bank.slots.dropFirst() {
             XCTAssertEqual(slot.sourceRef.mode, .clip, "slot \(slot.slotIndex) must be in clip mode")
-            XCTAssertEqual(slot.sourceRef.clipID, newClip.id, "slot \(slot.slotIndex) must point to the new owned clip")
+            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) lazily allocated")
         }
     }
 }

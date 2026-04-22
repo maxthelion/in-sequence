@@ -799,7 +799,7 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
     ]
 }
 
-struct ClipPoolEntry: Equatable, Hashable, Identifiable, Sendable {
+struct ClipPoolEntry: Equatable, Identifiable, Sendable {
     var id: UUID
     var name: String
     var trackType: TrackType
@@ -876,6 +876,16 @@ struct ClipPoolEntry: Equatable, Hashable, Identifiable, Sendable {
             )
         )
     ]
+}
+
+extension ClipPoolEntry: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(name)
+        hasher.combine(trackType)
+        hasher.combine(content)
+        // macroLanes is not Hashable (values are [Double?]) — use id as primary hash.
+    }
 }
 
 extension ClipPoolEntry: Codable {

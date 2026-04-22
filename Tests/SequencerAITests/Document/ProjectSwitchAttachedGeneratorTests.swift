@@ -40,16 +40,15 @@ final class ProjectSwitchAttachedGeneratorTests: XCTestCase {
 
     func test_switchAttachedGenerator_preserves_clipID() throws {
         var (project, trackID, gen1ID, _) = try projectWithTwoGenerators()
-        let priorClipID = project.patternBank(for: trackID).slot(at: 0).sourceRef.clipID
+        // Lazy allocation: slot 0 has clipID, slots 1+ are nil.
+        let slot0ClipID = project.patternBank(for: trackID).slot(at: 0).sourceRef.clipID
 
         project.switchAttachedGenerator(to: gen1ID, for: trackID)
 
         let bank = project.patternBank(for: trackID)
-        for slot in bank.slots {
-            XCTAssertEqual(
-                slot.sourceRef.clipID, priorClipID,
-                "slot \(slot.slotIndex) clipID must be preserved after switching generators"
-            )
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, slot0ClipID, "slot 0 clipID preserved")
+        for slot in bank.slots.dropFirst() {
+            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) lazily-allocated clipID is nil")
         }
     }
 

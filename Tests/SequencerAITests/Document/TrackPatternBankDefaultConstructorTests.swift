@@ -11,10 +11,12 @@ final class TrackPatternBankDefaultConstructorTests: XCTestCase {
 
         XCTAssertEqual(bank.slots.count, TrackPatternBank.slotCount)
         XCTAssertNil(bank.attachedGeneratorID)
-        for slot in bank.slots {
+        // Lazy allocation model: only slot 0 is pre-seeded; rest are empty clip refs.
+        XCTAssertEqual(bank.slots.first?.sourceRef.mode, .clip)
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, clipID)
+        for slot in bank.slots.dropFirst() {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
-            XCTAssertEqual(slot.sourceRef.clipID, clipID)
-            XCTAssertNil(slot.sourceRef.generatorID)
+            XCTAssertNil(slot.sourceRef.clipID, "non-zero slots lazily allocated")
         }
     }
 

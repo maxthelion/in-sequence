@@ -19,7 +19,8 @@ final class ProjectRemoveAttachedGeneratorTests: XCTestCase {
         var project = Project.empty
         project.appendTrack(trackType: .monoMelodic)
         let track = project.selectedTrack
-        let ownedClipID = project.patternBank(for: track.id).slot(at: 0).sourceRef.clipID
+        // Lazy allocation: slot 0 has clipID, slots 1+ have nil.
+        let slot0ClipID = project.patternBank(for: track.id).slot(at: 0).sourceRef.clipID
         let added = try XCTUnwrap(project.attachNewGenerator(to: track.id))
 
         project.removeAttachedGenerator(from: track.id)
@@ -27,8 +28,12 @@ final class ProjectRemoveAttachedGeneratorTests: XCTestCase {
         let bank = project.patternBank(for: track.id)
         for slot in bank.slots {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
-            XCTAssertEqual(slot.sourceRef.clipID, ownedClipID, "remove must fall back to the slot's clipID")
             XCTAssertEqual(slot.sourceRef.generatorID, added.id, "generatorID is retained so un-attach could re-engage")
+        }
+        // Slot 0 restores its clipID; other slots had nil and keep nil.
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, slot0ClipID, "slot 0 clipID preserved")
+        for slot in bank.slots.dropFirst() {
+            XCTAssertNil(slot.sourceRef.clipID, "lazily-allocated slots keep nil clipID after remove")
         }
     }
 
