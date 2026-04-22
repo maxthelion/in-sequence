@@ -63,4 +63,5 @@ private final class CapturingShutdownSampleSink: SamplePlaybackSink {
     func removeTrack(trackID: UUID) {}
     func audition(sampleURL: URL) {}
     func stopAudition() {}
+    func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
 }

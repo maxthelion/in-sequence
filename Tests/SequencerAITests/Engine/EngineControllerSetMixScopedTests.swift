@@ -158,4 +158,6 @@ private final class CapturingScopedSampleSink: SamplePlaybackSink {
     func stopAudition() {
         calls.append(.stopAudition)
     }
+
+    func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
 }

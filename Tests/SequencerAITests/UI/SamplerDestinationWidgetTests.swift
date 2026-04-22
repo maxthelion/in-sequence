@@ -29,6 +29,7 @@ final class SamplerDestinationWidgetTests: XCTestCase {
         func removeTrack(trackID: UUID) {}
         func audition(sampleURL: URL) { auditionCalls += 1 }
         func stopAudition() { stopAuditionCalls += 1 }
+        func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
     }
 
     func test_library_nextSample_cyclesWithinCategory() {
