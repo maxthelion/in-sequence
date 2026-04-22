@@ -235,7 +235,7 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
             ("swing", "Swing", .scalar, 0...1, .macroRow("swing-amount")),
         ]
 
-        return builtins.map { id, name, valueType, range, target in
+        let builtinLayers = builtins.map { id, name, valueType, range, target in
             PhraseLayerDefinition(
                 id: id,
                 name: name,
@@ -248,6 +248,38 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
                 })
             )
         }
+        // Append per-track macro layers after built-ins.
+        let macros = macroLayers(for: tracks)
+        return builtinLayers + macros
+    }
+
+    /// Synthesise phrase layers for all (track, binding) pairs across the given tracks.
+    /// Layer id format: `"macro-<trackID>-<bindingID>"` — deterministic and stable.
+    static func macroLayers(for tracks: [StepSequenceTrack]) -> [PhraseLayerDefinition] {
+        var layers: [PhraseLayerDefinition] = []
+        for track in tracks {
+            for binding in track.macros {
+                let layerID = "macro-\(track.id.uuidString)-\(binding.id.uuidString)"
+                let defaults = Dictionary(uniqueKeysWithValues: tracks.map { t -> (UUID, PhraseCellValue) in
+                    let value: PhraseCellValue = binding.descriptor.valueType == .boolean
+                        ? .bool(binding.descriptor.defaultValue >= 0.5)
+                        : .scalar(binding.descriptor.defaultValue)
+                    return (t.id, value)
+                })
+                layers.append(
+                    PhraseLayerDefinition(
+                        id: layerID,
+                        name: binding.descriptor.displayName,
+                        valueType: binding.descriptor.valueType,
+                        minValue: binding.descriptor.minValue,
+                        maxValue: binding.descriptor.maxValue,
+                        target: .macroParam(trackID: track.id, bindingID: binding.id),
+                        defaults: defaults
+                    )
+                )
+            }
+        }
+        return layers
     }
 
     private static func defaultValue(for id: String, track: StepSequenceTrack) -> PhraseCellValue {
@@ -309,6 +341,10 @@ enum PhraseLayerTarget: Codable, Equatable, Sendable {
     case macroRow(String)
     case blockParam(String, String)
     case voiceRouteOverride(String)
+    /// A track-scoped macro binding.
+    /// Different from `.macroRow` (global intensity-like knob keyed by name):
+    /// this is per-track, per-binding, and routed through `MacroCoordinator`.
+    case macroParam(trackID: UUID, bindingID: UUID)
 }
 
 struct PhraseCellAssignment: Codable, Equatable, Sendable {
@@ -763,11 +799,39 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
     ]
 }
 
-struct ClipPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable {
+struct ClipPoolEntry: Equatable, Hashable, Identifiable, Sendable {
     var id: UUID
     var name: String
     var trackType: TrackType
     var content: ClipContent
+    /// Per-step macro overrides keyed by binding descriptor id.
+    /// A missing key means no lane exists for that binding (defer to phrase layer / default).
+    /// Legacy docs without this field decode as empty — no migration needed.
+    var macroLanes: [UUID: MacroLane]
+
+    init(id: UUID, name: String, trackType: TrackType, content: ClipContent, macroLanes: [UUID: MacroLane] = [:]) {
+        self.id = id
+        self.name = name
+        self.trackType = trackType
+        self.content = content
+        self.macroLanes = macroLanes
+    }
+
+    /// Drop lanes for removed bindings and resize remaining lanes to match step count.
+    func synced(with macros: [TrackMacroBinding], stepCount: Int) -> ClipPoolEntry {
+        let validIDs = Set(macros.map(\.id))
+        let syncedLanes = macroLanes
+            .filter { validIDs.contains($0.key) }
+            .mapValues { $0.synced(stepCount: stepCount) }
+        return ClipPoolEntry(id: id, name: name, trackType: trackType, content: content, macroLanes: syncedLanes)
+    }
+
+    /// Remove a single macro lane (used on binding cascade removal).
+    func removingMacroLane(id bindingID: UUID) -> ClipPoolEntry {
+        var copy = self
+        copy.macroLanes.removeValue(forKey: bindingID)
+        return copy
+    }
 
     static let defaultPool: [ClipPoolEntry] = [
         ClipPoolEntry(
@@ -812,6 +876,35 @@ struct ClipPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable {
             )
         )
     ]
+}
+
+extension ClipPoolEntry: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case trackType
+        case content
+        case macroLanes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        trackType = try container.decode(TrackType.self, forKey: .trackType)
+        content = try container.decode(ClipContent.self, forKey: .content)
+        // Legacy docs without macroLanes decode as empty — no migration needed.
+        macroLanes = try container.decodeIfPresent([UUID: MacroLane].self, forKey: .macroLanes) ?? [:]
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(trackType, forKey: .trackType)
+        try container.encode(content, forKey: .content)
+        try container.encode(macroLanes, forKey: .macroLanes)
+    }
 }
 
 extension ClipPoolEntry {
