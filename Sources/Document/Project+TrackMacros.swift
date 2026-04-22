@@ -99,6 +99,27 @@ extension Project {
         }
     }
 
+    // MARK: - Live value application
+
+    /// Write a live macro value into the phrase layer default for `trackID`.
+    ///
+    /// This is the "live knob drag" path: it sets the default that will be used
+    /// when the phrase cell is `.inheritDefault`, without touching any existing
+    /// step/bar/single cells. This keeps arrangement-level automation intact.
+    mutating func setMacroLayerDefault(value: Double, bindingID: UUID, trackID: UUID, phraseID: UUID) {
+        let layerID = "macro-\(trackID.uuidString)-\(bindingID.uuidString)"
+        guard let layerIndex = layers.firstIndex(where: { $0.id == layerID }) else {
+            return
+        }
+        layers[layerIndex].defaults[trackID] = .scalar(value)
+
+        // Also update phrase cells that are .inheritDefault so they pick up
+        // the new value when the coordinator resolves them. Cells with explicit
+        // values are NOT changed.
+        // (No explicit phrase-cell change needed — coordinator reads defaults at
+        //  resolve time when cell == .inheritDefault. No doc mutation required.)
+    }
+
     // MARK: - Layer sync
 
     /// Re-derive the layer list to include one layer per (track, binding) pair,
