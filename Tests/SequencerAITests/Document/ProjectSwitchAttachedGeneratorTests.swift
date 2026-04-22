@@ -3,7 +3,6 @@ import XCTest
 @testable import SequencerAI
 
 final class ProjectSwitchAttachedGeneratorTests: XCTestCase {
-    // Helper: project with two compatible generators attached to a track.
     private func projectWithTwoGenerators() throws -> (project: Project, trackID: UUID, gen1ID: UUID, gen2ID: UUID) {
         var project = Project.empty
         project.appendTrack(trackType: .monoMelodic)
@@ -15,7 +14,6 @@ final class ProjectSwitchAttachedGeneratorTests: XCTestCase {
 
     func test_switchAttachedGenerator_updates_attachedGeneratorID() throws {
         var (project, trackID, gen1ID, gen2ID) = try projectWithTwoGenerators()
-        // After second attach, gen2 is active — switch back to gen1
         project.switchAttachedGenerator(to: gen1ID, for: trackID)
 
         XCTAssertEqual(
@@ -40,22 +38,22 @@ final class ProjectSwitchAttachedGeneratorTests: XCTestCase {
 
     func test_switchAttachedGenerator_preserves_clipID() throws {
         var (project, trackID, gen1ID, _) = try projectWithTwoGenerators()
-        let priorClipID = project.patternBank(for: trackID).slot(at: 0).sourceRef.clipID
+        let slot0ClipID = project.patternBank(for: trackID).slot(at: 0).sourceRef.clipID
 
         project.switchAttachedGenerator(to: gen1ID, for: trackID)
 
         let bank = project.patternBank(for: trackID)
-        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, priorClipID)
-        XCTAssertTrue(bank.slots.dropFirst().allSatisfy { $0.sourceRef.clipID == nil })
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, slot0ClipID, "slot 0 clipID preserved")
+        for slot in bank.slots.dropFirst() {
+            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) lazily-allocated clipID is nil")
+        }
     }
 
     func test_switchAttachedGenerator_preserves_per_slot_bypass_mode() throws {
         var (project, trackID, gen1ID, gen2ID) = try projectWithTwoGenerators()
-        // With gen2 active, bypass slot 5
         project.setSlotBypassed(true, trackID: trackID, slotIndex: 5)
         XCTAssertEqual(project.patternBank(for: trackID).slot(at: 5).sourceRef.mode, .clip)
 
-        // Switch to gen1 — slot 5 should remain bypassed (clip mode)
         project.switchAttachedGenerator(to: gen1ID, for: trackID)
 
         let slot5 = project.patternBank(for: trackID).slot(at: 5)

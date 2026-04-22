@@ -19,7 +19,7 @@ final class ProjectRemoveAttachedGeneratorTests: XCTestCase {
         var project = Project.empty
         project.appendTrack(trackType: .monoMelodic)
         let track = project.selectedTrack
-        let ownedClipID = project.patternBank(for: track.id).slot(at: 0).sourceRef.clipID
+        let slot0ClipID = project.patternBank(for: track.id).slot(at: 0).sourceRef.clipID
         let added = try XCTUnwrap(project.attachNewGenerator(to: track.id))
 
         project.removeAttachedGenerator(from: track.id)
@@ -29,8 +29,10 @@ final class ProjectRemoveAttachedGeneratorTests: XCTestCase {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
             XCTAssertEqual(slot.sourceRef.generatorID, added.id, "generatorID is retained so un-attach could re-engage")
         }
-        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, ownedClipID, "remove must preserve the seeded clip")
-        XCTAssertTrue(bank.slots.dropFirst().allSatisfy { $0.sourceRef.clipID == nil })
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, slot0ClipID, "slot 0 clipID preserved")
+        for slot in bank.slots.dropFirst() {
+            XCTAssertNil(slot.sourceRef.clipID, "lazily-allocated slots keep nil clipID after remove")
+        }
     }
 
     func test_remove_does_not_delete_pool_entry() throws {

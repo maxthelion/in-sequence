@@ -29,11 +29,13 @@ final class ProjectAddDrumKitClipTests: XCTestCase {
             XCTAssertEqual(noteGridMainStepPattern(clip.content), presetMember.seedPattern)
             XCTAssertEqual(noteGridPitches(clip.content), [DrumKitNoteMap.baselineNote])
 
-            XCTAssertEqual(bank.slot(at: 0).sourceRef.mode, .clip)
-            XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, clipID)
+            // Under the lazy-allocation model, only slot 0 is pre-seeded;
+            // remaining slots are empty clip refs until edited.
+            XCTAssertEqual(bank.slots.first?.sourceRef.mode, .clip)
+            XCTAssertEqual(bank.slots.first?.sourceRef.clipID, clipID)
             for slot in bank.slots.dropFirst() {
                 XCTAssertEqual(slot.sourceRef.mode, .clip)
-                XCTAssertNil(slot.sourceRef.clipID)
+                XCTAssertNil(slot.sourceRef.clipID, "non-zero slots are lazily allocated — should be empty")
             }
         }
     }

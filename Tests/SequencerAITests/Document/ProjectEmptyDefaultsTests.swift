@@ -31,9 +31,16 @@ final class ProjectEmptyDefaultsTests: XCTestCase {
     func test_empty_project_bank_seeds_only_the_first_slot_with_a_clip() {
         let project = Project.empty
         let bank = project.patternBank(for: project.selectedTrack.id)
-        XCTAssertNotNil(bank.slot(at: 0).sourceRef.clipID)
+        // Lazy allocation: slot 0 is pre-seeded; slots 1+ are empty clip refs.
+        XCTAssertNotNil(
+            bank.slots.first?.sourceRef.clipID,
+            "slot 0 clipID must be non-nil in Project.empty (seeded owned clip)"
+        )
         for slot in bank.slots.dropFirst() {
-            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) should stay empty until edited")
+            XCTAssertNil(
+                slot.sourceRef.clipID,
+                "slot \(slot.slotIndex) clipID should be nil (lazy allocation)"
+            )
         }
     }
 }

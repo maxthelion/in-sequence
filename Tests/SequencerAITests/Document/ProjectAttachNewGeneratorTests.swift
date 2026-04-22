@@ -31,7 +31,7 @@ final class ProjectAttachNewGeneratorTests: XCTestCase {
         var project = Project.empty
         project.appendTrack(trackType: .monoMelodic)
         let track = project.selectedTrack
-        let priorClipID = project.patternBank(for: track.id).slot(at: 0).sourceRef.clipID
+        let slot0ClipID = project.patternBank(for: track.id).slot(at: 0).sourceRef.clipID
 
         let added = try XCTUnwrap(project.attachNewGenerator(to: track.id))
 
@@ -40,8 +40,10 @@ final class ProjectAttachNewGeneratorTests: XCTestCase {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
             XCTAssertEqual(slot.sourceRef.generatorID, added.id)
         }
-        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, priorClipID, "seeded clipID must survive attach")
-        XCTAssertTrue(bank.slots.dropFirst().allSatisfy { $0.sourceRef.clipID == nil })
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, slot0ClipID, "slot 0 clipID preserved across attach")
+        for slot in bank.slots.dropFirst() {
+            XCTAssertNil(slot.sourceRef.clipID, "lazily-allocated slots have nil clipID after attach")
+        }
     }
 
     func test_attachNewGenerator_returns_nil_for_unknown_track() {

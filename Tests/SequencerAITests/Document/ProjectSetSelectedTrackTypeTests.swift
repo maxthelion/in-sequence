@@ -5,14 +5,11 @@ import XCTest
 final class ProjectSetSelectedTrackTypeTests: XCTestCase {
     func test_setSelectedTrackType_does_not_reuse_another_tracks_clip() {
         var project = Project.empty
-        // Track A is the initial default track (monoMelodic)
         let trackA = project.selectedTrack
 
-        // Append track B with polyMelodic - it gets its own clip
         project.appendTrack(trackType: .polyMelodic)
         let trackBClipID = project.clipPool.last!.id
 
-        // Select track A and change its type to polyMelodic
         project.selectTrack(id: trackA.id)
         project.setSelectedTrackType(.polyMelodic)
 
@@ -62,11 +59,12 @@ final class ProjectSetSelectedTrackTypeTests: XCTestCase {
 
         let bank = project.patternBank(for: trackA.id)
         let newClip = project.clipPool.last!
-        XCTAssertEqual(bank.slot(at: 0).sourceRef.mode, .clip)
-        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, newClip.id)
+        // Lazy allocation: only slot 0 is pre-seeded with the new clip; others are empty clip refs.
+        XCTAssertEqual(bank.slots.first?.sourceRef.mode, .clip)
+        XCTAssertEqual(bank.slots.first?.sourceRef.clipID, newClip.id, "slot 0 must point to the new owned clip")
         for slot in bank.slots.dropFirst() {
             XCTAssertEqual(slot.sourceRef.mode, .clip, "slot \(slot.slotIndex) must be in clip mode")
-            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) should remain lazily empty")
+            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) lazily allocated")
         }
     }
 }
