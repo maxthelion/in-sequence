@@ -30,6 +30,8 @@ final class SamplerDestinationWidgetTests: XCTestCase {
         func audition(sampleURL: URL) { auditionCalls += 1 }
         func stopAudition() { stopAuditionCalls += 1 }
         func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
+        func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {}
+        func filterNode(for trackID: UUID) -> SamplerFilterNode? { nil }
     }
 
     func test_library_nextSample_cyclesWithinCategory() {
