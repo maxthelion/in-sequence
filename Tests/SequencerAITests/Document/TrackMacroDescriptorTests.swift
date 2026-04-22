@@ -79,11 +79,17 @@ final class TrackMacroDescriptorTests: XCTestCase {
         }
     }
 
-    func test_builtinMacroKind_onlyThreeCases() {
-        XCTAssertEqual(BuiltinMacroKind.allCases.count, 3)
+    func test_builtinMacroKind_hasExpectedCases() {
+        // 3 sampler cases + 5 filter cases = 8 total
+        XCTAssertEqual(BuiltinMacroKind.allCases.count, 8)
         XCTAssertTrue(BuiltinMacroKind.allCases.contains(.sampleStart))
         XCTAssertTrue(BuiltinMacroKind.allCases.contains(.sampleLength))
         XCTAssertTrue(BuiltinMacroKind.allCases.contains(.sampleGain))
+        XCTAssertTrue(BuiltinMacroKind.allCases.contains(.samplerFilterCutoff))
+        XCTAssertTrue(BuiltinMacroKind.allCases.contains(.samplerFilterReso))
+        XCTAssertTrue(BuiltinMacroKind.allCases.contains(.samplerFilterDrive))
+        XCTAssertTrue(BuiltinMacroKind.allCases.contains(.samplerFilterType))
+        XCTAssertTrue(BuiltinMacroKind.allCases.contains(.samplerFilterPoles))
     }
 
     // MARK: - TrackMacroBinding round-trip
