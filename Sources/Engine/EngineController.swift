@@ -417,6 +417,26 @@ final class EngineController: RouterDispatcher {
         host?.prepareIfNeeded()
     }
 
+    /// Returns the live AU's preset lists for the given track, or `nil` if no AU
+    /// is currently loaded for that track.
+    func presetReadout(for trackID: UUID) -> (factory: [AUPresetDescriptor], user: [AUPresetDescriptor])? {
+        let host = withStateLock { audioOutputsByTrackID[trackID] }
+        guard let host = host as? AudioInstrumentHost else {
+            return nil
+        }
+        return host.presetReadout()
+    }
+
+    /// Loads `descriptor` into the AU for the given track and returns the captured
+    /// state blob. Throws `PresetLoadingError.presetNotFound` if there is no match.
+    func loadPreset(_ descriptor: AUPresetDescriptor, for trackID: UUID) throws -> Data? {
+        let host = withStateLock { audioOutputsByTrackID[trackID] }
+        guard let host = host as? AudioInstrumentHost else {
+            throw PresetLoadingError.presetNotFound
+        }
+        return try host.loadPreset(descriptor)
+    }
+
     func capturedClipContent(
         trackID: UUID,
         lengthSteps: Int? = nil

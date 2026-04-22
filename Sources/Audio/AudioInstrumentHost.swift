@@ -264,6 +264,49 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
+    /// Returns the live AU's preset lists, or `nil` if no AU is currently loaded.
+    /// Empty arrays are valid — they mean the AU exposes no presets of that kind.
+    func presetReadout() -> (factory: [AUPresetDescriptor], user: [AUPresetDescriptor])? {
+        queue.sync {
+            guard !isShutdown, let instrument else {
+                return nil
+            }
+            let au = instrument.auAudioUnit
+            return AUPresetDescriptor.descriptors(
+                factoryPresets: au.factoryPresets,
+                userPresets: au.userPresets
+            )
+        }
+    }
+
+    /// Sets the AU's current preset to the one matching `descriptor`, captures the
+    /// resulting `fullState`, and returns the encoded blob.
+    ///
+    /// The caller is responsible for writing the blob into
+    /// `Destination.auInstrument.stateBlob` via the document-command path.
+    ///
+    /// Throws `PresetLoadingError.presetNotFound` if the descriptor doesn't match any
+    /// live preset (e.g. the AU was updated since the sheet opened).
+    func loadPreset(_ descriptor: AUPresetDescriptor) throws -> Data? {
+        try queue.sync {
+            guard !isShutdown, let instrument else {
+                throw PresetLoadingError.presetNotFound
+            }
+
+            let au = instrument.auAudioUnit
+            guard let preset = AUPresetDescriptor.resolve(
+                descriptor,
+                factoryPresets: au.factoryPresets,
+                userPresets: au.userPresets
+            ) else {
+                throw PresetLoadingError.presetNotFound
+            }
+
+            au.currentPreset = preset
+            return try factory.captureState(instrument)
+        }
+    }
+
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {
         guard !noteEvents.isEmpty else {
             return
