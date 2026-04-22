@@ -417,9 +417,9 @@ final class EngineController: RouterDispatcher {
         host?.prepareIfNeeded()
     }
 
-    /// Returns the live AU's preset lists for the given track, or `nil` if no AU
+    /// Returns the live AU's preset readout for the given track, or `nil` if no AU
     /// is currently loaded for that track.
-    func presetReadout(for trackID: UUID) -> (factory: [AUPresetDescriptor], user: [AUPresetDescriptor])? {
+    func presetReadout(for trackID: UUID) -> PresetReadout? {
         let host = withStateLock { audioOutputsByTrackID[trackID] }
         guard let host = host as? AudioInstrumentHost else {
             return nil

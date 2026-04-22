@@ -61,6 +61,30 @@ struct AUPresetDescriptor: Equatable, Hashable, Sendable, Identifiable {
             return userPresets.first { $0.name == descriptor.name }
         }
     }
+
+    /// Synthesizes the id for the AU's `currentPreset`, matching the convention used
+    /// by `descriptors(...)`. Factory presets key by number, user presets by name.
+    /// Returns `nil` when no preset is currently loaded.
+    static func id(forCurrent currentPreset: AUAudioUnitPreset?) -> String? {
+        guard let preset = currentPreset else {
+            return nil
+        }
+        // AU convention: factory presets have number >= 0, user presets use negative numbers.
+        if preset.number >= 0 {
+            return "factory:\(preset.number)"
+        } else {
+            return "user:\(preset.name)"
+        }
+    }
+}
+
+/// A single-shot snapshot of an AU's preset surface. `currentID` is the id that
+/// `AUPresetDescriptor.id(forCurrent:)` would synthesize for the AU's `currentPreset`
+/// at read time, or `nil` if the AU has no preset loaded.
+struct PresetReadout: Equatable, Sendable {
+    let factory: [AUPresetDescriptor]
+    let user: [AUPresetDescriptor]
+    let currentID: String?
 }
 
 enum PresetLoadingError: Error, Equatable {
