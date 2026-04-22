@@ -132,6 +132,12 @@ struct LiveWorkspaceView: View {
                     .buttonStyle(.plain)
                 }
             }
+
+            // Macro knob row for the currently selected track.
+            MacroKnobRow(
+                document: $document,
+                trackID: document.project.selectedTrackID
+            )
         }
     }
 
