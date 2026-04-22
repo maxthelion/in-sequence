@@ -25,6 +25,8 @@ final class CapturingSampleSink: SamplePlaybackSink {
     func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {
         voiceParamCalls.append(VoiceParamCall(trackID: trackID, kind: kind, value: value))
     }
+    func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {}
+    func filterNode(for trackID: UUID) -> SamplerFilterNode? { nil }
 }
 
 // MARK: - TrackMacroApplierTests

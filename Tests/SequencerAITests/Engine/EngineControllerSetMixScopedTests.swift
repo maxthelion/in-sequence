@@ -160,4 +160,6 @@ private final class CapturingScopedSampleSink: SamplePlaybackSink {
     }
 
     func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
+    func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {}
+    func filterNode(for trackID: UUID) -> SamplerFilterNode? { nil }
 }

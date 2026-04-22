@@ -25,6 +25,14 @@ protocol SamplePlaybackSink: AnyObject {
     /// Applied per step; does NOT retroactively modify currently-playing voices
     /// (which would cause clicks).
     func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double)
+
+    /// Apply complete filter settings to the filter node for a track.
+    /// Called from the document layer on track-level changes (e.g. UI control edits).
+    func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID)
+
+    /// Returns the filter node for a track, or nil if the track is unknown.
+    /// Used by `TrackMacroApplier` for fine-grained per-step macro dispatch.
+    func filterNode(for trackID: UUID) -> SamplerFilterNode?
 }
 
 /// Hosts an AVAudioEngine with per-track `AVAudioMixerNode`s. Voices are
@@ -42,6 +50,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var fileCache: [URL: AVAudioFile] = [:]
     private var isStarted = false
     private var trackMixers: [UUID: AVAudioMixerNode] = [:]
+    /// Per-track filter nodes inserted between the track mixer and the main mixer.
+    private var trackFilters: [UUID: SamplerFilterNode] = [:]
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
 
@@ -134,6 +144,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
         engine.disconnectNodeOutput(mixer)
         engine.detach(mixer)
+        // Also tear down the filter inserted after this mixer.
+        if let filter = trackFilters.removeValue(forKey: trackID) {
+            engine.disconnectNodeOutput(filter.avNode)
+            engine.detach(filter.avNode)
+        }
     }
 
     func audition(sampleURL: URL) {
@@ -157,9 +172,33 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         if let mixer = trackMixers[trackID] { return mixer }
         let mixer = AVAudioMixerNode()
         engine.attach(mixer)
-        engine.connect(mixer, to: engine.mainMixerNode, format: nil)
+
+        // Insert a filter between the track mixer and the main mixer.
+        // Graph: voices -> mixer -> filter.avNode -> mainMixerNode
+        let filter = SamplerFilterNode()
+        engine.attach(filter.avNode)
+        engine.connect(mixer, to: filter.avNode, format: nil)
+        engine.connect(filter.avNode, to: engine.mainMixerNode, format: nil)
+        trackFilters[trackID] = filter
+
         trackMixers[trackID] = mixer
         return mixer
+    }
+
+    /// Apply filter settings to the filter node for the given track.
+    ///
+    /// Called from the document layer when the user edits `track.filter` directly
+    /// (e.g. via `SamplerDestinationWidget`). Per-step macro dispatch uses
+    /// `filterNode(for:)` and the fine-grained setters instead.
+    func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {
+        trackFilters[trackID]?.apply(settings)
+    }
+
+    /// Returns the filter node for the given track, or nil if it doesn't exist.
+    ///
+    /// Used by `TrackMacroApplier` to dispatch per-step filter macro values.
+    func filterNode(for trackID: UUID) -> SamplerFilterNode? {
+        trackFilters[trackID]
     }
 
     private func cachedFile(url: URL) -> AVAudioFile? {
