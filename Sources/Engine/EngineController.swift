@@ -306,6 +306,14 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    /// Returns the `AudioInstrumentHost` for a track if one is active.
+    /// Intended for UI-side parameter readout (e.g. macro picker).
+    func audioInstrumentHost(for trackID: UUID) -> AudioInstrumentHost? {
+        withStateLock {
+            audioOutputsByTrackID[trackID] as? AudioInstrumentHost
+        }
+    }
+
     func prepareAudioUnit(for trackID: UUID) {
         log("prepareAudioUnit trackID=\(trackID)")
         syncAudioOutputs(for: currentDocumentModel)
