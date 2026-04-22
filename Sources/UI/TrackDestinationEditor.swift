@@ -6,6 +6,7 @@ struct TrackDestinationEditor: View {
     @State private var recentVoices: [RecentVoice] = []
     @State private var showingAddDestinationSheet = false
     @State private var showingMacroPickerSheet = false
+    @State private var showingPresetBrowser = false
 
     private var track: StepSequenceTrack {
         document.project.selectedTrack
@@ -51,6 +52,12 @@ struct TrackDestinationEditor: View {
         .sheet(isPresented: $showingMacroPickerSheet) {
             macroPickerSheet
                 .presentationBackground(.ultraThinMaterial)
+        }
+        .sheet(isPresented: $showingPresetBrowser) {
+            PresetBrowserSheet(
+                auDisplayName: currentAudioInstrumentChoice.displayName,
+                viewModel: makePresetBrowserViewModel()
+            )
         }
     }
 
@@ -214,6 +221,12 @@ struct TrackDestinationEditor: View {
                 }
                 .buttonStyle(.bordered)
 
+                Button("Presets…") {
+                    engineController.prepareAudioUnit(for: track.id)
+                    showingPresetBrowser = true
+                }
+                .buttonStyle(.bordered)
+
                 if let stateBlob = currentAUStateBlob {
                     Text("State \(ByteCountFormatter.string(fromByteCount: Int64(stateBlob.count), countStyle: .file))")
                         .studioText(.label)
@@ -272,6 +285,46 @@ struct TrackDestinationEditor: View {
                 showingMacroPickerSheet = true
             }
             .buttonStyle(.bordered)
+        }
+    }
+
+    private func makePresetBrowserViewModel() -> PresetBrowserSheetViewModel {
+        let trackID = track.id
+        let writeTarget = currentWriteTarget
+        return PresetBrowserSheetViewModel(
+            read: { [engineController] in
+                engineController.presetReadout(for: trackID)
+            },
+            load: { [engineController] descriptor in
+                try engineController.loadPreset(descriptor, for: trackID)
+            },
+            commit: { stateBlob in
+                writeStateBlob(stateBlob, target: writeTarget)
+            }
+        )
+    }
+
+    private func writeStateBlob(_ stateBlob: Data?, target: Project.DestinationWriteTarget) {
+        switch target {
+        case .track(let trackID):
+            guard let trackIndex = document.project.tracks.firstIndex(where: { $0.id == trackID }),
+                  case let .auInstrument(componentID, _) = document.project.tracks[trackIndex].destination
+            else {
+                return
+            }
+            document.project.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+            recordVoiceSnapshot(destination: document.project.tracks[trackIndex].destination.withoutTransientState)
+
+        case .group(let groupID):
+            guard let groupIndex = document.project.trackGroups.firstIndex(where: { $0.id == groupID }),
+                  case let .auInstrument(componentID, _)? = document.project.trackGroups[groupIndex].sharedDestination
+            else {
+                return
+            }
+            document.project.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+            if let destination = document.project.trackGroups[groupIndex].sharedDestination {
+                recordVoiceSnapshot(destination: destination.withoutTransientState)
+            }
         }
     }
 
