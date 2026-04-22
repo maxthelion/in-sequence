@@ -31,6 +31,25 @@ struct TrackSourceEditorView: View {
             ?? .stepSequence(stepPattern: Array(repeating: false, count: 16), pitches: track.pitches)
     }
 
+    /// Phrase-layer fallback values for each macro binding on this track.
+    ///
+    /// Reads `layer.defaults[trackID]` for the binding's layer; falls back to the
+    /// descriptor default when no layer default has been set.
+    private var macroFallbackValues: [UUID: Double] {
+        var result: [UUID: Double] = [:]
+        let trackID = track.id
+        for binding in track.macros {
+            let layerID = "macro-\(trackID.uuidString)-\(binding.id.uuidString)"
+            if let layer = document.project.layers.first(where: { $0.id == layerID }),
+               case let .scalar(v) = layer.defaults[trackID] {
+                result[binding.id] = v
+            } else {
+                result[binding.id] = binding.descriptor.defaultValue
+            }
+        }
+        return result
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(title: "Source", accent: accent) {
@@ -99,12 +118,29 @@ struct TrackSourceEditorView: View {
             eyebrow: "Pattern editor",
             accent: StudioTheme.violet
         ) {
-            ClipContentPreview(content: previewClipContent) { updated in
-                guard let clipID = document.project.ensureClipForCurrentPattern(trackID: track.id) else {
-                    return
+            VStack(alignment: .leading, spacing: 16) {
+                ClipContentPreview(content: previewClipContent) { updated in
+                    guard let clipID = document.project.ensureClipForCurrentPattern(trackID: track.id) else {
+                        return
+                    }
+                    document.project.updateClipEntry(id: clipID) { entry in
+                        entry.content = updated
+                    }
                 }
-                document.project.updateClipEntry(id: clipID) { entry in
-                    entry.content = updated
+
+                if !track.macros.isEmpty, let clip = currentClip {
+                    ClipMacroLaneEditor(
+                        clipID: clip.id,
+                        macros: track.macros,
+                        macroLanes: clip.macroLanes.mapValues { lane in
+                            lane.synced(stepCount: clip.content.stepCount)
+                        },
+                        phraseLayerValues: macroFallbackValues
+                    ) { updatedLanes in
+                        document.project.updateClipEntry(id: clip.id) { entry in
+                            entry.macroLanes = updatedLanes
+                        }
+                    }
                 }
             }
         }

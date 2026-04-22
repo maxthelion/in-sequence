@@ -20,6 +20,11 @@ protocol SamplePlaybackSink: AnyObject {
     func removeTrack(trackID: UUID)
     func audition(sampleURL: URL)
     func stopAudition()
+
+    /// Set a built-in voice parameter for subsequent triggers on the given track.
+    /// Applied per step; does NOT retroactively modify currently-playing voices
+    /// (which would cause clicks).
+    func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double)
 }
 
 /// Hosts an AVAudioEngine with per-track `AVAudioMixerNode`s. Voices are
@@ -37,6 +42,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var fileCache: [URL: AVAudioFile] = [:]
     private var isStarted = false
     private var trackMixers: [UUID: AVAudioMixerNode] = [:]
+    /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
+    private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
 
     init() {
         for _ in 0..<Self.mainVoiceCount {
@@ -86,8 +93,18 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             mainVoiceCurrentTrack[voiceIndex] = trackID
         }
 
-        voice.volume = linearGain(dB: settings.gain)
-        voice.scheduleFile(file, at: when, completionHandler: nil)
+        // Apply built-in macro voice params (set by TrackMacroApplier for the current step).
+        let params = voiceParams[trackID]
+        let gainDB = params?[.sampleGain] ?? settings.gain
+        voice.volume = linearGain(dB: gainDB)
+
+        // Sample start / length: schedule a segment of the file if set.
+        let startNorm = params?[.sampleStart] ?? 0
+        let lengthNorm = params?[.sampleLength] ?? 1
+        let frameCount = Double(file.length)
+        let startFrame = AVAudioFramePosition(startNorm * frameCount)
+        let frameLength = AVAudioFrameCount(max(1, lengthNorm * frameCount))
+        voice.scheduleSegment(file, startingFrame: startFrame, frameCount: frameLength, at: when, completionHandler: nil)
         voice.play()
 
         return VoiceHandle(id: handleID)
@@ -130,6 +147,10 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     func stopAudition() {
         previewNode.stop()
+    }
+
+    func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {
+        voiceParams[trackID, default: [:]][kind] = value
     }
 
     private func trackMixer(for trackID: UUID) -> AVAudioMixerNode {
