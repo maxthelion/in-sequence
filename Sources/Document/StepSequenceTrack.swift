@@ -14,6 +14,9 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var gateLength: Int
     /// Per-track macro bindings. Capped at 8 (enforced by `Project.addAUMacro`).
     var macros: [TrackMacroBinding]
+    /// Per-track filter settings. Lives here (not on Destination) so it survives
+    /// sample swaps. Defaults are bypass-transparent.
+    var filter: SamplerFilterSettings
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -28,6 +31,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case velocity
         case gateLength
         case macros
+        case filter
     }
 
     static let `default` = StepSequenceTrack(
@@ -42,7 +46,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         mix: .default,
         velocity: 100,
         gateLength: 4,
-        macros: []
+        macros: [],
+        filter: .init()
     )
 
     init(
@@ -57,7 +62,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         mix: TrackMixSettings = .default,
         velocity: Int,
         gateLength: Int,
-        macros: [TrackMacroBinding] = []
+        macros: [TrackMacroBinding] = [],
+        filter: SamplerFilterSettings = .init()
     ) {
         self.id = id
         self.name = name
@@ -71,6 +77,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.velocity = velocity
         self.gateLength = gateLength
         self.macros = macros
+        self.filter = filter
     }
 
     var activeStepCount: Int {
@@ -129,6 +136,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         gateLength = try container.decode(Int.self, forKey: .gateLength)
         // Legacy documents without macros decode as empty — no migration needed.
         macros = try container.decodeIfPresent([TrackMacroBinding].self, forKey: .macros) ?? []
+        // Legacy documents without filter decode with bypass-transparent defaults.
+        filter = try container.decodeIfPresent(SamplerFilterSettings.self, forKey: .filter) ?? .init()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -145,6 +154,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)
         try container.encode(macros, forKey: .macros)
+        try container.encode(filter, forKey: .filter)
     }
 
     var defaultDestination: Destination {

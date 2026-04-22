@@ -18,13 +18,21 @@ enum TrackMacroSource: Codable, Equatable, Hashable, Sendable {
 
 /// Kinds of built-in macros for internal devices.
 ///
-/// Sampler macros ship with this plan. The sampler-filter plan
-/// (2026-04-22-sampler-filter.md) adds filter-related cases on top.
-/// Do not add filter cases here — that plan owns them.
+/// Sampler macros (sampleStart/sampleLength/sampleGain) shipped with the
+/// track-macro-parameters plan. The five filter cases below are added by
+/// the sampler-filter plan (2026-04-22-sampler-filter.md).
 enum BuiltinMacroKind: String, Codable, CaseIterable, Sendable {
+    // Sampler macros
     case sampleStart    // 0..1 normalized position in source buffer
     case sampleLength   // 0..1 normalized length from start
     case sampleGain     // dB, -60..+12
+
+    // Filter macros (sampler-filter plan)
+    case samplerFilterCutoff    // Hz, 20..20_000 (log-mapped in UI)
+    case samplerFilterReso      // 0..1 normalized resonance
+    case samplerFilterDrive     // 0..1 normalized drive
+    case samplerFilterType      // patternIndex: 0=lowpass 1=highpass 2=bandpass 3=notch
+    case samplerFilterPoles     // patternIndex: 0=one 1=two 2=four
 }
 
 // MARK: - TrackMacroDescriptor
@@ -85,6 +93,58 @@ struct TrackMacroDescriptor: Codable, Equatable, Hashable, Sendable, Identifiabl
                 defaultValue: 0,
                 valueType: .scalar,
                 source: .builtin(.sampleGain)
+            )
+        case .samplerFilterCutoff:
+            return TrackMacroDescriptor(
+                id: builtinID(trackID: trackID, kind: kind),
+                displayName: "Filter Cutoff",
+                minValue: 20,
+                maxValue: 20_000,
+                defaultValue: 20_000,
+                valueType: .scalar,
+                source: .builtin(.samplerFilterCutoff)
+            )
+        case .samplerFilterReso:
+            return TrackMacroDescriptor(
+                id: builtinID(trackID: trackID, kind: kind),
+                displayName: "Filter Resonance",
+                minValue: 0,
+                maxValue: 1,
+                defaultValue: 0,
+                valueType: .scalar,
+                source: .builtin(.samplerFilterReso)
+            )
+        case .samplerFilterDrive:
+            return TrackMacroDescriptor(
+                id: builtinID(trackID: trackID, kind: kind),
+                displayName: "Filter Drive",
+                minValue: 0,
+                maxValue: 1,
+                defaultValue: 0,
+                valueType: .scalar,
+                source: .builtin(.samplerFilterDrive)
+            )
+        case .samplerFilterType:
+            // Indexed: 0=lowpass 1=highpass 2=bandpass 3=notch
+            return TrackMacroDescriptor(
+                id: builtinID(trackID: trackID, kind: kind),
+                displayName: "Filter Type",
+                minValue: 0,
+                maxValue: 3,
+                defaultValue: 0,
+                valueType: .patternIndex,
+                source: .builtin(.samplerFilterType)
+            )
+        case .samplerFilterPoles:
+            // Indexed: 0=one 1=two 2=four
+            return TrackMacroDescriptor(
+                id: builtinID(trackID: trackID, kind: kind),
+                displayName: "Filter Poles",
+                minValue: 0,
+                maxValue: 2,
+                defaultValue: 1,
+                valueType: .patternIndex,
+                source: .builtin(.samplerFilterPoles)
             )
         }
     }
