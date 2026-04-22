@@ -2,7 +2,7 @@ import XCTest
 @testable import SequencerAI
 
 final class SequencerSnapshotCompilerTests: XCTestCase {
-    func test_compiles_clip_buffers_phrase_steps_and_macro_overrides() {
+    func test_compiles_clip_buffers_phrase_steps_and_macro_overrides() throws {
         let fixture = makeSnapshotFixture()
         let snapshot = SequencerSnapshotCompiler.compile(project: fixture.project)
 
@@ -21,7 +21,7 @@ final class SequencerSnapshotCompilerTests: XCTestCase {
     }
 
     @MainActor
-    func test_compiles_from_live_store_resident_state() {
+    func test_compiles_from_live_store_resident_state() throws {
         let fixture = makeSnapshotFixture()
         let store = LiveSequencerStore(project: fixture.project)
 

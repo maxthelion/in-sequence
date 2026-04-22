@@ -24,7 +24,7 @@ final class ExecutorPreparedNotesTests: XCTestCase {
         XCTAssertEqual(notes(from: secondOutputs).map(\.pitch), [62], "next tick should fall back to the generator program")
     }
 
-    private func notes(from outputs: [BlockID: [PortID: Stream]]) -> [NoteEvent] {
+    private func notes(from outputs: [BlockID: [PortID: SequencerAI.Stream]]) -> [NoteEvent] {
         guard case let .notes(events)? = outputs["gen"]?["notes"] else {
             return []
         }
