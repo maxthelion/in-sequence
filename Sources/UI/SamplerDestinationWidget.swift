@@ -4,6 +4,8 @@ struct SamplerDestinationWidget: View {
     @Binding var destination: Destination       // precondition: .sample
     let library: AudioSampleLibrary
     let sampleEngine: SamplePlaybackSink
+    let trackID: UUID
+    @Binding var filterSettings: SamplerFilterSettings
 
     @State private var isAuditioning = false
     @State private var auditionTask: Task<Void, Never>?
@@ -36,6 +38,7 @@ struct SamplerDestinationWidget: View {
                 waveform(sample: sample)
                 controls(sample: sample)
                 gainSlider
+                filterRow
             } else {
                 orphanTile
             }
@@ -99,6 +102,115 @@ struct SamplerDestinationWidget: View {
         }
     }
 
+    // MARK: - Filter row
+
+    /// Horizontal row of filter controls: type picker, poles picker, cutoff, resonance, drive.
+    ///
+    /// Edits `filterSettings` directly. Calls `sampleEngine.applyFilter` on each change
+    /// for immediate audio feedback. The per-step macro path keeps them in sync.
+    private var filterRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Filter")
+                .studioText(.eyebrow)
+                .foregroundStyle(StudioTheme.mutedText)
+            HStack(spacing: 12) {
+                filterTypePicker
+                filterPolesPicker
+                Spacer()
+            }
+            HStack(spacing: 16) {
+                filterKnob(
+                    label: "Cutoff",
+                    value: Binding(
+                        get: { filterSettings.cutoffHz / 20_000 },
+                        set: { onCutoffChanged($0 * 20_000) }
+                    )
+                )
+                filterKnob(
+                    label: "Reso",
+                    value: Binding(
+                        get: { filterSettings.resonance },
+                        set: { onResoChanged($0) }
+                    )
+                )
+                filterKnob(
+                    label: "Drive",
+                    value: Binding(
+                        get: { filterSettings.drive },
+                        set: { onDriveChanged($0) }
+                    )
+                )
+                Spacer()
+            }
+        }
+    }
+
+    private var filterTypePicker: some View {
+        Picker("", selection: Binding(
+            get: { filterSettings.type },
+            set: { onTypeChanged($0) }
+        )) {
+            Text("LP").tag(SamplerFilterType.lowpass)
+            Text("HP").tag(SamplerFilterType.highpass)
+            Text("BP").tag(SamplerFilterType.bandpass)
+            Text("Notch").tag(SamplerFilterType.notch)
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 200)
+    }
+
+    private var filterPolesPicker: some View {
+        Picker("", selection: Binding(
+            get: { filterSettings.poles },
+            set: { onPolesChanged($0) }
+        )) {
+            Text("1").tag(SamplerFilterPoles.one)
+            Text("2").tag(SamplerFilterPoles.two)
+            Text("4").tag(SamplerFilterPoles.four)
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 100)
+    }
+
+    private func filterKnob(label: String, value: Binding<Double>) -> some View {
+        VStack(spacing: 2) {
+            Slider(value: value, in: 0...1)
+                .frame(width: 80)
+            Text(label)
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+    }
+
+    // MARK: - Filter change handlers
+
+    func onCutoffChanged(_ hz: Double) {
+        filterSettings.cutoffHz = hz.clamped(to: 20...20_000)
+        sampleEngine.applyFilter(filterSettings, trackID: trackID)
+    }
+
+    func onResoChanged(_ value: Double) {
+        filterSettings.resonance = value.clamped(to: 0...1)
+        sampleEngine.applyFilter(filterSettings, trackID: trackID)
+    }
+
+    func onDriveChanged(_ value: Double) {
+        filterSettings.drive = value.clamped(to: 0...1)
+        sampleEngine.applyFilter(filterSettings, trackID: trackID)
+    }
+
+    func onTypeChanged(_ type: SamplerFilterType) {
+        filterSettings.type = type
+        sampleEngine.applyFilter(filterSettings, trackID: trackID)
+    }
+
+    func onPolesChanged(_ poles: SamplerFilterPoles) {
+        filterSettings.poles = poles
+        sampleEngine.applyFilter(filterSettings, trackID: trackID)
+    }
+
+    // MARK: - Orphan
+
     private var orphanTile: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Missing sample")
@@ -112,6 +224,8 @@ struct SamplerDestinationWidget: View {
         .padding(12)
         .background(StudioTheme.amber.opacity(StudioOpacity.mutedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control))
     }
+
+    // MARK: - Helpers
 
     private func stepSample(_ delta: Int) {
         guard let id = currentSampleID else { return }
@@ -181,5 +295,13 @@ struct SamplerDestinationWidget: View {
         let fallback = library.firstSample(in: .kick) ?? library.samples.first
         guard let replacement = fallback else { return }
         destination = .sample(sampleID: replacement.id, settings: currentSettings)
+    }
+}
+
+// MARK: - Comparable clamping helper
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

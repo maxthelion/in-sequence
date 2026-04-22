@@ -242,7 +242,15 @@ struct TrackDestinationEditor: View {
                     }
                 ),
                 library: AudioSampleLibrary.shared,
-                sampleEngine: engineController.sampleEngineSink
+                sampleEngine: engineController.sampleEngineSink,
+                trackID: track.id,
+                filterSettings: Binding(
+                    get: { document.project.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
+                    set: { newFilter in
+                        guard let idx = document.project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
+                        document.project.tracks[idx].filter = newFilter
+                    }
+                )
             )
 
             Button("Macros…") {

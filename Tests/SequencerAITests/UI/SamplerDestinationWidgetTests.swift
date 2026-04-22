@@ -22,6 +22,8 @@ final class SamplerDestinationWidgetTests: XCTestCase {
     private final class SpySink: SamplePlaybackSink {
         var auditionCalls = 0
         var stopAuditionCalls = 0
+        var applyFilterCalls = 0
+        var lastApplyFilterTrackID: UUID?
         func start() throws {}
         func stop() {}
         func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? { nil }
@@ -30,7 +32,10 @@ final class SamplerDestinationWidgetTests: XCTestCase {
         func audition(sampleURL: URL) { auditionCalls += 1 }
         func stopAudition() { stopAuditionCalls += 1 }
         func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
-        func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {}
+        func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {
+            applyFilterCalls += 1
+            lastApplyFilterTrackID = trackID
+        }
         func filterNode(for trackID: UUID) -> SamplerFilterNode? { nil }
     }
 
@@ -66,4 +71,29 @@ final class SamplerDestinationWidgetTests: XCTestCase {
         spy.audition(sampleURL: url)
         XCTAssertEqual(spy.auditionCalls, 1)
     }
+
+    // MARK: - Filter handler tests
+
+    func test_onCutoffChanged_writesFilterAndCallsApplyFilter() {
+        let lib = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let spy = SpySink()
+        let trackID = UUID()
+        var filterSettings = SamplerFilterSettings()
+        var destination = Destination.none
+
+        var widget = SamplerDestinationWidget(
+            destination: Binding(get: { destination }, set: { destination = $0 }),
+            library: lib,
+            sampleEngine: spy,
+            trackID: trackID,
+            filterSettings: Binding(get: { filterSettings }, set: { filterSettings = $0 })
+        )
+
+        widget.onCutoffChanged(1200)
+
+        XCTAssertEqual(filterSettings.cutoffHz, 1200, accuracy: 0.001)
+        XCTAssertEqual(spy.applyFilterCalls, 1)
+        XCTAssertEqual(spy.lastApplyFilterTrackID, trackID)
+    }
 }
+
