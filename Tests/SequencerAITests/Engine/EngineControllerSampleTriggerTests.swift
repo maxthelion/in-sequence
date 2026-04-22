@@ -21,6 +21,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         }
         func audition(sampleURL: URL) {}
         func stopAudition() {}
+        func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
     }
 
     private var libraryRoot: URL!

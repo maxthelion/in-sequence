@@ -38,6 +38,8 @@ final class EngineController: RouterDispatcher {
     private let eventQueue = EventQueue()
     private let coordinator = MacroCoordinator()
     private let sampleEngine: SamplePlaybackSink
+    // Initialized at end of init() after `self` is fully available.
+    private var macroApplier: TrackMacroApplier!
     private let sampleLibrary: AudioSampleLibrary
     private var sampleLibraryRoot: URL { sampleLibrary.libraryRoot }
 
@@ -126,6 +128,11 @@ final class EngineController: RouterDispatcher {
         self.clock = TickClock(stepsPerBar: stepsPerBar)
         self.currentBPM = 120
         self.selectedOutput = .midi
+
+        // Now self is fully initialized; safe to capture as weak.
+        self.macroApplier = TrackMacroApplier(sampleEngine: sampleEngine) { [weak self] trackID in
+            self?.currentAudioUnit(for: trackID)
+        }
 
         do {
             try registerCoreBlocks(registry)
@@ -330,8 +337,15 @@ final class EngineController: RouterDispatcher {
                 selectedOutput = Self.effectiveDestination(for: trackID, in: documentModel).destination.kind
                 currentTrackMix = selectedTrack.mix
 
-            case .trackDestinationChanged,
-                 .trackParameterChanged,
+            case let .trackDestinationChanged(trackID, _):
+                // Invalidate macro applier cache for this track so the next
+                // prepared step re-resolves AUParameter references against
+                // the newly-loaded AU.
+                macroApplier.invalidateCache(for: trackID)
+                applyBroadSync(documentModel: documentModel)
+                return
+
+            case .trackParameterChanged,
                  .tracksInsertedOrRemoved,
                  .trackGroupsChanged,
                  .routesChanged,
@@ -440,6 +454,9 @@ final class EngineController: RouterDispatcher {
             project: documentModel,
             phraseID: documentModel.selectedPhraseID
         )
+
+        // Dispatch resolved macro values to their destinations (AU params / sampler).
+        macroApplier.apply(currentLayerSnapshot.macroValues, tracks: documentModel.tracks)
 
         var nextGeneratedStates = generatedStates
         let harmonicSidechainChord = chordContexts["default"]
