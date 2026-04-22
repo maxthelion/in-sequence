@@ -39,7 +39,7 @@ final class SequencerDocumentSession {
     }
 
     func publishSnapshot() {
-        let snapshot = SequencerSnapshotCompiler.compile(project: store.project)
+        let snapshot = SequencerSnapshotCompiler.compile(store: store)
         engineController.apply(playbackSnapshot: snapshot)
     }
 

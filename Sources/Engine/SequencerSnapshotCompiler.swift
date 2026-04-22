@@ -2,27 +2,67 @@ import Foundation
 
 enum SequencerSnapshotCompiler {
     static func compile(project: Project) -> PlaybackSnapshot {
-        let trackOrder = project.tracks.map(\.id)
+        compile(
+            selectedPhraseID: project.selectedPhraseID,
+            tracks: project.tracks,
+            clips: project.clipPool,
+            generators: project.generatorPool,
+            layers: project.layers,
+            phrases: project.phrases,
+            patternBankForTrackID: { project.patternBank(for: $0) }
+        )
+    }
+
+    @MainActor
+    static func compile(store: LiveSequencerStore) -> PlaybackSnapshot {
+        compile(
+            selectedPhraseID: store.selectedPhraseID,
+            tracks: store.tracks,
+            clips: store.clipPool,
+            generators: store.generatorPool,
+            layers: store.layers,
+            phrases: store.phrases,
+            patternBankForTrackID: { store.patternBank(for: $0) }
+        )
+    }
+
+    private static func compile(
+        selectedPhraseID: UUID,
+        tracks: [StepSequenceTrack],
+        clips: [ClipPoolEntry],
+        generators: [GeneratorPoolEntry],
+        layers: [PhraseLayerDefinition],
+        phrases: [PhraseModel],
+        patternBankForTrackID: (UUID) -> TrackPatternBank
+    ) -> PlaybackSnapshot {
+        let trackOrder = tracks.map(\.id)
         let trackOrdinalByID = Dictionary(uniqueKeysWithValues: trackOrder.enumerated().map { ($0.element, $0.offset) })
-        let tracksByID = Dictionary(uniqueKeysWithValues: project.tracks.map { ($0.id, $0) })
-        let clipsByID = Dictionary(uniqueKeysWithValues: project.clipPool.map { ($0.id, $0) })
-        let generatorsByID = Dictionary(uniqueKeysWithValues: project.generatorPool.map { ($0.id, $0) })
-        let clipBuffersByID = Dictionary(uniqueKeysWithValues: project.clipPool.map { clip in
+        let tracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+        let clipsByID = Dictionary(uniqueKeysWithValues: clips.map { ($0.id, $0) })
+        let generatorsByID = Dictionary(uniqueKeysWithValues: generators.map { ($0.id, $0) })
+        let clipBuffersByID = Dictionary(uniqueKeysWithValues: clips.map { clip in
             let buffer = compileClipBuffer(clip)
             return (clip.id, buffer)
         })
-        let trackProgramsByTrackID = Dictionary(uniqueKeysWithValues: project.tracks.map { track in
-            let bank = project.patternBank(for: track.id)
+        let trackProgramsByTrackID = Dictionary(uniqueKeysWithValues: tracks.map { track in
+            let bank = patternBankForTrackID(track.id)
             let program = compileTrackProgram(track: track, bank: bank)
             return (track.id, program)
         })
-        let phraseBuffersByID = Dictionary(uniqueKeysWithValues: project.phrases.map { phrase in
-            let buffer = compilePhraseBuffer(phrase: phrase, project: project)
+        let phraseBuffersByID = Dictionary(uniqueKeysWithValues: phrases.map { phrase in
+            let buffer = compilePhraseBuffer(
+                phrase: phrase,
+                tracks: tracks,
+                layers: layers,
+                selectedPatternForTrackID: { trackID in
+                    patternBankForTrackID(trackID)
+                }
+            )
             return (phrase.id, buffer)
         })
 
         return PlaybackSnapshot(
-            selectedPhraseID: project.selectedPhraseID,
+            selectedPhraseID: selectedPhraseID,
             trackOrder: trackOrder,
             trackOrdinalByID: trackOrdinalByID,
             tracksByID: tracksByID,
@@ -138,22 +178,27 @@ enum SequencerSnapshotCompiler {
         }
     }
 
-    private static func compilePhraseBuffer(phrase: PhraseModel, project: Project) -> PhrasePlaybackBuffer {
+    private static func compilePhraseBuffer(
+        phrase: PhraseModel,
+        tracks: [StepSequenceTrack],
+        layers: [PhraseLayerDefinition],
+        selectedPatternForTrackID: (UUID) -> TrackPatternBank
+    ) -> PhrasePlaybackBuffer {
         let stepCount = max(1, phrase.stepCount)
-        let patternLayer = project.layers.first(where: { $0.target == .patternIndex })
-        let muteLayer = project.layers.first(where: { $0.target == .mute })
-        let fillLayer = project.layers.first(where: { layer in
+        let patternLayer = layers.first(where: { $0.target == .patternIndex })
+        let muteLayer = layers.first(where: { $0.target == .mute })
+        let fillLayer = layers.first(where: { layer in
             if case let .macroRow(key) = layer.target {
                 return key == "fill-flag"
             }
             return false
         })
 
-        let trackStates = project.tracks.map { track -> TrackPhrasePlaybackBuffer in
+        let trackStates = tracks.map { track -> TrackPhrasePlaybackBuffer in
             let macroValues = (0..<stepCount).map { stepIndex in
                 track.macros.map { binding in
                     let layerID = "macro-\(track.id.uuidString)-\(binding.id.uuidString)"
-                    guard let layer = project.layer(id: layerID) else {
+                    guard let layer = layers.first(where: { $0.id == layerID }) else {
                         return binding.descriptor.defaultValue
                     }
                     let resolved = phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: stepIndex)
@@ -164,7 +209,7 @@ enum SequencerSnapshotCompiler {
             let patternSlotIndex = (0..<stepCount).map { stepIndex -> UInt8 in
                 guard let patternLayer else { return 0 }
                 let resolved = phrase.resolvedValue(for: patternLayer, trackID: track.id, stepIndex: stepIndex)
-                return UInt8(clamping: patternIndex(from: resolved))
+                return UInt8(clamping: min(max(patternIndex(from: resolved), 0), selectedPatternForTrackID(track.id).slots.count - 1))
             }
             let mute = (0..<stepCount).map { stepIndex -> Bool in
                 guard let muteLayer,

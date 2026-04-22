@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class LiveSequencerStoreTests: XCTestCase {
-    func test_updateClipContent_and_phraseCell_mutate_live_project() {
+    func test_updateClipContent_and_phraseCell_mutate_resident_state_and_projection() {
         let fixture = makeFixtureProject()
         let store = LiveSequencerStore(project: fixture.project)
 
@@ -18,12 +18,21 @@ final class LiveSequencerStoreTests: XCTestCase {
             phraseID: fixture.phrase.id
         )
 
-        XCTAssertEqual(store.project.clipEntry(id: fixture.clip.id)?.content, .stepSequence(stepPattern: [true, true], pitches: [60, 62]))
         XCTAssertEqual(
-            store.project.phrases.first?.cell(for: fixture.muteLayer.id, trackID: fixture.track.id),
+            store.clipsByID[fixture.clip.id]?.content,
+            .stepSequence(stepPattern: [true, true], pitches: [60, 62])
+        )
+        XCTAssertEqual(
+            store.phrasesByID[fixture.phrase.id]?.cell(for: fixture.muteLayer.id, trackID: fixture.track.id),
             .single(.bool(true))
         )
-        XCTAssertEqual(store.projectToProject(base: .empty), store.project)
+
+        let projected = store.projectToProject(base: .empty)
+        XCTAssertEqual(projected.clipEntry(id: fixture.clip.id)?.content, .stepSequence(stepPattern: [true, true], pitches: [60, 62]))
+        XCTAssertEqual(
+            projected.phrases.first?.cell(for: fixture.muteLayer.id, trackID: fixture.track.id),
+            .single(.bool(true))
+        )
     }
 
     private func makeFixtureProject() -> (project: Project, track: StepSequenceTrack, clip: ClipPoolEntry, phrase: PhraseModel, muteLayer: PhraseLayerDefinition) {

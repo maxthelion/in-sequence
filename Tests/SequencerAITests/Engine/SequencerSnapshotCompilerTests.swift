@@ -20,7 +20,41 @@ final class SequencerSnapshotCompilerTests: XCTestCase {
         XCTAssertEqual(trackBuffer.macroValues[1], [0.5])
     }
 
-    private func makeSnapshotFixture() -> (project: Project, clip: ClipPoolEntry, phrase: PhraseModel, binding: TrackMacroBinding) {
+    @MainActor
+    func test_compiles_from_live_store_resident_state() {
+        let fixture = makeSnapshotFixture()
+        let store = LiveSequencerStore(project: fixture.project)
+
+        store.updateClipContent(
+            id: fixture.clip.id,
+            content: .stepSequence(stepPattern: [true, false], pitches: [72, 74])
+        )
+        store.setPhraseCell(
+            .steps([.index(4), .index(5)]),
+            layerID: fixture.patternLayer.id,
+            trackIDs: [fixture.track.id],
+            phraseID: fixture.phrase.id
+        )
+
+        let snapshot = SequencerSnapshotCompiler.compile(store: store)
+
+        let clipBuffer = try XCTUnwrap(snapshot.clipBuffersByID[fixture.clip.id])
+        XCTAssertEqual(clipBuffer.steps[0].main?.notes.first?.pitch, 72)
+        XCTAssertNil(clipBuffer.steps[1].main)
+
+        let phraseBuffer = try XCTUnwrap(snapshot.phraseBuffersByID[fixture.phrase.id])
+        let trackBuffer = try XCTUnwrap(phraseBuffer.trackStates.first)
+        XCTAssertEqual(trackBuffer.patternSlotIndex, [4, 5])
+    }
+
+    private func makeSnapshotFixture() -> (
+        project: Project,
+        track: StepSequenceTrack,
+        clip: ClipPoolEntry,
+        phrase: PhraseModel,
+        binding: TrackMacroBinding,
+        patternLayer: PhraseLayerDefinition
+    ) {
         let trackID = UUID()
         let descriptor = TrackMacroDescriptor(
             id: UUID(),
@@ -81,6 +115,6 @@ final class SequencerSnapshotCompilerTests: XCTestCase {
             phrases: [phrase],
             selectedPhraseID: phrase.id
         )
-        return (project, clip, phrase, binding)
+        return (project, track, clip, phrase, binding, patternLayer)
     }
 }
