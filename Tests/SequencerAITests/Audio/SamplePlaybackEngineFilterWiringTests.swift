@@ -129,12 +129,6 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
     // MARK: - Filter is in the signal path (not silently bypassed)
 
     func test_highpassFilter_at10kHz_attenuates1kHzSignal() throws {
-        // Build an audio engine manually with a filter node in the path.
-        // This verifies the filter is actually in the signal path (not bypassed).
-        let filter = SamplerFilterNode()
-        filter.setType(.highpass)
-        filter.setCutoff(hz: 10_000)
-
         let sampleRate: Double = 44_100
         let durationSec: Double = 0.1
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
@@ -147,21 +141,34 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
             data[i] = Float(sin(2 * Double.pi * 1_000 * t))
         }
 
-        let engine = AVAudioEngine()
-        let player = AVAudioPlayerNode()
-        engine.attach(player)
-        engine.attach(filter.avNode)
-        engine.connect(player, to: filter.avNode, format: format)
-        engine.connect(filter.avNode, to: engine.mainMixerNode, format: format)
+        func render(filter: SamplerFilterNode?) throws -> AVAudioPCMBuffer {
+            let engine = AVAudioEngine()
+            let player = AVAudioPlayerNode()
+            engine.attach(player)
+            if let filter {
+                engine.attach(filter.avNode)
+                engine.connect(player, to: filter.avNode, format: format)
+                engine.connect(filter.avNode, to: engine.mainMixerNode, format: format)
+            } else {
+                engine.connect(player, to: engine.mainMixerNode, format: format)
+            }
 
-        try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: frameCount)
-        try engine.start()
-        player.scheduleBuffer(input, completionHandler: nil)
-        player.play()
+            try engine.enableManualRenderingMode(.offline, format: format, maximumFrameCount: frameCount)
+            try engine.start()
+            player.scheduleBuffer(input, completionHandler: nil)
+            player.play()
 
-        let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
-        try engine.renderOffline(frameCount, to: output)
-        engine.stop()
+            let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+            try engine.renderOffline(frameCount, to: output)
+            engine.stop()
+            return output
+        }
+
+        let filter = SamplerFilterNode()
+        filter.setType(.highpass)
+        filter.setCutoff(hz: 10_000)
+        let baseline = try render(filter: nil)
+        let output = try render(filter: filter)
 
         // Compute RMS of input vs output.
         func rms(_ buf: AVAudioPCMBuffer) -> Double {
@@ -170,7 +177,7 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
             for i in 0..<Int(buf.frameLength) { let v = Double(d[i]); sum += v * v }
             return sqrt(sum / Double(buf.frameLength))
         }
-        let inRMS = rms(input)
+        let inRMS = rms(baseline)
         let outRMS = rms(output)
         guard inRMS > 0 else { XCTFail("Input is silent"); return }
 

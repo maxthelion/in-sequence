@@ -41,7 +41,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
-        destination: .none,
+        destination: Destination.none,
         groupID: nil,
         mix: .default,
         velocity: 100,

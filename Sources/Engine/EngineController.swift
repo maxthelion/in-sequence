@@ -55,6 +55,7 @@ final class EngineController: RouterDispatcher {
 
     private var currentTrackMix = TrackMixSettings.default
     private var currentDocumentModel: Project = .empty
+    private var currentPlaybackSnapshot: PlaybackSnapshot?
     private var generatorIDsByTrackID: [UUID: BlockID] = [:]
     private var midiOutBlocksByTrackID: [UUID: MidiOut] = [:]
     private var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
@@ -226,6 +227,14 @@ final class EngineController: RouterDispatcher {
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
         apply(deltas: deltas, documentModel: documentModel)
+    }
+
+    func apply(playbackSnapshot: PlaybackSnapshot) {
+        withStateLock {
+            currentPlaybackSnapshot = playbackSnapshot
+            preparedTickIndex = nil
+            generatedEvaluationStatesByTrackID = [:]
+        }
     }
 
     func apply(track: StepSequenceTrack) {
@@ -440,7 +449,7 @@ final class EngineController: RouterDispatcher {
     }
 
     private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
-        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts) = withStateLock {
+        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts, playbackSnapshot) = withStateLock {
             (
                 self.executor,
                 self.audioTrackRuntimes,
@@ -448,7 +457,8 @@ final class EngineController: RouterDispatcher {
                 self.generatorIDsByTrackID,
                 self.currentDocumentModel,
                 self.generatedEvaluationStatesByTrackID,
-                self.chordContextByLane
+                self.chordContextByLane,
+                self.currentPlaybackSnapshot
             )
         }
 
@@ -457,48 +467,93 @@ final class EngineController: RouterDispatcher {
             return
         }
 
-        currentLayerSnapshot = coordinator.snapshot(
-            upcomingGlobalStep: upcomingStep,
-            project: documentModel,
-            phraseID: documentModel.selectedPhraseID
-        )
-
-        // Dispatch resolved macro values to their destinations (AU params / sampler).
-        macroApplier.apply(currentLayerSnapshot.macroValues, tracks: documentModel.tracks)
-
         var nextGeneratedStates = generatedStates
+        var preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
         let harmonicSidechainChord = chordContexts["default"]
-        for track in documentModel.tracks {
-            guard let generatorBlockID = generatorIDs[track.id],
-                  let generator = Self.generatedSource(for: track, in: documentModel)
-            else {
-                continue
+
+        if let playbackSnapshot,
+           let phraseBuffer = playbackSnapshot.phraseBuffersByID[playbackSnapshot.selectedPhraseID]
+        {
+            let stepInPhrase = Int(upcomingStep % UInt64(max(1, phraseBuffer.stepCount)))
+            var mute: [UUID: Bool] = [:]
+            var macroValues: [UUID: [UUID: Double]] = [:]
+            let resolvedTracks = playbackSnapshot.trackOrder.compactMap { playbackSnapshot.tracksByID[$0] }
+
+            for track in resolvedTracks {
+                guard let trackOrdinal = playbackSnapshot.trackOrdinalByID[track.id],
+                      phraseBuffer.trackStates.indices.contains(trackOrdinal),
+                      let trackProgram = playbackSnapshot.trackProgramsByTrackID[track.id]
+                else {
+                    continue
+                }
+
+                let trackPhrase = phraseBuffer.trackStates[trackOrdinal]
+                if trackPhrase.mute[safe: stepInPhrase] == true {
+                    mute[track.id] = true
+                }
+
+                let slotIndex = Int(trackPhrase.patternSlotIndex[safe: stepInPhrase] ?? 0)
+                let slotProgram = trackProgram.slotPrograms[safe: slotIndex] ?? .empty
+                var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
+                let notes = Self.preparedNotes(
+                    for: slotProgram,
+                    trackProgram: trackProgram,
+                    snapshot: playbackSnapshot,
+                    trackPhrase: trackPhrase,
+                    stepInPhrase: stepInPhrase,
+                    chordContext: harmonicSidechainChord,
+                    state: &state
+                )
+                nextGeneratedStates[track.id] = state
+                preparedNotesByBlockID[trackProgram.generatorBlockID] = notes
+                macroValues[track.id] = Self.resolvedMacroValues(
+                    for: track,
+                    trackProgram: trackProgram,
+                    slotProgram: slotProgram,
+                    snapshot: playbackSnapshot,
+                    trackPhrase: trackPhrase,
+                    stepInPhrase: stepInPhrase
+                )
             }
 
-            var rng = SystemRandomNumberGenerator()
-            var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
-            let notes = GeneratedSourceEvaluator.evaluateStep(
-                for: generator.params,
-                stepIndex: Int(upcomingStep),
-                clipChoices: documentModel.clipPool,
-                chordContext: harmonicSidechainChord,
-                state: &state,
-                rng: &rng
+            currentLayerSnapshot = LayerSnapshot(mute: mute, macroValues: macroValues)
+            macroApplier.apply(currentLayerSnapshot.macroValues, tracks: resolvedTracks)
+        } else {
+            currentLayerSnapshot = coordinator.snapshot(
+                upcomingGlobalStep: upcomingStep,
+                project: documentModel,
+                phraseID: documentModel.selectedPhraseID
             )
-            nextGeneratedStates[track.id] = state
-            _ = commandQueue.enqueue(
-                .setParam(
-                    blockID: generatorBlockID,
-                    paramKey: "liveStepNotes",
-                    value: .text(Self.encode(liveNotes: notes) ?? "")
+
+            macroApplier.apply(currentLayerSnapshot.macroValues, tracks: documentModel.tracks)
+
+            for track in documentModel.tracks {
+                guard let generatorBlockID = generatorIDs[track.id],
+                      let generator = Self.generatedSource(for: track, in: documentModel)
+                else {
+                    continue
+                }
+
+                var rng = SystemRandomNumberGenerator()
+                var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
+                let notes = GeneratedSourceEvaluator.evaluateStep(
+                    for: generator.params,
+                    stepIndex: Int(upcomingStep),
+                    clipChoices: documentModel.clipPool,
+                    chordContext: harmonicSidechainChord,
+                    state: &state,
+                    rng: &rng
                 )
-            )
+                nextGeneratedStates[track.id] = state
+                preparedNotesByBlockID[generatorBlockID] = notes.map(Self.noteEvent(from:))
+            }
         }
+
         withStateLock {
             generatedEvaluationStatesByTrackID = nextGeneratedStates
         }
 
-        let outputs = executor.tick(now: now)
+        let outputs = executor.tick(now: now, preparedNotesByBlockID: preparedNotesByBlockID)
         let newCurrentBPM = executor.currentBPM
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
         let newTransportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
@@ -749,7 +804,8 @@ final class EngineController: RouterDispatcher {
                     tickIndex: tickIndexOnClockThread,
                     bpm: bpm,
                     inputs: ["notes": .notes(notes)],
-                    now: routeDispatchNow
+                    now: routeDispatchNow,
+                    preparedNotesByBlockID: [:]
                 )
             )
         }
@@ -1037,6 +1093,98 @@ final class EngineController: RouterDispatcher {
         withStateLock { liveSampleTrackIDs = sampleTrackIDs }
     }
 
+    private static func preparedNotes(
+        for slotProgram: SlotProgram,
+        trackProgram: TrackSourceProgram,
+        snapshot: PlaybackSnapshot,
+        trackPhrase: TrackPhrasePlaybackBuffer,
+        stepInPhrase: Int,
+        chordContext: Chord?,
+        state: inout GeneratedSourceEvaluationState
+    ) -> [NoteEvent] {
+        switch slotProgram {
+        case let .clip(clipID, _, _):
+            guard let clipBuffer = snapshot.clipBuffersByID[clipID] else {
+                return []
+            }
+            let clipStep = stepInPhrase % max(1, clipBuffer.lengthSteps)
+            guard let step = clipBuffer.steps[safe: clipStep] else {
+                return []
+            }
+            let useFill = trackPhrase.fillEnabled[safe: stepInPhrase] ?? false
+            let lane = useFill ? (step.fill ?? step.main) : step.main
+            return lane?.notes.map {
+                NoteEvent(
+                    pitch: $0.pitch,
+                    velocity: $0.velocity,
+                    length: $0.lengthSteps,
+                    gate: true,
+                    voiceTag: nil
+                )
+            } ?? []
+
+        case let .generator(generatorID, _, _):
+            guard let generator = snapshot.generatorsByID[generatorID] else {
+                return []
+            }
+            var rng = SystemRandomNumberGenerator()
+            let notes = GeneratedSourceEvaluator.evaluateStep(
+                for: generator.params,
+                stepIndex: stepInPhrase,
+                clipChoices: Array(snapshot.clipsByID.values),
+                chordContext: chordContext,
+                state: &state,
+                rng: &rng
+            )
+            return notes.map(noteEvent(from:))
+
+        case .empty:
+            return []
+        }
+    }
+
+    private static func resolvedMacroValues(
+        for track: StepSequenceTrack,
+        trackProgram: TrackSourceProgram,
+        slotProgram: SlotProgram,
+        snapshot: PlaybackSnapshot,
+        trackPhrase: TrackPhrasePlaybackBuffer,
+        stepInPhrase: Int
+    ) -> [UUID: Double] {
+        var resolved = Dictionary(uniqueKeysWithValues: track.macros.map { ($0.id, $0.descriptor.defaultValue) })
+
+        if trackPhrase.macroValues.indices.contains(stepInPhrase) {
+            let phraseValues = trackPhrase.macroValues[stepInPhrase]
+            for (index, bindingID) in trackProgram.macroBindingIDs.enumerated()
+            where phraseValues.indices.contains(index) {
+                resolved[bindingID] = phraseValues[index]
+            }
+        }
+
+        if case let .clip(clipID, _, _) = slotProgram,
+           let clipBuffer = snapshot.clipBuffersByID[clipID]
+        {
+            let clipStep = stepInPhrase % max(1, clipBuffer.lengthSteps)
+            for bindingID in trackProgram.macroBindingIDs {
+                if let override = clipBuffer.macroOverride(stepIndex: clipStep, bindingID: bindingID) {
+                    resolved[bindingID] = override
+                }
+            }
+        }
+
+        return resolved
+    }
+
+    private static func noteEvent(from note: GeneratedNote) -> NoteEvent {
+        NoteEvent(
+            pitch: UInt8(clamping: note.pitch),
+            velocity: UInt8(clamping: note.velocity),
+            length: UInt16(clamping: note.length),
+            gate: true,
+            voiceTag: note.voiceTag
+        )
+    }
+
     private static func sourceParams(
         for track: StepSequenceTrack,
         in documentModel: Project
@@ -1045,14 +1193,12 @@ final class EngineController: RouterDispatcher {
            let encoded = encode(program: program)
         {
             return [
-                "noteProgram": .text(encoded),
-                "liveStepNotes": .text("")
+                "noteProgram": .text(encoded)
             ]
         }
 
         return [
-            "noteProgram": .text(""),
-            "liveStepNotes": .text("")
+            "noteProgram": .text("")
         ]
     }
 
@@ -1156,25 +1302,6 @@ final class EngineController: RouterDispatcher {
             return string
         } catch {
             assertionFailure("EngineController note program encode failed: \(error)")
-            return nil
-        }
-    }
-
-    private static func encode(liveNotes: [GeneratedNote]) -> String? {
-        let programmed = liveNotes.map {
-            NoteGenerator.ProgrammedNote(
-                pitch: $0.pitch,
-                velocity: $0.velocity,
-                length: $0.length,
-                voiceTag: $0.voiceTag
-            )
-        }
-
-        do {
-            let data = try JSONEncoder().encode(programmed)
-            return String(data: data, encoding: .utf8)
-        } catch {
-            assertionFailure("EngineController liveStepNotes encode failed: \(error)")
             return nil
         }
     }
@@ -1327,6 +1454,12 @@ final class EngineController: RouterDispatcher {
         stateLock.lock()
         defer { stateLock.unlock() }
         return body()
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 

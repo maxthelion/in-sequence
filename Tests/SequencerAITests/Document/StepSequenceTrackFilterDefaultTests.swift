@@ -58,20 +58,21 @@ final class StepSequenceTrackFilterDefaultTests: XCTestCase {
     // MARK: - Legacy decode (no filter key)
 
     func test_legacyDecode_noFilterKey_usesDefaults() throws {
-        // Build a JSON dict without the "filter" key, simulating a legacy document.
-        let legacyJSON: [String: Any] = [
-            "id": UUID().uuidString,
-            "name": "Legacy Track",
-            "trackType": "monoMelodic",
-            "pitches": [60],
-            "stepPattern": [true],
-            "stepAccents": [false],
-            "destination": ["kind": "none"],
-            "mix": ["level": 0.8, "pan": 0.0, "isMuted": false, "isSolo": false],
-            "velocity": 100,
-            "gateLength": 4,
-            "macros": []
-        ]
+        var track = StepSequenceTrack(
+            name: "Legacy Track",
+            pitches: [60],
+            stepPattern: [true],
+            velocity: 100,
+            gateLength: 4
+        )
+        track.mix = TrackMixSettings(level: 0.8, pan: 0.0, isMuted: false)
+
+        let encoded = try JSONEncoder().encode(track)
+        var legacyJSON = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        legacyJSON.removeValue(forKey: "filter")
+
         let data = try JSONSerialization.data(withJSONObject: legacyJSON)
         let decoded = try JSONDecoder().decode(StepSequenceTrack.self, from: data)
         XCTAssertEqual(decoded.filter.type, .lowpass)

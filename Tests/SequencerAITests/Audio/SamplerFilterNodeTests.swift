@@ -2,6 +2,7 @@ import XCTest
 import AVFoundation
 @testable import SequencerAI
 
+@MainActor
 final class SamplerFilterNodeTests: XCTestCase {
 
     // MARK: - Helpers
@@ -37,22 +38,31 @@ final class SamplerFilterNodeTests: XCTestCase {
         return 20 * log10(rms1 / rms2)
     }
 
-    /// Run a signal through an `AVAudioEngine` containing only the filter node
-    /// and return the rendered buffer.
+    /// Run a signal through an `AVAudioEngine`, optionally inserting the filter
+    /// node before the main mixer, and return the rendered buffer.
     ///
     /// Uses offline rendering (manualRenderingMode) so no hardware is required.
-    private func renderThroughFilter(
-        _ filterNode: SamplerFilterNode,
+    private func render(
         input: AVAudioPCMBuffer
+    ) throws -> AVAudioPCMBuffer {
+        try render(input: input, through: nil)
+    }
+
+    private func render(
+        input: AVAudioPCMBuffer,
+        through filterNode: SamplerFilterNode?
     ) throws -> AVAudioPCMBuffer {
         let engine = AVAudioEngine()
         let format = input.format
         let player = AVAudioPlayerNode()
         engine.attach(player)
-        engine.attach(filterNode.avNode)
-
-        engine.connect(player, to: filterNode.avNode, format: format)
-        engine.connect(filterNode.avNode, to: engine.mainMixerNode, format: format)
+        if let filterNode {
+            engine.attach(filterNode.avNode)
+            engine.connect(player, to: filterNode.avNode, format: format)
+            engine.connect(filterNode.avNode, to: engine.mainMixerNode, format: format)
+        } else {
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+        }
 
         try engine.enableManualRenderingMode(
             .offline,
@@ -74,14 +84,16 @@ final class SamplerFilterNodeTests: XCTestCase {
     func test_defaultSettings_1kHzSinePassesThrough() throws {
         let filter = SamplerFilterNode()
         let input = sineBuffer(frequencyHz: 1_000, durationSec: 0.1)
-        let output = try renderThroughFilter(filter, input: input)
+        let baseline = try render(input: input)
+        let output = try render(input: input, through: filter)
 
-        let inRMS = rms(input)
+        let inRMS = rms(baseline)
         let outRMS = rms(output)
         guard inRMS > 0 else { XCTFail("Input silence"); return }
 
         let deltaDb = rmsToDb(outRMS, vs: inRMS)
-        // Default LP at 20 kHz: 1 kHz is well within passband — ±0.5 dB
+        // Compare against the same graph without the filter to cancel the
+        // main mixer's fixed render gain characteristics.
         XCTAssertLessThanOrEqual(abs(deltaDb), 0.5,
             "Default filter should pass 1 kHz within ±0.5 dB, got \(deltaDb) dB")
     }
@@ -94,8 +106,9 @@ final class SamplerFilterNodeTests: XCTestCase {
         filter.setCutoff(hz: 10_000)
 
         let input = sineBuffer(frequencyHz: 1_000, durationSec: 0.1)
-        let inRMS = rms(input)
-        let output = try renderThroughFilter(filter, input: input)
+        let baseline = try render(input: input)
+        let inRMS = rms(baseline)
+        let output = try render(input: input, through: filter)
         let outRMS = rms(output)
 
         guard inRMS > 0 else { XCTFail("Input silence"); return }
@@ -113,8 +126,9 @@ final class SamplerFilterNodeTests: XCTestCase {
         filter.setCutoff(hz: 500)
 
         let input = sineBuffer(frequencyHz: 5_000, durationSec: 0.1)
-        let inRMS = rms(input)
-        let output = try renderThroughFilter(filter, input: input)
+        let baseline = try render(input: input)
+        let inRMS = rms(baseline)
+        let output = try render(input: input, through: filter)
         let outRMS = rms(output)
 
         guard inRMS > 0 else { XCTFail("Input silence"); return }

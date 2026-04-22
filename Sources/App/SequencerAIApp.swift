@@ -45,7 +45,33 @@ struct SequencerAIApp: App {
         for file: FileDocumentConfiguration<SeqAIDocument>
     ) -> some View {
         appDelegate.engineController = engineController
-        return ContentView(document: file.$document)
+        return DocumentSessionRootView(
+            document: file.$document,
+            engineController: engineController
+        )
+    }
+}
+
+private struct DocumentSessionRootView: View {
+    @Binding var document: SeqAIDocument
+    let engineController: EngineController
+    @State private var session: SequencerDocumentSession
+
+    init(document: Binding<SeqAIDocument>, engineController: EngineController) {
+        self._document = document
+        self.engineController = engineController
+        self._session = State(initialValue: SequencerDocumentSession(document: document, engineController: engineController))
+    }
+
+    var body: some View {
+        ContentView(document: $document)
             .environment(engineController)
+            .environment(session)
+            .onChange(of: document.project) { _, newModel in
+                session.handleDocumentProjectChange(newModel)
+            }
+            .onDisappear {
+                session.flushToDocument()
+            }
     }
 }

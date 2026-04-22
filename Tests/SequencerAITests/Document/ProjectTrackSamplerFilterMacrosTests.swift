@@ -117,6 +117,7 @@ final class ProjectTrackSamplerFilterMacrosTests: XCTestCase {
     func test_clipMacroLane_survivesDestinationSwap() {
         var (project, trackID) = makeProject()
         project.setDestinationWithMacros(.sample(sampleID: UUID(), settings: .default), for: trackID)
+        _ = project.ensureClipForCurrentPattern(trackID: trackID)
 
         // Get the cutoff binding id.
         let cutoffID = TrackMacroDescriptor.builtinID(trackID: trackID, kind: .samplerFilterCutoff)

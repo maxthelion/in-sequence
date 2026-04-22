@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Binding var document: SeqAIDocument
-    @Environment(EngineController.self) private var engineController
     @State private var section: WorkspaceSection = .tracks
 
     var body: some View {
@@ -15,12 +14,6 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(18)
-        }
-        .onAppear {
-            engineController.apply(documentModel: document.project)
-        }
-        .onChange(of: document.project) { _, newModel in
-            engineController.apply(documentModel: newModel)
         }
     }
 }

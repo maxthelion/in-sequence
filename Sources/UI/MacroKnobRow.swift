@@ -57,12 +57,13 @@ struct MacroKnobRowViewModel {
 struct MacroKnobRow: View {
     @Binding var document: SeqAIDocument
     let trackID: UUID
-    @Environment(EngineController.self) private var engineController
+    @Environment(SequencerDocumentSession.self) private var session
 
     private var viewModel: MacroKnobRowViewModel { MacroKnobRowViewModel() }
+    private var project: Project { session.projectView }
 
     private var track: StepSequenceTrack? {
-        document.project.tracks.first(where: { $0.id == trackID })
+        project.tracks.first(where: { $0.id == trackID })
     }
 
     private var macros: [TrackMacroBinding] {
@@ -87,16 +88,15 @@ struct MacroKnobRow: View {
                                 value: viewModel.currentValue(
                                     binding: binding,
                                     trackID: trackID,
-                                    project: document.project
+                                    project: project
                                 )
                             ) { newValue in
-                                viewModel.applyLiveValue(
-                                    newValue,
-                                    binding: binding,
+                                session.setMacroLayerDefault(
+                                    value: newValue,
+                                    bindingID: binding.id,
                                     trackID: trackID,
-                                    project: &document.project
+                                    phraseID: project.selectedPhraseID
                                 )
-                                engineController.apply(documentModel: document.project)
                             }
                         }
                     }

@@ -24,15 +24,25 @@ final class SamplerFilterNode {
 
     /// The underlying EQ node to attach to an `AVAudioEngine`.
     let avNode: AVAudioUnitEQ
+    /// Shadow copy of the intended filter settings. Some `AVAudioUnitEQ`
+    /// properties are not reliably introspectable before the node is attached,
+    /// so tests and higher layers can read the authored state from here.
+    private(set) var currentSettings = SamplerFilterSettings()
 
     // MARK: - Band
 
-    private var band: AVAudioUnitEQFilterParameters { avNode.bands[0] }
+    private var band: AVAudioUnitEQFilterParameters {
+        MainActor.assumeIsolated {
+            avNode.bands[0]
+        }
+    }
 
     // MARK: - Init
 
     init() {
-        avNode = AVAudioUnitEQ(numberOfBands: 1)
+        avNode = MainActor.assumeIsolated {
+            AVAudioUnitEQ(numberOfBands: 1)
+        }
         configureDefaultBand()
     }
 
@@ -41,30 +51,15 @@ final class SamplerFilterNode {
     /// Apply all five filter parameters at once.
     /// Use fine-grained setters from `TrackMacroApplier` when only one value changes per step.
     func apply(_ settings: SamplerFilterSettings) {
-        setType(settings.type)
-        setPoles(settings.poles)
-        setCutoff(hz: settings.cutoffHz)
-        setResonance(settings.resonance)
-        setDrive(settings.drive)
+        currentSettings = settings.clamped()
+        syncNodeFromCurrentSettings()
     }
 
     // MARK: - Fine-grained setters
 
     func setType(_ type: SamplerFilterType) {
-        switch type {
-        case .lowpass:
-            band.filterType = .lowPass
-        case .highpass:
-            band.filterType = .highPass
-        case .bandpass:
-            band.filterType = .bandPass
-        case .notch:
-            // Notch is implemented as a very-deep parametric band.
-            // Gain of -40 dB at the centre frequency approximates a notch.
-            band.filterType = .parametric
-            band.gain = -40
-        }
-        band.bypass = false
+        currentSettings.type = type
+        syncNodeFromCurrentSettings()
     }
 
     /// Approximate pole-count via bandwidth adjustment.
@@ -73,19 +68,13 @@ final class SamplerFilterNode {
     /// order. Narrower bandwidth → steeper perceived roll-off (perceptual stand-in
     /// only). A custom AUAudioUnit subclass will replace this in a future plan.
     func setPoles(_ poles: SamplerFilterPoles) {
-        switch poles {
-        case .one:
-            band.bandwidth = 1.0    // wide — gentle roll-off (≈ 6 dB/oct feel)
-        case .two:
-            band.bandwidth = 0.5   // default — moderate roll-off (≈ 12 dB/oct feel)
-        case .four:
-            band.bandwidth = 0.15  // tight — steep roll-off (≈ 24 dB/oct feel)
-        }
+        currentSettings.poles = poles
+        syncNodeFromCurrentSettings()
     }
 
     func setCutoff(hz: Double) {
-        let clamped = min(max(hz, 20), 20_000)
-        band.frequency = Float(clamped)
+        currentSettings.cutoffHz = hz
+        syncNodeFromCurrentSettings()
     }
 
     /// Map normalized resonance (0..1) to a gain bump on the EQ band.
@@ -94,33 +83,75 @@ final class SamplerFilterNode {
     /// resonant peak. For notch (.parametric with gain=-40), resonance narrows
     /// the notch by reducing bandwidth.
     func setResonance(_ normalized: Double) {
-        let clamped = min(max(normalized, 0), 1)
-        if band.filterType == .parametric {
-            // Notch: resonance narrows the band (tighter Q = deeper, narrower notch).
-            band.bandwidth = Float(0.5 - clamped * 0.45)  // 0.5 → 0.05 as resonance → 1
-        } else {
-            // LP/HP/BP: resonance adds a gain bump at the cutoff.
-            band.gain = Float(clamped * 18)  // 0..18 dB
-        }
+        currentSettings.resonance = normalized
+        syncNodeFromCurrentSettings()
     }
 
     /// Map normalized drive (0..1) to a global output gain boost.
     ///
     /// v1: `globalGain += drive * 12 dB`. Not a saturation stage.
     func setDrive(_ normalized: Double) {
-        let clamped = min(max(normalized, 0), 1)
-        avNode.globalGain = Float(clamped * 12)  // 0..12 dB
+        currentSettings.drive = normalized
+        syncNodeFromCurrentSettings()
     }
 
     // MARK: - Private
 
     private func configureDefaultBand() {
-        // Bypass-transparent defaults: LP at 20 kHz, 0 resonance, 0 drive.
-        band.filterType = .lowPass
-        band.frequency = 20_000
-        band.bandwidth = 0.5
-        band.gain = 0
+        currentSettings = .init()
+        syncNodeFromCurrentSettings()
+    }
+
+    private func syncNodeFromCurrentSettings() {
+        currentSettings = currentSettings.clamped()
+
+        switch currentSettings.type {
+        case .lowpass:
+            band.filterType = .lowPass
+        case .highpass:
+            band.filterType = .highPass
+        case .bandpass:
+            band.filterType = .bandPass
+        case .notch:
+            band.filterType = .parametric
+        }
+
+        band.frequency = Float(currentSettings.cutoffHz)
+
+        if currentSettings.type == .notch {
+            // Notch is implemented as a very-deep parametric band. Resonance
+            // narrows the cut by tightening the bandwidth.
+            band.gain = -40
+            band.bandwidth = Float(0.5 - currentSettings.resonance * 0.45)
+        } else {
+            switch currentSettings.poles {
+            case .one:
+                band.bandwidth = 1.0    // wide — gentle roll-off (≈ 6 dB/oct feel)
+            case .two:
+                band.bandwidth = 0.5   // default — moderate roll-off (≈ 12 dB/oct feel)
+            case .four:
+                band.bandwidth = 0.15  // tight — steep roll-off (≈ 24 dB/oct feel)
+            }
+
+            // LP/HP/BP: resonance adds a gain bump at the cutoff. Some
+            // `AVAudioUnitEQ` filter modes do not reflect this property back
+            // reliably until attached to an engine, so `currentSettings`
+            // remains the source of truth for tests and UI state.
+            band.gain = Float(currentSettings.resonance * 18)
+        }
+
         band.bypass = false
-        avNode.globalGain = 0
+
+        let isNeutralDefault =
+            currentSettings.type == .lowpass &&
+            currentSettings.poles == .two &&
+            abs(currentSettings.cutoffHz - 20_000) <= 0.001 &&
+            abs(currentSettings.resonance) <= 0.000_001 &&
+            abs(currentSettings.drive) <= 0.000_001
+
+        MainActor.assumeIsolated {
+            avNode.bypass = isNeutralDefault
+            avNode.globalGain = Float(currentSettings.drive * 12)  // 0..12 dB
+        }
     }
 }

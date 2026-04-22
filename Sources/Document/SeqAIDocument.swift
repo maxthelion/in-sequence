@@ -9,6 +9,7 @@ struct SeqAIDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.seqAIDocument] }
     static var writableContentTypes: [UTType] { [.seqAIDocument] }
 
+    var runtimeID = UUID()
     var project: Project
 
     init(project: Project = .empty) {
@@ -25,7 +26,11 @@ struct SeqAIDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(project)
+        let projectForWriting = SeqAIDocumentProjectionRegistry.projectForWriting(
+            runtimeID: runtimeID,
+            fallback: project
+        )
+        let data = try encoder.encode(projectForWriting)
         return FileWrapper(regularFileWithContents: data)
     }
 }

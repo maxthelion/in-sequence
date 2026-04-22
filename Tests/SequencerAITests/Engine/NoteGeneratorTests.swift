@@ -61,28 +61,29 @@ final class NoteGeneratorTests: XCTestCase {
         XCTAssertTrue(block is NoteGenerator)
     }
 
-    func test_liveStepNotes_emit_once_then_clear() throws {
+    func test_preparedNotes_emit_for_the_current_tick() {
         let generator = NoteGenerator(id: "gen")
-        let programmedNotes = [
-            NoteGenerator.ProgrammedNote(pitch: 72, velocity: 90, length: 6, voiceTag: "lead")
+        let preparedNotes = [
+            NoteEvent(pitch: 72, velocity: 90, length: 6, gate: true, voiceTag: "lead")
         ]
-        let encoded = String(data: try JSONEncoder().encode(programmedNotes), encoding: .utf8)!
-
-        generator.apply(paramKey: "liveStepNotes", value: .text(encoded))
-
-        let first = notes(from: generator.tick(context: makeContext(tick: 0)))
+        let first = notes(from: generator.tick(context: makeContext(tick: 0, preparedNotes: preparedNotes)))
         let second = notes(from: generator.tick(context: makeContext(tick: 1)))
 
         XCTAssertEqual(first.map(\.pitch), [72])
         XCTAssertEqual(first.map(\.velocity), [90])
         XCTAssertEqual(first.map(\.length), [6])
         XCTAssertEqual(first.map(\.voiceTag), ["lead"])
-        XCTAssertNotEqual(second.map(\.pitch), [72], "live step override should clear after one tick")
-        XCTAssertEqual(second.first?.pitch, 62, "generator should fall back to its configured pattern once the live override clears")
+        XCTAssertEqual(second.first?.pitch, 62, "generator should fall back to its configured pattern on the next tick")
     }
 
-    private func makeContext(tick: UInt64) -> TickContext {
-        TickContext(tickIndex: tick, bpm: 120, inputs: [:], now: 0)
+    private func makeContext(tick: UInt64, preparedNotes: [NoteEvent] = []) -> TickContext {
+        TickContext(
+            tickIndex: tick,
+            bpm: 120,
+            inputs: [:],
+            now: 0,
+            preparedNotesByBlockID: preparedNotes.isEmpty ? [:] : ["gen": preparedNotes]
+        )
     }
 
     private func notes(from outputs: [PortID: EngineStream]) -> [NoteEvent] {

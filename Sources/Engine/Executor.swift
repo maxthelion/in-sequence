@@ -32,7 +32,10 @@ final class Executor {
         self.orderedBlockIDs = try Self.topologicalOrder(blocks: blocks, wiring: wiring)
     }
 
-    func tick(now: TimeInterval) -> [BlockID: [PortID: Stream]] {
+    func tick(
+        now: TimeInterval,
+        preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
+    ) -> [BlockID: [PortID: Stream]] {
         drainCommands()
 
         var allOutputs: [BlockID: [PortID: Stream]] = [:]
@@ -47,7 +50,8 @@ final class Executor {
                 tickIndex: tickCounter,
                 bpm: currentBPM,
                 inputs: inputs,
-                now: now
+                now: now,
+                preparedNotesByBlockID: preparedNotesByBlockID
             )
             allOutputs[blockID] = block.tick(context: context)
         }

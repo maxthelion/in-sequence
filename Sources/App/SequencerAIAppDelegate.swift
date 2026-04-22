@@ -24,6 +24,7 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         log("applicationWillTerminate start")
+        SequencerDocumentSessionRegistry.flushAll()
         windowHost.closeAll()
         engineController?.shutdown()
         drainRunLoop(shutdownDrainInterval)
