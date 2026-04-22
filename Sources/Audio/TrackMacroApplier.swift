@@ -81,7 +81,7 @@ final class TrackMacroApplier {
     private func dispatch(value: Double, binding: TrackMacroBinding, trackID: UUID) {
         switch binding.source {
         case let .builtin(kind):
-            sampleEngine.setVoiceParam(trackID: trackID, kind: kind, value: value)
+            dispatchBuiltin(kind: kind, value: value, trackID: trackID)
 
         case let .auParameter(address, identifier):
             let key = CacheKey(trackID: trackID, bindingID: binding.id)
@@ -115,6 +115,32 @@ final class TrackMacroApplier {
                 bindingID: binding.id,
                 reason: "address \(address) / identifier '\(identifier)' not found in parameter tree"
             )
+        }
+    }
+
+    private func dispatchBuiltin(kind: BuiltinMacroKind, value: Double, trackID: UUID) {
+        switch kind {
+        case .sampleStart, .sampleLength, .sampleGain:
+            sampleEngine.setVoiceParam(trackID: trackID, kind: kind, value: value)
+
+        case .samplerFilterCutoff:
+            sampleEngine.filterNode(for: trackID)?.setCutoff(hz: value)
+
+        case .samplerFilterReso:
+            sampleEngine.filterNode(for: trackID)?.setResonance(value)
+
+        case .samplerFilterDrive:
+            sampleEngine.filterNode(for: trackID)?.setDrive(value)
+
+        case .samplerFilterType:
+            let raw = Int(value.rounded())
+            let idx = max(0, min(raw, SamplerFilterType.allCases.count - 1))
+            sampleEngine.filterNode(for: trackID)?.setType(SamplerFilterType.allCases[idx])
+
+        case .samplerFilterPoles:
+            let raw = Int(value.rounded())
+            let idx = max(0, min(raw, SamplerFilterPoles.allCases.count - 1))
+            sampleEngine.filterNode(for: trackID)?.setPoles(SamplerFilterPoles.allCases[idx])
         }
     }
 
