@@ -461,6 +461,60 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
+    // MARK: - Parameter readout (macro picker support)
+
+    /// Returns a flat list of all writable parameters exposed by the currently-loaded AU.
+    ///
+    /// Returns nil if no AU is loaded. Must be called on the main thread.
+    /// The caller is responsible for caching; this method always re-reads from the live
+    /// `parameterTree` (which is safe to call on main thread).
+    func parameterReadout() -> [AUParameterDescriptor]? {
+        assert(Thread.isMainThread, "parameterReadout must be called on main thread")
+        guard let au = withSnapshot({ snapshotAudioUnit }),
+              let tree = au.auAudioUnit.parameterTree
+        else {
+            return nil
+        }
+
+        return tree.allParameters
+            .filter { $0.flags.contains(.flag_IsWritable) || !$0.flags.contains(.flag_IsReadable) }
+            .map { param in
+                let ancestors = param.value(forKeyPath: "ancestors") as? [AUParameterGroup]
+                let group = ancestors?.map(\.displayName) ?? []
+                return AUParameterDescriptor(
+                    address: param.address,
+                    identifier: param.identifier,
+                    displayName: param.displayName,
+                    minValue: Double(param.minValue),
+                    maxValue: Double(param.maxValue),
+                    defaultValue: Double(param.value),
+                    unit: unitString(for: param.unit),
+                    group: group,
+                    isWritable: true
+                )
+            }
+    }
+
+    private func unitString(for unit: AudioUnitParameterUnit) -> String? {
+        switch unit {
+        case .hertz: return "Hz"
+        case .decibels: return "dB"
+        case .linearGain: return "gain"
+        case .percent: return "%"
+        case .seconds: return "s"
+        case .milliseconds: return "ms"
+        case .beats: return "beats"
+        case .octaves: return "oct"
+        case .cents: return "cents"
+        case .absoluteCents: return "¢"
+        case .BPM: return "BPM"
+        case .degrees: return "°"
+        case .pan: return "pan"
+        case .indexed, .boolean, .generic, .customUnit, .ratio: return nil
+        default: return nil
+        }
+    }
+
     private func withSnapshot<T>(_ body: () -> T) -> T {
         snapshotLock.lock()
         defer { snapshotLock.unlock() }

@@ -5,6 +5,7 @@ struct TrackDestinationEditor: View {
     @Environment(EngineController.self) private var engineController
     @State private var recentVoices: [RecentVoice] = []
     @State private var showingAddDestinationSheet = false
+    @State private var showingMacroPickerSheet = false
 
     private var track: StepSequenceTrack {
         document.project.selectedTrack
@@ -46,6 +47,10 @@ struct TrackDestinationEditor: View {
                 applyAddedDestination(destination)
             }
             .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $showingMacroPickerSheet) {
+            macroPickerSheet
+                .presentationBackground(.ultraThinMaterial)
         }
     }
 
@@ -204,6 +209,11 @@ struct TrackDestinationEditor: View {
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.success)
 
+                Button("Macros…") {
+                    showingMacroPickerSheet = true
+                }
+                .buttonStyle(.bordered)
+
                 if let stateBlob = currentAUStateBlob {
                     Text("State \(ByteCountFormatter.string(fromByteCount: Int64(stateBlob.count), countStyle: .file))")
                         .studioText(.label)
@@ -222,25 +232,39 @@ struct TrackDestinationEditor: View {
     }
 
     private var samplerEditor: some View {
-        SamplerDestinationWidget(
-            destination: Binding(
-                get: { editedDestination },
-                set: {
-                    document.project.setEditedDestination($0, for: track.id)
-                    engineController.apply(documentModel: document.project)
-                }
-            ),
-            library: AudioSampleLibrary.shared,
-            sampleEngine: engineController.sampleEngineSink
-        )
+        VStack(alignment: .leading, spacing: 10) {
+            SamplerDestinationWidget(
+                destination: Binding(
+                    get: { editedDestination },
+                    set: {
+                        document.project.setEditedDestination($0, for: track.id)
+                        engineController.apply(documentModel: document.project)
+                    }
+                ),
+                library: AudioSampleLibrary.shared,
+                sampleEngine: engineController.sampleEngineSink
+            )
+
+            Button("Macros…") {
+                showingMacroPickerSheet = true
+            }
+            .buttonStyle(.bordered)
+        }
     }
 
     private var internalSamplerEditor: some View {
-        StudioPlaceholderTile(
-            title: "Internal Sampler",
-            detail: "This track defaults to the bundled internal sampler destination for its type. The audio-side sampler host is still a later plan.",
-            accent: StudioTheme.amber
-        )
+        VStack(alignment: .leading, spacing: 10) {
+            StudioPlaceholderTile(
+                title: "Internal Sampler",
+                detail: "This track defaults to the bundled internal sampler destination for its type. The audio-side sampler host is still a later plan.",
+                accent: StudioTheme.amber
+            )
+
+            Button("Macros…") {
+                showingMacroPickerSheet = true
+            }
+            .buttonStyle(.bordered)
+        }
     }
 
     private func applyAddedDestination(_ destination: Destination) {
@@ -457,6 +481,76 @@ struct TrackDestinationEditor: View {
                 return true
             }
         }
+    }
+
+    // MARK: - Macro picker sheet
+
+    @ViewBuilder
+    private var macroPickerSheet: some View {
+        let trackID = track.id
+        let builtinBindings = track.macros.filter {
+            if case .builtin = $0.source { return true }
+            return false
+        }
+        let auBindings = track.macros.filter {
+            if case .auParameter = $0.source { return true }
+            return false
+        }
+        let currentAddresses = Set(auBindings.compactMap { binding -> UInt64? in
+            if case let .auParameter(address, _) = binding.source { return address }
+            return nil
+        })
+
+        switch editedDestination {
+        case .auInstrument:
+            // Read the live parameter tree (main thread, called here in the view).
+            let params: [AUParameterDescriptor] = {
+                guard let host = engineController.audioInstrumentHost(for: trackID) else { return [] }
+                return host.parameterReadout() ?? []
+            }()
+            MacroPickerSheet(
+                mode: .auPicker(params: params),
+                currentBindingAddresses: currentAddresses
+            ) { added, removed in
+                applyMacroDiff(added: added, removed: removed, trackID: trackID)
+            }
+
+        case .sample, .internalSampler:
+            MacroPickerSheet(
+                mode: .builtinReadOnly(bindings: builtinBindings),
+                currentBindingAddresses: []
+            ) { _, _ in }
+
+        default:
+            EmptyView()
+        }
+    }
+
+    private func applyMacroDiff(added: [AUParameterDescriptor], removed: Set<UInt64>, trackID: UUID) {
+        // Remove deselected bindings.
+        for address in removed {
+            if let binding = track.macros.first(where: {
+                if case let .auParameter(a, _) = $0.source { return a == address }
+                return false
+            }) {
+                document.project.removeMacro(id: binding.id, from: trackID)
+            }
+        }
+        // Add newly selected parameters (capped at 8 by addAUMacro).
+        for param in added {
+            let descriptor = TrackMacroDescriptor(
+                id: UUID(),
+                displayName: param.displayName,
+                minValue: param.minValue,
+                maxValue: param.maxValue,
+                defaultValue: param.defaultValue,
+                valueType: .scalar,
+                source: .auParameter(address: param.address, identifier: param.identifier)
+            )
+            document.project.addAUMacro(descriptor: descriptor, to: trackID)
+        }
+        document.project.syncMacroLayers()
+        engineController.apply(documentModel: document.project)
     }
 }
 
