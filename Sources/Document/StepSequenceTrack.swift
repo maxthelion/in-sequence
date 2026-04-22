@@ -12,6 +12,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var mix: TrackMixSettings
     var velocity: Int
     var gateLength: Int
+    /// Per-track macro bindings. Capped at 8 (enforced by `Project.addAUMacro`).
+    var macros: [TrackMacroBinding]
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -25,6 +27,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case mix
         case velocity
         case gateLength
+        case macros
     }
 
     static let `default` = StepSequenceTrack(
@@ -38,7 +41,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         groupID: nil,
         mix: .default,
         velocity: 100,
-        gateLength: 4
+        gateLength: 4,
+        macros: []
     )
 
     init(
@@ -52,7 +56,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         groupID: TrackGroupID? = nil,
         mix: TrackMixSettings = .default,
         velocity: Int,
-        gateLength: Int
+        gateLength: Int,
+        macros: [TrackMacroBinding] = []
     ) {
         self.id = id
         self.name = name
@@ -65,6 +70,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.mix = mix
         self.velocity = velocity
         self.gateLength = gateLength
+        self.macros = macros
     }
 
     var activeStepCount: Int {
@@ -121,6 +127,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         mix = try container.decodeIfPresent(TrackMixSettings.self, forKey: .mix) ?? .default
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
+        // Legacy documents without macros decode as empty — no migration needed.
+        macros = try container.decodeIfPresent([TrackMacroBinding].self, forKey: .macros) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -136,6 +144,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(mix, forKey: .mix)
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)
+        try container.encode(macros, forKey: .macros)
     }
 
     var defaultDestination: Destination {
