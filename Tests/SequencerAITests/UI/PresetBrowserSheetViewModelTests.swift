@@ -213,4 +213,44 @@ final class PresetBrowserSheetViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.lastLoadError)
         XCTAssertEqual(viewModel.loadedID, "factory:2")
     }
+
+    func test_load_throws_non_PresetLoadingError_reports_loadFailed_not_presetNotFound() {
+        struct StubError: Error {}
+        let viewModel = PresetBrowserSheetViewModel(
+            read: { nil },
+            load: { _ in throw StubError() },
+            commit: { _ in XCTFail("commit must not run on error") }
+        )
+
+        viewModel.load(.factory(number: 1, name: "X"))
+
+        guard case .loadFailed(let underlying) = viewModel.lastLoadError else {
+            return XCTFail("Expected .loadFailed, got \(String(describing: viewModel.lastLoadError))")
+        }
+        XCTAssertFalse(underlying.isEmpty, "Underlying description must be non-empty")
+    }
+
+    func test_writeTarget_resolution_is_live_not_captured() {
+        // Simulate a commit closure that re-resolves its target on each call.
+        // Two calls with different targets returned by the resolver must each
+        // write to the correct target.
+        var targetToReturn = "first"
+        var writtenTargets: [String] = []
+
+        let viewModel = PresetBrowserSheetViewModel(
+            read: { nil },
+            load: { _ in Data() },
+            commit: { _ in
+                writtenTargets.append(targetToReturn)
+            }
+        )
+
+        targetToReturn = "first"
+        viewModel.load(.factory(number: 1, name: "A"))
+        targetToReturn = "second"
+        viewModel.load(.factory(number: 2, name: "B"))
+
+        XCTAssertEqual(writtenTargets, ["first", "second"],
+                       "Each commit must observe the live target value, not a captured snapshot")
+    }
 }

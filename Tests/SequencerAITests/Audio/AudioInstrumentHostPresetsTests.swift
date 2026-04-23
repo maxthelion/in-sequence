@@ -143,6 +143,37 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
         XCTAssertNil(resolved)
     }
 
+    // MARK: – Duplicate-name user-preset disambiguation
+
+    func test_resolve_user_by_number_disambiguates_duplicate_names() {
+        // Two user presets with the same display name but different AU-assigned numbers.
+        let lead1 = makePreset(number: -1, name: "Lead")
+        let lead2 = makePreset(number: -3, name: "Lead")
+
+        let result = AUPresetDescriptor.descriptors(factoryPresets: nil, userPresets: [lead1, lead2])
+
+        // ids must be distinct even though names are identical
+        XCTAssertNotEqual(result.user[0].id, result.user[1].id,
+                          "Two user presets with the same name must produce distinct ids")
+        XCTAssertEqual(result.user[0].id, "user:-1:Lead")
+        XCTAssertEqual(result.user[1].id, "user:-3:Lead")
+
+        // resolve for each must return the right underlying preset
+        let resolvedFirst = AUPresetDescriptor.resolve(
+            result.user[0],
+            factoryPresets: nil,
+            userPresets: [lead1, lead2]
+        )
+        XCTAssertIdentical(resolvedFirst, lead1)
+
+        let resolvedSecond = AUPresetDescriptor.resolve(
+            result.user[1],
+            factoryPresets: nil,
+            userPresets: [lead1, lead2]
+        )
+        XCTAssertIdentical(resolvedSecond, lead2)
+    }
+
     // MARK: – Host no-AU edge cases
 
     func test_host_presetReadout_returns_nil_when_no_AU_loaded() {
