@@ -1,10 +1,25 @@
 import Foundation
 import Observation
 
+/// Scoped runtime update payloads for `LiveMutationImpact.scopedRuntime`.
+///
+/// Each case carries exactly the data the session needs to dispatch to the
+/// engine without rebuilding the full document model.
+enum ScopedRuntimeUpdate: Sendable {
+    /// Update sampler filter settings for a single track.
+    case filter(trackID: UUID, settings: SamplerFilterSettings)
+    /// Write an AU state blob for a single track (or group-inherited destination).
+    case auState(trackID: UUID, blob: Data?)
+    /// Update mix settings for a single track (general-consumer path).
+    case mix(trackID: UUID, mix: TrackMixSettings)
+}
+
 enum LiveMutationImpact: Sendable {
     case snapshotOnly
     case fullEngineApply
-    case documentOnly
+    /// Dispatch a scoped runtime update directly to the engine, publish a snapshot,
+    /// and schedule the normal debounce flush. Does NOT call apply(documentModel:).
+    case scopedRuntime(update: ScopedRuntimeUpdate)
 }
 
 // MARK: - LiveSequencerStoreState

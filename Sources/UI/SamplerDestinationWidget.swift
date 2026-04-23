@@ -3,6 +3,8 @@ import SwiftUI
 struct SamplerDestinationWidget: View {
     @Binding var destination: Destination       // precondition: .sample
     let library: AudioSampleLibrary
+    /// Kept for audition playback only. Filter writes go through the `filterSettings`
+    /// binding so the session can dispatch to the engine via `.scopedRuntime(.filter(...))`.
     let sampleEngine: SamplePlaybackSink
     let trackID: UUID
     @Binding var filterSettings: SamplerFilterSettings
@@ -186,27 +188,22 @@ struct SamplerDestinationWidget: View {
 
     func onCutoffChanged(_ hz: Double) {
         filterSettings.cutoffHz = hz.clamped(to: 20...20_000)
-        sampleEngine.applyFilter(filterSettings, trackID: trackID)
     }
 
     func onResoChanged(_ value: Double) {
         filterSettings.resonance = value.clamped(to: 0...1)
-        sampleEngine.applyFilter(filterSettings, trackID: trackID)
     }
 
     func onDriveChanged(_ value: Double) {
         filterSettings.drive = value.clamped(to: 0...1)
-        sampleEngine.applyFilter(filterSettings, trackID: trackID)
     }
 
     func onTypeChanged(_ type: SamplerFilterType) {
         filterSettings.type = type
-        sampleEngine.applyFilter(filterSettings, trackID: trackID)
     }
 
     func onPolesChanged(_ poles: SamplerFilterPoles) {
         filterSettings.poles = poles
-        sampleEngine.applyFilter(filterSettings, trackID: trackID)
     }
 
     // MARK: - Orphan

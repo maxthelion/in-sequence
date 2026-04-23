@@ -262,8 +262,9 @@ struct TrackDestinationEditor: View {
                 filterSettings: Binding(
                     get: { session.project.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
                     set: { newFilter in
-                        session.mutateProject(impact: .fullEngineApply) { project in
-                            guard let idx = project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
+                        let trackID = track.id
+                        session.mutateProject(impact: .scopedRuntime(update: .filter(trackID: trackID, settings: newFilter))) { project in
+                            guard let idx = project.tracks.firstIndex(where: { $0.id == trackID }) else { return }
                             project.tracks[idx].filter = newFilter
                         }
                     }
@@ -309,7 +310,18 @@ struct TrackDestinationEditor: View {
     }
 
     private func writeStateBlob(_ stateBlob: Data?, target: Project.DestinationWriteTarget) {
-        session.mutateProject(impact: .documentOnly) { project in
+        // Resolve the trackID for the scoped runtime update.
+        // For group-inherited destinations the blob is stored on the group but we
+        // dispatch the runtime write keyed to the first track that references the group.
+        let runtimeTrackID: UUID
+        switch target {
+        case .track(let trackID):
+            runtimeTrackID = trackID
+        case .group(let groupID):
+            runtimeTrackID = session.project.tracks.first(where: { $0.groupID == groupID })?.id ?? track.id
+        }
+
+        session.mutateProject(impact: .scopedRuntime(update: .auState(trackID: runtimeTrackID, blob: stateBlob))) { project in
             switch target {
             case .track(let trackID):
                 guard let trackIndex = project.tracks.firstIndex(where: { $0.id == trackID }),
