@@ -10,6 +10,10 @@ struct AddDestinationSheet: View {
     @State private var selectionMode: SelectionMode = .choices
     @State private var selectedAudioInstrument: AudioInstrumentChoice = .builtInSynth
 
+    private var sanitizedAudioInstrumentChoices: [AudioInstrumentChoice] {
+        AudioInstrumentChoice.deduplicated(audioInstrumentChoices)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
@@ -53,7 +57,7 @@ struct AddDestinationSheet: View {
                         title: "AU Instrument",
                         detail: "Host an Audio Unit instrument inside the app."
                     ) {
-                        selectedAudioInstrument = audioInstrumentChoices.first ?? .builtInSynth
+                        selectedAudioInstrument = sanitizedAudioInstrumentChoices.first ?? .builtInSynth
                         selectionMode = .audioUnit
                     }
 
@@ -76,7 +80,7 @@ struct AddDestinationSheet: View {
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     Picker("Instrument", selection: $selectedAudioInstrument) {
-                        ForEach(audioInstrumentChoices, id: \.self) { choice in
+                        ForEach(sanitizedAudioInstrumentChoices, id: \.id) { choice in
                             Text(choice.displayName).tag(choice)
                         }
                     }
