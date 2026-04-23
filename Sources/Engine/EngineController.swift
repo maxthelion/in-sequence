@@ -282,6 +282,7 @@ final class EngineController: RouterDispatcher {
         }
 
         for host in hosts {
+            host.stop()
             host.shutdown()
         }
 
