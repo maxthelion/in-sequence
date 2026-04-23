@@ -318,6 +318,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(documentModel: Project) {
+        applyDocumentModelCallCount += 1
         let previousDocumentModel = currentDocumentModel
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
@@ -344,6 +345,25 @@ final class EngineController: RouterDispatcher {
     /// Do not use in production code — read the published observable state instead.
     var currentPlaybackSnapshotForTesting: PlaybackSnapshot {
         currentPlaybackSnapshot
+    }
+
+    /// Counter for test observation of `apply(documentModel:)` invocations.
+    /// Nil in production; set by test code to count invocations.
+    var applyDocumentModelCallCount: Int = 0
+
+    /// Scoped write: store a new AU state blob for the given track.
+    ///
+    /// The AU state was already applied live when the preset was loaded via
+    /// `loadPreset(_:for:)`. This call persists the blob into `currentDocumentModel`
+    /// so the in-memory model stays coherent with the store.
+    func writeStateBlob(_ blob: Data?, for trackID: UUID) {
+        guard let index = currentDocumentModel.tracks.firstIndex(where: { $0.id == trackID }) else {
+            return
+        }
+        guard case let .auInstrument(componentID, _) = currentDocumentModel.tracks[index].destination else {
+            return
+        }
+        currentDocumentModel.tracks[index].destination = .auInstrument(componentID: componentID, stateBlob: blob)
     }
 
     func apply(track: StepSequenceTrack) {
