@@ -283,21 +283,20 @@ final class LiveSequencerStoreResidentStateTests: XCTestCase {
             "Expected exactly [clipPool] to differ; got: \(differences)")
     }
 
-    // MARK: - 10. mutateProject bridge still works
+    // MARK: - 10. typed mutateClip API works
 
-    func test_mutateProject_bridge_stillWorks() {
+    func test_mutateClip_typedAPI_renamesClip() {
         let (project, _, clipID) = makeLiveStoreProject(clipPitch: 60)
         let store = LiveSequencerStore(project: project)
         let revBefore = store.revision
 
-        let changed = store.mutateProject(impact: .snapshotOnly) { p in
-            guard let index = p.clipPool.firstIndex(where: { $0.id == clipID }) else { return }
-            p.clipPool[index].name = "BridgeRenamed"
+        let changed = store.mutateClip(id: clipID) { entry in
+            entry.name = "TypedRenamed"
         }
 
         XCTAssertTrue(changed)
-        XCTAssertEqual(store.revision, revBefore + 1, "Revision must bump on bridge mutation")
-        XCTAssertEqual(store.exportToProject().clipPool.first(where: { $0.id == clipID })?.name, "BridgeRenamed")
+        XCTAssertEqual(store.revision, revBefore + 1, "Revision must bump on typed mutation")
+        XCTAssertEqual(store.exportToProject().clipPool.first(where: { $0.id == clipID })?.name, "TypedRenamed")
     }
 
     // MARK: - Helpers
