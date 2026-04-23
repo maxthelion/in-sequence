@@ -343,7 +343,7 @@ enum PhraseLayerTarget: Codable, Equatable, Sendable {
     case voiceRouteOverride(String)
     /// A track-scoped macro binding.
     /// Different from `.macroRow` (global intensity-like knob keyed by name):
-    /// this is per-track, per-binding, and routed through `MacroCoordinator`.
+    /// this is per-track, per-binding, and resolved by `SequencerSnapshotCompiler`.
     case macroParam(trackID: UUID, bindingID: UUID)
 }
 

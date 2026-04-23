@@ -45,9 +45,10 @@ final class TrackMacroApplier {
 
     /// Apply resolved macro values to their destinations.
     ///
-    /// Called from `EngineController.prepareTick` after `MacroCoordinator.snapshot`
-    /// produces `LayerSnapshot.macroValues`. The values dict is already merged
-    /// (phrase default → phrase snapshot → clip lane override) by the time it
+    /// Called from `EngineController.prepareTick` after the compiled
+    /// `PhrasePlaybackBuffer` produces `LayerSnapshot.macroValues`. The values
+    /// dict is already merged (phrase default → phrase snapshot → clip lane
+    /// override) by the time it
     /// arrives here.
     ///
     /// - Parameters:

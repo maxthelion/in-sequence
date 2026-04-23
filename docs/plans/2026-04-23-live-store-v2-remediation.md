@@ -85,26 +85,32 @@ Each phase lands its failing tests first.
 ### Phase 1 — Architectural core
 
 #### 1a. Make `LiveSequencerStore` a real authored-state owner
-- Replace `private(set) var project: Project` with resident dense state:
-  - `[ClipID: ClipBuffer]`
-  - `[TrackID: TrackSourceProgram]`
-  - `[PhraseID: PhraseStepBuffer]` (one buffer per phrase, indexed per step)
-  - `[GeneratorID: CompiledGeneratorDescriptor]`
-  - `[TrackID: TrackMacroBindings]`
-  - `[TrackID: SamplerFilterSettings]`
-  - `[TrackID: DestinationRuntimeDescriptor]` (includes AU state blob)
-  - metadata: track order, names, selection, phrase sequence, transport, project-level settings
+- Replace `private(set) var project: Project` with resident per-domain fields holding the *authored* document-model types (not compiled snapshot buffers — the compiler owns those). As shipped:
+  - `tracks: [StepSequenceTrack]` (order-significant array)
+  - `clipPoolByID: [UUID: ClipPoolEntry]`
+  - `generatorPoolByID: [UUID: GeneratorPoolEntry]`
+  - `phrasesByID: [UUID: PhraseModel]`, plus `phraseOrder: [UUID]`
+  - `layers: [PhraseLayerDefinition]`
+  - `routes: [RouteRule]`
+  - `patternBanksByTrackID: [UUID: TrackPatternBank]`
+  - `trackGroups: [TrackGroup]`
+  - metadata: `version`, `selectedTrackID`, `selectedPhraseID`, project-level scratch
 - `importFromProject(_:)` builds resident state from a persisted `Project`.
 - `exportToProject()` reconstructs a `Project` for flush.
-- Mutation API is focused — `mutateClip(id:_:)`, `mutatePhraseStep(phraseID:stepIndex:_:)`, `setTrackPatternSource(trackID:slotIndex:source:)`, `setTrackMix(trackID:mix:)`, etc. Each edit recompiles only the affected compiled buffer.
+- Mutation API is focused — `mutateClip(id:_:)`, `mutateTrack(id:_:)`, `mutatePhrase(id:_:)`, `mutateGenerator(id:_:)`, `setPatternBank(trackID:bank:)`, `setSelectedTrackID(_:)`, `setSelectedPhraseID(_:)`. Each edit mutates only the affected sub-state and bumps revision.
 - No mutation path rewrites the entire `Project` value.
-- A computed `project` accessor is retained only for debounced flush, explicit save, and test assertions.
+- `exportToProject()` is called only at flush and during `.fullEngineApply` dispatch. `publishSnapshot()` takes a `LiveSequencerStoreState` via `store.compileInput()` and never calls `exportToProject()`.
+- Compiled types (`ClipBuffer`, `TrackSourceProgram`, `PhrasePlaybackBuffer`) are built by `SequencerSnapshotCompiler` and live on `PlaybackSnapshot`, not on the store. Evaluator-facing types (`ClipPoolEntry`, `GeneratorPoolEntry`, `StepSequenceTrack`) are carried through to the snapshot as typed arrays — refactoring `GeneratedSourceEvaluator` to consume compiled descriptors is out of scope for V2 and is flagged with a `// TODO(future)` on the snapshot.
 
 #### 1b. Tick reads compiled buffers, not `Project`
-- Remove the embedded `Project` from `PlaybackSnapshot`. Fields become the set listed in 1a, plus snapshot-level `phraseSequence`, `currentPhraseID`, `transportState`.
-- `EngineController.resolvedStepNotes` reads `ClipBuffer` / `CompiledGeneratorDescriptor` — never `snapshot.project.*`.
-- `EngineController.prepareTick` iterates `snapshot.trackPrograms`, not `documentModel.tracks`.
-- `currentDocumentModel` is removed from the tick path. Any remaining reader is audited and either migrated or explicitly fenced as non-hot.
+- Remove the embedded `Project` from `PlaybackSnapshot`. As shipped, the snapshot carries:
+  - typed authored arrays: `tracks: [StepSequenceTrack]`, `clipPool: [ClipPoolEntry]`, `generatorPool: [GeneratorPoolEntry]`
+  - compiled buffers: `clipBuffersByID: [UUID: ClipBuffer]`, `trackProgramsByTrackID: [UUID: TrackSourceProgram]`, `phraseBuffersByID: [UUID: PhrasePlaybackBuffer]`
+  - navigation: `selectedPhraseID: UUID`, `trackOrder: [UUID]`
+  - lookup helpers: `clipEntry(id:)`, `generatorEntry(id:)`
+- `EngineController.resolvedStepNotes` reads `snapshot.clipEntry(id:)` and `snapshot.generatorEntry(id:)` (which consult the typed authored arrays on the snapshot). The compiled buffers drive per-step resolution through `phraseBuffersByID` / `trackProgramsByTrackID`.
+- `EngineController.prepareTick` iterates `playbackSnapshot.tracks`, not `documentModel.tracks`. `flushRoutedNotes` takes the snapshot as a parameter and reads its tracks field too.
+- `currentDocumentModel` is removed from the tick path (verified by `grep -n "documentModel.tracks\|currentDocumentModel.tracks" Sources/Engine/EngineController.swift` — remaining hits are all in non-tick handoff code: `apply(documentModel:)`, `writeStateBlob`, `setMix`, `prepareAudioUnit`, `buildPipeline`, `effectiveDestination`, etc.).
 - The `layerSnapshot` continues to come from the compiled phrase-step buffer.
 
 #### 1c. Per-document `EngineController`
@@ -115,7 +121,7 @@ Each phase lands its failing tests first.
 - Audio device ownership stays app-level (one output device). Transport and snapshot state are per-document.
 
 #### 1d. Merge AU crash fix
-- Port `AudioInstrumentHost.parameterReadout` fix from `fix/au-preset-hardening`.
+- Port `AudioInstrumentHost.parameterReadout` fix from `codex/fix-au-parameter-readout-crash` (commit `521b29d fix(au-host): avoid KVC crash in parameter readout` and the follow-up `88f79bc fix(au-presets): harden preset browser launch path`). Cherry-picked onto this branch as `86f79f3` + `2932c46`.
 - Add regression in `AudioInstrumentHostTests` (`test_parameterDescriptors_walks_group_tree_without_kvc`).
   The class was kept as `AudioInstrumentHostTests` (not renamed to `AudioInstrumentHostParameterReadoutTests`)
   because the file covers additional scenarios (stale-async instrument, pre-attached AU fallback).
