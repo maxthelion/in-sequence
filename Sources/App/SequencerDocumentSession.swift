@@ -81,10 +81,6 @@ final class SequencerDocumentSession {
         }
     }
 
-    var project: Project {
-        store.exportToProject()
-    }
-
     func activate() {
         // apply(documentModel:) compiles and installs a fresh snapshot internally.
         // We also update the publisher to the same compiled value so UI visualisers

@@ -64,7 +64,7 @@ final class SessionBatchHelperTests: XCTestCase {
         let (session, _, _) = makeSession(project: project)
 
         // Batch that applies the track's existing name (no-op).
-        let existingName = session.project.tracks.first(where: { $0.id == trackID })?.name ?? "Track"
+        let existingName = session.store.tracks.first(where: { $0.id == trackID })?.name ?? "Track"
         let result = session.batch(impact: .snapshotOnly) { s in
             s.mutateTrack(id: trackID) { track in
                 track.name = existingName // same value — store won't bump revision

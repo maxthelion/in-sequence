@@ -28,7 +28,7 @@ final class SequencerDocumentSessionAuthorityTests: XCTestCase {
         }
 
         XCTAssertEqual(documentBox.document.project.clipEntry(id: clipID)?.pitchPool, [60])
-        XCTAssertEqual(session.project.clipEntry(id: clipID)?.pitchPool, [72])
+        XCTAssertEqual(session.store.clipEntry(id: clipID)?.pitchPool, [72])
 
         session.flushToDocument()
 

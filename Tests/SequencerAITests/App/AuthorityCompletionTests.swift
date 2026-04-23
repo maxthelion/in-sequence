@@ -98,7 +98,7 @@ final class PhraseMatrixAuthorityTests: XCTestCase {
             "insertPhrase with .snapshotOnly must not call apply(documentModel:)"
         )
         // Phrase should be added to the store.
-        XCTAssertEqual(session.project.phrases.count, project.phrases.count + 1)
+        XCTAssertEqual(session.store.phrases.count, project.phrases.count + 1)
 
         SequencerDocumentSessionRegistry.unregister(session)
     }
@@ -117,7 +117,7 @@ final class PhraseMatrixAuthorityTests: XCTestCase {
         }
 
         XCTAssertEqual(engine.applyDocumentModelCallCount, before)
-        XCTAssertEqual(session.project.phrases.count, project.phrases.count + 1)
+        XCTAssertEqual(session.store.phrases.count, project.phrases.count + 1)
 
         SequencerDocumentSessionRegistry.unregister(session)
     }
@@ -140,7 +140,7 @@ final class PhraseMatrixAuthorityTests: XCTestCase {
 
         XCTAssertEqual(engine.applyDocumentModelCallCount, before)
         XCTAssertFalse(
-            session.project.phrases.contains(where: { $0.id == existingPhraseID }),
+            session.store.phrases.contains(where: { $0.id == existingPhraseID }),
             "Phrase must be removed from the store"
         )
 
@@ -176,7 +176,7 @@ final class SamplerFilterAuthorityTests: XCTestCase {
         }
 
         // 1. Store is updated.
-        let stored = try XCTUnwrap(session.project.tracks.first(where: { $0.id == trackID }))
+        let stored = try XCTUnwrap(session.store.tracks.first(where: { $0.id == trackID }))
         XCTAssertEqual(stored.filter.cutoffHz, 1000, accuracy: 0.001)
 
         // 2. Scoped filter dispatch was called exactly once.
@@ -243,7 +243,7 @@ final class MixerDragLiveWritesTests: XCTestCase {
         session.setTrackMix(trackID: trackID, mix: newMix)
 
         // Live store must reflect the new level immediately.
-        let stored = try XCTUnwrap(session.project.tracks.first(where: { $0.id == trackID }))
+        let stored = try XCTUnwrap(session.store.tracks.first(where: { $0.id == trackID }))
         XCTAssertEqual(stored.mix.level, 0.42, accuracy: 0.001)
 
         // Document flush has NOT happened yet (only debounce scheduled).
@@ -270,7 +270,7 @@ final class MixerDragLiveWritesTests: XCTestCase {
             mix.level = level
             session.setTrackMix(trackID: trackID, mix: mix)
 
-            let stored = try XCTUnwrap(session.project.tracks.first(where: { $0.id == trackID }))
+            let stored = try XCTUnwrap(session.store.tracks.first(where: { $0.id == trackID }))
             XCTAssertEqual(stored.mix.level, level, accuracy: 0.001, "Store must update on every drag tick")
         }
 
@@ -419,7 +419,7 @@ final class SelfOriginFlushGuardTests: XCTestCase {
             "Genuine external changes must be applied to the engine"
         )
         XCTAssertEqual(
-            session.project.tracks.first(where: { $0.id == trackID })?.name,
+            session.store.tracks.first(where: { $0.id == trackID })?.name,
             "External",
             "External change must be reflected in the session's project"
         )
