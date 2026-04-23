@@ -396,6 +396,35 @@ final class LiveSequencerStore {
         revision &+= 1
     }
 
+    // MARK: - Route typed mutations
+
+    /// Upsert a route rule (insert if new, replace if matching ID exists).
+    ///
+    /// - Returns: `true` if the routes array changed.
+    @discardableResult
+    func upsertRoute(_ route: Route) -> Bool {
+        if let index = storeRoutes.firstIndex(where: { $0.id == route.id }) {
+            guard storeRoutes[index] != route else { return false }
+            storeRoutes[index] = route
+        } else {
+            storeRoutes.append(route)
+        }
+        revision &+= 1
+        return true
+    }
+
+    /// Remove a route rule by ID.
+    ///
+    /// - Returns: `true` if a matching route was found and removed.
+    @discardableResult
+    func removeRoute(id: UUID) -> Bool {
+        let countBefore = storeRoutes.count
+        storeRoutes.removeAll { $0.id == id }
+        guard storeRoutes.count != countBefore else { return false }
+        revision &+= 1
+        return true
+    }
+
     // MARK: - Snapshot compile input
 
     // MARK: - Internal read accessors (used by LiveSequencerStore+Accessors)

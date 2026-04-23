@@ -226,4 +226,17 @@ extension LiveSequencerStore {
             }
         }
     }
+
+    /// Returns a default route originating from `trackID`.
+    ///
+    /// Matches `Project.makeDefaultRoute(from:)`. Pure helper — no state change.
+    func makeDefaultRoute(from trackID: UUID) -> Route {
+        if let targetTrack = tracks.first(where: { $0.id != trackID }) {
+            return Route(source: .track(trackID), destination: .voicing(targetTrack.id))
+        }
+        return Route(
+            source: .track(trackID),
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        )
+    }
 }

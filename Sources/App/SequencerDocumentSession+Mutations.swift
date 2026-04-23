@@ -495,5 +495,72 @@ extension SequencerDocumentSession {
         }
         return nil // Caller doesn't need the clip ID; used for side-effect chaining.
     }
+
+    // MARK: - Track add / remove
+
+    /// Append a new track of the given type.
+    ///
+    /// Uses a project round-trip because `appendTrack` also creates an owned clip,
+    /// a pattern bank, and calls `syncPhrasesWithTracks` — all of which are inter-
+    /// dependent and not individually decomposed into store typed methods yet.
+    func appendTrack(trackType: TrackType = .monoMelodic) {
+        batch(impact: .fullEngineApply) { s in
+            var p = s.exportToProject()
+            p.appendTrack(trackType: trackType)
+            s.importFromProject(p)
+        }
+    }
+
+    /// Remove the currently selected track (guard: must have >1 track).
+    ///
+    /// Uses a project round-trip for the same reasons as `appendTrack`.
+    func removeSelectedTrack() {
+        batch(impact: .fullEngineApply) { s in
+            var p = s.exportToProject()
+            p.removeSelectedTrack()
+            s.importFromProject(p)
+        }
+    }
+
+    /// Add a drum group using the given plan.
+    ///
+    /// Uses a project round-trip because `addDrumGroup` creates multiple tracks,
+    /// clips, pattern banks, a track group, and syncs phrases — all in one composite
+    /// operation.
+    @discardableResult
+    func addDrumGroup(plan: DrumGroupPlan) -> TrackGroupID? {
+        var resultGroupID: TrackGroupID?
+        batch(impact: .fullEngineApply) { s in
+            var p = s.exportToProject()
+            resultGroupID = p.addDrumGroup(plan: plan)
+            s.importFromProject(p)
+        }
+        return resultGroupID
+    }
+
+    // MARK: - Route mutations
+
+    /// Returns a default route originating from the given track.
+    ///
+    /// Pure read helper — no side-effects, no impact dispatch.
+    func makeDefaultRoute(from trackID: UUID) -> Route {
+        store.makeDefaultRoute(from: trackID)
+    }
+
+    /// Upsert a route rule (insert or replace by ID).
+    func upsertRoute(_ route: Route) {
+        let changed = store.upsertRoute(route)
+        guard changed else { return }
+        guard !isInBatch else { return }
+        dispatchImpact(.snapshotOnly)
+    }
+
+    /// Remove a route rule by ID.
+    func removeRoute(id: UUID) {
+        let changed = store.removeRoute(id: id)
+        guard changed else { return }
+        guard !isInBatch else { return }
+        dispatchImpact(.snapshotOnly)
+    }
 }
 
