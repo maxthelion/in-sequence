@@ -2,12 +2,13 @@ import SwiftUI
 
 struct InspectorView: View {
     @Binding var document: SeqAIDocument
+    @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
     @StateObject private var levelControl = ThrottledMixValue()
     @StateObject private var panControl = ThrottledMixValue()
 
     private var track: StepSequenceTrack {
-        document.project.selectedTrack
+        session.project.selectedTrack
     }
 
     private var pitchesText: Binding<String> {
@@ -25,7 +26,68 @@ struct InspectorView: View {
                     return
                 }
 
-                document.project.selectedTrack.pitches = parsed
+                session.mutateProject(impact: .documentOnly) { project in
+                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
+                        return
+                    }
+                    project.tracks[index].pitches = parsed
+                }
+            }
+        )
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(
+            get: { track.name },
+            set: { newValue in
+                session.mutateProject(impact: .documentOnly) { project in
+                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
+                        return
+                    }
+                    project.tracks[index].name = newValue
+                }
+            }
+        )
+    }
+
+    private var muteBinding: Binding<Bool> {
+        Binding(
+            get: { track.mix.isMuted },
+            set: { newValue in
+                session.mutateProject(impact: .fullEngineApply) { project in
+                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
+                        return
+                    }
+                    project.tracks[index].mix.isMuted = newValue
+                }
+            }
+        )
+    }
+
+    private var velocityBinding: Binding<Int> {
+        Binding(
+            get: { track.velocity },
+            set: { newValue in
+                session.mutateProject(impact: .documentOnly) { project in
+                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
+                        return
+                    }
+                    project.tracks[index].velocity = newValue
+                }
+            }
+        )
+    }
+
+    private var gateLengthBinding: Binding<Int> {
+        Binding(
+            get: { track.gateLength },
+            set: { newValue in
+                session.mutateProject(impact: .documentOnly) { project in
+                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
+                        return
+                    }
+                    project.tracks[index].gateLength = newValue
+                }
             }
         )
     }
@@ -33,7 +95,7 @@ struct InspectorView: View {
     var body: some View {
         Form {
             Section("Track") {
-                TextField("Name", text: $document.project.selectedTrack.name)
+                TextField("Name", text: nameBinding)
                 LabeledContent("Destination", value: destinationSummary)
                 TextField("Pitches", text: pitchesText)
                     .textFieldStyle(.roundedBorder)
@@ -73,11 +135,11 @@ struct InspectorView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Toggle("Mute", isOn: $document.project.selectedTrack.mix.isMuted)
+                Toggle("Mute", isOn: muteBinding)
             }
 
             Section("Generator") {
-                Stepper(value: $document.project.selectedTrack.velocity, in: 1...127) {
+                Stepper(value: velocityBinding, in: 1...127) {
                     HStack {
                         Text("Velocity")
                         Spacer()
@@ -87,7 +149,7 @@ struct InspectorView: View {
                     }
                 }
 
-                Stepper(value: $document.project.selectedTrack.gateLength, in: 1...16) {
+                Stepper(value: gateLengthBinding, in: 1...16) {
                     HStack {
                         Text("Gate Length")
                         Spacer()
@@ -124,7 +186,7 @@ struct InspectorView: View {
 
     private var destinationSummary: String {
         if case .inheritGroup = track.destination,
-           let group = document.project.group(for: track.id)
+           let group = session.project.group(for: track.id)
         {
             return group.sharedDestination?.summary ?? "Inherited from group"
         }
@@ -137,7 +199,9 @@ struct InspectorView: View {
                 levelControl.begin(with: track.mix.clampedLevel)
             }
         } else if let final = levelControl.commit() {
-            document.project.selectedTrack.mix.level = min(max(final, 0), 1)
+            var nextMix = track.mix
+            nextMix.level = min(max(final, 0), 1)
+            session.setTrackMix(trackID: track.id, mix: nextMix)
         }
     }
 
@@ -159,7 +223,9 @@ struct InspectorView: View {
                 panControl.begin(with: track.mix.clampedPan)
             }
         } else if let final = panControl.commit() {
-            document.project.selectedTrack.mix.pan = min(max(final, -1), 1)
+            var nextMix = track.mix
+            nextMix.pan = min(max(final, -1), 1)
+            session.setTrackMix(trackID: track.id, mix: nextMix)
         }
     }
 
@@ -182,8 +248,16 @@ struct InspectorView: View {
 
 private struct InspectorPreview: View {
     @State private var document = SeqAIDocument()
+    @State private var engineController = EngineController(client: nil, endpoint: nil)
 
     var body: some View {
         InspectorView(document: $document)
+            .environment(engineController)
+            .environment(
+                SequencerDocumentSession(
+                    document: $document,
+                    engineController: engineController
+                )
+            )
     }
 }

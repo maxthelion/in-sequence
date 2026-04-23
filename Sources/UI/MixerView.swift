@@ -3,20 +3,38 @@ import SwiftUI
 struct MixerView: View {
     @Binding var document: SeqAIDocument
     var onEditTrack: ((UUID) -> Void)? = nil
+    @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
+
+    private var project: Project {
+        session.project
+    }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 14) {
-                ForEach(Array(document.project.tracks.enumerated()), id: \.element.id) { index, track in
+                ForEach(project.tracks, id: \.id) { track in
                     MixerChannelStrip(
-                        track: $document.project.tracks[index],
+                        track: track,
                         destinationLabel: destinationLabel(for: track),
-                        isSelected: track.id == document.project.selectedTrackID,
+                        isSelected: track.id == project.selectedTrackID,
                         engineController: engineController,
                         onSelect: {
-                            document.project.selectTrack(id: track.id)
+                            session.mutateProject(impact: .fullEngineApply) { project in
+                                project.selectTrack(id: track.id)
+                            }
                             onEditTrack?(track.id)
+                        },
+                        onSetMix: { mix in
+                            session.setTrackMix(trackID: track.id, mix: mix)
+                        },
+                        onToggleMute: {
+                            session.mutateProject(impact: .fullEngineApply) { project in
+                                guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
+                                    return
+                                }
+                                project.tracks[index].mix.isMuted.toggle()
+                            }
                         }
                     )
                 }
@@ -28,7 +46,7 @@ struct MixerView: View {
 
     private func destinationLabel(for track: StepSequenceTrack) -> String {
         if case .inheritGroup = track.destination,
-           let group = document.project.group(for: track.id),
+           let group = project.group(for: track.id),
            let sharedDestination = group.sharedDestination
         {
             return sharedDestination.kindLabel
@@ -38,11 +56,13 @@ struct MixerView: View {
 }
 
 private struct MixerChannelStrip: View {
-    @Binding var track: StepSequenceTrack
+    let track: StepSequenceTrack
     let destinationLabel: String
     let isSelected: Bool
     let engineController: EngineController
     let onSelect: () -> Void
+    let onSetMix: (TrackMixSettings) -> Void
+    let onToggleMute: () -> Void
 
     @StateObject private var levelControl = ThrottledMixValue()
     @StateObject private var panControl = ThrottledMixValue()
@@ -84,7 +104,7 @@ private struct MixerChannelStrip: View {
                             onChange: { updateLevel($0) },
                             onEnd: { commitLevel() }
                         )
-                            .frame(width: 36, height: 150)
+                        .frame(width: 36, height: 150)
 
                         Text("\(Int((displayedLevel * 100).rounded()))%")
                             .studioText(.eyebrow)
@@ -107,8 +127,8 @@ private struct MixerChannelStrip: View {
                                 in: -1...1,
                                 onEditingChanged: handlePanEditingChanged
                             )
-                                .tint(StudioTheme.violet)
-                                .frame(width: 88)
+                            .tint(StudioTheme.violet)
+                            .frame(width: 88)
 
                             Text(panLabel)
                                 .studioText(.eyebrow)
@@ -123,7 +143,7 @@ private struct MixerChannelStrip: View {
 
             HStack(spacing: 8) {
                 Button(track.mix.isMuted ? "Unmute" : "Mute") {
-                    track.mix.isMuted.toggle()
+                    onToggleMute()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(track.mix.isMuted ? StudioTheme.amber : StudioTheme.chrome)
@@ -197,7 +217,9 @@ private struct MixerChannelStrip: View {
 
     private func commitLevel() {
         guard let final = levelControl.commit() else { return }
-        track.mix.level = min(max(final, 0), 1)
+        var nextMix = track.mix
+        nextMix.level = min(max(final, 0), 1)
+        onSetMix(nextMix)
     }
 
     private func handlePanEditingChanged(_ isEditing: Bool) {
@@ -224,7 +246,9 @@ private struct MixerChannelStrip: View {
 
     private func commitPan() {
         guard let final = panControl.commit() else { return }
-        track.mix.pan = min(max(final, -1), 1)
+        var nextMix = track.mix
+        nextMix.pan = min(max(final, -1), 1)
+        onSetMix(nextMix)
     }
 }
 
@@ -258,8 +282,8 @@ private struct VerticalLevelFader: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         onBegin()
-                        let next = 1 - (value.location.y / max(height, 1))
-                        onChange(min(max(next, 0), 1))
+                        let normalized = 1 - min(max(value.location.y / max(height, 1), 0), 1)
+                        onChange(normalized)
                     }
                     .onEnded { _ in
                         onEnd()
@@ -268,19 +292,7 @@ private struct VerticalLevelFader: View {
         }
     }
 
-    private var clampedLevel: Double {
-        min(max(level, 0), 1)
-    }
-}
-
-#Preview {
-    MixerPreview()
-}
-
-private struct MixerPreview: View {
-    @State private var document = SeqAIDocument()
-
-    var body: some View {
-        MixerView(document: $document)
+    private var clampedLevel: CGFloat {
+        CGFloat(min(max(level, 0), 1))
     }
 }
