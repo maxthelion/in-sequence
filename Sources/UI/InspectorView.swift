@@ -26,7 +26,7 @@ struct InspectorView: View {
                     return
                 }
 
-                session.mutateProject(impact: .documentOnly) { project in
+                session.mutateProject(impact: .snapshotOnly) { project in
                     guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
                         return
                     }
@@ -40,7 +40,7 @@ struct InspectorView: View {
         Binding(
             get: { track.name },
             set: { newValue in
-                session.mutateProject(impact: .documentOnly) { project in
+                session.mutateProject(impact: .snapshotOnly) { project in
                     guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
                         return
                     }
@@ -68,7 +68,7 @@ struct InspectorView: View {
         Binding(
             get: { track.velocity },
             set: { newValue in
-                session.mutateProject(impact: .documentOnly) { project in
+                session.mutateProject(impact: .snapshotOnly) { project in
                     guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
                         return
                     }
@@ -82,7 +82,7 @@ struct InspectorView: View {
         Binding(
             get: { track.gateLength },
             set: { newValue in
-                session.mutateProject(impact: .documentOnly) { project in
+                session.mutateProject(impact: .snapshotOnly) { project in
                     guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
                         return
                     }
@@ -214,7 +214,7 @@ struct InspectorView: View {
         var liveMix = track.mix
         liveMix.level = clamped
         liveMix.pan = panControl.rendered(committed: track.mix.clampedPan)
-        engineController.setMix(trackID: track.id, mix: liveMix)
+        session.setTrackMix(trackID: track.id, mix: liveMix)
     }
 
     private func handlePanEditingChanged(_ isEditing: Bool) {
@@ -238,7 +238,7 @@ struct InspectorView: View {
         var liveMix = track.mix
         liveMix.level = levelControl.rendered(committed: track.mix.clampedLevel)
         liveMix.pan = clamped
-        engineController.setMix(trackID: track.id, mix: liveMix)
+        session.setTrackMix(trackID: track.id, mix: liveMix)
     }
 }
 
