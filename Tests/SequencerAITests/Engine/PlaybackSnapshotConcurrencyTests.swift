@@ -52,6 +52,13 @@ final class PlaybackSnapshotConcurrencyTests: XCTestCase {
         var readIDs: [UUID] = []
         readIDs.reserveCapacity(iterationCount / 2 + 1)
 
+        // Prime the engine with a known snapshot so reads that fire before the
+        // first concurrent write still observe a UUID in `validIDs`. Without
+        // this, `concurrentPerform` can schedule a reader-iteration ahead of
+        // any writer-iteration, returning the engine's default empty-project
+        // snapshot whose phraseID is not in the set.
+        engine.apply(playbackSnapshot: snapshots[0])
+
         DispatchQueue.concurrentPerform(iterations: iterationCount) { i in
             let idx = i % phraseIDs.count
             if i % 2 == 0 {
