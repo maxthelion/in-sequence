@@ -136,11 +136,19 @@ struct PresetBrowserSheet: View {
         switch error {
         case .presetNotFound:
             return "Preset no longer exists. Try another."
+        case .loadFailed:
+            return "Failed to capture AU state. Check the log for details."
         }
     }
 
     private func startPolling() {
-        pollTask?.cancel()
+        // Guard against re-entrancy: if a live (uncancelled) task already exists, don't
+        // spawn a duplicate. Rapid .onAppear re-fires (e.g. sheet presented inside a
+        // NavigationStack transition) would otherwise fan out concurrent polling tasks
+        // where only the last one gets cancelled on .onDisappear.
+        if let existing = pollTask, !existing.isCancelled {
+            return
+        }
         pollTask = Task { @MainActor in
             let pollInterval = Duration.milliseconds(500)
             let maxAttempts = 10 // 10 × 500 ms = 5 s

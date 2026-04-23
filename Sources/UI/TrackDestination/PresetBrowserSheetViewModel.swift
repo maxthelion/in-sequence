@@ -53,6 +53,7 @@ final class PresetBrowserSheetViewModel: ObservableObject {
     /// Loads `descriptor` into the live AU, writes the resulting state blob into the
     /// document, and moves the star to the newly-loaded preset. On
     /// `PresetLoadingError.presetNotFound`, records the error without clearing the star.
+    /// On any other error, records `.loadFailed` with the underlying description and logs.
     func load(_ descriptor: AUPresetDescriptor) {
         do {
             let blob = try loader(descriptor)
@@ -62,7 +63,8 @@ final class PresetBrowserSheetViewModel: ObservableObject {
         } catch let error as PresetLoadingError {
             lastLoadError = error
         } catch {
-            lastLoadError = .presetNotFound
+            lastLoadError = .loadFailed(underlying: String(describing: error))
+            NSLog("[PresetBrowserSheet] load failed: \(error)")
         }
     }
 

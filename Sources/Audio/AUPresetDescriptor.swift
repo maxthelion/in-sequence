@@ -95,4 +95,8 @@ enum PresetLoadingError: Error, Equatable {
     /// The descriptor's id does not match any currently-live preset in the AU.
     /// The AU may have been updated and the preset removed.
     case presetNotFound
+
+    /// A real error occurred during state capture (e.g. property-list encoding failure).
+    /// The underlying error description is included for logging; the AU may still be usable.
+    case loadFailed(underlying: String)
 }
