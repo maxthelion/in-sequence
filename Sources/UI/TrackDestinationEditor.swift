@@ -251,9 +251,8 @@ struct TrackDestinationEditor: View {
                 destination: Binding(
                     get: { editedDestination },
                     set: { newDestination in
-                        session.mutateProject(impact: .fullEngineApply) { project in
-                            project.setEditedDestination(newDestination, for: track.id)
-                        }
+                        // .fullEngineApply preserved: sample destination change requires AU teardown.
+                        session.setEditedDestination(newDestination, for: track.id)
                     }
                 ),
                 library: AudioSampleLibrary.shared,
@@ -262,11 +261,8 @@ struct TrackDestinationEditor: View {
                 filterSettings: Binding(
                     get: { session.project.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
                     set: { newFilter in
-                        let trackID = track.id
-                        session.mutateProject(impact: .scopedRuntime(update: .filter(trackID: trackID, settings: newFilter))) { project in
-                            guard let idx = project.tracks.firstIndex(where: { $0.id == trackID }) else { return }
-                            project.tracks[idx].filter = newFilter
-                        }
+                        // .scopedRuntime(.filter(...)) preserved: filter is a live scoped update.
+                        session.setFilterSettings(newFilter, for: track.id)
                     }
                 )
             )
@@ -304,52 +300,33 @@ struct TrackDestinationEditor: View {
             },
             commit: { stateBlob in
                 let liveTarget = session.project.destinationWriteTarget(for: trackID)
-                writeStateBlob(stateBlob, target: liveTarget)
+                self.writeStateBlobAndRecord(stateBlob, target: liveTarget)
             }
         )
     }
 
-    private func writeStateBlob(_ stateBlob: Data?, target: Project.DestinationWriteTarget) {
-        // Resolve the trackID for the scoped runtime update.
-        // For group-inherited destinations the blob is stored on the group but we
-        // dispatch the runtime write keyed to the first track that references the group.
-        let runtimeTrackID: UUID
+    private func writeStateBlobAndRecord(_ stateBlob: Data?, target: Project.DestinationWriteTarget) {
+        // Write the blob via the session typed method (.scopedRuntime(.auState(...))).
+        session.writeStateBlob(stateBlob, target: target)
+
+        // Record voice snapshot after the write (needs the updated destination value).
         switch target {
         case .track(let trackID):
-            runtimeTrackID = trackID
+            if let track = session.project.tracks.first(where: { $0.id == trackID }) {
+                recordVoiceSnapshot(destination: track.destination.withoutTransientState)
+            }
         case .group(let groupID):
-            runtimeTrackID = session.project.tracks.first(where: { $0.groupID == groupID })?.id ?? track.id
-        }
-
-        session.mutateProject(impact: .scopedRuntime(update: .auState(trackID: runtimeTrackID, blob: stateBlob))) { project in
-            switch target {
-            case .track(let trackID):
-                guard let trackIndex = project.tracks.firstIndex(where: { $0.id == trackID }),
-                      case let .auInstrument(componentID, _) = project.tracks[trackIndex].destination
-                else {
-                    return
-                }
-                project.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-                recordVoiceSnapshot(destination: project.tracks[trackIndex].destination.withoutTransientState)
-
-            case .group(let groupID):
-                guard let groupIndex = project.trackGroups.firstIndex(where: { $0.id == groupID }),
-                      case let .auInstrument(componentID, _)? = project.trackGroups[groupIndex].sharedDestination
-                else {
-                    return
-                }
-                project.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-                if let destination = project.trackGroups[groupIndex].sharedDestination {
-                    recordVoiceSnapshot(destination: destination.withoutTransientState)
-                }
+            if let group = session.project.trackGroups.first(where: { $0.id == groupID }),
+               let destination = group.sharedDestination
+            {
+                recordVoiceSnapshot(destination: destination.withoutTransientState)
             }
         }
     }
 
     private func applyAddedDestination(_ destination: Destination) {
-        session.mutateProject(impact: .fullEngineApply) {
-            $0.setEditedDestination(destination, for: track.id)
-        }
+        // .fullEngineApply preserved via session.setEditedDestination.
+        session.setEditedDestination(destination, for: track.id)
         if case .auInstrument = destination {
             engineController.prepareAudioUnit(for: track.id)
         }
@@ -357,9 +334,8 @@ struct TrackDestinationEditor: View {
 
     private func clearDestination() {
         AUWindowHost.shared.close(for: currentAUWindowKey)
-        session.mutateProject(impact: .fullEngineApply) {
-            $0.setEditedDestination(.none, for: track.id)
-        }
+        // .fullEngineApply preserved via session.setEditedDestination.
+        session.setEditedDestination(.none, for: track.id)
     }
 
     private var currentAudioInstrumentChoice: AudioInstrumentChoice {
@@ -380,12 +356,11 @@ struct TrackDestinationEditor: View {
                 // component. Mirrors what clearDestination() does; prevents a stale window
                 // surviving the AU teardown.
                 AUWindowHost.shared.close(for: currentAUWindowKey)
-                session.mutateProject(impact: .fullEngineApply) { project in
-                    project.setEditedDestination(
-                        .auInstrument(componentID: choice.audioComponentID, stateBlob: nil),
-                        for: track.id
-                    )
-                }
+                // .fullEngineApply preserved via session.setEditedDestination.
+                session.setEditedDestination(
+                    .auInstrument(componentID: choice.audioComponentID, stateBlob: nil),
+                    for: track.id
+                )
                 log("audioInstrumentBinding set track=\(track.name) component=\(choice.audioComponentID.displayKey)")
                 engineController.prepareAudioUnit(for: track.id)
                 saveCurrentVoiceSnapshot()
@@ -397,9 +372,8 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { editedDestination.midiPort },
             set: { port in
-                session.mutateProject(impact: .fullEngineApply) {
-                    $0.setEditedMIDIPort(port, for: track.id)
-                }
+                // .fullEngineApply preserved via session.setEditedMIDIPort.
+                session.setEditedMIDIPort(port, for: track.id)
             }
         )
     }
@@ -409,9 +383,8 @@ struct TrackDestinationEditor: View {
             get: { Int(editedDestination.midiChannel) + 1 },
             set: { channel in
                 let clampedChannel = UInt8(max(0, min(15, channel - 1)))
-                session.mutateProject(impact: .fullEngineApply) {
-                    $0.setEditedMIDIChannel(clampedChannel, for: track.id)
-                }
+                // .fullEngineApply preserved via session.setEditedMIDIChannel.
+                session.setEditedMIDIChannel(clampedChannel, for: track.id)
             }
         )
     }
@@ -420,9 +393,8 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { editedDestination.midiNoteOffset },
             set: { noteOffset in
-                session.mutateProject(impact: .fullEngineApply) {
-                    $0.setEditedMIDINoteOffset(noteOffset, for: track.id)
-                }
+                // .fullEngineApply preserved via session.setEditedMIDINoteOffset.
+                session.setEditedMIDINoteOffset(noteOffset, for: track.id)
             }
         )
     }
@@ -474,7 +446,7 @@ struct TrackDestinationEditor: View {
             presenter: audioUnit,
             title: windowTitle
         ) { stateBlob in
-            writeStateBlob(stateBlob, target: {
+            self.writeStateBlobAndRecord(stateBlob, target: {
                 switch windowKey {
                 case .group(let groupID):
                     return .group(groupID)
@@ -512,9 +484,8 @@ struct TrackDestinationEditor: View {
             // stale editor surviving the teardown of the current AU.
             AUWindowHost.shared.close(for: currentAUWindowKey)
         }
-        session.mutateProject(impact: .fullEngineApply) {
-            $0.setEditedDestination(voice.destination, for: track.id)
-        }
+        // .fullEngineApply preserved via session.setEditedDestination.
+        session.setEditedDestination(voice.destination, for: track.id)
         if case .auInstrument = voice.destination {
             engineController.prepareAudioUnit(for: track.id)
         }
@@ -608,30 +579,7 @@ struct TrackDestinationEditor: View {
     }
 
     private func applyMacroDiff(added: [AUParameterDescriptor], removed: Set<UInt64>, trackID: UUID) {
-        session.mutateProject { project in
-            let liveTrack = project.tracks.first(where: { $0.id == trackID }) ?? track
-            for address in removed {
-                if let binding = liveTrack.macros.first(where: {
-                    if case let .auParameter(a, _) = $0.source { return a == address }
-                    return false
-                }) {
-                    project.removeMacro(id: binding.id, from: trackID)
-                }
-            }
-            for param in added {
-                let descriptor = TrackMacroDescriptor(
-                    id: UUID(),
-                    displayName: param.displayName,
-                    minValue: param.minValue,
-                    maxValue: param.maxValue,
-                    defaultValue: param.defaultValue,
-                    valueType: .scalar,
-                    source: .auParameter(address: param.address, identifier: param.identifier)
-                )
-                project.addAUMacro(descriptor: descriptor, to: trackID)
-            }
-            project.syncMacroLayers()
-        }
+        session.applyMacroDiff(added: added, removed: removed, trackID: trackID)
     }
 }
 
