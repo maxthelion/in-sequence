@@ -5,6 +5,12 @@ struct SequencerAIApp: App {
     @NSApplicationDelegateAdaptor(SequencerAIAppDelegate.self) private var appDelegate
 
     init() {
+        // Belt-and-suspenders: the AppDelegate fires beginWarmingIfNeeded() in
+        // applicationWillFinishLaunching, which runs before SwiftUI constructs the @State
+        // EngineController. This call here covers the case where the delegate hasn't fired
+        // yet (e.g. direct test or simulator instantiation).
+        AudioInstrumentChoiceCache.shared.beginWarmingIfNeeded()
+
         do {
             let root = try AppSupportBootstrap.appSupportRoot()
             try AppSupportBootstrap.ensureLibraryStructure(root: root)

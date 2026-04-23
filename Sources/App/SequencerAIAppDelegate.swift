@@ -21,6 +21,17 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
         NSLog("[SequencerAIAppDelegate] \(message)")
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Start warming the AU component cache on a background queue.
+        // This fires before SwiftUI begins constructing App/Scene/View objects, so by the
+        // time AudioInstrumentHost.init evaluates AudioInstrumentChoice.defaultChoices the
+        // scan is either already done (fast machines) or in-flight (slow machines; the first
+        // actual read will block only until the background task finishes, not for a full
+        // duplicate scan).
+        NSLog("[U2] SequencerAIAppDelegate: beginWarmingIfNeeded")
+        AudioInstrumentChoiceCache.shared.beginWarmingIfNeeded()
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         log("applicationWillTerminate start")
         SequencerDocumentSessionRegistry.flushAll()

@@ -66,43 +66,14 @@ struct AudioInstrumentChoice: Codable, Equatable, Hashable, Identifiable, Sendab
         componentManufacturer: 0x43445820
     )
 
+    /// AU instrument choices for the current machine, read from the process-global cache.
+    ///
+    /// The first call blocks the caller until the background warm completes (fast after
+    /// `AudioInstrumentChoiceCache.shared.beginWarmingIfNeeded()` has been called at app
+    /// launch).  Subsequent calls return the cached result in microseconds without touching
+    /// `AVAudioUnitComponentManager`.
     static var defaultChoices: [AudioInstrumentChoice] {
-        let description = AudioComponentDescription(
-            componentType: kAudioUnitType_MusicDevice,
-            componentSubType: 0,
-            componentManufacturer: 0,
-            componentFlags: 0,
-            componentFlagsMask: 0
-        )
-
-        let manager = AVAudioUnitComponentManager.shared()
-        var choices = manager.components(matching: description).map {
-            AudioInstrumentChoice(
-                name: $0.name,
-                manufacturerName: $0.manufacturerName,
-                componentType: $0.audioComponentDescription.componentType,
-                componentSubType: $0.audioComponentDescription.componentSubType,
-                componentManufacturer: $0.audioComponentDescription.componentManufacturer
-            )
-        }
-
-        if !choices.contains(builtInSynth) {
-            choices.insert(builtInSynth, at: 0)
-        }
-
-#if DEBUG
-        if !choices.contains(testInstrument) {
-            choices.append(testInstrument)
-        }
-#endif
-
-        choices = deduplicated(choices)
-
-        return choices.sorted { lhs, rhs in
-            if lhs == builtInSynth { return true }
-            if rhs == builtInSynth { return false }
-            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-        }
+        AudioInstrumentChoiceCache.shared.cachedChoices
     }
 
     static func deduplicated(_ choices: [AudioInstrumentChoice]) -> [AudioInstrumentChoice] {
