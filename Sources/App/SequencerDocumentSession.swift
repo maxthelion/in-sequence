@@ -7,10 +7,15 @@ import SwiftUI
 final class SequencerDocumentSession {
     @ObservationIgnored
     private let document: Binding<SeqAIDocument>
+    /// Weak reference to the owned document so the registry can perform
+    /// document-identity lookup for the save pre-hook.
+    @ObservationIgnored
+    weak var owningDocument: SeqAIDocument?
     @ObservationIgnored
     private var flushTask: Task<Void, Never>?
-    /// Set to `true` during `flushToDocument()` so that `ingestExternalDocumentChange`
-    /// can detect the self-originated change and skip a redundant engine apply.
+    /// Set to `true` during `flushToDocumentSync()` so that
+    /// `ingestExternalDocumentChange` can detect the self-originated change
+    /// and skip a redundant engine apply.
     @ObservationIgnored
     private var selfOriginatedFlushInFlight: Bool = false
 
@@ -18,9 +23,18 @@ final class SequencerDocumentSession {
     let engineController: EngineController
     private(set) var revision: UInt64 = 0
 
+    /// Debounce interval used for `scheduleFlushToDocument`.
+    /// Injectable for tests to avoid real-time waits.
+    let debounceInterval: Duration
+
     /// Production initializer. Creates and owns a new EngineController.
-    init(document: Binding<SeqAIDocument>) {
+    init(
+        document: Binding<SeqAIDocument>,
+        debounceInterval: Duration = .milliseconds(150)
+    ) {
         self.document = document
+        self.owningDocument = document.wrappedValue
+        self.debounceInterval = debounceInterval
         self.engineController = EngineController(
             audioOutput: AudioInstrumentHost(),
             audioOutputFactory: { AudioInstrumentHost() }
@@ -32,8 +46,14 @@ final class SequencerDocumentSession {
 
     /// Test-only initializer that accepts an injected EngineController.
     /// Allows unit tests to provide stub engines without requiring CoreAudio access.
-    init(document: Binding<SeqAIDocument>, engineController: EngineController) {
+    init(
+        document: Binding<SeqAIDocument>,
+        engineController: EngineController,
+        debounceInterval: Duration = .milliseconds(150)
+    ) {
         self.document = document
+        self.owningDocument = document.wrappedValue
+        self.debounceInterval = debounceInterval
         self.engineController = engineController
         self.store = LiveSequencerStore(project: document.wrappedValue.project)
         self.revision = store.revision
@@ -63,16 +83,17 @@ final class SequencerDocumentSession {
 
     func scheduleFlushToDocument() {
         flushTask?.cancel()
+        let interval = debounceInterval
         flushTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(150))
-            guard let self else {
-                return
-            }
-            flushToDocument()
+            try? await Task.sleep(for: interval)
+            self?.flushToDocumentSync()
         }
     }
 
-    func flushToDocument() {
+    /// Synchronous flush: writes the live-store state into `document.project`
+    /// immediately, cancelling any pending debounce task so it cannot double-write.
+    /// Called from the save pre-hook, terminate, and resign-active handlers.
+    func flushToDocumentSync() {
         flushTask?.cancel()
         flushTask = nil
         let exported = store.exportToProject()
@@ -82,6 +103,12 @@ final class SequencerDocumentSession {
         selfOriginatedFlushInFlight = true
         document.wrappedValue.project = exported
         selfOriginatedFlushInFlight = false
+    }
+
+    /// Async-context alias for `flushToDocumentSync()`. Kept for call sites that
+    /// already name it `flushToDocument()`.
+    func flushToDocument() {
+        flushToDocumentSync()
     }
 
     func ingestExternalDocumentChange(_ project: Project) {

@@ -19,10 +19,27 @@ enum SequencerDocumentSessionRegistry {
         prune()
     }
 
+    /// Returns the session whose `owningDocument` identity matches `document`.
+    /// Used by `SeqAIDocument.snapshot(contentType:)` to flush before save.
+    static func session(for document: SeqAIDocument) -> SequencerDocumentSession? {
+        prune()
+        let target = ObjectIdentifier(document)
+        for box in entries.values {
+            if let session = box.value,
+               let doc = session.owningDocument,
+               ObjectIdentifier(doc) == target {
+                return session
+            }
+        }
+        return nil
+    }
+
+    /// Synchronously flushes all active sessions into their documents.
+    /// Called before save, terminate, and resign-active.
     static func flushAll() {
         prune()
         for box in entries.values {
-            box.value?.flushToDocument()
+            box.value?.flushToDocumentSync()
         }
     }
 

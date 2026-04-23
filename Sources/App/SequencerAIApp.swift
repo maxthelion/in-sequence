@@ -26,8 +26,17 @@ struct SequencerAIApp: App {
     }
 
     var body: some Scene {
-        DocumentGroup(newDocument: SeqAIDocument()) { file in
-            SequencerDocumentRootView(document: file.$document)
+        DocumentGroup(newDocument: { SeqAIDocument() }) { file in
+            // SeqAIDocument is a ReferenceFileDocument (class). The session and all
+            // views receive a Binding<SeqAIDocument> whose getter returns the stable
+            // reference. Mutations to `document.project` go directly to the class
+            // instance; the binding setter is intentionally unused.
+            let doc = file.document
+            let binding = Binding<SeqAIDocument>(
+                get: { doc },
+                set: { _ in }
+            )
+            SequencerDocumentRootView(document: binding)
         }
         .defaultSize(width: 1500, height: 960)
 

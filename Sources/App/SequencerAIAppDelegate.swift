@@ -29,4 +29,9 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
         drainRunLoop(shutdownDrainInterval)
         log("applicationWillTerminate complete")
     }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        log("applicationDidResignActive: flushing all sessions")
+        SequencerDocumentSessionRegistry.flushAll()
+    }
 }
