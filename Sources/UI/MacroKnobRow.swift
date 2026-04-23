@@ -18,16 +18,25 @@ struct MacroKnobRowViewModel {
     func currentValue(
         binding: TrackMacroBinding,
         trackID: UUID,
-        project: Project
+        layers: [PhraseLayerDefinition]
     ) -> Double {
         let layerID = "macro-\(trackID.uuidString)-\(binding.id.uuidString)"
-        guard let layer = project.layers.first(where: { $0.id == layerID }) else {
+        guard let layer = layers.first(where: { $0.id == layerID }) else {
             return binding.descriptor.defaultValue
         }
         switch layer.defaults[trackID] {
         case let .scalar(v): return v
         default: return binding.descriptor.defaultValue
         }
+    }
+
+    /// Convenience overload accepting a `Project` — kept for test backwards compatibility.
+    func currentValue(
+        binding: TrackMacroBinding,
+        trackID: UUID,
+        project: Project
+    ) -> Double {
+        currentValue(binding: binding, trackID: trackID, layers: project.layers)
     }
 
     /// Write a live knob value into the phrase layer default.
@@ -62,7 +71,7 @@ struct MacroKnobRow: View {
     private var viewModel: MacroKnobRowViewModel { MacroKnobRowViewModel() }
 
     private var track: StepSequenceTrack? {
-        session.project.tracks.first(where: { $0.id == trackID })
+        session.store.tracks.first(where: { $0.id == trackID })
     }
 
     private var macros: [TrackMacroBinding] {
@@ -73,6 +82,7 @@ struct MacroKnobRow: View {
         if macros.isEmpty {
             EmptyView()
         } else {
+            let layers = session.store.layers
             VStack(alignment: .leading, spacing: 8) {
                 Text("MACROS")
                     .studioText(.eyebrow)
@@ -87,7 +97,7 @@ struct MacroKnobRow: View {
                                 value: viewModel.currentValue(
                                     binding: binding,
                                     trackID: trackID,
-                                    project: session.project
+                                    layers: layers
                                 )
                             ) { newValue in
                                 session.setMacroLayerDefault(

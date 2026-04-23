@@ -19,15 +19,15 @@ struct PhraseCellEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private var phrase: PhraseModel? {
-        session.project.phrases.first(where: { $0.id == target.phraseID })
+        session.store.phrases.first(where: { $0.id == target.phraseID })
     }
 
     private var track: StepSequenceTrack? {
-        session.project.tracks.first(where: { $0.id == target.trackID })
+        session.store.tracks.first(where: { $0.id == target.trackID })
     }
 
     private var layer: PhraseLayerDefinition? {
-        session.project.layer(id: target.layerID)
+        session.store.layer(id: target.layerID)
     }
 
     private var isTargetAvailable: Bool {
