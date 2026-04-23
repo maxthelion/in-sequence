@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TrackDestinationEditor: View {
     @Binding var document: SeqAIDocument
+    @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
     @State private var recentVoices: [RecentVoice] = []
     @State private var showingAddDestinationSheet = false
@@ -9,7 +10,7 @@ struct TrackDestinationEditor: View {
     @State private var showingPresetBrowser = false
 
     private var track: StepSequenceTrack {
-        document.project.selectedTrack
+        session.project.selectedTrack
     }
 
     private func log(_ message: String) {
@@ -17,15 +18,15 @@ struct TrackDestinationEditor: View {
     }
 
     private var currentWriteTarget: Project.DestinationWriteTarget {
-        document.project.destinationWriteTarget(for: track.id)
+        session.project.destinationWriteTarget(for: track.id)
     }
 
     private var editedDestination: Destination {
-        document.project.resolvedDestination(for: track.id)
+        session.project.resolvedDestination(for: track.id)
     }
 
     private var destinationSummary: DestinationSummary {
-        DestinationSummary.make(for: editedDestination, in: document.project, trackID: track.id)
+        DestinationSummary.make(for: editedDestination, in: session.project, trackID: track.id)
     }
 
     var body: some View {
@@ -154,7 +155,7 @@ struct TrackDestinationEditor: View {
     }
 
     private var groupInheritanceDetail: String {
-        guard let group = document.project.group(for: track.id) else {
+        guard let group = session.project.group(for: track.id) else {
             return "This track is marked as inheriting a group destination, but it is no longer attached to a group."
         }
         if let destination = group.sharedDestination {
@@ -249,19 +250,22 @@ struct TrackDestinationEditor: View {
             SamplerDestinationWidget(
                 destination: Binding(
                     get: { editedDestination },
-                    set: {
-                        document.project.setEditedDestination($0, for: track.id)
-                        engineController.apply(documentModel: document.project)
+                    set: { newDestination in
+                        session.mutateProject(impact: .fullEngineApply) { project in
+                            project.setEditedDestination(newDestination, for: track.id)
+                        }
                     }
                 ),
                 library: AudioSampleLibrary.shared,
                 sampleEngine: engineController.sampleEngineSink,
                 trackID: track.id,
                 filterSettings: Binding(
-                    get: { document.project.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
+                    get: { session.project.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
                     set: { newFilter in
-                        guard let idx = document.project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
-                        document.project.tracks[idx].filter = newFilter
+                        session.mutateProject(impact: .fullEngineApply) { project in
+                            guard let idx = project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
+                            project.tracks[idx].filter = newFilter
+                        }
                     }
                 )
             )
@@ -290,9 +294,6 @@ struct TrackDestinationEditor: View {
 
     private func makePresetBrowserViewModel() -> PresetBrowserSheetViewModel {
         let trackID = track.id
-        // Capture the Binding's projectedValue box so the commit closure reads the
-        // live document state rather than a value snapshot taken at sheet-construction time.
-        let documentBinding = $document
         return PresetBrowserSheetViewModel(
             read: { [engineController] in
                 engineController.presetReadout(for: trackID)
@@ -301,43 +302,42 @@ struct TrackDestinationEditor: View {
                 try engineController.loadPreset(descriptor, for: trackID)
             },
             commit: { stateBlob in
-                // Re-resolve the write target at commit time rather than capturing it at
-                // sheet-construction time. Track selection or group membership may have
-                // changed while the browser was open; we must write to the current target.
-                let liveTarget = documentBinding.wrappedValue.project.destinationWriteTarget(for: trackID)
+                let liveTarget = session.project.destinationWriteTarget(for: trackID)
                 writeStateBlob(stateBlob, target: liveTarget)
             }
         )
     }
 
     private func writeStateBlob(_ stateBlob: Data?, target: Project.DestinationWriteTarget) {
-        // TODO(u6): route through SequencerDocumentSession once cutover lands
-        switch target {
-        case .track(let trackID):
-            guard let trackIndex = document.project.tracks.firstIndex(where: { $0.id == trackID }),
-                  case let .auInstrument(componentID, _) = document.project.tracks[trackIndex].destination
-            else {
-                return
-            }
-            document.project.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-            recordVoiceSnapshot(destination: document.project.tracks[trackIndex].destination.withoutTransientState)
+        session.mutateProject(impact: .documentOnly) { project in
+            switch target {
+            case .track(let trackID):
+                guard let trackIndex = project.tracks.firstIndex(where: { $0.id == trackID }),
+                      case let .auInstrument(componentID, _) = project.tracks[trackIndex].destination
+                else {
+                    return
+                }
+                project.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+                recordVoiceSnapshot(destination: project.tracks[trackIndex].destination.withoutTransientState)
 
-        case .group(let groupID):
-            guard let groupIndex = document.project.trackGroups.firstIndex(where: { $0.id == groupID }),
-                  case let .auInstrument(componentID, _)? = document.project.trackGroups[groupIndex].sharedDestination
-            else {
-                return
-            }
-            document.project.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-            if let destination = document.project.trackGroups[groupIndex].sharedDestination {
-                recordVoiceSnapshot(destination: destination.withoutTransientState)
+            case .group(let groupID):
+                guard let groupIndex = project.trackGroups.firstIndex(where: { $0.id == groupID }),
+                      case let .auInstrument(componentID, _)? = project.trackGroups[groupIndex].sharedDestination
+                else {
+                    return
+                }
+                project.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
+                if let destination = project.trackGroups[groupIndex].sharedDestination {
+                    recordVoiceSnapshot(destination: destination.withoutTransientState)
+                }
             }
         }
     }
 
     private func applyAddedDestination(_ destination: Destination) {
-        document.project.setEditedDestination(destination, for: track.id)
-        engineController.apply(documentModel: document.project)
+        session.mutateProject(impact: .fullEngineApply) {
+            $0.setEditedDestination(destination, for: track.id)
+        }
         if case .auInstrument = destination {
             engineController.prepareAudioUnit(for: track.id)
         }
@@ -345,8 +345,9 @@ struct TrackDestinationEditor: View {
 
     private func clearDestination() {
         AUWindowHost.shared.close(for: currentAUWindowKey)
-        document.project.setEditedDestination(.none, for: track.id)
-        engineController.apply(documentModel: document.project)
+        session.mutateProject(impact: .fullEngineApply) {
+            $0.setEditedDestination(.none, for: track.id)
+        }
     }
 
     private var currentAudioInstrumentChoice: AudioInstrumentChoice {
@@ -362,17 +363,18 @@ struct TrackDestinationEditor: View {
     private var audioInstrumentBinding: Binding<AudioInstrumentChoice> {
         Binding(
             get: { currentAudioInstrumentChoice },
-            set: {
+            set: { choice in
                 // Close any open editor window for this track/group before swapping the
                 // component. Mirrors what clearDestination() does; prevents a stale window
                 // surviving the AU teardown.
                 AUWindowHost.shared.close(for: currentAUWindowKey)
-                document.project.setEditedDestination(
-                    .auInstrument(componentID: $0.audioComponentID, stateBlob: nil),
-                    for: track.id
-                )
-                log("audioInstrumentBinding set track=\(track.name) component=\($0.audioComponentID.displayKey)")
-                engineController.apply(documentModel: document.project)
+                session.mutateProject(impact: .fullEngineApply) { project in
+                    project.setEditedDestination(
+                        .auInstrument(componentID: choice.audioComponentID, stateBlob: nil),
+                        for: track.id
+                    )
+                }
+                log("audioInstrumentBinding set track=\(track.name) component=\(choice.audioComponentID.displayKey)")
                 engineController.prepareAudioUnit(for: track.id)
                 saveCurrentVoiceSnapshot()
             }
@@ -383,8 +385,9 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { editedDestination.midiPort },
             set: { port in
-                document.project.setEditedMIDIPort(port, for: track.id)
-                engineController.apply(documentModel: document.project)
+                session.mutateProject(impact: .fullEngineApply) {
+                    $0.setEditedMIDIPort(port, for: track.id)
+                }
             }
         )
     }
@@ -394,8 +397,9 @@ struct TrackDestinationEditor: View {
             get: { Int(editedDestination.midiChannel) + 1 },
             set: { channel in
                 let clampedChannel = UInt8(max(0, min(15, channel - 1)))
-                document.project.setEditedMIDIChannel(clampedChannel, for: track.id)
-                engineController.apply(documentModel: document.project)
+                session.mutateProject(impact: .fullEngineApply) {
+                    $0.setEditedMIDIChannel(clampedChannel, for: track.id)
+                }
             }
         )
     }
@@ -404,8 +408,9 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { editedDestination.midiNoteOffset },
             set: { noteOffset in
-                document.project.setEditedMIDINoteOffset(noteOffset, for: track.id)
-                engineController.apply(documentModel: document.project)
+                session.mutateProject(impact: .fullEngineApply) {
+                    $0.setEditedMIDINoteOffset(noteOffset, for: track.id)
+                }
             }
         )
     }
@@ -433,7 +438,7 @@ struct TrackDestinationEditor: View {
 
     private var currentAUWindowTitle: String {
         if case .group(let groupID) = currentAUWindowKey,
-           let group = document.project.trackGroups.first(where: { $0.id == groupID })
+           let group = session.project.trackGroups.first(where: { $0.id == groupID })
         {
             return "\(group.name) (Shared)"
         }
@@ -457,28 +462,14 @@ struct TrackDestinationEditor: View {
             presenter: audioUnit,
             title: windowTitle
         ) { stateBlob in
-            switch windowKey {
-            case .group(let groupID):
-                guard let groupIndex = document.project.trackGroups.firstIndex(where: { $0.id == groupID }),
-                      case let .auInstrument(componentID, _)? = document.project.trackGroups[groupIndex].sharedDestination
-                else {
-                    return
+            writeStateBlob(stateBlob, target: {
+                switch windowKey {
+                case .group(let groupID):
+                    return .group(groupID)
+                case .track(let trackID):
+                    return .track(trackID)
                 }
-
-                document.project.trackGroups[groupIndex].sharedDestination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-                if let destination = document.project.trackGroups[groupIndex].sharedDestination {
-                    recordVoiceSnapshot(destination: destination.withoutTransientState)
-                }
-            case .track(let trackID):
-                guard let trackIndex = document.project.tracks.firstIndex(where: { $0.id == trackID }),
-                      case let .auInstrument(componentID, _) = document.project.tracks[trackIndex].destination
-                else {
-                    return
-                }
-
-                document.project.tracks[trackIndex].destination = .auInstrument(componentID: componentID, stateBlob: stateBlob)
-                recordVoiceSnapshot(destination: document.project.tracks[trackIndex].destination.withoutTransientState)
-            }
+            }())
         }
     }
 
@@ -509,8 +500,9 @@ struct TrackDestinationEditor: View {
             // stale editor surviving the teardown of the current AU.
             AUWindowHost.shared.close(for: currentAUWindowKey)
         }
-        document.project.setEditedDestination(voice.destination, for: track.id)
-        engineController.apply(documentModel: document.project)
+        session.mutateProject(impact: .fullEngineApply) {
+            $0.setEditedDestination(voice.destination, for: track.id)
+        }
         if case .auInstrument = voice.destination {
             engineController.prepareAudioUnit(for: track.id)
         }
@@ -519,7 +511,7 @@ struct TrackDestinationEditor: View {
     }
 
     private func saveCurrentVoiceSnapshot() {
-        guard let destination = document.project.voiceSnapshotDestination(for: track.id) else {
+        guard let destination = session.project.voiceSnapshotDestination(for: track.id) else {
             return
         }
         recordVoiceSnapshot(destination: destination)
@@ -546,7 +538,7 @@ struct TrackDestinationEditor: View {
     }
 
     private var phraseSummary: String {
-        document.project.selectedPhrase.name
+        session.project.selectedPhrase.name
     }
 
     private func refreshRecentVoices() {
@@ -604,30 +596,30 @@ struct TrackDestinationEditor: View {
     }
 
     private func applyMacroDiff(added: [AUParameterDescriptor], removed: Set<UInt64>, trackID: UUID) {
-        // Remove deselected bindings.
-        for address in removed {
-            if let binding = track.macros.first(where: {
-                if case let .auParameter(a, _) = $0.source { return a == address }
-                return false
-            }) {
-                document.project.removeMacro(id: binding.id, from: trackID)
+        session.mutateProject { project in
+            let liveTrack = project.tracks.first(where: { $0.id == trackID }) ?? track
+            for address in removed {
+                if let binding = liveTrack.macros.first(where: {
+                    if case let .auParameter(a, _) = $0.source { return a == address }
+                    return false
+                }) {
+                    project.removeMacro(id: binding.id, from: trackID)
+                }
             }
+            for param in added {
+                let descriptor = TrackMacroDescriptor(
+                    id: UUID(),
+                    displayName: param.displayName,
+                    minValue: param.minValue,
+                    maxValue: param.maxValue,
+                    defaultValue: param.defaultValue,
+                    valueType: .scalar,
+                    source: .auParameter(address: param.address, identifier: param.identifier)
+                )
+                project.addAUMacro(descriptor: descriptor, to: trackID)
+            }
+            project.syncMacroLayers()
         }
-        // Add newly selected parameters (capped at 8 by addAUMacro).
-        for param in added {
-            let descriptor = TrackMacroDescriptor(
-                id: UUID(),
-                displayName: param.displayName,
-                minValue: param.minValue,
-                maxValue: param.maxValue,
-                defaultValue: param.defaultValue,
-                valueType: .scalar,
-                source: .auParameter(address: param.address, identifier: param.identifier)
-            )
-            document.project.addAUMacro(descriptor: descriptor, to: trackID)
-        }
-        document.project.syncMacroLayers()
-        engineController.apply(documentModel: document.project)
     }
 }
 

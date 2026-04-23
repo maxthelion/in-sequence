@@ -3,6 +3,7 @@ import SwiftUI
 struct LiveWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Binding var selectedLayerID: String
+    @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
     @State private var collapseGroups = true
 
@@ -10,14 +11,16 @@ struct LiveWorkspaceView: View {
         GridItem(.adaptive(minimum: 180, maximum: 240), spacing: 12)
     ]
 
+    private var project: Project { session.project }
+
     private var selectedLayer: PhraseLayerDefinition {
-        document.project.layer(id: selectedLayerID)
-            ?? document.project.patternLayer
-            ?? document.project.layers.first!
+        project.layer(id: selectedLayerID)
+            ?? project.patternLayer
+            ?? project.layers.first!
     }
 
     private var layers: [PhraseLayerDefinition] {
-        document.project.layers
+        project.layers
     }
 
     private var selectedLayerIndex: Int {
@@ -25,7 +28,7 @@ struct LiveWorkspaceView: View {
     }
 
     private var editingPhrase: PhraseModel {
-        document.project.phrases.first(where: { $0.id == editingPhraseID }) ?? document.project.selectedPhrase
+        project.phrases.first(where: { $0.id == editingPhraseID }) ?? project.selectedPhrase
     }
 
     private var editingPhraseID: UUID {
@@ -33,14 +36,14 @@ struct LiveWorkspaceView: View {
               engineController.isRunning,
               let playbackPhraseIndex
         else {
-            return document.project.selectedPhraseID
+            return project.selectedPhraseID
         }
 
-        return document.project.phrases[playbackPhraseIndex].id
+        return project.phrases[playbackPhraseIndex].id
     }
 
     private var playbackPhraseIndex: Int? {
-        let phrases = document.project.phrases
+        let phrases = project.phrases
         guard engineController.isRunning, !phrases.isEmpty else {
             return nil
         }
@@ -50,7 +53,7 @@ struct LiveWorkspaceView: View {
             return nil
         }
 
-        let absoluteBar = Int(engineController.transportTickIndex) / max(1, document.project.selectedPhrase.stepsPerBar)
+        let absoluteBar = Int(engineController.transportTickIndex) / max(1, project.selectedPhrase.stepsPerBar)
         var cycleBar = absoluteBar % totalBars
 
         for (index, phrase) in phrases.enumerated() {
@@ -68,14 +71,14 @@ struct LiveWorkspaceView: View {
         var scopes: [LiveLaneScope] = []
         var emittedGroups: Set<TrackGroupID> = []
 
-        for track in document.project.tracks {
+        for track in project.tracks {
             if collapseGroups,
                let groupID = track.groupID,
-               let group = document.project.trackGroups.first(where: { $0.id == groupID }),
+               let group = project.trackGroups.first(where: { $0.id == groupID }),
                !emittedGroups.contains(groupID)
             {
                 emittedGroups.insert(groupID)
-                let members = document.project.tracksInGroup(groupID)
+                let members = project.tracksInGroup(groupID)
                 scopes.append(
                     LiveLaneScope(
                         kind: .group(group.id),
@@ -90,7 +93,7 @@ struct LiveWorkspaceView: View {
 
             let subtitle: String
             if let groupID = track.groupID,
-               let group = document.project.trackGroups.first(where: { $0.id == groupID })
+               let group = project.trackGroups.first(where: { $0.id == groupID })
             {
                 subtitle = "\(group.name) • \(track.trackType.shortLabel)"
             } else {
@@ -136,7 +139,7 @@ struct LiveWorkspaceView: View {
             // Macro knob row for the currently selected track.
             MacroKnobRow(
                 document: $document,
-                trackID: document.project.selectedTrackID
+                trackID: project.selectedTrackID
             )
         }
     }
@@ -206,7 +209,7 @@ struct LiveWorkspaceView: View {
                 .padding(.vertical, 6)
                 .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: Capsule())
 
-            if !document.project.trackGroups.isEmpty {
+            if !project.trackGroups.isEmpty {
                 Toggle("Collapse groups", isOn: $collapseGroups)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -238,50 +241,60 @@ struct LiveWorkspaceView: View {
 
         switch cell {
         case .inheritDefault:
-            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? document.project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
-            document.project.setPhraseCell(
-                .single(cycleLiveValue(seedValue)),
-                layerID: selectedLayer.id,
-                trackIDs: trackIDs,
-                phraseID: editingPhraseID
-            )
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
+            session.mutateProject {
+                $0.setPhraseCell(
+                    .single(cycleLiveValue(seedValue)),
+                    layerID: selectedLayer.id,
+                    trackIDs: trackIDs,
+                    phraseID: editingPhraseID
+                )
+            }
         case let .single(value):
-            document.project.setPhraseCell(
-                .single(cycleLiveValue(value)),
-                layerID: selectedLayer.id,
-                trackIDs: trackIDs,
-                phraseID: editingPhraseID
-            )
+            session.mutateProject {
+                $0.setPhraseCell(
+                    .single(cycleLiveValue(value)),
+                    layerID: selectedLayer.id,
+                    trackIDs: trackIDs,
+                    phraseID: editingPhraseID
+                )
+            }
         case let .bars(values):
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentBarIndexInPhrase, nextValues.count - 1)
             nextValues[index] = cycleLiveValue(nextValues[index])
-            document.project.setPhraseCell(
-                .bars(nextValues),
-                layerID: selectedLayer.id,
-                trackIDs: trackIDs,
-                phraseID: editingPhraseID
-            )
+            session.mutateProject {
+                $0.setPhraseCell(
+                    .bars(nextValues),
+                    layerID: selectedLayer.id,
+                    trackIDs: trackIDs,
+                    phraseID: editingPhraseID
+                )
+            }
         case let .steps(values):
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentStepIndexInPhrase, nextValues.count - 1)
             nextValues[index] = cycleLiveValue(nextValues[index])
-            document.project.setPhraseCell(
-                .steps(nextValues),
-                layerID: selectedLayer.id,
-                trackIDs: trackIDs,
-                phraseID: editingPhraseID
-            )
+            session.mutateProject {
+                $0.setPhraseCell(
+                    .steps(nextValues),
+                    layerID: selectedLayer.id,
+                    trackIDs: trackIDs,
+                    phraseID: editingPhraseID
+                )
+            }
         case .curve:
-            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? document.project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
-            document.project.setPhraseCell(
-                .single(cycleLiveValue(seedValue)),
-                layerID: selectedLayer.id,
-                trackIDs: trackIDs,
-                phraseID: editingPhraseID
-            )
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
+            session.mutateProject {
+                $0.setPhraseCell(
+                    .single(cycleLiveValue(seedValue)),
+                    layerID: selectedLayer.id,
+                    trackIDs: trackIDs,
+                    phraseID: editingPhraseID
+                )
+            }
         }
     }
 

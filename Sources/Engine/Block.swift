@@ -41,6 +41,7 @@ struct TickContext: Equatable, Sendable {
     let bpm: Double
     let inputs: [PortID: Stream]
     let now: TimeInterval
+    let preparedNotesByBlockID: [BlockID: [NoteEvent]]
 }
 
 protocol Block: AnyObject {

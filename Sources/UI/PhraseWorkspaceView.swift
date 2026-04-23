@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PhraseWorkspaceView: View {
     @Binding var document: SeqAIDocument
+    @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
 
     @State private var selectedLayerID = "pattern"
@@ -14,14 +15,15 @@ struct PhraseWorkspaceView: View {
     private let gridSpacing: CGFloat = 10
     private let trackPageSize = 8
 
-    private var phrases: [PhraseModel] { document.project.phrases }
-    private var tracks: [StepSequenceTrack] { document.project.tracks }
-    private var layers: [PhraseLayerDefinition] { document.project.layers }
-    private var selectedPhrase: PhraseModel { document.project.selectedPhrase }
-    private var selectedTrack: StepSequenceTrack { document.project.selectedTrack }
+    private var project: Project { session.project }
+    private var phrases: [PhraseModel] { project.phrases }
+    private var tracks: [StepSequenceTrack] { project.tracks }
+    private var layers: [PhraseLayerDefinition] { project.layers }
+    private var selectedPhrase: PhraseModel { project.selectedPhrase }
+    private var selectedTrack: StepSequenceTrack { project.selectedTrack }
 
     private var selectedLayer: PhraseLayerDefinition {
-        document.project.layer(id: selectedLayerID)
+        project.layer(id: selectedLayerID)
             ?? layers.first
             ?? PhraseLayerDefinition.defaultSet(for: tracks).first!
     }
@@ -81,19 +83,18 @@ struct PhraseWorkspaceView: View {
         .padding(.vertical, 10)
         .sheet(item: $editingCellTarget) { target in
             PhraseCellEditorSheet(
-                document: $document,
                 target: target,
                 accent: layerAccent(target.layerID)
             )
             .presentationBackground(.clear)
         }
         .onAppear {
-            if document.project.layer(id: selectedLayerID) == nil {
-                selectedLayerID = document.project.patternLayer?.id ?? layers.first?.id ?? "pattern"
+            if project.layer(id: selectedLayerID) == nil {
+                selectedLayerID = project.patternLayer?.id ?? layers.first?.id ?? "pattern"
             }
             clampTrackPage()
         }
-        .onChange(of: document.project.selectedTrackID) {
+        .onChange(of: project.selectedTrackID) {
             syncTrackPageToSelection()
         }
         .onChange(of: tracks.count) {
@@ -197,7 +198,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func syncTrackPageToSelection() {
-        guard let selectedIndex = tracks.firstIndex(where: { $0.id == document.project.selectedTrackID }) else {
+        guard let selectedIndex = tracks.firstIndex(where: { $0.id == project.selectedTrackID }) else {
             return
         }
         trackPage = min(max(selectedIndex / trackPageSize, 0), trackPageCount - 1)
@@ -223,8 +224,10 @@ struct PhraseWorkspaceView: View {
     }
 
     private func handleSingleTap(on phraseID: UUID, trackID: UUID) {
-        document.project.selectPhrase(id: phraseID)
-        document.project.selectTrack(id: trackID)
+        session.mutateProject(impact: .fullEngineApply) { project in
+            project.selectPhrase(id: phraseID)
+            project.selectTrack(id: trackID)
+        }
 
         if selectedLayer.valueType == .boolean {
             toggleBooleanCell(phraseID: phraseID, trackID: trackID)
@@ -232,8 +235,10 @@ struct PhraseWorkspaceView: View {
     }
 
     private func openCellEditor(phraseID: UUID, trackID: UUID) {
-        document.project.selectPhrase(id: phraseID)
-        document.project.selectTrack(id: trackID)
+        session.mutateProject(impact: .fullEngineApply) { project in
+            project.selectPhrase(id: phraseID)
+            project.selectTrack(id: trackID)
+        }
         editingCellTarget = PhraseCellEditorTarget(
             phraseID: phraseID,
             trackID: trackID,
@@ -266,7 +271,9 @@ struct PhraseWorkspaceView: View {
                         Group {
                             if let track {
                                 Button {
-                                    document.project.selectTrack(id: track.id)
+                                    session.mutateProject(impact: .fullEngineApply) {
+                                        $0.selectTrack(id: track.id)
+                                    }
                                 } label: {
                                     PhraseMatrixTrackHeaderCell(
                                         track: track,
@@ -290,10 +297,12 @@ struct PhraseWorkspaceView: View {
                     HStack(alignment: .top, spacing: gridSpacing) {
                         PhraseMatrixPhraseCell(
                             phrase: phrase,
-                            isSelected: document.project.selectedPhraseID == phrase.id,
+                            isSelected: project.selectedPhraseID == phrase.id,
                             isPlaying: playbackPhraseIndex == index
                         ) {
-                            document.project.selectPhrase(id: phrase.id)
+                            session.mutateProject(impact: .fullEngineApply) {
+                                $0.selectPhrase(id: phrase.id)
+                            }
                         }
                         .frame(width: phraseColumnWidth)
 
@@ -305,7 +314,7 @@ struct PhraseWorkspaceView: View {
                                         cell: phrase.cell(for: selectedLayer.id, trackID: track.id),
                                         phrase: phrase,
                                         track: track,
-                                        isSelected: phrase.id == document.project.selectedPhraseID && track.id == document.project.selectedTrackID,
+                                        isSelected: phrase.id == project.selectedPhraseID && track.id == project.selectedTrackID,
                                         accent: layerAccent(selectedLayer.id)
                                     )
                                     .contentShape(Rectangle())
@@ -331,13 +340,19 @@ struct PhraseWorkspaceView: View {
                         PhraseRowActions(
                             canRemove: phrases.count > 1,
                             onInsertBelow: {
-                                document.project.insertPhrase(below: phrase.id)
+                                session.mutateProject(impact: .fullEngineApply) {
+                                    $0.insertPhrase(below: phrase.id)
+                                }
                             },
                             onDuplicate: {
-                                document.project.duplicatePhrase(id: phrase.id)
+                                session.mutateProject(impact: .fullEngineApply) {
+                                    $0.duplicatePhrase(id: phrase.id)
+                                }
                             },
                             onRemove: {
-                                document.project.removePhrase(id: phrase.id)
+                                session.mutateProject(impact: .fullEngineApply) {
+                                    $0.removePhrase(id: phrase.id)
+                                }
                             }
                         )
                         .frame(width: actionColumnWidth)
@@ -355,20 +370,22 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        document.project.updatePhrase(id: phraseID) { phrase in
-            let currentCell = phrase.cell(for: selectedLayer.id, trackID: trackID)
-            let resolvedValue = phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
-            let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
+        session.mutateProject {
+            $0.updatePhrase(id: phraseID) { phrase in
+                let currentCell = phrase.cell(for: selectedLayer.id, trackID: trackID)
+                let resolvedValue = phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
+                let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
 
-            switch currentCell {
-            case .inheritDefault, .curve:
-                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
-            case .single:
-                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
-            case let .bars(values):
-                phrase.setCell(.bars(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
-            case let .steps(values):
-                phrase.setCell(.steps(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
+                switch currentCell {
+                case .inheritDefault, .curve:
+                    phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
+                case .single:
+                    phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
+                case let .bars(values):
+                    phrase.setCell(.bars(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
+                case let .steps(values):
+                    phrase.setCell(.steps(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
+                }
             }
         }
     }

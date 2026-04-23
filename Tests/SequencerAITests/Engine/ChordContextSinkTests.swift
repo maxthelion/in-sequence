@@ -12,7 +12,8 @@ final class ChordContextSinkTests: XCTestCase {
                 tickIndex: 0,
                 bpm: 120,
                 inputs: ["chord": .chord(expected)],
-                now: 0
+                now: 0,
+                preparedNotesByBlockID: [:]
             )
         )
 
@@ -26,8 +27,8 @@ final class ChordContextSinkTests: XCTestCase {
         var published: [Chord] = []
         let sink = ChordContextSink(id: "chord-sink") { published.append($0) }
 
-        _ = sink.tick(context: TickContext(tickIndex: 0, bpm: 120, inputs: ["chord": .chord(cMajor)], now: 0))
-        _ = sink.tick(context: TickContext(tickIndex: 1, bpm: 120, inputs: ["chord": .chord(gMinor)], now: 0.25))
+        _ = sink.tick(context: TickContext(tickIndex: 0, bpm: 120, inputs: ["chord": .chord(cMajor)], now: 0, preparedNotesByBlockID: [:]))
+        _ = sink.tick(context: TickContext(tickIndex: 1, bpm: 120, inputs: ["chord": .chord(gMinor)], now: 0.25, preparedNotesByBlockID: [:]))
 
         XCTAssertEqual(published, [cMajor, gMinor])
     }
@@ -41,7 +42,8 @@ final class ChordContextSinkTests: XCTestCase {
                 tickIndex: 0,
                 bpm: 120,
                 inputs: ["chord": .scalar(0.5)],
-                now: 0
+                now: 0,
+                preparedNotesByBlockID: [:]
             )
         )
 

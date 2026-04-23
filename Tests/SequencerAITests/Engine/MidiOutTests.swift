@@ -108,7 +108,8 @@ final class MidiOutTests: XCTestCase {
             tickIndex: tickIndex,
             bpm: 120,
             inputs: ["notes": EngineStream.notes(notes)],
-            now: now
+            now: now,
+            preparedNotesByBlockID: [:]
         )
     }
 

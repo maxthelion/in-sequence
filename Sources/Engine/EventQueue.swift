@@ -31,6 +31,12 @@ final class EventQueue {
         return drained
     }
 
+    func clear() {
+        lock.lock()
+        events.removeAll(keepingCapacity: true)
+        lock.unlock()
+    }
+
     var count: Int {
         lock.lock()
         defer { lock.unlock() }

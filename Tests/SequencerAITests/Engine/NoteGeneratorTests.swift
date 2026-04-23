@@ -61,16 +61,12 @@ final class NoteGeneratorTests: XCTestCase {
         XCTAssertTrue(block is NoteGenerator)
     }
 
-    func test_liveStepNotes_emit_once_then_clear() throws {
+    func test_prepared_notes_take_precedence_for_a_tick() {
         let generator = NoteGenerator(id: "gen")
-        let programmedNotes = [
-            NoteGenerator.ProgrammedNote(pitch: 72, velocity: 90, length: 6, voiceTag: "lead")
+        let preparedNotes = [
+            NoteEvent(pitch: 72, velocity: 90, length: 6, gate: true, voiceTag: "lead")
         ]
-        let encoded = String(data: try JSONEncoder().encode(programmedNotes), encoding: .utf8)!
-
-        generator.apply(paramKey: "liveStepNotes", value: .text(encoded))
-
-        let first = notes(from: generator.tick(context: makeContext(tick: 0)))
+        let first = notes(from: generator.tick(context: makeContext(tick: 0, preparedNotesByBlockID: ["gen": preparedNotes])))
         let second = notes(from: generator.tick(context: makeContext(tick: 1)))
 
         XCTAssertEqual(first.map(\.pitch), [72])
@@ -81,8 +77,11 @@ final class NoteGeneratorTests: XCTestCase {
         XCTAssertEqual(second.first?.pitch, 62, "generator should fall back to its configured pattern once the live override clears")
     }
 
-    private func makeContext(tick: UInt64) -> TickContext {
-        TickContext(tickIndex: tick, bpm: 120, inputs: [:], now: 0)
+    private func makeContext(
+        tick: UInt64,
+        preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
+    ) -> TickContext {
+        TickContext(tickIndex: tick, bpm: 120, inputs: [:], now: 0, preparedNotesByBlockID: preparedNotesByBlockID)
     }
 
     private func notes(from outputs: [PortID: EngineStream]) -> [NoteEvent] {

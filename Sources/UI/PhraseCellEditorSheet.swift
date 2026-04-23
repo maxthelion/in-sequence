@@ -11,24 +11,23 @@ struct PhraseCellEditorTarget: Identifiable, Equatable {
 }
 
 struct PhraseCellEditorSheet: View {
-    @Binding var document: SeqAIDocument
-
     let target: PhraseCellEditorTarget
     let accent: Color
 
     @State private var selectedBarPage = 0
+    @Environment(SequencerDocumentSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     private var phrase: PhraseModel? {
-        document.project.phrases.first(where: { $0.id == target.phraseID })
+        session.project.phrases.first(where: { $0.id == target.phraseID })
     }
 
     private var track: StepSequenceTrack? {
-        document.project.tracks.first(where: { $0.id == target.trackID })
+        session.project.tracks.first(where: { $0.id == target.trackID })
     }
 
     private var layer: PhraseLayerDefinition? {
-        document.project.layer(id: target.layerID)
+        session.project.layer(id: target.layerID)
     }
 
     private var isTargetAvailable: Bool {
@@ -318,6 +317,8 @@ struct PhraseCellEditorSheet: View {
     }
 
     private func mutatePhrase(phraseID: UUID, _ update: (inout PhraseModel) -> Void) {
-        document.project.updatePhrase(id: phraseID, update)
+        session.mutateProject { project in
+            project.updatePhrase(id: phraseID, update)
+        }
     }
 }

@@ -34,18 +34,20 @@ private enum GeneratorPickerPurpose: String, Identifiable {
 
 struct TrackSourceEditorView: View {
     @Binding var document: SeqAIDocument
+    @Environment(SequencerDocumentSession.self) private var session
     let accent: Color
 
     @State private var selectedTab: TrackSourceEditorTab = .source
     @State private var generatorPickerPurpose: GeneratorPickerPurpose?
 
-    private var track: StepSequenceTrack { document.project.selectedTrack }
-    private var bank: TrackPatternBank { document.project.patternBank(for: track.id) }
-    private var selectedPatternIndex: Int { document.project.selectedPatternIndex(for: track.id) }
-    private var selectedPattern: TrackPatternSlot { document.project.selectedPattern(for: track.id) }
+    private var project: Project { session.project }
+    private var track: StepSequenceTrack { project.selectedTrack }
+    private var bank: TrackPatternBank { project.patternBank(for: track.id) }
+    private var selectedPatternIndex: Int { project.selectedPatternIndex(for: track.id) }
+    private var selectedPattern: TrackPatternSlot { project.selectedPattern(for: track.id) }
     private var occupiedPatternSlots: Set<Int> {
         Set(bank.slots.compactMap { slot in
-            guard let clip = document.project.clipEntry(id: slot.sourceRef.clipID),
+            guard let clip = project.clipEntry(id: slot.sourceRef.clipID),
                   !clipIsEmpty(clip.content)
             else {
                 return nil
@@ -54,15 +56,15 @@ struct TrackSourceEditorView: View {
         })
     }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
-    private var compatibleGenerators: [GeneratorPoolEntry] { document.project.compatibleGenerators(for: track) }
-    private var generatedSourceInputClips: [ClipPoolEntry] { document.project.generatedSourceInputClips() }
-    private var harmonicSidechainClips: [ClipPoolEntry] { document.project.harmonicSidechainClips() }
-    private var currentClip: ClipPoolEntry? { document.project.clipEntry(id: selectedPattern.sourceRef.clipID) }
+    private var compatibleGenerators: [GeneratorPoolEntry] { project.compatibleGenerators(for: track) }
+    private var generatedSourceInputClips: [ClipPoolEntry] { project.generatedSourceInputClips() }
+    private var harmonicSidechainClips: [ClipPoolEntry] { project.harmonicSidechainClips() }
+    private var currentClip: ClipPoolEntry? { project.clipEntry(id: selectedPattern.sourceRef.clipID) }
     private var selectedSourceGenerator: GeneratorPoolEntry? {
-        document.project.generatorEntry(id: selectedPattern.sourceRef.generatorID)
+        project.generatorEntry(id: selectedPattern.sourceRef.generatorID)
     }
     private var selectedModifierGenerator: GeneratorPoolEntry? {
-        document.project.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID)
+        project.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID)
     }
     private var previewClipContent: ClipContent {
         currentClip?.content
@@ -85,7 +87,7 @@ struct TrackSourceEditorView: View {
         let trackID = track.id
         for binding in track.macros {
             let layerID = "macro-\(trackID.uuidString)-\(binding.id.uuidString)"
-            if let layer = document.project.layers.first(where: { $0.id == layerID }),
+            if let layer = project.layers.first(where: { $0.id == layerID }),
                case let .scalar(v) = layer.defaults[trackID] {
                 result[binding.id] = v
             } else {
@@ -197,8 +199,10 @@ struct TrackSourceEditorView: View {
                     accent: accent,
                     layout: .sourceOnly
                 ) { updated in
-                    document.project.updateGeneratorEntry(id: generator.id) { entry in
-                        entry.params = updated
+                    session.mutateProject { project in
+                        project.updateGeneratorEntry(id: generator.id) { entry in
+                            entry.params = updated
+                        }
                     }
                 }
             } else {
@@ -233,18 +237,22 @@ struct TrackSourceEditorView: View {
                             title: selectedPattern.sourceRef.modifierBypassed ? "Enable" : "Bypass",
                             accent: selectedPattern.sourceRef.modifierBypassed ? StudioTheme.success : StudioTheme.amber
                         ) {
-                            document.project.setPatternModifierBypassed(
-                                !selectedPattern.sourceRef.modifierBypassed,
-                                for: track.id,
-                                slotIndex: selectedPatternIndex
-                            )
+                            session.mutateProject {
+                                $0.setPatternModifierBypassed(
+                                    !selectedPattern.sourceRef.modifierBypassed,
+                                    for: track.id,
+                                    slotIndex: selectedPatternIndex
+                                )
+                            }
                         }
                         actionButton(title: "Remove Modifier", accent: StudioTheme.border) {
-                            document.project.setPatternModifierGeneratorID(
-                                nil,
-                                for: track.id,
-                                slotIndex: selectedPatternIndex
-                            )
+                            session.mutateProject {
+                                $0.setPatternModifierGeneratorID(
+                                    nil,
+                                    for: track.id,
+                                    slotIndex: selectedPatternIndex
+                                )
+                            }
                         }
                     }
                 }
@@ -257,11 +265,13 @@ struct TrackSourceEditorView: View {
                 sourceMode: selectedSourceMode,
                 accent: accent,
                 layout: .modifierOnly
-            ) { updated in
-                document.project.updateGeneratorEntry(id: generator.id) { entry in
-                    entry.params = updated
+                ) { updated in
+                    session.mutateProject {
+                        $0.updateGeneratorEntry(id: generator.id) { entry in
+                            entry.params = updated
+                        }
+                    }
                 }
-            }
         } else {
             StudioPanel(title: "Modifiers", eyebrow: "Empty by default.", accent: StudioTheme.violet) {
                 VStack(alignment: .leading, spacing: 14) {
@@ -293,11 +303,13 @@ struct TrackSourceEditorView: View {
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 ClipContentPreview(content: previewClipContent, defaultNote: defaultClipNote) { updated in
-                    guard let clipID = document.project.ensureClipForCurrentPattern(trackID: track.id) else {
-                        return
-                    }
-                    document.project.updateClipEntry(id: clipID) { entry in
-                        entry.content = updated
+                    session.mutateProject { project in
+                        guard let clipID = project.ensureClipForCurrentPattern(trackID: track.id) else {
+                            return
+                        }
+                        project.updateClipEntry(id: clipID) { entry in
+                            entry.content = updated
+                        }
                     }
                 }
 
@@ -310,8 +322,10 @@ struct TrackSourceEditorView: View {
                         },
                         phraseLayerValues: macroFallbackValues
                     ) { updatedLanes in
-                        document.project.updateClipEntry(id: clip.id) { entry in
-                            entry.macroLanes = updatedLanes
+                        session.mutateProject {
+                            $0.updateClipEntry(id: clip.id) { entry in
+                                entry.macroLanes = updatedLanes
+                            }
                         }
                     }
                 }
@@ -342,12 +356,14 @@ struct TrackSourceEditorView: View {
                 modifierGeneratorID: selectedPattern.sourceRef.modifierGeneratorID,
                 modifierBypassed: selectedPattern.sourceRef.modifierBypassed
             )
-            document.project.setPatternSourceRef(updated, for: track.id, slotIndex: selectedPatternIndex)
+            session.mutateProject {
+                $0.setPatternSourceRef(updated, for: track.id, slotIndex: selectedPatternIndex)
+            }
 
         case .modifier:
             var clipID = selectedPattern.sourceRef.clipID
             if selectedSourceMode == .clip, clipID == nil {
-                clipID = document.project.ensureClipForCurrentPattern(trackID: track.id)
+                clipID = project.clipEntry(id: selectedPattern.sourceRef.clipID)?.id
             }
             let updated = SourceRef(
                 mode: selectedSourceMode,
@@ -356,29 +372,41 @@ struct TrackSourceEditorView: View {
                 modifierGeneratorID: generator.id,
                 modifierBypassed: false
             )
-            document.project.setPatternSourceRef(updated, for: track.id, slotIndex: selectedPatternIndex)
+            session.mutateProject { project in
+                var adjusted = updated
+                if adjusted.mode == .clip, adjusted.clipID == nil {
+                    adjusted.clipID = project.ensureClipForCurrentPattern(trackID: track.id)
+                }
+                project.setPatternSourceRef(adjusted, for: track.id, slotIndex: selectedPatternIndex)
+            }
         }
     }
 
     private func removeGeneratorSource() {
-        guard let clipID = document.project.ensureClipForCurrentPattern(trackID: track.id) else {
-            return
-        }
+        session.mutateProject { project in
+            guard let clipID = project.ensureClipForCurrentPattern(trackID: track.id) else {
+                return
+            }
 
-        let updated = SourceRef(
-            mode: .clip,
-            generatorID: nil,
-            clipID: clipID,
-            modifierGeneratorID: selectedPattern.sourceRef.modifierGeneratorID,
-            modifierBypassed: selectedPattern.sourceRef.modifierBypassed
-        )
-        document.project.setPatternSourceRef(updated, for: track.id, slotIndex: selectedPatternIndex)
+            let updated = SourceRef(
+                mode: .clip,
+                generatorID: nil,
+                clipID: clipID,
+                modifierGeneratorID: selectedPattern.sourceRef.modifierGeneratorID,
+                modifierBypassed: selectedPattern.sourceRef.modifierBypassed
+            )
+            project.setPatternSourceRef(updated, for: track.id, slotIndex: selectedPatternIndex)
+        }
     }
 
     private var selectedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: { document.project.selectedPatternIndex(for: track.id) },
-            set: { document.project.setSelectedPatternIndex($0, for: track.id) }
+            get: { project.selectedPatternIndex(for: track.id) },
+            set: { newValue in
+                session.mutateProject {
+                    $0.setSelectedPatternIndex(newValue, for: track.id)
+                }
+            }
         )
     }
 }

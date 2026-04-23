@@ -32,7 +32,7 @@ final class BlockProtocolTests: XCTestCase {
     }
 
     private func makeContext() -> TickContext {
-        TickContext(tickIndex: 0, bpm: 120, inputs: [:], now: 0)
+        TickContext(tickIndex: 0, bpm: 120, inputs: [:], now: 0, preparedNotesByBlockID: [:])
     }
 }
 

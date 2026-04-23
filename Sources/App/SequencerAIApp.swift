@@ -45,7 +45,9 @@ struct SequencerAIApp: App {
         for file: FileDocumentConfiguration<SeqAIDocument>
     ) -> some View {
         appDelegate.engineController = engineController
-        return ContentView(document: file.$document)
-            .environment(engineController)
+        return SequencerDocumentRootView(
+            document: file.$document,
+            engineController: engineController
+        )
     }
 }
