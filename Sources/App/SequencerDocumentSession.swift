@@ -8,17 +8,27 @@ final class SequencerDocumentSession {
     @ObservationIgnored
     private let document: Binding<SeqAIDocument>
     @ObservationIgnored
-    private unowned let engineController: EngineController
-    @ObservationIgnored
     private var flushTask: Task<Void, Never>?
 
     let store: LiveSequencerStore
+    let engineController: EngineController
     private(set) var revision: UInt64 = 0
 
-    init(
-        document: Binding<SeqAIDocument>,
-        engineController: EngineController
-    ) {
+    /// Production initializer. Creates and owns a new EngineController.
+    init(document: Binding<SeqAIDocument>) {
+        self.document = document
+        self.engineController = EngineController(
+            audioOutput: AudioInstrumentHost(),
+            audioOutputFactory: { AudioInstrumentHost() }
+        )
+        self.store = LiveSequencerStore(project: document.wrappedValue.project)
+        self.revision = store.revision
+        SequencerDocumentSessionRegistry.register(self)
+    }
+
+    /// Test-only initializer that accepts an injected EngineController.
+    /// Allows unit tests to provide stub engines without requiring CoreAudio access.
+    init(document: Binding<SeqAIDocument>, engineController: EngineController) {
         self.document = document
         self.engineController = engineController
         self.store = LiveSequencerStore(project: document.wrappedValue.project)

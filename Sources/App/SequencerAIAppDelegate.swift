@@ -8,7 +8,6 @@ protocol EngineLifecycleControlling: AnyObject {
 
 @MainActor
 final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
-    weak var engineController: (any EngineLifecycleControlling)?
     var windowHost: any AUWindowHosting = AUWindowHost.shared
     var shutdownDrainInterval: TimeInterval = 0.15
     var drainRunLoop: (TimeInterval) -> Void = { interval in
@@ -26,7 +25,7 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
         log("applicationWillTerminate start")
         SequencerDocumentSessionRegistry.flushAll()
         windowHost.closeAll()
-        engineController?.shutdown()
+        SequencerDocumentSessionRegistry.shutdownAll()
         drainRunLoop(shutdownDrainInterval)
         log("applicationWillTerminate complete")
     }

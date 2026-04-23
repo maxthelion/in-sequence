@@ -26,6 +26,16 @@ enum SequencerDocumentSessionRegistry {
         }
     }
 
+    /// Calls `shutdown()` on every registered session's engine.
+    /// Used by `SequencerAIAppDelegate.applicationWillTerminate` in place of the
+    /// former singleton `engineController?.shutdown()`.
+    static func shutdownAll() {
+        prune()
+        for box in entries.values {
+            box.value?.engineController.shutdown()
+        }
+    }
+
     private static func prune() {
         entries = entries.filter { $0.value.value != nil }
     }

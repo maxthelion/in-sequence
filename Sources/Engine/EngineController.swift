@@ -240,11 +240,16 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    /// Called at the start of every `shutdown()` / `shutdown(completion:)` invocation.
+    /// Intended for test observation only — do not use in production code paths.
+    var shutdownObserver: (() -> Void)?
+
     func shutdown() {
         shutdown(completion: {})
     }
 
     func shutdown(completion: @escaping () -> Void) {
+        shutdownObserver?()
         log("shutdown start")
         let hosts = withStateLock { Self.uniqueHosts(Array(audioOutputsByTrackID.values)) }
         if isRunning {
@@ -333,6 +338,12 @@ final class EngineController: RouterDispatcher {
             generatedEvaluationStatesByTrackID = [:]
         }
         eventQueue.clear()
+    }
+
+    /// Exposes the current playback snapshot for test assertions.
+    /// Do not use in production code — read the published observable state instead.
+    var currentPlaybackSnapshotForTesting: PlaybackSnapshot {
+        currentPlaybackSnapshot
     }
 
     func apply(track: StepSequenceTrack) {

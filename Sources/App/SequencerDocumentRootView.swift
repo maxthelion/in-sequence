@@ -2,21 +2,16 @@ import SwiftUI
 
 struct SequencerDocumentRootView: View {
     @Binding var document: SeqAIDocument
-    let engineController: EngineController
     @State private var session: SequencerDocumentSession
 
-    init(
-        document: Binding<SeqAIDocument>,
-        engineController: EngineController
-    ) {
+    init(document: Binding<SeqAIDocument>) {
         self._document = document
-        self.engineController = engineController
-        self._session = State(initialValue: SequencerDocumentSession(document: document, engineController: engineController))
+        self._session = State(initialValue: SequencerDocumentSession(document: document))
     }
 
     var body: some View {
         ContentView(document: $document)
-            .environment(engineController)
+            .environment(session.engineController)
             .environment(session)
             .onAppear {
                 session.activate()

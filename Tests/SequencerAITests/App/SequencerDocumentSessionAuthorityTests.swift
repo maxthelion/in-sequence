@@ -7,13 +7,12 @@ final class SequencerDocumentSessionAuthorityTests: XCTestCase {
     func test_live_mutation_updates_store_before_document_flush() {
         let (project, _, clipID) = makeLiveStoreProject(clipPitch: 60)
         let documentBox = DocumentBox(document: SeqAIDocument(project: project))
-        let engineController = EngineController(client: nil, endpoint: nil)
         let session = SequencerDocumentSession(
             document: Binding(
                 get: { documentBox.document },
                 set: { documentBox.document = $0 }
             ),
-            engineController: engineController
+            engineController: EngineController(client: nil, endpoint: nil)
         )
 
         session.mutateProject {
@@ -31,6 +30,8 @@ final class SequencerDocumentSessionAuthorityTests: XCTestCase {
         session.flushToDocument()
 
         XCTAssertEqual(documentBox.document.project.clipEntry(id: clipID)?.pitchPool, [72])
+
+        SequencerDocumentSessionRegistry.unregister(session)
     }
 }
 

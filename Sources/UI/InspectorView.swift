@@ -248,16 +248,24 @@ struct InspectorView: View {
 
 private struct InspectorPreview: View {
     @State private var document = SeqAIDocument()
-    @State private var engineController = EngineController(client: nil, endpoint: nil)
+
+    var body: some View {
+        InspectorPreviewInner(document: $document)
+    }
+}
+
+private struct InspectorPreviewInner: View {
+    @Binding var document: SeqAIDocument
+    @State private var session: SequencerDocumentSession
+
+    init(document: Binding<SeqAIDocument>) {
+        self._document = document
+        self._session = State(initialValue: SequencerDocumentSession(document: document))
+    }
 
     var body: some View {
         InspectorView(document: $document)
-            .environment(engineController)
-            .environment(
-                SequencerDocumentSession(
-                    document: $document,
-                    engineController: engineController
-                )
-            )
+            .environment(session.engineController)
+            .environment(session)
     }
 }
