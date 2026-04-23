@@ -90,14 +90,11 @@ struct MacroKnobRow: View {
                                     project: session.project
                                 )
                             ) { newValue in
-                                session.mutateProject { project in
-                                    viewModel.applyLiveValue(
-                                        newValue,
-                                        binding: binding,
-                                        trackID: trackID,
-                                        project: &project
-                                    )
-                                }
+                                session.setMacroLayerDefault(
+                                    value: newValue,
+                                    bindingID: binding.id,
+                                    trackID: trackID
+                                )
                             }
                         }
                     }

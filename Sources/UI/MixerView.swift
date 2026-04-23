@@ -20,21 +20,19 @@ struct MixerView: View {
                         isSelected: track.id == project.selectedTrackID,
                         engineController: engineController,
                         onSelect: {
-                            session.mutateProject(impact: .fullEngineApply) { project in
-                                project.selectTrack(id: track.id)
-                            }
-                            onEditTrack?(track.id)
+                            // Narrowed from .fullEngineApply: selection alone has no audible
+                            // impact; .snapshotOnly is sufficient. The onEditTrack callback
+                            // handles any editor-navigation side effects.
+                            let trackID = track.id
+                            session.setSelectedTrackID(trackID)
+                            onEditTrack?(trackID)
                         },
                         onSetMix: { mix in
                             session.setTrackMix(trackID: track.id, mix: mix)
                         },
                         onToggleMute: {
-                            session.mutateProject(impact: .fullEngineApply) { project in
-                                guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
-                                    return
-                                }
-                                project.tracks[index].mix.isMuted.toggle()
-                            }
+                            // .fullEngineApply preserved: mute requires engine document-model rebuild.
+                            session.toggleTrackMute(trackID: track.id)
                         }
                     )
                 }

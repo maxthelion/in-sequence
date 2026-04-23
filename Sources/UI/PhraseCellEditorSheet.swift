@@ -317,8 +317,6 @@ struct PhraseCellEditorSheet: View {
     }
 
     private func mutatePhrase(phraseID: UUID, _ update: (inout PhraseModel) -> Void) {
-        session.mutateProject { project in
-            project.updatePhrase(id: phraseID, update)
-        }
+        session.mutatePhrase(id: phraseID, update)
     }
 }

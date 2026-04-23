@@ -26,12 +26,8 @@ struct InspectorView: View {
                     return
                 }
 
-                session.mutateProject(impact: .snapshotOnly) { project in
-                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
-                        return
-                    }
-                    project.tracks[index].pitches = parsed
-                }
+                let trackID = track.id
+                session.mutateTrack(id: trackID) { $0.pitches = parsed }
             }
         )
     }
@@ -40,12 +36,8 @@ struct InspectorView: View {
         Binding(
             get: { track.name },
             set: { newValue in
-                session.mutateProject(impact: .snapshotOnly) { project in
-                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
-                        return
-                    }
-                    project.tracks[index].name = newValue
-                }
+                let trackID = track.id
+                session.mutateTrack(id: trackID) { $0.name = newValue }
             }
         )
     }
@@ -54,12 +46,9 @@ struct InspectorView: View {
         Binding(
             get: { track.mix.isMuted },
             set: { newValue in
-                session.mutateProject(impact: .fullEngineApply) { project in
-                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
-                        return
-                    }
-                    project.tracks[index].mix.isMuted = newValue
-                }
+                // .fullEngineApply preserved: mute requires engine document-model rebuild.
+                let trackID = track.id
+                session.mutateTrack(id: trackID, impact: .fullEngineApply) { $0.mix.isMuted = newValue }
             }
         )
     }
@@ -68,12 +57,8 @@ struct InspectorView: View {
         Binding(
             get: { track.velocity },
             set: { newValue in
-                session.mutateProject(impact: .snapshotOnly) { project in
-                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
-                        return
-                    }
-                    project.tracks[index].velocity = newValue
-                }
+                let trackID = track.id
+                session.mutateTrack(id: trackID) { $0.velocity = newValue }
             }
         )
     }
@@ -82,12 +67,8 @@ struct InspectorView: View {
         Binding(
             get: { track.gateLength },
             set: { newValue in
-                session.mutateProject(impact: .snapshotOnly) { project in
-                    guard let index = project.tracks.firstIndex(where: { $0.id == track.id }) else {
-                        return
-                    }
-                    project.tracks[index].gateLength = newValue
-                }
+                let trackID = track.id
+                session.mutateTrack(id: trackID) { $0.gateLength = newValue }
             }
         )
     }
