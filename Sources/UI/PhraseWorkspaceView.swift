@@ -15,15 +15,14 @@ struct PhraseWorkspaceView: View {
     private let gridSpacing: CGFloat = 10
     private let trackPageSize = 8
 
-    private var project: Project { session.project }
-    private var phrases: [PhraseModel] { project.phrases }
-    private var tracks: [StepSequenceTrack] { project.tracks }
-    private var layers: [PhraseLayerDefinition] { project.layers }
-    private var selectedPhrase: PhraseModel { project.selectedPhrase }
-    private var selectedTrack: StepSequenceTrack { project.selectedTrack }
+    private var phrases: [PhraseModel] { session.store.phrases }
+    private var tracks: [StepSequenceTrack] { session.store.tracks }
+    private var layers: [PhraseLayerDefinition] { session.store.layers }
+    private var selectedPhrase: PhraseModel { session.store.selectedPhrase }
+    private var selectedTrack: StepSequenceTrack { session.store.selectedTrack }
 
     private var selectedLayer: PhraseLayerDefinition {
-        project.layer(id: selectedLayerID)
+        session.store.layer(id: selectedLayerID)
             ?? layers.first
             ?? PhraseLayerDefinition.defaultSet(for: tracks).first!
     }
@@ -89,12 +88,12 @@ struct PhraseWorkspaceView: View {
             .presentationBackground(.clear)
         }
         .onAppear {
-            if project.layer(id: selectedLayerID) == nil {
-                selectedLayerID = project.patternLayer?.id ?? layers.first?.id ?? "pattern"
+            if session.store.layer(id: selectedLayerID) == nil {
+                selectedLayerID = session.store.patternLayer?.id ?? layers.first?.id ?? "pattern"
             }
             clampTrackPage()
         }
-        .onChange(of: project.selectedTrackID) {
+        .onChange(of: session.store.selectedTrackID) {
             syncTrackPageToSelection()
         }
         .onChange(of: tracks.count) {
@@ -198,7 +197,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func syncTrackPageToSelection() {
-        guard let selectedIndex = tracks.firstIndex(where: { $0.id == project.selectedTrackID }) else {
+        guard let selectedIndex = tracks.firstIndex(where: { $0.id == session.store.selectedTrackID }) else {
             return
         }
         trackPage = min(max(selectedIndex / trackPageSize, 0), trackPageCount - 1)
@@ -285,11 +284,13 @@ struct PhraseWorkspaceView: View {
                         .frame(width: actionColumnWidth, height: 52)
                 }
 
+                let selectedPhraseID = session.store.selectedPhraseID
+                let selectedTrackID = session.store.selectedTrackID
                 ForEach(Array(phrases.enumerated()), id: \.element.id) { index, phrase in
                     HStack(alignment: .top, spacing: gridSpacing) {
                         PhraseMatrixPhraseCell(
                             phrase: phrase,
-                            isSelected: project.selectedPhraseID == phrase.id,
+                            isSelected: selectedPhraseID == phrase.id,
                             isPlaying: playbackPhraseIndex == index
                         ) {
                             session.setSelectedPhraseID(phrase.id)
@@ -304,7 +305,7 @@ struct PhraseWorkspaceView: View {
                                         cell: phrase.cell(for: selectedLayer.id, trackID: track.id),
                                         phrase: phrase,
                                         track: track,
-                                        isSelected: phrase.id == project.selectedPhraseID && track.id == project.selectedTrackID,
+                                        isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
                                         accent: layerAccent(selectedLayer.id)
                                     )
                                     .contentShape(Rectangle())

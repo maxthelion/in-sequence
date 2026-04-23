@@ -11,16 +11,15 @@ struct LiveWorkspaceView: View {
         GridItem(.adaptive(minimum: 180, maximum: 240), spacing: 12)
     ]
 
-    private var project: Project { session.project }
-
     private var selectedLayer: PhraseLayerDefinition {
-        project.layer(id: selectedLayerID)
-            ?? project.patternLayer
-            ?? project.layers.first!
+        let layers = session.store.layers
+        return session.store.layer(id: selectedLayerID)
+            ?? session.store.patternLayer
+            ?? layers.first!
     }
 
     private var layers: [PhraseLayerDefinition] {
-        project.layers
+        session.store.layers
     }
 
     private var selectedLayerIndex: Int {
@@ -28,7 +27,8 @@ struct LiveWorkspaceView: View {
     }
 
     private var editingPhrase: PhraseModel {
-        project.phrases.first(where: { $0.id == editingPhraseID }) ?? project.selectedPhrase
+        let phrases = session.store.phrases
+        return phrases.first(where: { $0.id == editingPhraseID }) ?? session.store.selectedPhrase
     }
 
     private var editingPhraseID: UUID {
@@ -36,14 +36,15 @@ struct LiveWorkspaceView: View {
               engineController.isRunning,
               let playbackPhraseIndex
         else {
-            return project.selectedPhraseID
+            return session.store.selectedPhraseID
         }
 
-        return project.phrases[playbackPhraseIndex].id
+        let phrases = session.store.phrases
+        return phrases[playbackPhraseIndex].id
     }
 
     private var playbackPhraseIndex: Int? {
-        let phrases = project.phrases
+        let phrases = session.store.phrases
         guard engineController.isRunning, !phrases.isEmpty else {
             return nil
         }
@@ -53,7 +54,7 @@ struct LiveWorkspaceView: View {
             return nil
         }
 
-        let absoluteBar = Int(engineController.transportTickIndex) / max(1, project.selectedPhrase.stepsPerBar)
+        let absoluteBar = Int(engineController.transportTickIndex) / max(1, session.store.selectedPhrase.stepsPerBar)
         var cycleBar = absoluteBar % totalBars
 
         for (index, phrase) in phrases.enumerated() {
@@ -70,15 +71,16 @@ struct LiveWorkspaceView: View {
     private var visibleScopes: [LiveLaneScope] {
         var scopes: [LiveLaneScope] = []
         var emittedGroups: Set<TrackGroupID> = []
+        let trackGroups = session.store.trackGroups
 
-        for track in project.tracks {
+        for track in session.store.tracks {
             if collapseGroups,
                let groupID = track.groupID,
-               let group = project.trackGroups.first(where: { $0.id == groupID }),
+               let group = trackGroups.first(where: { $0.id == groupID }),
                !emittedGroups.contains(groupID)
             {
                 emittedGroups.insert(groupID)
-                let members = project.tracksInGroup(groupID)
+                let members = session.store.tracksInGroup(groupID)
                 scopes.append(
                     LiveLaneScope(
                         kind: .group(group.id),
@@ -93,7 +95,7 @@ struct LiveWorkspaceView: View {
 
             let subtitle: String
             if let groupID = track.groupID,
-               let group = project.trackGroups.first(where: { $0.id == groupID })
+               let group = trackGroups.first(where: { $0.id == groupID })
             {
                 subtitle = "\(group.name) • \(track.trackType.shortLabel)"
             } else {
@@ -139,7 +141,7 @@ struct LiveWorkspaceView: View {
             // Macro knob row for the currently selected track.
             MacroKnobRow(
                 document: $document,
-                trackID: project.selectedTrackID
+                trackID: session.store.selectedTrackID
             )
         }
     }
@@ -209,7 +211,7 @@ struct LiveWorkspaceView: View {
                 .padding(.vertical, 6)
                 .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: Capsule())
 
-            if !project.trackGroups.isEmpty {
+            if !session.store.trackGroups.isEmpty {
                 Toggle("Collapse groups", isOn: $collapseGroups)
                     .toggleStyle(.switch)
                     .labelsHidden()
@@ -241,7 +243,7 @@ struct LiveWorkspaceView: View {
 
         switch cell {
         case .inheritDefault:
-            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? session.store.selectedTrackID, stepIndex: currentStepIndexInPhrase)
             session.setPhraseCell(
                 .single(cycleLiveValue(seedValue)),
                 layerID: selectedLayer.id,
@@ -278,7 +280,7 @@ struct LiveWorkspaceView: View {
                 phraseID: editingPhraseID
             )
         case .curve:
-            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? session.store.selectedTrackID, stepIndex: currentStepIndexInPhrase)
             session.setPhraseCell(
                 .single(cycleLiveValue(seedValue)),
                 layerID: selectedLayer.id,
