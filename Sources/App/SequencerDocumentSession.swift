@@ -34,16 +34,18 @@ final class SequencerDocumentSession {
     }
 
     var project: Project {
-        store.project
+        // TODO(phase-1b): replace with resident-state compile input
+        store.exportToProject()
     }
 
     func activate() {
-        engineController.apply(documentModel: store.project)
+        engineController.apply(documentModel: store.exportToProject())
         publishSnapshot()
     }
 
     func publishSnapshot() {
-        engineController.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(project: store.project))
+        // TODO(phase-1b): replace exportToProject() with resident-state compile input
+        engineController.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(project: store.exportToProject()))
         revision = store.revision
     }
 
@@ -61,10 +63,11 @@ final class SequencerDocumentSession {
     func flushToDocument() {
         flushTask?.cancel()
         flushTask = nil
-        guard document.wrappedValue.project != store.project else {
+        let exported = store.exportToProject()
+        guard document.wrappedValue.project != exported else {
             return
         }
-        document.wrappedValue.project = store.project
+        document.wrappedValue.project = exported
     }
 
     func ingestExternalDocumentChange(_ project: Project) {
@@ -72,7 +75,7 @@ final class SequencerDocumentSession {
             return
         }
         revision = store.revision
-        engineController.apply(documentModel: store.project)
+        engineController.apply(documentModel: store.exportToProject())
         publishSnapshot()
     }
 
@@ -90,7 +93,7 @@ final class SequencerDocumentSession {
         case .snapshotOnly:
             publishSnapshot()
         case .fullEngineApply:
-            engineController.apply(documentModel: store.project)
+            engineController.apply(documentModel: store.exportToProject())
             publishSnapshot()
         case .documentOnly:
             break
