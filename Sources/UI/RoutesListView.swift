@@ -3,24 +3,26 @@ import SwiftUI
 struct RoutesListView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
+    @Environment(SequencerDocumentSession.self) private var session
 
     @State private var editingRoute: Route?
 
     private var selectedTrack: StepSequenceTrack {
-        document.project.selectedTrack
+        session.store.selectedTrack
     }
 
     private var routes: [Route] {
-        document.project.routesSourced(from: selectedTrack.id)
+        session.store.routesSourced(from: selectedTrack.id)
     }
 
     var body: some View {
+        let tracks = session.store.tracks
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 StudioMetricPill(title: "Routes Out", value: "\(routes.count)", accent: StudioTheme.violet)
                 Spacer()
                 Button("Add Route") {
-                    editingRoute = document.project.makeDefaultRoute(from: selectedTrack.id)
+                    editingRoute = session.makeDefaultRoute(from: selectedTrack.id)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.cyan)
@@ -37,11 +39,11 @@ struct RoutesListView: View {
                     ForEach(routes) { route in
                         RouteRowView(
                             route: route,
-                            trackLookup: trackLookup
+                            trackLookup: { id in tracks.first(where: { $0.id == id }) }
                         ) {
                             editingRoute = route
                         } onDelete: {
-                            document.project.removeRoute(id: route.id)
+                            session.removeRoute(id: route.id)
                         }
                     }
                 }
@@ -49,17 +51,13 @@ struct RoutesListView: View {
         }
         .sheet(item: $editingRoute) { route in
             RouteEditorSheet(
-                tracks: document.project.tracks,
+                tracks: tracks,
                 midiEndpoints: engineController.availableMIDIDestinationNames,
                 initialRoute: route
             ) { savedRoute in
-                document.project.upsertRoute(savedRoute)
+                session.upsertRoute(savedRoute)
             }
         }
-    }
-
-    private func trackLookup(_ trackID: UUID) -> StepSequenceTrack? {
-        document.project.tracks.first(where: { $0.id == trackID })
     }
 }
 
