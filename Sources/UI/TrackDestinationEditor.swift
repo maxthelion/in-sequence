@@ -290,7 +290,6 @@ struct TrackDestinationEditor: View {
 
     private func makePresetBrowserViewModel() -> PresetBrowserSheetViewModel {
         let trackID = track.id
-        let writeTarget = currentWriteTarget
         return PresetBrowserSheetViewModel(
             read: { [engineController] in
                 engineController.presetReadout(for: trackID)
@@ -298,13 +297,18 @@ struct TrackDestinationEditor: View {
             load: { [engineController] descriptor in
                 try engineController.loadPreset(descriptor, for: trackID)
             },
-            commit: { stateBlob in
-                writeStateBlob(stateBlob, target: writeTarget)
+            commit: { [document] stateBlob in
+                // Re-resolve the write target at commit time rather than capturing it at
+                // sheet-construction time. Track selection or group membership may have
+                // changed while the browser was open; we must write to the current target.
+                let liveTarget = document.wrappedValue.project.destinationWriteTarget(for: trackID)
+                writeStateBlob(stateBlob, target: liveTarget)
             }
         )
     }
 
     private func writeStateBlob(_ stateBlob: Data?, target: Project.DestinationWriteTarget) {
+        // TODO(u6): route through SequencerDocumentSession once cutover lands
         switch target {
         case .track(let trackID):
             guard let trackIndex = document.project.tracks.firstIndex(where: { $0.id == trackID }),
@@ -356,6 +360,10 @@ struct TrackDestinationEditor: View {
         Binding(
             get: { currentAudioInstrumentChoice },
             set: {
+                // Close any open editor window for this track/group before swapping the
+                // component. Mirrors what clearDestination() does; prevents a stale window
+                // surviving the AU teardown.
+                AUWindowHost.shared.close(for: currentAUWindowKey)
                 document.project.setEditedDestination(
                     .auInstrument(componentID: $0.audioComponentID, stateBlob: nil),
                     for: track.id
@@ -493,6 +501,11 @@ struct TrackDestinationEditor: View {
     }
 
     private func recallRecentVoice(_ voice: RecentVoice) {
+        if case .auInstrument = voice.destination {
+            // Close any open editor window before swapping the AU component. Avoids a
+            // stale editor surviving the teardown of the current AU.
+            AUWindowHost.shared.close(for: currentAUWindowKey)
+        }
         document.project.setEditedDestination(voice.destination, for: track.id)
         engineController.apply(documentModel: document.project)
         if case .auInstrument = voice.destination {
