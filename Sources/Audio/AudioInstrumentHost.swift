@@ -308,6 +308,13 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 throw PresetLoadingError.presetNotFound
             }
 
+            // NOTE: some AUs apply presets asynchronously via parameter-tree notifications.
+            // Capturing state immediately after assignment may snapshot the prior state or
+            // a partially-applied snapshot on such AUs. A correct fix would wait for the
+            // parameter-tree change notification before calling captureState; that requires
+            // async coordination with the AU notification thread.
+            // TODO(u5): introduce a wait-for-parameter-tree-change here once the audio
+            // ownership pass (U5) establishes a safe notification subscription pattern.
             au.currentPreset = preset
             return try factory.captureState(instrument)
         }
@@ -526,7 +533,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
 
         return tree.allParameters
-            .filter { $0.flags.contains(.flag_IsWritable) || !$0.flags.contains(.flag_IsReadable) }
+            .filter { $0.flags.contains(.flag_IsWritable) }
             .map { param in
                 let ancestors = param.value(forKeyPath: "ancestors") as? [AUParameterGroup]
                 let group = ancestors?.map(\.displayName) ?? []
@@ -539,7 +546,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     defaultValue: Double(param.value),
                     unit: unitString(for: param.unit),
                     group: group,
-                    isWritable: true
+                    isWritable: param.flags.contains(.flag_IsWritable)
                 )
             }
     }
