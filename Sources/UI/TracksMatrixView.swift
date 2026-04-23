@@ -3,6 +3,7 @@ import SwiftUI
 struct TracksMatrixView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
+    @Environment(SequencerDocumentSession.self) private var session
     let onOpenTrack: () -> Void
 
     @State private var isPresentingCreateTrack = false
@@ -13,8 +14,8 @@ struct TracksMatrixView: View {
     ]
 
     private var groupedSections: [GroupedTrackSection] {
-        document.project.trackGroups.compactMap { group in
-            let members = document.project.tracksInGroup(group.id)
+        session.store.trackGroups.compactMap { group in
+            let members = session.store.tracksInGroup(group.id)
             guard !members.isEmpty else {
                 return nil
             }
@@ -23,10 +24,12 @@ struct TracksMatrixView: View {
     }
 
     private var ungroupedTracks: [StepSequenceTrack] {
-        document.project.tracks.filter { $0.groupID == nil }
+        session.store.tracks.filter { $0.groupID == nil }
     }
 
     var body: some View {
+        let tracks = session.store.tracks
+        let selectedTrackID = session.store.selectedTrackID
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
@@ -35,14 +38,14 @@ struct TracksMatrixView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     actionBar
 
-                    if document.project.tracks.isEmpty {
+                    if tracks.isEmpty {
                         StudioPlaceholderTile(
                             title: "No Tracks Yet",
                             detail: "Create a mono, poly, slice, or drum-kit bundle to start building the matrix.",
                             accent: StudioTheme.cyan
                         )
                     } else {
-                        matrixSections
+                        matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
                     }
                 }
             }
@@ -55,7 +58,7 @@ struct TracksMatrixView: View {
             AddDrumGroupSheet(
                 auInstruments: engineController.availableAudioInstruments,
                 onCreate: { plan in
-                    _ = document.project.addDrumGroup(plan: plan)
+                    _ = session.addDrumGroup(plan: plan)
                     isPresentingAddDrumGroup = false
                     onOpenTrack()
                 },
@@ -83,20 +86,20 @@ struct TracksMatrixView: View {
     private var createTrackButtons: some View {
         Group {
             Button("Add Mono") {
-                document.project.appendTrack(trackType: .monoMelodic)
+                session.appendTrack(trackType: .monoMelodic)
                 onOpenTrack()
             }
             .buttonStyle(.borderedProminent)
             .tint(StudioTheme.cyan)
 
             Button("Add Poly") {
-                document.project.appendTrack(trackType: .polyMelodic)
+                session.appendTrack(trackType: .polyMelodic)
                 onOpenTrack()
             }
             .buttonStyle(.bordered)
 
             Button("Add Slice") {
-                document.project.appendTrack(trackType: .slice)
+                session.appendTrack(trackType: .slice)
                 onOpenTrack()
             }
             .buttonStyle(.bordered)
@@ -108,32 +111,32 @@ struct TracksMatrixView: View {
         }
     }
 
-    private var matrixSections: some View {
+    private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if !ungroupedTracks.isEmpty {
-                tracksGrid(ungroupedTracks, group: nil)
+                tracksGrid(ungroupedTracks, group: nil, selectedTrackID: selectedTrackID)
             }
 
             ForEach(groupedSections) { section in
                 GroupSectionView(
                     section: section,
-                    grid: { tracksGrid(section.members, group: section.group) }
+                    grid: { tracksGrid(section.members, group: section.group, selectedTrackID: selectedTrackID) }
                 )
             }
         }
     }
 
     @ViewBuilder
-    private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?) -> some View {
+    private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?, selectedTrackID: UUID) -> some View {
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(tracks, id: \.id) { track in
                 TrackMatrixCard(
                     track: track,
                     group: group,
-                    patternIndex: document.project.selectedPatternIndex(for: track.id),
-                    isSelected: track.id == document.project.selectedTrackID
+                    patternIndex: session.store.selectedPatternIndex(for: track.id),
+                    isSelected: track.id == selectedTrackID
                 ) {
-                    document.project.selectTrack(id: track.id)
+                    session.setSelectedTrackID(track.id)
                     onOpenTrack()
                 }
             }
@@ -319,6 +322,7 @@ private struct TrackTypeBadge: View {
 
 private struct CreateTrackSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(SequencerDocumentSession.self) private var session
     @Binding var document: SeqAIDocument
     let onOpenTrack: () -> Void
 
@@ -345,7 +349,7 @@ private struct CreateTrackSheet: View {
 
     private func createButton(title: String, detail: String, type: TrackType, accent: Color) -> some View {
         Button {
-            document.project.appendTrack(trackType: type)
+            session.appendTrack(trackType: type)
             dismiss()
             onOpenTrack()
         } label: {

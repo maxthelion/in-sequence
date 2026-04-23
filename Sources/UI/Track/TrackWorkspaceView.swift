@@ -2,16 +2,17 @@ import SwiftUI
 
 struct TrackWorkspaceView: View {
     @Binding var document: SeqAIDocument
+    @Environment(SequencerDocumentSession.self) private var session
     @State private var editingTrackID: UUID?
     @State private var draftTrackName = ""
     @FocusState private var trackNameFieldFocused: Bool
 
     private var track: StepSequenceTrack {
-        document.project.selectedTrack
+        session.store.selectedTrack
     }
 
     private var outboundRouteCount: Int {
-        document.project.routesSourced(from: track.id).count
+        session.store.routesSourced(from: track.id).count
     }
 
     private var sourceAccent: Color {
@@ -105,17 +106,16 @@ struct TrackWorkspaceView: View {
     }
 
     private func commitTrackName() {
-        guard let editingTrackID,
-              let index = document.project.tracks.firstIndex(where: { $0.id == editingTrackID })
-        else {
-            self.editingTrackID = nil
+        guard let editingTrackID else {
             draftTrackName = ""
             return
         }
-
-        document.project.tracks[index].name = draftTrackName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? document.project.tracks[index].name
-            : draftTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = draftTrackName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            session.mutateTrack(id: editingTrackID) { track in
+                track.name = trimmed
+            }
+        }
         self.editingTrackID = nil
         draftTrackName = ""
     }

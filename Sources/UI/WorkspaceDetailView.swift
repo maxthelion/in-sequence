@@ -4,6 +4,7 @@ struct WorkspaceDetailView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
     @State private var liveLayerID = "pattern"
+    @Environment(SequencerDocumentSession.self) private var session
 
     var body: some View {
         ScrollView {
@@ -32,7 +33,7 @@ struct WorkspaceDetailView: View {
             TrackWorkspaceView(document: $document)
         case .mixer:
             MixerWorkspaceView(document: $document) { trackID in
-                document.project.selectTrack(id: trackID)
+                session.setSelectedTrackID(trackID)
                 section = .track
             }
         case .live:

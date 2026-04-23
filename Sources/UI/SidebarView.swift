@@ -3,24 +3,27 @@ import SwiftUI
 struct SidebarView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
+    @Environment(SequencerDocumentSession.self) private var session
 
     var body: some View {
+        let tracks = session.store.tracks
+        let selectedTrackID = session.store.selectedTrackID
         List {
             Section("Arrangement") {
                 globalRow(title: "Phrase", systemImage: "square.split.2x2", sectionValue: .phrase)
                 globalRow(title: "Tracks", systemImage: "square.grid.3x3", sectionValue: .tracks)
             }
             Section("Tracks") {
-                ForEach(document.project.tracks, id: \.id) { track in
+                ForEach(tracks, id: \.id) { track in
                     Button {
-                        document.project.selectTrack(id: track.id)
+                        session.setSelectedTrackID(track.id)
                         section = .track
                     } label: {
                         SidebarRow(
                             title: track.name,
-                            systemImage: track.id == document.project.selectedTrackID ? "pianokeys.inverse" : "pianokeys",
+                            systemImage: track.id == selectedTrackID ? "pianokeys.inverse" : "pianokeys",
                             trailingText: "\(track.stepPattern.filter { $0 }.count)",
-                            isSelected: track.id == document.project.selectedTrackID && section == .track
+                            isSelected: track.id == selectedTrackID && section == .track
                         )
                     }
                     .buttonStyle(.plain)
@@ -28,15 +31,15 @@ struct SidebarView: View {
 
                 HStack(spacing: 8) {
                     Button("Add Track") {
-                        document.project.appendTrack()
+                        session.appendTrack()
                     }
                     .buttonStyle(.borderedProminent)
 
                     Button("Remove") {
-                        document.project.removeSelectedTrack()
+                        session.removeSelectedTrack()
                     }
                     .buttonStyle(.bordered)
-                    .disabled(document.project.tracks.count <= 1)
+                    .disabled(tracks.count <= 1)
                 }
                 .padding(.top, 4)
             }
