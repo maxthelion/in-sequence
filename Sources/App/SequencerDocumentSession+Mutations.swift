@@ -25,8 +25,10 @@ extension SequencerDocumentSession {
             publishSnapshot()
         case .fullEngineApply:
             // apply(documentModel:) installs a fresh snapshot internally.
-            // Do NOT also call publishSnapshot() — that would compile twice.
+            // Also update the publisher so UI visualisers see the new state.
+            // We read currentPlaybackSnapshotForTesting to avoid a second compile call.
             engineController.apply(documentModel: store.exportToProject())
+            snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
         case .scopedRuntime(let update):
             dispatchScopedRuntimeUpdate(update)
             publishSnapshot()

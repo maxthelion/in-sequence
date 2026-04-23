@@ -26,6 +26,7 @@ final class SequencerDocumentSession {
 
     let store: LiveSequencerStore
     let engineController: EngineController
+    let snapshotPublisher: SessionSnapshotPublisher
     var revision: UInt64 = 0
 
     /// Debounce interval used for `scheduleFlushToDocument`.
@@ -44,7 +45,11 @@ final class SequencerDocumentSession {
             audioOutput: AudioInstrumentHost(),
             audioOutputFactory: { AudioInstrumentHost() }
         )
-        self.store = LiveSequencerStore(project: document.wrappedValue.project)
+        let initialStore = LiveSequencerStore(project: document.wrappedValue.project)
+        self.store = initialStore
+        self.snapshotPublisher = SessionSnapshotPublisher(
+            initial: SequencerSnapshotCompiler.compile(state: initialStore.compileInput())
+        )
         self.revision = store.revision
         SequencerDocumentSessionRegistry.register(self)
     }
@@ -60,7 +65,11 @@ final class SequencerDocumentSession {
         self.owningDocument = document.wrappedValue
         self.debounceInterval = debounceInterval
         self.engineController = engineController
-        self.store = LiveSequencerStore(project: document.wrappedValue.project)
+        let initialStore = LiveSequencerStore(project: document.wrappedValue.project)
+        self.store = initialStore
+        self.snapshotPublisher = SessionSnapshotPublisher(
+            initial: SequencerSnapshotCompiler.compile(state: initialStore.compileInput())
+        )
         self.revision = store.revision
         SequencerDocumentSessionRegistry.register(self)
     }
@@ -78,12 +87,17 @@ final class SequencerDocumentSession {
 
     func activate() {
         // apply(documentModel:) compiles and installs a fresh snapshot internally.
-        // Do NOT call publishSnapshot() after — that would double-compile (Phase 2e).
+        // We also update the publisher to the same compiled value so UI visualisers
+        // are in sync. We read currentPlaybackSnapshotForTesting to avoid a second
+        // compile call; the cost is one stateLock read on the main thread.
         engineController.apply(documentModel: store.exportToProject())
+        snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
     }
 
     func publishSnapshot() {
-        engineController.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(state: store.compileInput()))
+        let newSnapshot = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        engineController.apply(playbackSnapshot: newSnapshot)
+        snapshotPublisher.replace(newSnapshot)
         revision = store.revision
     }
 
@@ -129,8 +143,10 @@ final class SequencerDocumentSession {
         }
         revision = store.revision
         // apply(documentModel:) compiles and installs a fresh snapshot internally.
-        // Do NOT call publishSnapshot() after — that would double-compile (Phase 2e).
+        // We also update the publisher so UI visualisers see the new state immediately.
+        // We read currentPlaybackSnapshotForTesting to avoid a second compile call.
         engineController.apply(documentModel: store.exportToProject())
+        snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
     }
 
     /// Dispatch a scoped runtime update directly to the engine. This updates a single
