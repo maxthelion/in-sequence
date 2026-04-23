@@ -281,17 +281,11 @@ final class EngineController: RouterDispatcher {
             return
         }
 
-        let group = DispatchGroup()
         for host in hosts {
-            group.enter()
-            host.shutdown {
-                group.leave()
-            }
+            host.shutdown()
         }
 
-        group.notify(queue: .main) {
-            finish()
-        }
+        finish()
     }
 
     func setBPM(_ bpm: Double) {
