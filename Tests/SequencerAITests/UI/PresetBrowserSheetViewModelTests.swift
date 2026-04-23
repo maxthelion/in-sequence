@@ -24,7 +24,7 @@ final class PresetBrowserSheetViewModelTests: XCTestCase {
     func test_reload_populates_lists_and_current_id_from_readout() {
         let readout = PresetReadout(
             factory: [.factory(number: 0, name: "Init"), .factory(number: 3, name: "Analog Keys")],
-            user: [.user(name: "My Pad")],
+            user: [.user(number: -1, name: "My Pad")],
             currentID: "factory:3"
         )
         let viewModel = PresetBrowserSheetViewModel(
@@ -99,7 +99,7 @@ final class PresetBrowserSheetViewModelTests: XCTestCase {
     func test_filter_empty_string_returns_full_lists() {
         let readout = PresetReadout(
             factory: [.factory(number: 1, name: "A"), .factory(number: 2, name: "B")],
-            user: [.user(name: "C")],
+            user: [.user(number: -1, name: "C")],
             currentID: nil
         )
         let viewModel = PresetBrowserSheetViewModel(
@@ -117,7 +117,7 @@ final class PresetBrowserSheetViewModelTests: XCTestCase {
     func test_filter_applies_to_both_factory_and_user_sections() {
         let readout = PresetReadout(
             factory: [.factory(number: 1, name: "Analog Bass"), .factory(number: 2, name: "Pad")],
-            user: [.user(name: "Analog Setup"), .user(name: "Session")],
+            user: [.user(number: -1, name: "Analog Setup"), .user(number: -2, name: "Session")],
             currentID: nil
         )
         let viewModel = PresetBrowserSheetViewModel(

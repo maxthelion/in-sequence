@@ -4,12 +4,13 @@ import Foundation
 /// A host-side representation of a single AU preset, with a stable synthesized `id`.
 ///
 /// Factory preset ids are `"factory:\(number)"`.
-/// User preset ids are `"user:\(name)"`.
+/// User preset ids are `"user:\(number):\(name)"` — the negative AU preset number
+/// disambiguates presets that share the same display name.
 /// These strings are stable across readouts as long as the preset exists in the AU.
 struct AUPresetDescriptor: Equatable, Hashable, Sendable, Identifiable {
     let id: String
     let name: String
-    /// The underlying preset number. -1 for user presets (which are keyed by name).
+    /// The underlying preset number. Negative for user presets (AU convention).
     let number: Int
     let kind: Kind
 
@@ -27,11 +28,13 @@ struct AUPresetDescriptor: Equatable, Hashable, Sendable, Identifiable {
         )
     }
 
-    static func user(name: String) -> AUPresetDescriptor {
+    /// Creates a user-preset descriptor keyed by both `number` and `name` so that two
+    /// presets with the same display name (which AUs allow) produce distinct ids.
+    static func user(number: Int, name: String) -> AUPresetDescriptor {
         AUPresetDescriptor(
-            id: "user:\(name)",
+            id: "user:\(number):\(name)",
             name: name,
-            number: -1,
+            number: number,
             kind: .user
         )
     }
@@ -43,7 +46,7 @@ struct AUPresetDescriptor: Equatable, Hashable, Sendable, Identifiable {
         userPresets: [AUAudioUnitPreset]
     ) -> (factory: [AUPresetDescriptor], user: [AUPresetDescriptor]) {
         let factory = (factoryPresets ?? []).map { AUPresetDescriptor.factory(number: $0.number, name: $0.name) }
-        let user = userPresets.map { AUPresetDescriptor.user(name: $0.name) }
+        let user = userPresets.map { AUPresetDescriptor.user(number: $0.number, name: $0.name) }
         return (factory: factory, user: user)
     }
 
@@ -58,12 +61,13 @@ struct AUPresetDescriptor: Equatable, Hashable, Sendable, Identifiable {
         case .factory:
             return (factoryPresets ?? []).first { $0.number == descriptor.number }
         case .user:
-            return userPresets.first { $0.name == descriptor.name }
+            // Match by number (the AU's internal negative preset number) for disambiguation.
+            return userPresets.first { $0.number == descriptor.number }
         }
     }
 
     /// Synthesizes the id for the AU's `currentPreset`, matching the convention used
-    /// by `descriptors(...)`. Factory presets key by number, user presets by name.
+    /// by `descriptors(...)`. Factory presets key by number, user presets by number+name.
     /// Returns `nil` when no preset is currently loaded.
     static func id(forCurrent currentPreset: AUAudioUnitPreset?) -> String? {
         guard let preset = currentPreset else {
@@ -73,7 +77,7 @@ struct AUPresetDescriptor: Equatable, Hashable, Sendable, Identifiable {
         if preset.number >= 0 {
             return "factory:\(preset.number)"
         } else {
-            return "user:\(preset.name)"
+            return "user:\(preset.number):\(preset.name)"
         }
     }
 }

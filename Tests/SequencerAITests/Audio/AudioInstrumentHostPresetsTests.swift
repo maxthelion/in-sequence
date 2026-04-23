@@ -54,18 +54,19 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
         let result = AUPresetDescriptor.descriptors(factoryPresets: nil, userPresets: presets)
 
         XCTAssertEqual(result.user.count, 2)
-        XCTAssertEqual(result.user[0], .user(name: "My Pad"))
-        XCTAssertEqual(result.user[1], .user(name: "Session Bass"))
+        XCTAssertEqual(result.user[0], .user(number: -1, name: "My Pad"))
+        XCTAssertEqual(result.user[1], .user(number: -3, name: "Session Bass"))
         XCTAssertTrue(result.user.allSatisfy { $0.id.hasPrefix("user:") })
-        XCTAssertEqual(result.user[0].id, "user:My Pad")
+        XCTAssertEqual(result.user[0].id, "user:-1:My Pad")
     }
 
-    func test_descriptors_user_presets_have_number_minus_one_regardless_of_source() {
+    func test_descriptors_user_presets_preserve_au_preset_number() {
         let presets = [makePreset(number: -1, name: "X"), makePreset(number: -7, name: "Y")]
         let result = AUPresetDescriptor.descriptors(factoryPresets: nil, userPresets: presets)
 
-        XCTAssertTrue(result.user.allSatisfy { $0.number == -1 },
-                      "User descriptors key by name — number field should be -1 as a sentinel")
+        XCTAssertEqual(result.user[0].number, -1)
+        XCTAssertEqual(result.user[1].number, -7,
+                       "User descriptor number must reflect the AU's actual negative preset number for disambiguation")
     }
 
     // MARK: – Current id synthesis
@@ -79,9 +80,9 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
         XCTAssertEqual(AUPresetDescriptor.id(forCurrent: preset), "factory:7")
     }
 
-    func test_id_forCurrent_user_uses_name_convention() {
+    func test_id_forCurrent_user_uses_number_and_name_convention() {
         let preset = makePreset(number: -3, name: "My Pad")
-        XCTAssertEqual(AUPresetDescriptor.id(forCurrent: preset), "user:My Pad")
+        XCTAssertEqual(AUPresetDescriptor.id(forCurrent: preset), "user:-3:My Pad")
     }
 
     // MARK: – Resolve (pure)
@@ -110,27 +111,27 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
         XCTAssertNil(resolved, "Vanished factory number must not resolve")
     }
 
-    func test_resolve_user_returns_matching_preset_by_name() {
+    func test_resolve_user_returns_matching_preset_by_number() {
         let a = makePreset(number: -1, name: "My Pad")
         let b = makePreset(number: -2, name: "Session Bass")
 
         let resolved = AUPresetDescriptor.resolve(
-            .user(name: "Session Bass"),
+            .user(number: -2, name: "Session Bass"),
             factoryPresets: nil,
             userPresets: [a, b]
         )
         XCTAssertIdentical(resolved, b)
     }
 
-    func test_resolve_user_returns_nil_when_name_vanished() {
+    func test_resolve_user_returns_nil_when_number_vanished() {
         let a = makePreset(number: -1, name: "My Pad")
 
         let resolved = AUPresetDescriptor.resolve(
-            .user(name: "Deleted"),
+            .user(number: -99, name: "My Pad"),
             factoryPresets: nil,
             userPresets: [a]
         )
-        XCTAssertNil(resolved, "Vanished user preset must not resolve")
+        XCTAssertNil(resolved, "Vanished user preset number must not resolve")
     }
 
     func test_resolve_factory_with_nil_factoryPresets_returns_nil() {
@@ -159,7 +160,7 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
 
     func test_host_loadPreset_throws_presetNotFound_for_user_descriptor_when_no_AU_loaded() {
         let host = makeHost()
-        XCTAssertThrowsError(try host.loadPreset(.user(name: "My Pad"))) { error in
+        XCTAssertThrowsError(try host.loadPreset(.user(number: -1, name: "My Pad"))) { error in
             XCTAssertEqual(error as? PresetLoadingError, .presetNotFound)
         }
     }
