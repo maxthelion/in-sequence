@@ -7,6 +7,35 @@ enum LiveMutationImpact: Sendable {
     case documentOnly
 }
 
+// MARK: - LiveSequencerStoreState
+
+/// Lightweight aggregate of the store's resident fields, produced cheaply for
+/// snapshot compilation. All arrays and dictionaries are Swift value types and
+/// share copy-on-write storage with the store's resident fields until mutated.
+struct LiveSequencerStoreState {
+    let tracks: [StepSequenceTrack]
+    let generatorPool: [GeneratorPoolEntry]
+    let clipPool: [ClipPoolEntry]
+    let layers: [PhraseLayerDefinition]
+    let patternBanksByTrackID: [UUID: TrackPatternBank]
+    let phrasesByID: [UUID: PhraseModel]
+    let phraseOrder: [UUID]
+    let selectedPhraseID: UUID
+
+    /// A minimal empty state suitable for initialising `currentPlaybackSnapshot`
+    /// before any document is applied.
+    static let empty = LiveSequencerStoreState(
+        tracks: [],
+        generatorPool: [],
+        clipPool: [],
+        layers: [],
+        patternBanksByTrackID: [:],
+        phrasesByID: [:],
+        phraseOrder: [],
+        selectedPhraseID: UUID()
+    )
+}
+
 // MARK: - LiveSequencerStore
 
 /// Owns the live authored state of the open document.
@@ -98,12 +127,16 @@ final class LiveSequencerStore {
         revision &+= 1
     }
 
+    /// Test observer — fired at the start of every `exportToProject()` call.
+    /// Nil in production; set by test code to count or assert on invocations.
+    var exportToProjectObserver: (() -> Void)?
+
     /// Reconstruct a `Project` value from resident fields.
     ///
-    /// Called by session flush paths and by the snapshot compiler (Phase 1).
-    /// Phase 1b will replace this call in the snapshot compiler with a
-    /// compiled-buffer path.
+    /// Called by session flush paths only. `publishSnapshot()` uses `compileInput()`
+    /// instead (Phase 1b invariant).
     func exportToProject() -> Project {
+        exportToProjectObserver?()
         let orderedGenerators = storeGeneratorOrder.compactMap { storeGeneratorsByID[$0] }
         let orderedClips = storeClipOrder.compactMap { storeClipsByID[$0] }
         let orderedPhrases = storePhraseOrder.compactMap { storePhrasesByID[$0] }
@@ -287,5 +320,28 @@ final class LiveSequencerStore {
         }
         storeSelectedPhraseID = id
         revision &+= 1
+    }
+
+    // MARK: - Snapshot compile input
+
+    /// Produce a `LiveSequencerStoreState` for snapshot compilation.
+    ///
+    /// All fields are Swift value types whose storage is shared (copy-on-write)
+    /// with the store's resident dictionaries and arrays — no allocation overhead
+    /// unless the caller mutates them.
+    func compileInput() -> LiveSequencerStoreState {
+        let orderedGenerators = storeGeneratorOrder.compactMap { storeGeneratorsByID[$0] }
+        let orderedClips = storeClipOrder.compactMap { storeClipsByID[$0] }
+        let orderedPhrases = storePhraseOrder.compactMap { storePhrasesByID[$0] }
+        return LiveSequencerStoreState(
+            tracks: storeTracks,
+            generatorPool: orderedGenerators,
+            clipPool: orderedClips,
+            layers: storeLayers,
+            patternBanksByTrackID: storePatternBanksByTrackID,
+            phrasesByID: Dictionary(uniqueKeysWithValues: orderedPhrases.map { ($0.id, $0) }),
+            phraseOrder: storePhraseOrder,
+            selectedPhraseID: storeSelectedPhraseID
+        )
     }
 }

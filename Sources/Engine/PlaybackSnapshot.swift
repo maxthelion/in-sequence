@@ -8,11 +8,29 @@ struct ResolvedTrackPlaybackStep: Equatable, Sendable {
 }
 
 struct PlaybackSnapshot: Equatable, Sendable {
-    let project: Project
+    // NOTE: `project` has been removed. The tick path reads typed fields only.
+    // Phase 1b of the live-store v2 remediation.
+    let selectedPhraseID: UUID
+    let clipPool: [ClipPoolEntry]
+    let generatorPool: [GeneratorPoolEntry]
     let trackOrder: [UUID]
     let clipBuffersByID: [UUID: ClipBuffer]
     let trackProgramsByTrackID: [UUID: TrackSourceProgram]
     let phraseBuffersByID: [UUID: PhrasePlaybackBuffer]
+
+    // MARK: - O(1) lookup helpers
+
+    func clipEntry(id: UUID?) -> ClipPoolEntry? {
+        guard let id else { return nil }
+        return clipPool.first(where: { $0.id == id })
+    }
+
+    func generatorEntry(id: UUID?) -> GeneratorPoolEntry? {
+        guard let id else { return nil }
+        return generatorPool.first(where: { $0.id == id })
+    }
+
+    // MARK: - Buffer accessors
 
     func phraseBuffer(for phraseID: UUID) -> PhrasePlaybackBuffer? {
         phraseBuffersByID[phraseID]

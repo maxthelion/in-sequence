@@ -34,7 +34,6 @@ final class SequencerDocumentSession {
     }
 
     var project: Project {
-        // TODO(phase-1b): replace with resident-state compile input
         store.exportToProject()
     }
 
@@ -44,8 +43,7 @@ final class SequencerDocumentSession {
     }
 
     func publishSnapshot() {
-        // TODO(phase-1b): replace exportToProject() with resident-state compile input
-        engineController.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(project: store.exportToProject()))
+        engineController.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(state: store.compileInput()))
         revision = store.revision
     }
 

@@ -112,7 +112,7 @@ final class EngineController: RouterDispatcher {
 
     private var currentTrackMix = TrackMixSettings.default
     private var currentDocumentModel: Project = .empty
-    private var currentPlaybackSnapshot: PlaybackSnapshot = SequencerSnapshotCompiler.compile(project: .empty)
+    private var currentPlaybackSnapshot: PlaybackSnapshot = SequencerSnapshotCompiler.compile(state: .empty)
     private var generatorIDsByTrackID: [UUID: BlockID] = [:]
     private var midiOutBlocksByTrackID: [UUID: MidiOut] = [:]
     private var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
@@ -649,10 +649,10 @@ final class EngineController: RouterDispatcher {
         }
 
         let playbackSnapshot = currentPlaybackSnapshot
-        let phraseStepCount = playbackSnapshot.phraseBuffer(for: playbackSnapshot.project.selectedPhraseID)?.stepCount ?? 1
+        let phraseStepCount = playbackSnapshot.phraseBuffer(for: playbackSnapshot.selectedPhraseID)?.stepCount ?? 1
         let stepInPhrase = Int(upcomingStep % UInt64(max(1, phraseStepCount)))
         currentLayerSnapshot = playbackSnapshot.layerSnapshot(
-            phraseID: playbackSnapshot.project.selectedPhraseID,
+            phraseID: playbackSnapshot.selectedPhraseID,
             stepInPhrase: stepInPhrase
         )
 
@@ -673,7 +673,7 @@ final class EngineController: RouterDispatcher {
             let notes = Self.resolvedStepNotes(
                 for: track.id,
                 in: playbackSnapshot,
-                phraseID: playbackSnapshot.project.selectedPhraseID,
+                phraseID: playbackSnapshot.selectedPhraseID,
                 stepIndex: stepInPhrase,
                 chordContext: harmonicSidechainChord,
                 state: &state,
@@ -1241,7 +1241,8 @@ final class EngineController: RouterDispatcher {
         ]
     }
 
-    private static func resolvedStepNotes<R: RandomNumberGenerator>(
+    // `internal` (not private) so `@testable import` can exercise tick resolution from tests.
+    static func resolvedStepNotes<R: RandomNumberGenerator>(
         for trackID: UUID,
         in playbackSnapshot: PlaybackSnapshot,
         phraseID: UUID,
@@ -1262,18 +1263,18 @@ final class EngineController: RouterDispatcher {
 
         switch program.slotProgram(at: resolved.slotIndex) {
         case let .generator(generatorID, modifierGeneratorID, modifierBypassed):
-            guard let generator = playbackSnapshot.project.generatorEntry(id: generatorID) else {
+            guard let generator = playbackSnapshot.generatorEntry(id: generatorID) else {
                 return []
             }
             let sourceNotes = GeneratedSourceEvaluator.evaluateSourceStep(
                 for: generator.params,
                 stepIndex: stepIndex,
-                clipChoices: playbackSnapshot.project.clipPool,
+                clipChoices: playbackSnapshot.clipPool,
                 rng: &rng
             )
 
             guard !modifierBypassed,
-                  let processor = playbackSnapshot.project.generatorEntry(id: modifierGeneratorID)
+                  let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
                 return sourceNotes
             }
@@ -1282,14 +1283,14 @@ final class EngineController: RouterDispatcher {
                 sourceNotes,
                 through: processor.params,
                 stepIndex: stepIndex,
-                clipChoices: playbackSnapshot.project.clipPool,
+                clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,
                 rng: &rng
             )
 
         case let .clip(clipID, modifierGeneratorID, modifierBypassed):
-            guard let clip = playbackSnapshot.project.clipEntry(id: clipID) else {
+            guard let clip = playbackSnapshot.clipEntry(id: clipID) else {
                 return []
             }
 
@@ -1301,7 +1302,7 @@ final class EngineController: RouterDispatcher {
             )
 
             guard !modifierBypassed,
-                  let processor = playbackSnapshot.project.generatorEntry(id: modifierGeneratorID)
+                  let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
                 return sourceNotes
             }
@@ -1310,7 +1311,7 @@ final class EngineController: RouterDispatcher {
                 sourceNotes,
                 through: processor.params,
                 stepIndex: stepIndex,
-                clipChoices: playbackSnapshot.project.clipPool,
+                clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,
                 rng: &rng

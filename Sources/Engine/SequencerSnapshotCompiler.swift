@@ -1,20 +1,30 @@
 import Foundation
 
 enum SequencerSnapshotCompiler {
-    static func compile(project: Project) -> PlaybackSnapshot {
-        let trackOrder = project.tracks.map(\.id)
-        let clipBuffers = Dictionary(uniqueKeysWithValues: project.clipPool.map { clip in
-            (clip.id, compileClipBuffer(for: clip, project: project))
+
+    // MARK: - Primary compile path (Phase 1b+)
+
+    /// Compile a `PlaybackSnapshot` from resident store state.
+    ///
+    /// This is the primary path. `SequencerDocumentSession.publishSnapshot()` calls
+    /// this overload so that `exportToProject()` is NOT called on each mutation.
+    static func compile(state: LiveSequencerStoreState) -> PlaybackSnapshot {
+        let trackOrder = state.tracks.map(\.id)
+        let clipBuffers = Dictionary(uniqueKeysWithValues: state.clipPool.map { clip in
+            (clip.id, compileClipBuffer(for: clip, tracks: state.tracks))
         })
-        let trackPrograms = Dictionary(uniqueKeysWithValues: project.tracks.map { track in
-            (track.id, compileTrackSourceProgram(for: track, project: project))
+        let trackPrograms = Dictionary(uniqueKeysWithValues: state.tracks.map { track in
+            (track.id, compileTrackSourceProgram(for: track, patternBanksByTrackID: state.patternBanksByTrackID))
         })
-        let phraseBuffers = Dictionary(uniqueKeysWithValues: project.phrases.map { phrase in
-            (phrase.id, compilePhraseBuffer(for: phrase, project: project, trackPrograms: trackPrograms))
+        let phraseBuffers = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { id -> (UUID, PhrasePlaybackBuffer)? in
+            guard let phrase = state.phrasesByID[id] else { return nil }
+            return (phrase.id, compilePhraseBuffer(for: phrase, layers: state.layers, trackPrograms: trackPrograms, tracks: state.tracks))
         })
 
         return PlaybackSnapshot(
-            project: project,
+            selectedPhraseID: state.selectedPhraseID,
+            clipPool: state.clipPool,
+            generatorPool: state.generatorPool,
             trackOrder: trackOrder,
             clipBuffersByID: clipBuffers,
             trackProgramsByTrackID: trackPrograms,
@@ -22,9 +32,39 @@ enum SequencerSnapshotCompiler {
         )
     }
 
+    // MARK: - Transitional project-based path
+
+    /// Compile a `PlaybackSnapshot` from a `Project` value.
+    ///
+    /// Transitional helper retained for call sites that still work from a `Project`
+    /// (e.g. `EngineController.apply(documentModel:)` and test utilities that
+    /// construct snapshots directly from a fixture `Project`).
+    ///
+    /// Internally constructs a throwaway `LiveSequencerStoreState` and delegates
+    /// to `compile(state:)`.
+    ///
+    /// - TODO(phase-2): callers of apply(documentModel:) should bypass Project reconstruction
+    static func compile(project: Project) -> PlaybackSnapshot {
+        let banksByID = Dictionary(uniqueKeysWithValues: project.patternBanks.map { ($0.trackID, $0) })
+        let phrasesByID = Dictionary(uniqueKeysWithValues: project.phrases.map { ($0.id, $0) })
+        let state = LiveSequencerStoreState(
+            tracks: project.tracks,
+            generatorPool: project.generatorPool,
+            clipPool: project.clipPool,
+            layers: project.layers,
+            patternBanksByTrackID: banksByID,
+            phrasesByID: phrasesByID,
+            phraseOrder: project.phrases.map(\.id),
+            selectedPhraseID: project.selectedPhraseID
+        )
+        return compile(state: state)
+    }
+
+    // MARK: - Private compilation helpers
+
     private static func compileClipBuffer(
         for clip: ClipPoolEntry,
-        project: Project
+        tracks: [StepSequenceTrack]
     ) -> ClipBuffer {
         let normalized = clip.content.normalized
         let lengthSteps = normalized.stepCount
@@ -45,7 +85,7 @@ enum SequencerSnapshotCompiler {
             }
         }
 
-        let macroBindingOrder = project.tracks
+        let macroBindingOrder = tracks
             .first(where: { $0.trackType == clip.trackType })?
             .macros
             .map(\.id) ?? Array(clip.macroLanes.keys).sorted { $0.uuidString < $1.uuidString }
@@ -91,9 +131,9 @@ enum SequencerSnapshotCompiler {
 
     private static func compileTrackSourceProgram(
         for track: StepSequenceTrack,
-        project: Project
+        patternBanksByTrackID: [UUID: TrackPatternBank]
     ) -> TrackSourceProgram {
-        let bank = project.patternBank(for: track.id)
+        let bank = patternBanksByTrackID[track.id] ?? TrackPatternBank(trackID: track.id, slots: [])
         let slotPrograms = (0..<TrackPatternBank.slotCount).map { index -> SlotProgram in
             let slot = bank.slot(at: index)
             switch slot.sourceRef.mode {
@@ -130,18 +170,19 @@ enum SequencerSnapshotCompiler {
 
     private static func compilePhraseBuffer(
         for phrase: PhraseModel,
-        project: Project,
-        trackPrograms: [UUID: TrackSourceProgram]
+        layers: [PhraseLayerDefinition],
+        trackPrograms: [UUID: TrackSourceProgram],
+        tracks: [StepSequenceTrack]
     ) -> PhrasePlaybackBuffer {
         let stepCount = max(1, phrase.stepCount)
-        let patternLayer = project.layers.first(where: { $0.target == .patternIndex })
-        let muteLayer = project.layers.first(where: { $0.target == .mute })
-        let fillLayer = project.layers.first(where: { $0.target == .macroRow("fill-flag") })
+        let patternLayer = layers.first(where: { $0.target == .patternIndex })
+        let muteLayer = layers.first(where: { $0.target == .mute })
+        let fillLayer = layers.first(where: { $0.target == .macroRow("fill-flag") })
 
-        let trackStates: [UUID: TrackPhrasePlaybackBuffer] = Dictionary(uniqueKeysWithValues: project.tracks.map { track in
+        let trackStates: [UUID: TrackPhrasePlaybackBuffer] = Dictionary(uniqueKeysWithValues: tracks.map { track in
             let macroBindings = trackPrograms[track.id]?.macroBindingIDs ?? []
             let macroLayers: [UUID: PhraseLayerDefinition] = Dictionary(uniqueKeysWithValues: macroBindings.compactMap { bindingID in
-                guard let layer = project.layers.first(where: { layer in
+                guard let layer = layers.first(where: { layer in
                     guard case let .macroParam(trackID, candidateBindingID) = layer.target else {
                         return false
                     }
