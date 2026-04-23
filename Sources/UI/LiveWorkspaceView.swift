@@ -242,59 +242,49 @@ struct LiveWorkspaceView: View {
         switch cell {
         case .inheritDefault:
             let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
-            session.mutateProject {
-                $0.setPhraseCell(
-                    .single(cycleLiveValue(seedValue)),
-                    layerID: selectedLayer.id,
-                    trackIDs: trackIDs,
-                    phraseID: editingPhraseID
-                )
-            }
+            session.setPhraseCell(
+                .single(cycleLiveValue(seedValue)),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
         case let .single(value):
-            session.mutateProject {
-                $0.setPhraseCell(
-                    .single(cycleLiveValue(value)),
-                    layerID: selectedLayer.id,
-                    trackIDs: trackIDs,
-                    phraseID: editingPhraseID
-                )
-            }
+            session.setPhraseCell(
+                .single(cycleLiveValue(value)),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
         case let .bars(values):
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentBarIndexInPhrase, nextValues.count - 1)
             nextValues[index] = cycleLiveValue(nextValues[index])
-            session.mutateProject {
-                $0.setPhraseCell(
-                    .bars(nextValues),
-                    layerID: selectedLayer.id,
-                    trackIDs: trackIDs,
-                    phraseID: editingPhraseID
-                )
-            }
+            session.setPhraseCell(
+                .bars(nextValues),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
         case let .steps(values):
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentStepIndexInPhrase, nextValues.count - 1)
             nextValues[index] = cycleLiveValue(nextValues[index])
-            session.mutateProject {
-                $0.setPhraseCell(
-                    .steps(nextValues),
-                    layerID: selectedLayer.id,
-                    trackIDs: trackIDs,
-                    phraseID: editingPhraseID
-                )
-            }
+            session.setPhraseCell(
+                .steps(nextValues),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
         case .curve:
             let seedValue = editingPhrase.resolvedValue(for: selectedLayer, trackID: trackIDs.first ?? project.selectedTrackID, stepIndex: currentStepIndexInPhrase)
-            session.mutateProject {
-                $0.setPhraseCell(
-                    .single(cycleLiveValue(seedValue)),
-                    layerID: selectedLayer.id,
-                    trackIDs: trackIDs,
-                    phraseID: editingPhraseID
-                )
-            }
+            session.setPhraseCell(
+                .single(cycleLiveValue(seedValue)),
+                layerID: selectedLayer.id,
+                trackIDs: trackIDs,
+                phraseID: editingPhraseID
+            )
         }
     }
 

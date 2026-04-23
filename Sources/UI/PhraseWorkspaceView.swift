@@ -224,10 +224,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func handleSingleTap(on phraseID: UUID, trackID: UUID) {
-        session.mutateProject(impact: .snapshotOnly) { project in
-            project.selectPhrase(id: phraseID)
-            project.selectTrack(id: trackID)
-        }
+        session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
 
         if selectedLayer.valueType == .boolean {
             toggleBooleanCell(phraseID: phraseID, trackID: trackID)
@@ -235,10 +232,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func openCellEditor(phraseID: UUID, trackID: UUID) {
-        session.mutateProject(impact: .snapshotOnly) { project in
-            project.selectPhrase(id: phraseID)
-            project.selectTrack(id: trackID)
-        }
+        session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
         editingCellTarget = PhraseCellEditorTarget(
             phraseID: phraseID,
             trackID: trackID,
@@ -271,9 +265,7 @@ struct PhraseWorkspaceView: View {
                         Group {
                             if let track {
                                 Button {
-                                    session.mutateProject(impact: .snapshotOnly) {
-                                        $0.selectTrack(id: track.id)
-                                    }
+                                    session.setSelectedTrackID(track.id)
                                 } label: {
                                     PhraseMatrixTrackHeaderCell(
                                         track: track,
@@ -300,9 +292,7 @@ struct PhraseWorkspaceView: View {
                             isSelected: project.selectedPhraseID == phrase.id,
                             isPlaying: playbackPhraseIndex == index
                         ) {
-                            session.mutateProject(impact: .snapshotOnly) {
-                                $0.selectPhrase(id: phrase.id)
-                            }
+                            session.setSelectedPhraseID(phrase.id)
                         }
                         .frame(width: phraseColumnWidth)
 
@@ -340,19 +330,13 @@ struct PhraseWorkspaceView: View {
                         PhraseRowActions(
                             canRemove: phrases.count > 1,
                             onInsertBelow: {
-                                session.mutateProject(impact: .snapshotOnly) {
-                                    $0.insertPhrase(below: phrase.id)
-                                }
+                                session.insertPhrase(below: phrase.id)
                             },
                             onDuplicate: {
-                                session.mutateProject(impact: .snapshotOnly) {
-                                    $0.duplicatePhrase(id: phrase.id)
-                                }
+                                session.duplicatePhrase(id: phrase.id)
                             },
                             onRemove: {
-                                session.mutateProject(impact: .snapshotOnly) {
-                                    $0.removePhrase(id: phrase.id)
-                                }
+                                session.removePhrase(id: phrase.id)
                             }
                         )
                         .frame(width: actionColumnWidth)
@@ -370,22 +354,20 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        session.mutateProject {
-            $0.updatePhrase(id: phraseID) { phrase in
-                let currentCell = phrase.cell(for: selectedLayer.id, trackID: trackID)
-                let resolvedValue = phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
-                let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
+        session.mutatePhrase(id: phraseID) { phrase in
+            let currentCell = phrase.cell(for: selectedLayer.id, trackID: trackID)
+            let resolvedValue = phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
+            let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
 
-                switch currentCell {
-                case .inheritDefault, .curve:
-                    phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
-                case .single:
-                    phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
-                case let .bars(values):
-                    phrase.setCell(.bars(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
-                case let .steps(values):
-                    phrase.setCell(.steps(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
-                }
+            switch currentCell {
+            case .inheritDefault, .curve:
+                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
+            case .single:
+                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
+            case let .bars(values):
+                phrase.setCell(.bars(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
+            case let .steps(values):
+                phrase.setCell(.steps(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
             }
         }
     }
