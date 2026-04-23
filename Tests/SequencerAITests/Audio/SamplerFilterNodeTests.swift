@@ -2,6 +2,7 @@ import XCTest
 import AVFoundation
 @testable import SequencerAI
 
+@MainActor
 final class SamplerFilterNodeTests: XCTestCase {
 
     // MARK: - Helpers
@@ -69,19 +70,43 @@ final class SamplerFilterNodeTests: XCTestCase {
         return output
     }
 
+    private func renderWithoutFilter(input: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
+        let engine = AVAudioEngine()
+        let format = input.format
+        let player = AVAudioPlayerNode()
+        engine.attach(player)
+        engine.connect(player, to: engine.mainMixerNode, format: format)
+
+        try engine.enableManualRenderingMode(
+            .offline,
+            format: format,
+            maximumFrameCount: input.frameLength
+        )
+        try engine.start()
+        player.scheduleBuffer(input, completionHandler: nil)
+        player.play()
+
+        let output = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: input.frameLength)!
+        try engine.renderOffline(input.frameLength, to: output)
+        engine.stop()
+        return output
+    }
+
     // MARK: - Bypass transparency
 
     func test_defaultSettings_1kHzSinePassesThrough() throws {
         let filter = SamplerFilterNode()
         let input = sineBuffer(frequencyHz: 1_000, durationSec: 0.1)
+        let baseline = try renderWithoutFilter(input: input)
         let output = try renderThroughFilter(filter, input: input)
 
-        let inRMS = rms(input)
+        let inRMS = rms(baseline)
         let outRMS = rms(output)
         guard inRMS > 0 else { XCTFail("Input silence"); return }
 
         let deltaDb = rmsToDb(outRMS, vs: inRMS)
-        // Default LP at 20 kHz: 1 kHz is well within passband — ±0.5 dB
+        // Compare against the same offline-render path without a filter node so the
+        // assertion measures filter coloration rather than engine/render gain staging.
         XCTAssertLessThanOrEqual(abs(deltaDb), 0.5,
             "Default filter should pass 1 kHz within ±0.5 dB, got \(deltaDb) dB")
     }

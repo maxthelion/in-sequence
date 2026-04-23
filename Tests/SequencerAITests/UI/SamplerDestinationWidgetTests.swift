@@ -36,7 +36,7 @@ final class SamplerDestinationWidgetTests: XCTestCase {
             applyFilterCalls += 1
             lastApplyFilterTrackID = trackID
         }
-        func filterNode(for trackID: UUID) -> SamplerFilterNode? { nil }
+        func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? { nil }
     }
 
     func test_library_nextSample_cyclesWithinCategory() {
@@ -96,4 +96,3 @@ final class SamplerDestinationWidgetTests: XCTestCase {
         XCTAssertEqual(spy.lastApplyFilterTrackID, trackID)
     }
 }
-

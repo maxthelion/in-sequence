@@ -121,17 +121,17 @@ final class ProjectTrackSamplerFilterMacrosTests: XCTestCase {
         // Get the cutoff binding id.
         let cutoffID = TrackMacroDescriptor.builtinID(trackID: trackID, kind: .samplerFilterCutoff)
 
-        // Write a macro lane on the first clip keyed to the cutoff binding.
-        guard !project.clipPool.isEmpty else {
-            XCTFail("No clips in pool")
+        guard let clipID = project.ensureClipForCurrentPattern(trackID: trackID),
+              let clipIndex = project.clipPool.firstIndex(where: { $0.id == clipID }) else {
+            XCTFail("Failed to seed a clip for the selected pattern")
             return
         }
-        project.clipPool[0].macroLanes[cutoffID] = MacroLane(values: [0.5, nil, 0.9])
+        project.clipPool[clipIndex].macroLanes[cutoffID] = MacroLane(values: [0.5, nil, 0.9])
 
         // Swap to .internalSampler — the binding id is the same, lane must survive.
         project.setDestinationWithMacros(.internalSampler(bankID: .drumKitDefault, preset: "p"), for: trackID)
 
-        XCTAssertNotNil(project.clipPool[0].macroLanes[cutoffID],
+        XCTAssertNotNil(project.clipPool[clipIndex].macroLanes[cutoffID],
             "Clip macro lane keyed to filter cutoff binding should survive .sample → .internalSampler swap")
     }
 

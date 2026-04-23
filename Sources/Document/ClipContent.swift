@@ -67,12 +67,10 @@ enum ClipContent: Equatable, Hashable, Sendable {
     /// Number of steps in the clip — used to size macro lane values arrays.
     var stepCount: Int {
         switch self {
-        case let .stepSequence(stepPattern, _):
-            return stepPattern.count
-        case let .pianoRoll(lengthBars, stepsPerBar, _):
-            return max(1, lengthBars) * max(1, stepsPerBar)
+        case let .noteGrid(lengthSteps, _):
+            return max(1, lengthSteps)
         case let .sliceTriggers(stepPattern, _):
-            return stepPattern.count
+            return max(1, stepPattern.count)
         }
     }
 }

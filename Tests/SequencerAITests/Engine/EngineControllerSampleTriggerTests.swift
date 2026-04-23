@@ -23,7 +23,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         func stopAudition() {}
         func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {}
         func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {}
-        func filterNode(for trackID: UUID) -> SamplerFilterNode? { nil }
+        func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? { nil }
     }
 
     private var libraryRoot: URL!

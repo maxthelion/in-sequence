@@ -26,7 +26,7 @@ final class CapturingSampleSink: SamplePlaybackSink {
         voiceParamCalls.append(VoiceParamCall(trackID: trackID, kind: kind, value: value))
     }
     func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {}
-    func filterNode(for trackID: UUID) -> SamplerFilterNode? { nil }
+    func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? { nil }
 }
 
 // MARK: - TrackMacroApplierTests

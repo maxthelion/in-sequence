@@ -2,14 +2,9 @@ import AVFoundation
 import XCTest
 @testable import SequencerAI
 
-// MARK: - Spy filter node
+// MARK: - Spy filter controller
 
-/// A `SamplerFilterNode` subclass that records setter calls.
-///
-/// We can't mock `SamplerFilterNode` directly since it's a final class, so this
-/// spy wraps a `CapturingFilterSink` (a simple call-recorder) rather than
-/// inheriting — the applier calls via `SamplePlaybackSink.filterNode(for:)`,
-/// so we inject the spy through a custom sink.
+/// A `SamplePlaybackSink` test double that records per-step filter macro dispatch.
 private final class CapturingFilterSink: SamplePlaybackSink {
 
     // MARK: - Filter call records
@@ -26,46 +21,46 @@ private final class CapturingFilterSink: SamplePlaybackSink {
     private(set) var typeCalls: [SetTypeCall] = []
     private(set) var polesCalls: [SetPolesCall] = []
 
-    // MARK: - Spy filter node (records calls)
+    // MARK: - Spy filter controller (records calls)
 
-    /// A per-track spy node that writes back to this sink's call arrays.
-    private final class SpyFilterNode: SamplerFilterNode {
+    /// A per-track spy controller that writes back to this sink's call arrays.
+    private final class SpyFilterController: SamplerFilterControlling {
         unowned let owner: CapturingFilterSink
         let trackID: UUID
 
         init(owner: CapturingFilterSink, trackID: UUID) {
             self.owner = owner
             self.trackID = trackID
-            super.init()
         }
 
-        override func setCutoff(hz: Double) {
+        func apply(_ settings: SamplerFilterSettings) {}
+
+        func setCutoff(hz: Double) {
             owner.cutoffCalls.append(.init(trackID: trackID, hz: hz))
-            super.setCutoff(hz: hz)
         }
-        override func setResonance(_ n: Double) {
+
+        func setResonance(_ n: Double) {
             owner.resoCalls.append(.init(trackID: trackID, value: n))
-            super.setResonance(n)
         }
-        override func setDrive(_ n: Double) {
+
+        func setDrive(_ n: Double) {
             owner.driveCalls.append(.init(trackID: trackID, value: n))
-            super.setDrive(n)
         }
-        override func setType(_ type: SamplerFilterType) {
+
+        func setType(_ type: SamplerFilterType) {
             owner.typeCalls.append(.init(trackID: trackID, type: type))
-            super.setType(type)
         }
-        override func setPoles(_ poles: SamplerFilterPoles) {
+
+        func setPoles(_ poles: SamplerFilterPoles) {
             owner.polesCalls.append(.init(trackID: trackID, poles: poles))
-            super.setPoles(poles)
         }
     }
 
-    private var filterNodes: [UUID: SamplerFilterNode] = [:]
+    private var filterNodes: [UUID: any SamplerFilterControlling] = [:]
 
-    func getOrMakeFilter(trackID: UUID) -> SamplerFilterNode {
+    func getOrMakeFilter(trackID: UUID) -> any SamplerFilterControlling {
         if let existing = filterNodes[trackID] { return existing }
-        let node = SpyFilterNode(owner: self, trackID: trackID)
+        let node = SpyFilterController(owner: self, trackID: trackID)
         filterNodes[trackID] = node
         return node
     }
@@ -85,7 +80,7 @@ private final class CapturingFilterSink: SamplePlaybackSink {
         voiceParamCalls.append((trackID, kind, value))
     }
     func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {}
-    func filterNode(for trackID: UUID) -> SamplerFilterNode? {
+    func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? {
         filterNodes[trackID]
     }
 }

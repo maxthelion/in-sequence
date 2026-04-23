@@ -32,7 +32,7 @@ protocol SamplePlaybackSink: AnyObject {
 
     /// Returns the filter node for a track, or nil if the track is unknown.
     /// Used by `TrackMacroApplier` for fine-grained per-step macro dispatch.
-    func filterNode(for trackID: UUID) -> SamplerFilterNode?
+    func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)?
 }
 
 /// Hosts an AVAudioEngine with per-track `AVAudioMixerNode`s. Voices are
@@ -197,7 +197,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// Returns the filter node for the given track, or nil if it doesn't exist.
     ///
     /// Used by `TrackMacroApplier` to dispatch per-step filter macro values.
-    func filterNode(for trackID: UUID) -> SamplerFilterNode? {
+    func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? {
         trackFilters[trackID]
     }
 
