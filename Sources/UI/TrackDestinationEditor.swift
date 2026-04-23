@@ -290,6 +290,9 @@ struct TrackDestinationEditor: View {
 
     private func makePresetBrowserViewModel() -> PresetBrowserSheetViewModel {
         let trackID = track.id
+        // Capture the Binding's projectedValue box so the commit closure reads the
+        // live document state rather than a value snapshot taken at sheet-construction time.
+        let documentBinding = $document
         return PresetBrowserSheetViewModel(
             read: { [engineController] in
                 engineController.presetReadout(for: trackID)
@@ -297,11 +300,11 @@ struct TrackDestinationEditor: View {
             load: { [engineController] descriptor in
                 try engineController.loadPreset(descriptor, for: trackID)
             },
-            commit: { [document] stateBlob in
+            commit: { stateBlob in
                 // Re-resolve the write target at commit time rather than capturing it at
                 // sheet-construction time. Track selection or group membership may have
                 // changed while the browser was open; we must write to the current target.
-                let liveTarget = document.wrappedValue.project.destinationWriteTarget(for: trackID)
+                let liveTarget = documentBinding.wrappedValue.project.destinationWriteTarget(for: trackID)
                 writeStateBlob(stateBlob, target: liveTarget)
             }
         )
