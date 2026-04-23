@@ -146,12 +146,20 @@ final class LiveSequencerStore {
     /// Nil in production; set by test code to count or assert on invocations.
     var exportToProjectObserver: (() -> Void)?
 
+    /// Monotonically increasing counter of `exportToProject()` invocations.
+    ///
+    /// Read this in tests via `assertNoExportDuring(_:_:)` to verify that a
+    /// code path does not perform a full project export. Production code should
+    /// never read this counter.
+    private(set) var exportToProjectCallCount: Int = 0
+
     /// Reconstruct a `Project` value from resident fields.
     ///
     /// Called by session flush paths only. `publishSnapshot()` uses `compileInput()`
     /// instead (Phase 1b invariant).
     func exportToProject() -> Project {
         exportToProjectObserver?()
+        exportToProjectCallCount += 1
         let orderedGenerators = storeGeneratorOrder.compactMap { storeGeneratorsByID[$0] }
         let orderedClips = storeClipOrder.compactMap { storeClipsByID[$0] }
         let orderedPhrases = storePhraseOrder.compactMap { storePhrasesByID[$0] }
@@ -386,6 +394,34 @@ final class LiveSequencerStore {
         }
         storeTrackGroups = groups
         revision &+= 1
+    }
+
+    // MARK: - Snapshot compile input
+
+    // MARK: - Internal read accessors (used by LiveSequencerStore+Accessors)
+    //
+    // The resident fields are private to prevent external mutation. These
+    // internal computed properties expose the values needed by the accessor
+    // extension without widening write access.
+
+    var tracks: [StepSequenceTrack] { storeTracks }
+    var trackGroups: [TrackGroup] { storeTrackGroups }
+    var layers: [PhraseLayerDefinition] { storeLayers }
+    var routes: [Route] { storeRoutes }
+    var selectedTrackID: UUID { storeSelectedTrackID }
+    var selectedPhraseID: UUID { storeSelectedPhraseID }
+    var patternBanksByTrackID: [UUID: TrackPatternBank] { storePatternBanksByTrackID }
+
+    var generatorPool: [GeneratorPoolEntry] {
+        storeGeneratorOrder.compactMap { storeGeneratorsByID[$0] }
+    }
+
+    var clipPool: [ClipPoolEntry] {
+        storeClipOrder.compactMap { storeClipsByID[$0] }
+    }
+
+    var phrases: [PhraseModel] {
+        storePhraseOrder.compactMap { storePhrasesByID[$0] }
     }
 
     // MARK: - Snapshot compile input
