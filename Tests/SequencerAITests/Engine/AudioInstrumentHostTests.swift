@@ -3,6 +3,80 @@ import XCTest
 @testable import SequencerAI
 
 final class AudioInstrumentHostTests: XCTestCase {
+    func test_parameterDescriptors_walks_group_tree_without_kvc() {
+        let cutoff = AUParameterTree.createParameter(
+            withIdentifier: "cutoff",
+            name: "Cutoff",
+            address: 1,
+            min: 20,
+            max: 20_000,
+            unit: .hertz,
+            unitName: nil,
+            flags: [.flag_IsWritable],
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        cutoff.value = 880
+
+        let readOnly = AUParameterTree.createParameter(
+            withIdentifier: "meter",
+            name: "Meter",
+            address: 2,
+            min: 0,
+            max: 1,
+            unit: .generic,
+            unitName: nil,
+            flags: [],
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+
+        let envelope = AUParameterTree.createParameter(
+            withIdentifier: "attack",
+            name: "Attack",
+            address: 3,
+            min: 0,
+            max: 5,
+            unit: .seconds,
+            unitName: nil,
+            flags: [.flag_IsWritable],
+            valueStrings: nil,
+            dependentParameters: nil
+        )
+        envelope.value = 0.25
+
+        let filterGroup = AUParameterTree.createGroup(
+            withIdentifier: "filter",
+            name: "Filter",
+            children: [cutoff, readOnly]
+        )
+        let ampGroup = AUParameterTree.createGroup(
+            withIdentifier: "amp",
+            name: "Amp",
+            children: [envelope]
+        )
+        let synthGroup = AUParameterTree.createGroup(
+            withIdentifier: "synth",
+            name: "Synth",
+            children: [filterGroup, ampGroup]
+        )
+        let tree = AUParameterTree.createTree(withChildren: [synthGroup])
+
+        let descriptors = AudioInstrumentHost.parameterDescriptors(from: tree)
+
+        XCTAssertEqual(descriptors.count, 2)
+        XCTAssertEqual(
+            descriptors.map(\.identifier),
+            ["cutoff", "attack"]
+        )
+        XCTAssertEqual(descriptors[0].group, ["Synth", "Filter"])
+        XCTAssertEqual(descriptors[0].unit, "Hz")
+        XCTAssertEqual(descriptors[0].defaultValue, 880)
+        XCTAssertEqual(descriptors[1].group, ["Synth", "Amp"])
+        XCTAssertEqual(descriptors[1].unit, "s")
+        XCTAssertEqual(descriptors[1].defaultValue, 0.25, accuracy: 0.0001)
+    }
+
     @MainActor
     func test_stale_async_instrument_completion_is_ignored() throws {
         throw XCTSkip("AVAudioUnitMIDIInstrument lifecycle is unstable under xcodebuild's macOS test host; destination/window/controller coverage exercises the supported path.")

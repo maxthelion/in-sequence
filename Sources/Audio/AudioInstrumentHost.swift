@@ -532,12 +532,32 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return nil
         }
 
-        return tree.allParameters
-            .filter { $0.flags.contains(.flag_IsWritable) }
-            .map { param in
-                let ancestors = param.value(forKeyPath: "ancestors") as? [AUParameterGroup]
-                let group = ancestors?.map(\.displayName) ?? []
-                return AUParameterDescriptor(
+        return Self.parameterDescriptors(from: tree)
+    }
+
+    static func parameterDescriptors(from tree: AUParameterTree) -> [AUParameterDescriptor] {
+        descriptors(from: tree.children, ancestorNames: [])
+    }
+
+    private static func descriptors(
+        from nodes: [AUParameterNode],
+        ancestorNames: [String]
+    ) -> [AUParameterDescriptor] {
+        nodes.flatMap { node -> [AUParameterDescriptor] in
+            if let group = node as? AUParameterGroup {
+                var nextAncestors = ancestorNames
+                nextAncestors.append(group.displayName)
+                return descriptors(from: group.children, ancestorNames: nextAncestors)
+            }
+
+            guard let param = node as? AUParameter,
+                  param.flags.contains(.flag_IsWritable)
+            else {
+                return []
+            }
+
+            return [
+                AUParameterDescriptor(
                     address: param.address,
                     identifier: param.identifier,
                     displayName: param.displayName,
@@ -545,13 +565,14 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     maxValue: Double(param.maxValue),
                     defaultValue: Double(param.value),
                     unit: unitString(for: param.unit),
-                    group: group,
-                    isWritable: param.flags.contains(.flag_IsWritable)
+                    group: ancestorNames,
+                    isWritable: true
                 )
-            }
+            ]
+        }
     }
 
-    private func unitString(for unit: AudioUnitParameterUnit) -> String? {
+    private static func unitString(for unit: AudioUnitParameterUnit) -> String? {
         switch unit {
         case .hertz: return "Hz"
         case .decibels: return "dB"
