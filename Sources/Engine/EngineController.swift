@@ -323,8 +323,9 @@ final class EngineController: RouterDispatcher {
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
-        currentPlaybackSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
+        let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
         withStateLock {
+            currentPlaybackSnapshot = compiledSnapshot
             let trackIDs = Set(documentModel.tracks.map(\.id))
             rollingCaptureBuffersByTrackID = rollingCaptureBuffersByTrackID.filter { trackIDs.contains($0.key) }
             preparedTickIndex = nil
@@ -333,8 +334,8 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(playbackSnapshot: PlaybackSnapshot) {
-        currentPlaybackSnapshot = playbackSnapshot
         withStateLock {
+            currentPlaybackSnapshot = playbackSnapshot
             preparedTickIndex = nil
             generatedEvaluationStatesByTrackID = [:]
         }
@@ -344,7 +345,7 @@ final class EngineController: RouterDispatcher {
     /// Exposes the current playback snapshot for test assertions.
     /// Do not use in production code — read the published observable state instead.
     var currentPlaybackSnapshotForTesting: PlaybackSnapshot {
-        currentPlaybackSnapshot
+        withStateLock { currentPlaybackSnapshot }
     }
 
     /// Counter for test observation of `apply(documentModel:)` invocations.
@@ -667,7 +668,7 @@ final class EngineController: RouterDispatcher {
     }
 
     private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
-        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts, rollingCaptureBuffers) = withStateLock {
+        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts, rollingCaptureBuffers, playbackSnapshot) = withStateLock {
             (
                 self.executor,
                 self.audioTrackRuntimes,
@@ -676,7 +677,8 @@ final class EngineController: RouterDispatcher {
                 self.currentDocumentModel,
                 self.generatedEvaluationStatesByTrackID,
                 self.chordContextByLane,
-                self.rollingCaptureBuffersByTrackID
+                self.rollingCaptureBuffersByTrackID,
+                self.currentPlaybackSnapshot
             )
         }
 
@@ -684,8 +686,6 @@ final class EngineController: RouterDispatcher {
         guard let executor else {
             return
         }
-
-        let playbackSnapshot = currentPlaybackSnapshot
         let phraseStepCount = playbackSnapshot.phraseBuffer(for: playbackSnapshot.selectedPhraseID)?.stepCount ?? 1
         let stepInPhrase = Int(upcomingStep % UInt64(max(1, phraseStepCount)))
         currentLayerSnapshot = playbackSnapshot.layerSnapshot(
