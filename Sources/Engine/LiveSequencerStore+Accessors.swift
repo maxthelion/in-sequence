@@ -33,6 +33,10 @@ extension LiveSequencerStore {
     /// Matches `Project.selectedPhrase`: returns the phrase whose `id ==
     /// selectedPhraseID`, falling back to `PhraseModel.default(...)` when
     /// the phrase list is empty.
+    ///
+    /// Observation note: reads `phrases`, which iterates `storePhraseOrder` and
+    /// `storePhrasesByID`. Any phrase mutation invalidates all `selectedPhrase`
+    /// observers due to dict-level @Observable tracking (see ObservationGranularityTests).
     var selectedPhrase: PhraseModel {
         let orderedPhrases = phrases
         guard !orderedPhrases.isEmpty else {
@@ -60,6 +64,12 @@ extension LiveSequencerStore {
     /// default if no bank is stored for that track.
     ///
     /// Matches `Project.patternBank(for:)`.
+    ///
+    /// Observation note: reads `patternBanksByTrackID`, which exposes
+    /// `storePatternBanksByTrackID` directly. Reading `dict[trackID]` registers a
+    /// dependency on the WHOLE dict property under @Observable — not just on
+    /// the individual key. Any pattern-bank mutation (for any track) will
+    /// invalidate this observer. Per-key narrowing requires per-track wrappers.
     func patternBank(for trackID: UUID) -> TrackPatternBank {
         if let existing = patternBanksByTrackID[trackID] {
             return existing
@@ -99,6 +109,13 @@ extension LiveSequencerStore {
     /// Returns the clip pool entry with the given ID, or `nil`.
     ///
     /// Matches `Project.clipEntry(id:)`.
+    ///
+    /// Observation note: this accessor calls `clipPool`, which reads `storeClipOrder`
+    /// and `storeClipsByID` (the whole dict). Swift's @Observable macro registers a
+    /// dependency on the entire `storeClipsByID` property, NOT on the individual key.
+    /// Any clip mutation (to any clip ID) will invalidate an observer that reads via
+    /// this accessor. Per-key isolation would require individual @Observable wrappers
+    /// per clip entry. See ObservationGranularityTests.swift for the test ceiling.
     func clipEntry(id: UUID?) -> ClipPoolEntry? {
         guard let id else { return nil }
         return clipPool.first(where: { $0.id == id })
@@ -107,6 +124,10 @@ extension LiveSequencerStore {
     /// Returns the generator pool entry with the given ID, or `nil`.
     ///
     /// Matches `Project.generatorEntry(id:)`.
+    ///
+    /// Observation note: reads `generatorPool`, which reads `storeGeneratorOrder`
+    /// and `storeGeneratorsByID` (the whole dict). Same dict-level ceiling as
+    /// `clipEntry(id:)` — any generator mutation invalidates all generator observers.
     func generatorEntry(id: UUID?) -> GeneratorPoolEntry? {
         guard let id else { return nil }
         return generatorPool.first(where: { $0.id == id })

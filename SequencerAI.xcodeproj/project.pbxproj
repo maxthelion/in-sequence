@@ -130,6 +130,7 @@
 		6CC8F8D7C3A0D1060FEFE0C0 /* PhraseWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6685502B2713380D3804AD6 /* PhraseWorkspaceView.swift */; };
 		6D6469477940F080168A93CD /* AUAudioUnitFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A9B06103BC536482F2F540 /* AUAudioUnitFactory.swift */; };
 		6F6F86BF92A2F0E984201AEE /* ProjectAttachNewGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6CC65391D8DDD5FD5350FE3 /* ProjectAttachNewGeneratorTests.swift */; };
+		6F7F8106530D3057916778DC /* ObservationGranularityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */; };
 		710B658B41C2704648725560 /* SeqAIDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726A0B95E8C4D84800FC746D /* SeqAIDocument.swift */; };
 		7172728D93032EB72D29F5A2 /* ProjectTrackSourceCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F543D56755354B49E674E3 /* ProjectTrackSourceCatalogTests.swift */; };
 		71D34A433D642FD790045F20 /* TrackType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D4E7BE16D3143128BEE06B /* TrackType.swift */; };
@@ -213,6 +214,7 @@
 		AF8E5E1D0D07C58421C6886C /* SamplerSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AAFEACE9EB181127A5EA6C7 /* SamplerSettingsTests.swift */; };
 		AF95D97356EC08944A6CC365 /* TrackMacroApplierSamplerFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C67B15F23EBA2CBED422CF85 /* TrackMacroApplierSamplerFilterTests.swift */; };
 		AFC19BBB90A6238AA8CD7416 /* PresetBrowserSheetViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */; };
+		AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766C257A66BCD3812FAC00F4 /* StepGridTapLatencyTests.swift */; };
 		AFEC910ED207BA5E8F1AADA9 /* Project+TrackMacros.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773F90C630CF113A01EEBE27 /* Project+TrackMacros.swift */; };
 		B04D33E65E6D0FF3E2FBD89E /* SamplerFilterSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47991C72ED92062FA4C7B60 /* SamplerFilterSettings.swift */; };
 		B09365E9EF3326B7CEA39839 /* GeneratorDisplaySupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D96304AF6465BA172C1C420 /* GeneratorDisplaySupport.swift */; };
@@ -323,6 +325,7 @@
 		02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetBrowserSheetViewModelTests.swift; sourceTree = "<group>"; };
 		0323634862A85A4F878E6C2F /* SamplerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplerSettings.swift; sourceTree = "<group>"; };
 		04C1FDAAD0E676E3CF660AB3 /* Chords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chords.swift; sourceTree = "<group>"; };
+		05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservationGranularityTests.swift; sourceTree = "<group>"; };
 		063A15482083403AC419AF60 /* LiveSequencerStoreResidentStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSequencerStoreResidentStateTests.swift; sourceTree = "<group>"; };
 		06E46194FEA5AACB3D0FAE57 /* EventQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueueTests.swift; sourceTree = "<group>"; };
 		07412D3EE3BCFAC6322F2DC4 /* TrackMacroDescriptorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMacroDescriptorTests.swift; sourceTree = "<group>"; };
@@ -486,6 +489,7 @@
 		75DAD048D87C91A31B16CB56 /* ChordContextSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordContextSink.swift; sourceTree = "<group>"; };
 		75F1B9438D3C4A8D8774FEBB /* ClipMacroLaneEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipMacroLaneEditor.swift; sourceTree = "<group>"; };
 		76433D2C6DC54CAED27B9AD0 /* GeneratorParams.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorParams.swift; sourceTree = "<group>"; };
+		766C257A66BCD3812FAC00F4 /* StepGridTapLatencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridTapLatencyTests.swift; sourceTree = "<group>"; };
 		77186E060CE9B90606D1C50B /* 2026-04-21-add-drum-group-modal-design.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-add-drum-group-modal-design.md"; sourceTree = "<group>"; };
 		773F90C630CF113A01EEBE27 /* Project+TrackMacros.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+TrackMacros.swift"; sourceTree = "<group>"; };
 		778D655EFC1633FC7D0F5AD2 /* StreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamTests.swift; sourceTree = "<group>"; };
@@ -1049,6 +1053,7 @@
 				BE8E0FEA59B4DAB2644C7E2D /* Engine */,
 				3364F6B8D06BDEEA198B5BF4 /* MIDI */,
 				C65036B64E4103BE7C83063D /* Musical */,
+				AF64109CCA28F22B343D3BE2 /* Performance */,
 				0D08BA27D8873A34D5E9155E /* Platform */,
 				68277B74A4107D8DEC194E00 /* TrackSource */,
 				714C777E98D64A438740C84D /* UI */,
@@ -1146,6 +1151,7 @@
 			children = (
 				A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */,
 				F30664B65174D4DBC1A81EB5 /* MacroPickerCandidateRankerTests.swift */,
+				05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */,
 				02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */,
 				1624C29AA598742CFB6E4069 /* SamplerDestinationWidgetTests.swift */,
 				BF8772C8554BBCE9F9C6026A /* StudioTypographyTests.swift */,
@@ -1231,6 +1237,14 @@
 				2AE2A4D45BC0ADF85528C03E /* StepAlgoEditor.swift */,
 			);
 			path = Generator;
+			sourceTree = "<group>";
+		};
+		AF64109CCA28F22B343D3BE2 /* Performance */ = {
+			isa = PBXGroup;
+			children = (
+				766C257A66BCD3812FAC00F4 /* StepGridTapLatencyTests.swift */,
+			);
+			path = Performance;
 			sourceTree = "<group>";
 		};
 		BA68D360208C600F2A28473E /* Resources */ = {
@@ -1610,6 +1624,7 @@
 				DF2370F27D9694B3498A6827 /* MultiDocumentEngineIsolationTests.swift in Sources */,
 				EAB9DB8C0E7335280D7DBE98 /* NoteGeneratorTests.swift in Sources */,
 				BC581555FCF5B189869CB53E /* NoteShapeTests.swift in Sources */,
+				6F7F8106530D3057916778DC /* ObservationGranularityTests.swift in Sources */,
 				C46061E0C47253F7AAE92A1C /* PhraseCellPreviewTests.swift in Sources */,
 				4D9D8CA443498028A404EC4F /* PitchAlgoKindTests.swift in Sources */,
 				6167FD31027F7BF41FBE6ABC /* PitchAlgoTests.swift in Sources */,
@@ -1656,6 +1671,7 @@
 				7FCBEA8A63FB2A7CEB0623BC /* SourceRefNormalizationTests.swift in Sources */,
 				80ABD317AEF70A8302FFA72D /* StepAlgoKindTests.swift in Sources */,
 				E5D850D36A04C9A9F10EE2E8 /* StepAlgoTests.swift in Sources */,
+				AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */,
 				184AC10DCE6120E4193D78AD /* StepSequenceTrackFilterDefaultTests.swift in Sources */,
 				EC11C7CD4E29613131F89F90 /* StoreAccessorHelpersTests.swift in Sources */,
 				19D34BAFEC000DF2096A929C /* StoreTestSpyHelpers.swift in Sources */,
