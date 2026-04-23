@@ -77,8 +77,9 @@ final class SequencerDocumentSession {
     }
 
     func activate() {
+        // apply(documentModel:) compiles and installs a fresh snapshot internally.
+        // Do NOT call publishSnapshot() after — that would double-compile (Phase 2e).
         engineController.apply(documentModel: store.exportToProject())
-        publishSnapshot()
     }
 
     func publishSnapshot() {
@@ -127,8 +128,9 @@ final class SequencerDocumentSession {
             return
         }
         revision = store.revision
+        // apply(documentModel:) compiles and installs a fresh snapshot internally.
+        // Do NOT call publishSnapshot() after — that would double-compile (Phase 2e).
         engineController.apply(documentModel: store.exportToProject())
-        publishSnapshot()
     }
 
     /// Dispatch a scoped runtime update directly to the engine. This updates a single
