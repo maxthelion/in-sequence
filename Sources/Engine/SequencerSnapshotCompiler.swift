@@ -25,6 +25,7 @@ enum SequencerSnapshotCompiler {
             selectedPhraseID: state.selectedPhraseID,
             clipPool: state.clipPool,
             generatorPool: state.generatorPool,
+            tracks: state.tracks,
             trackOrder: trackOrder,
             clipBuffersByID: clipBuffers,
             trackProgramsByTrackID: trackPrograms,

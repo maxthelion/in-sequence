@@ -674,13 +674,12 @@ final class EngineController: RouterDispatcher {
     }
 
     private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
-        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts, rollingCaptureBuffers, playbackSnapshot) = withStateLock {
+        let (executor, audioRuntimes, audioOutputs, generatorIDs, generatedStates, chordContexts, rollingCaptureBuffers, playbackSnapshot) = withStateLock {
             (
                 self.executor,
                 self.audioTrackRuntimes,
                 self.audioOutputsByTrackID,
                 self.generatorIDsByTrackID,
-                self.currentDocumentModel,
                 self.generatedEvaluationStatesByTrackID,
                 self.chordContextByLane,
                 self.rollingCaptureBuffersByTrackID,
@@ -700,13 +699,15 @@ final class EngineController: RouterDispatcher {
         )
 
         // Dispatch resolved macro values to their destinations (AU params / sampler).
-        macroApplier.apply(currentLayerSnapshot.macroValues, tracks: documentModel.tracks)
+        // Phase 1b: reads snapshot-carried tracks, not currentDocumentModel.tracks.
+        macroApplier.apply(currentLayerSnapshot.macroValues, tracks: playbackSnapshot.tracks)
 
         var nextGeneratedStates = generatedStates
         var nextRollingCaptureBuffers = rollingCaptureBuffers
         let harmonicSidechainChord = chordContexts["default"]
         var preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
-        for track in documentModel.tracks {
+        // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
+        for track in playbackSnapshot.tracks {
             guard let generatorBlockID = generatorIDs[track.id] else {
                 continue
             }
@@ -790,7 +791,8 @@ final class EngineController: RouterDispatcher {
         }
 
         // Sample dispatch → queue (drum tracks and any other track with .sample destination).
-        for track in documentModel.tracks {
+        // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
+        for track in playbackSnapshot.tracks {
             guard !track.mix.isMuted,
                   !currentLayerSnapshot.isMuted(track.id),
                   let generatorID = generatorIDs[track.id],
@@ -815,7 +817,8 @@ final class EngineController: RouterDispatcher {
         routedNoteEvents = [:]
         routedChords = []
         routedMIDINotes = [:]
-        let trackInputs = documentModel.tracks.compactMap { track -> RouterTickInput? in
+        // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
+        let trackInputs = playbackSnapshot.tracks.compactMap { track -> RouterTickInput? in
             guard !currentLayerSnapshot.isMuted(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"]
@@ -826,7 +829,7 @@ final class EngineController: RouterDispatcher {
             return RouterTickInput(sourceTrack: track.id, notes: events, chordContext: nil)
         }
         router.tick(trackInputs)
-        flushRoutedEvents(bpm: executor.currentBPM)
+        flushRoutedEvents(bpm: executor.currentBPM, snapshot: playbackSnapshot)
     }
 
     private func dispatchTick() {
@@ -966,9 +969,9 @@ final class EngineController: RouterDispatcher {
         currentTrackMix = documentModel.selectedTrack.mix
     }
 
-    private func flushRoutedEvents(bpm: Double) {
+    private func flushRoutedEvents(bpm: Double, snapshot: PlaybackSnapshot) {
         for (destination, notes) in routedNoteEvents where !notes.isEmpty {
-            flushRoutedNotes(notes, to: destination, bpm: bpm)
+            flushRoutedNotes(notes, to: destination, bpm: bpm, snapshot: snapshot)
         }
 
         let midiDestinationsToTick = Set(routeMidiOutputs.keys).union(routedMIDINotes.keys)
@@ -1008,7 +1011,10 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func flushRoutedNotes(_ notes: [NoteEvent], to destination: RouteDestination, bpm: Double) {
+    // Phase 1b: `snapshot` is passed from `prepareTick` so this function reads
+    // snapshot-carried tracks rather than `currentDocumentModel.tracks`.
+    // `currentDocumentModel` is not read on the tick path.
+    private func flushRoutedNotes(_ notes: [NoteEvent], to destination: RouteDestination, bpm: Double, snapshot: PlaybackSnapshot) {
         switch destination {
         case let .midi(port, channel, noteOffset):
             let adjustedNotes = notes.map { note in
@@ -1025,14 +1031,14 @@ final class EngineController: RouterDispatcher {
                 .append(contentsOf: adjustedNotes)
 
         case let .voicing(trackID):
-            guard let track = currentDocumentModel.tracks.first(where: { $0.id == trackID }) else {
+            guard let track = snapshot.tracks.first(where: { $0.id == trackID }) else {
                 return
             }
             let (destination, pitchOffset) = effectiveDestination(for: trackID)
             flushConcreteDestination(destination, notes: notes, bpm: bpm, pitchOffset: pitchOffset, track: track)
 
         case let .trackInput(trackID, tag):
-            guard let track = currentDocumentModel.tracks.first(where: { $0.id == trackID }) else {
+            guard let track = snapshot.tracks.first(where: { $0.id == trackID }) else {
                 return
             }
             _ = tag

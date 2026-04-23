@@ -13,6 +13,9 @@ struct PlaybackSnapshot: Equatable, Sendable {
     let selectedPhraseID: UUID
     let clipPool: [ClipPoolEntry]
     let generatorPool: [GeneratorPoolEntry]
+    /// Ordered track list, carried from `LiveSequencerStoreState.tracks`.
+    /// The tick path iterates this instead of `currentDocumentModel.tracks` (Phase 1b).
+    let tracks: [StepSequenceTrack]
     let trackOrder: [UUID]
     let clipBuffersByID: [UUID: ClipBuffer]
     let trackProgramsByTrackID: [UUID: TrackSourceProgram]
