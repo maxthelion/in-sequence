@@ -182,6 +182,14 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
                      "Freshly-created host has no live instrument — readout must be nil")
     }
 
+    func test_host_preparePresetBrowser_without_live_AU_is_noop() {
+        let host = makeHost()
+
+        host.preparePresetBrowser()
+
+        XCTAssertNil(host.presetReadout())
+    }
+
     func test_host_loadPreset_throws_presetNotFound_when_no_AU_loaded() {
         let host = makeHost()
         XCTAssertThrowsError(try host.loadPreset(.factory(number: 0, name: "Init"))) { error in

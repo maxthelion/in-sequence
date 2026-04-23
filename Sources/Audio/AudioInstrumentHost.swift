@@ -9,6 +9,7 @@ protocol TrackPlaybackSink: AnyObject {
     var selectedInstrument: AudioInstrumentChoice { get }
     var currentAudioUnit: AVAudioUnit? { get }
     func prepareIfNeeded()
+    func preparePresetBrowser()
     func startIfNeeded()
     func stop()
     func shutdown()
@@ -17,6 +18,12 @@ protocol TrackPlaybackSink: AnyObject {
     func selectInstrument(_ choice: AudioInstrumentChoice)
     func captureStateBlob() throws -> Data?
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int)
+}
+
+extension TrackPlaybackSink {
+    func preparePresetBrowser() {
+        prepareIfNeeded()
+    }
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
@@ -91,7 +98,8 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             AVAudioUnit.instantiate(with: description, options: [], completionHandler: completion)
         }
     ) {
-        let resolvedChoices = instrumentChoices.isEmpty ? [.builtInSynth] : instrumentChoices
+        let suppliedChoices = instrumentChoices.isEmpty ? [.builtInSynth] : instrumentChoices
+        let resolvedChoices = AudioInstrumentChoice.deduplicated(suppliedChoices)
         self.instrumentChoices = resolvedChoices
         self.currentChoice = resolvedChoices.first(where: { $0 == initialInstrument }) ?? initialInstrument
         self.currentDestination = .auInstrument(componentID: self.currentChoice.audioComponentID, stateBlob: nil)
@@ -132,6 +140,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.log("prepareIfNeeded destination=\(self.currentDestination.summary) choice=\(self.currentChoice.displayName)")
             self.ensureInstrumentLoadedIfNeeded()
         }
+    }
+
+    func preparePresetBrowser() {
+        silenceSnapshotInstrumentNotes()
+        prepareIfNeeded()
     }
 
     func startIfNeeded() {
@@ -294,7 +307,8 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     /// Throws `PresetLoadingError.presetNotFound` if the descriptor doesn't match any
     /// live preset (e.g. the AU was updated since the sheet opened).
     func loadPreset(_ descriptor: AUPresetDescriptor) throws -> Data? {
-        try queue.sync {
+        silenceSnapshotInstrumentNotes()
+        return try queue.sync {
             guard !isShutdown, let instrument else {
                 throw PresetLoadingError.presetNotFound
             }
@@ -363,6 +377,21 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
+        Self.stopAllNotes(on: instrument, performOnMain: performOnMain)
+    }
+
+    private func silenceSnapshotInstrumentNotes() {
+        guard let instrument = withSnapshot({ snapshotAudioUnit as? AVAudioUnitMIDIInstrument }) else {
+            return
+        }
+
+        Self.stopAllNotes(on: instrument, performOnMain: performOnMain)
+    }
+
+    private static func stopAllNotes(
+        on instrument: AVAudioUnitMIDIInstrument,
+        performOnMain: (@escaping @MainActor () -> Void) -> Void
+    ) {
         performOnMain {
             for pitch in UInt8(0)...UInt8(127) {
                 instrument.stopNote(pitch, onChannel: 0)

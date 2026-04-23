@@ -96,11 +96,27 @@ struct AudioInstrumentChoice: Codable, Equatable, Hashable, Identifiable, Sendab
         }
 #endif
 
+        choices = deduplicated(choices)
+
         return choices.sorted { lhs, rhs in
             if lhs == builtInSynth { return true }
             if rhs == builtInSynth { return false }
             return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
+    }
+
+    static func deduplicated(_ choices: [AudioInstrumentChoice]) -> [AudioInstrumentChoice] {
+        var seen = Set<String>()
+        var uniqueChoices: [AudioInstrumentChoice] = []
+        uniqueChoices.reserveCapacity(choices.count)
+
+        for choice in choices {
+            if seen.insert(choice.id).inserted {
+                uniqueChoices.append(choice)
+            }
+        }
+
+        return uniqueChoices
     }
 
     init(audioComponentID: AudioComponentID, name: String = "External AU", manufacturerName: String = "") {

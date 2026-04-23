@@ -450,10 +450,16 @@ final class EngineController: RouterDispatcher {
 
     func prepareAudioUnit(for trackID: UUID) {
         log("prepareAudioUnit trackID=\(trackID)")
+        if let host = withStateLock({ audioOutputsByTrackID[trackID] }) {
+            log("prepareAudioUnit hostFound=true")
+            host.preparePresetBrowser()
+            return
+        }
+
         syncAudioOutputs(for: currentDocumentModel)
         let host = withStateLock { audioOutputsByTrackID[trackID] }
         log("prepareAudioUnit hostFound=\(host != nil)")
-        host?.prepareIfNeeded()
+        host?.preparePresetBrowser()
     }
 
     /// Returns the live AU's preset readout for the given track, or `nil` if no AU

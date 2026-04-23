@@ -8,6 +8,10 @@ struct VoicePickerView: View {
     var onRecallRecent: (RecentVoice) -> Void = { _ in }
     var onSaveCurrent: () -> Void = {}
 
+    private var sanitizedChoices: [AudioInstrumentChoice] {
+        AudioInstrumentChoice.deduplicated(choices)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title.uppercased())
@@ -29,7 +33,7 @@ struct VoicePickerView: View {
             }
 
             Picker("Instrument", selection: $selectedInstrument) {
-                ForEach(choices, id: \.self) { instrument in
+                ForEach(sanitizedChoices, id: \.id) { instrument in
                     Text(instrument.displayName).tag(instrument)
                 }
             }
