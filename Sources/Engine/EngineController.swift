@@ -93,7 +93,6 @@ final class EngineController: RouterDispatcher {
     let clock: TickClock
 
     private let eventQueue = EventQueue()
-    private let coordinator = MacroCoordinator()
     private let sampleEngine: SamplePlaybackSink
     // Initialized at end of init() after `self` is fully available.
     private var macroApplier: TrackMacroApplier!
@@ -902,7 +901,7 @@ final class EngineController: RouterDispatcher {
         for track in documentModel.tracks {
             let (effectiveDestination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
             let generatorBlockID = Self.generatorBlockID(for: track.id)
-            let generator = NoteGenerator(id: generatorBlockID, params: Self.sourceParams(for: track, in: documentModel))
+            let generator = NoteGenerator(id: generatorBlockID, params: [:])
             blocks[generatorBlockID] = generator
             generatorIDs[track.id] = generatorBlockID
 
@@ -1125,16 +1124,9 @@ final class EngineController: RouterDispatcher {
     }
 
     private func syncTrackParams(for documentModel: Project) {
-        let generatorIDs = withStateLock { generatorIDsByTrackID }
-        for track in documentModel.tracks {
-            guard let generatorBlockID = generatorIDs[track.id] else {
-                continue
-            }
-
-            for (paramKey, value) in Self.sourceParams(for: track, in: documentModel) {
-                setParam(blockID: generatorBlockID, paramKey: paramKey, value: value)
-            }
-        }
+        // Note injection uses the typed preparedNotesByBlockID path only; no params to sync.
+        // Reset generator evaluation state and prepared-tick index so the next prepareTick
+        // re-evaluates from the new document model.
         withStateLock {
             generatedEvaluationStatesByTrackID = [:]
             preparedTickIndex = nil
@@ -1267,15 +1259,6 @@ final class EngineController: RouterDispatcher {
         }
 
         withStateLock { liveSampleTrackIDs = sampleTrackIDs }
-    }
-
-    private static func sourceParams(
-        for track: StepSequenceTrack,
-        in documentModel: Project
-    ) -> [String: ParamValue] {
-        return [
-            "noteProgram": .text("")
-        ]
     }
 
     // `internal` (not private) so `@testable import` can exercise tick resolution from tests.
