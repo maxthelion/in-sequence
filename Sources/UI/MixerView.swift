@@ -6,18 +6,16 @@ struct MixerView: View {
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
 
-    private var project: Project {
-        session.project
-    }
-
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
+            let tracks = session.store.tracks
+            let selectedTrackID = session.store.selectedTrackID
             HStack(alignment: .top, spacing: 14) {
-                ForEach(project.tracks, id: \.id) { track in
+                ForEach(tracks, id: \.id) { track in
                     MixerChannelStrip(
                         track: track,
                         destinationLabel: destinationLabel(for: track),
-                        isSelected: track.id == project.selectedTrackID,
+                        isSelected: track.id == selectedTrackID,
                         engineController: engineController,
                         onSelect: {
                             // Narrowed from .fullEngineApply: selection alone has no audible
@@ -44,7 +42,7 @@ struct MixerView: View {
 
     private func destinationLabel(for track: StepSequenceTrack) -> String {
         if case .inheritGroup = track.destination,
-           let group = project.group(for: track.id),
+           let group = session.store.group(for: track.id),
            let sharedDestination = group.sharedDestination
         {
             return sharedDestination.kindLabel

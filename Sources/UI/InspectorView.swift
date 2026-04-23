@@ -8,7 +8,7 @@ struct InspectorView: View {
     @StateObject private var panControl = ThrottledMixValue()
 
     private var track: StepSequenceTrack {
-        session.project.selectedTrack
+        session.store.selectedTrack
     }
 
     private var pitchesText: Binding<String> {
@@ -167,7 +167,7 @@ struct InspectorView: View {
 
     private var destinationSummary: String {
         if case .inheritGroup = track.destination,
-           let group = session.project.group(for: track.id)
+           let group = session.store.group(for: track.id)
         {
             return group.sharedDestination?.summary ?? "Inherited from group"
         }
