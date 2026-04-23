@@ -224,7 +224,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func handleSingleTap(on phraseID: UUID, trackID: UUID) {
-        session.mutateProject(impact: .fullEngineApply) { project in
+        session.mutateProject(impact: .snapshotOnly) { project in
             project.selectPhrase(id: phraseID)
             project.selectTrack(id: trackID)
         }
@@ -235,7 +235,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func openCellEditor(phraseID: UUID, trackID: UUID) {
-        session.mutateProject(impact: .fullEngineApply) { project in
+        session.mutateProject(impact: .snapshotOnly) { project in
             project.selectPhrase(id: phraseID)
             project.selectTrack(id: trackID)
         }
@@ -271,7 +271,7 @@ struct PhraseWorkspaceView: View {
                         Group {
                             if let track {
                                 Button {
-                                    session.mutateProject(impact: .fullEngineApply) {
+                                    session.mutateProject(impact: .snapshotOnly) {
                                         $0.selectTrack(id: track.id)
                                     }
                                 } label: {
@@ -300,7 +300,7 @@ struct PhraseWorkspaceView: View {
                             isSelected: project.selectedPhraseID == phrase.id,
                             isPlaying: playbackPhraseIndex == index
                         ) {
-                            session.mutateProject(impact: .fullEngineApply) {
+                            session.mutateProject(impact: .snapshotOnly) {
                                 $0.selectPhrase(id: phrase.id)
                             }
                         }
@@ -340,17 +340,17 @@ struct PhraseWorkspaceView: View {
                         PhraseRowActions(
                             canRemove: phrases.count > 1,
                             onInsertBelow: {
-                                session.mutateProject(impact: .fullEngineApply) {
+                                session.mutateProject(impact: .snapshotOnly) {
                                     $0.insertPhrase(below: phrase.id)
                                 }
                             },
                             onDuplicate: {
-                                session.mutateProject(impact: .fullEngineApply) {
+                                session.mutateProject(impact: .snapshotOnly) {
                                     $0.duplicatePhrase(id: phrase.id)
                                 }
                             },
                             onRemove: {
-                                session.mutateProject(impact: .fullEngineApply) {
+                                session.mutateProject(impact: .snapshotOnly) {
                                     $0.removePhrase(id: phrase.id)
                                 }
                             }

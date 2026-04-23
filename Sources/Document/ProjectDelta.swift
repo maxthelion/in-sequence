@@ -20,14 +20,14 @@ enum ProjectDelta: Equatable, Hashable {
         case .trackMixChanged,
              .selectedTrackChanged,
              .patternBanksChanged,
-             .clipPoolChanged:
+             .clipPoolChanged,
+             .phrasesChanged:
             return true
         case .trackDestinationChanged,
              .trackParameterChanged,
              .tracksInsertedOrRemoved,
              .trackGroupsChanged,
              .routesChanged,
-             .phrasesChanged,
              .layersChanged,
              .coarseResync:
             return false
