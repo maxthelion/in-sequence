@@ -57,7 +57,7 @@ struct TrackPatternSlotPalette: View {
             .buttonStyle(.plain)
             .accessibilityLabel(
                 bypassApplicable
-                    ? (isBypassed ? "Slot \(slotIndex + 1), bypassed (clip mode)" : "Slot \(slotIndex + 1), generator engaged")
+                    ? (isBypassed ? "Slot \(slotIndex + 1), clip source" : "Slot \(slotIndex + 1), generator source")
                     : "Slot \(slotIndex + 1)"
             )
 
@@ -74,7 +74,7 @@ struct TrackPatternSlotPalette: View {
                 }
                 .buttonStyle(.plain)
                 .offset(x: -4, y: 4)
-                .accessibilityLabel(isBypassed ? "Engage generator for slot \(slotIndex + 1)" : "Bypass to clip for slot \(slotIndex + 1)")
+                .accessibilityLabel(isBypassed ? "Switch slot \(slotIndex + 1) to generator source" : "Switch slot \(slotIndex + 1) to clip source")
             }
         }
     }

@@ -54,7 +54,7 @@ final class ProjectSetSelectedTrackTypeTests: XCTestCase {
         XCTAssertNil(bank.attachedGeneratorID, "bank must have no attached generator after type change")
     }
 
-    func test_setSelectedTrackType_slots_point_to_new_owned_clip() {
+    func test_setSelectedTrackType_seeds_the_first_slot_with_the_new_owned_clip() {
         var project = Project.empty
         let trackA = project.selectedTrack
 
@@ -62,9 +62,11 @@ final class ProjectSetSelectedTrackTypeTests: XCTestCase {
 
         let bank = project.patternBank(for: trackA.id)
         let newClip = project.clipPool.last!
-        for slot in bank.slots {
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.mode, .clip)
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, newClip.id)
+        for slot in bank.slots.dropFirst() {
             XCTAssertEqual(slot.sourceRef.mode, .clip, "slot \(slot.slotIndex) must be in clip mode")
-            XCTAssertEqual(slot.sourceRef.clipID, newClip.id, "slot \(slot.slotIndex) must point to the new owned clip")
+            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) should remain lazily empty")
         }
     }
 }

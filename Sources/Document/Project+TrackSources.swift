@@ -49,17 +49,16 @@ extension Project {
             id: UUID(),
             name: "\(track.name) pattern \(slotIndex + 1)",
             trackType: track.trackType,
-            content: .stepSequence(
-                stepPattern: Array(repeating: false, count: 16),
-                pitches: track.pitches
-            )
+            content: .emptyNoteGrid(lengthSteps: 16)
         )
         clipPool.append(newClip)
 
         let merged = SourceRef(
             mode: .clip,
             generatorID: slot.sourceRef.generatorID,
-            clipID: newClip.id
+            clipID: newClip.id,
+            modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
+            modifierBypassed: slot.sourceRef.modifierBypassed
         )
         setPatternSourceRef(merged, for: trackID, slotIndex: slotIndex)
         return newClip.id
@@ -89,7 +88,13 @@ extension Project {
         let bank = patternBanks[bankIndex]
         let slot = bank.slot(at: slotIndex)
         // Preserve the existing generatorID so bypass→change-clip→un-bypass re-engages the same generator.
-        let merged = SourceRef(mode: .clip, generatorID: slot.sourceRef.generatorID, clipID: clipID)
+        let merged = SourceRef(
+            mode: .clip,
+            generatorID: slot.sourceRef.generatorID,
+            clipID: clipID,
+            modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
+            modifierBypassed: slot.sourceRef.modifierBypassed
+        )
         setPatternSourceRef(merged, for: trackID, slotIndex: slotIndex)
     }
 
@@ -134,7 +139,13 @@ extension Project {
         bank.attachedGeneratorID = newEntry.id
         for index in 0..<bank.slots.count {
             let existing = bank.slots[index]
-            let newRef = SourceRef(mode: .generator, generatorID: newEntry.id, clipID: existing.sourceRef.clipID)
+            let newRef = SourceRef(
+                mode: existing.sourceRef.mode,
+                generatorID: newEntry.id,
+                clipID: existing.sourceRef.clipID,
+                modifierGeneratorID: newEntry.id,
+                modifierBypassed: existing.sourceRef.modifierBypassed
+            )
             bank.slots[index] = TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef)
         }
         patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
@@ -159,7 +170,9 @@ extension Project {
             let newRef = SourceRef(
                 mode: .clip,
                 generatorID: existing.sourceRef.generatorID,
-                clipID: existing.sourceRef.clipID
+                clipID: existing.sourceRef.clipID,
+                modifierGeneratorID: existing.sourceRef.modifierGeneratorID,
+                modifierBypassed: existing.sourceRef.modifierBypassed
             )
             bank.slots[index] = TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef)
         }
@@ -181,7 +194,9 @@ extension Project {
             let newRef = SourceRef(
                 mode: existing.sourceRef.mode,
                 generatorID: newGeneratorID,
-                clipID: existing.sourceRef.clipID
+                clipID: existing.sourceRef.clipID,
+                modifierGeneratorID: newGeneratorID,
+                modifierBypassed: existing.sourceRef.modifierBypassed
             )
             bank.slots[index] = TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef)
         }
@@ -206,7 +221,9 @@ extension Project {
         let newRef = SourceRef(
             mode: newMode,
             generatorID: existing.sourceRef.generatorID,
-            clipID: existing.sourceRef.clipID
+            clipID: existing.sourceRef.clipID,
+            modifierGeneratorID: existing.sourceRef.modifierGeneratorID,
+            modifierBypassed: existing.sourceRef.modifierBypassed
         )
         bank.setSlot(
             TrackPatternSlot(slotIndex: existing.slotIndex, name: existing.name, sourceRef: newRef),
@@ -214,6 +231,48 @@ extension Project {
         )
         let track = tracks[trackIndex]
         patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
+    }
+
+    mutating func setPatternModifierGeneratorID(
+        _ modifierGeneratorID: UUID?,
+        bypassed: Bool = false,
+        for trackID: UUID,
+        slotIndex: Int
+    ) {
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
+            return
+        }
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        let updated = SourceRef(
+            mode: slot.sourceRef.mode,
+            generatorID: slot.sourceRef.generatorID,
+            clipID: slot.sourceRef.clipID,
+            modifierGeneratorID: modifierGeneratorID,
+            modifierBypassed: modifierGeneratorID == nil ? false : bypassed
+        )
+        setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
+    }
+
+    mutating func setPatternModifierBypassed(
+        _ bypassed: Bool,
+        for trackID: UUID,
+        slotIndex: Int
+    ) {
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
+            return
+        }
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        guard slot.sourceRef.modifierGeneratorID != nil else {
+            return
+        }
+        let updated = SourceRef(
+            mode: slot.sourceRef.mode,
+            generatorID: slot.sourceRef.generatorID,
+            clipID: slot.sourceRef.clipID,
+            modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
+            modifierBypassed: bypassed
+        )
+        setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
     }
 
     @discardableResult

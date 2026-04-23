@@ -14,7 +14,7 @@ final class AlgoPreviewTests: XCTestCase {
 
     func test_preview_steps_matches_canonical_mono_reference() {
         let params = GeneratorParams.mono(
-            trigger: .native(.manual(pattern: [true, false, true, false])),
+            trigger: .native(.euclidean(pulses: 2, steps: 4, offset: 0)),
             pitch: .native(.manual(pitches: [60, 64], pickMode: .sequential)),
             shape: .default
         )
@@ -37,19 +37,22 @@ final class AlgoPreviewTests: XCTestCase {
             id: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!,
             name: "Preview Clip",
             trackType: .monoMelodic,
-            content: .stepSequence(
-                stepPattern: [true, true, false, false],
-                pitches: [65, 67]
+            content: .noteGrid(
+                lengthSteps: 2,
+                steps: [
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 65, velocity: 100, lengthSteps: 1)]), fill: nil),
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 67, velocity: 100, lengthSteps: 1)]), fill: nil)
+                ]
             )
         )
         let params = GeneratorParams.mono(
-            trigger: .native(.fromClipSteps(clipID: clip.id)),
+            trigger: .native(.euclidean(pulses: 4, steps: 4, offset: 0)),
             pitch: .native(.fromClipPitches(clipID: clip.id, pickMode: .sequential)),
             shape: .default
         )
 
         let preview = previewSteps(for: params, clipChoices: [clip], count: 4)
 
-        XCTAssertEqual(preview, [["65"], ["67"], [], []])
+        XCTAssertEqual(preview, [["65"], ["67"], ["65"], ["67"]])
     }
 }

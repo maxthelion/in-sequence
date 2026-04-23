@@ -2,9 +2,11 @@ import SwiftUI
 
 struct GeneratorAttachmentControl: View {
     let attachedGenerator: GeneratorPoolEntry?
+    let availableGenerators: [GeneratorPoolEntry]
     let accent: Color
     let onAdd: () -> Void
     let onRemove: () -> Void
+    let onSelect: (UUID) -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -19,6 +21,31 @@ struct GeneratorAttachmentControl: View {
                 }
 
                 Spacer(minLength: 0)
+
+                if availableGenerators.count > 1 {
+                    Menu {
+                        ForEach(availableGenerators) { generator in
+                            Button {
+                                onSelect(generator.id)
+                            } label: {
+                                if generator.id == attached.id {
+                                    Label(generator.name, systemImage: "checkmark")
+                                } else {
+                                    Text(generator.name)
+                                }
+                            }
+                        }
+                    } label: {
+                        Text("Choose")
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .padding(.vertical, 7)
+                            .padding(.horizontal, 12)
+                            .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                            .overlay(Capsule().stroke(StudioTheme.border, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 Button(action: onRemove) {
                     Text("Remove")

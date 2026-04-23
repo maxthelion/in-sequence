@@ -9,6 +9,63 @@ final class EngineController: RouterDispatcher {
         let output: Destination.Kind
     }
 
+    private struct RollingCaptureStep: Equatable {
+        let absoluteStep: Int
+        let notes: [GeneratedNote]
+    }
+
+    private struct RollingCaptureBuffer: Equatable {
+        let maxSteps: Int
+        var steps: [RollingCaptureStep]
+
+        init(maxSteps: Int = 64, steps: [RollingCaptureStep] = []) {
+            self.maxSteps = max(1, maxSteps)
+            self.steps = Array(steps.suffix(max(1, maxSteps)))
+        }
+
+        mutating func append(stepIndex: Int, notes: [GeneratedNote]) {
+            let entry = RollingCaptureStep(absoluteStep: stepIndex, notes: notes)
+            if let lastIndex = steps.indices.last, steps[lastIndex].absoluteStep == stepIndex {
+                steps[lastIndex] = entry
+            } else {
+                steps.append(entry)
+            }
+
+            if steps.count > maxSteps {
+                steps.removeFirst(steps.count - maxSteps)
+            }
+        }
+
+        func clipContent(lengthSteps: Int? = nil) -> ClipContent? {
+            guard !steps.isEmpty else {
+                return nil
+            }
+
+            let resolvedLength = max(1, lengthSteps ?? min(maxSteps, steps.count))
+            let recent = Array(steps.suffix(resolvedLength))
+            let paddingCount = max(0, resolvedLength - recent.count)
+            let capturedSteps = recent.map { recordedStep -> ClipStep in
+                guard !recordedStep.notes.isEmpty else {
+                    return .empty
+                }
+
+                let notes = recordedStep.notes.map { note in
+                    ClipStepNote(
+                        pitch: note.pitch,
+                        velocity: note.velocity,
+                        lengthSteps: max(1, note.length)
+                    )
+                }
+                return ClipStep(main: ClipLane(chance: 1, notes: notes), fill: nil)
+            }
+
+            return .noteGrid(
+                lengthSteps: resolvedLength,
+                steps: Array(repeating: .empty, count: paddingCount) + capturedSteps
+            )
+        }
+    }
+
     private struct AudioTrackRuntime {
         let trackID: UUID
         let generatorBlockID: BlockID
@@ -73,6 +130,7 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var currentLayerSnapshot = LayerSnapshot.empty
     private var generatedEvaluationStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:]
+    private var rollingCaptureBuffersByTrackID: [UUID: RollingCaptureBuffer] = [:]
 
     // Non-observable mirror of `transportTickIndex`, maintained on the clock thread.
     // Tick-thread code that needs the current tick reads this instead of the
@@ -175,27 +233,65 @@ final class EngineController: RouterDispatcher {
     }
 
     func shutdown() {
+        shutdown(completion: {})
+    }
+
+    func shutdown(completion: @escaping () -> Void) {
         log("shutdown start")
         let hosts = withStateLock { Self.uniqueHosts(Array(audioOutputsByTrackID.values)) }
         if isRunning {
-            stop()
-        } else {
-            hosts.forEach { $0.stop() }
-            sampleEngine.stop()
+            flushAllPendingMIDINoteOffs(now: ProcessInfo.processInfo.systemUptime)
+            clock.stop()
+            isRunning = false
+            lastNoteTriggerUptime = 0
+            lastNoteTriggerCount = 0
+        } else if preparedTickIndex != nil {
+            clock.stop()
         }
-        hosts.forEach { $0.shutdown() }
 
+        sampleEngine.stop()
         withStateLock {
-            audioOutputsByTrackID = [:]
-            audioOutputKeysByTrackID = [:]
-            lastDestinationByOutputKey = [:]
-            audioTrackRuntimes = [:]
-            routeMidiOutputs = [:]
-            liveSampleTrackIDs = []
             generatedEvaluationStatesByTrackID = [:]
             preparedTickIndex = nil
         }
-        log("shutdown complete")
+
+        let finish: () -> Void = { [weak self] in
+            guard let self else {
+                completion()
+                return
+            }
+
+            self.withStateLock {
+                self.audioOutputsByTrackID = [:]
+                self.audioOutputKeysByTrackID = [:]
+                self.lastDestinationByOutputKey = [:]
+                self.audioTrackRuntimes = [:]
+                self.routeMidiOutputs = [:]
+                self.liveSampleTrackIDs = []
+                self.generatedEvaluationStatesByTrackID = [:]
+                self.rollingCaptureBuffersByTrackID = [:]
+                self.preparedTickIndex = nil
+            }
+            self.log("shutdown complete")
+            completion()
+        }
+
+        guard !hosts.isEmpty else {
+            finish()
+            return
+        }
+
+        let group = DispatchGroup()
+        for host in hosts {
+            group.enter()
+            host.shutdown {
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            finish()
+        }
     }
 
     func setBPM(_ bpm: Double) {
@@ -218,6 +314,10 @@ final class EngineController: RouterDispatcher {
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
+        withStateLock {
+            let trackIDs = Set(documentModel.tracks.map(\.id))
+            rollingCaptureBuffersByTrackID = rollingCaptureBuffersByTrackID.filter { trackIDs.contains($0.key) }
+        }
         apply(deltas: deltas, documentModel: documentModel)
     }
 
@@ -307,6 +407,35 @@ final class EngineController: RouterDispatcher {
         host?.prepareIfNeeded()
     }
 
+    func capturedClipContent(
+        trackID: UUID,
+        lengthSteps: Int? = nil
+    ) -> ClipContent? {
+        withStateLock {
+            rollingCaptureBuffersByTrackID[trackID]?.clipContent(lengthSteps: lengthSteps)
+        }
+    }
+
+    @discardableResult
+    func saveRollingCapture(
+        to project: inout Project,
+        trackID: UUID,
+        destinationSlotIndex: Int? = nil,
+        lengthSteps: Int? = nil,
+        name: String? = nil
+    ) -> UUID? {
+        guard let content = capturedClipContent(trackID: trackID, lengthSteps: lengthSteps) else {
+            return nil
+        }
+
+        return project.saveCapturedClip(
+            content,
+            trackID: trackID,
+            destinationSlotIndex: destinationSlotIndex,
+            name: name
+        )
+    }
+
     private func apply(deltas: [ProjectDelta], documentModel: Project) {
         guard !deltas.isEmpty else {
             return
@@ -317,6 +446,8 @@ final class EngineController: RouterDispatcher {
             return
         }
 
+        var shouldInvalidatePreparedTick = false
+        var shouldResetGeneratedStates = false
         for delta in deltas {
             switch delta {
             case let .trackMixChanged(trackID, mix):
@@ -330,18 +461,34 @@ final class EngineController: RouterDispatcher {
                 selectedOutput = Self.effectiveDestination(for: trackID, in: documentModel).destination.kind
                 currentTrackMix = selectedTrack.mix
 
+            case .patternBanksChanged:
+                shouldInvalidatePreparedTick = true
+                shouldResetGeneratedStates = true
+
+            case .clipPoolChanged:
+                shouldInvalidatePreparedTick = true
+
             case .trackDestinationChanged,
                  .trackParameterChanged,
                  .tracksInsertedOrRemoved,
                  .trackGroupsChanged,
                  .routesChanged,
-                 .patternBanksChanged,
                  .phrasesChanged,
-                 .clipPoolChanged,
                  .layersChanged,
                  .coarseResync:
                 applyBroadSync(documentModel: documentModel)
                 return
+            }
+        }
+
+        if shouldInvalidatePreparedTick || shouldResetGeneratedStates {
+            withStateLock {
+                if shouldResetGeneratedStates {
+                    generatedEvaluationStatesByTrackID = [:]
+                }
+                if shouldInvalidatePreparedTick {
+                    preparedTickIndex = nil
+                }
             }
         }
     }
@@ -418,7 +565,7 @@ final class EngineController: RouterDispatcher {
     }
 
     private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
-        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts) = withStateLock {
+        let (executor, audioRuntimes, audioOutputs, generatorIDs, documentModel, generatedStates, chordContexts, rollingCaptureBuffers) = withStateLock {
             (
                 self.executor,
                 self.audioTrackRuntimes,
@@ -426,7 +573,8 @@ final class EngineController: RouterDispatcher {
                 self.generatorIDsByTrackID,
                 self.currentDocumentModel,
                 self.generatedEvaluationStatesByTrackID,
-                self.chordContextByLane
+                self.chordContextByLane,
+                self.rollingCaptureBuffersByTrackID
             )
         }
 
@@ -442,35 +590,39 @@ final class EngineController: RouterDispatcher {
         )
 
         var nextGeneratedStates = generatedStates
+        var nextRollingCaptureBuffers = rollingCaptureBuffers
         let harmonicSidechainChord = chordContexts["default"]
         for track in documentModel.tracks {
-            guard let generatorBlockID = generatorIDs[track.id],
-                  let generator = Self.generatedSource(for: track, in: documentModel)
-            else {
+            guard let generatorBlockID = generatorIDs[track.id] else {
                 continue
             }
 
             var rng = SystemRandomNumberGenerator()
             var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
-            let notes = GeneratedSourceEvaluator.evaluateStep(
-                for: generator.params,
+            let notes = Self.resolvedStepNotes(
+                for: track,
+                in: documentModel,
+                layerSnapshot: currentLayerSnapshot,
                 stepIndex: Int(upcomingStep),
-                clipChoices: documentModel.clipPool,
                 chordContext: harmonicSidechainChord,
                 state: &state,
                 rng: &rng
             )
             nextGeneratedStates[track.id] = state
+            var captureBuffer = nextRollingCaptureBuffers[track.id] ?? RollingCaptureBuffer()
+            captureBuffer.append(stepIndex: Int(upcomingStep), notes: notes)
+            nextRollingCaptureBuffers[track.id] = captureBuffer
             _ = commandQueue.enqueue(
                 .setParam(
                     blockID: generatorBlockID,
                     paramKey: "liveStepNotes",
-                    value: .text(Self.encode(liveNotes: notes) ?? "")
+                    value: .text(Self.encode(liveNotes: notes) ?? "[]")
                 )
             )
         }
         withStateLock {
             generatedEvaluationStatesByTrackID = nextGeneratedStates
+            rollingCaptureBuffersByTrackID = nextRollingCaptureBuffers
         }
 
         let outputs = executor.tick(now: now)
@@ -695,6 +847,8 @@ final class EngineController: RouterDispatcher {
             audioTrackRuntimes = audioRuntimes
             pipelineShape = Self.pipelineShape(for: documentModel)
             generatedEvaluationStatesByTrackID = [:]
+            let trackIDs = Set(documentModel.tracks.map(\.id))
+            rollingCaptureBuffersByTrackID = rollingCaptureBuffersByTrackID.filter { trackIDs.contains($0.key) }
             preparedTickIndex = nil
         }
 
@@ -1016,122 +1170,86 @@ final class EngineController: RouterDispatcher {
         for track: StepSequenceTrack,
         in documentModel: Project
     ) -> [String: ParamValue] {
-        if let program = clipNoteProgram(for: track, in: documentModel),
-           let encoded = encode(program: program)
-        {
-            return [
-                "noteProgram": .text(encoded),
-                "liveStepNotes": .text("")
-            ]
-        }
-
         return [
             "noteProgram": .text(""),
-            "liveStepNotes": .text("")
+            "liveStepNotes": .text(encode(liveNotes: []) ?? "[]")
         ]
     }
 
-    private static func generatedSource(
+    private static func selectedPatternSlot(
         for track: StepSequenceTrack,
         in documentModel: Project
-    ) -> GeneratorPoolEntry? {
+    ) -> TrackPatternSlot {
         let patternIndex = documentModel.selectedPhrase.patternIndex(for: track.id, layers: documentModel.layers)
-        let slot = documentModel.patternBank(for: track.id).slot(at: patternIndex)
+        return documentModel.patternBank(for: track.id).slot(at: patternIndex)
+    }
+
+    private static func resolvedStepNotes<R: RandomNumberGenerator>(
+        for track: StepSequenceTrack,
+        in documentModel: Project,
+        layerSnapshot: LayerSnapshot,
+        stepIndex: Int,
+        chordContext: Chord?,
+        state: inout GeneratedSourceEvaluationState,
+        rng: inout R
+    ) -> [GeneratedNote] {
+        let slot = selectedPatternSlot(for: track, in: documentModel)
 
         switch slot.sourceRef.mode {
         case .generator:
-            return documentModel.generatorEntry(id: slot.sourceRef.generatorID)
+            guard let generator = documentModel.generatorEntry(id: slot.sourceRef.generatorID) else {
+                return []
+            }
+            let sourceNotes = GeneratedSourceEvaluator.evaluateSourceStep(
+                for: generator.params,
+                stepIndex: stepIndex,
+                clipChoices: documentModel.clipPool,
+                rng: &rng
+            )
+
+            guard !slot.sourceRef.modifierBypassed,
+                  let processor = documentModel.generatorEntry(id: slot.sourceRef.modifierGeneratorID)
+            else {
+                return sourceNotes
+            }
+
+            return GeneratedSourceEvaluator.processSourceNotes(
+                sourceNotes,
+                through: processor.params,
+                stepIndex: stepIndex,
+                clipChoices: documentModel.clipPool,
+                chordContext: chordContext,
+                state: &state,
+                rng: &rng
+            )
+
         case .clip:
-            return nil
-        }
-    }
-
-    private static func clipNoteProgram(
-        for track: StepSequenceTrack,
-        in documentModel: Project
-    ) -> NoteGenerator.NoteProgram? {
-        let patternIndex = documentModel.selectedPhrase.patternIndex(for: track.id, layers: documentModel.layers)
-        let slot = documentModel.patternBank(for: track.id).slot(at: patternIndex)
-        guard slot.sourceRef.mode == .clip,
-              let clip = documentModel.clipEntry(id: slot.sourceRef.clipID)
-        else {
-            return nil
-        }
-        return noteProgram(for: clip)
-    }
-
-    private static func noteProgram(for clip: ClipPoolEntry) -> NoteGenerator.NoteProgram? {
-        switch clip.content {
-        case let .stepSequence(stepPattern, pitches):
-            let cycleLength = max(stepPattern.count, 1)
-            let resolvedPitches = pitches.isEmpty ? [60] : pitches
-            let steps = (0..<cycleLength).map { stepIndex in
-                guard stepPattern.indices.contains(stepIndex), stepPattern[stepIndex] else {
-                    return [NoteGenerator.ProgrammedNote]()
-                }
-                return [
-                    NoteGenerator.ProgrammedNote(
-                        pitch: clampedMIDI(resolvedPitches[stepIndex % resolvedPitches.count]),
-                        velocity: 100,
-                        length: 4,
-                        voiceTag: nil
-                    )
-                ]
+            guard let clip = documentModel.clipEntry(id: slot.sourceRef.clipID) else {
+                return []
             }
-            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
 
-        case let .pianoRoll(lengthBars, stepsPerBar, notes):
-            let cycleLength = max(1, lengthBars * stepsPerBar)
-            var steps = Array(repeating: [NoteGenerator.ProgrammedNote](), count: cycleLength)
-            for note in notes {
-                let clampedStart = min(max(note.startStep, 0), cycleLength - 1)
-                steps[clampedStart].append(
-                    NoteGenerator.ProgrammedNote(
-                        pitch: clampedMIDI(note.pitch),
-                        velocity: clampedMIDI(note.velocity),
-                        length: max(1, note.lengthSteps),
-                        voiceTag: nil
-                    )
-                )
+            let sourceNotes = GeneratedSourceEvaluator.resolveClipStep(
+                for: clip,
+                stepIndex: stepIndex,
+                fillEnabled: layerSnapshot.isFillEnabled(track.id),
+                rng: &rng
+            )
+
+            guard !slot.sourceRef.modifierBypassed,
+                  let processor = documentModel.generatorEntry(id: slot.sourceRef.modifierGeneratorID)
+            else {
+                return sourceNotes
             }
-            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
 
-        case let .sliceTriggers(stepPattern, sliceIndexes):
-            let cycleLength = max(stepPattern.count, 1)
-            let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
-            let steps = (0..<cycleLength).map { stepIndex in
-                guard stepPattern.indices.contains(stepIndex), stepPattern[stepIndex] else {
-                    return [NoteGenerator.ProgrammedNote]()
-                }
-                let sliceIndex = resolvedIndexes[stepIndex % resolvedIndexes.count]
-                return [
-                    NoteGenerator.ProgrammedNote(
-                        pitch: clampedMIDI(60 + sliceIndex),
-                        velocity: 100,
-                        length: 4,
-                        voiceTag: nil
-                    )
-                ]
-            }
-            return NoteGenerator.NoteProgram(cycleLength: cycleLength, steps: steps)
-        }
-    }
-
-    private static func clampedMIDI(_ value: Int) -> Int {
-        min(max(value, 0), 127)
-    }
-
-    private static func encode(program: NoteGenerator.NoteProgram) -> String? {
-        do {
-            let data = try JSONEncoder().encode(program)
-            guard let string = String(data: data, encoding: .utf8) else {
-                assertionFailure("EngineController note program encoding produced invalid UTF-8")
-                return nil
-            }
-            return string
-        } catch {
-            assertionFailure("EngineController note program encode failed: \(error)")
-            return nil
+            return GeneratedSourceEvaluator.processSourceNotes(
+                sourceNotes,
+                through: processor.params,
+                stepIndex: stepIndex,
+                clipChoices: documentModel.clipPool,
+                chordContext: chordContext,
+                state: &state,
+                rng: &rng
+            )
         }
     }
 

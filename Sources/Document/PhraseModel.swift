@@ -691,7 +691,7 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             return .poly(
                 trigger: .native(
                     .init(
-                        algo: .manual(pattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
+                        algo: .euclidean(pulses: 4, steps: 16, offset: 0),
                         basePitch: 60
                     )
                 ),
@@ -703,7 +703,7 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             )
         case .sliceGenerator:
             return .slice(
-                trigger: .native(.init(algo: .manual(pattern: Array(repeating: false, count: 16)), basePitch: 60)),
+                trigger: .native(.init(algo: .euclidean(pulses: 4, steps: 16, offset: 0), basePitch: 60)),
                 sliceIndexes: []
             )
         }
@@ -744,13 +744,13 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
     static let defaultPool: [GeneratorPoolEntry] = [
         .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1") ?? UUID(),
-            name: "Manual Mono",
+            name: "Euclidean Mono",
             kind: .monoGenerator,
             trackType: .monoMelodic
         ),
         .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2") ?? UUID(),
-            name: "Poly Chords",
+            name: "Euclidean Poly",
             kind: .polyGenerator,
             trackType: .polyMelodic
         ),
@@ -817,10 +817,16 @@ struct ClipPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable {
 extension ClipPoolEntry {
     var pitchPool: [Int] {
         switch content {
-        case let .stepSequence(_, pitches):
-            return pitches
-        case let .pianoRoll(_, _, notes):
-            return Array(Set(notes.map(\.pitch))).sorted()
+        case let .noteGrid(_, steps):
+            return Array(
+                Set(
+                    steps.flatMap { step in
+                        (step.main?.notes ?? []) + (step.fill?.notes ?? [])
+                    }
+                    .map(\.pitch)
+                )
+            )
+            .sorted()
         case let .sliceTriggers(_, sliceIndexes):
             return sliceIndexes.map { 60 + $0 }
         }
@@ -835,19 +841,41 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
     var mode: TrackSourceMode
     var generatorID: UUID?
     var clipID: UUID?
+    var modifierGeneratorID: UUID?
+    var modifierBypassed: Bool
 
-    init(mode: TrackSourceMode, generatorID: UUID? = nil, clipID: UUID? = nil) {
+    private enum CodingKeys: String, CodingKey {
+        case mode
+        case generatorID
+        case clipID
+        case modifierGeneratorID
+        case modifierBypassed
+    }
+
+    init(
+        mode: TrackSourceMode,
+        generatorID: UUID? = nil,
+        clipID: UUID? = nil,
+        modifierGeneratorID: UUID? = nil,
+        modifierBypassed: Bool = false
+    ) {
         self.mode = mode
         self.generatorID = generatorID
         self.clipID = clipID
+        self.modifierGeneratorID = modifierGeneratorID
+        self.modifierBypassed = modifierBypassed
     }
 
     static func generator(_ id: UUID?) -> SourceRef {
-        SourceRef(mode: .generator, generatorID: id)
+        SourceRef(mode: .generator, generatorID: id, modifierGeneratorID: id)
     }
 
     static func clip(_ id: UUID?) -> SourceRef {
         SourceRef(mode: .clip, clipID: id)
+    }
+
+    var hasActiveModifier: Bool {
+        modifierGeneratorID != nil && !modifierBypassed
     }
 
     var isEmpty: Bool {
@@ -864,17 +892,85 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         generatorPool: [GeneratorPoolEntry],
         clipPool: [ClipPoolEntry]
     ) -> SourceRef {
+        let compatibleSourceGeneratorID: UUID? = {
+            switch mode {
+            case .generator:
+                return generatorPool.first(where: { $0.id == generatorID && $0.trackType == trackType })?.id
+                    ?? generatorPool.first(where: { $0.trackType == trackType })?.id
+            case .clip:
+                return generatorID
+            }
+        }()
+
+        let compatibleModifierGeneratorID = generatorPool.first(where: {
+            $0.id == modifierGeneratorID && $0.trackType == trackType
+        })?.id
+
         switch mode {
         case .generator:
-            let compatibleID = generatorPool.first(where: { $0.id == generatorID && $0.trackType == trackType })?.id
-                ?? generatorPool.first(where: { $0.trackType == trackType })?.id
-            return SourceRef(mode: .generator, generatorID: compatibleID, clipID: clipID)
+            return SourceRef(
+                mode: .generator,
+                generatorID: compatibleSourceGeneratorID,
+                clipID: clipID,
+                modifierGeneratorID: compatibleModifierGeneratorID,
+                modifierBypassed: compatibleModifierGeneratorID == nil ? false : modifierBypassed
+            )
         case .clip:
             guard let clipID else {
-                return SourceRef(mode: .clip, generatorID: generatorID, clipID: nil)
+                return SourceRef(
+                    mode: .clip,
+                    generatorID: compatibleSourceGeneratorID,
+                    clipID: nil,
+                    modifierGeneratorID: compatibleModifierGeneratorID,
+                    modifierBypassed: compatibleModifierGeneratorID == nil ? false : modifierBypassed
+                )
             }
             let compatibleID = clipPool.first(where: { $0.id == clipID && $0.trackType == trackType })?.id
-            return SourceRef(mode: .clip, generatorID: generatorID, clipID: compatibleID)
+            return SourceRef(
+                mode: .clip,
+                generatorID: compatibleSourceGeneratorID,
+                clipID: compatibleID,
+                modifierGeneratorID: compatibleModifierGeneratorID,
+                modifierBypassed: compatibleModifierGeneratorID == nil ? false : modifierBypassed
+            )
         }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let mode = try container.decode(TrackSourceMode.self, forKey: .mode)
+        let generatorID = try container.decodeIfPresent(UUID.self, forKey: .generatorID)
+        let clipID = try container.decodeIfPresent(UUID.self, forKey: .clipID)
+        let hasModifierKey = container.contains(.modifierGeneratorID)
+        let decodedModifierID = try container.decodeIfPresent(UUID.self, forKey: .modifierGeneratorID)
+        let modifierBypassed = try container.decodeIfPresent(Bool.self, forKey: .modifierBypassed) ?? false
+
+        let resolvedModifierID: UUID? = {
+            if hasModifierKey {
+                return decodedModifierID
+            }
+            return generatorID
+        }()
+
+        self.init(
+            mode: mode,
+            generatorID: generatorID,
+            clipID: clipID,
+            modifierGeneratorID: resolvedModifierID,
+            modifierBypassed: modifierBypassed
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(mode, forKey: .mode)
+        try container.encodeIfPresent(generatorID, forKey: .generatorID)
+        try container.encodeIfPresent(clipID, forKey: .clipID)
+        if let modifierGeneratorID {
+            try container.encode(modifierGeneratorID, forKey: .modifierGeneratorID)
+        } else {
+            try container.encodeNil(forKey: .modifierGeneratorID)
+        }
+        try container.encode(modifierBypassed, forKey: .modifierBypassed)
     }
 }

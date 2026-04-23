@@ -8,7 +8,21 @@ enum StepVisualState {
 
 struct StepGridView: View {
     let stepStates: [StepVisualState]
+    let indexOffset: Int
+    let onDoubleTap: ((Int) -> Void)?
     let advanceStep: (Int) -> Void
+
+    init(
+        stepStates: [StepVisualState],
+        indexOffset: Int = 0,
+        onDoubleTap: ((Int) -> Void)? = nil,
+        advanceStep: @escaping (Int) -> Void
+    ) {
+        self.stepStates = stepStates
+        self.indexOffset = indexOffset
+        self.onDoubleTap = onDoubleTap
+        self.advanceStep = advanceStep
+    }
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 8)
 
@@ -16,9 +30,12 @@ struct StepGridView: View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(Array(stepStates.enumerated()), id: \.offset) { index, state in
                 StepGridCell(
-                    index: index,
+                    index: index + indexOffset,
                     state: state,
-                    action: { advanceStep(index) }
+                    action: { advanceStep(index + indexOffset) },
+                    onDoubleTap: {
+                        onDoubleTap?(index + indexOffset)
+                    }
                 )
             }
         }
@@ -29,40 +46,41 @@ private struct StepGridCell: View {
     let index: Int
     let state: StepVisualState
     let action: () -> Void
+    let onDoubleTap: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 10) {
-                Text("\(index + 1)")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(labelStyle)
+        VStack(spacing: 10) {
+            Text("\(index + 1)")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(labelStyle)
 
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(fillColor)
-                    .frame(height: 44)
-                    .overlay {
-                        Image(systemName: symbolName)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(iconStyle)
-                    }
-                    .overlay(alignment: .top) {
-                        Capsule()
-                            .fill(edgeGlow)
-                            .frame(width: 26, height: 3)
-                            .padding(.top, 5)
-                    }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 4)
-            .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(outlineColor, lineWidth: 1)
-            )
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .fill(fillColor)
+                .frame(height: 44)
+                .overlay {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(iconStyle)
+                }
+                .overlay(alignment: .top) {
+                    Capsule()
+                        .fill(edgeGlow)
+                        .frame(width: 26, height: 3)
+                        .padding(.top, 5)
+                }
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(outlineColor, lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .onTapGesture(count: 2, perform: onDoubleTap)
+        .onTapGesture(perform: action)
         .accessibilityLabel("Step \(index + 1)")
         .accessibilityValue(accessibilityText)
     }

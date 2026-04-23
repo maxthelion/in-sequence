@@ -17,16 +17,17 @@ enum ProjectDelta: Equatable, Hashable {
 
     var isPhaseOneHotPath: Bool {
         switch self {
-        case .trackMixChanged, .selectedTrackChanged:
+        case .trackMixChanged,
+             .selectedTrackChanged,
+             .patternBanksChanged,
+             .clipPoolChanged:
             return true
         case .trackDestinationChanged,
              .trackParameterChanged,
              .tracksInsertedOrRemoved,
              .trackGroupsChanged,
              .routesChanged,
-             .patternBanksChanged,
              .phrasesChanged,
-             .clipPoolChanged,
              .layersChanged,
              .coarseResync:
             return false

@@ -28,14 +28,12 @@ final class ProjectEmptyDefaultsTests: XCTestCase {
         XCTAssertFalse(compatibleClips.isEmpty, "Project.empty must have a compatible clip for the default track type")
     }
 
-    func test_empty_project_bank_slot_clip_id_is_not_nil() {
+    func test_empty_project_bank_seeds_only_the_first_slot_with_a_clip() {
         let project = Project.empty
         let bank = project.patternBank(for: project.selectedTrack.id)
-        for slot in bank.slots {
-            XCTAssertNotNil(
-                slot.sourceRef.clipID,
-                "slot \(slot.slotIndex) clipID must be non-nil in Project.empty (seeded owned clip)"
-            )
+        XCTAssertNotNil(bank.slot(at: 0).sourceRef.clipID)
+        for slot in bank.slots.dropFirst() {
+            XCTAssertNil(slot.sourceRef.clipID, "slot \(slot.slotIndex) should stay empty until edited")
         }
     }
 }

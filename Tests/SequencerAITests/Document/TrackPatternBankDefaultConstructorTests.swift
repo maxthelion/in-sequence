@@ -3,7 +3,7 @@ import XCTest
 @testable import SequencerAI
 
 final class TrackPatternBankDefaultConstructorTests: XCTestCase {
-    func test_default_points_all_slots_at_initialClipID() {
+    func test_default_seeds_only_the_first_slot_with_initialClipID() {
         let track = StepSequenceTrack.default
         let clipID = UUID()
 
@@ -11,9 +11,12 @@ final class TrackPatternBankDefaultConstructorTests: XCTestCase {
 
         XCTAssertEqual(bank.slots.count, TrackPatternBank.slotCount)
         XCTAssertNil(bank.attachedGeneratorID)
-        for slot in bank.slots {
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.mode, .clip)
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, clipID)
+        XCTAssertNil(bank.slot(at: 0).sourceRef.generatorID)
+        for slot in bank.slots.dropFirst() {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
-            XCTAssertEqual(slot.sourceRef.clipID, clipID)
+            XCTAssertNil(slot.sourceRef.clipID)
             XCTAssertNil(slot.sourceRef.generatorID)
         }
     }

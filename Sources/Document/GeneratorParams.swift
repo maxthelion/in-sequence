@@ -20,13 +20,13 @@ enum GeneratorParams: Codable, Equatable, Hashable, Sendable {
         triggers: [
             "kick": .native(
                 .init(
-                    algo: .manual(pattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]),
+                    algo: .euclidean(pulses: 4, steps: 16, offset: 0),
                     basePitch: Int(DrumKitNoteMap.note(for: "kick"))
                 )
             ),
             "snare": .native(
                 .init(
-                    algo: .manual(pattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]),
+                    algo: .euclidean(pulses: 2, steps: 16, offset: 4),
                     basePitch: Int(DrumKitNoteMap.note(for: "snare"))
                 )
             ),

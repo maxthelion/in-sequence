@@ -143,7 +143,7 @@ final class EngineControllerTests: XCTestCase {
             trackType: .monoMelodic,
             kind: .monoGenerator,
             params: .mono(
-                trigger: .native(.manual(pattern: [true, false, false, false])),
+                trigger: .native(.euclidean(pulses: 1, steps: 4, offset: 0)),
                 pitch: .native(.manual(pitches: [72], pickMode: .sequential)),
                 shape: NoteShape(velocity: 99, gateLength: 3, accent: false)
             )
@@ -223,6 +223,346 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(events.first?.pitch, 65)
         XCTAssertEqual(events.first?.velocity, 100)
         XCTAssertEqual(events.first?.length, 4)
+    }
+
+    func test_clip_source_runs_post_source_pitch_processing_without_overwriting_clip_velocity_or_length() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "11111111-aaaa-bbbb-cccc-111111111111") ?? UUID(),
+            name: "Processed Clip",
+            pitches: [48],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 70,
+            gateLength: 1
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(uuidString: "22222222-aaaa-bbbb-cccc-222222222222")!,
+            name: "Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 91, lengthSteps: 3)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let generator = GeneratorPoolEntry(
+            id: UUID(uuidString: "33333333-aaaa-bbbb-cccc-333333333333")!,
+            name: "Pitch Processor",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .mono(
+                trigger: .native(.euclidean(pulses: 0, steps: 1, offset: 0)),
+                pitch: .native(.manual(pitches: [72], pickMode: .sequential)),
+                shape: NoteShape(velocity: 30, gateLength: 1, accent: false)
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [clip])
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [
+                TrackPatternSlot(
+                    slotIndex: 0,
+                    sourceRef: SourceRef(
+                        mode: .clip,
+                        generatorID: nil,
+                        clipID: clip.id,
+                        modifierGeneratorID: generator.id
+                    )
+                )
+            ],
+            attachedGeneratorID: generator.id
+        )
+        let document = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        let events = audioSink.receivedEvents.flatMap { $0 }
+        XCTAssertEqual(events.map(\.pitch), [72])
+        XCTAssertEqual(events.map(\.velocity), [91])
+        XCTAssertEqual(events.map(\.length), [3])
+    }
+
+    func test_clip_source_modifier_bypass_preserves_raw_clip_pitch() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "10101010-aaaa-bbbb-cccc-101010101010") ?? UUID(),
+            name: "Bypassed Clip Modifier",
+            pitches: [48],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 70,
+            gateLength: 1
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(uuidString: "20202020-aaaa-bbbb-cccc-202020202020")!,
+            name: "Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 91, lengthSteps: 3)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let generator = GeneratorPoolEntry(
+            id: UUID(uuidString: "30303030-aaaa-bbbb-cccc-303030303030")!,
+            name: "Pitch Modifier",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .mono(
+                trigger: .native(.euclidean(pulses: 0, steps: 1, offset: 0)),
+                pitch: .native(.manual(pitches: [72], pickMode: .sequential)),
+                shape: NoteShape(velocity: 30, gateLength: 1, accent: false)
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [clip])
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [
+                TrackPatternSlot(
+                    slotIndex: 0,
+                    sourceRef: SourceRef(
+                        mode: .clip,
+                        generatorID: nil,
+                        clipID: clip.id,
+                        modifierGeneratorID: generator.id,
+                        modifierBypassed: true
+                    )
+                )
+            ]
+        )
+        let document = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        let events = audioSink.receivedEvents.flatMap { $0 }
+        XCTAssertEqual(events.map(\.pitch), [60])
+        XCTAssertEqual(events.map(\.velocity), [91])
+        XCTAssertEqual(events.map(\.length), [3])
+    }
+
+    func test_generator_source_without_modifier_emits_unmodified_source_pitch() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "40404040-aaaa-bbbb-cccc-404040404040") ?? UUID(),
+            name: "Raw Generator",
+            pitches: [48],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 70,
+            gateLength: 1
+        )
+        let generator = GeneratorPoolEntry(
+            id: UUID(uuidString: "50505050-aaaa-bbbb-cccc-505050505050")!,
+            name: "Source Generator",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .mono(
+                trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0), basePitch: 61),
+                pitch: .native(.manual(pitches: [72], pickMode: .sequential)),
+                shape: NoteShape(velocity: 88, gateLength: 4, accent: false)
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [])
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [
+                TrackPatternSlot(
+                    slotIndex: 0,
+                    sourceRef: SourceRef(
+                        mode: .generator,
+                        generatorID: generator.id,
+                        clipID: nil,
+                        modifierGeneratorID: nil,
+                        modifierBypassed: false
+                    )
+                )
+            ]
+        )
+        let document = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        let events = audioSink.receivedEvents.flatMap { $0 }
+        XCTAssertEqual(events.map(\.pitch), [61])
+        XCTAssertEqual(events.map(\.velocity), [88])
+        XCTAssertEqual(events.map(\.length), [4])
+    }
+
+    func test_fill_enabled_clip_step_prefers_fill_lane_over_main_lane() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "44444444-aaaa-bbbb-cccc-444444444444") ?? UUID(),
+            name: "Fill Clip",
+            pitches: [48],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 70,
+            gateLength: 1
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(uuidString: "55555555-aaaa-bbbb-cccc-555555555555")!,
+            name: "Fill",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 80, lengthSteps: 2)]),
+                        fill: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 118, lengthSteps: 5)])
+                    )
+                ]
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let fillLayer = try! XCTUnwrap(layers.first(where: { $0.target == .macroRow("fill-flag") }))
+        var phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: [clip])
+        phrase.setCell(.single(.bool(true)), for: fillLayer.id, trackID: track.id)
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        let document = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        let events = audioSink.receivedEvents.flatMap { $0 }
+        XCTAssertEqual(events.map(\.pitch), [72])
+        XCTAssertEqual(events.map(\.velocity), [118])
+        XCTAssertEqual(events.map(\.length), [5])
+    }
+
+    func test_saveRollingCapture_writes_a_new_note_grid_clip_to_destination_slot() {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CapturingAudioSink())
+        let track = StepSequenceTrack(
+            id: UUID(uuidString: "66666666-aaaa-bbbb-cccc-666666666666") ?? UUID(),
+            name: "Capture",
+            pitches: [48],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 70,
+            gateLength: 1
+        )
+        let generator = monoGeneratorEntry(
+            id: UUID(uuidString: "77777777-aaaa-bbbb-cccc-777777777777")!,
+            name: "Source",
+            trackType: .monoMelodic,
+            pattern: [true],
+            pitch: 65,
+            velocity: 99,
+            gateLength: 3
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [])
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+        )
+        var document = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        let clipID = controller.saveRollingCapture(
+            to: &document,
+            trackID: track.id,
+            destinationSlotIndex: 1,
+            lengthSteps: 1,
+            name: "Captured"
+        )
+
+        XCTAssertNotNil(clipID)
+        XCTAssertEqual(document.patternBank(for: track.id).slot(at: 1).sourceRef.mode, .clip)
+        XCTAssertEqual(document.patternBank(for: track.id).slot(at: 1).sourceRef.clipID, clipID)
+        let capturedClip = try! XCTUnwrap(document.clipEntry(id: clipID))
+        guard case let .noteGrid(lengthSteps, steps) = capturedClip.content else {
+            return XCTFail("expected captured note-grid clip")
+        }
+        XCTAssertEqual(lengthSteps, 1)
+        XCTAssertEqual(steps.count, 1)
+        XCTAssertEqual(steps[0].main?.chance, 1)
+        XCTAssertEqual(steps[0].main?.notes.map(\.pitch), [65])
+        XCTAssertEqual(steps[0].main?.notes.map(\.velocity), [99])
+        XCTAssertEqual(steps[0].main?.notes.map(\.lengthSteps), [3])
     }
 
     func test_process_tick_marks_recent_note_trigger_when_selected_source_emits_notes() {
@@ -634,7 +974,7 @@ private func monoGeneratorEntry(
         trackType: trackType,
         kind: .monoGenerator,
         params: .mono(
-            trigger: .native(.manual(pattern: pattern)),
+            trigger: .native(euclideanAlgo(matching: pattern)),
             pitch: .native(.manual(pitches: [pitch], pickMode: .sequential)),
             shape: NoteShape(velocity: velocity, gateLength: gateLength, accent: false)
         )

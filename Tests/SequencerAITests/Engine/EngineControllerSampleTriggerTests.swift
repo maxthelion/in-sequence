@@ -44,7 +44,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             trackType: trackType,
             kind: .monoGenerator,
             params: .mono(
-                trigger: .native(.manual(pattern: [true])),
+                trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),
                 pitch: .native(.manual(pitches: [DrumKitNoteMap.baselineNote], pickMode: .sequential)),
                 shape: NoteShape(velocity: 100, gateLength: 4, accent: false)
             )

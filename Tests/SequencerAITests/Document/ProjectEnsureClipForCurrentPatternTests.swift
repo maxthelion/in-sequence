@@ -64,11 +64,8 @@ final class ProjectEnsureClipForCurrentPatternTests: XCTestCase {
         let clip = try! XCTUnwrap(project.clipEntry(id: clipID))
 
         XCTAssertEqual(clip.trackType, track.trackType)
-        guard case let .stepSequence(stepPattern, pitches) = clip.content else {
-            return XCTFail("expected stepSequence")
-        }
-        XCTAssertEqual(stepPattern, Array(repeating: false, count: 16))
-        XCTAssertEqual(pitches, track.pitches)
+        XCTAssertEqual(noteGridMainStepPattern(clip.content), Array(repeating: false, count: 16))
+        XCTAssertTrue(noteGridPitches(clip.content).isEmpty)
     }
 
     private func makeProject() -> Project {

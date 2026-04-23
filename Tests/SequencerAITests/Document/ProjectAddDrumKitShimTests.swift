@@ -40,10 +40,11 @@ final class ProjectAddDrumKitShimTests: XCTestCase {
 
             let newClips = Array(project.clipPool.suffix(preset.members.count))
             for (clip, presetMember) in zip(newClips, preset.members) {
-                guard case let .stepSequence(stepPattern, _) = clip.content else {
-                    return XCTFail("preset=\(preset.rawValue) expected .stepSequence")
-                }
-                XCTAssertEqual(stepPattern, presetMember.seedPattern, "preset=\(preset.rawValue) clip=\(clip.name)")
+                XCTAssertEqual(
+                    noteGridMainStepPattern(clip.content),
+                    presetMember.seedPattern,
+                    "preset=\(preset.rawValue) clip=\(clip.name)"
+                )
             }
         }
     }

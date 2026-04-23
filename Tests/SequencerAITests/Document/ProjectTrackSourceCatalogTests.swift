@@ -74,7 +74,7 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
             id: UUID(),
             name: "Drum Source",
             trackType: .monoMelodic,
-            content: .stepSequence(stepPattern: [true, false, true, false], pitches: [])
+            content: .emptyNoteGrid(lengthSteps: 4)
         )
 
         let project = Project(

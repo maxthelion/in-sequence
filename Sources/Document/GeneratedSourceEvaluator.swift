@@ -35,14 +35,117 @@ enum GeneratedSourceEvaluator {
         state: inout GeneratedSourceEvaluationState,
         rng: inout R
     ) -> [GeneratedNote] {
-        evaluateStep(
-            for: params.generatedSourcePipeline,
+        let sourceNotes = evaluateSourceStep(
+            for: params,
+            stepIndex: stepIndex,
+            clipChoices: clipChoices,
+            rng: &rng
+        )
+
+        return processSourceNotes(
+            sourceNotes,
+            through: params,
             stepIndex: stepIndex,
             clipChoices: clipChoices,
             chordContext: chordContext,
             state: &state,
             rng: &rng
         )
+    }
+
+    static func evaluateSourceStep<R: RandomNumberGenerator>(
+        for params: GeneratorParams,
+        stepIndex: Int,
+        clipChoices: [ClipPoolEntry],
+        rng: inout R
+    ) -> [GeneratedNote] {
+        switch params {
+        case let .mono(trigger, _, shape):
+            let seeds = emittedSeeds(
+                from: trigger,
+                stepIndex: stepIndex,
+                totalSteps: cycleLength(for: params, clipChoices: clipChoices),
+                clipChoices: clipChoices,
+                rng: &rng,
+                voiceTag: nil
+            )
+
+            return seeds.map { seed in
+                GeneratedNote(
+                    pitch: clampMIDI(seed.pitch),
+                    velocity: clampMIDI(shape.velocity),
+                    length: max(1, shape.gateLength),
+                    voiceTag: seed.voiceTag
+                )
+            }
+
+        case let .poly(trigger, _, shape):
+            let seeds = emittedSeeds(
+                from: trigger,
+                stepIndex: stepIndex,
+                totalSteps: cycleLength(for: params, clipChoices: clipChoices),
+                clipChoices: clipChoices,
+                rng: &rng,
+                voiceTag: nil
+            )
+
+            return seeds.map { seed in
+                GeneratedNote(
+                    pitch: clampMIDI(seed.pitch),
+                    velocity: clampMIDI(shape.velocity),
+                    length: max(1, shape.gateLength),
+                    voiceTag: seed.voiceTag
+                )
+            }
+
+        case let .drum(triggers, shape):
+            let totalSteps = cycleLength(for: params, clipChoices: clipChoices)
+            return triggers.keys.sorted().flatMap { voiceTag in
+                guard let trigger = triggers[voiceTag] else {
+                    return [GeneratedNote]()
+                }
+
+                let seeds = emittedSeeds(
+                    from: trigger,
+                    stepIndex: stepIndex,
+                    totalSteps: totalSteps,
+                    clipChoices: clipChoices,
+                    rng: &rng,
+                    voiceTag: voiceTag
+                )
+                return seeds.map { seed in
+                    GeneratedNote(
+                        pitch: clampMIDI(seed.pitch),
+                        velocity: clampMIDI(shape.velocity),
+                        length: max(1, shape.gateLength),
+                        voiceTag: seed.voiceTag
+                    )
+                }
+            }
+
+        case let .slice(trigger, sliceIndexes):
+            let seeds = emittedSeeds(
+                from: trigger,
+                stepIndex: stepIndex,
+                totalSteps: cycleLength(for: params, clipChoices: clipChoices),
+                clipChoices: clipChoices,
+                rng: &rng,
+                voiceTag: nil
+            )
+            let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
+            return seeds.enumerated().map { index, _ in
+                let sliceIndex = resolvedIndexes[(stepIndex + index) % resolvedIndexes.count]
+                return GeneratedNote(
+                    pitch: clampMIDI(60 + sliceIndex),
+                    velocity: clampMIDI(NoteShape.default.velocity),
+                    length: max(1, NoteShape.default.gateLength),
+                    voiceTag: nil
+                )
+            }
+
+        case .template:
+            return []
+        }
     }
 
     static func evaluateStep<R: RandomNumberGenerator>(
@@ -179,13 +282,107 @@ enum GeneratedSourceEvaluator {
         stepIndex: Int
     ) -> Bool {
         switch clip.content {
-        case let .stepSequence(stepPattern, _), let .sliceTriggers(stepPattern, _):
+        case let .noteGrid(lengthSteps, steps):
+            guard !steps.isEmpty else { return false }
+            let normalizedStep = positiveModulo(stepIndex, max(lengthSteps, 1))
+            return !steps[normalizedStep].isEmpty
+        case let .sliceTriggers(stepPattern, _):
             guard !stepPattern.isEmpty else { return false }
             return stepPattern[stepIndex % stepPattern.count]
-        case let .pianoRoll(lengthBars, stepsPerBar, notes):
-            let cycleLength = max(1, lengthBars * stepsPerBar)
-            let normalizedStep = stepIndex % cycleLength
-            return notes.contains { $0.startStep == normalizedStep }
+        }
+    }
+
+    static func resolveClipStep<R: RandomNumberGenerator>(
+        for clip: ClipPoolEntry,
+        stepIndex: Int,
+        fillEnabled: Bool,
+        rng: inout R
+    ) -> [GeneratedNote] {
+        switch clip.content.normalized {
+        case let .noteGrid(lengthSteps, steps):
+            guard !steps.isEmpty else { return [] }
+            let normalizedStep = positiveModulo(stepIndex, max(lengthSteps, 1))
+            let step = steps[normalizedStep]
+            let resolvedLane: ClipLane?
+            if fillEnabled,
+               let fill = step.fill,
+               laneFires(fill, rng: &rng)
+            {
+                resolvedLane = fill
+            } else if let main = step.main,
+                      laneFires(main, rng: &rng)
+            {
+                resolvedLane = main
+            } else {
+                resolvedLane = nil
+            }
+
+            return resolvedLane?.notes.map { note in
+                GeneratedNote(
+                    pitch: clampMIDI(note.pitch),
+                    velocity: clampMIDI(note.velocity),
+                    length: max(1, note.lengthSteps),
+                    voiceTag: nil
+                )
+            } ?? []
+
+        case let .sliceTriggers(stepPattern, sliceIndexes):
+            guard !stepPattern.isEmpty else { return [] }
+            let normalizedStep = positiveModulo(stepIndex, stepPattern.count)
+            guard stepPattern[normalizedStep] else { return [] }
+            let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
+            let sliceIndex = resolvedIndexes[normalizedStep % resolvedIndexes.count]
+            return [
+                GeneratedNote(
+                    pitch: clampMIDI(60 + sliceIndex),
+                    velocity: clampMIDI(NoteShape.default.velocity),
+                    length: max(1, NoteShape.default.gateLength),
+                    voiceTag: nil
+                )
+            ]
+        }
+    }
+
+    static func processSourceNotes<R: RandomNumberGenerator>(
+        _ notes: [GeneratedNote],
+        through params: GeneratorParams,
+        stepIndex: Int,
+        clipChoices: [ClipPoolEntry],
+        chordContext: Chord?,
+        state: inout GeneratedSourceEvaluationState,
+        rng: inout R
+    ) -> [GeneratedNote] {
+        guard !notes.isEmpty else {
+            return []
+        }
+
+        switch params {
+        case let .mono(_, pitch, _):
+            return notes.flatMap { sourceNote in
+                transformedSourceNotes(
+                    from: sourceNote,
+                    pitches: [pitch],
+                    stepIndex: stepIndex,
+                    clipChoices: clipChoices,
+                    chordContext: chordContext,
+                    state: &state,
+                    rng: &rng
+                )
+            }
+        case let .poly(_, pitches, _):
+            return notes.flatMap { sourceNote in
+                transformedSourceNotes(
+                    from: sourceNote,
+                    pitches: pitches,
+                    stepIndex: stepIndex,
+                    clipChoices: clipChoices,
+                    chordContext: chordContext,
+                    state: &state,
+                    rng: &rng
+                )
+            }
+        case .drum, .slice, .template:
+            return notes
         }
     }
 
@@ -248,6 +445,41 @@ enum GeneratedSourceEvaluator {
                 length: max(1, shape.gateLength),
                 voiceTag: seed.voiceTag
             )
+        }
+    }
+
+    private static func transformedSourceNotes<R: RandomNumberGenerator>(
+        from sourceNote: GeneratedNote,
+        pitches: [PitchStageNode],
+        stepIndex: Int,
+        clipChoices: [ClipPoolEntry],
+        chordContext: Chord?,
+        state: inout GeneratedSourceEvaluationState,
+        rng: inout R
+    ) -> [GeneratedNote] {
+        let seed = NoteSeed(pitch: sourceNote.pitch, voiceTag: sourceNote.voiceTag)
+        return pitches.enumerated().flatMap { laneIndex, pitchNode in
+            let lastPitch = state.lastPitch(for: laneIndex)
+            let resolvedPitches = transformedPitches(
+                for: pitchNode.pitchStage,
+                seed: seed,
+                stepIndex: stepIndex,
+                clipChoices: clipChoices,
+                chordContext: chordContext,
+                lastPitch: lastPitch,
+                rng: &rng
+            )
+            if let last = resolvedPitches.last {
+                state.setLastPitch(last, for: laneIndex)
+            }
+            return resolvedPitches.map { pitch in
+                GeneratedNote(
+                    pitch: clampMIDI(pitch),
+                    velocity: clampMIDI(sourceNote.velocity),
+                    length: max(1, sourceNote.length),
+                    voiceTag: sourceNote.voiceTag
+                )
+            }
         }
     }
 
@@ -416,26 +648,25 @@ enum GeneratedSourceEvaluator {
         _ trigger: TriggerStageNode,
         clipChoices: [ClipPoolEntry]
     ) -> Int {
+        _ = clipChoices
         switch trigger.stepStage.algo {
-        case let .manual(pattern):
-            return max(pattern.count, 1)
-        case .randomWeighted:
-            return 16
         case let .euclidean(_, steps, _):
             return max(steps, 1)
-        case let .perStepProbability(probs):
-            return max(probs.count, 1)
-        case let .fromClipSteps(clipID):
-            guard let clip = clipChoices.first(where: { $0.id == clipID }) else {
-                return 16
-            }
-            switch clip.content {
-            case let .stepSequence(stepPattern, _), let .sliceTriggers(stepPattern, _):
-                return max(stepPattern.count, 1)
-            case let .pianoRoll(lengthBars, stepsPerBar, _):
-                return max(1, lengthBars * stepsPerBar)
-            }
         }
+    }
+
+    private static func laneFires<R: RandomNumberGenerator>(
+        _ lane: ClipLane,
+        rng: inout R
+    ) -> Bool {
+        let normalizedChance = min(max(lane.chance, 0), 1)
+        if normalizedChance >= 1 {
+            return true
+        }
+        if normalizedChance <= 0 {
+            return false
+        }
+        return Double.random(in: 0..<1, using: &rng) < normalizedChance
     }
 
     private static func triggerFires<R: RandomNumberGenerator>(
@@ -445,15 +676,8 @@ enum GeneratedSourceEvaluator {
         clipChoices: [ClipPoolEntry],
         rng: inout R
     ) -> Bool {
-        switch trigger {
-        case let .fromClipSteps(clipID):
-            guard let clip = clipChoices.first(where: { $0.id == clipID }) else {
-                return false
-            }
-            return clipStepPatternFires(for: clip, stepIndex: stepIndex)
-        default:
-            return trigger.fires(at: stepIndex, totalSteps: totalSteps, rng: &rng)
-        }
+        _ = clipChoices
+        return trigger.fires(at: stepIndex, totalSteps: totalSteps, rng: &rng)
     }
 
     private static func transposedRoot(seedPitch: Int, configuredRoot: Int) -> Int {

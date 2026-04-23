@@ -6,7 +6,7 @@ final class GeneratorParamsTests: XCTestCase {
     func test_variants_round_trip_through_codable() throws {
         let values: [GeneratorParams] = [
             .mono(
-                trigger: .native(.manual(pattern: [true, false])),
+                trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0)),
                 pitch: .native(.manual(pitches: [60, 64], pickMode: .sequential)),
                 shape: .default
             ),
@@ -20,13 +20,13 @@ final class GeneratorParamsTests: XCTestCase {
             ),
             .drum(
                 triggers: [
-                    "kick": .native(.manual(pattern: [true, false, true, false]), basePitch: 36),
-                    "hat": .native(.perStepProbability(probs: [1, 0.5, 1, 0.5]), basePitch: 42),
+                    "kick": .native(.euclidean(pulses: 2, steps: 4, offset: 0), basePitch: 36),
+                    "hat": .native(.euclidean(pulses: 4, steps: 4, offset: 0), basePitch: 42),
                 ],
                 shape: .default
             ),
             .template(templateID: UUID(uuidString: "66666666-6666-6666-6666-666666666666")!),
-            .slice(trigger: .native(.randomWeighted(density: 0.25)), sliceIndexes: [0, 3, 7]),
+            .slice(trigger: .native(.euclidean(pulses: 3, steps: 8, offset: 1)), sliceIndexes: [0, 3, 7]),
         ]
 
         for value in values {
@@ -40,7 +40,7 @@ final class GeneratorParamsTests: XCTestCase {
         XCTAssertEqual(
             GeneratorParams.defaultMono,
             .mono(
-                trigger: .native(.manual(pattern: Array(repeating: false, count: 16))),
+                trigger: .native(.euclidean(pulses: 4, steps: 16, offset: 0)),
                 pitch: .native(.manual(pitches: [60, 62, 64, 67], pickMode: .random)),
                 shape: .default
             )
@@ -62,12 +62,12 @@ final class GeneratorParamsTests: XCTestCase {
 
     func test_mono_variants_compare_step_algo_in_equality() {
         let first = GeneratorParams.mono(
-            trigger: .native(.manual(pattern: [true, false])),
+            trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0)),
             pitch: .native(.manual(pitches: [60], pickMode: .sequential)),
             shape: .default
         )
         let second = GeneratorParams.mono(
-            trigger: .native(.manual(pattern: [false, true])),
+            trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 1)),
             pitch: .native(.manual(pitches: [60], pickMode: .sequential)),
             shape: .default
         )
@@ -93,12 +93,12 @@ final class GeneratorParamsTests: XCTestCase {
         let templateID = UUID(uuidString: "12121212-3434-5656-7878-909090909090")!
         let values: [GeneratorParams] = [
             .mono(
-                trigger: .native(.manual(pattern: [true, false]), basePitch: 60),
+                trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0), basePitch: 60),
                 pitch: .native(.manual(pitches: [60, 64], pickMode: .sequential)),
                 shape: .default
             ),
             .poly(
-                trigger: .native(.manual(pattern: [true, false]), basePitch: 60),
+                trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0), basePitch: 60),
                 pitches: [
                     .native(.manual(pitches: [60], pickMode: .sequential)),
                     .native(.manual(pitches: [67], pickMode: .sequential)),
@@ -107,13 +107,13 @@ final class GeneratorParamsTests: XCTestCase {
             ),
             .drum(
                 triggers: [
-                    "kick": .native(.manual(pattern: [true]), basePitch: 36),
-                    "hat": .native(.manual(pattern: [false, true]), basePitch: 42),
+                    "kick": .native(.euclidean(pulses: 1, steps: 1, offset: 0), basePitch: 36),
+                    "hat": .native(.euclidean(pulses: 1, steps: 2, offset: 1), basePitch: 42),
                 ],
                 shape: .default
             ),
             .slice(
-                trigger: .native(.manual(pattern: [true, false]), basePitch: 60),
+                trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0), basePitch: 60),
                 sliceIndexes: [0, 2, 4]
             ),
             .template(templateID: templateID),

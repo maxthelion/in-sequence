@@ -4,7 +4,7 @@ import XCTest
 final class GeneratedSourceEvaluatorTests: XCTestCase {
     func test_randomInScale_expands_middleC_seed_within_scale_and_spread() {
         let params = GeneratorParams.mono(
-            trigger: .native(.manual(pattern: [true]), basePitch: 60),
+            trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0), basePitch: 60),
             pitch: .native(.randomInScale(root: 60, scale: .major, spread: 12)),
             shape: .default
         )
@@ -29,7 +29,7 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
 
     func test_randomInChord_uses_project_chord_context_sidechain() {
         let params = GeneratorParams.mono(
-            trigger: .native(.manual(pattern: [true]), basePitch: 60),
+            trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0), basePitch: 60),
             pitch: .native(
                 .randomInChord(root: 60, chord: .majorTriad, inverted: false, spread: 12),
                 harmonicSidechain: .projectChordContext
@@ -68,7 +68,7 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
             )
         )
         let params = GeneratorParams.mono(
-            trigger: .native(.manual(pattern: [true])),
+            trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),
             pitch: .native(.fromClipPitches(clipID: clip.id, pickMode: .sequential)),
             shape: .default
         )
@@ -91,7 +91,7 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
 
     func test_poly_generator_outputs_all_pitch_lanes_from_one_trigger_stream() {
         let params = GeneratorParams.poly(
-            trigger: .native(.manual(pattern: [true])),
+            trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),
             pitches: [
                 .native(.manual(pitches: [60], pickMode: .sequential)),
                 .native(.manual(pitches: [67], pickMode: .sequential)),
@@ -116,8 +116,8 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
     func test_drum_generator_stays_trigger_only_and_uses_voice_base_pitches() {
         let params = GeneratorParams.drum(
             triggers: [
-                "hat": .native(.manual(pattern: [true]), basePitch: 42),
-                "kick": .native(.manual(pattern: [true]), basePitch: 36),
+                "hat": .native(.euclidean(pulses: 1, steps: 1, offset: 0), basePitch: 42),
+                "kick": .native(.euclidean(pulses: 1, steps: 1, offset: 0), basePitch: 36),
             ],
             shape: .default
         )
@@ -139,7 +139,7 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
 
     func test_previewNotes_matches_direct_evaluator_loop_for_deterministic_fixture() {
         let params = GeneratorParams.mono(
-            trigger: .native(.manual(pattern: [true, false, true, false])),
+            trigger: .native(.euclidean(pulses: 2, steps: 4, offset: 0)),
             pitch: .native(.manual(pitches: [60, 64], pickMode: .sequential)),
             shape: .default
         )
@@ -160,5 +160,34 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         }
 
         XCTAssertEqual(preview, direct)
+    }
+
+    func test_resolveClipStep_fillLane_falls_back_to_main_when_fill_does_not_hit() {
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: "Fill",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 80, lengthSteps: 2)]),
+                        fill: ClipLane(chance: 0, notes: [ClipStepNote(pitch: 72, velocity: 120, lengthSteps: 4)])
+                    )
+                ]
+            )
+        )
+
+        var rng = PreviewRNG()
+        let notes = GeneratedSourceEvaluator.resolveClipStep(
+            for: clip,
+            stepIndex: 0,
+            fillEnabled: true,
+            rng: &rng
+        )
+
+        XCTAssertEqual(notes.map(\.pitch), [60])
+        XCTAssertEqual(notes.map(\.velocity), [80])
+        XCTAssertEqual(notes.map(\.length), [2])
     }
 }

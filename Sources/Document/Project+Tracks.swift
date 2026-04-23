@@ -105,15 +105,12 @@ extension Project {
 
     static func makeOwnedClip(for track: StepSequenceTrack) -> ClipPoolEntry {
         guard let template = ClipPoolEntry.defaultPool.first(where: { $0.trackType == track.trackType }) else {
-            // No template for this trackType — synthesise an empty step-sequence clip.
+            // No template for this trackType — synthesise an empty note-grid clip.
             return ClipPoolEntry(
                 id: UUID(),
                 name: "\(track.name) clip",
                 trackType: track.trackType,
-                content: .stepSequence(
-                    stepPattern: Array(repeating: false, count: 16),
-                    pitches: track.pitches
-                )
+                content: .emptyNoteGrid(lengthSteps: 16)
             )
         }
         return ClipPoolEntry(

@@ -27,9 +27,10 @@ final class ProjectRemoveAttachedGeneratorTests: XCTestCase {
         let bank = project.patternBank(for: track.id)
         for slot in bank.slots {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
-            XCTAssertEqual(slot.sourceRef.clipID, ownedClipID, "remove must fall back to the slot's clipID")
             XCTAssertEqual(slot.sourceRef.generatorID, added.id, "generatorID is retained so un-attach could re-engage")
         }
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, ownedClipID, "remove must preserve the seeded clip")
+        XCTAssertTrue(bank.slots.dropFirst().allSatisfy { $0.sourceRef.clipID == nil })
     }
 
     func test_remove_does_not_delete_pool_entry() throws {

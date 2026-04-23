@@ -1,91 +1,151 @@
 import SwiftUI
 
 struct GeneratorParamsEditorView: View {
+    enum LayoutMode {
+        case stacked
+        case sourceOnly
+        case modifierOnly
+    }
+
     let generator: GeneratorPoolEntry
     let inputClipChoices: [ClipPoolEntry]
     let harmonicSidechainClipChoices: [ClipPoolEntry]
+    let sourceMode: TrackSourceMode
     let accent: Color
+    let layout: LayoutMode
     let onUpdate: (GeneratorParams) -> Void
 
-    @State private var selectedTab: GeneratorEditorTab = .steps
     @State private var selectedPolyLane = 0
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            GeneratorTabBar(selectedTab: $selectedTab)
+    init(
+        generator: GeneratorPoolEntry,
+        inputClipChoices: [ClipPoolEntry],
+        harmonicSidechainClipChoices: [ClipPoolEntry],
+        sourceMode: TrackSourceMode,
+        accent: Color,
+        layout: LayoutMode = .stacked,
+        onUpdate: @escaping (GeneratorParams) -> Void
+    ) {
+        self.generator = generator
+        self.inputClipChoices = inputClipChoices
+        self.harmonicSidechainClipChoices = harmonicSidechainClipChoices
+        self.sourceMode = sourceMode
+        self.accent = accent
+        self.layout = layout
+        self.onUpdate = onUpdate
+    }
 
-            switch generator.params {
-            case let .mono(trigger, pitch, shape):
-                monoEditor(trigger: trigger, pitch: pitch, shape: shape)
-            case let .poly(trigger, pitches, shape):
-                polyEditor(trigger: trigger, pitches: pitches, shape: shape)
-            case let .drum(triggers, shape):
-                drumEditor(triggers: triggers, shape: shape)
-            case let .template(templateID):
-                StudioPanel(title: "Template", eyebrow: "Template source", accent: accent) {
-                    Text(templateID.uuidString)
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundStyle(StudioTheme.mutedText)
+    var body: some View {
+        Group {
+            switch layout {
+            case .stacked:
+                VStack(alignment: .leading, spacing: 18) {
+                    sourceSection
+                    modifierSection
                 }
-            case let .slice(trigger, sliceIndexes):
-                sliceEditor(trigger: trigger, sliceIndexes: sliceIndexes)
+            case .sourceOnly:
+                sourceSection
+            case .modifierOnly:
+                modifierSection
             }
         }
     }
 
     @ViewBuilder
-    private func monoEditor(trigger: TriggerStageNode, pitch: PitchStageNode, shape: NoteShape) -> some View {
-        switch selectedTab {
-        case .steps:
-            StudioPanel(title: "Trigger Stage", eyebrow: stepDisplayLabel(trigger.stepStage), accent: accent) {
-                VStack(alignment: .leading, spacing: 16) {
-                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
-                        onUpdate(.mono(trigger: .native(nextStage), pitch: pitch, shape: shape))
-                    }
+    private var sourceSection: some View {
+        if sourceMode != .generator {
+            EmptyView()
+        } else {
+            switch generator.params {
+            case let .mono(trigger, _, shape):
+                StudioPanel(title: "Generator Source", eyebrow: "Used when this slot is set to Generator", accent: accent) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(stepDisplayLabel(trigger.stepStage))
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.mutedText)
 
-                    NoteShapeEditor(shape: shape) { nextShape in
-                        onUpdate(.mono(trigger: trigger, pitch: pitch, shape: nextShape))
+                        StepAlgoEditor(stage: trigger.stepStage) { nextStage in
+                            onUpdate(.mono(trigger: .native(nextStage), pitch: monoPitchStage, shape: shape))
+                        }
+
+                        NoteShapeEditor(shape: shape) { nextShape in
+                            onUpdate(.mono(trigger: trigger, pitch: monoPitchNode, shape: nextShape))
+                        }
                     }
                 }
+
+            case let .poly(trigger, _, shape):
+                StudioPanel(title: "Generator Source", eyebrow: "Used when this slot is set to Generator", accent: accent) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(stepDisplayLabel(trigger.stepStage))
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.mutedText)
+
+                        StepAlgoEditor(stage: trigger.stepStage) { nextStage in
+                            onUpdate(.poly(trigger: .native(nextStage), pitches: polyPitchNodes, shape: shape))
+                        }
+
+                        NoteShapeEditor(shape: shape) { nextShape in
+                            onUpdate(.poly(trigger: trigger, pitches: polyPitchNodes, shape: nextShape))
+                        }
+                    }
+                }
+
+            case let .slice(trigger, sliceIndexes):
+                StudioPanel(title: "Generator Source", eyebrow: "Used when this slot is set to Generator", accent: accent) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(stepDisplayLabel(trigger.stepStage))
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.mutedText)
+
+                        StepAlgoEditor(stage: trigger.stepStage) { nextStage in
+                            onUpdate(.slice(trigger: .native(nextStage), sliceIndexes: sliceIndexes))
+                        }
+
+                        SliceIndexEditor(sliceIndexes: sliceIndexes) { nextIndexes in
+                            onUpdate(.slice(trigger: trigger, sliceIndexes: nextIndexes))
+                        }
+                    }
+                }
+
+            case let .template(templateID):
+                StudioPanel(title: "Template Source", eyebrow: "Generator-defined source", accent: accent) {
+                    Text(templateID.uuidString)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+            case .drum:
+                StudioPanel(title: "Generator Source", eyebrow: "Drum voices", accent: accent) {
+                    Text("Drum generator editing is not exposed in this track workspace.")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
             }
-        case .pitches:
-            StudioPanel(title: "Pitch Expander", eyebrow: pitchDisplayLabel(pitch.pitchStage), accent: StudioTheme.violet) {
+        }
+    }
+
+    @ViewBuilder
+    private var modifierSection: some View {
+        switch generator.params {
+        case let .mono(_, pitch, _):
+            StudioPanel(title: "Pitch Modifier", eyebrow: "Runs after the selected source", accent: StudioTheme.violet) {
                 PitchAlgoEditor(
                     stage: pitch.pitchStage,
                     inputClipChoices: inputClipChoices,
                     harmonicSidechainClipChoices: harmonicSidechainClipChoices
                 ) { nextStage in
-                    onUpdate(.mono(trigger: trigger, pitch: .native(nextStage), shape: shape))
+                    onUpdate(.mono(trigger: monoTriggerNode, pitch: .native(nextStage), shape: monoShape))
                 }
             }
-        case .notes:
-            StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(
-                    pipeline: .melodic(trigger: trigger, pitches: [pitch], shape: shape),
-                    clipChoices: inputClipChoices
-                )
-            }
-        }
-    }
 
-    @ViewBuilder
-    private func polyEditor(trigger: TriggerStageNode, pitches: [PitchStageNode], shape: NoteShape) -> some View {
-        switch selectedTab {
-        case .steps:
-            StudioPanel(title: "Trigger Stage", eyebrow: stepDisplayLabel(trigger.stepStage), accent: accent) {
+        case let .poly(_, pitches, _):
+            StudioPanel(title: "Pitch Modifier", eyebrow: "Runs after the selected source", accent: StudioTheme.violet) {
                 VStack(alignment: .leading, spacing: 16) {
-                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
-                        onUpdate(.poly(trigger: .native(nextStage), pitches: pitches, shape: shape))
-                    }
+                    Text("\(pitches.count) lanes over the selected source")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
 
-                    NoteShapeEditor(shape: shape) { nextShape in
-                        onUpdate(.poly(trigger: trigger, pitches: pitches, shape: nextShape))
-                    }
-                }
-            }
-        case .pitches:
-            StudioPanel(title: "Pitch Expander", eyebrow: "\(pitches.count) lanes over one trigger stream", accent: StudioTheme.violet) {
-                VStack(alignment: .leading, spacing: 16) {
                     PolyLaneSelector(
                         laneCount: pitches.count,
                         selectedLane: $selectedPolyLane,
@@ -93,13 +153,13 @@ struct GeneratorParamsEditorView: View {
                             var nextPitches = pitches
                             nextPitches.append(.native(.defaultMono))
                             selectedPolyLane = nextPitches.count - 1
-                            onUpdate(.poly(trigger: trigger, pitches: nextPitches, shape: shape))
+                            onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
                         },
                         onRemoveLane: pitches.count > 1 ? {
                             var nextPitches = pitches
                             nextPitches.remove(at: min(selectedPolyLane, nextPitches.count - 1))
                             selectedPolyLane = min(selectedPolyLane, max(0, nextPitches.count - 1))
-                            onUpdate(.poly(trigger: trigger, pitches: nextPitches, shape: shape))
+                            onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
                         } : nil
                     )
 
@@ -111,90 +171,78 @@ struct GeneratorParamsEditorView: View {
                     ) { nextStage in
                         var nextPitches = pitches
                         nextPitches[laneIndex] = .native(nextStage)
-                        onUpdate(.poly(trigger: trigger, pitches: nextPitches, shape: shape))
+                        onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
                     }
                 }
             }
-        case .notes:
-            StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(
-                    pipeline: .melodic(trigger: trigger, pitches: pitches, shape: shape),
-                    clipChoices: inputClipChoices
-                )
+
+        case .slice:
+            if sourceMode == .clip {
+                StudioPanel(title: "Generator Modifier", eyebrow: "Runs after the selected source", accent: StudioTheme.violet) {
+                    Text("Slice tracks do not have a separate pitch modifier stage yet. Choose generator mode on the slot to use the generator as the source.")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
+
+        case .template:
+            EmptyView()
+
+        case .drum:
+            EmptyView()
         }
     }
 
-    @ViewBuilder
-    private func drumEditor(triggers: [VoiceTag: TriggerStageNode], shape: NoteShape) -> some View {
-        switch selectedTab {
-        case .steps:
-            StudioPanel(title: "Trigger Stage", eyebrow: "\(triggers.count) drum voices", accent: accent) {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(Array(triggers.keys.sorted()), id: \.self) { key in
-                        if let trigger = triggers[key] {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(key.uppercased())
-                                    .studioText(.eyebrow)
-                                    .tracking(0.8)
-                                    .foregroundStyle(StudioTheme.mutedText)
-
-                                StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
-                                    var nextTriggers = triggers
-                                    nextTriggers[key] = .native(nextStage)
-                                    onUpdate(.drum(triggers: nextTriggers, shape: shape))
-                                }
-                            }
-                        }
-                    }
-
-                    NoteShapeEditor(shape: shape) { nextShape in
-                        onUpdate(.drum(triggers: triggers, shape: nextShape))
-                    }
-                }
-            }
-        case .pitches:
-            StudioPanel(title: "Pitch Routing", eyebrow: "Drum voices stay trigger-only in v1", accent: StudioTheme.violet) {
-                WrapRow(items: triggers.keys.sorted())
-            }
-        case .notes:
-            StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(
-                    pipeline: .drum(triggers: triggers, shape: shape),
-                    clipChoices: inputClipChoices
-                )
-            }
+    private var monoTriggerNode: TriggerStageNode {
+        guard case let .mono(trigger, _, _) = generator.params else {
+            assertionFailure("Expected mono generator params")
+            return .native(.defaultMono)
         }
+        return trigger
     }
 
-    @ViewBuilder
-    private func sliceEditor(trigger: TriggerStageNode, sliceIndexes: [Int]) -> some View {
-        switch selectedTab {
-        case .steps:
-            StudioPanel(title: "Trigger Stage", eyebrow: stepDisplayLabel(trigger.stepStage), accent: accent) {
-                VStack(alignment: .leading, spacing: 16) {
-                    StepAlgoEditor(stage: trigger.stepStage, clipChoices: inputClipChoices) { nextStage in
-                        onUpdate(.slice(trigger: .native(nextStage), sliceIndexes: sliceIndexes))
-                    }
-
-                    SliceIndexEditor(sliceIndexes: sliceIndexes) { nextIndexes in
-                        onUpdate(.slice(trigger: trigger, sliceIndexes: nextIndexes))
-                    }
-                }
-            }
-        case .pitches:
-            StudioPanel(title: "Slices", eyebrow: "\(sliceIndexes.count) active", accent: StudioTheme.violet) {
-                SliceIndexEditor(sliceIndexes: sliceIndexes) { nextIndexes in
-                    onUpdate(.slice(trigger: trigger, sliceIndexes: nextIndexes))
-                }
-            }
-        case .notes:
-            StudioPanel(title: "Generated Notes", eyebrow: "Post-expansion preview", accent: StudioTheme.amber) {
-                GeneratedNotesPreview(
-                    pipeline: .slice(trigger: trigger, sliceIndexes: sliceIndexes),
-                    clipChoices: inputClipChoices
-                )
-            }
+    private var monoPitchNode: PitchStageNode {
+        guard case let .mono(_, pitch, _) = generator.params else {
+            assertionFailure("Expected mono generator params")
+            return .native(.defaultMono)
         }
+        return pitch
+    }
+
+    private var monoPitchStage: PitchStageNode {
+        monoPitchNode
+    }
+
+    private var monoShape: NoteShape {
+        guard case let .mono(_, _, shape) = generator.params else {
+            assertionFailure("Expected mono generator params")
+            return .default
+        }
+        return shape
+    }
+
+    private var polyTriggerNode: TriggerStageNode {
+        guard case let .poly(trigger, _, _) = generator.params else {
+            assertionFailure("Expected poly generator params")
+            return .native(.defaultMono)
+        }
+        return trigger
+    }
+
+    private var polyPitchNodes: [PitchStageNode] {
+        guard case let .poly(_, pitches, _) = generator.params else {
+            assertionFailure("Expected poly generator params")
+            return [.native(.defaultMono)]
+        }
+        return pitches
+    }
+
+    private var polyShape: NoteShape {
+        guard case let .poly(_, _, shape) = generator.params else {
+            assertionFailure("Expected poly generator params")
+            return .default
+        }
+        return shape
     }
 }

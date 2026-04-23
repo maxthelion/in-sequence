@@ -2,7 +2,6 @@ import SwiftUI
 
 struct StepAlgoEditor: View {
     let stage: StepStage
-    let clipChoices: [ClipPoolEntry]
     let onChange: (StepStage) -> Void
 
     private var kind: StepAlgoKind { stage.algo.kind }
@@ -13,7 +12,7 @@ struct StepAlgoEditor: View {
                 "Trigger Type",
                 selection: Binding(
                     get: { kind },
-                    set: { onChange(StepStage(algo: $0.defaultAlgo(clipChoices: clipChoices, current: stage.algo), basePitch: stage.basePitch)) }
+                    set: { onChange(StepStage(algo: $0.defaultAlgo(current: stage.algo), basePitch: stage.basePitch)) }
                 )
             ) {
                 ForEach(StepAlgoKind.allCases) { kind in
@@ -27,14 +26,6 @@ struct StepAlgoEditor: View {
             }
 
             switch stage.algo {
-            case let .manual(pattern):
-                let states = pattern.map { $0 ? StepVisualState.on : .off }
-                StepGridView(stepStates: states) { index in
-                    var nextPattern = pattern
-                    guard nextPattern.indices.contains(index) else { return }
-                    nextPattern[index].toggle()
-                    onChange(StepStage(algo: .manual(pattern: nextPattern), basePitch: stage.basePitch))
-                }
             case let .euclidean(pulses, steps, offset):
                 VStack(alignment: .leading, spacing: 12) {
                     SourceParameterStepperRow(title: "Pulses", value: pulses, range: 0...steps) {
@@ -47,27 +38,6 @@ struct StepAlgoEditor: View {
                         onChange(StepStage(algo: .euclidean(pulses: pulses, steps: steps, offset: $0), basePitch: stage.basePitch))
                     }
                 }
-            case let .randomWeighted(density):
-                SourceParameterSliderRow(title: "Density", value: density * 100, range: 0...100, accent: stepAlgoAccentColor(for: .randomWeighted)) {
-                    onChange(StepStage(algo: .randomWeighted(density: $0 / 100), basePitch: stage.basePitch))
-                }
-            case let .perStepProbability(probs):
-                GridEditor(values: probs, allowedValues: [0.0, 0.25, 0.5, 0.75, 1.0], accent: StudioTheme.cyan) { next in
-                    onChange(StepStage(algo: .perStepProbability(probs: next), basePitch: stage.basePitch))
-                }
-            case let .fromClipSteps(clipID):
-                Picker("Step Clip", selection: Binding(
-                    get: { Optional(clipID) },
-                    set: { newValue in
-                        guard let newValue else { return }
-                        onChange(StepStage(algo: .fromClipSteps(clipID: newValue), basePitch: stage.basePitch))
-                    }
-                )) {
-                    ForEach(clipChoices) { clip in
-                        Text(clip.name).tag(Optional(clip.id))
-                    }
-                }
-                .pickerStyle(.menu)
             }
         }
     }

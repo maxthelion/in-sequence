@@ -208,7 +208,7 @@ private func monoGeneratorEntry(
         trackType: trackType,
         kind: .monoGenerator,
         params: .mono(
-            trigger: .native(.manual(pattern: pattern)),
+            trigger: .native(euclideanAlgo(matching: pattern)),
             pitch: .native(.manual(pitches: [pitch], pickMode: .sequential)),
             shape: NoteShape(velocity: velocity, gateLength: gateLength, accent: false)
         )

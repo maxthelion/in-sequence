@@ -58,7 +58,7 @@ final class TrackPatternBankSyncedTests: XCTestCase {
             trackType: .polyMelodic,
             kind: .polyGenerator,
             params: .poly(
-                trigger: .native(.manual(pattern: Array(repeating: false, count: 16))),
+                trigger: .native(.euclidean(pulses: 4, steps: 16, offset: 0)),
                 pitches: [.native(.manual(pitches: [60], pickMode: .random))],
                 shape: .default
             )

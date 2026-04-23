@@ -6,16 +6,8 @@ func stepDisplayLabel(_ stage: StepStage) -> String {
 
 func stepDisplayLabel(_ step: StepAlgo) -> String {
     switch step {
-    case .manual:
-        return "Manual"
-    case .randomWeighted:
-        return "Random Weighted"
     case .euclidean:
         return "Euclidean"
-    case .perStepProbability:
-        return "Per-Step Probability"
-    case .fromClipSteps:
-        return "From Clip Steps"
     }
 }
 
@@ -44,15 +36,7 @@ func pitchDisplayLabel(_ pitch: PitchAlgo) -> String {
 
 func stepAlgoAccentColor(for kind: StepAlgoKind) -> Color {
     switch kind {
-    case .manual:
-        return StudioTheme.cyan
-    case .euclidean:
+        case .euclidean:
         return StudioTheme.success
-    case .randomWeighted:
-        return StudioTheme.amber
-    case .perStepProbability:
-        return StudioTheme.violet
-    case .fromClipSteps:
-        return StudioTheme.violet
     }
 }

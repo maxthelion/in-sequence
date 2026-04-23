@@ -45,12 +45,8 @@ final class ProjectSwitchAttachedGeneratorTests: XCTestCase {
         project.switchAttachedGenerator(to: gen1ID, for: trackID)
 
         let bank = project.patternBank(for: trackID)
-        for slot in bank.slots {
-            XCTAssertEqual(
-                slot.sourceRef.clipID, priorClipID,
-                "slot \(slot.slotIndex) clipID must be preserved after switching generators"
-            )
-        }
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, priorClipID)
+        XCTAssertTrue(bank.slots.dropFirst().allSatisfy { $0.sourceRef.clipID == nil })
     }
 
     func test_switchAttachedGenerator_preserves_per_slot_bypass_mode() throws {

@@ -23,7 +23,7 @@ struct StepStage: Codable, Equatable, Hashable, Sendable {
     var basePitch: Int
 
     static let defaultMono = StepStage(
-        algo: .manual(pattern: Array(repeating: false, count: 16)),
+        algo: .euclidean(pulses: 4, steps: 16, offset: 0),
         basePitch: 60
     )
 }

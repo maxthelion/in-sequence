@@ -17,7 +17,7 @@ final class ProjectAppendTrackClipTests: XCTestCase {
         XCTAssertEqual(addedClip.trackType, .monoMelodic)
     }
 
-    func test_appendTrack_bank_points_at_the_new_clip_with_no_generator_attached() {
+    func test_appendTrack_bank_seeds_the_first_slot_with_the_new_clip_and_leaves_others_empty() {
         var project = Project.empty
 
         project.appendTrack(trackType: .polyMelodic)
@@ -27,9 +27,11 @@ final class ProjectAppendTrackClipTests: XCTestCase {
         let expectedClipID = project.clipPool.last!.id
 
         XCTAssertNil(bank.attachedGeneratorID, "new track should have no generator attached")
-        for slot in bank.slots {
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.mode, .clip)
+        XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, expectedClipID)
+        for slot in bank.slots.dropFirst() {
             XCTAssertEqual(slot.sourceRef.mode, .clip)
-            XCTAssertEqual(slot.sourceRef.clipID, expectedClipID)
+            XCTAssertNil(slot.sourceRef.clipID)
         }
     }
 

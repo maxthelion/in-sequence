@@ -13,6 +13,9 @@ final class ProjectSetSlotBypassedTests: XCTestCase {
 
     func test_bypass_true_flips_only_the_named_slot_to_clip_mode() throws {
         var (project, trackID) = try projectWithAttachedGenerator()
+        for index in 0..<TrackPatternBank.slotCount where index != 3 {
+            project.setSlotBypassed(false, trackID: trackID, slotIndex: index)
+        }
 
         project.setSlotBypassed(true, trackID: trackID, slotIndex: 3)
 

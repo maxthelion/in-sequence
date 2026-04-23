@@ -100,4 +100,32 @@ final class MacroCoordinatorTests: XCTestCase {
 
         XCTAssertTrue(snapshot.mute.isEmpty)
     }
+
+    func test_fillFlag_true_enables_fill_snapshot_for_track() throws {
+        let trackID = UUID()
+        let track = StepSequenceTrack(
+            id: trackID,
+            name: "A",
+            pitches: [60],
+            stepPattern: [true],
+            velocity: 100,
+            gateLength: 4
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let fillLayer = try XCTUnwrap(layers.first(where: { $0.target == .macroRow("fill-flag") }))
+        var phrase = PhraseModel.default(tracks: [track], layers: layers)
+        phrase.setCell(.single(.bool(true)), for: fillLayer.id, trackID: trackID)
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            layers: layers,
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        let snapshot = MacroCoordinator().snapshot(upcomingGlobalStep: 0, project: project, phraseID: phrase.id)
+
+        XCTAssertTrue(snapshot.isFillEnabled(trackID))
+    }
 }

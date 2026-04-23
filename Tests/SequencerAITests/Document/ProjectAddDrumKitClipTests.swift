@@ -26,15 +26,14 @@ final class ProjectAddDrumKitClipTests: XCTestCase {
 
             XCTAssertEqual(clip.trackType, .monoMelodic)
             XCTAssertEqual(clip.name, presetMember.trackName)
-            guard case let .stepSequence(stepPattern, pitches) = clip.content else {
-                return XCTFail("drum-part clip content must be .stepSequence; got \(clip.content)")
-            }
-            XCTAssertEqual(stepPattern, presetMember.seedPattern)
-            XCTAssertEqual(pitches, [DrumKitNoteMap.baselineNote])
+            XCTAssertEqual(noteGridMainStepPattern(clip.content), presetMember.seedPattern)
+            XCTAssertEqual(noteGridPitches(clip.content), [DrumKitNoteMap.baselineNote])
 
-            for slot in bank.slots {
+            XCTAssertEqual(bank.slot(at: 0).sourceRef.mode, .clip)
+            XCTAssertEqual(bank.slot(at: 0).sourceRef.clipID, clipID)
+            for slot in bank.slots.dropFirst() {
                 XCTAssertEqual(slot.sourceRef.mode, .clip)
-                XCTAssertEqual(slot.sourceRef.clipID, clipID)
+                XCTAssertNil(slot.sourceRef.clipID)
             }
         }
     }

@@ -60,10 +60,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
         let newClips = project.clipPool.suffix(4)
         for clip in newClips {
-            guard case let .stepSequence(stepPattern, _) = clip.content else {
-                return XCTFail("expected .stepSequence content")
-            }
-            XCTAssertTrue(stepPattern.allSatisfy { $0 == false }, "blank clip should be all-false")
+            XCTAssertTrue(noteGridMainStepPattern(clip.content).allSatisfy { $0 == false }, "blank clip should be all-false")
         }
     }
 
@@ -75,10 +72,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
         let newClips = Array(project.clipPool.suffix(plan.members.count))
         for (clip, planMember) in zip(newClips, plan.members) {
-            guard case let .stepSequence(stepPattern, _) = clip.content else {
-                return XCTFail("expected .stepSequence content")
-            }
-            XCTAssertEqual(stepPattern, planMember.seedPattern)
+            XCTAssertEqual(noteGridMainStepPattern(clip.content), planMember.seedPattern)
         }
     }
 
@@ -91,10 +85,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
         let newClips = Array(project.clipPool.suffix(plan.members.count))
         for clip in newClips {
-            guard case let .stepSequence(stepPattern, _) = clip.content else {
-                return XCTFail("expected .stepSequence content")
-            }
-            XCTAssertTrue(stepPattern.allSatisfy { $0 == false })
+            XCTAssertTrue(noteGridMainStepPattern(clip.content).allSatisfy { $0 == false })
         }
     }
 
