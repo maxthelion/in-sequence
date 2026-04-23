@@ -9,6 +9,10 @@ final class SequencerDocumentSession {
     private let document: Binding<SeqAIDocument>
     @ObservationIgnored
     private var flushTask: Task<Void, Never>?
+    /// Set to `true` during `flushToDocument()` so that `ingestExternalDocumentChange`
+    /// can detect the self-originated change and skip a redundant engine apply.
+    @ObservationIgnored
+    private var selfOriginatedFlushInFlight: Bool = false
 
     let store: LiveSequencerStore
     let engineController: EngineController
@@ -75,10 +79,18 @@ final class SequencerDocumentSession {
         guard document.wrappedValue.project != exported else {
             return
         }
+        selfOriginatedFlushInFlight = true
         document.wrappedValue.project = exported
+        selfOriginatedFlushInFlight = false
     }
 
     func ingestExternalDocumentChange(_ project: Project) {
+        // Guard: if this change was written by our own flush, skip it — applying
+        // our own exported state back into the engine would be a no-op and risks
+        // re-triggering a broad apply() during high-frequency editing.
+        guard !selfOriginatedFlushInFlight else {
+            return
+        }
         guard store.replaceProject(project) else {
             return
         }
@@ -101,21 +113,36 @@ final class SequencerDocumentSession {
         case .snapshotOnly:
             publishSnapshot()
         case .fullEngineApply:
+            /// Calls engineController.apply(documentModel:) which installs a fresh
+            /// snapshot internally. Do NOT also call publishSnapshot() here — that
+            /// would compile the snapshot a second time.
             engineController.apply(documentModel: store.exportToProject())
+        case .scopedRuntime(let update):
+            dispatchScopedRuntimeUpdate(update)
             publishSnapshot()
-        case .documentOnly:
-            break
         }
 
         scheduleFlushToDocument()
     }
 
+    /// Dispatch a scoped runtime update directly to the engine. This updates a single
+    /// domain in the live engine without rebuilding the full document-model pipeline.
+    private func dispatchScopedRuntimeUpdate(_ update: ScopedRuntimeUpdate) {
+        switch update {
+        case let .filter(trackID, settings):
+            engineController.sampleEngineSink.applyFilter(settings, trackID: trackID)
+        case let .auState(trackID, blob):
+            // The state blob is already written into the store by the mutation closure.
+            // Write it into the live AU host if one exists.
+            engineController.writeStateBlob(blob, for: trackID)
+        case let .mix(trackID, mix):
+            engineController.setMix(trackID: trackID, mix: mix)
+        }
+    }
+
     func setTrackMix(trackID: UUID, mix: TrackMixSettings) {
-        let changed = store.mutate { project in
-            guard let index = project.tracks.firstIndex(where: { $0.id == trackID }) else {
-                return
-            }
-            project.tracks[index].mix = mix
+        let changed = store.mutateTrack(id: trackID) { track in
+            track.mix = mix
         }
 
         guard changed else {
@@ -124,6 +151,7 @@ final class SequencerDocumentSession {
 
         revision = store.revision
         engineController.setMix(trackID: trackID, mix: mix)
+        publishSnapshot()
         scheduleFlushToDocument()
     }
 }

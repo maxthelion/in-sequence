@@ -212,14 +212,12 @@ private struct MixerChannelStrip: View {
         var liveMix = track.mix
         liveMix.level = clamped
         liveMix.pan = displayedPan
-        engineController.setMix(trackID: track.id, mix: liveMix)
+        onSetMix(liveMix)
     }
 
     private func commitLevel() {
-        guard let final = levelControl.commit() else { return }
-        var nextMix = track.mix
-        nextMix.level = min(max(final, 0), 1)
-        onSetMix(nextMix)
+        // commit() resets drag state; the final value was already written via updateLevel.
+        _ = levelControl.commit()
     }
 
     private func handlePanEditingChanged(_ isEditing: Bool) {
@@ -241,14 +239,12 @@ private struct MixerChannelStrip: View {
         var liveMix = track.mix
         liveMix.level = displayedLevel
         liveMix.pan = clamped
-        engineController.setMix(trackID: track.id, mix: liveMix)
+        onSetMix(liveMix)
     }
 
     private func commitPan() {
-        guard let final = panControl.commit() else { return }
-        var nextMix = track.mix
-        nextMix.pan = min(max(final, -1), 1)
-        onSetMix(nextMix)
+        // commit() resets drag state; the final value was already written via updatePan.
+        _ = panControl.commit()
     }
 }
 
