@@ -74,7 +74,10 @@ final class SamplerDestinationWidgetTests: XCTestCase {
 
     // MARK: - Filter handler tests
 
-    func test_onCutoffChanged_writesFilterAndCallsApplyFilter() {
+    // Filter changes write to the filterSettings binding; dispatch to the engine
+    // happens via the binding setter (session.mutateProject scopedRuntime path),
+    // NOT via a direct sampleEngine.applyFilter call from the widget.
+    func test_onCutoffChanged_writesFilterBinding_notDirectApplyFilter() {
         let lib = AudioSampleLibrary(libraryRoot: libraryRoot)
         let spy = SpySink()
         let trackID = UUID()
@@ -92,7 +95,8 @@ final class SamplerDestinationWidgetTests: XCTestCase {
         widget.onCutoffChanged(1200)
 
         XCTAssertEqual(filterSettings.cutoffHz, 1200, accuracy: 0.001)
-        XCTAssertEqual(spy.applyFilterCalls, 1)
-        XCTAssertEqual(spy.lastApplyFilterTrackID, trackID)
+        // The widget must NOT call sampleEngine.applyFilter directly; that is the
+        // session's responsibility via the .scopedRuntime(.filter) path.
+        XCTAssertEqual(spy.applyFilterCalls, 0)
     }
 }
