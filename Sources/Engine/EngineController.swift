@@ -333,6 +333,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(playbackSnapshot: PlaybackSnapshot) {
+        applyPlaybackSnapshotCallCount += 1
         withStateLock {
             currentPlaybackSnapshot = playbackSnapshot
             preparedTickIndex = nil
@@ -348,8 +349,14 @@ final class EngineController: RouterDispatcher {
     }
 
     /// Counter for test observation of `apply(documentModel:)` invocations.
-    /// Nil in production; set by test code to count invocations.
     var applyDocumentModelCallCount: Int = 0
+
+    /// Counter for test observation of `apply(playbackSnapshot:)` invocations.
+    var applyPlaybackSnapshotCallCount: Int = 0
+
+    /// Test hook: exposes whether the internal event queue is empty.
+    /// Use to assert that prepared events were cleared after a snapshot swap.
+    var eventQueueIsEmpty: Bool { eventQueue.isEmpty }
 
     /// Scoped write: store a new AU state blob for the given track.
     ///
