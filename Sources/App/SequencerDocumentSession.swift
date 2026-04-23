@@ -19,9 +19,14 @@ final class SequencerDocumentSession {
     @ObservationIgnored
     private var selfOriginatedFlushInFlight: Bool = false
 
+    /// Set to `true` while `batch(impact:_:)` is running so that individual typed-session
+    /// methods skip their per-call impact dispatch and let `batch` publish once at the end.
+    @ObservationIgnored
+    var isInBatch: Bool = false
+
     let store: LiveSequencerStore
     let engineController: EngineController
-    private(set) var revision: UInt64 = 0
+    var revision: UInt64 = 0
 
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
@@ -126,35 +131,9 @@ final class SequencerDocumentSession {
         publishSnapshot()
     }
 
-    func mutateProject(
-        impact: LiveMutationImpact = .snapshotOnly,
-        _ update: (inout Project) -> Void
-    ) {
-        guard store.mutate(impact: impact, update) else {
-            return
-        }
-
-        revision = store.revision
-
-        switch impact {
-        case .snapshotOnly:
-            publishSnapshot()
-        case .fullEngineApply:
-            /// Calls engineController.apply(documentModel:) which installs a fresh
-            /// snapshot internally. Do NOT also call publishSnapshot() here — that
-            /// would compile the snapshot a second time.
-            engineController.apply(documentModel: store.exportToProject())
-        case .scopedRuntime(let update):
-            dispatchScopedRuntimeUpdate(update)
-            publishSnapshot()
-        }
-
-        scheduleFlushToDocument()
-    }
-
     /// Dispatch a scoped runtime update directly to the engine. This updates a single
     /// domain in the live engine without rebuilding the full document-model pipeline.
-    private func dispatchScopedRuntimeUpdate(_ update: ScopedRuntimeUpdate) {
+    func dispatchScopedRuntimeUpdate(_ update: ScopedRuntimeUpdate) {
         switch update {
         case let .filter(trackID, settings):
             engineController.sampleEngineSink.applyFilter(settings, trackID: trackID)

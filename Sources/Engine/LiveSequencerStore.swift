@@ -187,42 +187,6 @@ final class LiveSequencerStore {
         return true
     }
 
-    // MARK: - Deprecated bridge
-
-    /// Deprecated: migrate to typed mutation API in Phase 1a step 2.
-    ///
-    /// Bridge for existing `session.mutateProject { project in project.X.Y = Z }` call
-    /// sites. Internally exports the current state to a `Project`, applies the closure,
-    /// detects whether anything changed, and imports the result back.
-    ///
-    /// Every call pays a full export + import cost. This is acceptable for Phase 1a
-    /// and will be eliminated in step 2 once all call sites migrate to typed mutations.
-    @discardableResult
-    func mutateProject(
-        impact _: LiveMutationImpact = .snapshotOnly,
-        _ update: (inout Project) -> Void
-    ) -> Bool {
-        var p = exportToProject()
-        let before = p
-        update(&p)
-        guard p != before else {
-            return false
-        }
-        importFromProject(p)
-        return true
-    }
-
-    /// Deprecated: migrate to typed mutation API in Phase 1a step 2.
-    ///
-    /// Legacy alias for `mutateProject(impact:_:)`. Used by `SequencerDocumentSession.setTrackMix`.
-    @discardableResult
-    func mutate(
-        impact: LiveMutationImpact = .snapshotOnly,
-        _ update: (inout Project) -> Void
-    ) -> Bool {
-        mutateProject(impact: impact, update)
-    }
-
     // MARK: - Backward-compatible accessors
 
     /// The current project value. Deprecated in favour of `exportToProject()`.
@@ -318,6 +282,24 @@ final class LiveSequencerStore {
         revision &+= 1
     }
 
+    /// Mutate the pattern bank for a given track ID in place.
+    ///
+    /// - Returns: `true` if the bank existed and the closure produced a change.
+    @discardableResult
+    func mutatePatternBank(trackID: UUID, _ update: (inout TrackPatternBank) -> Void) -> Bool {
+        guard var bank = storePatternBanksByTrackID[trackID] else {
+            return false
+        }
+        let before = bank
+        update(&bank)
+        guard bank != before else {
+            return false
+        }
+        storePatternBanksByTrackID[trackID] = bank
+        revision &+= 1
+        return true
+    }
+
     /// Set the selected track ID. Bumps revision only if the value actually changes.
     func setSelectedTrackID(_ id: UUID?) {
         let resolved = id ?? storeTracks.first?.id ?? storeSelectedTrackID
@@ -334,6 +316,75 @@ final class LiveSequencerStore {
             return
         }
         storeSelectedPhraseID = id
+        revision &+= 1
+    }
+
+    /// Replace the layers array. Bumps revision only if the value changed.
+    func setLayers(_ layers: [PhraseLayerDefinition]) {
+        guard layers != storeLayers else {
+            return
+        }
+        storeLayers = layers
+        revision &+= 1
+    }
+
+    /// Append a clip to the pool. Always bumps revision.
+    func appendClip(_ clip: ClipPoolEntry) {
+        guard storeClipsByID[clip.id] == nil else {
+            return
+        }
+        storeClipsByID[clip.id] = clip
+        storeClipOrder.append(clip.id)
+        revision &+= 1
+    }
+
+    /// Append a generator to the pool. Always bumps revision.
+    func appendGenerator(_ generator: GeneratorPoolEntry) {
+        guard storeGeneratorsByID[generator.id] == nil else {
+            return
+        }
+        storeGeneratorsByID[generator.id] = generator
+        storeGeneratorOrder.append(generator.id)
+        revision &+= 1
+    }
+
+    /// Replace all phrases and phrase order atomically (for insert/duplicate/remove).
+    ///
+    /// Bumps revision if anything changed.
+    func replacePhrases(_ phrases: [PhraseModel], selectedPhraseID: UUID) {
+        let newByID = Dictionary(uniqueKeysWithValues: phrases.map { ($0.id, $0) })
+        let newOrder = phrases.map(\.id)
+        guard newByID != storePhrasesByID
+            || newOrder != storePhraseOrder
+            || selectedPhraseID != storeSelectedPhraseID
+        else {
+            return
+        }
+        storePhrasesByID = newByID
+        storePhraseOrder = newOrder
+        storeSelectedPhraseID = selectedPhraseID
+        revision &+= 1
+    }
+
+    /// Replace all tracks atomically (for track-list structural changes).
+    ///
+    /// Bumps revision if anything changed.
+    func replaceTracks(_ tracks: [StepSequenceTrack]) {
+        guard tracks != storeTracks else {
+            return
+        }
+        storeTracks = tracks
+        revision &+= 1
+    }
+
+    /// Replace all track groups atomically.
+    ///
+    /// Bumps revision if anything changed.
+    func replaceTrackGroups(_ groups: [TrackGroup]) {
+        guard groups != storeTrackGroups else {
+            return
+        }
+        storeTrackGroups = groups
         revision &+= 1
     }
 
