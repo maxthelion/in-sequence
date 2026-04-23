@@ -10,7 +10,7 @@ struct TrackDestinationEditor: View {
     @State private var showingPresetBrowser = false
 
     private var track: StepSequenceTrack {
-        session.project.selectedTrack
+        session.store.selectedTrack
     }
 
     private func log(_ message: String) {
@@ -18,15 +18,15 @@ struct TrackDestinationEditor: View {
     }
 
     private var currentWriteTarget: Project.DestinationWriteTarget {
-        session.project.destinationWriteTarget(for: track.id)
+        session.store.destinationWriteTarget(for: track.id)
     }
 
     private var editedDestination: Destination {
-        session.project.resolvedDestination(for: track.id)
+        session.store.resolvedDestination(for: track.id)
     }
 
     private var destinationSummary: DestinationSummary {
-        DestinationSummary.make(for: editedDestination, in: session.project, trackID: track.id)
+        DestinationSummary.make(for: editedDestination, in: session.store, trackID: track.id)
     }
 
     var body: some View {
@@ -155,7 +155,7 @@ struct TrackDestinationEditor: View {
     }
 
     private var groupInheritanceDetail: String {
-        guard let group = session.project.group(for: track.id) else {
+        guard let group = session.store.group(for: track.id) else {
             return "This track is marked as inheriting a group destination, but it is no longer attached to a group."
         }
         if let destination = group.sharedDestination {
@@ -259,7 +259,7 @@ struct TrackDestinationEditor: View {
                 sampleEngine: engineController.sampleEngineSink,
                 trackID: track.id,
                 filterSettings: Binding(
-                    get: { session.project.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
+                    get: { session.store.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
                     set: { newFilter in
                         // .scopedRuntime(.filter(...)) preserved: filter is a live scoped update.
                         session.setFilterSettings(newFilter, for: track.id)
@@ -299,7 +299,7 @@ struct TrackDestinationEditor: View {
                 try engineController.loadPreset(descriptor, for: trackID)
             },
             commit: { stateBlob in
-                let liveTarget = session.project.destinationWriteTarget(for: trackID)
+                let liveTarget = session.store.destinationWriteTarget(for: trackID)
                 self.writeStateBlobAndRecord(stateBlob, target: liveTarget)
             }
         )
@@ -312,11 +312,11 @@ struct TrackDestinationEditor: View {
         // Record voice snapshot after the write (needs the updated destination value).
         switch target {
         case .track(let trackID):
-            if let track = session.project.tracks.first(where: { $0.id == trackID }) {
+            if let track = session.store.tracks.first(where: { $0.id == trackID }) {
                 recordVoiceSnapshot(destination: track.destination.withoutTransientState)
             }
         case .group(let groupID):
-            if let group = session.project.trackGroups.first(where: { $0.id == groupID }),
+            if let group = session.store.trackGroups.first(where: { $0.id == groupID }),
                let destination = group.sharedDestination
             {
                 recordVoiceSnapshot(destination: destination.withoutTransientState)
@@ -422,7 +422,7 @@ struct TrackDestinationEditor: View {
 
     private var currentAUWindowTitle: String {
         if case .group(let groupID) = currentAUWindowKey,
-           let group = session.project.trackGroups.first(where: { $0.id == groupID })
+           let group = session.store.trackGroups.first(where: { $0.id == groupID })
         {
             return "\(group.name) (Shared)"
         }
@@ -494,7 +494,7 @@ struct TrackDestinationEditor: View {
     }
 
     private func saveCurrentVoiceSnapshot() {
-        guard let destination = session.project.voiceSnapshotDestination(for: track.id) else {
+        guard let destination = session.store.voiceSnapshotDestination(for: track.id) else {
             return
         }
         recordVoiceSnapshot(destination: destination)
@@ -521,7 +521,7 @@ struct TrackDestinationEditor: View {
     }
 
     private var phraseSummary: String {
-        session.project.selectedPhrase.name
+        session.store.selectedPhrase.name
     }
 
     private func refreshRecentVoices() {

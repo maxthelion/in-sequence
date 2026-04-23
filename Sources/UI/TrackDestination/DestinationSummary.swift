@@ -5,7 +5,20 @@ struct DestinationSummary: Equatable {
     let typeLabel: String
     let detail: String
 
+    /// Build a summary reading from a `LiveSequencerStore` rather than a `Project`.
+    ///
+    /// Identical semantics to `make(for:in:trackID:)`; introduced to drop the
+    /// `session.project` read in `TrackDestinationEditor`.
+    @MainActor
+    static func make(for destination: Destination, in store: LiveSequencerStore, trackID: UUID) -> DestinationSummary {
+        make(for: destination, groupLookup: { store.group(for: $0) }, trackID: trackID)
+    }
+
     static func make(for destination: Destination, in project: Project, trackID: UUID) -> DestinationSummary {
+        make(for: destination, groupLookup: { project.group(for: $0) }, trackID: trackID)
+    }
+
+    private static func make(for destination: Destination, groupLookup: (UUID) -> TrackGroup?, trackID: UUID) -> DestinationSummary {
         switch destination {
         case let .midi(port, channel, noteOffset):
             var parts: [String] = [port?.displayName ?? "Unassigned", "ch \(Int(channel) + 1)"]
@@ -50,7 +63,7 @@ struct DestinationSummary: Equatable {
             )
 
         case .inheritGroup:
-            guard let group = project.group(for: trackID) else {
+            guard let group = groupLookup(trackID) else {
                 return DestinationSummary(
                     iconName: "square.3.layers.3d.down.right",
                     typeLabel: "Inherit Group",

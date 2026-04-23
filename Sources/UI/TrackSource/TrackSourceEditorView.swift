@@ -40,14 +40,13 @@ struct TrackSourceEditorView: View {
     @State private var selectedTab: TrackSourceEditorTab = .source
     @State private var generatorPickerPurpose: GeneratorPickerPurpose?
 
-    private var project: Project { session.project }
-    private var track: StepSequenceTrack { project.selectedTrack }
-    private var bank: TrackPatternBank { project.patternBank(for: track.id) }
-    private var selectedPatternIndex: Int { project.selectedPatternIndex(for: track.id) }
-    private var selectedPattern: TrackPatternSlot { project.selectedPattern(for: track.id) }
+    private var track: StepSequenceTrack { session.store.selectedTrack }
+    private var bank: TrackPatternBank { session.store.patternBank(for: track.id) }
+    private var selectedPatternIndex: Int { session.store.selectedPatternIndex(for: track.id) }
+    private var selectedPattern: TrackPatternSlot { session.store.selectedPattern(for: track.id) }
     private var occupiedPatternSlots: Set<Int> {
         Set(bank.slots.compactMap { slot in
-            guard let clip = project.clipEntry(id: slot.sourceRef.clipID),
+            guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
                   !clipIsEmpty(clip.content)
             else {
                 return nil
@@ -56,15 +55,15 @@ struct TrackSourceEditorView: View {
         })
     }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
-    private var compatibleGenerators: [GeneratorPoolEntry] { project.compatibleGenerators(for: track) }
-    private var generatedSourceInputClips: [ClipPoolEntry] { project.generatedSourceInputClips() }
-    private var harmonicSidechainClips: [ClipPoolEntry] { project.harmonicSidechainClips() }
-    private var currentClip: ClipPoolEntry? { project.clipEntry(id: selectedPattern.sourceRef.clipID) }
+    private var compatibleGenerators: [GeneratorPoolEntry] { session.store.compatibleGenerators(for: track) }
+    private var generatedSourceInputClips: [ClipPoolEntry] { session.store.generatedSourceInputClips() }
+    private var harmonicSidechainClips: [ClipPoolEntry] { session.store.harmonicSidechainClips() }
+    private var currentClip: ClipPoolEntry? { session.store.clipEntry(id: selectedPattern.sourceRef.clipID) }
     private var selectedSourceGenerator: GeneratorPoolEntry? {
-        project.generatorEntry(id: selectedPattern.sourceRef.generatorID)
+        session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID)
     }
     private var selectedModifierGenerator: GeneratorPoolEntry? {
-        project.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID)
+        session.store.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID)
     }
     private var previewClipContent: ClipContent {
         currentClip?.content
@@ -85,9 +84,10 @@ struct TrackSourceEditorView: View {
     private var macroFallbackValues: [UUID: Double] {
         var result: [UUID: Double] = [:]
         let trackID = track.id
+        let layers = session.store.layers
         for binding in track.macros {
             let layerID = "macro-\(trackID.uuidString)-\(binding.id.uuidString)"
-            if let layer = project.layers.first(where: { $0.id == layerID }),
+            if let layer = layers.first(where: { $0.id == layerID }),
                case let .scalar(v) = layer.defaults[trackID] {
                 result[binding.id] = v
             } else {
@@ -406,7 +406,7 @@ struct TrackSourceEditorView: View {
 
     private var selectedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: { project.selectedPatternIndex(for: track.id) },
+            get: { session.store.selectedPatternIndex(for: track.id) },
             set: { newValue in
                 let trackID = track.id
                 session.setSelectedPatternIndex(newValue, for: trackID)
