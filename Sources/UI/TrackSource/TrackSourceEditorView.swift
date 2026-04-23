@@ -199,10 +199,9 @@ struct TrackSourceEditorView: View {
                     accent: accent,
                     layout: .sourceOnly
                 ) { updated in
-                    session.mutateProject { project in
-                        project.updateGeneratorEntry(id: generator.id) { entry in
-                            entry.params = updated
-                        }
+                    let generatorID = generator.id
+                    session.mutateGenerator(id: generatorID) { entry in
+                        entry.params = updated
                     }
                 }
             } else {
@@ -237,22 +236,18 @@ struct TrackSourceEditorView: View {
                             title: selectedPattern.sourceRef.modifierBypassed ? "Enable" : "Bypass",
                             accent: selectedPattern.sourceRef.modifierBypassed ? StudioTheme.success : StudioTheme.amber
                         ) {
-                            session.mutateProject {
-                                $0.setPatternModifierBypassed(
-                                    !selectedPattern.sourceRef.modifierBypassed,
-                                    for: track.id,
-                                    slotIndex: selectedPatternIndex
-                                )
-                            }
+                            session.setPatternModifierBypassed(
+                                !selectedPattern.sourceRef.modifierBypassed,
+                                for: track.id,
+                                slotIndex: selectedPatternIndex
+                            )
                         }
                         actionButton(title: "Remove Modifier", accent: StudioTheme.border) {
-                            session.mutateProject {
-                                $0.setPatternModifierGeneratorID(
-                                    nil,
-                                    for: track.id,
-                                    slotIndex: selectedPatternIndex
-                                )
-                            }
+                            session.setPatternModifierGeneratorID(
+                                nil,
+                                for: track.id,
+                                slotIndex: selectedPatternIndex
+                            )
                         }
                     }
                 }
@@ -266,10 +261,9 @@ struct TrackSourceEditorView: View {
                 accent: accent,
                 layout: .modifierOnly
                 ) { updated in
-                    session.mutateProject {
-                        $0.updateGeneratorEntry(id: generator.id) { entry in
-                            entry.params = updated
-                        }
+                    let generatorID = generator.id
+                    session.mutateGenerator(id: generatorID) { entry in
+                        entry.params = updated
                     }
                 }
         } else {
@@ -303,13 +297,9 @@ struct TrackSourceEditorView: View {
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 ClipContentPreview(content: previewClipContent, defaultNote: defaultClipNote) { updated in
-                    session.mutateProject { project in
-                        guard let clipID = project.ensureClipForCurrentPattern(trackID: track.id) else {
-                            return
-                        }
-                        project.updateClipEntry(id: clipID) { entry in
-                            entry.content = updated
-                        }
+                    let trackID = track.id
+                    session.ensureClipAndMutate(trackID: trackID) { _, entry in
+                        entry.content = updated
                     }
                 }
 
@@ -322,10 +312,9 @@ struct TrackSourceEditorView: View {
                         },
                         phraseLayerValues: macroFallbackValues
                     ) { updatedLanes in
-                        session.mutateProject {
-                            $0.updateClipEntry(id: clip.id) { entry in
-                                entry.macroLanes = updatedLanes
-                            }
+                        let clipID = clip.id
+                        session.mutateClip(id: clipID) { entry in
+                            entry.macroLanes = updatedLanes
                         }
                     }
                 }
@@ -347,6 +336,7 @@ struct TrackSourceEditorView: View {
     }
 
     private func select(generator: GeneratorPoolEntry, for purpose: GeneratorPickerPurpose) {
+        let trackID = track.id
         switch purpose {
         case .source:
             let updated = SourceRef(
@@ -356,46 +346,61 @@ struct TrackSourceEditorView: View {
                 modifierGeneratorID: selectedPattern.sourceRef.modifierGeneratorID,
                 modifierBypassed: selectedPattern.sourceRef.modifierBypassed
             )
-            session.mutateProject {
-                $0.setPatternSourceRef(updated, for: track.id, slotIndex: selectedPatternIndex)
-            }
+            session.setPatternSourceRef(updated, for: trackID, slotIndex: selectedPatternIndex)
 
         case .modifier:
-            var clipID = selectedPattern.sourceRef.clipID
-            if selectedSourceMode == .clip, clipID == nil {
-                clipID = project.clipEntry(id: selectedPattern.sourceRef.clipID)?.id
-            }
-            let updated = SourceRef(
-                mode: selectedSourceMode,
-                generatorID: selectedPattern.sourceRef.generatorID,
-                clipID: clipID,
-                modifierGeneratorID: generator.id,
-                modifierBypassed: false
-            )
-            session.mutateProject { project in
-                var adjusted = updated
-                if adjusted.mode == .clip, adjusted.clipID == nil {
-                    adjusted.clipID = project.ensureClipForCurrentPattern(trackID: track.id)
+            // For modifier selection, we may need to ensure a clip exists when the slot
+            // is in clip mode without a clip ID yet. Use batch to handle both steps atomically.
+            let currentPattern = selectedPattern
+            let currentSourceMode = selectedSourceMode
+            let slotIndex = selectedPatternIndex
+            session.batch { s in
+                var p = s.exportToProject()
+                var clipID = currentPattern.sourceRef.clipID
+                if currentSourceMode == .clip, clipID == nil {
+                    clipID = p.ensureClipForCurrentPattern(trackID: trackID)
+                    // Sync new clip into store if created.
+                    let newClips = p.clipPool.filter { c in
+                        s.exportToProject().clipPool.first(where: { $0.id == c.id }) == nil
+                    }
+                    for clip in newClips { s.appendClip(clip) }
+                    for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
                 }
-                project.setPatternSourceRef(adjusted, for: track.id, slotIndex: selectedPatternIndex)
+                let updated = SourceRef(
+                    mode: currentSourceMode,
+                    generatorID: currentPattern.sourceRef.generatorID,
+                    clipID: clipID,
+                    modifierGeneratorID: generator.id,
+                    modifierBypassed: false
+                )
+                p.setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
+                for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
             }
         }
     }
 
     private func removeGeneratorSource() {
-        session.mutateProject { project in
-            guard let clipID = project.ensureClipForCurrentPattern(trackID: track.id) else {
-                return
+        let trackID = track.id
+        let currentPattern = selectedPattern
+        let slotIndex = selectedPatternIndex
+        session.batch { s in
+            var p = s.exportToProject()
+            guard let clipID = p.ensureClipForCurrentPattern(trackID: trackID) else { return }
+            // Sync new clip if created.
+            let newClips = p.clipPool.filter { c in
+                s.exportToProject().clipPool.first(where: { $0.id == c.id }) == nil
             }
-
+            for clip in newClips { s.appendClip(clip) }
+            for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
             let updated = SourceRef(
                 mode: .clip,
                 generatorID: nil,
                 clipID: clipID,
-                modifierGeneratorID: selectedPattern.sourceRef.modifierGeneratorID,
-                modifierBypassed: selectedPattern.sourceRef.modifierBypassed
+                modifierGeneratorID: currentPattern.sourceRef.modifierGeneratorID,
+                modifierBypassed: currentPattern.sourceRef.modifierBypassed
             )
-            project.setPatternSourceRef(updated, for: track.id, slotIndex: selectedPatternIndex)
+            p.setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
+            for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
         }
     }
 
@@ -403,9 +408,8 @@ struct TrackSourceEditorView: View {
         Binding(
             get: { project.selectedPatternIndex(for: track.id) },
             set: { newValue in
-                session.mutateProject {
-                    $0.setSelectedPatternIndex(newValue, for: track.id)
-                }
+                let trackID = track.id
+                session.setSelectedPatternIndex(newValue, for: trackID)
             }
         )
     }
