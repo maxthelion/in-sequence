@@ -13,9 +13,14 @@ Replace the monolithic `compile(state:) -> PlaybackSnapshot` with a pair:
 - `compile(state:)` — the full rebuild, unchanged. Used at load, activate, undo/redo, and as the correctness reference.
 - `compile(changed: SnapshotChange, previous: PlaybackSnapshot, state: LiveSequencerStoreState) -> PlaybackSnapshot` — the incremental rebuild. Takes the previous snapshot, reuses every buffer that wasn't affected, rebuilds only the buffers the change descriptor names.
 
-The session's typed mutation API already knows what changed: `mutateClip` → clip X, `mutatePhrase` → phrase Y, `mutatePatternBank` → track Z's program, `mutateTrack` → track structure, `setSelectedTrackID` → selection metadata. Each typed method reports its change shape; `publishSnapshot(changed:)` routes to the incremental compiler. Structural changes (add/remove track, add/remove clip) keep using the full rebuild.
+The session's typed mutation API already knows what changed: `mutateClip` → clip X, `mutatePhrase` → phrase Y, `mutatePatternBank` → track Z's program, `mutateTrack` → track metadata, `setSelectedTrackID` → UI-only selection metadata, `setSelectedPhraseID` → active phrase selection. Each typed method reports its change shape; `publishSnapshot(changed:)` routes to the incremental compiler. Structural changes (add/remove track, add/remove clip) keep using the full rebuild.
 
 For a single-step toggle: change descriptor is `.clip(clipID)`; the incremental compiler produces the same snapshot as `compile(state:)` but in ~constant time. The full compile stays in the test matrix as the correctness oracle.
+
+This work is explicitly two optimizations, in order:
+
+1. **Do not compile at all for playback-inert UI mutations.** Examples: selected track changes and other selection-only edits that do not affect `PlaybackSnapshot`.
+2. **Compile incrementally when the playback snapshot really changed.** Examples: clip edits, phrase edits, pattern-bank edits, selected phrase changes.
 
 ## Guardrails
 
@@ -23,6 +28,9 @@ For a single-step toggle: change descriptor is `.clip(clipID)`; the incremental 
 - **Reference equality where possible.** Buffers that weren't affected by a change keep their existing references — no copy, no reallocation. Verify via `===` on the dictionary values where applicable (Swift `Array` and `Dictionary` have copy-on-write value semantics; the underlying storage stays shared if no mutation happens).
 - **Full compile remains the default path in two places.** Document load / `activate()` and `apply(documentModel:)` / `ingestExternalDocumentChange`. These represent "everything might have changed"; no caller can legitimately claim a narrow change shape there.
 - **No drift.** If the typed mutation API grows (new `mutateX` method), the incremental compiler must handle its change shape or fall back explicitly. An `@unknown default` or explicit `fatalError("add a SnapshotChange case for Y")` catches drift at compile time, not at runtime.
+- **Previous snapshot comes from the session, not test plumbing.** The incremental path must read the previously published snapshot from the session/publisher ownership boundary, not from `currentPlaybackSnapshotForTesting`.
+- **Playback-inert UI changes must not install a new snapshot.** `setSelectedTrackID` and similar UI-only mutations should update live authored state and schedule flush, but must not compile or apply a new playback snapshot.
+- **When in doubt, widen invalidation.** Hidden dependency or ambiguous mutation? Rebuild more, or fall back to full compile. Correctness beats cleverness.
 - **Tick path unaffected.** The tick reads a compiled `PlaybackSnapshot`; it doesn't care whether the snapshot was produced by full or incremental compile. No tick changes.
 - **Observation layer unaffected.** `SessionSnapshotPublisher` still holds the snapshot reference; `.replace(newSnapshot)` still fires `@Observable` notifications the same way.
 - **Thread safety preserved.** Incremental compile runs on the main thread inside `publishSnapshot()`. The tick thread continues to read the engine's installed snapshot under `stateLock`. No new concurrency surface.
@@ -31,19 +39,20 @@ For a single-step toggle: change descriptor is `.clip(clipID)`; the incremental 
 ## Architecture
 
 ```
-SnapshotChange enum
-  .clip(clipID: UUID)                ← content mutation
-  .phrase(phraseID: UUID)            ← cells mutation
-  .track(trackID: UUID)              ← StepSequenceTrack field change (mix, destination, macros, filter)
-  .patternBank(trackID: UUID)        ← pattern-bank / slot / modifier change
-  .generator(generatorID: UUID)      ← generator params or metadata
-  .selection                         ← selectedTrackID / selectedPhraseID
-  .layers                            ← phrase layer definitions changed (affects every phrase buffer)
-  .routes                            ← routing, tick-irrelevant but reported for completeness
-  .trackStructure                    ← add/remove/reorder tracks (fallback to full)
-  .clipPool                          ← add/remove clip (fallback to full)
-  .generatorPool                     ← add/remove generator (fallback to full)
-  .bulk([SnapshotChange])            ← batched mutations from session.batch { … }
+SnapshotChange
+  selectedTrackChanged: Bool         ← UI-only; does not compile/install a snapshot
+  selectedPhraseChanged: Bool        ← active phrase changed; install updated metadata
+  clipIDs: Set<UUID>                 ← content mutation
+  phraseIDs: Set<UUID>               ← cells mutation
+  trackIDs: Set<UUID>                ← StepSequenceTrack field change (mix, filter, destination metadata, mute)
+  patternBankTrackIDs: Set<UUID>     ← pattern-bank / slot / modifier change
+  generatorIDs: Set<UUID>            ← generator params or metadata
+  layersChanged: Bool                ← phrase layer definitions changed (affects every phrase buffer)
+  fullRebuild: Bool                  ← structural or unclear change; fall back to full
+
+The implementation can model this as a value-type summary rather than a recursive enum.
+The critical property is that batched mutations can union their invalidation set
+without duplicating work.
 
 SequencerSnapshotCompiler
   static func compile(state: LiveSequencerStoreState) -> PlaybackSnapshot
@@ -56,13 +65,15 @@ SequencerSnapshotCompiler
 
 SequencerDocumentSession+Mutations
   private func publishSnapshot(changed change: SnapshotChange) {
-      let newSnapshot = SequencerSnapshotCompiler.compile(
-          changed: change,
-          previous: engineController.currentPlaybackSnapshotForTesting,
-          state: store.compileInput()
-      )
-      engineController.apply(playbackSnapshot: newSnapshot)
-      snapshotPublisher.replace(newSnapshot)
+      if change.requiresPlaybackSnapshotInstall {
+          let newSnapshot = SequencerSnapshotCompiler.compile(
+              changed: change,
+              previous: snapshotPublisher.snapshot,
+              state: store.compileInput()
+          )
+          engineController.apply(playbackSnapshot: newSnapshot)
+          snapshotPublisher.replace(newSnapshot)
+      }
   }
 
   func mutateClip(id:_:) {
@@ -88,7 +99,8 @@ Per change kind, what does the incremental compiler rebuild, and what does it re
 | `.track(id)` | the track's entry in `tracks`; `trackProgramsByTrackID[id]` if pattern-bank–adjacent fields changed; otherwise just the tracks array entry | clipBuffers, pool buffers, phraseBuffers, other tracks |
 | `.patternBank(id)` | `trackProgramsByTrackID[id]` | all clipBuffers, other trackPrograms, all phraseBuffers (they reference slot *indices*, not source IDs — per-step slot index is independent of the bank contents), tracks, pools |
 | `.generator(id)` | `generatorPool` (replace one entry) | all clipBuffers, trackPrograms, phraseBuffers, tracks, metadata |
-| `.selection` | selection fields on the snapshot | all buffers and pools |
+| selected track only | **no compile / no engine apply** | previous snapshot stays installed |
+| selected phrase only | selected phrase metadata on the snapshot | all buffers and pools |
 | `.layers` | all `phraseBuffersByID` (each phrase's per-step mute/fill/macro values depend on the phrase-layer definitions) | clipBuffers, trackPrograms, pools, tracks |
 | `.routes` | routes array on the snapshot (if carried) | all buffers and pools |
 | `.trackStructure` | **full rebuild** via `compile(state:)` | nothing |
@@ -107,12 +119,20 @@ Two tricky cases worth calling out:
 
 Failing first, per phase.
 
+### Phase 0 — playback-inert routing
+
+- Classify UI-only mutations that should not install a playback snapshot:
+  - selected track
+  - other store-only selection metadata that does not affect `PlaybackSnapshot`
+- Add tests proving these mutations do not call `apply(playbackSnapshot:)`, do not clear the event queue, and do still update live store state / document flush.
+
 ### Phase 1 — `SnapshotChange` type + incremental API scaffolding
 
 - `SnapshotChangeTypeTests`
-  - `.bulk([])` and `.bulk([.selection])` collapse to sensible shapes.
-  - `.bulk([.trackStructure, .clip(id)])` flattens to force a full rebuild.
-  - Union / conflict semantics for `.bulk`.
+  - empty change is playback-inert
+  - selected-track-only change is playback-inert
+  - combining full-rebuild with any narrow change yields full rebuild
+  - union semantics for repeated clip / phrase / pattern-bank changes
 
 ### Phase 2 — per-domain incremental compilers, with full-compile parity
 
@@ -127,9 +147,13 @@ Failing first, per phase.
   - After `.clip(clipA)` incremental compile: `newSnapshot.clipBuffersByID[clipB] === previousSnapshot.clipBuffersByID[clipB]` (ObjectIdentifier check if buffers are classes; otherwise verify by-value equality and document that Swift COW preserves storage identity).
   - Same for phraseBuffers, trackPrograms, pools under mutations that shouldn't touch them.
 - `FullRebuildFallbackTests`
-  - `.trackStructure`, `.clipPool`, `.generatorPool` force full rebuild. Verify by spying on the full-compile entry point's call count.
+  - structural or ambiguous changes force full rebuild. Verify by spying on the full-compile entry point's call count.
 - `LayersChangeRebuildsAllPhraseBuffersTests`
   - `.layers` mutation rebuilds every phrase buffer, reuses everything else.
+- `PlaybackInertMutationTests`
+  - selected-track change does not compile or install a new playback snapshot
+  - selected-track change does not clear `eventQueue`
+  - selected-phrase change reuses buffers and only updates active phrase metadata
 
 ### Phase 3 — session routing
 
@@ -149,6 +173,7 @@ Failing first, per phase.
 - Define `SnapshotChange` in `Sources/Engine/SnapshotChange.swift`.
 - Add `compile(changed: SnapshotChange, previous: PlaybackSnapshot, state: LiveSequencerStoreState) -> PlaybackSnapshot` to `SequencerSnapshotCompiler`. Initial implementation: delegate to `compile(state:)` for every change kind (no actual incrementality yet). This lands the API surface with full-compile-under-the-hood.
 - Wire `SequencerDocumentSession.publishSnapshot()` to accept an optional `changed:` parameter; route to `compile(changed:)` when supplied, `compile(state:)` otherwise.
+- Route playback-inert UI changes around `publishSnapshot()` entirely.
 - Tests from Phase 1 green (structural only).
 
 This phase ships as a refactor with no behavioural change. Every publish still does a full compile.
@@ -177,8 +202,10 @@ Implement the per-domain narrow rebuilds:
 - `.generator(id)`:
   - Replace the entry in `generatorPool`.
   - Everything else reuses.
-- `.selection` / `.routes`:
+- selected phrase only:
   - Replace the scalar field.
+- selected track only:
+  - No snapshot work.
 - `.layers`:
   - Recompile every phrase buffer (layer defs feed into mute/fill/macro resolution for every track in every phrase).
   - Reuse clipBuffers, trackPrograms, pools, tracks.
@@ -208,7 +235,7 @@ Tests from Phase 2 green. Equivalence test matrix is the blocker; do not accept 
   - `applyMacroDiff(trackID:)` → `.bulk([.track(trackID), .layers])` (macros affect phrase buffer evaluation via layers)
   - `appendTrack` / `removeSelectedTrack` / `addDrumGroup` → `.trackStructure` (fall back to full)
   - `upsertRoute` / `removeRoute` → `.routes`
-- `batch(impact:_:) { store in … }` collects per-call changes and emits a single `.bulk([...])` when dispatching.
+- `batch(impact:_:) { store in … }` collects per-call changes and emits one unified change summary when dispatching.
 - `activate()` and `ingestExternalDocumentChange(_:)` continue to call `apply(documentModel:)` which runs full compile internally — no incremental path for those.
 
 Tests from Phase 3 green.
