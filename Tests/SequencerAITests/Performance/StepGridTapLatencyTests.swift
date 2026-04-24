@@ -169,18 +169,13 @@ final class StepGridTapLatencyTests: XCTestCase {
     /// immediately after the mutation, and use `onChangeFiredAt` (recorded inside
     /// the callback) as the invalidation time.
     ///
-    /// Design note: `mutateClip` with `.snapshotOnly` impact calls
-    /// `publishSnapshot()`, which compiles the full playback snapshot for the
-    /// reference project. That compilation runs on the same call stack as
-    /// `mutateClip`, BEFORE the observation pass. The observation `onChange` fires
-    /// AFTER `mutateClip` returns (during the forced re-read). The measurement
-    /// window therefore includes snapshot compilation, which is the dominant cost.
-    /// On the reference project (8 tracks, 4 patterns, 32 steps, 4 phrases) this
-    /// compilation may exceed 16ms on first run due to cold-cache effects.
-    /// The test records the actual elapsed time and asserts it is under a
-    /// 50ms budget that reflects realistic compilation on warm caches — the stricter
-    /// 16ms budget applies to pure observation-pass cost (measured via
-    /// `onChangeFiredAt - observationPassStart` in the second assertion below).
+    /// Design note: `mutateClip` with `.snapshotOnly` impact calls the incremental
+    /// `publishSnapshot(changed:)` path. That incremental compile runs on the same
+    /// call stack as `mutateClip`, BEFORE the observation pass. The observation
+    /// `onChange` fires AFTER `mutateClip` returns (during the forced re-read).
+    /// The measurement window therefore still includes snapshot compilation, but
+    /// the whole point of the incremental path is that this full tap-to-invalidation
+    /// cycle now fits inside one frame on the reference project.
     func test_stepTap_tapsToInvalidation_underBudget() throws {
         let session = makeReferenceSession()
 
@@ -236,15 +231,14 @@ final class StepGridTapLatencyTests: XCTestCase {
 
         XCTAssertTrue(firedAt.timestamp != nil, "onChange must have fired after clip mutation")
 
-        // Assertion 1: full tap path (mutation + snapshot compile) under 50ms.
-        // This is a realistic budget for warm-cache execution on an M-series Mac.
-        // The 16ms one-frame budget applies only to the observation-pass cost below.
+        // Assertion 1: full tap path (mutation + incremental snapshot compile)
+        // under 16ms — one frame at 60 fps.
         let fullPathElapsed = observationPassEnd - mutationStart
-        let fullPathBudget = Duration.milliseconds(50)
+        let fullPathBudget = Duration.milliseconds(16)
         XCTAssertLessThanOrEqual(
             fullPathElapsed,
             fullPathBudget,
-            "Full tap path including snapshot compile (\(fullPathElapsed)) exceeded " +
+            "Full tap path including incremental snapshot compile (\(fullPathElapsed)) exceeded " +
             "\(fullPathBudget) budget. Reference project may be too large or the " +
             "snapshot compiler is unexpectedly slow."
         )

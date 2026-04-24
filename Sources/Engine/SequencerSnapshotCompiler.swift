@@ -33,6 +33,81 @@ enum SequencerSnapshotCompiler {
         )
     }
 
+    static func compile(
+        changed: SnapshotChange,
+        previous: PlaybackSnapshot,
+        state: LiveSequencerStoreState
+    ) -> PlaybackSnapshot {
+        guard changed.requiresPlaybackSnapshotInstall else {
+            return previous
+        }
+        guard !changed.fullRebuild else {
+            return compile(state: state)
+        }
+
+        let tracks = replacingTracks(in: previous.tracks, from: state, changedTrackIDs: changed.trackIDs)
+        let clipPool = replacingClips(in: previous.clipPool, from: state, changedClipIDs: changed.clipIDs)
+        let generatorPool = replacingGenerators(in: previous.generatorPool, from: state, changedGeneratorIDs: changed.generatorIDs)
+
+        var clipBuffersByID = previous.clipBuffersByID
+        for clipID in changed.clipIDs {
+            guard let clip = state.clipEntry(id: clipID) else {
+                return compile(state: state)
+            }
+            clipBuffersByID[clipID] = compileClipBuffer(for: clip, tracks: tracks)
+        }
+
+        var trackProgramsByTrackID = previous.trackProgramsByTrackID
+        for trackID in changed.patternBankTrackIDs {
+            guard let track = state.track(id: trackID) else {
+                return compile(state: state)
+            }
+            trackProgramsByTrackID[trackID] = compileTrackSourceProgram(
+                for: track,
+                patternBanksByTrackID: state.patternBanksByTrackID
+            )
+        }
+
+        var phraseBuffersByID = previous.phraseBuffersByID
+        if changed.layersChanged {
+            phraseBuffersByID = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { phraseID in
+                guard let phrase = state.phrasesByID[phraseID] else { return nil }
+                return (
+                    phraseID,
+                    compilePhraseBuffer(
+                        for: phrase,
+                        layers: state.layers,
+                        trackPrograms: trackProgramsByTrackID,
+                        tracks: tracks
+                    )
+                )
+            })
+        } else {
+            for phraseID in changed.phraseIDs {
+                guard let phrase = state.phrasesByID[phraseID] else {
+                    return compile(state: state)
+                }
+                phraseBuffersByID[phraseID] = compilePhraseBuffer(
+                    for: phrase,
+                    layers: state.layers,
+                    trackPrograms: trackProgramsByTrackID,
+                    tracks: tracks
+                )
+            }
+        }
+
+        return PlaybackSnapshot(
+            selectedPhraseID: changed.selectedPhraseChanged ? state.selectedPhraseID : previous.selectedPhraseID,
+            clipPool: clipPool,
+            generatorPool: generatorPool,
+            tracks: tracks,
+            trackOrder: previous.trackOrder,
+            clipBuffersByID: clipBuffersByID,
+            trackProgramsByTrackID: trackProgramsByTrackID,
+            phraseBuffersByID: phraseBuffersByID
+        )
+    }
+
     // MARK: - Transitional project-based path
 
     /// Compile a `PlaybackSnapshot` from a `Project` value.
@@ -269,6 +344,73 @@ enum SequencerSnapshotCompiler {
         case let .index(index):
             return min(max(Double(index), layer.minValue), layer.maxValue)
         }
+    }
+
+    private static func replacingTracks(
+        in previous: [StepSequenceTrack],
+        from state: LiveSequencerStoreState,
+        changedTrackIDs: Set<UUID>
+    ) -> [StepSequenceTrack] {
+        guard !changedTrackIDs.isEmpty else {
+            return previous
+        }
+
+        let updatedByID = Dictionary(uniqueKeysWithValues: state.tracks.map { ($0.id, $0) })
+        var tracks = previous
+        for index in tracks.indices where changedTrackIDs.contains(tracks[index].id) {
+            if let updated = updatedByID[tracks[index].id] {
+                tracks[index] = updated
+            }
+        }
+        return tracks
+    }
+
+    private static func replacingClips(
+        in previous: [ClipPoolEntry],
+        from state: LiveSequencerStoreState,
+        changedClipIDs: Set<UUID>
+    ) -> [ClipPoolEntry] {
+        guard !changedClipIDs.isEmpty else {
+            return previous
+        }
+
+        let updatedByID = Dictionary(uniqueKeysWithValues: state.clipPool.map { ($0.id, $0) })
+        var clips = previous
+        for index in clips.indices where changedClipIDs.contains(clips[index].id) {
+            if let updated = updatedByID[clips[index].id] {
+                clips[index] = updated
+            }
+        }
+        return clips
+    }
+
+    private static func replacingGenerators(
+        in previous: [GeneratorPoolEntry],
+        from state: LiveSequencerStoreState,
+        changedGeneratorIDs: Set<UUID>
+    ) -> [GeneratorPoolEntry] {
+        guard !changedGeneratorIDs.isEmpty else {
+            return previous
+        }
+
+        let updatedByID = Dictionary(uniqueKeysWithValues: state.generatorPool.map { ($0.id, $0) })
+        var generators = previous
+        for index in generators.indices where changedGeneratorIDs.contains(generators[index].id) {
+            if let updated = updatedByID[generators[index].id] {
+                generators[index] = updated
+            }
+        }
+        return generators
+    }
+}
+
+private extension LiveSequencerStoreState {
+    func clipEntry(id: UUID) -> ClipPoolEntry? {
+        clipPool.first(where: { $0.id == id })
+    }
+
+    func track(id: UUID) -> StepSequenceTrack? {
+        tracks.first(where: { $0.id == id })
     }
 }
 

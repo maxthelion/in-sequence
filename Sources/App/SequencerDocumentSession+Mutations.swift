@@ -18,11 +18,13 @@ extension SequencerDocumentSession {
 
     /// Dispatch the impact after a successful mutation. Updates `revision`, publishes
     /// the snapshot or applies the document model, and schedules the flush.
-    private func dispatchImpact(_ impact: LiveMutationImpact) {
+    private func dispatchImpact(_ impact: LiveMutationImpact, changed change: SnapshotChange = .full) {
         revision = store.revision
         switch impact {
         case .snapshotOnly:
-            publishSnapshot()
+            if change.requiresPlaybackSnapshotInstall {
+                publishSnapshot(changed: change)
+            }
         case .fullEngineApply:
             // apply(documentModel:) installs a fresh snapshot internally.
             // Also update the publisher so UI visualisers see the new state.
@@ -31,9 +33,16 @@ extension SequencerDocumentSession {
             snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
         case .scopedRuntime(let update):
             dispatchScopedRuntimeUpdate(update)
-            publishSnapshot()
+            if change.requiresPlaybackSnapshotInstall {
+                publishSnapshot(changed: change)
+            }
         }
         scheduleFlushToDocument()
+    }
+
+    private func recordBatchChange(_ change: SnapshotChange) {
+        guard isInBatch else { return }
+        pendingBatchChange.formUnion(change)
     }
 
     // MARK: - Batch helper
@@ -48,15 +57,22 @@ extension SequencerDocumentSession {
     ///
     /// - Returns: `true` if the store revision advanced (i.e. something changed).
     @discardableResult
-    func batch(impact: LiveMutationImpact = .snapshotOnly, _ body: (LiveSequencerStore) -> Void) -> Bool {
+    func batch(
+        impact: LiveMutationImpact = .snapshotOnly,
+        changed initialChange: SnapshotChange = .full,
+        _ body: (LiveSequencerStore) -> Void
+    ) -> Bool {
         let revisionBefore = store.revision
         isInBatch = true
+        pendingBatchChange = initialChange
         body(store)
         isInBatch = false
+        let change = pendingBatchChange
+        pendingBatchChange = .none
         guard store.revision != revisionBefore else {
             return false
         }
-        dispatchImpact(impact)
+        dispatchImpact(impact, changed: change)
         return true
     }
 
@@ -67,8 +83,11 @@ extension SequencerDocumentSession {
     func mutateClip(id: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (inout ClipPoolEntry) -> Void) -> Bool {
         let changed = store.mutateClip(id: id, update)
         guard changed else { return false }
-        guard !isInBatch else { return true }
-        dispatchImpact(impact)
+        if isInBatch {
+            recordBatchChange(.clip(id))
+            return true
+        }
+        dispatchImpact(impact, changed: .clip(id))
         return true
     }
 
@@ -79,8 +98,11 @@ extension SequencerDocumentSession {
     func mutateTrack(id: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (inout StepSequenceTrack) -> Void) -> Bool {
         let changed = store.mutateTrack(id: id, update)
         guard changed else { return false }
-        guard !isInBatch else { return true }
-        dispatchImpact(impact)
+        if isInBatch {
+            recordBatchChange(.track(id))
+            return true
+        }
+        dispatchImpact(impact, changed: .track(id))
         return true
     }
 
@@ -91,8 +113,11 @@ extension SequencerDocumentSession {
     func mutateGenerator(id: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (inout GeneratorPoolEntry) -> Void) -> Bool {
         let changed = store.mutateGenerator(id: id, update)
         guard changed else { return false }
-        guard !isInBatch else { return true }
-        dispatchImpact(impact)
+        if isInBatch {
+            recordBatchChange(.generator(id))
+            return true
+        }
+        dispatchImpact(impact, changed: .generator(id))
         return true
     }
 
@@ -103,8 +128,11 @@ extension SequencerDocumentSession {
     func mutatePhrase(id: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (inout PhraseModel) -> Void) -> Bool {
         let changed = store.mutatePhrase(id: id, update)
         guard changed else { return false }
-        guard !isInBatch else { return true }
-        dispatchImpact(impact)
+        if isInBatch {
+            recordBatchChange(.phrase(id))
+            return true
+        }
+        dispatchImpact(impact, changed: .phrase(id))
         return true
     }
 
@@ -115,21 +143,28 @@ extension SequencerDocumentSession {
     func setSelectedTrackID(_ id: UUID) {
         store.setSelectedTrackID(id)
         guard store.revision > revision else { return }
-        guard !isInBatch else { return }
-        dispatchImpact(.snapshotOnly)
+        if isInBatch {
+            recordBatchChange(.selectedTrack)
+            return
+        }
+        revision = store.revision
+        scheduleFlushToDocument()
     }
 
     /// Set the selected phrase ID, publish a snapshot. Always `.snapshotOnly`.
     func setSelectedPhraseID(_ id: UUID) {
         store.setSelectedPhraseID(id)
         guard store.revision > revision else { return }
-        guard !isInBatch else { return }
-        dispatchImpact(.snapshotOnly)
+        if isInBatch {
+            recordBatchChange(.selectedPhrase)
+            return
+        }
+        dispatchImpact(.snapshotOnly, changed: .selectedPhrase)
     }
 
     /// Set both selected phrase ID and selected track ID atomically.
     func setSelectedPhraseAndTrackID(phraseID: UUID, trackID: UUID) {
-        batch(impact: .snapshotOnly) { s in
+        batch(impact: .snapshotOnly, changed: .selectedPhrase) { s in
             s.setSelectedPhraseID(phraseID)
             s.setSelectedTrackID(trackID)
         }
@@ -185,8 +220,11 @@ extension SequencerDocumentSession {
             }
         }
         guard changed else { return }
-        guard !isInBatch else { return }
-        dispatchImpact(impact)
+        if isInBatch {
+            recordBatchChange(.phrase(phraseID))
+            return
+        }
+        dispatchImpact(impact, changed: .phrase(phraseID))
     }
 
     // MARK: - Pattern bank
@@ -196,8 +234,11 @@ extension SequencerDocumentSession {
     func mutatePatternBank(trackID: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (inout TrackPatternBank) -> Void) -> Bool {
         let changed = store.mutatePatternBank(trackID: trackID, update)
         guard changed else { return false }
-        guard !isInBatch else { return true }
-        dispatchImpact(impact)
+        if isInBatch {
+            recordBatchChange(.patternBank(trackID))
+            return true
+        }
+        dispatchImpact(impact, changed: .patternBank(trackID))
         return true
     }
 
@@ -237,7 +278,7 @@ extension SequencerDocumentSession {
         removed: Set<UInt64>,
         trackID: UUID
     ) {
-        batch(impact: .snapshotOnly) { s in
+        batch(impact: .snapshotOnly, changed: .full) { s in
             var p = s.exportToProject()
             let liveTrack = p.tracks.first(where: { $0.id == trackID })
                 ?? p.tracks.first
@@ -297,7 +338,7 @@ extension SequencerDocumentSession {
         store.setLayers(p.layers)
         guard store.revision > revision else { return }
         guard !isInBatch else { return }
-        dispatchImpact(.snapshotOnly)
+        dispatchImpact(.snapshotOnly, changed: .layers)
     }
 
     // MARK: - Destination mutations
@@ -364,7 +405,10 @@ extension SequencerDocumentSession {
                 ?? UUID()
         }
 
-        batch(impact: .scopedRuntime(update: .auState(trackID: runtimeTrackID, blob: stateBlob))) { s in
+        batch(
+            impact: .scopedRuntime(update: .auState(trackID: runtimeTrackID, blob: stateBlob)),
+            changed: .track(runtimeTrackID)
+        ) { s in
             var p = s.exportToProject()
             switch target {
             case .track(let trackID):
@@ -392,8 +436,14 @@ extension SequencerDocumentSession {
             track.filter = settings
         }
         guard changed else { return }
-        guard !isInBatch else { return }
-        dispatchImpact(.scopedRuntime(update: .filter(trackID: trackID, settings: settings)))
+        if isInBatch {
+            recordBatchChange(.track(trackID))
+            return
+        }
+        dispatchImpact(
+            .scopedRuntime(update: .filter(trackID: trackID, settings: settings)),
+            changed: .track(trackID)
+        )
     }
 
     // MARK: - Mute / velocity / gate (track property helpers)
@@ -461,7 +511,7 @@ extension SequencerDocumentSession {
         store.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
         guard store.revision > revision else { return }
         guard !isInBatch else { return }
-        dispatchImpact(.snapshotOnly)
+        dispatchImpact(.snapshotOnly, changed: .phrase(p.selectedPhraseID))
     }
 
     /// Update a generator entry by ID and dispatch impact, using a project round-trip
@@ -469,8 +519,11 @@ extension SequencerDocumentSession {
     func updateGeneratorEntry(id: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (inout GeneratorPoolEntry) -> Void) {
         let changed = store.mutateGenerator(id: id, update)
         guard changed else { return }
-        guard !isInBatch else { return }
-        dispatchImpact(impact)
+        if isInBatch {
+            recordBatchChange(.generator(id))
+            return
+        }
+        dispatchImpact(impact, changed: .generator(id))
     }
 
     /// Ensure a clip exists for the current pattern slot, creating it if necessary,
@@ -563,4 +616,3 @@ extension SequencerDocumentSession {
         dispatchImpact(.snapshotOnly)
     }
 }
-

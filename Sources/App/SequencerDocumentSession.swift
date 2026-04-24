@@ -23,6 +23,8 @@ final class SequencerDocumentSession {
     /// methods skip their per-call impact dispatch and let `batch` publish once at the end.
     @ObservationIgnored
     var isInBatch: Bool = false
+    @ObservationIgnored
+    var pendingBatchChange: SnapshotChange = .none
 
     let store: LiveSequencerStore
     let engineController: EngineController
@@ -90,8 +92,17 @@ final class SequencerDocumentSession {
         snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
     }
 
-    func publishSnapshot() {
-        let newSnapshot = SequencerSnapshotCompiler.compile(state: store.compileInput())
+    func publishSnapshot(changed change: SnapshotChange? = nil) {
+        let newSnapshot: PlaybackSnapshot
+        if let change {
+            newSnapshot = SequencerSnapshotCompiler.compile(
+                changed: change,
+                previous: snapshotPublisher.snapshot,
+                state: store.compileInput()
+            )
+        } else {
+            newSnapshot = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        }
         engineController.apply(playbackSnapshot: newSnapshot)
         snapshotPublisher.replace(newSnapshot)
         revision = store.revision
@@ -171,7 +182,7 @@ final class SequencerDocumentSession {
 
         revision = store.revision
         engineController.setMix(trackID: trackID, mix: mix)
-        publishSnapshot()
+        publishSnapshot(changed: .track(trackID))
         scheduleFlushToDocument()
     }
 }
