@@ -76,6 +76,7 @@
 		3BB491B86164F6FC8822E9F8 /* ProjectDefaultDestinationForVoiceTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44061EB708044A5E5850E385 /* ProjectDefaultDestinationForVoiceTagTests.swift */; };
 		3C1DB65D7E389B98E1AEA6AC /* SamplerFilterSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69807CDF39FA8147DC9A9461 /* SamplerFilterSettingsTests.swift */; };
 		3FB37B09D4FD44A5B8C0C571 /* SessionSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F5315493DF8287EC5F7B71 /* SessionSnapshotPublisher.swift */; };
+		40D5387C0820A5C21AC8B014 /* SingleMacroSlotPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06BA8181EA24823BEF66FA1E /* SingleMacroSlotPickerSheet.swift */; };
 		41A22E3884A19683E38FB188 /* BlockProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A327CD4562F4083893A9AF3 /* BlockProtocolTests.swift */; };
 		431FAED886F853C594F9602A /* GeneratedSourceEvaluatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C05CE93D43B8EBED98931E8 /* GeneratedSourceEvaluatorTests.swift */; };
 		43D52C03BA79D1CD475E0CF3 /* EventQueueInvalidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D59A65AC0FF148D1990DA01 /* EventQueueInvalidationTests.swift */; };
@@ -335,6 +336,7 @@
 		050FE6B2D4148312032A74F6 /* 2026-04-23-launchpad-mini-control-surface.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-23-launchpad-mini-control-surface.md"; sourceTree = "<group>"; };
 		05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservationGranularityTests.swift; sourceTree = "<group>"; };
 		063A15482083403AC419AF60 /* LiveSequencerStoreResidentStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSequencerStoreResidentStateTests.swift; sourceTree = "<group>"; };
+		06BA8181EA24823BEF66FA1E /* SingleMacroSlotPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleMacroSlotPickerSheet.swift; sourceTree = "<group>"; };
 		06E46194FEA5AACB3D0FAE57 /* EventQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueueTests.swift; sourceTree = "<group>"; };
 		07412D3EE3BCFAC6322F2DC4 /* TrackMacroDescriptorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMacroDescriptorTests.swift; sourceTree = "<group>"; };
 		0961DB7827B79D193CA61E6F /* LiveWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWorkspaceView.swift; sourceTree = "<group>"; };
@@ -519,6 +521,7 @@
 		81A8403FE3BB7DC17548B87C /* VoicePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePickerView.swift; sourceTree = "<group>"; };
 		82A3535947AAA3671C9B3D2A /* SessionSnapshotPublisherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSnapshotPublisherTests.swift; sourceTree = "<group>"; };
 		82DC6DBCE302A941AF17ADA2 /* TransportModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportModeTests.swift; sourceTree = "<group>"; };
+		82E0E9E8EB55790A5D6C8FF4 /* 2026-04-25-au-card-and-macro-lane-polish.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-25-au-card-and-macro-lane-polish.md"; sourceTree = "<group>"; };
 		82E7BD2488E628F87C0B2076 /* PlaybackSnapshotConcurrencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSnapshotConcurrencyTests.swift; sourceTree = "<group>"; };
 		8548BD802026811169481E96 /* ProjectAddDrumGroupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAddDrumGroupTests.swift; sourceTree = "<group>"; };
 		8664DB8A7CCE957AEC98FD7C /* DrumKitPresetSampleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKitPresetSampleTests.swift; sourceTree = "<group>"; };
@@ -1169,6 +1172,7 @@
 				B617F499D08BCF33E2251D5A /* 2026-04-23-ui-read-path-authority-cutover.md */,
 				FBDC03346B885C88EF6672BA /* 2026-04-24-incremental-snapshot-compilation.md */,
 				6ACF8984A61584E576746127 /* 2026-04-24-sub-cell-modulation.md */,
+				82E0E9E8EB55790A5D6C8FF4 /* 2026-04-25-au-card-and-macro-lane-polish.md */,
 				BEAE38966F93587582469B42 /* 2026-04-25-incremental-snapshot-compilation-remediation.md */,
 				A70494E165C9966C8D4B3B78 /* 2026-04-25-slicer-track-mvp.md */,
 			);
@@ -1199,6 +1203,7 @@
 				46C3AB9C359B13AA7E54DF2D /* MacroPickerSheet.swift */,
 				7B8006806D755A2A11033D79 /* PresetBrowserSheet.swift */,
 				297E258E996515214FFB0A30 /* PresetBrowserSheetViewModel.swift */,
+				06BA8181EA24823BEF66FA1E /* SingleMacroSlotPickerSheet.swift */,
 			);
 			path = TrackDestination;
 			sourceTree = "<group>";
@@ -1867,6 +1872,7 @@
 				4ECD1BCFD22C2C36409C43F9 /* SequencerSnapshotCompiler.swift in Sources */,
 				3FB37B09D4FD44A5B8C0C571 /* SessionSnapshotPublisher.swift in Sources */,
 				C9E289C623F888F35AC0BF8D /* SidebarView.swift in Sources */,
+				40D5387C0820A5C21AC8B014 /* SingleMacroSlotPickerSheet.swift in Sources */,
 				EE125CE0AB3CC4B23D073F52 /* SliceIndexEditor.swift in Sources */,
 				11932D10728362C4479946BB /* SnapshotChange.swift in Sources */,
 				615406CE52A7C4B951876B74 /* SourceParameterSliderRow.swift in Sources */,

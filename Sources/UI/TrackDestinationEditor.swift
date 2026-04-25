@@ -7,6 +7,14 @@ struct TrackDestinationEditor: View {
     @State private var showingAddDestinationSheet = false
     @State private var showingMacroPickerSheet = false
     @State private var showingPresetBrowser = false
+    @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
+    @State private var presetReadoutState: PresetReadout?
+    @State private var presetReadoutGeneration: UInt64 = 0
+
+    private struct MacroSlotPickerRequest: Identifiable {
+        let slotIndex: Int
+        var id: Int { slotIndex }
+    }
 
     private var track: StepSequenceTrack {
         session.store.selectedTrack
@@ -55,6 +63,24 @@ struct TrackDestinationEditor: View {
                 auDisplayName: currentAudioInstrumentChoice.displayName,
                 viewModel: makePresetBrowserViewModel()
             )
+        }
+        .sheet(item: $macroSlotPickerRequest) { request in
+            SingleMacroSlotPickerSheet(
+                slotIndex: request.slotIndex,
+                currentBindingAddresses: currentAUMacroAddresses,
+                readParameters: {
+                    engineController.audioInstrumentHost(for: track.id)?.parameterReadout()
+                }
+            ) { descriptor in
+                assignMacro(descriptor, to: request.slotIndex)
+            }
+            .presentationBackground(.ultraThinMaterial)
+        }
+        .task(id: presetReadoutRefreshKey) {
+            refreshPresetReadout()
+        }
+        .onChange(of: showingPresetBrowser) { _, isPresented in
+            refreshPresetReadout(prepareIfNeeded: isPresented)
         }
     }
 
@@ -208,123 +234,76 @@ struct TrackDestinationEditor: View {
     }
 
     private var auEditor: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Button("Plug-in Window") {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(currentAudioInstrumentChoice.displayName)
+                        .studioText(.subtitle)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Text("AU destination")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+                Spacer(minLength: 12)
+
+                presetSelectorButton
+
+                compactIconButton(
+                    systemName: "slider.horizontal.3",
+                    help: "Open plug-in window"
+                ) {
                     prepareAndOpenCurrentAudioUnitWindow()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
 
-                Button("Manage Macros") {
-                    showingMacroPickerSheet = true
-                }
-                .buttonStyle(.bordered)
-            }
-
-            auInstrumentCard
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("CURRENT PRESET")
-                    .studioText(.eyebrow)
-                    .tracking(0.9)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(currentPresetDisplayName)
-                            .studioText(.subtitle)
-                            .foregroundStyle(StudioTheme.text)
-
-                        Text(currentPresetSupportingText)
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-
-                    Spacer()
-
-                    Button("Presets…") {
-                        engineController.prepareAudioUnit(for: track.id)
-                        showingPresetBrowser = true
-                    }
-                    .buttonStyle(.bordered)
+                compactIconButton(
+                    systemName: "xmark",
+                    help: "Remove this AU destination before choosing another one"
+                ) {
+                    clearDestination()
                 }
             }
             .padding(14)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
-            )
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("MACROS")
-                            .studioText(.eyebrow)
-                            .tracking(0.9)
-                            .foregroundStyle(StudioTheme.mutedText)
+            Divider()
+                .overlay(StudioTheme.border.opacity(0.7))
 
-                        Text(auMacroBindings.isEmpty ? "No macros selected yet." : "\(auMacroBindings.count) macros selected")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-
-                    Spacer()
-
-                    if auMacroBindings.isEmpty {
-                        Button("Choose Macros") {
-                            showingMacroPickerSheet = true
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4),
+                alignment: .leading,
+                spacing: 16
+            ) {
+                ForEach(auMacroSlots) { slot in
+                    AUMacroSlotKnob(
+                        slotIndex: slot.slotIndex,
+                        binding: slot.binding,
+                        value: slot.binding.map { macroValue(for: $0) },
+                        onAssign: {
+                            prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex)
+                        },
+                        onChange: { newValue in
+                            guard let binding = slot.binding else {
+                                return
+                            }
+                            session.setMacroLayerDefault(
+                                value: newValue,
+                                bindingID: binding.id,
+                                trackID: track.id
+                            )
+                        },
+                        onRemove: slot.binding.map { binding in
+                            {
+                                removeMacroSlot(bindingID: binding.id)
+                            }
                         }
-                        .buttonStyle(.bordered)
-                    }
-                }
-
-                if auMacroBindings.isEmpty {
-                    macroEmptyState
-                } else {
-                    auMacroGrid
+                    )
                 }
             }
-            .padding(14)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
-            )
+            .padding(12)
         }
-    }
-
-    private var auInstrumentCard: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "waveform.path.ecg")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(StudioTheme.success)
-                .frame(width: 22, height: 22)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("AU Instrument")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text(currentAudioInstrumentChoice.displayName)
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-
-            Spacer()
-
-            Button {
-                clearDestination()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .buttonStyle(.plain)
-            .help("Remove this AU destination before choosing another one")
-        }
-        .padding(14)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -332,39 +311,60 @@ struct TrackDestinationEditor: View {
         )
     }
 
-    private var macroEmptyState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Choose AU parameters to expose as track macros. Once selected, they appear here as live controls.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
+    private var presetSelectorButton: some View {
+        Button {
+            engineController.prepareAudioUnit(for: track.id)
+            showingPresetBrowser = true
+        } label: {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Preset")
+                        .studioText(.eyebrow)
+                        .tracking(0.7)
+                        .foregroundStyle(StudioTheme.mutedText)
 
-            Button("Choose Macros") {
-                showingMacroPickerSheet = true
+                    Text(currentPresetDisplayName)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(StudioTheme.mutedText)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.success)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .frame(maxWidth: 150, alignment: .leading)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+            )
         }
+        .buttonStyle(.plain)
+        .help(currentPresetSupportingText)
     }
 
-    private var auMacroGrid: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 92), spacing: 16)],
-            alignment: .leading,
-            spacing: 16
-        ) {
-            ForEach(auMacroBindings, id: \.id) { binding in
-                DestinationMacroKnob(
-                    binding: binding,
-                    value: macroValue(for: binding)
-                ) { newValue in
-                    session.setMacroLayerDefault(
-                        value: newValue,
-                        bindingID: binding.id,
-                        trackID: track.id
-                    )
-                }
-            }
+    private func compactIconButton(
+        systemName: String,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 30, height: 30)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                .overlay(
+                    Circle()
+                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                )
         }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     private var auMacroBindings: [TrackMacroBinding] {
@@ -374,10 +374,105 @@ struct TrackDestinationEditor: View {
             }
             return false
         }
+        .sorted { $0.slotIndex < $1.slotIndex }
+    }
+
+    private var auMacroSlots: [AUMacroSlot] {
+        (0..<8).map { slotIndex in
+            AUMacroSlot(
+                slotIndex: slotIndex,
+                binding: auMacroBindings.first(where: { $0.slotIndex == slotIndex })
+            )
+        }
+    }
+
+    private var currentAUMacroAddresses: Set<UInt64> {
+        Set(auMacroBindings.compactMap { binding in
+            if case let .auParameter(address, _) = binding.source {
+                return address
+            }
+            return nil
+        })
     }
 
     private var currentPresetReadout: PresetReadout? {
-        engineController.presetReadout(for: track.id)
+        presetReadoutState
+    }
+
+    private var presetReadoutRefreshKey: String {
+        switch editedDestination {
+        case let .auInstrument(componentID, stateBlob):
+            return "\(track.id.uuidString):\(componentID):\(stateBlob?.hashValue ?? 0)"
+        default:
+            return "\(track.id.uuidString):none"
+        }
+    }
+
+    private func refreshPresetReadout(prepareIfNeeded: Bool = false) {
+        guard case .auInstrument = editedDestination else {
+            presetReadoutGeneration &+= 1
+            presetReadoutState = nil
+            return
+        }
+
+        let trackID = track.id
+        let generation = presetReadoutGeneration &+ 1
+        presetReadoutGeneration = generation
+
+        if prepareIfNeeded {
+            engineController.prepareAudioUnit(for: trackID)
+        }
+
+        requestPresetReadout(
+            trackID: trackID,
+            generation: generation,
+            attemptsRemaining: 12
+        )
+    }
+
+    private func requestPresetReadout(
+        trackID: UUID,
+        generation: UInt64,
+        attemptsRemaining: Int
+    ) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let readout = engineController.presetReadout(for: trackID)
+
+            Task { @MainActor in
+                guard generation == presetReadoutGeneration else {
+                    return
+                }
+
+                guard case .auInstrument = editedDestination,
+                      track.id == trackID
+                else {
+                    presetReadoutState = nil
+                    return
+                }
+
+                if let readout {
+                    presetReadoutState = readout
+                    return
+                }
+
+                presetReadoutState = nil
+
+                guard attemptsRemaining > 1 else {
+                    return
+                }
+
+                try? await Task.sleep(for: .milliseconds(250))
+                guard generation == presetReadoutGeneration else {
+                    return
+                }
+
+                requestPresetReadout(
+                    trackID: trackID,
+                    generation: generation,
+                    attemptsRemaining: attemptsRemaining - 1
+                )
+            }
+        }
     }
 
     private var currentPresetDescriptor: AUPresetDescriptor? {
@@ -668,6 +763,44 @@ struct TrackDestinationEditor: View {
     private func applyMacroDiff(added: [AUParameterDescriptor], removed: Set<UInt64>, trackID: UUID) {
         session.applyMacroDiff(added: added, removed: removed, trackID: trackID)
     }
+
+    private func prepareAndPresentMacroSlotPicker(slotIndex: Int) {
+        engineController.prepareAudioUnit(for: track.id)
+        macroSlotPickerRequest = MacroSlotPickerRequest(slotIndex: slotIndex)
+    }
+
+    private func assignMacro(_ parameter: AUParameterDescriptor, to slotIndex: Int) {
+        let descriptor = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: parameter.displayName,
+            minValue: parameter.minValue,
+            maxValue: parameter.maxValue,
+            defaultValue: parameter.defaultValue,
+            valueType: .scalar,
+            source: .auParameter(address: parameter.address, identifier: parameter.identifier)
+        )
+        let trackID = track.id
+        session.batch(impact: .snapshotOnly, changed: .full) { s in
+            var p = s.exportToProject()
+            p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
+            p.syncMacroLayers()
+            s.replaceTracks(p.tracks)
+            s.setLayers(p.layers)
+            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+        }
+    }
+
+    private func removeMacroSlot(bindingID: UUID) {
+        let trackID = track.id
+        session.batch(impact: .snapshotOnly, changed: .full) { s in
+            var p = s.exportToProject()
+            p.removeMacro(id: bindingID, from: trackID)
+            p.syncMacroLayers()
+            s.replaceTracks(p.tracks)
+            s.setLayers(p.layers)
+            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+        }
+    }
 }
 
 private struct DestinationField<Content: View>: View {
@@ -693,72 +826,132 @@ private struct DestinationField<Content: View>: View {
     }
 }
 
-private struct DestinationMacroKnob: View {
-    let binding: TrackMacroBinding
-    let value: Double
+private struct AUMacroSlot: Identifiable {
+    let slotIndex: Int
+    let binding: TrackMacroBinding?
+
+    var id: Int { slotIndex }
+}
+
+private struct AUMacroSlotKnob: View {
+    let slotIndex: Int
+    let binding: TrackMacroBinding?
+    let value: Double?
+    let onAssign: () -> Void
     let onChange: (Double) -> Void
+    let onRemove: (() -> Void)?
 
     @State private var dragStartValue: Double?
     @State private var displayValue: Double
 
-    private let knobSize: CGFloat = 44
+    private let knobSize: CGFloat = 40
     private let dragSensitivity: Double = 220
 
-    init(binding: TrackMacroBinding, value: Double, onChange: @escaping (Double) -> Void) {
+    init(
+        slotIndex: Int,
+        binding: TrackMacroBinding?,
+        value: Double?,
+        onAssign: @escaping () -> Void,
+        onChange: @escaping (Double) -> Void,
+        onRemove: (() -> Void)? = nil
+    ) {
+        self.slotIndex = slotIndex
         self.binding = binding
         self.value = value
+        self.onAssign = onAssign
         self.onChange = onChange
-        _displayValue = State(initialValue: value)
+        self.onRemove = onRemove
+        _displayValue = State(initialValue: value ?? 0)
     }
 
     private var normalized: Double {
+        guard let binding else {
+            return 0
+        }
         let range = binding.descriptor.maxValue - binding.descriptor.minValue
         guard range > 0 else { return 0 }
         return (displayValue - binding.descriptor.minValue) / range
     }
 
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { drag in
+                guard let binding else {
+                    return
+                }
+                let delta = -drag.translation.height / dragSensitivity
+                let range = binding.descriptor.maxValue - binding.descriptor.minValue
+                if dragStartValue == nil {
+                    dragStartValue = displayValue
+                }
+                let nextValue = (dragStartValue ?? displayValue) + delta * range
+                displayValue = min(max(nextValue, binding.descriptor.minValue), binding.descriptor.maxValue)
+            }
+            .onEnded { _ in
+                guard binding != nil else {
+                    return
+                }
+                dragStartValue = nil
+                onChange(displayValue)
+            }
+    }
+
     var body: some View {
         VStack(spacing: 8) {
+            Text("M\(slotIndex + 1)")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
             ZStack {
                 Circle()
-                    .stroke(StudioTheme.border, lineWidth: 2)
+                    .stroke(
+                        binding == nil ? StudioTheme.border.opacity(0.7) : StudioTheme.border,
+                        style: StrokeStyle(lineWidth: 2, dash: binding == nil ? [5, 4] : [])
+                    )
                     .frame(width: knobSize, height: knobSize)
 
-                Circle()
-                    .trim(from: 0.15, to: 0.15 + 0.7 * normalized)
-                    .stroke(StudioTheme.cyan, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: knobSize - 6, height: knobSize - 6)
-                    .rotationEffect(.degrees(-90))
+                if binding == nil {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                } else {
+                    Circle()
+                        .trim(from: 0.15, to: 0.15 + 0.7 * normalized)
+                        .stroke(StudioTheme.cyan, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .frame(width: knobSize - 6, height: knobSize - 6)
+                        .rotationEffect(.degrees(-90))
 
-                Text(shortLabel(displayValue))
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
+                    Text(shortLabel(displayValue))
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
             }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in
-                        if dragStartValue == nil {
-                            dragStartValue = displayValue
-                        }
-                        let delta = -drag.translation.height / dragSensitivity
-                        let range = binding.descriptor.maxValue - binding.descriptor.minValue
-                        let nextValue = (dragStartValue ?? displayValue) + delta * range
-                        displayValue = min(max(nextValue, binding.descriptor.minValue), binding.descriptor.maxValue)
-                    }
-                    .onEnded { _ in
-                        dragStartValue = nil
-                        onChange(displayValue)
-                    }
-            )
+            .contentShape(Rectangle())
+            .gesture(dragGesture, including: binding == nil ? .none : .all)
+            .onTapGesture {
+                if binding == nil {
+                    onAssign()
+                }
+            }
 
-            Text(binding.displayName)
+            Text(binding?.displayName ?? "Assign")
                 .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(binding == nil ? StudioTheme.mutedText : StudioTheme.text)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
-                .frame(width: knobSize + 26)
+                .frame(width: knobSize + 18)
+        }
+        .frame(maxWidth: .infinity)
+        .contextMenu {
+            if let onRemove {
+                Button("Remove Macro", role: .destructive, action: onRemove)
+            }
         }
         .onChange(of: value) { _, newValue in
+            guard let newValue else {
+                return
+            }
             if dragStartValue == nil {
                 displayValue = newValue
             }
@@ -766,6 +959,9 @@ private struct DestinationMacroKnob: View {
     }
 
     private func shortLabel(_ value: Double) -> String {
+        guard let binding else {
+            return ""
+        }
         if binding.descriptor.maxValue > 10 {
             return "\(Int(value.rounded()))"
         }
