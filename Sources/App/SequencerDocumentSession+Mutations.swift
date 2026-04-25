@@ -293,20 +293,19 @@ extension SequencerDocumentSession {
         _ descriptor: TrackMacroDescriptor,
         to trackID: UUID,
         slotIndex: Int
-    ) {
+    ) -> Bool {
+        var accepted = false
         batch(impact: .snapshotOnly, changed: .full) { s in
             var p = s.exportToProject()
-            p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
+            accepted = p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
+            guard accepted else { return }
             p.syncMacroLayers()
             s.replaceTracks(p.tracks)
             s.setLayers(p.layers)
             s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            for clip in p.clipPool {
-                if s.exportToProject().clipPool.first(where: { $0.id == clip.id }) != clip {
-                    s.mutateClip(id: clip.id) { $0 = clip }
-                }
-            }
+            // addAUMacro does not touch clipPool — no clip diff loop needed here.
         }
+        return accepted
     }
 
     /// Remove a macro slot from a track by binding ID.
@@ -322,10 +321,9 @@ extension SequencerDocumentSession {
             s.replaceTracks(p.tracks)
             s.setLayers(p.layers)
             s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            for clip in p.clipPool {
-                if s.exportToProject().clipPool.first(where: { $0.id == clip.id }) != clip {
-                    s.mutateClip(id: clip.id) { $0 = clip }
-                }
+            let liveByID = Dictionary(uniqueKeysWithValues: s.clipPool.map { ($0.id, $0) })
+            for clip in p.clipPool where liveByID[clip.id] != clip {
+                s.mutateClip(id: clip.id) { $0 = clip }
             }
         }
     }
@@ -370,11 +368,10 @@ extension SequencerDocumentSession {
             s.replaceTracks(p.tracks)
             s.setLayers(p.layers)
             s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            for clip in p.clipPool {
-                // macroLanes may have changed on clips
-                if s.exportToProject().clipPool.first(where: { $0.id == clip.id }) != clip {
-                    s.mutateClip(id: clip.id) { $0 = clip }
-                }
+            // macroLanes may have changed on clips (removeMacro cascades into clipPool).
+            let liveByID = Dictionary(uniqueKeysWithValues: s.clipPool.map { ($0.id, $0) })
+            for clip in p.clipPool where liveByID[clip.id] != clip {
+                s.mutateClip(id: clip.id) { $0 = clip }
             }
         }
     }
@@ -407,14 +404,26 @@ extension SequencerDocumentSession {
 
     /// Set the edited destination for a track, then dispatch `.fullEngineApply`.
     ///
+    /// Routes through `Project.setDestinationWithMacros` so that `syncBuiltinMacros`
+    /// is always called — ensuring sampler built-ins are installed and AU macros are
+    /// dropped on kind transitions. Without this routing, `syncBuiltinMacros` was
+    /// unreachable from production code (it was only called from tests directly).
+    ///
     /// `.fullEngineApply` is preserved: destination changes require
     /// `apply(documentModel:)` to tear down and rebuild the AU host.
     func setEditedDestination(_ destination: Destination, for trackID: UUID) {
         batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
-            p.setEditedDestination(destination, for: trackID)
+            p.setDestinationWithMacros(destination, for: trackID)
+            p.syncMacroLayers()
             s.replaceTracks(p.tracks)
             s.replaceTrackGroups(p.trackGroups)
+            s.setLayers(p.layers)
+            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+            let liveByID = Dictionary(uniqueKeysWithValues: s.clipPool.map { ($0.id, $0) })
+            for clip in p.clipPool where liveByID[clip.id] != clip {
+                s.mutateClip(id: clip.id) { $0 = clip }
+            }
         }
     }
 
