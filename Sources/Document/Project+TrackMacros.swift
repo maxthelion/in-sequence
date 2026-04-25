@@ -55,11 +55,11 @@ extension Project {
         )
 
         if Self.isSamplerKind(newDestination) {
-            // Built-ins occupy slots 0..<builtinCount; shift AU macros after them.
-            let shiftedPreserved = preservedAUMacros.enumerated().map { index, binding in
-                binding.withSlotIndex(BuiltinMacroKind.allCases.count + index)
-            }
-            tracks[trackIndex].macros = Self.builtinSamplerBindings(for: trackID) + shiftedPreserved
+            // Sampler has exactly 8 built-in slots (BuiltinMacroKind.allCases fills them).
+            // AU macros are dropped: there is no room beyond slot 7 without breaking the
+            // slotIndex clamp, and the north-star spec does not require AU macro preservation
+            // across kind transitions. (Option A from the C2 review critique.)
+            tracks[trackIndex].macros = Self.builtinSamplerBindings(for: trackID)
         } else {
             // Remove built-in bindings (keep auParameter bindings) and compact slots.
             tracks[trackIndex].macros = preservedAUMacros.enumerated().map { index, binding in
@@ -105,7 +105,9 @@ extension Project {
             return false
         }
 
-        let occupiedSlots = Set(auMacros.map(\.slotIndex))
+        // Include ALL macros (built-in and AU) so that auto-slot selection
+        // never picks a slot already occupied by a built-in (C3 fix).
+        let occupiedSlots = Set(macros.map(\.slotIndex))
         let resolvedSlot: Int
         if let slotIndex {
             guard (0..<Self.macroSlotCount).contains(slotIndex),
@@ -142,7 +144,7 @@ extension Project {
 
         // Cascade: drop clip macro lanes that referenced this binding.
         for clipIndex in clipPool.indices {
-            clipPool[clipIndex].macroLanes.removeValue(forKey: macroID)
+            clipPool[clipIndex] = clipPool[clipIndex].removingMacroLane(id: macroID)
         }
     }
 
