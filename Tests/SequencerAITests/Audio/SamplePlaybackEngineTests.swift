@@ -66,6 +66,14 @@ final class SamplePlaybackEngineTests: XCTestCase {
         _ = engine.play(sampleURL: fixtureURL, settings: .default, trackID: UUID(), at: nil)
     }
 
+    func test_playWithExtremeTrimSettings_doesNotCrash() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let settings = SamplerSettings(start: 1, length: 0, gain: 0)
+        let handle = engine.play(sampleURL: fixtureURL, settings: settings, trackID: UUID(), at: nil)
+        XCTAssertNotNil(handle)
+    }
+
     func test_stopVoice_silencesThatVoice() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }

@@ -109,11 +109,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         voice.volume = linearGain(dB: gainDB)
 
         // Sample start / length: schedule a segment of the file if set.
-        let startNorm = params?[.sampleStart] ?? 0
-        let lengthNorm = params?[.sampleLength] ?? 1
+        let startNorm = min(max(params?[.sampleStart] ?? settings.start, 0), 1)
+        let lengthNorm = min(max(params?[.sampleLength] ?? settings.length, 0), 1)
         let frameCount = Double(file.length)
-        let startFrame = AVAudioFramePosition(startNorm * frameCount)
-        let frameLength = AVAudioFrameCount(max(1, lengthNorm * frameCount))
+        let startFrame = AVAudioFramePosition(min(startNorm * frameCount, max(frameCount - 1, 0)))
+        let remainingFrames = max(1, Double(file.length) - Double(startFrame))
+        let frameLength = AVAudioFrameCount(min(max(1, lengthNorm * frameCount), remainingFrames))
         voice.scheduleSegment(file, startingFrame: startFrame, frameCount: frameLength, at: when, completionHandler: nil)
         voice.play()
 

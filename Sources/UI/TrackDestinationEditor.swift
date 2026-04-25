@@ -140,10 +140,7 @@ struct TrackDestinationEditor: View {
                     internalSamplerEditor
                 }
             case .sample:
-                VStack(alignment: .leading, spacing: 14) {
-                    destinationCard
-                    samplerEditor
-                }
+                samplerEditor
             case .none:
                 EmptyView()
             }
@@ -573,32 +570,31 @@ struct TrackDestinationEditor: View {
     }
 
     private var samplerEditor: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SamplerDestinationWidget(
-                destination: Binding(
-                    get: { editedDestination },
-                    set: { newDestination in
-                        // .fullEngineApply preserved: sample destination change requires AU teardown.
-                        session.setEditedDestination(newDestination, for: track.id)
-                    }
-                ),
-                library: AudioSampleLibrary.shared,
-                sampleEngine: engineController.sampleEngineSink,
-                trackID: track.id,
-                filterSettings: Binding(
-                    get: { session.store.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
-                    set: { newFilter in
-                        // .scopedRuntime(.filter(...)) preserved: filter is a live scoped update.
-                        session.setFilterSettings(newFilter, for: track.id)
-                    }
-                )
-            )
-
-            Button("Macros…") {
+        SamplerDestinationWidget(
+            destination: Binding(
+                get: { editedDestination },
+                set: { newDestination in
+                    // .fullEngineApply preserved: sample destination change requires AU teardown.
+                    session.setEditedDestination(newDestination, for: track.id)
+                }
+            ),
+            library: AudioSampleLibrary.shared,
+            sampleEngine: engineController.sampleEngineSink,
+            trackID: track.id,
+            filterSettings: Binding(
+                get: { session.store.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
+                set: { newFilter in
+                    // .scopedRuntime(.filter(...)) preserved: filter is a live scoped update.
+                    session.setFilterSettings(newFilter, for: track.id)
+                }
+            ),
+            onManageMacros: {
                 showingMacroPickerSheet = true
+            },
+            onRemove: {
+                clearDestination()
             }
-            .buttonStyle(.bordered)
-        }
+        )
     }
 
     private var internalSamplerEditor: some View {
