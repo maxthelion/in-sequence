@@ -10,8 +10,9 @@ enum SequencerSnapshotCompiler {
     /// this overload so that `exportToProject()` is NOT called on each mutation.
     static func compile(state: LiveSequencerStoreState) -> PlaybackSnapshot {
         let trackOrder = state.tracks.map(\.id)
+        let clipOwnerByID = makeClipOwnerMap(patternBanks: state.patternBanksByTrackID)
         let clipBuffers = Dictionary(uniqueKeysWithValues: state.clipPool.map { clip in
-            (clip.id, compileClipBuffer(for: clip, tracks: state.tracks))
+            (clip.id, compileClipBuffer(for: clip, tracks: state.tracks, ownerTrackID: clipOwnerByID[clip.id]))
         })
         let trackPrograms = Dictionary(uniqueKeysWithValues: state.tracks.map { track in
             (track.id, compileTrackSourceProgram(for: track, patternBanksByTrackID: state.patternBanksByTrackID))
@@ -49,17 +50,26 @@ enum SequencerSnapshotCompiler {
         let clipPool = replacingClips(in: previous.clipPool, from: state, changedClipIDs: changed.clipIDs)
         let generatorPool = replacingGenerators(in: previous.generatorPool, from: state, changedGeneratorIDs: changed.generatorIDs)
 
+        let clipOwnerByID = makeClipOwnerMap(patternBanks: state.patternBanksByTrackID)
         var clipBuffersByID = previous.clipBuffersByID
         for clipID in changed.clipIDs {
             guard let clip = state.clipEntry(id: clipID) else {
                 return compile(state: state)
             }
-            clipBuffersByID[clipID] = compileClipBuffer(for: clip, tracks: tracks)
+            clipBuffersByID[clipID] = compileClipBuffer(for: clip, tracks: tracks, ownerTrackID: clipOwnerByID[clip.id])
         }
         if !changed.trackIDs.isEmpty {
-            let changedTrackTypes = Set(tracks.filter { changed.trackIDs.contains($0.id) }.map(\.trackType))
-            for clip in state.clipPool where changedTrackTypes.contains(clip.trackType) {
-                clipBuffersByID[clip.id] = compileClipBuffer(for: clip, tracks: tracks)
+            for trackID in changed.trackIDs {
+                // Recompile all clips whose owner track changed.
+                for clip in state.clipPool where clipOwnerByID[clip.id] == trackID {
+                    clipBuffersByID[clip.id] = compileClipBuffer(for: clip, tracks: tracks, ownerTrackID: trackID)
+                }
+                // Also recompile clips of the same trackType that have no owner (shared/unowned clips).
+                if let track = tracks.first(where: { $0.id == trackID }) {
+                    for clip in state.clipPool where clipOwnerByID[clip.id] == nil && clip.trackType == track.trackType {
+                        clipBuffersByID[clip.id] = compileClipBuffer(for: clip, tracks: tracks, ownerTrackID: nil)
+                    }
+                }
             }
         }
 
@@ -125,7 +135,6 @@ enum SequencerSnapshotCompiler {
     /// Internally constructs a throwaway `LiveSequencerStoreState` and delegates
     /// to `compile(state:)`.
     ///
-    /// - TODO(phase-2): callers of apply(documentModel:) should bypass Project reconstruction
     static func compile(project: Project) -> PlaybackSnapshot {
         let banksByID = Dictionary(uniqueKeysWithValues: project.patternBanks.map { ($0.trackID, $0) })
         let phrasesByID = Dictionary(uniqueKeysWithValues: project.phrases.map { ($0.id, $0) })
@@ -144,9 +153,30 @@ enum SequencerSnapshotCompiler {
 
     // MARK: - Private compilation helpers
 
+    /// Build a map from clip ID → owning track ID by scanning all pattern bank slots.
+    ///
+    /// A clip is "owned" by the first track whose bank references it. If two tracks
+    /// share a clip (via the same clipID in different bank slots), the first bank
+    /// entry wins — this is an edge-case the document model currently does not
+    /// explicitly forbid but doesn't encourage.
+    private static func makeClipOwnerMap(
+        patternBanks: [UUID: TrackPatternBank]
+    ) -> [UUID: UUID] {
+        var result: [UUID: UUID] = [:]
+        for (trackID, bank) in patternBanks {
+            for slot in bank.slots {
+                if let clipID = slot.sourceRef.clipID, result[clipID] == nil {
+                    result[clipID] = trackID
+                }
+            }
+        }
+        return result
+    }
+
     private static func compileClipBuffer(
         for clip: ClipPoolEntry,
-        tracks: [StepSequenceTrack]
+        tracks: [StepSequenceTrack],
+        ownerTrackID: UUID?
     ) -> ClipBuffer {
         let normalized = clip.content.normalized
         let lengthSteps = normalized.stepCount
@@ -167,9 +197,11 @@ enum SequencerSnapshotCompiler {
             }
         }
 
-        let macroBindingOrder = tracks
-            .first(where: { $0.trackType == clip.trackType })?
-            .macros
+        // Resolve macroBindingOrder using the owner track's macros, keyed by trackID.
+        // `trackType` is the wrong key when two tracks of the same type have different
+        // AU macro bindings — it non-deterministically resolves the wrong track's macros.
+        let ownerMacros = ownerTrackID.flatMap { id in tracks.first(where: { $0.id == id }) }?.macros
+        let macroBindingOrder = ownerMacros?
             .sorted { $0.slotIndex < $1.slotIndex }
             .map(\.id) ?? Array(clip.macroLanes.keys).sorted { $0.uuidString < $1.uuidString }
         let macroOverrideValues = (0..<lengthSteps).map { stepIndex in
