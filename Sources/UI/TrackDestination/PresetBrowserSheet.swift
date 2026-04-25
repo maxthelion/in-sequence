@@ -34,12 +34,17 @@ struct PresetBrowserSheet: View {
         .frame(minWidth: 480, minHeight: 520)
         .background(StudioTheme.background)
         .onAppear {
-            viewModel.reload()
-            if !viewModel.isReady {
-                startPolling()
-            }
+            viewModel.reloadAsync()
+            startPolling()
         }
         .onDisappear {
+            pollTask?.cancel()
+            pollTask = nil
+        }
+        .onChange(of: viewModel.isReady) { _, isReady in
+            guard isReady else {
+                return
+            }
             pollTask?.cancel()
             pollTask = nil
         }
@@ -157,7 +162,7 @@ struct PresetBrowserSheet: View {
                 if Task.isCancelled {
                     return
                 }
-                viewModel.reload()
+                viewModel.reloadAsync()
                 if viewModel.isReady {
                     pollTask = nil
                     return

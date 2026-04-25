@@ -20,6 +20,7 @@ final class PresetBrowserSheetViewModel: ObservableObject {
     private let read: ReadOp
     private let loader: LoadOp
     private let commit: CommitOp
+    private var reloadGeneration: UInt64 = 0
 
     init(
         read: @escaping ReadOp,
@@ -37,17 +38,26 @@ final class PresetBrowserSheetViewModel: ObservableObject {
     /// Refreshes the factory + user lists and the star's `loadedID`. If the AU is not
     /// yet live, leaves `isReady == false` so the sheet can show its loading placeholder.
     func reload() {
-        guard let readout = read() else {
-            factory = []
-            user = []
-            loadedID = nil
-            isReady = false
-            return
+        applyReadout(read())
+    }
+
+    /// Refreshes preset lists without blocking the main actor while the live AU host
+    /// resolves its current readout.
+    func reloadAsync() {
+        let generation = reloadGeneration &+ 1
+        reloadGeneration = generation
+        let read = self.read
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let readout = read()
+
+            Task { @MainActor in
+                guard generation == self.reloadGeneration else {
+                    return
+                }
+                self.applyReadout(readout)
+            }
         }
-        factory = readout.factory
-        user = readout.user
-        loadedID = readout.currentID
-        isReady = true
     }
 
     /// Loads `descriptor` into the live AU, writes the resulting state blob into the
@@ -73,5 +83,19 @@ final class PresetBrowserSheetViewModel: ObservableObject {
             return list
         }
         return list.filter { $0.name.localizedCaseInsensitiveContains(filter) }
+    }
+
+    private func applyReadout(_ readout: PresetReadout?) {
+        guard let readout else {
+            factory = []
+            user = []
+            loadedID = nil
+            isReady = false
+            return
+        }
+        factory = readout.factory
+        user = readout.user
+        loadedID = readout.currentID
+        isReady = true
     }
 }

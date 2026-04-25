@@ -230,6 +230,49 @@ final class PresetBrowserSheetViewModelTests: XCTestCase {
         XCTAssertFalse(underlying.isEmpty, "Underlying description must be non-empty")
     }
 
+    // MARK: – reloadAsync()
+
+    func test_reloadAsync_populates_lists_and_current_id_from_readout() async {
+        let readout = PresetReadout(
+            factory: [.factory(number: 0, name: "Init"), .factory(number: 3, name: "Analog Keys")],
+            user: [.user(number: -1, name: "My Pad")],
+            currentID: "factory:3"
+        )
+        let viewModel = PresetBrowserSheetViewModel(
+            read: { readout },
+            load: { _ in nil },
+            commit: { _ in }
+        )
+
+        viewModel.reloadAsync()
+        await waitUntil("view model becomes ready after async read") {
+            viewModel.isReady
+        }
+
+        XCTAssertTrue(viewModel.isReady)
+        XCTAssertEqual(viewModel.factory.count, 2)
+        XCTAssertEqual(viewModel.user.count, 1)
+        XCTAssertEqual(viewModel.loadedID, "factory:3")
+    }
+
+    func test_reloadAsync_nil_readout_leaves_view_model_not_ready() async {
+        let viewModel = PresetBrowserSheetViewModel(
+            read: { nil },
+            load: { _ in nil },
+            commit: { _ in }
+        )
+
+        viewModel.reloadAsync()
+        await waitUntil("async read completes with empty lists") {
+            !viewModel.isReady && viewModel.factory.isEmpty && viewModel.user.isEmpty
+        }
+
+        XCTAssertFalse(viewModel.isReady)
+        XCTAssertEqual(viewModel.factory, [])
+        XCTAssertEqual(viewModel.user, [])
+        XCTAssertNil(viewModel.loadedID)
+    }
+
     func test_writeTarget_resolution_is_live_not_captured() {
         // Simulate a commit closure that re-resolves its target on each call.
         // Two calls with different targets returned by the resolver must each
@@ -252,5 +295,21 @@ final class PresetBrowserSheetViewModelTests: XCTestCase {
 
         XCTAssertEqual(writtenTargets, ["first", "second"],
                        "Each commit must observe the live target value, not a captured snapshot")
+    }
+
+    private func waitUntil(
+        _ description: String,
+        timeout: Duration = .seconds(1),
+        condition: @escaping @MainActor () -> Bool
+    ) async {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if await condition() {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTFail("Timed out waiting for condition: \(description)")
     }
 }
