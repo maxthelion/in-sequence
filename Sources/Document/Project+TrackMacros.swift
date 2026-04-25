@@ -50,19 +50,38 @@ extension Project {
         let builtinIDs = Set(BuiltinMacroKind.allCases.map {
             TrackMacroDescriptor.builtinID(trackID: trackID, kind: $0)
         })
-        let preservedAUMacros = orderedMacroBindings(
-            tracks[trackIndex].macros.filter { !builtinIDs.contains($0.id) }
-        )
+
+        let currentMacros = tracks[trackIndex].macros
 
         if Self.isSamplerKind(newDestination) {
             // Sampler has exactly 8 built-in slots (BuiltinMacroKind.allCases fills them).
             // AU macros are dropped: there is no room beyond slot 7 without breaking the
             // slotIndex clamp, and the north-star spec does not require AU macro preservation
             // across kind transitions. (Option A from the C2 review critique.)
-            tracks[trackIndex].macros = Self.builtinSamplerBindings(for: trackID)
+            //
+            // Use removeMacro(id:from:) for every binding that won't survive so that phrase
+            // layers and clip macro lanes are cascade-purged (CR2-2 fix).
+            let newBuiltinIDs = Set(Self.builtinSamplerBindings(for: trackID).map(\.id))
+            for binding in currentMacros where !newBuiltinIDs.contains(binding.id) {
+                removeMacro(id: binding.id, from: trackID)
+            }
+            // Now set the exact built-in set (idempotent for already-present ones).
+            guard let updatedTrackIndex = tracks.firstIndex(where: { $0.id == trackID }) else {
+                return
+            }
+            tracks[updatedTrackIndex].macros = Self.builtinSamplerBindings(for: trackID)
         } else {
-            // Remove built-in bindings (keep auParameter bindings) and compact slots.
-            tracks[trackIndex].macros = preservedAUMacros.enumerated().map { index, binding in
+            // Remove built-in bindings (cascade layers + clip lanes) and compact slots.
+            // Keep auParameter bindings; drop any builtin ones.
+            let preservedAUMacros = currentMacros.filter { !builtinIDs.contains($0.id) }
+            for binding in currentMacros where builtinIDs.contains(binding.id) {
+                removeMacro(id: binding.id, from: trackID)
+            }
+            // Re-compact slot indices on the survivors.
+            guard let updatedTrackIndex = tracks.firstIndex(where: { $0.id == trackID }) else {
+                return
+            }
+            tracks[updatedTrackIndex].macros = orderedMacroBindings(preservedAUMacros).enumerated().map { index, binding in
                 binding.withSlotIndex(index)
             }
         }
