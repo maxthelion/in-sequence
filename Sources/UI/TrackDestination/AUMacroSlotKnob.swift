@@ -132,6 +132,13 @@ struct AUMacroSlotKnob: View {
         }
     }
 
+    private static let shortValueFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.maximumFractionDigits = 2
+        f.minimumFractionDigits = 0
+        return f
+    }()
+
     private func shortLabel(_ value: Double) -> String {
         guard let binding else {
             return ""
@@ -139,10 +146,6 @@ struct AUMacroSlotKnob: View {
         if binding.descriptor.maxValue > 10 {
             return "\(Int(value.rounded()))"
         }
-
-        let formatter = NumberFormatter()
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        return Self.shortValueFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }
