@@ -44,6 +44,7 @@ targets:
         NSPrincipalClass: NSApplication
         CFBundleDocumentTypes:
           - CFBundleTypeName: SequencerAI Project
+            CFBundleTypeIconFile: SequencerAIDocument.icns
             CFBundleTypeRole: Editor
             LSHandlerRank: Owner
             LSItemContentTypes:
@@ -51,6 +52,7 @@ targets:
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: ai.sequencer.document
             UTTypeDescription: SequencerAI Project
+            UTTypeIconFile: SequencerAIDocument.icns
             UTTypeConformsTo:
               - public.data
               - public.content

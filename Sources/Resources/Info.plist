@@ -9,6 +9,8 @@
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleTypeIconFile</key>
+			<string>SequencerAIDocument.icns</string>
 			<key>CFBundleTypeName</key>
 			<string>SequencerAI Project</string>
 			<key>CFBundleTypeRole</key>
@@ -51,6 +53,8 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>SequencerAI Project</string>
+			<key>UTTypeIconFile</key>
+			<string>SequencerAIDocument.icns</string>
 			<key>UTTypeIdentifier</key>
 			<string>ai.sequencer.document</string>
 			<key>UTTypeTagSpecification</key>
