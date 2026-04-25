@@ -34,6 +34,7 @@ private enum GeneratorPickerPurpose: String, Identifiable {
 
 struct TrackSourceEditorView: View {
     @Binding var document: SeqAIDocument
+    @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
     let accent: Color
 
@@ -75,6 +76,23 @@ struct TrackSourceEditorView: View {
             velocity: track.velocity,
             lengthSteps: track.gateLength
         ).normalized
+    }
+    private var playingClipStepIndex: Int? {
+        guard engineController.isRunning,
+              let clip = currentClip,
+              selectedPattern.sourceRef.clipID == clip.id
+        else {
+            return nil
+        }
+
+        let phrase = session.store.selectedPhrase
+        let phraseStep = Int(engineController.transportTickIndex % UInt64(max(1, phrase.stepCount)))
+        let playingPatternIndex = resolvedPatternIndex(in: phrase, trackID: track.id, stepIndex: phraseStep)
+        guard playingPatternIndex == selectedPatternIndex else {
+            return nil
+        }
+
+        return phraseStep % max(1, clip.content.stepCount)
     }
 
     /// Phrase-layer fallback values for each macro binding on this track.
@@ -296,7 +314,11 @@ struct TrackSourceEditorView: View {
             accent: StudioTheme.violet
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                ClipContentPreview(content: previewClipContent, defaultNote: defaultClipNote) { updated in
+                ClipContentPreview(
+                    content: previewClipContent,
+                    defaultNote: defaultClipNote,
+                    playingStepIndex: playingClipStepIndex
+                ) { updated in
                     let trackID = track.id
                     session.ensureClipAndMutate(trackID: trackID) { _, entry in
                         entry.content = updated
@@ -401,6 +423,21 @@ struct TrackSourceEditorView: View {
             )
             p.setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
             for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
+        }
+    }
+
+    private func resolvedPatternIndex(in phrase: PhraseModel, trackID: UUID, stepIndex: Int) -> Int {
+        guard let layer = session.store.patternLayer else {
+            return 0
+        }
+
+        switch phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex) {
+        case let .index(index):
+            return min(max(index, 0), TrackPatternBank.slotCount - 1)
+        case let .scalar(value):
+            return min(max(Int(value.rounded()), 0), TrackPatternBank.slotCount - 1)
+        case let .bool(isOn):
+            return isOn ? 1 : 0
         }
     }
 

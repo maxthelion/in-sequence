@@ -9,17 +9,20 @@ enum StepVisualState {
 struct StepGridView: View {
     let stepStates: [StepVisualState]
     let indexOffset: Int
+    let playingStepIndex: Int?
     let onDoubleTap: ((Int) -> Void)?
     let advanceStep: (Int) -> Void
 
     init(
         stepStates: [StepVisualState],
         indexOffset: Int = 0,
+        playingStepIndex: Int? = nil,
         onDoubleTap: ((Int) -> Void)? = nil,
         advanceStep: @escaping (Int) -> Void
     ) {
         self.stepStates = stepStates
         self.indexOffset = indexOffset
+        self.playingStepIndex = playingStepIndex
         self.onDoubleTap = onDoubleTap
         self.advanceStep = advanceStep
     }
@@ -32,6 +35,7 @@ struct StepGridView: View {
                 StepGridCell(
                     index: index + indexOffset,
                     state: state,
+                    isPlaying: playingStepIndex == index + indexOffset,
                     action: { advanceStep(index + indexOffset) },
                     onDoubleTap: {
                         onDoubleTap?(index + indexOffset)
@@ -45,6 +49,7 @@ struct StepGridView: View {
 private struct StepGridCell: View {
     let index: Int
     let state: StepVisualState
+    let isPlaying: Bool
     let action: () -> Void
     let onDoubleTap: () -> Void
 
@@ -77,6 +82,10 @@ private struct StepGridCell: View {
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(outlineColor, lineWidth: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(isPlaying ? StudioTheme.success.opacity(0.95) : .clear, lineWidth: 2)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture(count: 2, perform: onDoubleTap)

@@ -80,6 +80,7 @@ private struct ClipStepInspectorTarget: Identifiable, Equatable {
 struct ClipContentPreview: View {
     let content: ClipContent
     let defaultNote: ClipStepNote
+    let playingStepIndex: Int?
     let onCommit: ((ClipContent) -> Void)?
 
     @State private var displayedContent: ClipContent
@@ -91,11 +92,13 @@ struct ClipContentPreview: View {
     init(
         content: ClipContent,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4),
+        playingStepIndex: Int? = nil,
         onChange: ((ClipContent) -> Void)? = nil
     ) {
         let normalizedContent = content.normalized
         self.content = normalizedContent
         self.defaultNote = defaultNote.normalized
+        self.playingStepIndex = playingStepIndex
         self.onCommit = onChange
         self._displayedContent = State(initialValue: normalizedContent)
     }
@@ -108,7 +111,10 @@ struct ClipContentPreview: View {
 
             case let .sliceTriggers(stepPattern, sliceIndexes):
                 VStack(alignment: .leading, spacing: 14) {
-                    StepGridView(stepStates: stepPattern.map { $0 ? .on : .off }) { index in
+                    StepGridView(
+                        stepStates: stepPattern.map { $0 ? .on : .off },
+                        playingStepIndex: playingStepIndex
+                    ) { index in
                         var nextPattern = stepPattern
                         guard nextPattern.indices.contains(index) else { return }
                         nextPattern[index].toggle()
@@ -142,7 +148,8 @@ struct ClipContentPreview: View {
     @ViewBuilder
     private func noteGridEditor(lengthSteps: Int, steps: [ClipStep]) -> some View {
         let pageCount = max(1, (lengthSteps + 15) / 16)
-        let page = min(selectedPage, pageCount - 1)
+        let playheadPage = playingStepIndex.map { min(max($0, 0), lengthSteps - 1) / 16 }
+        let page = min(playheadPage ?? selectedPage, pageCount - 1)
         let pageStart = page * 16
         let pageEnd = min(pageStart + 16, lengthSteps)
         let visibleIndices = Array(pageStart..<pageEnd)
@@ -217,6 +224,7 @@ struct ClipContentPreview: View {
                 StepGridView(
                     stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                     indexOffset: pageStart,
+                    playingStepIndex: playingStepIndex,
                     onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
                 ) { index in
                     commit(togglingStep(at: index, lengthSteps: lengthSteps, steps: steps, lane: selectedLane))
