@@ -1,6 +1,8 @@
+import AppKit
+import Foundation
 import SwiftUI
 
-enum StepVisualState {
+enum StepVisualState: Equatable {
     case off
     case on
     case accented
@@ -87,9 +89,39 @@ private struct StepGridCell: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(isPlaying ? StudioTheme.success.opacity(0.95) : .clear, lineWidth: 2)
         )
+        .background {
+            #if DEBUG
+            StepGridMouseDownProbe(stepIndex: index)
+            #else
+            EmptyView()
+            #endif
+        }
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .onTapGesture(count: 2, perform: onDoubleTap)
-        .onTapGesture(perform: action)
+        .onTapGesture(count: 2) {
+            #if DEBUG
+            StepGridTapDiagnostics.log("doubleTapRecognized", stepIndex: index)
+            #endif
+            onDoubleTap()
+        }
+        .onTapGesture {
+            #if DEBUG
+            StepGridTapDiagnostics.log(
+                "singleTapRecognized",
+                stepIndex: index,
+                details: "state=\(state.diagnosticName)"
+            )
+            #endif
+            action()
+        }
+        .onChange(of: state) { oldValue, newValue in
+            #if DEBUG
+            StepGridTapDiagnostics.log(
+                "cellStateChanged",
+                stepIndex: index,
+                details: "\(oldValue.diagnosticName)->\(newValue.diagnosticName)"
+            )
+            #endif
+        }
         .accessibilityLabel("Step \(index + 1)")
         .accessibilityValue(accessibilityText)
     }
@@ -157,6 +189,117 @@ private struct StepGridCell: View {
         }
     }
 }
+
+#if DEBUG
+enum StepGridTapDiagnostics {
+    static func log(_ event: String, stepIndex: Int? = nil, details: String = "") {
+        let stepText = stepIndex.map { " step=\($0 + 1)" } ?? ""
+        let detailText = details.isEmpty ? "" : " \(details)"
+        NSLog(
+            "[StepGridTap] t=%.6f%@ %@%@",
+            ProcessInfo.processInfo.systemUptime,
+            stepText,
+            event,
+            detailText
+        )
+    }
+
+    static func elapsedMilliseconds(since start: TimeInterval) -> String {
+        String(format: "%.3fms", (ProcessInfo.processInfo.systemUptime - start) * 1000)
+    }
+
+    static var now: TimeInterval {
+        ProcessInfo.processInfo.systemUptime
+    }
+}
+
+extension StepVisualState {
+    var diagnosticName: String {
+        switch self {
+        case .off:
+            return "off"
+        case .on:
+            return "on"
+        case .accented:
+            return "accented"
+        }
+    }
+}
+
+private struct StepGridMouseDownProbe: NSViewRepresentable {
+    let stepIndex: Int
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(stepIndex: stepIndex)
+    }
+
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        context.coordinator.stepIndex = stepIndex
+        context.coordinator.view = view
+        context.coordinator.installMonitor()
+        return view
+    }
+
+    func updateNSView(_ nsView: ProbeView, context: Context) {
+        context.coordinator.stepIndex = stepIndex
+        context.coordinator.view = nsView
+        context.coordinator.installMonitor()
+    }
+
+    static func dismantleNSView(_ nsView: ProbeView, coordinator: Coordinator) {
+        _ = nsView
+        coordinator.removeMonitor()
+    }
+
+    final class ProbeView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            _ = point
+            return nil
+        }
+    }
+
+    final class Coordinator {
+        var stepIndex: Int
+        weak var view: ProbeView?
+        private var monitor: Any?
+
+        init(stepIndex: Int) {
+            self.stepIndex = stepIndex
+        }
+
+        deinit {
+            removeMonitor()
+        }
+
+        func installMonitor() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+                guard let self,
+                      let view,
+                      event.window === view.window
+                else {
+                    return event
+                }
+
+                let point = view.convert(event.locationInWindow, from: nil)
+                if view.bounds.contains(point) {
+                    StepGridTapDiagnostics.log("mouseDown", stepIndex: stepIndex)
+                }
+
+                return event
+            }
+        }
+
+        func removeMonitor() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
+    }
+}
+#endif
 
 #Preview {
     StepGridView(

@@ -320,9 +320,22 @@ struct TrackSourceEditorView: View {
                     playingStepIndex: playingClipStepIndex
                 ) { updated in
                     let trackID = track.id
+                    #if DEBUG
+                    let mutationStart = StepGridTapDiagnostics.now
+                    StepGridTapDiagnostics.log(
+                        "storeMutationStart",
+                        details: "trackID=\(trackID.uuidString)"
+                    )
+                    #endif
                     session.ensureClipAndMutate(trackID: trackID) { _, entry in
                         entry.content = updated
                     }
+                    #if DEBUG
+                    StepGridTapDiagnostics.log(
+                        "storeMutationEnd",
+                        details: "elapsed=\(StepGridTapDiagnostics.elapsedMilliseconds(since: mutationStart)) trackID=\(trackID.uuidString)"
+                    )
+                    #endif
                 }
 
                 if !track.macros.isEmpty, let clip = currentClip {

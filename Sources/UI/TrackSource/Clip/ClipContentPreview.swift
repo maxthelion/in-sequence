@@ -141,6 +141,12 @@ struct ClipContentPreview: View {
             }
         }
         .onChange(of: content) { _, newContent in
+            #if DEBUG
+            StepGridTapDiagnostics.log(
+                "contentPropChangedFromStore",
+                details: diagnosticSummary(for: newContent.normalized)
+            )
+            #endif
             displayedContent = newContent.normalized
         }
     }
@@ -228,6 +234,16 @@ struct ClipContentPreview: View {
                     playingStepIndex: playingStepIndex,
                     onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
                 ) { index in
+                    #if DEBUG
+                    let beforeState = steps.indices.contains(index)
+                        ? stepVisualState(for: steps[index], lane: selectedLane).diagnosticName
+                        : "missing"
+                    StepGridTapDiagnostics.log(
+                        "clipTriggerTapHandler",
+                        stepIndex: index,
+                        details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
+                    )
+                    #endif
                     commit(togglingStep(at: index, lengthSteps: lengthSteps, steps: steps, lane: selectedLane))
                 }
                 .allowsHitTesting(onCommit != nil)
@@ -361,9 +377,39 @@ struct ClipContentPreview: View {
     private func commit(_ nextContent: ClipContent) {
         guard let onCommit else { return }
         let normalized = nextContent.normalized
+        #if DEBUG
+        StepGridTapDiagnostics.log(
+            "optimisticContentAssignStart",
+            details: diagnosticSummary(for: normalized)
+        )
+        #endif
         displayedContent = normalized
+        #if DEBUG
+        StepGridTapDiagnostics.log(
+            "optimisticContentAssignEnd",
+            details: diagnosticSummary(for: normalized)
+        )
+        let commitStart = StepGridTapDiagnostics.now
+        #endif
         onCommit(normalized)
+        #if DEBUG
+        StepGridTapDiagnostics.log(
+            "onCommitReturned",
+            details: "elapsed=\(StepGridTapDiagnostics.elapsedMilliseconds(since: commitStart)) \(diagnosticSummary(for: normalized))"
+        )
+        #endif
     }
+
+    #if DEBUG
+    private func diagnosticSummary(for content: ClipContent) -> String {
+        switch content {
+        case let .noteGrid(lengthSteps, steps):
+            return "noteGrid length=\(lengthSteps) notes=\(noteCount(in: steps))"
+        case let .sliceTriggers(stepPattern, _):
+            return "sliceTriggers length=\(stepPattern.count) active=\(stepPattern.filter { $0 }.count)"
+        }
+    }
+    #endif
 
     private func summaryText(lengthSteps: Int, page: Int, pageCount: Int, steps: [ClipStep]) -> String {
         let laneLabel = selectedLane == .main ? "Normal lane" : "Fill lane"
