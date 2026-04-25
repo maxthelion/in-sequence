@@ -289,4 +289,93 @@ final class SequencerSnapshotCompilerSemanticsTests: XCTestCase {
         XCTAssertEqual(valueAtStep1 ?? -1, 0.5, accuracy: 0.001,
             "phrase-step macro value (0.5) must beat descriptor default (0.1) when no clip override; got \(valueAtStep1 as Any)")
     }
+
+    // MARK: - C1 regression: two monoMelodic tracks each resolve their own macro bindings
+
+    /// Two `monoMelodic` tracks each have their own clip, their own AU macro binding
+    /// (different UUIDs), and a per-step lane on that clip.
+    ///
+    /// Before the C1 fix, `compileClipBuffer` resolved `macroBindingOrder` using
+    /// `tracks.first(where: { $0.trackType == clip.trackType })` — non-deterministic
+    /// when two tracks share a type. After the fix it uses the ownerTrackID from
+    /// the pattern bank, so each clip's buffer carries its own track's binding IDs.
+    func test_twoMonoMelodicTracks_eachResolveOwnMacroBindings() throws {
+        let trackAID  = UUID(uuidString: "aaaaaaaa-0000-0000-0000-000000000001")!
+        let trackBID  = UUID(uuidString: "bbbbbbbb-0000-0000-0000-000000000001")!
+        let clipAID   = UUID(uuidString: "aaaaaaaa-0000-0000-0000-000000000002")!
+        let clipBID   = UUID(uuidString: "bbbbbbbb-0000-0000-0000-000000000002")!
+        let bindingAID = UUID(uuidString: "aaaaaaaa-0000-0000-0000-000000000003")!
+        let bindingBID = UUID(uuidString: "bbbbbbbb-0000-0000-0000-000000000003")!
+
+        let descriptorA = TrackMacroDescriptor(
+            id: bindingAID, displayName: "ParamA",
+            minValue: 0, maxValue: 1, defaultValue: 0,
+            valueType: .scalar, source: .auParameter(address: 10, identifier: "a")
+        )
+        let descriptorB = TrackMacroDescriptor(
+            id: bindingBID, displayName: "ParamB",
+            minValue: 0, maxValue: 1, defaultValue: 0,
+            valueType: .scalar, source: .auParameter(address: 20, identifier: "b")
+        )
+
+        let trackA = StepSequenceTrack(
+            id: trackAID, name: "TrackA", pitches: [60], stepPattern: [true],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 96, gateLength: 4,
+            macros: [TrackMacroBinding(descriptor: descriptorA, slotIndex: 0)]
+        )
+        let trackB = StepSequenceTrack(
+            id: trackBID, name: "TrackB", pitches: [60], stepPattern: [true],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 96, gateLength: 4,
+            macros: [TrackMacroBinding(descriptor: descriptorB, slotIndex: 0)]
+        )
+
+        // Each track owns its own clip with its own per-step lane.
+        let clipA = ClipPoolEntry(
+            id: clipAID, name: "ClipA", trackType: .monoMelodic,
+            content: .noteGrid(lengthSteps: 2, steps: [
+                ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 1)]), fill: nil),
+                .empty
+            ]),
+            macroLanes: [bindingAID: MacroLane(values: [0.25, nil])]
+        )
+        let clipB = ClipPoolEntry(
+            id: clipBID, name: "ClipB", trackType: .monoMelodic,
+            content: .noteGrid(lengthSteps: 2, steps: [
+                ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 64, velocity: 100, lengthSteps: 1)]), fill: nil),
+                .empty
+            ]),
+            macroLanes: [bindingBID: MacroLane(values: [0.75, nil])]
+        )
+
+        let bankA = TrackPatternBank(trackID: trackAID, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clipAID))])
+        let bankB = TrackPatternBank(trackID: trackBID, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clipBID))])
+        let layers = PhraseLayerDefinition.defaultSet(for: [trackA, trackB])
+        let phrase = PhraseModel.default(tracks: [trackA, trackB], layers: layers, generatorPool: [], clipPool: [clipA, clipB])
+        let project = Project(
+            version: 1, tracks: [trackA, trackB], generatorPool: [], clipPool: [clipA, clipB],
+            layers: layers, routes: [], patternBanks: [bankA, bankB],
+            selectedTrackID: trackAID, phrases: [phrase], selectedPhraseID: phrase.id
+        )
+
+        let snapshot = SequencerSnapshotCompiler.compile(project: project)
+
+        let bufferA = try XCTUnwrap(snapshot.clipBuffersByID[clipAID], "ClipA buffer must exist")
+        let bufferB = try XCTUnwrap(snapshot.clipBuffersByID[clipBID], "ClipB buffer must exist")
+
+        // ClipA's buffer must carry bindingAID (TrackA's macro) at step 0 → 0.25.
+        let overridesA = bufferA.macroOverrides(at: 0)
+        XCTAssertEqual(overridesA[bindingAID] ?? -1, 0.25, accuracy: 0.001,
+            "ClipA buffer must resolve TrackA's binding (0.25), not TrackB's binding")
+        XCTAssertNil(overridesA[bindingBID],
+            "ClipA buffer must not contain TrackB's binding ID")
+
+        // ClipB's buffer must carry bindingBID (TrackB's macro) at step 0 → 0.75.
+        let overridesB = bufferB.macroOverrides(at: 0)
+        XCTAssertEqual(overridesB[bindingBID] ?? -1, 0.75, accuracy: 0.001,
+            "ClipB buffer must resolve TrackB's binding (0.75), not TrackA's binding")
+        XCTAssertNil(overridesB[bindingAID],
+            "ClipB buffer must not contain TrackA's binding ID")
+    }
 }

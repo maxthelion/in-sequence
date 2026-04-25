@@ -155,7 +155,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         XCTAssertEqual(project.selectedTrackID, firstNewTrackID)
     }
 
-    func test_addDrumGroup_doesNotCrash_whenProjectAlreadyHasMacroLayers() {
+    func test_addDrumGroup_preserves_existing_macroLayers() {
         var project = Project.empty
         let trackID = project.selectedTrackID
         let descriptor = TrackMacroDescriptor(
@@ -170,14 +170,37 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         XCTAssertTrue(project.addAUMacro(descriptor: descriptor, to: trackID))
         project.syncMacroLayers()
 
+        let macroLayerID = "macro-\(trackID.uuidString)-\(descriptor.id.uuidString)"
+        let layerCountBefore = project.layers.count
+        let macroLayerIDsBefore = Set(project.layers.map(\.id))
+
         let groupID = project.addDrumGroup(plan: .templated(from: .kit808), library: testLibrary)
 
         XCTAssertNotNil(groupID)
         XCTAssertEqual(project.tracks.suffix(4).count, 4)
+
+        // The pre-existing macro layer must still be present with the same ID.
         XCTAssertTrue(
-            project.layers.contains { layer in
-                layer.id == "macro-\(trackID.uuidString)-\(descriptor.id.uuidString)"
-            }
+            project.layers.contains { $0.id == macroLayerID },
+            "Macro layer '\(macroLayerID)' must survive addDrumGroup"
+        )
+
+        // No macro layers from before addDrumGroup should have been removed.
+        for id in macroLayerIDsBefore {
+            XCTAssertTrue(
+                project.layers.contains { $0.id == id },
+                "Layer '\(id)' present before addDrumGroup must not be removed"
+            )
+        }
+
+        // Layer count must be preserved: addDrumGroup does not remove existing layers.
+        // Drum tracks don't add AU macro layers (they have no bindings), so the
+        // count is the same or higher (if the implementation adds track-specific
+        // overhead layers in future).
+        XCTAssertGreaterThanOrEqual(
+            project.layers.count,
+            layerCountBefore,
+            "addDrumGroup must not remove existing layers"
         )
     }
 

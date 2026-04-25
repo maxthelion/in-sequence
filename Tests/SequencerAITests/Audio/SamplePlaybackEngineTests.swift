@@ -66,12 +66,29 @@ final class SamplePlaybackEngineTests: XCTestCase {
         _ = engine.play(sampleURL: fixtureURL, settings: .default, trackID: UUID(), at: nil)
     }
 
-    func test_playWithExtremeTrimSettings_doesNotCrash() throws {
+    /// start=1, length=0 must produce a clamped 1-frame segment (not zero frames,
+    /// which AVAudioPlayerNode would reject). The handle must be non-nil (voice was
+    /// allocated), stoppable (voice is registered in the engine), and the engine must
+    /// remain operational for subsequent plays.
+    func test_playWithExtremeTrimSettings_clampsToOneFrameSegment() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
+        let trackID = UUID()
         let settings = SamplerSettings(start: 1, length: 0, gain: 0)
-        let handle = engine.play(sampleURL: fixtureURL, settings: settings, trackID: UUID(), at: nil)
-        XCTAssertNotNil(handle)
+
+        // The call must succeed (not return nil) — the bounds clamp produced a
+        // valid 1-frame segment that AVAudioPlayerNode accepted.
+        let handle = try XCTUnwrap(
+            engine.play(sampleURL: fixtureURL, settings: settings, trackID: trackID, at: nil),
+            "start=1/length=0 must return a handle; the 1-frame clamp must succeed"
+        )
+
+        // The voice must be registered: stopVoice must not crash.
+        engine.stopVoice(handle)
+
+        // Engine must still accept new play calls after the extreme-settings voice.
+        let nextHandle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+        XCTAssertNotNil(nextHandle, "Engine must remain operational after extreme-trim play")
     }
 
     func test_stopVoice_silencesThatVoice() throws {

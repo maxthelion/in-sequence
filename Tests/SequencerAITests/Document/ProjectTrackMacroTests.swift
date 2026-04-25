@@ -82,6 +82,9 @@ final class ProjectTrackMacroTests: XCTestCase {
         XCTAssertTrue(macros.isEmpty, "Built-in macros should be removed when switching to AU")
     }
 
+    /// AU→sampler: AU macros are dropped when transitioning into sampler kind.
+    /// The sampler has exactly 8 built-in slots; preserving AU macros would require
+    /// slot indices beyond 7 which the slotIndex clamp can't represent (C2 fix).
     func test_setDestinationWithMacros_toAU_preservesAUParameterBindings() {
         var (project, trackID) = makeProject()
         let componentID = AudioComponentID(type: "aumu", subtype: "test", manufacturer: "test", version: 1)
@@ -98,22 +101,88 @@ final class ProjectTrackMacroTests: XCTestCase {
         project.addAUMacro(descriptor: descriptor, to: trackID)
         XCTAssertEqual(project.tracks.first(where: { $0.id == trackID })?.macros.count, 1)
 
-        // Switch to sampler — AU macro should survive, built-ins added.
+        // Switch to sampler — AU macro is dropped (Option A: drop to avoid slot collision).
         project.setDestinationWithMacros(.sample(sampleID: UUID(), settings: .default), for: trackID)
-        let macros = project.tracks.first(where: { $0.id == trackID })?.macros ?? []
-        // AU macro + 8 built-ins = 9, but cap is 8; the AU macro was there first,
-        // so it survives. The built-ins that fit within cap are added.
-        // With 8 built-ins and 1 AU macro, the cap logic allows all 9 if the
-        // built-in path bypasses the addAUMacro cap (it appends directly).
-        // The auto-populate path appends only if not already present — no cap check.
-        XCTAssertGreaterThanOrEqual(macros.count, 1)
-        XCTAssertTrue(macros.contains { $0.id == descriptor.id })
+        let samplerMacros = project.tracks.first(where: { $0.id == trackID })?.macros ?? []
+        // Only 8 built-in macros; AU macro was dropped.
+        XCTAssertEqual(samplerMacros.count, 8)
+        XCTAssertFalse(samplerMacros.contains { $0.id == descriptor.id },
+            "AU macro must be dropped on sampler kind transition to avoid slot collision")
 
-        // Switch back to AU — should remove built-ins, keep AU macro.
+        // No two macros share a slotIndex.
+        let slots = samplerMacros.map(\.slotIndex)
+        XCTAssertEqual(slots.count, Set(slots).count, "No two macros may share a slotIndex")
+
+        // Switch back to AU — built-ins removed, no AU macros (they were dropped earlier).
         project.setDestinationWithMacros(.auInstrument(componentID: componentID, stateBlob: nil), for: trackID)
         let finalMacros = project.tracks.first(where: { $0.id == trackID })?.macros ?? []
-        XCTAssertEqual(finalMacros.count, 1)
-        XCTAssertTrue(finalMacros.contains { $0.id == descriptor.id })
+        XCTAssertTrue(finalMacros.isEmpty,
+            "After sampler→AU transition, no macros should remain (AU were dropped on sampler entry)")
+    }
+
+    /// Sampler→AU→sampler round-trip: each sampler leg produces exactly 8 built-ins
+    /// in unique slots 0-7 with no collisions.
+    func test_setDestinationWithMacros_samplerAUSampler_noSlotCollisions() {
+        var (project, trackID) = makeProject()
+        let componentID = AudioComponentID(type: "aumu", subtype: "test", manufacturer: "test", version: 1)
+
+        // Start at sampler.
+        project.setDestinationWithMacros(.sample(sampleID: UUID(), settings: .default), for: trackID)
+        let firstSamplerMacros = project.tracks.first(where: { $0.id == trackID })?.macros ?? []
+        XCTAssertEqual(firstSamplerMacros.count, 8)
+        let firstSlots = firstSamplerMacros.map(\.slotIndex)
+        XCTAssertEqual(firstSlots.count, Set(firstSlots).count, "First sampler leg: no slot collisions")
+        XCTAssertEqual(Set(firstSlots), Set(0..<8), "First sampler leg: slots 0-7")
+
+        // Transition to AU.
+        project.setDestinationWithMacros(.auInstrument(componentID: componentID, stateBlob: nil), for: trackID)
+
+        // Back to sampler.
+        project.setDestinationWithMacros(.sample(sampleID: UUID(), settings: .default), for: trackID)
+        let secondSamplerMacros = project.tracks.first(where: { $0.id == trackID })?.macros ?? []
+        XCTAssertEqual(secondSamplerMacros.count, 8)
+        let secondSlots = secondSamplerMacros.map(\.slotIndex)
+        XCTAssertEqual(secondSlots.count, Set(secondSlots).count, "Second sampler leg: no slot collisions")
+        XCTAssertEqual(Set(secondSlots), Set(0..<8), "Second sampler leg: slots 0-7")
+    }
+
+    /// addAUMacro(slotIndex: nil) on a sampler track with 8 built-ins occupying
+    /// slots 0-7 must respect the AU macro cap and return false.
+    func test_addAUMacro_onSamplerTrack_doesNotCollideWithBuiltins() {
+        var (project, trackID) = makeProject()
+        // Transition to sampler so slots 0-7 are occupied by built-ins.
+        project.setDestinationWithMacros(.sample(sampleID: UUID(), settings: .default), for: trackID)
+
+        let macrosBefore = project.tracks.first(where: { $0.id == trackID })?.macros ?? []
+        XCTAssertEqual(macrosBefore.count, 8, "Sampler track must start with 8 built-in macros")
+
+        let descriptor = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: "Extra",
+            minValue: 0, maxValue: 1, defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 99, identifier: "extra")
+        )
+        // The AU cap (8 AU macros) and all-slot occupancy both prevent adding.
+        // Built-ins count against occupied slots so auto-slot also fails.
+        let added = project.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: nil)
+
+        let macrosAfter = project.tracks.first(where: { $0.id == trackID })?.macros ?? []
+
+        // Either the add was rejected or — if accepted — no slot collision occurred.
+        if added {
+            let slots = macrosAfter.map(\.slotIndex)
+            XCTAssertEqual(slots.count, Set(slots).count, "No two macros may share a slotIndex after addAUMacro")
+            XCTAssertFalse(
+                macrosAfter.filter { if case .builtin = $0.source { return true }; return false }
+                    .map(\.slotIndex)
+                    .contains(macrosAfter.last?.slotIndex ?? -1),
+                "New AU macro must not land on a slot occupied by a built-in"
+            )
+        } else {
+            // Correctly rejected.
+            XCTAssertEqual(macrosAfter.count, 8, "Rejected add must leave macro count unchanged")
+        }
     }
 
     // MARK: - addAUMacro
