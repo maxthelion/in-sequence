@@ -34,13 +34,14 @@ struct StepGridView: View {
     var body: some View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(Array(stepStates.enumerated()), id: \.offset) { index, state in
+                let absoluteIndex = index + indexOffset
                 StepGridCell(
-                    index: index + indexOffset,
+                    index: absoluteIndex,
                     state: state,
-                    isPlaying: playingStepIndex == index + indexOffset,
-                    action: { advanceStep(index + indexOffset) },
-                    onDoubleTap: {
-                        onDoubleTap?(index + indexOffset)
+                    isPlaying: playingStepIndex == absoluteIndex,
+                    action: { advanceStep(absoluteIndex) },
+                    inspectAction: onDoubleTap.map { inspect in
+                        { inspect(absoluteIndex) }
                     }
                 )
             }
@@ -53,7 +54,7 @@ private struct StepGridCell: View {
     let state: StepVisualState
     let isPlaying: Bool
     let action: () -> Void
-    let onDoubleTap: () -> Void
+    let inspectAction: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -97,12 +98,6 @@ private struct StepGridCell: View {
             #endif
         }
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .onTapGesture(count: 2) {
-            #if DEBUG
-            StepGridTapDiagnostics.log("doubleTapRecognized", stepIndex: index)
-            #endif
-            onDoubleTap()
-        }
         .onTapGesture {
             #if DEBUG
             StepGridTapDiagnostics.log(
@@ -124,6 +119,14 @@ private struct StepGridCell: View {
         }
         .accessibilityLabel("Step \(index + 1)")
         .accessibilityValue(accessibilityText)
+        .accessibilityAction(named: "Inspect Step") {
+            inspectAction?()
+        }
+        .contextMenu {
+            if let inspectAction {
+                Button("Inspect Step", action: inspectAction)
+            }
+        }
     }
 
     private var fillColor: Color {

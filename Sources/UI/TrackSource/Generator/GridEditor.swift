@@ -40,13 +40,20 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
                 .padding(.vertical, 8)
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                 .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-                .onTapGesture(count: 2) {
-                    onDoubleTap?(index + indexOffset)
-                }
                 .onTapGesture {
                     onChange(cycledValues(tapping: index))
                 }
                 .accessibilityLabel("Step \(index + indexOffset + 1)")
+                .accessibilityAction(named: "Inspect Step") {
+                    onDoubleTap?(index + indexOffset)
+                }
+                .contextMenu {
+                    if let onDoubleTap {
+                        Button("Inspect Step") {
+                            onDoubleTap(index + indexOffset)
+                        }
+                    }
+                }
             }
         }
         .frame(height: 96)

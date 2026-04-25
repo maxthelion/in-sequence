@@ -414,7 +414,7 @@ struct ClipContentPreview: View {
     private func summaryText(lengthSteps: Int, page: Int, pageCount: Int, steps: [ClipStep]) -> String {
         let laneLabel = selectedLane == .main ? "Normal lane" : "Fill lane"
         let pageLabel = pageCount > 1 ? "Page \(page + 1) of \(pageCount)" : "Single page"
-        return "\(laneLabel) • \(selectedMode.title) view • \(pageLabel) • \(noteCount(in: steps)) notes across \(lengthSteps) steps. Double-click any step to inspect both lanes."
+        return "\(laneLabel) • \(selectedMode.title) view • \(pageLabel) • \(noteCount(in: steps)) notes across \(lengthSteps) steps."
     }
 
     private func stepVisualState(for step: ClipStep, lane: ClipEditorLane) -> StepVisualState {
