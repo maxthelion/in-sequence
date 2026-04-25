@@ -354,7 +354,7 @@ struct TrackSourceEditorView: View {
             let currentPattern = selectedPattern
             let currentSourceMode = selectedSourceMode
             let slotIndex = selectedPatternIndex
-            session.batch { s in
+            session.batch(impact: .snapshotOnly, changed: .full) { s in
                 var p = s.exportToProject()
                 var clipID = currentPattern.sourceRef.clipID
                 if currentSourceMode == .clip, clipID == nil {
@@ -383,7 +383,7 @@ struct TrackSourceEditorView: View {
         let trackID = track.id
         let currentPattern = selectedPattern
         let slotIndex = selectedPatternIndex
-        session.batch { s in
+        session.batch(impact: .snapshotOnly, changed: .full) { s in
             var p = s.exportToProject()
             guard let clipID = p.ensureClipForCurrentPattern(trackID: trackID) else { return }
             // Sync new clip if created.

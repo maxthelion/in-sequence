@@ -40,7 +40,7 @@ final class SessionBatchHelperTests: XCTestCase {
         let (session, engine, _) = makeSession(project: project)
         let snapshotsBefore = engine.applyPlaybackSnapshotCallCount
 
-        session.batch(impact: .snapshotOnly) { s in
+        session.batch(impact: .snapshotOnly, changed: .track(trackID).union(.clip(clipID))) { s in
             s.mutateTrack(id: trackID) { track in
                 track.name = "Batch Name"
             }
@@ -65,7 +65,7 @@ final class SessionBatchHelperTests: XCTestCase {
 
         // Batch that applies the track's existing name (no-op).
         let existingName = session.store.tracks.first(where: { $0.id == trackID })?.name ?? "Track"
-        let result = session.batch(impact: .snapshotOnly) { s in
+        let result = session.batch(impact: .snapshotOnly, changed: .track(trackID)) { s in
             s.mutateTrack(id: trackID) { track in
                 track.name = existingName // same value — store won't bump revision
             }
@@ -82,7 +82,7 @@ final class SessionBatchHelperTests: XCTestCase {
         let (project, trackID, _) = makeLiveStoreProject()
         let (session, _, _) = makeSession(project: project)
 
-        let result = session.batch(impact: .snapshotOnly) { s in
+        let result = session.batch(impact: .snapshotOnly, changed: .track(trackID)) { s in
             s.mutateTrack(id: trackID) { track in
                 track.name = "NewName"
             }
@@ -101,7 +101,7 @@ final class SessionBatchHelperTests: XCTestCase {
         session.activate()
         let baseline = engine.applyDocumentModelCallCount
 
-        session.batch(impact: .fullEngineApply) { s in
+        session.batch(impact: .fullEngineApply, changed: .full) { s in
             s.mutateTrack(id: trackID) { track in
                 track.name = "Engine Apply"
             }
@@ -124,7 +124,7 @@ final class SessionBatchHelperTests: XCTestCase {
         let (session, engine, _) = makeSession(project: project)
         let before = engine.applyPlaybackSnapshotCallCount
 
-        session.batch(impact: .snapshotOnly) { _ in
+        session.batch(impact: .snapshotOnly, changed: .track(trackID)) { _ in
             // Call a typed session method inside the batch.
             // This should NOT trigger a publish on its own.
             session.store.mutateTrack(id: trackID) { track in
@@ -137,6 +137,25 @@ final class SessionBatchHelperTests: XCTestCase {
             engine.applyPlaybackSnapshotCallCount, before + 1,
             "typed store methods inside batch must not publish individually"
         )
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_batchWithPlaybackInertChange_doesNotPublishSnapshot() throws {
+        var (project, _, _) = makeLiveStoreProject()
+        let firstTrackID = project.selectedTrackID
+        project.appendTrack(trackType: .monoMelodic)
+        project.selectedTrackID = firstTrackID
+        let trackID = project.tracks[1].id
+        let (session, engine, _) = makeSession(project: project)
+        let before = engine.applyPlaybackSnapshotCallCount
+
+        let result = session.batch(impact: .snapshotOnly, changed: .selectedTrack) { s in
+            s.setSelectedTrackID(trackID)
+        }
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, before)
 
         SequencerDocumentSessionRegistry.unregister(session)
     }

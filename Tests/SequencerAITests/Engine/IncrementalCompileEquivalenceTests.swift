@@ -124,4 +124,154 @@ final class IncrementalCompileEquivalenceTests: XCTestCase {
         XCTAssertEqual(incremental.trackProgramsByTrackID, previous.trackProgramsByTrackID)
         XCTAssertEqual(incremental.phraseBuffersByID, previous.phraseBuffersByID)
     }
+
+    func test_generatorChange_matchesFullCompileOracle() throws {
+        let (project, _, _) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        let generatorID = try XCTUnwrap(store.generatorPool.first?.id)
+
+        store.mutateGenerator(id: generatorID) { generator in
+            generator.name = "Renamed Generator"
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .generator(generatorID),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+    }
+
+    func test_trackMetadataChange_matchesFullCompileOracle() throws {
+        let (project, trackID, _) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+
+        store.mutateTrack(id: trackID) { track in
+            track.name = "Renamed Track"
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .track(trackID),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+    }
+
+    func test_trackMacroShapeChange_matchesFullCompileOracle() throws {
+        let (project, trackID, clipID) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        let binding = TrackMacroBinding(descriptor: Self.testMacroDescriptor())
+
+        store.mutateTrack(id: trackID) { track in
+            track.macros.append(binding)
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .track(trackID),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+        XCTAssertEqual(incremental.trackProgramsByTrackID[trackID]?.macroBindingIDs, [binding.id])
+        XCTAssertEqual(incremental.clipBuffersByID[clipID]?.macroBindingOrder, [binding.id])
+    }
+
+    func test_layersChange_matchesFullCompileOracle() throws {
+        let (project, trackID, _) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        var layers = store.layers
+        let muteIndex = try XCTUnwrap(layers.firstIndex(where: { $0.target == .mute }))
+        layers[muteIndex].defaults[trackID] = .bool(true)
+
+        store.setLayers(layers)
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .layers,
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+    }
+
+    func test_bulkChange_matchesFullCompileOracle() throws {
+        let (project, trackID, clipID) = makeLiveStoreProject(clipPitch: 60)
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        let phraseID = try XCTUnwrap(store.phrases.first?.id)
+        let muteLayerID = try XCTUnwrap(store.layers.first(where: { $0.target == .mute })?.id)
+
+        store.mutateClip(id: clipID) { clip in
+            clip.name = "Bulk Clip"
+        }
+        store.mutatePhrase(id: phraseID) { phrase in
+            phrase.setCell(.single(.bool(true)), for: muteLayerID, trackID: trackID)
+        }
+        store.mutateTrack(id: trackID) { track in
+            track.velocity = 80
+        }
+
+        let change = SnapshotChange.clip(clipID)
+            .union(.phrase(phraseID))
+            .union(.track(trackID))
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: change,
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+    }
+
+    func test_fullRebuildChange_matchesFullCompileOracle() throws {
+        let (project, _, _) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+
+        store.importFromProject({
+            var next = project
+            next.appendTrack(trackType: .monoMelodic)
+            return next
+        }())
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .full,
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+    }
+
+    private static func testMacroDescriptor() -> TrackMacroDescriptor {
+        TrackMacroDescriptor(
+            id: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!,
+            displayName: "Test Macro",
+            minValue: 0,
+            maxValue: 1,
+            defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 7, identifier: "test")
+        )
+    }
 }

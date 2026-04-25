@@ -56,9 +56,15 @@ enum SequencerSnapshotCompiler {
             }
             clipBuffersByID[clipID] = compileClipBuffer(for: clip, tracks: tracks)
         }
+        if !changed.trackIDs.isEmpty {
+            let changedTrackTypes = Set(tracks.filter { changed.trackIDs.contains($0.id) }.map(\.trackType))
+            for clip in state.clipPool where changedTrackTypes.contains(clip.trackType) {
+                clipBuffersByID[clip.id] = compileClipBuffer(for: clip, tracks: tracks)
+            }
+        }
 
         var trackProgramsByTrackID = previous.trackProgramsByTrackID
-        for trackID in changed.patternBankTrackIDs {
+        for trackID in changed.patternBankTrackIDs.union(changed.trackIDs) {
             guard let track = state.track(id: trackID) else {
                 return compile(state: state)
             }
@@ -69,7 +75,7 @@ enum SequencerSnapshotCompiler {
         }
 
         var phraseBuffersByID = previous.phraseBuffersByID
-        if changed.layersChanged {
+        if changed.layersChanged || !changed.trackIDs.isEmpty {
             phraseBuffersByID = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { phraseID in
                 guard let phrase = state.phrasesByID[phraseID] else { return nil }
                 return (

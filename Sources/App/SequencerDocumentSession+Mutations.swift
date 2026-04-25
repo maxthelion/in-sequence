@@ -59,7 +59,7 @@ extension SequencerDocumentSession {
     @discardableResult
     func batch(
         impact: LiveMutationImpact = .snapshotOnly,
-        changed initialChange: SnapshotChange = .full,
+        changed initialChange: SnapshotChange,
         _ body: (LiveSequencerStore) -> Void
     ) -> Bool {
         let revisionBefore = store.revision
@@ -164,10 +164,24 @@ extension SequencerDocumentSession {
 
     /// Set both selected phrase ID and selected track ID atomically.
     func setSelectedPhraseAndTrackID(phraseID: UUID, trackID: UUID) {
-        batch(impact: .snapshotOnly, changed: .selectedPhrase) { s in
-            s.setSelectedPhraseID(phraseID)
-            s.setSelectedTrackID(trackID)
+        let selectedPhraseBefore = store.selectedPhraseID
+        let selectedTrackBefore = store.selectedTrackID
+
+        store.setSelectedPhraseID(phraseID)
+        store.setSelectedTrackID(trackID)
+
+        guard store.revision > revision else {
+            return
         }
+
+        var change = SnapshotChange.none
+        if selectedPhraseBefore != phraseID {
+            change.formUnion(.selectedPhrase)
+        }
+        if selectedTrackBefore != trackID {
+            change.formUnion(.selectedTrack)
+        }
+        dispatchImpact(.snapshotOnly, changed: change)
     }
 
     // MARK: - Phrase structure (insert / duplicate / remove)
@@ -254,9 +268,9 @@ extension SequencerDocumentSession {
         slotIndex: Int,
         impact: LiveMutationImpact = .snapshotOnly
     ) {
-        batch(impact: impact) { s in
+        let clipsBefore = Set(store.clipPool.map(\.id))
+        batch(impact: impact, changed: .patternBank(trackID)) { s in
             var p = s.exportToProject()
-            let clipsBefore = Set(p.clipPool.map(\.id))
             p.setPatternSourceRef(sourceRef, for: trackID, slotIndex: slotIndex)
             for bank in p.patternBanks {
                 s.setPatternBank(trackID: bank.trackID, bank: bank)
@@ -348,7 +362,7 @@ extension SequencerDocumentSession {
     /// `.fullEngineApply` is preserved: destination changes require
     /// `apply(documentModel:)` to tear down and rebuild the AU host.
     func setEditedDestination(_ destination: Destination, for trackID: UUID) {
-        batch(impact: .fullEngineApply) { s in
+        batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.setEditedDestination(destination, for: trackID)
             s.replaceTracks(p.tracks)
@@ -359,7 +373,7 @@ extension SequencerDocumentSession {
     /// Set the MIDI port for a track's destination. `.fullEngineApply` preserved
     /// from original call site: MIDI port change requires engine re-apply.
     func setEditedMIDIPort(_ port: MIDIEndpointName?, for trackID: UUID) {
-        batch(impact: .fullEngineApply) { s in
+        batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.setEditedMIDIPort(port, for: trackID)
             s.replaceTracks(p.tracks)
@@ -369,7 +383,7 @@ extension SequencerDocumentSession {
 
     /// Set the MIDI channel for a track's destination. `.fullEngineApply` preserved.
     func setEditedMIDIChannel(_ channel: UInt8, for trackID: UUID) {
-        batch(impact: .fullEngineApply) { s in
+        batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.setEditedMIDIChannel(channel, for: trackID)
             s.replaceTracks(p.tracks)
@@ -379,7 +393,7 @@ extension SequencerDocumentSession {
 
     /// Set the MIDI note offset for a track's destination. `.fullEngineApply` preserved.
     func setEditedMIDINoteOffset(_ noteOffset: Int, for trackID: UUID) {
-        batch(impact: .fullEngineApply) { s in
+        batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.setEditedMIDINoteOffset(noteOffset, for: trackID)
             s.replaceTracks(p.tracks)
@@ -530,7 +544,9 @@ extension SequencerDocumentSession {
     /// then run the clip update. Returns the clip ID used.
     @discardableResult
     func ensureClipAndMutate(trackID: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (UUID, inout ClipPoolEntry) -> Void) -> UUID? {
-        batch(impact: impact) { s in
+        let existingClipID = store.selectedPattern(for: trackID).sourceRef.clipID
+        let initialChange = existingClipID.map { SnapshotChange.clip($0).union(.patternBank(trackID)) } ?? .full
+        batch(impact: impact, changed: initialChange) { s in
             var p = s.exportToProject()
             guard let clipID = p.ensureClipForCurrentPattern(trackID: trackID) else { return }
             // If a new clip was created, it's in p.clipPool but not yet in the store.
@@ -557,7 +573,7 @@ extension SequencerDocumentSession {
     /// a pattern bank, and calls `syncPhrasesWithTracks` — all of which are inter-
     /// dependent and not individually decomposed into store typed methods yet.
     func appendTrack(trackType: TrackType = .monoMelodic) {
-        batch(impact: .fullEngineApply) { s in
+        batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.appendTrack(trackType: trackType)
             s.importFromProject(p)
@@ -568,7 +584,7 @@ extension SequencerDocumentSession {
     ///
     /// Uses a project round-trip for the same reasons as `appendTrack`.
     func removeSelectedTrack() {
-        batch(impact: .fullEngineApply) { s in
+        batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.removeSelectedTrack()
             s.importFromProject(p)
@@ -583,7 +599,7 @@ extension SequencerDocumentSession {
     @discardableResult
     func addDrumGroup(plan: DrumGroupPlan) -> TrackGroupID? {
         var resultGroupID: TrackGroupID?
-        batch(impact: .fullEngineApply) { s in
+        batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             resultGroupID = p.addDrumGroup(plan: plan)
             s.importFromProject(p)

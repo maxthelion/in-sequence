@@ -19,8 +19,9 @@ final class SequencerDocumentSession {
     @ObservationIgnored
     private var selfOriginatedFlushInFlight: Bool = false
 
-    /// Set to `true` while `batch(impact:_:)` is running so that individual typed-session
-    /// methods skip their per-call impact dispatch and let `batch` publish once at the end.
+    /// Set to `true` while `batch(impact:changed:_:)` is running so that individual
+    /// typed-session methods skip their per-call impact dispatch and let `batch`
+    /// publish once at the end.
     @ObservationIgnored
     var isInBatch: Bool = false
     @ObservationIgnored
