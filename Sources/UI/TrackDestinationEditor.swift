@@ -312,39 +312,86 @@ struct TrackDestinationEditor: View {
     }
 
     private var presetSelectorButton: some View {
-        Button {
-            engineController.prepareAudioUnit(for: track.id)
-            showingPresetBrowser = true
-        } label: {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Preset")
-                        .studioText(.eyebrow)
-                        .tracking(0.7)
-                        .foregroundStyle(StudioTheme.mutedText)
-
-                    Text(currentPresetDisplayName)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .semibold))
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Preset")
+                    .studioText(.eyebrow)
+                    .tracking(0.7)
                     .foregroundStyle(StudioTheme.mutedText)
+
+                Text(currentPresetDisplayName)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .frame(maxWidth: 150, alignment: .leading)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
-            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                engineController.prepareAudioUnit(for: track.id)
+                showingPresetBrowser = true
+            }
+
+            VStack(spacing: 2) {
+                presetStepButton(systemName: "chevron.up", direction: .previous)
+                presetStepButton(systemName: "chevron.down", direction: .next)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(maxWidth: 170, alignment: .leading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+        )
+        .help(currentPresetSupportingText)
+    }
+
+    private func presetStepButton(
+        systemName: String,
+        direction: PresetStepper.Direction
+    ) -> some View {
+        Button {
+            stepPreset(direction)
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(canStepPreset(direction) ? StudioTheme.text : StudioTheme.mutedText.opacity(0.6))
+                .frame(width: 18, height: 12)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help(currentPresetSupportingText)
+        .disabled(!canStepPreset(direction))
+    }
+
+    private func canStepPreset(_ direction: PresetStepper.Direction) -> Bool {
+        guard let readout = currentPresetReadout else {
+            return false
+        }
+        return PresetStepper.target(from: readout, direction: direction) != nil
+    }
+
+    private func stepPreset(_ direction: PresetStepper.Direction) {
+        guard let readout = currentPresetReadout,
+              let descriptor = PresetStepper.target(from: readout, direction: direction)
+        else {
+            return
+        }
+
+        engineController.prepareAudioUnit(for: track.id)
+
+        do {
+            let blob = try engineController.loadPreset(descriptor, for: track.id)
+            writeStateBlobAndRecord(blob, target: currentWriteTarget)
+            presetReadoutState = PresetReadout(
+                factory: readout.factory,
+                user: readout.user,
+                currentID: descriptor.id
+            )
+            refreshPresetReadout()
+        } catch {
+            log("stepPreset failed direction=\(direction) error=\(error)")
+        }
     }
 
     private func compactIconButton(
