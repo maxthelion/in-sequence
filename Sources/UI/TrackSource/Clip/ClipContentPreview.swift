@@ -77,9 +77,21 @@ private struct ClipStepInspectorTarget: Identifiable, Equatable {
     var id: Int { stepIndex }
 }
 
+struct ClipMacroSlot: Identifiable, Equatable {
+    let slotIndex: Int
+    let binding: TrackMacroBinding?
+
+    var id: Int { slotIndex }
+}
+
 struct ClipContentPreview: View {
     let content: ClipContent
     let defaultNote: ClipStepNote
+    let macroSlots: [ClipMacroSlot]
+    let macroLanes: [UUID: MacroLane]
+    let macroFallbackValues: [UUID: Double]
+    let onAssignMacroSlot: ((Int) -> Void)?
+    let onUpdateMacroLanes: (([UUID: MacroLane]) -> Void)?
     let playingStepIndex: Int?
     let onCommit: ((ClipContent) -> Void)?
 
@@ -88,16 +100,27 @@ struct ClipContentPreview: View {
     @State private var selectedMode: ClipEditorMode = .trigger
     @State private var selectedPage = 0
     @State private var editingStepTarget: ClipStepInspectorTarget?
+    @State private var selectedMacroSlotIndex: Int?
 
     init(
         content: ClipContent,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4),
+        macroSlots: [ClipMacroSlot] = [],
+        macroLanes: [UUID: MacroLane] = [:],
+        macroFallbackValues: [UUID: Double] = [:],
+        onAssignMacroSlot: ((Int) -> Void)? = nil,
+        onUpdateMacroLanes: (([UUID: MacroLane]) -> Void)? = nil,
         playingStepIndex: Int? = nil,
         onChange: ((ClipContent) -> Void)? = nil
     ) {
         let normalizedContent = content.normalized
         self.content = normalizedContent
         self.defaultNote = defaultNote.normalized
+        self.macroSlots = macroSlots.sorted { $0.slotIndex < $1.slotIndex }
+        self.macroLanes = macroLanes
+        self.macroFallbackValues = macroFallbackValues
+        self.onAssignMacroSlot = onAssignMacroSlot
+        self.onUpdateMacroLanes = onUpdateMacroLanes
         self.playingStepIndex = playingStepIndex
         self.onCommit = onChange
         self._displayedContent = State(initialValue: normalizedContent)
@@ -220,14 +243,34 @@ struct ClipContentPreview: View {
                             title: mode.title,
                             accent: selectedLane.accent,
                             isSelected: selectedMode == mode,
-                            action: { selectedMode = mode }
+                            action: {
+                                selectedMacroSlotIndex = nil
+                                selectedMode = mode
+                            }
                         )
                     }
                 }
             }
 
-            switch selectedMode {
-            case .trigger:
+            if !macroSlots.isEmpty || onAssignMacroSlot != nil {
+                controlGroup(title: "Macros") {
+                    macroSlotStrip
+                }
+            }
+
+            if let selectedMacroBinding {
+                ClipMacroLaneEditor(
+                    macros: [selectedMacroBinding],
+                    macroLanes: syncedMacroLanes(stepCount: lengthSteps),
+                    stepCount: lengthSteps,
+                    phraseLayerValues: macroFallbackValues,
+                    showsHeader: false
+                ) { updatedLanes in
+                    onUpdateMacroLanes?(updatedLanes)
+                }
+            } else {
+                switch selectedMode {
+                case .trigger:
                 StepGridView(
                     stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                     indexOffset: pageStart,
@@ -287,6 +330,7 @@ struct ClipContentPreview: View {
                     )
                 }
                 .allowsHitTesting(onCommit != nil)
+                }
             }
 
             Text(summaryText(lengthSteps: lengthSteps, page: page, pageCount: pageCount, steps: steps))
@@ -321,6 +365,75 @@ struct ClipContentPreview: View {
                 self.editingStepTarget = nil
             }
         }
+        .onChange(of: macroSlots) { _, slots in
+            guard let selectedMacroSlotIndex else {
+                return
+            }
+            if !slots.contains(where: { $0.slotIndex == selectedMacroSlotIndex && $0.binding != nil }) {
+                self.selectedMacroSlotIndex = nil
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var macroSlotStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(macroSlots) { slot in
+                    let isSelected = selectedMacroSlotIndex == slot.slotIndex && slot.binding != nil
+                    Button {
+                        if slot.binding != nil {
+                            selectedMacroSlotIndex = slot.slotIndex
+                        } else {
+                            onAssignMacroSlot?(slot.slotIndex)
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("M\(slot.slotIndex + 1)")
+                                .studioText(.eyebrow)
+                                .foregroundStyle(slot.binding == nil ? StudioTheme.mutedText : StudioTheme.text)
+
+                            Text(slot.binding?.displayName ?? "Assign")
+                                .studioText(.labelBold)
+                                .foregroundStyle(slot.binding == nil ? StudioTheme.mutedText : StudioTheme.text)
+                                .lineLimit(1)
+                        }
+                        .frame(minWidth: 92, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(
+                            isSelected
+                                ? StudioTheme.cyan.opacity(StudioOpacity.hoverFill)
+                                : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                                .stroke(
+                                    slot.binding == nil
+                                        ? StudioTheme.border.opacity(StudioOpacity.subtleStroke)
+                                        : (isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke)),
+                                    style: StrokeStyle(lineWidth: 1, dash: slot.binding == nil ? [4, 3] : [])
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(slot.binding == nil && onAssignMacroSlot == nil)
+                    .opacity(slot.binding == nil && onAssignMacroSlot == nil ? 0.4 : 1)
+                }
+            }
+        }
+    }
+
+    private var selectedMacroBinding: TrackMacroBinding? {
+        guard let selectedMacroSlotIndex else {
+            return nil
+        }
+        return macroSlots.first(where: { $0.slotIndex == selectedMacroSlotIndex })?.binding
+    }
+
+    private func syncedMacroLanes(stepCount: Int) -> [UUID: MacroLane] {
+        macroLanes.mapValues { $0.synced(stepCount: stepCount) }
     }
 
     private func controlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -412,6 +525,9 @@ struct ClipContentPreview: View {
     #endif
 
     private func summaryText(lengthSteps: Int, page: Int, pageCount: Int, steps: [ClipStep]) -> String {
+        if let selectedMacroBinding {
+            return "\(selectedMacroBinding.displayName) macro lane • \(lengthSteps) steps. Tap a cell to set a per-step override, or long-press to clear it."
+        }
         let laneLabel = selectedLane == .main ? "Normal lane" : "Fill lane"
         let pageLabel = pageCount > 1 ? "Page \(page + 1) of \(pageCount)" : "Single page"
         return "\(laneLabel) • \(selectedMode.title) view • \(pageLabel) • \(noteCount(in: steps)) notes across \(lengthSteps) steps."

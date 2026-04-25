@@ -40,6 +40,12 @@ struct TrackSourceEditorView: View {
 
     @State private var selectedTab: TrackSourceEditorTab = .source
     @State private var generatorPickerPurpose: GeneratorPickerPurpose?
+    @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
+
+    private struct MacroSlotPickerRequest: Identifiable {
+        let slotIndex: Int
+        var id: Int { slotIndex }
+    }
 
     private var track: StepSequenceTrack { session.store.selectedTrack }
     private var bank: TrackPatternBank { session.store.patternBank(for: track.id) }
@@ -95,6 +101,10 @@ struct TrackSourceEditorView: View {
         return phraseStep % max(1, clip.content.stepCount)
     }
 
+    private var orderedMacros: [TrackMacroBinding] {
+        track.macros.sorted { $0.slotIndex < $1.slotIndex }
+    }
+
     /// Phrase-layer fallback values for each macro binding on this track.
     ///
     /// Reads `layer.defaults[trackID]` for the binding's layer; falls back to the
@@ -103,7 +113,7 @@ struct TrackSourceEditorView: View {
         var result: [UUID: Double] = [:]
         let trackID = track.id
         let layers = session.store.layers
-        for binding in track.macros {
+        for binding in orderedMacros {
             let layerID = "macro-\(trackID.uuidString)-\(binding.id.uuidString)"
             if let layer = layers.first(where: { $0.id == layerID }),
                case let .scalar(v) = layer.defaults[trackID] {
@@ -113,6 +123,31 @@ struct TrackSourceEditorView: View {
             }
         }
         return result
+    }
+
+    private var clipMacroSlots: [ClipMacroSlot] {
+        (0..<8).map { slotIndex in
+            ClipMacroSlot(
+                slotIndex: slotIndex,
+                binding: orderedMacros.first(where: { $0.slotIndex == slotIndex })
+            )
+        }
+    }
+
+    private var currentAUMacroAddresses: Set<UInt64> {
+        Set(orderedMacros.compactMap { binding in
+            if case let .auParameter(address, _) = binding.source {
+                return address
+            }
+            return nil
+        })
+    }
+
+    private var canAssignAUMacros: Bool {
+        if case .auInstrument = session.store.resolvedDestination(for: track.id).withoutTransientState {
+            return true
+        }
+        return false
     }
 
     var body: some View {
@@ -155,6 +190,18 @@ struct TrackSourceEditorView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationBackground(.clear)
+        }
+        .sheet(item: $macroSlotPickerRequest) { request in
+            SingleMacroSlotPickerSheet(
+                slotIndex: request.slotIndex,
+                currentBindingAddresses: currentAUMacroAddresses,
+                readParameters: {
+                    engineController.audioInstrumentHost(for: track.id)?.parameterReadout()
+                }
+            ) { descriptor in
+                assignMacro(descriptor, to: request.slotIndex)
+            }
+            .presentationBackground(.ultraThinMaterial)
         }
     }
 
@@ -317,6 +364,18 @@ struct TrackSourceEditorView: View {
                 ClipContentPreview(
                     content: previewClipContent,
                     defaultNote: defaultClipNote,
+                    macroSlots: clipMacroSlots,
+                    macroLanes: currentClip?.macroLanes ?? [:],
+                    macroFallbackValues: macroFallbackValues,
+                    onAssignMacroSlot: canAssignAUMacros ? { slotIndex in
+                        prepareAndPresentMacroSlotPicker(slotIndex: slotIndex)
+                    } : nil,
+                    onUpdateMacroLanes: { updatedLanes in
+                        let trackID = track.id
+                        session.ensureClipAndMutate(trackID: trackID) { _, entry in
+                            entry.macroLanes = updatedLanes
+                        }
+                    },
                     playingStepIndex: playingClipStepIndex
                 ) { updated in
                     let trackID = track.id
@@ -337,23 +396,36 @@ struct TrackSourceEditorView: View {
                     )
                     #endif
                 }
-
-                if !track.macros.isEmpty, let clip = currentClip {
-                    ClipMacroLaneEditor(
-                        clipID: clip.id,
-                        macros: track.macros,
-                        macroLanes: clip.macroLanes.mapValues { lane in
-                            lane.synced(stepCount: clip.content.stepCount)
-                        },
-                        phraseLayerValues: macroFallbackValues
-                    ) { updatedLanes in
-                        let clipID = clip.id
-                        session.mutateClip(id: clipID) { entry in
-                            entry.macroLanes = updatedLanes
-                        }
-                    }
-                }
             }
+        }
+    }
+
+    private func prepareAndPresentMacroSlotPicker(slotIndex: Int) {
+        guard canAssignAUMacros else {
+            return
+        }
+        engineController.prepareAudioUnit(for: track.id)
+        macroSlotPickerRequest = MacroSlotPickerRequest(slotIndex: slotIndex)
+    }
+
+    private func assignMacro(_ parameter: AUParameterDescriptor, to slotIndex: Int) {
+        let descriptor = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: parameter.displayName,
+            minValue: parameter.minValue,
+            maxValue: parameter.maxValue,
+            defaultValue: parameter.defaultValue,
+            valueType: .scalar,
+            source: .auParameter(address: parameter.address, identifier: parameter.identifier)
+        )
+        let trackID = track.id
+        session.batch(impact: .snapshotOnly, changed: .full) { s in
+            var p = s.exportToProject()
+            p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
+            p.syncMacroLayers()
+            s.replaceTracks(p.tracks)
+            s.setLayers(p.layers)
+            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
         }
     }
 

@@ -12,19 +12,37 @@ import SwiftUI
 ///   - Tap a cell to open a scalar scrubber that sets the cell's override value.
 ///   - Long-press a cell to clear the override (set to nil).
 struct ClipMacroLaneEditor: View {
-    /// The clip being edited.
-    let clipID: UUID
     /// The macros on the owning track.
     let macros: [TrackMacroBinding]
     /// Current lanes keyed by binding descriptor id.
     let macroLanes: [UUID: MacroLane]
+    /// Fallback step count when a lane has not been initialized yet.
+    let stepCount: Int?
     /// Phrase-layer resolved fallback value per binding (descriptor default if not set).
     let phraseLayerValues: [UUID: Double]
+    /// When false, the expand/collapse header is hidden and content is always shown.
+    let showsHeader: Bool
     /// Called when a cell value changes or is cleared.
     let onUpdate: ([UUID: MacroLane]) -> Void
 
     @State private var isExpanded = true
     @State private var editingCell: EditingCell?
+
+    init(
+        macros: [TrackMacroBinding],
+        macroLanes: [UUID: MacroLane],
+        stepCount: Int? = nil,
+        phraseLayerValues: [UUID: Double],
+        showsHeader: Bool = true,
+        onUpdate: @escaping ([UUID: MacroLane]) -> Void
+    ) {
+        self.macros = macros
+        self.macroLanes = macroLanes
+        self.stepCount = stepCount
+        self.phraseLayerValues = phraseLayerValues
+        self.showsHeader = showsHeader
+        self.onUpdate = onUpdate
+    }
 
     private struct EditingCell: Identifiable {
         let id = UUID()
@@ -36,15 +54,17 @@ struct ClipMacroLaneEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            expandToggle
+            if showsHeader {
+                expandToggle
+            }
 
-            if isExpanded && !macros.isEmpty {
+            if (isExpanded || !showsHeader), !macros.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(macros, id: \.id) { binding in
                         macroLaneRow(for: binding)
                     }
                 }
-            } else if isExpanded {
+            } else if isExpanded || !showsHeader {
                 Text("No macros on this track.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
@@ -98,7 +118,7 @@ struct ClipMacroLaneEditor: View {
 
     private func macroLaneRow(for binding: TrackMacroBinding) -> some View {
         let lane = macroLanes[binding.id]
-        let stepCount = lane?.values.count ?? 0
+        let resolvedStepCount = lane?.values.count ?? stepCount ?? 0
         let fallback = phraseLayerValues[binding.id] ?? binding.descriptor.defaultValue
 
         return VStack(alignment: .leading, spacing: 4) {
@@ -106,14 +126,14 @@ struct ClipMacroLaneEditor: View {
                 .studioText(.label)
                 .foregroundStyle(StudioTheme.text)
 
-            if stepCount == 0 {
+            if resolvedStepCount == 0 {
                 Text("Lane not initialized — clip has no steps.")
                     .studioText(.micro)
                     .foregroundStyle(StudioTheme.mutedText)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 3) {
-                        ForEach(0..<stepCount, id: \.self) { stepIndex in
+                        ForEach(0..<resolvedStepCount, id: \.self) { stepIndex in
                             let cellValue = lane?.values[stepIndex]
                             MacroLaneCell(
                                 value: cellValue,
@@ -149,7 +169,7 @@ struct ClipMacroLaneEditor: View {
 
     private func setLaneValue(_ value: Double, bindingID: UUID, stepIndex: Int) {
         var updatedLanes = macroLanes
-        var lane = updatedLanes[bindingID] ?? MacroLane(stepCount: 0)
+        var lane = updatedLanes[bindingID] ?? MacroLane(stepCount: stepCount ?? 0)
         guard lane.values.indices.contains(stepIndex) else { return }
         lane.values[stepIndex] = value
         updatedLanes[bindingID] = lane
@@ -158,7 +178,7 @@ struct ClipMacroLaneEditor: View {
 
     private func clearLaneValue(bindingID: UUID, stepIndex: Int) {
         var updatedLanes = macroLanes
-        var lane = updatedLanes[bindingID] ?? MacroLane(stepCount: 0)
+        var lane = updatedLanes[bindingID] ?? MacroLane(stepCount: stepCount ?? 0)
         guard lane.values.indices.contains(stepIndex) else { return }
         lane.values[stepIndex] = nil
         updatedLanes[bindingID] = lane
