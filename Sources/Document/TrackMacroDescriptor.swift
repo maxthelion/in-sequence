@@ -193,8 +193,38 @@ struct TrackMacroDescriptor: Codable, Equatable, Hashable, Sendable, Identifiabl
 /// "track X's Sample Gain macro" for phrase-layer targets and clip lanes.
 struct TrackMacroBinding: Codable, Equatable, Hashable, Sendable {
     let descriptor: TrackMacroDescriptor
+    /// Stable slot position (0-7) in the macro row. Determines display order and clip lane
+    /// identity; legacy documents without a stored slotIndex default to 0 and are
+    /// normalised to sequential indices on decode by `StepSequenceTrack`.
+    let slotIndex: Int
 
     var id: UUID { descriptor.id }
     var displayName: String { descriptor.displayName }
     var source: TrackMacroSource { descriptor.source }
+
+    init(descriptor: TrackMacroDescriptor, slotIndex: Int = 0) {
+        self.descriptor = descriptor
+        self.slotIndex = min(max(slotIndex, 0), 7)
+    }
+
+    func withSlotIndex(_ slotIndex: Int) -> TrackMacroBinding {
+        TrackMacroBinding(descriptor: descriptor, slotIndex: slotIndex)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case descriptor
+        case slotIndex
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        descriptor = try container.decode(TrackMacroDescriptor.self, forKey: .descriptor)
+        slotIndex = min(max(try container.decodeIfPresent(Int.self, forKey: .slotIndex) ?? 0, 0), 7)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(descriptor, forKey: .descriptor)
+        try container.encode(slotIndex, forKey: .slotIndex)
+    }
 }

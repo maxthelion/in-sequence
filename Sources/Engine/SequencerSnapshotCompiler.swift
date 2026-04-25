@@ -170,6 +170,7 @@ enum SequencerSnapshotCompiler {
         let macroBindingOrder = tracks
             .first(where: { $0.trackType == clip.trackType })?
             .macros
+            .sorted { $0.slotIndex < $1.slotIndex }
             .map(\.id) ?? Array(clip.macroLanes.keys).sorted { $0.uuidString < $1.uuidString }
         let macroOverrideValues = (0..<lengthSteps).map { stepIndex in
             macroBindingOrder.map { bindingID in
@@ -215,6 +216,7 @@ enum SequencerSnapshotCompiler {
         for track: StepSequenceTrack,
         patternBanksByTrackID: [UUID: TrackPatternBank]
     ) -> TrackSourceProgram {
+        let orderedMacros = track.macros.sorted { $0.slotIndex < $1.slotIndex }
         let bank = patternBanksByTrackID[track.id] ?? TrackPatternBank(trackID: track.id, slots: [])
         let slotPrograms = (0..<TrackPatternBank.slotCount).map { index -> SlotProgram in
             let slot = bank.slot(at: index)
@@ -243,8 +245,8 @@ enum SequencerSnapshotCompiler {
         return TrackSourceProgram(
             trackID: track.id,
             slotPrograms: slotPrograms,
-            macroBindingIDs: track.macros.map(\.id),
-            macroDefaults: Dictionary(uniqueKeysWithValues: track.macros.map {
+            macroBindingIDs: orderedMacros.map(\.id),
+            macroDefaults: Dictionary(uniqueKeysWithValues: orderedMacros.map {
                 ($0.id, $0.descriptor.defaultValue)
             })
         )

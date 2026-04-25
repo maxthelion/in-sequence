@@ -97,10 +97,27 @@ final class TrackMacroDescriptorTests: XCTestCase {
     func test_binding_roundTrip() throws {
         let trackID = UUID()
         let binding = TrackMacroBinding(
-            descriptor: TrackMacroDescriptor.builtin(trackID: trackID, kind: .sampleLength)
+            descriptor: TrackMacroDescriptor.builtin(trackID: trackID, kind: .sampleLength),
+            slotIndex: 3
         )
         let data = try JSONEncoder().encode(binding)
         let decoded = try JSONDecoder().decode(TrackMacroBinding.self, from: data)
         XCTAssertEqual(decoded, binding)
+        XCTAssertEqual(decoded.slotIndex, 3)
+    }
+
+    func test_binding_legacyDecode_defaultsSlotIndexToZero() throws {
+        let trackID = UUID()
+        let descriptor = TrackMacroDescriptor.builtin(trackID: trackID, kind: .sampleLength)
+        let data = try JSONEncoder().encode(descriptor)
+        let legacyJSON = """
+        {
+          "descriptor": \(String(decoding: data, as: UTF8.self))
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(TrackMacroBinding.self, from: legacyJSON)
+        XCTAssertEqual(decoded.descriptor, descriptor)
+        XCTAssertEqual(decoded.slotIndex, 0)
     }
 }

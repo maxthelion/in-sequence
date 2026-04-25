@@ -76,7 +76,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.mix = mix
         self.velocity = velocity
         self.gateLength = gateLength
-        self.macros = macros
+        self.macros = Self.normalizedMacros(macros)
         self.filter = filter
     }
 
@@ -135,7 +135,11 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
         // Legacy documents without macros decode as empty — no migration needed.
-        macros = try container.decodeIfPresent([TrackMacroBinding].self, forKey: .macros) ?? []
+        // normalizedMacros assigns sequential slotIndex values to legacy bindings that
+        // were stored without slotIndex (all decode to 0 via decodeIfPresent fallback).
+        macros = Self.normalizedMacros(
+            try container.decodeIfPresent([TrackMacroBinding].self, forKey: .macros) ?? []
+        )
         // Legacy documents without filter decode with bypass-transparent defaults.
         filter = try container.decodeIfPresent(SamplerFilterSettings.self, forKey: .filter) ?? .init()
     }
@@ -203,5 +207,51 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             return accents
         }
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
+    }
+
+    /// Normalise macro bindings so slotIndex values are valid (0-7) and unique.
+    /// Legacy documents store bindings without slotIndex — all decode to 0.
+    /// When multiple bindings share the same slotIndex, sequential slots are assigned.
+    private static func normalizedMacros(_ macros: [TrackMacroBinding]) -> [TrackMacroBinding] {
+        guard !macros.isEmpty else {
+            return []
+        }
+
+        // Legacy path: all bindings have slotIndex == 0 and there's more than one.
+        if macros.count > 1, macros.allSatisfy({ $0.slotIndex == 0 }) {
+            return Array(
+                macros
+                    .prefix(8)
+                    .enumerated()
+                    .map { index, binding in
+                        binding.withSlotIndex(index)
+                    }
+            )
+        }
+
+        var normalized: [TrackMacroBinding] = []
+        var occupiedSlots = Set<Int>()
+
+        for binding in macros.prefix(8) {
+            let requestedSlot = binding.slotIndex
+            if (0..<8).contains(requestedSlot), !occupiedSlots.contains(requestedSlot) {
+                normalized.append(binding.withSlotIndex(requestedSlot))
+                occupiedSlots.insert(requestedSlot)
+                continue
+            }
+
+            guard let fallbackSlot = (0..<8).first(where: { !occupiedSlots.contains($0) }) else {
+                continue
+            }
+            normalized.append(binding.withSlotIndex(fallbackSlot))
+            occupiedSlots.insert(fallbackSlot)
+        }
+
+        return normalized.sorted { lhs, rhs in
+            if lhs.slotIndex != rhs.slotIndex {
+                return lhs.slotIndex < rhs.slotIndex
+            }
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        }
     }
 }

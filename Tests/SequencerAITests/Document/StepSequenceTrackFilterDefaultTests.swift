@@ -99,4 +99,50 @@ final class StepSequenceTrackFilterDefaultTests: XCTestCase {
         XCTAssertEqual(track.filter.cutoffHz, 1200, accuracy: 0.001)
         XCTAssertEqual(track.filter.resonance, 0.8, accuracy: 0.001)
     }
+
+    func test_legacyMacroBindings_withoutSlotIndices_areAssignedSequentialSlots() throws {
+        let first = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: "Cutoff",
+            minValue: 0,
+            maxValue: 1,
+            defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 1, identifier: "cutoff")
+        )
+        let second = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: "Resonance",
+            minValue: 0,
+            maxValue: 1,
+            defaultValue: 0.2,
+            valueType: .scalar,
+            source: .auParameter(address: 2, identifier: "resonance")
+        )
+
+        let track = StepSequenceTrack(
+            name: "Legacy Track",
+            pitches: [60],
+            stepPattern: [true],
+            velocity: 100,
+            gateLength: 4,
+            macros: [
+                TrackMacroBinding(descriptor: first, slotIndex: 0),
+                TrackMacroBinding(descriptor: second, slotIndex: 1)
+            ]
+        )
+        let encoded = try JSONEncoder().encode(track)
+        var legacyJSON = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let legacyMacros = [
+            ["descriptor": try XCTUnwrap(JSONSerialization.jsonObject(with: try JSONEncoder().encode(first)) as? [String: Any])],
+            ["descriptor": try XCTUnwrap(JSONSerialization.jsonObject(with: try JSONEncoder().encode(second)) as? [String: Any])]
+        ]
+        legacyJSON["macros"] = legacyMacros
+
+        let data = try JSONSerialization.data(withJSONObject: legacyJSON)
+        let decoded = try JSONDecoder().decode(StepSequenceTrack.self, from: data)
+
+        XCTAssertEqual(decoded.macros.map(\.slotIndex), [0, 1])
+        XCTAssertEqual(decoded.macros.map(\.id), [first.id, second.id])
+    }
 }

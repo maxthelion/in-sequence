@@ -149,6 +149,44 @@ final class ProjectTrackMacroTests: XCTestCase {
         XCTAssertEqual(project.tracks.first(where: { $0.id == trackID })?.macros.count, 8)
     }
 
+    func test_addAUMacro_respectsRequestedSlotIndex() {
+        var (project, trackID) = makeProject()
+        let descriptor = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: "Cutoff",
+            minValue: 0, maxValue: 1, defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 1, identifier: "cutoff")
+        )
+
+        let added = project.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: 5)
+
+        XCTAssertTrue(added)
+        XCTAssertEqual(project.tracks.first(where: { $0.id == trackID })?.macros.first?.slotIndex, 5)
+    }
+
+    func test_addAUMacro_rejectsDuplicateParameterAddress() {
+        var (project, trackID) = makeProject()
+        let first = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: "Cutoff A",
+            minValue: 0, maxValue: 1, defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 1, identifier: "cutoff")
+        )
+        let second = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: "Cutoff B",
+            minValue: 0, maxValue: 1, defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 1, identifier: "cutoff")
+        )
+
+        XCTAssertTrue(project.addAUMacro(descriptor: first, to: trackID, slotIndex: 0))
+        XCTAssertFalse(project.addAUMacro(descriptor: second, to: trackID, slotIndex: 1))
+        XCTAssertEqual(project.tracks.first(where: { $0.id == trackID })?.macros.count, 1)
+    }
+
     // MARK: - removeMacro cascade
 
     func test_removeMacro_cascadesToPhraseLayers() {

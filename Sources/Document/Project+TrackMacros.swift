@@ -3,14 +3,18 @@ import Foundation
 // MARK: - Track macro management
 
 extension Project {
+    private static let macroSlotCount = 8
 
     // MARK: - Built-in sampler macros
 
     /// Returns the three built-in sampler macro bindings for a given track.
     /// IDs are deterministic — stable across document loads.
     static func builtinSamplerBindings(for trackID: UUID) -> [TrackMacroBinding] {
-        BuiltinMacroKind.allCases.map { kind in
-            TrackMacroBinding(descriptor: TrackMacroDescriptor.builtin(trackID: trackID, kind: kind))
+        BuiltinMacroKind.allCases.enumerated().map { index, kind in
+            TrackMacroBinding(
+                descriptor: TrackMacroDescriptor.builtin(trackID: trackID, kind: kind),
+                slotIndex: index
+            )
         }
     }
 
@@ -43,39 +47,81 @@ extension Project {
             return
         }
 
+        let builtinIDs = Set(BuiltinMacroKind.allCases.map {
+            TrackMacroDescriptor.builtinID(trackID: trackID, kind: $0)
+        })
+        let preservedAUMacros = orderedMacroBindings(
+            tracks[trackIndex].macros.filter { !builtinIDs.contains($0.id) }
+        )
+
         if Self.isSamplerKind(newDestination) {
-            // Ensure all three built-ins exist; never duplicate.
-            let builtins = Self.builtinSamplerBindings(for: trackID)
-            for binding in builtins {
-                if !tracks[trackIndex].macros.contains(where: { $0.id == binding.id }) {
-                    tracks[trackIndex].macros.append(binding)
-                }
+            // Built-ins occupy slots 0..<builtinCount; shift AU macros after them.
+            let shiftedPreserved = preservedAUMacros.enumerated().map { index, binding in
+                binding.withSlotIndex(BuiltinMacroKind.allCases.count + index)
             }
+            tracks[trackIndex].macros = Self.builtinSamplerBindings(for: trackID) + shiftedPreserved
         } else {
-            // Remove built-in bindings (keep auParameter bindings).
-            let builtinIDs = Set(BuiltinMacroKind.allCases.map {
-                TrackMacroDescriptor.builtinID(trackID: trackID, kind: $0)
-            })
-            tracks[trackIndex].macros.removeAll { builtinIDs.contains($0.id) }
+            // Remove built-in bindings (keep auParameter bindings) and compact slots.
+            tracks[trackIndex].macros = preservedAUMacros.enumerated().map { index, binding in
+                binding.withSlotIndex(index)
+            }
         }
     }
 
     // MARK: - Add / remove AU macros
 
-    /// Append an AU macro descriptor to the track. Enforces a cap of 8 bindings.
-    /// If a binding with the same descriptor id already exists, this is a no-op.
+    /// Append an AU macro descriptor to the track into a specific slot (0–7).
+    /// Enforces a cap of 8 AU bindings and rejects duplicate AU parameter addresses.
+    /// When `slotIndex` is nil, picks the first free slot.
     @discardableResult
-    mutating func addAUMacro(descriptor: TrackMacroDescriptor, to trackID: UUID) -> Bool {
+    mutating func addAUMacro(
+        descriptor: TrackMacroDescriptor,
+        to trackID: UUID,
+        slotIndex: Int? = nil
+    ) -> Bool {
         guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }) else {
             return false
         }
-        guard tracks[trackIndex].macros.count < 8 else {
+        var macros = orderedMacroBindings(tracks[trackIndex].macros)
+        let auMacros = macros.filter {
+            if case .auParameter = $0.source { return true }
             return false
         }
-        guard !tracks[trackIndex].macros.contains(where: { $0.id == descriptor.id }) else {
+        guard auMacros.count < Self.macroSlotCount else {
+            return false
+        }
+        guard !macros.contains(where: { $0.id == descriptor.id }) else {
             return false // already present — no-op
         }
-        tracks[trackIndex].macros.append(TrackMacroBinding(descriptor: descriptor))
+
+        // Reject duplicate AU parameter address.
+        if case let .auParameter(address, identifier) = descriptor.source,
+           auMacros.contains(where: { binding in
+               guard case let .auParameter(existingAddress, existingIdentifier) = binding.source else {
+                   return false
+               }
+               return existingAddress == address && existingIdentifier == identifier
+           }) {
+            return false
+        }
+
+        let occupiedSlots = Set(auMacros.map(\.slotIndex))
+        let resolvedSlot: Int
+        if let slotIndex {
+            guard (0..<Self.macroSlotCount).contains(slotIndex),
+                  !occupiedSlots.contains(slotIndex)
+            else {
+                return false
+            }
+            resolvedSlot = slotIndex
+        } else if let next = (0..<Self.macroSlotCount).first(where: { !occupiedSlots.contains($0) }) {
+            resolvedSlot = next
+        } else {
+            return false
+        }
+
+        macros.append(TrackMacroBinding(descriptor: descriptor, slotIndex: resolvedSlot))
+        tracks[trackIndex].macros = orderedMacroBindings(macros)
         return true
     }
 
@@ -85,6 +131,7 @@ extension Project {
             return
         }
         tracks[trackIndex].macros.removeAll { $0.id == macroID }
+        tracks[trackIndex].macros = orderedMacroBindings(tracks[trackIndex].macros)
 
         // Cascade: drop phrase-layer cells for this binding.
         let layerID = "macro-\(trackID.uuidString)-\(macroID.uuidString)"
@@ -148,5 +195,14 @@ extension Project {
 
         // Sync phrases with the updated layer list.
         phrases = phrases.map { $0.synced(with: tracks, layers: layers) }
+    }
+
+    private func orderedMacroBindings(_ macros: [TrackMacroBinding]) -> [TrackMacroBinding] {
+        macros.sorted { lhs, rhs in
+            if lhs.slotIndex != rhs.slotIndex {
+                return lhs.slotIndex < rhs.slotIndex
+            }
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        }
     }
 }

@@ -75,7 +75,7 @@ struct MacroKnobRow: View {
     }
 
     private var macros: [TrackMacroBinding] {
-        track?.macros ?? []
+        (track?.macros ?? []).sorted { $0.slotIndex < $1.slotIndex }
     }
 
     var body: some View {

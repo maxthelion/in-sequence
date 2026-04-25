@@ -263,7 +263,7 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
     static func macroLayers(for tracks: [StepSequenceTrack]) -> [PhraseLayerDefinition] {
         var layers: [PhraseLayerDefinition] = []
         for track in tracks {
-            for binding in track.macros {
+            for binding in track.macros.sorted(by: { $0.slotIndex < $1.slotIndex }) {
                 let layerID = "macro-\(track.id.uuidString)-\(binding.id.uuidString)"
                 let defaults = Dictionary(uniqueKeysWithValues: tracks.map { t -> (UUID, PhraseCellValue) in
                     let value: PhraseCellValue = binding.descriptor.valueType == .boolean
