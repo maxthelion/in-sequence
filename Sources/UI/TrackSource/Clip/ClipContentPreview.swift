@@ -80,8 +80,9 @@ private struct ClipStepInspectorTarget: Identifiable, Equatable {
 struct ClipContentPreview: View {
     let content: ClipContent
     let defaultNote: ClipStepNote
-    let onChange: ((ClipContent) -> Void)?
+    let onCommit: ((ClipContent) -> Void)?
 
+    @State private var displayedContent: ClipContent
     @State private var selectedLane: ClipEditorLane = .main
     @State private var selectedMode: ClipEditorMode = .trigger
     @State private var selectedPage = 0
@@ -92,44 +93,49 @@ struct ClipContentPreview: View {
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4),
         onChange: ((ClipContent) -> Void)? = nil
     ) {
-        self.content = content.normalized
+        let normalizedContent = content.normalized
+        self.content = normalizedContent
         self.defaultNote = defaultNote.normalized
-        self.onChange = onChange
+        self.onCommit = onChange
+        self._displayedContent = State(initialValue: normalizedContent)
     }
 
     var body: some View {
-        switch content {
-        case let .noteGrid(lengthSteps, steps):
-            noteGridEditor(lengthSteps: lengthSteps, steps: steps)
+        Group {
+            switch displayedContent {
+            case let .noteGrid(lengthSteps, steps):
+                noteGridEditor(lengthSteps: lengthSteps, steps: steps)
 
-        case let .sliceTriggers(stepPattern, sliceIndexes):
-            VStack(alignment: .leading, spacing: 14) {
-                StepGridView(stepStates: stepPattern.map { $0 ? .on : .off }) { index in
-                    guard let onChange else { return }
-                    var nextPattern = stepPattern
-                    guard nextPattern.indices.contains(index) else { return }
-                    nextPattern[index].toggle()
-                    onChange(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes))
-                }
-                .allowsHitTesting(onChange != nil)
+            case let .sliceTriggers(stepPattern, sliceIndexes):
+                VStack(alignment: .leading, spacing: 14) {
+                    StepGridView(stepStates: stepPattern.map { $0 ? .on : .off }) { index in
+                        var nextPattern = stepPattern
+                        guard nextPattern.indices.contains(index) else { return }
+                        nextPattern[index].toggle()
+                        commit(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes))
+                    }
+                    .allowsHitTesting(onCommit != nil)
 
-                TextField(
-                    "Comma-separated slice indexes",
-                    text: Binding(
-                        get: { sliceIndexes.map(String.init).joined(separator: ", ") },
-                        set: { newValue in
-                            guard let onChange else { return }
-                            let parsed = newValue
-                                .split(separator: ",")
-                                .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-                            if !parsed.isEmpty {
-                                onChange(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed))
+                    TextField(
+                        "Comma-separated slice indexes",
+                        text: Binding(
+                            get: { sliceIndexes.map(String.init).joined(separator: ", ") },
+                            set: { newValue in
+                                let parsed = newValue
+                                    .split(separator: ",")
+                                    .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+                                if !parsed.isEmpty {
+                                    commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed))
+                                }
                             }
-                        }
+                        )
                     )
-                )
-                .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.roundedBorder)
+                }
             }
+        }
+        .onChange(of: content) { _, newContent in
+            displayedContent = newContent.normalized
         }
     }
 
@@ -166,9 +172,9 @@ struct ClipContentPreview: View {
                                 title: "\(option)",
                                 accent: StudioTheme.violet,
                                 isSelected: lengthSteps == option,
-                                isEnabled: onChange != nil,
+                                isEnabled: onCommit != nil,
                                 action: {
-                                    onChange?(resizingNoteGrid(to: option, currentSteps: steps))
+                                    commit(resizingNoteGrid(to: option, currentSteps: steps))
                                 }
                             )
                         }
@@ -213,9 +219,9 @@ struct ClipContentPreview: View {
                     indexOffset: pageStart,
                     onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
                 ) { index in
-                    onChange?(togglingStep(at: index, lengthSteps: lengthSteps, steps: steps, lane: selectedLane))
+                    commit(togglingStep(at: index, lengthSteps: lengthSteps, steps: steps, lane: selectedLane))
                 }
-                .allowsHitTesting(onChange != nil)
+                .allowsHitTesting(onCommit != nil)
 
             case .velocity:
                 GridEditor(
@@ -225,7 +231,7 @@ struct ClipContentPreview: View {
                     indexOffset: pageStart,
                     onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
                 ) { nextValues in
-                    onChange?(
+                    commit(
                         updatingLaneVelocities(
                             lane: selectedLane,
                             values: nextValues,
@@ -235,7 +241,7 @@ struct ClipContentPreview: View {
                         )
                     )
                 }
-                .allowsHitTesting(onChange != nil)
+                .allowsHitTesting(onCommit != nil)
 
             case .probability:
                 GridEditor(
@@ -245,7 +251,7 @@ struct ClipContentPreview: View {
                     indexOffset: pageStart,
                     onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
                 ) { nextValues in
-                    onChange?(
+                    commit(
                         updatingLaneChances(
                             lane: selectedLane,
                             values: nextValues,
@@ -255,7 +261,7 @@ struct ClipContentPreview: View {
                         )
                     )
                 }
-                .allowsHitTesting(onChange != nil)
+                .allowsHitTesting(onCommit != nil)
             }
 
             Text(summaryText(lengthSteps: lengthSteps, page: page, pageCount: pageCount, steps: steps))
@@ -336,6 +342,13 @@ struct ClipContentPreview: View {
     private func clampPage(lengthSteps: Int) {
         let pageCount = max(1, (lengthSteps + 15) / 16)
         selectedPage = min(selectedPage, pageCount - 1)
+    }
+
+    private func commit(_ nextContent: ClipContent) {
+        guard let onCommit else { return }
+        let normalized = nextContent.normalized
+        displayedContent = normalized
+        onCommit(normalized)
     }
 
     private func summaryText(lengthSteps: Int, page: Int, pageCount: Int, steps: [ClipStep]) -> String {
