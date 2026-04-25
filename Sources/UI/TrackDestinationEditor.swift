@@ -12,6 +12,7 @@ struct TrackDestinationEditor: View {
     @State private var presetReadoutGeneration: UInt64 = 0
     @State private var presetLoadFailed = false
     @State private var presetStepInFlight = false
+    @State private var macroSlotFull = false
 
     private struct MacroSlotPickerRequest: Identifiable {
         let slotIndex: Int
@@ -305,7 +306,17 @@ struct TrackDestinationEditor: View {
                 .padding(.horizontal, 12)
             }
             .padding(.vertical, 12)
+
+            if macroSlotFull {
+                Text("All macro slots are full")
+                    .studioText(.label)
+                    .foregroundStyle(Color.orange.opacity(0.9))
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: macroSlotFull)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -325,6 +336,7 @@ struct TrackDestinationEditor: View {
                         Image(systemName: "exclamationmark.circle.fill")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(Color.red.opacity(0.8))
+                            .accessibilityLabel("Preset failed to load")
                     }
                 }
 
@@ -392,20 +404,22 @@ struct TrackDestinationEditor: View {
         presetStepInFlight = true
         presetLoadFailed = false
 
-        do {
-            let blob = try engineController.loadPreset(descriptor, for: track.id)
-            writeStateBlobAndRecord(blob, target: currentWriteTarget)
-            presetReadoutState = PresetReadout(
-                factory: readout.factory,
-                user: readout.user,
-                currentID: descriptor.id
-            )
-            refreshPresetReadout()
-        } catch {
-            log("stepPreset failed direction=\(direction) error=\(error)")
-            presetLoadFailed = true
+        Task { @MainActor in
+            defer { presetStepInFlight = false }
+            do {
+                let blob = try engineController.loadPreset(descriptor, for: track.id)
+                writeStateBlobAndRecord(blob, target: currentWriteTarget)
+                presetReadoutState = PresetReadout(
+                    factory: readout.factory,
+                    user: readout.user,
+                    currentID: descriptor.id
+                )
+                refreshPresetReadout()
+            } catch {
+                log("stepPreset failed direction=\(direction) error=\(error)")
+                presetLoadFailed = true
+            }
         }
-        presetStepInFlight = false
     }
 
     private func compactIconButton(
@@ -842,7 +856,14 @@ struct TrackDestinationEditor: View {
             valueType: .scalar,
             source: .auParameter(address: parameter.address, identifier: parameter.identifier)
         )
-        session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
+        let accepted = session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
+        if !accepted {
+            macroSlotFull = true
+            Task {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                macroSlotFull = false
+            }
+        }
     }
 
     private func removeMacroSlot(bindingID: UUID) {
