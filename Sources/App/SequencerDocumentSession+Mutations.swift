@@ -282,6 +282,54 @@ extension SequencerDocumentSession {
         }
     }
 
+    // MARK: - Macro slot assign / remove (canonical typed mutations)
+
+    /// Assign an AU parameter descriptor to a specific macro slot on a track.
+    ///
+    /// Canonical path for "user picks a parameter for slot N". Owns the full
+    /// write-back: tracks, layers, phrases, **and** clip macro lanes so that no
+    /// lane data is orphaned.
+    func assignAUMacroToSlot(
+        _ descriptor: TrackMacroDescriptor,
+        to trackID: UUID,
+        slotIndex: Int
+    ) {
+        batch(impact: .snapshotOnly, changed: .full) { s in
+            var p = s.exportToProject()
+            p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
+            p.syncMacroLayers()
+            s.replaceTracks(p.tracks)
+            s.setLayers(p.layers)
+            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+            for clip in p.clipPool {
+                if s.exportToProject().clipPool.first(where: { $0.id == clip.id }) != clip {
+                    s.mutateClip(id: clip.id) { $0 = clip }
+                }
+            }
+        }
+    }
+
+    /// Remove a macro slot from a track by binding ID.
+    ///
+    /// Canonical path for "user removes macro slot". Owns the full write-back:
+    /// tracks, layers, phrases, **and** clip macro lanes so orphaned lane data
+    /// is purged from the clip pool.
+    func removeAUMacroSlot(bindingID: UUID, trackID: UUID) {
+        batch(impact: .snapshotOnly, changed: .full) { s in
+            var p = s.exportToProject()
+            p.removeMacro(id: bindingID, from: trackID)
+            p.syncMacroLayers()
+            s.replaceTracks(p.tracks)
+            s.setLayers(p.layers)
+            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+            for clip in p.clipPool {
+                if s.exportToProject().clipPool.first(where: { $0.id == clip.id }) != clip {
+                    s.mutateClip(id: clip.id) { $0 = clip }
+                }
+            }
+        }
+    }
+
     // MARK: - Macro application (composite: tracks + layers + phrases)
 
     /// Apply a macro add/remove diff to a track.
