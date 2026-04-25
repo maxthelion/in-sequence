@@ -149,7 +149,7 @@ struct ClipContentPreview: View {
     private func noteGridEditor(lengthSteps: Int, steps: [ClipStep]) -> some View {
         let pageCount = max(1, (lengthSteps + 15) / 16)
         let playheadPage = playingStepIndex.map { min(max($0, 0), lengthSteps - 1) / 16 }
-        let page = min(playheadPage ?? selectedPage, pageCount - 1)
+        let page = min(selectedPage, pageCount - 1)
         let pageStart = page * 16
         let pageEnd = min(pageStart + 16, lengthSteps)
         let visibleIndices = Array(pageStart..<pageEnd)
@@ -199,6 +199,7 @@ struct ClipContentPreview: View {
                                 title: "\(start)-\(end)",
                                 accent: selectedLane.accent,
                                 isSelected: page == index,
+                                isPlaying: playheadPage == index,
                                 action: { selectedPage = index }
                             )
                         }
@@ -321,6 +322,7 @@ struct ClipContentPreview: View {
         title: String,
         accent: Color,
         isSelected: Bool,
+        isPlaying: Bool = false,
         isEnabled: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
@@ -340,6 +342,10 @@ struct ClipContentPreview: View {
                             isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke),
                             lineWidth: 1
                         )
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isPlaying ? StudioTheme.success.opacity(0.95) : .clear, lineWidth: 2)
                 )
         }
         .buttonStyle(.plain)
