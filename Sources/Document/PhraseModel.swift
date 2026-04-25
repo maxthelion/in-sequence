@@ -204,8 +204,13 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
     func synced(with tracks: [StepSequenceTrack]) -> PhraseLayerDefinition {
         let trackIDs = Set(tracks.map(\.id))
         var normalizedDefaults = defaults.filter { trackIDs.contains($0.key) }
+        let fallbackDefault = normalizedDefaults.values.first?.normalized(for: self)
         for track in tracks where normalizedDefaults[track.id] == nil {
-            normalizedDefaults[track.id] = Self.defaultValue(for: id, track: track)
+            normalizedDefaults[track.id] = Self.defaultValue(
+                for: id,
+                track: track,
+                fallback: fallbackDefault ?? valueType.fallbackValue(in: scalarRange)
+            )
         }
 
         return PhraseLayerDefinition(
@@ -282,7 +287,11 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
         return layers
     }
 
-    private static func defaultValue(for id: String, track: StepSequenceTrack) -> PhraseCellValue {
+    private static func defaultValue(
+        for id: String,
+        track: StepSequenceTrack,
+        fallback: PhraseCellValue? = nil
+    ) -> PhraseCellValue {
         switch id {
         case "pattern":
             return .index(0)
@@ -302,7 +311,7 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
         case "fill-flag":
             return .bool(false)
         default:
-            fatalError("Unknown built-in phrase layer id: \(id)")
+            return fallback ?? .bool(false)
         }
     }
 }

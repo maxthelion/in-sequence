@@ -155,6 +155,32 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         XCTAssertEqual(project.selectedTrackID, firstNewTrackID)
     }
 
+    func test_addDrumGroup_doesNotCrash_whenProjectAlreadyHasMacroLayers() {
+        var project = Project.empty
+        let trackID = project.selectedTrackID
+        let descriptor = TrackMacroDescriptor(
+            id: UUID(),
+            displayName: "Cutoff",
+            minValue: 0,
+            maxValue: 1,
+            defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 1, identifier: "cutoff")
+        )
+        XCTAssertTrue(project.addAUMacro(descriptor: descriptor, to: trackID))
+        project.syncMacroLayers()
+
+        let groupID = project.addDrumGroup(plan: .templated(from: .kit808), library: testLibrary)
+
+        XCTAssertNotNil(groupID)
+        XCTAssertEqual(project.tracks.suffix(4).count, 4)
+        XCTAssertTrue(
+            project.layers.contains { layer in
+                layer.id == "macro-\(trackID.uuidString)-\(descriptor.id.uuidString)"
+            }
+        )
+    }
+
     private var testLibrary: AudioSampleLibrary {
         AudioSampleLibrary(libraryRoot: libraryRoot)
     }
