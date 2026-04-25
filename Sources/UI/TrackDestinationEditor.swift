@@ -10,6 +10,8 @@ struct TrackDestinationEditor: View {
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var presetReadoutState: PresetReadout?
     @State private var presetReadoutGeneration: UInt64 = 0
+    @State private var presetLoadFailed = false
+    @State private var presetStepInFlight = false
 
     private struct MacroSlotPickerRequest: Identifiable {
         let slotIndex: Int
@@ -268,38 +270,41 @@ struct TrackDestinationEditor: View {
             Divider()
                 .overlay(StudioTheme.border.opacity(0.7))
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4),
-                alignment: .leading,
-                spacing: 16
-            ) {
-                ForEach(auMacroSlots) { slot in
-                    AUMacroSlotKnob(
-                        slotIndex: slot.slotIndex,
-                        binding: slot.binding,
-                        value: slot.binding.map { macroValue(for: $0) },
-                        onAssign: {
-                            prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex)
-                        },
-                        onChange: { newValue in
-                            guard let binding = slot.binding else {
-                                return
+            // Fixed-width slot row: M1…M8 always occupy the same horizontal position
+            // so muscle memory for slot positions is preserved. Scrollable if the
+            // inspector column is too narrow.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(auMacroSlots) { slot in
+                        AUMacroSlotKnob(
+                            slotIndex: slot.slotIndex,
+                            binding: slot.binding,
+                            value: slot.binding.map { macroValue(for: $0) },
+                            onAssign: {
+                                prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex)
+                            },
+                            onChange: { newValue in
+                                guard let binding = slot.binding else {
+                                    return
+                                }
+                                session.setMacroLayerDefault(
+                                    value: newValue,
+                                    bindingID: binding.id,
+                                    trackID: track.id
+                                )
+                            },
+                            onRemove: slot.binding.map { binding in
+                                {
+                                    removeMacroSlot(bindingID: binding.id)
+                                }
                             }
-                            session.setMacroLayerDefault(
-                                value: newValue,
-                                bindingID: binding.id,
-                                trackID: track.id
-                            )
-                        },
-                        onRemove: slot.binding.map { binding in
-                            {
-                                removeMacroSlot(bindingID: binding.id)
-                            }
-                        }
-                    )
+                        )
+                        .frame(width: 68)
+                    }
                 }
+                .padding(.horizontal, 12)
             }
-            .padding(12)
+            .padding(.vertical, 12)
         }
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
@@ -311,10 +316,17 @@ struct TrackDestinationEditor: View {
     private var presetSelectorButton: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Preset")
-                    .studioText(.eyebrow)
-                    .tracking(0.7)
-                    .foregroundStyle(StudioTheme.mutedText)
+                HStack(spacing: 4) {
+                    Text("Preset")
+                        .studioText(.eyebrow)
+                        .tracking(0.7)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    if presetLoadFailed {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.red.opacity(0.8))
+                    }
+                }
 
                 Text(currentPresetDisplayName)
                     .studioText(.labelBold)
@@ -339,7 +351,7 @@ struct TrackDestinationEditor: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
         .overlay(
             Capsule()
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                .stroke(presetLoadFailed ? Color.red.opacity(0.5) : StudioTheme.border.opacity(0.8), lineWidth: 1)
         )
         .help(currentPresetSupportingText)
     }
@@ -358,7 +370,7 @@ struct TrackDestinationEditor: View {
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!canStepPreset(direction))
+        .disabled(!canStepPreset(direction) || presetStepInFlight)
     }
 
     private func canStepPreset(_ direction: PresetStepper.Direction) -> Bool {
@@ -369,13 +381,16 @@ struct TrackDestinationEditor: View {
     }
 
     private func stepPreset(_ direction: PresetStepper.Direction) {
-        guard let readout = currentPresetReadout,
+        guard !presetStepInFlight,
+              let readout = currentPresetReadout,
               let descriptor = PresetStepper.target(from: readout, direction: direction)
         else {
             return
         }
 
         engineController.prepareAudioUnit(for: track.id)
+        presetStepInFlight = true
+        presetLoadFailed = false
 
         do {
             let blob = try engineController.loadPreset(descriptor, for: track.id)
@@ -388,7 +403,9 @@ struct TrackDestinationEditor: View {
             refreshPresetReadout()
         } catch {
             log("stepPreset failed direction=\(direction) error=\(error)")
+            presetLoadFailed = true
         }
+        presetStepInFlight = false
     }
 
     private func compactIconButton(
@@ -444,11 +461,14 @@ struct TrackDestinationEditor: View {
     }
 
     private var presetReadoutRefreshKey: String {
+        // Use the generation counter (not Data.hashValue which can collide) so
+        // every call to refreshPresetReadout() produces a unique key and the
+        // .task(id:) block fires reliably.
         switch editedDestination {
-        case let .auInstrument(componentID, stateBlob):
-            return "\(track.id.uuidString):\(componentID):\(stateBlob?.hashValue ?? 0)"
+        case let .auInstrument(componentID, _):
+            return "\(track.id.uuidString):\(componentID):\(presetReadoutGeneration)"
         default:
-            return "\(track.id.uuidString):none"
+            return "\(track.id.uuidString):none:\(presetReadoutGeneration)"
         }
     }
 
@@ -822,27 +842,11 @@ struct TrackDestinationEditor: View {
             valueType: .scalar,
             source: .auParameter(address: parameter.address, identifier: parameter.identifier)
         )
-        let trackID = track.id
-        session.batch(impact: .snapshotOnly, changed: .full) { s in
-            var p = s.exportToProject()
-            p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
-            p.syncMacroLayers()
-            s.replaceTracks(p.tracks)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-        }
+        session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
     }
 
     private func removeMacroSlot(bindingID: UUID) {
-        let trackID = track.id
-        session.batch(impact: .snapshotOnly, changed: .full) { s in
-            var p = s.exportToProject()
-            p.removeMacro(id: bindingID, from: trackID)
-            p.syncMacroLayers()
-            s.replaceTracks(p.tracks)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-        }
+        session.removeAUMacroSlot(bindingID: bindingID, trackID: track.id)
     }
 }
 

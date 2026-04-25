@@ -418,15 +418,7 @@ struct TrackSourceEditorView: View {
             valueType: .scalar,
             source: .auParameter(address: parameter.address, identifier: parameter.identifier)
         )
-        let trackID = track.id
-        session.batch(impact: .snapshotOnly, changed: .full) { s in
-            var p = s.exportToProject()
-            p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
-            p.syncMacroLayers()
-            s.replaceTracks(p.tracks)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-        }
+        session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
     }
 
     private func actionButton(title: String, accent: Color, action: @escaping () -> Void) -> some View {
