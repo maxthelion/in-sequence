@@ -83,6 +83,7 @@ final class EngineController: RouterDispatcher {
     private let endpoint: MIDIEndpoint?
     private let sharedAudioOutput: TrackPlaybackSink?
     private let audioOutputFactory: (() -> TrackPlaybackSink)?
+    private let mainAudioGraph: MainAudioGraph
     private let masterBusHost: MasterBusHosting
     private let stepsPerBar: Int
     private let stateLock = NSLock()
@@ -172,11 +173,13 @@ final class EngineController: RouterDispatcher {
         audioOutput: TrackPlaybackSink? = nil,
         audioOutputFactory: (() -> TrackPlaybackSink)? = nil,
         stepsPerBar: Int = 16,
-        sampleEngine: SamplePlaybackSink = SamplePlaybackEngine(),
+        mainAudioGraph: MainAudioGraph = MainAudioGraph(),
+        sampleEngine: SamplePlaybackSink? = nil,
         sampleLibrary: AudioSampleLibrary = .shared,
         masterBusHost: MasterBusHosting = MasterBusHost()
     ) {
-        self.sampleEngine = sampleEngine
+        self.mainAudioGraph = mainAudioGraph
+        self.sampleEngine = sampleEngine ?? SamplePlaybackEngine(audioGraph: mainAudioGraph)
         self.sampleLibrary = sampleLibrary
         self.masterBusHost = masterBusHost
         self.midiClient = client
@@ -189,9 +192,10 @@ final class EngineController: RouterDispatcher {
         self.clock = TickClock(stepsPerBar: stepsPerBar)
         self.currentBPM = 120
         self.selectedOutput = .midi
+        self.masterBusHost.attach(to: mainAudioGraph)
 
         // Now self is fully initialized; safe to capture as weak.
-        self.macroApplier = TrackMacroApplier(sampleEngine: sampleEngine) { [weak self] trackID in
+        self.macroApplier = TrackMacroApplier(sampleEngine: self.sampleEngine) { [weak self] trackID in
             self?.currentAudioUnit(for: trackID)
         }
 

@@ -1,6 +1,6 @@
 # Master Bus Scenes and End-of-Chain Inserts
 
-**Status:** Implementation started in branch `codex/master-bus-scenes`.
+**Status:** Implementation branch `codex/master-bus-scenes`; shared graph and native DSP wiring are now implemented.
 
 Implemented in this branch:
 
@@ -8,13 +8,15 @@ Implemented in this branch:
 - dirty live draft and Save Scene / Save As behavior;
 - scoped session/store mutations that avoid playback snapshot replacement;
 - engine-facing `MasterBusHost` state application and A/B equal-power gains;
+- shared `MainAudioGraph` ownership for internal AU instrument and sample paths;
+- native master filter and lo-fi/bitcrusher DSP insertion on the shared audio graph;
+- asynchronous AU effect insertion that bypasses while the AU is unavailable or still loading;
 - mixer-accessible End of Chain page with Filter, Bitcrusher, AU Effect insert choices, scene swap, and A/B controls.
 
 Still to wire in a follow-up:
 
-- shared `MainAudioGraph` ownership for all internal audio paths;
-- actual native/AU effect DSP insertion on the audio graph;
-- AU effect editor windows and live full-state capture.
+- AU effect editor windows and live full-state capture;
+- custom true bit-depth/sample-rate reduction DSP if the current AVFoundation lo-fi processor is not enough.
 
 ## Summary
 

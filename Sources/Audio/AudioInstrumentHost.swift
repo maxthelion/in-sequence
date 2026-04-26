@@ -27,7 +27,7 @@ extension TrackPlaybackSink {
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
-    private let engine = AVAudioEngine()
+    private let audioGraph: MainAudioGraph
     private let queue = DispatchQueue(label: "ai.sequencer.SequencerAI.AudioInstrumentHost")
     private let snapshotLock = NSLock()
     private let instrumentChoices: [AudioInstrumentChoice]
@@ -35,6 +35,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private let autoStartEngine: Bool
 
     private var instrument: AVAudioUnitMIDIInstrument?
+    private var outputMixer: AVAudioMixerNode?
     private var shouldBeRunning = false
     private var currentMix = TrackMixSettings.default
     private var currentChoice: AudioInstrumentChoice
@@ -93,6 +94,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     init(
         instrumentChoices: [AudioInstrumentChoice] = AudioInstrumentChoice.defaultChoices,
         initialInstrument: AudioInstrumentChoice = .builtInSynth,
+        audioGraph: MainAudioGraph = MainAudioGraph(),
         autoStartEngine: Bool = true,
         instantiateAudioUnit: @escaping AUAudioUnitFactory.AudioUnitLoader = { description, completion in
             AVAudioUnit.instantiate(with: description, options: [], completionHandler: completion)
@@ -103,6 +105,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         self.instrumentChoices = resolvedChoices
         self.currentChoice = resolvedChoices.first(where: { $0 == initialInstrument }) ?? initialInstrument
         self.currentDestination = .auInstrument(componentID: self.currentChoice.audioComponentID, stateBlob: nil)
+        self.audioGraph = audioGraph
         self.autoStartEngine = autoStartEngine
         self.factory = AUAudioUnitFactory(instantiateAudioUnit: instantiateAudioUnit)
         self.snapshotChoice = self.currentChoice
@@ -171,7 +174,6 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.shouldBeRunning = false
             self.log("stop")
             self.stopAllNotes()
-            self.engine.stop()
         }
     }
 
@@ -194,14 +196,16 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.stopAllNotes()
 
             self.performOnMain {
-                if self.engine.isRunning {
-                    self.engine.stop()
-                }
                 if let instrument = self.instrument {
                     self.log("shutdown detach instrument")
-                    self.engine.disconnectNodeOutput(instrument)
-                    self.engine.detach(instrument)
+                    self.audioGraph.disconnectOutput(instrument)
+                    self.audioGraph.detach(instrument)
                     self.instrument = nil
+                }
+                if let outputMixer = self.outputMixer {
+                    self.audioGraph.disconnectOutput(outputMixer)
+                    self.audioGraph.detach(outputMixer)
+                    self.outputMixer = nil
                 }
                 self.updateSnapshotInstrument(nil)
             }
@@ -430,7 +434,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     return
                 }
 
-                if let attachedEngine = instrument.engine, attachedEngine !== self.engine {
+                if let attachedEngine = instrument.engine, attachedEngine !== self.audioGraph.engine {
                     self.log("instantiate returned instrument already attached to another engine choice=\(choice.displayName)")
                     self.handleLoadFailure(for: choice, generation: generation)
                     return
@@ -449,12 +453,17 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.instrument = nextInstrument
             self.updateSnapshotInstrument(nextInstrument)
             if nextInstrument.engine == nil {
-                self.engine.attach(nextInstrument)
+                self.audioGraph.attach(nextInstrument)
             }
-            if self.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
-                self.engine.connect(nextInstrument, to: self.engine.mainMixerNode, format: nil)
+            let mixer = self.outputMixer ?? AVAudioMixerNode()
+            if self.outputMixer == nil {
+                self.outputMixer = mixer
+                self.audioGraph.attach(mixer)
+                self.audioGraph.connect(mixer, to: self.audioGraph.preMasterMixer)
             }
-            self.engine.prepare()
+            if self.audioGraph.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
+                self.audioGraph.connect(nextInstrument, to: mixer)
+            }
         }
         applyCurrentMix()
         startEngineIfPossible()
@@ -507,28 +516,21 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
 
         performOnMain {
-            if self.engine.isRunning {
-                self.log("disconnectCurrentInstrument stop engine")
-                self.engine.stop()
-            }
-
             self.log("disconnectCurrentInstrument detach instrument")
-            self.engine.disconnectNodeOutput(instrument)
-            self.engine.detach(instrument)
+            self.audioGraph.disconnectOutput(instrument)
+            self.audioGraph.detach(instrument)
             self.instrument = nil
             self.updateSnapshotInstrument(nil)
         }
     }
 
     private func startEngineIfPossible() {
-        guard autoStartEngine, shouldBeRunning, instrument != nil, !engine.isRunning else {
+        guard autoStartEngine, shouldBeRunning, instrument != nil else {
             return
         }
 
         do {
-            try performOnMainThrowing {
-                try self.engine.start()
-            }
+            try audioGraph.start()
             log("engine started")
         } catch {
             log("engine start failed error=\(String(describing: error))")
@@ -536,13 +538,13 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     }
 
     private func applyCurrentMix() {
-        guard let instrument else {
+        guard let outputMixer else {
             return
         }
 
         performOnMain { [currentMix] in
-            instrument.pan = Float(currentMix.clampedPan)
-            instrument.volume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
+            outputMixer.pan = Float(currentMix.clampedPan)
+            outputMixer.outputVolume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
         }
     }
 

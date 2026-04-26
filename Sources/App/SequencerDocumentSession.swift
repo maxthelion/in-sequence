@@ -44,9 +44,15 @@ final class SequencerDocumentSession {
         self.document = document
         self.owningDocument = document.wrappedValue
         self.debounceInterval = debounceInterval
+        let audioGraph = MainAudioGraph()
+        let audioOutputFactory = {
+            AudioInstrumentHost(audioGraph: audioGraph)
+        }
         self.engineController = EngineController(
-            audioOutput: AudioInstrumentHost(),
-            audioOutputFactory: { AudioInstrumentHost() }
+            audioOutput: audioOutputFactory(),
+            audioOutputFactory: audioOutputFactory,
+            mainAudioGraph: audioGraph,
+            sampleEngine: SamplePlaybackEngine(audioGraph: audioGraph)
         )
         let initialStore = LiveSequencerStore(project: document.wrappedValue.project)
         self.store = initialStore

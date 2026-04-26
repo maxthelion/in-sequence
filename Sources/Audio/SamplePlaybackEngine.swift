@@ -35,13 +35,13 @@ protocol SamplePlaybackSink: AnyObject {
     func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)?
 }
 
-/// Hosts an AVAudioEngine with per-track `AVAudioMixerNode`s. Voices are
+/// Hosts sample player nodes with per-track `AVAudioMixerNode`s. Voices are
 /// dynamically routed to the requesting track's mixer on each `play` call; the
 /// mixer's `outputVolume` / `pan` is what the track fader writes to. A separate
 /// preview node drives audition and bypasses track mixers entirely.
 final class SamplePlaybackEngine: SamplePlaybackSink {
     private static let mainVoiceCount = 16
-    private let engine = AVAudioEngine()
+    private let audioGraph: MainAudioGraph
     private var mainVoices: [AVAudioPlayerNode] = []
     private var mainVoiceHandles: [UUID] = []
     private var mainVoiceCurrentTrack: [UUID?] = []
@@ -55,22 +55,23 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
 
-    init() {
+    init(audioGraph: MainAudioGraph = MainAudioGraph()) {
+        self.audioGraph = audioGraph
         for _ in 0..<Self.mainVoiceCount {
             let node = AVAudioPlayerNode()
-            engine.attach(node)
+            audioGraph.attach(node)
             // Voices are connected lazily at first play(), when the target track is known.
             mainVoices.append(node)
             mainVoiceHandles.append(UUID())
             mainVoiceCurrentTrack.append(nil)
         }
-        engine.attach(previewNode)
-        engine.connect(previewNode, to: engine.mainMixerNode, format: nil)
+        audioGraph.attach(previewNode)
+        audioGraph.connect(previewNode, to: audioGraph.preMasterMixer)
     }
 
     func start() throws {
         guard !isStarted else { return }
-        try engine.start()
+        try audioGraph.start()
         isStarted = true
     }
 
@@ -78,7 +79,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         guard isStarted else { return }
         for voice in mainVoices { voice.stop() }
         previewNode.stop()
-        engine.stop()
+        audioGraph.stop()
         isStarted = false
     }
 
@@ -98,8 +99,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let mixer = trackMixer(for: trackID)
         voice.stop()
         if mainVoiceCurrentTrack[voiceIndex] != trackID {
-            engine.disconnectNodeOutput(voice)
-            engine.connect(voice, to: mixer, format: nil)
+            audioGraph.disconnectOutput(voice)
+            audioGraph.connect(voice, to: mixer)
             mainVoiceCurrentTrack[voiceIndex] = trackID
         }
 
@@ -140,15 +141,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
         for (i, currentTrackID) in mainVoiceCurrentTrack.enumerated() where currentTrackID == trackID {
             mainVoices[i].stop()
-            engine.disconnectNodeOutput(mainVoices[i])
+            audioGraph.disconnectOutput(mainVoices[i])
             mainVoiceCurrentTrack[i] = nil
         }
-        engine.disconnectNodeOutput(mixer)
-        engine.detach(mixer)
+        audioGraph.disconnectOutput(mixer)
+        audioGraph.detach(mixer)
         // Also tear down the filter inserted after this mixer.
         if let filter = trackFilters.removeValue(forKey: trackID) {
-            engine.disconnectNodeOutput(filter.avNode)
-            engine.detach(filter.avNode)
+            audioGraph.disconnectOutput(filter.avNode)
+            audioGraph.detach(filter.avNode)
         }
     }
 
@@ -172,14 +173,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private func trackMixer(for trackID: UUID) -> AVAudioMixerNode {
         if let mixer = trackMixers[trackID] { return mixer }
         let mixer = AVAudioMixerNode()
-        engine.attach(mixer)
+        audioGraph.attach(mixer)
 
         // Insert a filter between the track mixer and the main mixer.
-        // Graph: voices -> mixer -> filter.avNode -> mainMixerNode
+        // Graph: voices -> mixer -> filter.avNode -> shared pre-master mixer
         let filter = SamplerFilterNode()
-        engine.attach(filter.avNode)
-        engine.connect(mixer, to: filter.avNode, format: nil)
-        engine.connect(filter.avNode, to: engine.mainMixerNode, format: nil)
+        audioGraph.attach(filter.avNode)
+        audioGraph.connect(mixer, to: filter.avNode)
+        audioGraph.connect(filter.avNode, to: audioGraph.preMasterMixer)
         trackFilters[trackID] = filter
 
         trackMixers[trackID] = mixer

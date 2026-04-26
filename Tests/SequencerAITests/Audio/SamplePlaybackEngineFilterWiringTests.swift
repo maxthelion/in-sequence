@@ -64,6 +64,18 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
             "A filter node must exist after routing a voice to the track")
     }
 
+    @MainActor
+    func test_trackFilterRoutesToInjectedGraphPreMaster() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        let trackID = UUID()
+
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: -0.2)
+
+        let filter = try XCTUnwrap(engine.filterNode(for: trackID) as? SamplerFilterNode)
+        XCTAssertTrue(filter.avNode.engine === graph.engine)
+    }
+
     func test_twoTracks_hasTwoDistinctFilterNodes() throws {
         let engine = try makeEngine()
         defer { engine.stop() }
