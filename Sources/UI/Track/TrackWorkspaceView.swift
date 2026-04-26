@@ -29,29 +29,23 @@ struct TrackWorkspaceView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let availableWidth = proxy.size.width
-            let usesSplitLayout = availableWidth >= 1120
-            let destinationWidth = min(340, max(300, availableWidth * 0.28))
+        VStack(alignment: .leading, spacing: 18) {
+            trackHeader
 
-            VStack(alignment: .leading, spacing: 18) {
-                trackHeader
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 18) {
+                    TrackSourceEditorView(document: $document, accent: sourceAccent)
+                        .frame(minWidth: 760, maxWidth: .infinity, alignment: .topLeading)
+                        .layoutPriority(1)
 
-                if usesSplitLayout {
-                    HStack(alignment: .top, spacing: 18) {
-                        TrackSourceEditorView(document: $document, accent: sourceAccent)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .layoutPriority(1)
+                    destinationColumn
+                        .frame(width: 320, alignment: .topLeading)
+                        .clipped()
+                }
 
-                        destinationColumn
-                            .frame(width: destinationWidth, alignment: .topLeading)
-                            .clipped()
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: 18) {
-                        TrackSourceEditorView(document: $document, accent: sourceAccent)
-                        destinationColumn
-                    }
+                VStack(alignment: .leading, spacing: 18) {
+                    TrackSourceEditorView(document: $document, accent: sourceAccent)
+                    destinationColumn
                 }
             }
         }
