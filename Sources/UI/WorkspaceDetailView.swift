@@ -17,11 +17,6 @@ struct WorkspaceDetailView: View {
                 .stroke(StudioTheme.border, lineWidth: 1)
                 .allowsHitTesting(false)
         )
-        #if DEBUG
-        .background {
-            WorkspaceHitTestDiagnostics(label: "WorkspaceDetailView", section: section)
-        }
-        #endif
     }
 
     @ViewBuilder
