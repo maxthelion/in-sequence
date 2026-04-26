@@ -15,5 +15,10 @@ struct ContentView: View {
             }
             .padding(18)
         }
+        #if DEBUG
+        .background {
+            WorkspaceHitTestDiagnostics(label: "ContentView", section: section)
+        }
+        #endif
     }
 }
