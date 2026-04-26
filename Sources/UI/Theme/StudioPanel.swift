@@ -36,6 +36,7 @@ struct StudioPanel<Content: View>: View {
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
+                .allowsHitTesting(false)
         )
         .shadow(color: .black.opacity(StudioOpacity.subtleStroke), radius: StudioMetrics.CornerRadius.panel, x: 0, y: 10)
     }

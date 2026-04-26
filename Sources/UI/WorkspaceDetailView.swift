@@ -15,6 +15,7 @@ struct WorkspaceDetailView: View {
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: 1)
+                .allowsHitTesting(false)
         )
     }
 
