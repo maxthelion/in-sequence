@@ -1,6 +1,20 @@
 # Master Bus Scenes and End-of-Chain Inserts
 
-**Status:** Proposed. Plan-only branch `codex/master-bus-scenes-plan`.
+**Status:** Implementation started in branch `codex/master-bus-scenes`.
+
+Implemented in this branch:
+
+- persisted master bus scenes and inserts;
+- dirty live draft and Save Scene / Save As behavior;
+- scoped session/store mutations that avoid playback snapshot replacement;
+- engine-facing `MasterBusHost` state application and A/B equal-power gains;
+- mixer-accessible End of Chain page with Filter, Bitcrusher, AU Effect insert choices, scene swap, and A/B controls.
+
+Still to wire in a follow-up:
+
+- shared `MainAudioGraph` ownership for all internal audio paths;
+- actual native/AU effect DSP insertion on the audio graph;
+- AU effect editor windows and live full-state capture.
 
 ## Summary
 

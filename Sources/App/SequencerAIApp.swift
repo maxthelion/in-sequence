@@ -10,6 +10,7 @@ struct SequencerAIApp: App {
         // EngineController. This call here covers the case where the delegate hasn't fired
         // yet (e.g. direct test or simulator instantiation).
         AudioInstrumentChoiceCache.shared.beginWarmingIfNeeded()
+        AudioEffectChoiceCache.shared.beginWarmingIfNeeded()
 
         do {
             let root = try AppSupportBootstrap.appSupportRoot()

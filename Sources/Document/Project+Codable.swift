@@ -17,6 +17,7 @@ struct NormalizedFields {
         case clipPool
         case layers
         case routes
+        case masterBus
         case patternBanks
         case selectedTrackID
         case phrases
@@ -119,6 +120,7 @@ static func normalize(
         let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
         let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
         let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
+        let resolvedMasterBus = try container.decodeIfPresent(MasterBusState.self, forKey: .masterBus)?.normalized() ?? .default
         let normalized = Self.normalize(
             tracks: resolvedTracks,
             generatorPool: resolvedGeneratorPool,
@@ -137,6 +139,7 @@ static func normalize(
         clipPool = resolvedClipPool
         layers = normalized.layers
         routes = resolvedRoutes
+        masterBus = resolvedMasterBus
         patternBanks = normalized.patternBanks
         selectedTrackID = normalized.selectedTrackID
         phrases = normalized.phrases
@@ -153,6 +156,7 @@ static func normalize(
         try container.encode(clipPool, forKey: .clipPool)
         try container.encode(layers, forKey: .layers)
         try container.encode(routes, forKey: .routes)
+        try container.encode(masterBus.normalized(), forKey: .masterBus)
         try container.encode(patternBanks, forKey: .patternBanks)
         try container.encode(selectedTrackID, forKey: .selectedTrackID)
         try container.encode(phrases, forKey: .phrases)
@@ -191,6 +195,7 @@ static func normalize(
         if !tracks.contains(where: { $0.id == selectedTrackID }) {
             selectedTrackID = tracks[0].id
         }
+        masterBus = masterBus.normalized()
     }
 
     static func defaultPatternBanks(

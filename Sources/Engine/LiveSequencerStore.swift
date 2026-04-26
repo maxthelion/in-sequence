@@ -12,6 +12,8 @@ enum ScopedRuntimeUpdate: Sendable {
     case auState(trackID: UUID, blob: Data?)
     /// Update mix settings for a single track (general-consumer path).
     case mix(trackID: UUID, mix: TrackMixSettings)
+    /// Update master bus scene/end-of-chain state without rebuilding playback.
+    case masterBus(MasterBusState)
 }
 
 enum LiveMutationImpact: Sendable {
@@ -95,6 +97,9 @@ final class LiveSequencerStore {
     /// Routes, ordered as stored.
     private var storeRoutes: [Route] = []
 
+    /// Master bus end-of-chain scenes and live draft state.
+    private var storeMasterBus: MasterBusState = .default
+
     /// Pattern banks keyed by track ID.
     private var storePatternBanksByTrackID: [UUID: TrackPatternBank] = [:]
 
@@ -123,6 +128,7 @@ final class LiveSequencerStore {
         storeTrackGroups = project.trackGroups
         storeLayers = project.layers
         storeRoutes = project.routes
+        storeMasterBus = project.masterBus.normalized()
         storeSelectedTrackID = project.selectedTrackID
         storeSelectedPhraseID = project.selectedPhraseID
 
@@ -173,6 +179,7 @@ final class LiveSequencerStore {
             clipPool: orderedClips,
             layers: storeLayers,
             routes: storeRoutes,
+            masterBus: storeMasterBus,
             patternBanks: orderedBanks,
             selectedTrackID: storeSelectedTrackID,
             phrases: orderedPhrases,
@@ -396,6 +403,31 @@ final class LiveSequencerStore {
         revision &+= 1
     }
 
+    /// Replace master bus state. Bumps revision only if the value changed.
+    func setMasterBus(_ masterBus: MasterBusState) {
+        let normalized = masterBus.normalized()
+        guard normalized != storeMasterBus else {
+            return
+        }
+        storeMasterBus = normalized
+        revision &+= 1
+    }
+
+    /// Mutate master bus state in place.
+    @discardableResult
+    func mutateMasterBus(_ update: (inout MasterBusState) -> Void) -> Bool {
+        var masterBus = storeMasterBus
+        let before = masterBus
+        update(&masterBus)
+        masterBus.normalize()
+        guard masterBus != before else {
+            return false
+        }
+        storeMasterBus = masterBus
+        revision &+= 1
+        return true
+    }
+
     // MARK: - Route typed mutations
 
     /// Upsert a route rule (insert if new, replace if matching ID exists).
@@ -437,6 +469,7 @@ final class LiveSequencerStore {
     var trackGroups: [TrackGroup] { storeTrackGroups }
     var layers: [PhraseLayerDefinition] { storeLayers }
     var routes: [Route] { storeRoutes }
+    var masterBus: MasterBusState { storeMasterBus }
     var selectedTrackID: UUID { storeSelectedTrackID }
     var selectedPhraseID: UUID { storeSelectedPhraseID }
     var patternBanksByTrackID: [UUID: TrackPatternBank] { storePatternBanksByTrackID }

@@ -68,6 +68,15 @@ final class ProjectDeltaDiffTests: XCTestCase {
         )
     }
 
+    func test_master_bus_change_produces_masterBusChanged() {
+        let before = Project.empty
+        var after = before
+        after.masterBus.addInsert(.filter())
+
+        XCTAssertEqual(after.deltas(from: before), [.masterBusChanged])
+        XCTAssertTrue(ProjectDelta.masterBusChanged.isPhaseOneHotPath)
+    }
+
     func test_version_change_produces_coarse_resync() {
         let before = Project.empty
         var after = before

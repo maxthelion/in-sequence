@@ -9,6 +9,7 @@ enum ProjectDelta: Equatable, Hashable {
     case tracksInsertedOrRemoved
     case trackGroupsChanged
     case routesChanged
+    case masterBusChanged
     case patternBanksChanged
     case phrasesChanged
     case clipPoolChanged
@@ -19,6 +20,7 @@ enum ProjectDelta: Equatable, Hashable {
         switch self {
         case .trackMixChanged,
              .selectedTrackChanged,
+             .masterBusChanged,
              .patternBanksChanged,
              .clipPoolChanged,
              .phrasesChanged:

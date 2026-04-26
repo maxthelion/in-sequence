@@ -44,6 +44,10 @@ extension Project {
             deltas.append(.routesChanged)
         }
 
+        if masterBus != previous.masterBus {
+            deltas.append(.masterBusChanged)
+        }
+
         if patternBanks != previous.patternBanks {
             deltas.append(.patternBanksChanged)
         }

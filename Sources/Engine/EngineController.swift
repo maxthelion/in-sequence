@@ -83,6 +83,7 @@ final class EngineController: RouterDispatcher {
     private let endpoint: MIDIEndpoint?
     private let sharedAudioOutput: TrackPlaybackSink?
     private let audioOutputFactory: (() -> TrackPlaybackSink)?
+    private let masterBusHost: MasterBusHosting
     private let stepsPerBar: Int
     private let stateLock = NSLock()
     @ObservationIgnored
@@ -172,10 +173,12 @@ final class EngineController: RouterDispatcher {
         audioOutputFactory: (() -> TrackPlaybackSink)? = nil,
         stepsPerBar: Int = 16,
         sampleEngine: SamplePlaybackSink = SamplePlaybackEngine(),
-        sampleLibrary: AudioSampleLibrary = .shared
+        sampleLibrary: AudioSampleLibrary = .shared,
+        masterBusHost: MasterBusHosting = MasterBusHost()
     ) {
         self.sampleEngine = sampleEngine
         self.sampleLibrary = sampleLibrary
+        self.masterBusHost = masterBusHost
         self.midiClient = client
         self.endpoint = endpoint
         self.sharedAudioOutput = audioOutput
@@ -322,6 +325,7 @@ final class EngineController: RouterDispatcher {
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
+        masterBusHost.apply(documentModel.masterBus)
         let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
         withStateLock {
             currentPlaybackSnapshot = compiledSnapshot
@@ -436,8 +440,25 @@ final class EngineController: RouterDispatcher {
 
     var sampleEngineSink: SamplePlaybackSink { sampleEngine }
 
+    var masterBusState: MasterBusState {
+        masterBusHost.appliedState
+    }
+
+    var masterBusApplyCallCount: Int {
+        masterBusHost.applyCallCount
+    }
+
+    func apply(masterBus: MasterBusState) {
+        masterBusHost.apply(masterBus)
+        currentDocumentModel.masterBus = masterBus.normalized()
+    }
+
     var availableAudioInstruments: [AudioInstrumentChoice] {
         sharedAudioOutput?.availableInstruments ?? AudioInstrumentChoice.defaultChoices
+    }
+
+    var availableAudioEffects: [AudioEffectChoice] {
+        AudioEffectChoice.defaultChoices
     }
 
     var availableMIDIDestinationNames: [MIDIEndpointName] {
@@ -577,6 +598,9 @@ final class EngineController: RouterDispatcher {
 
             case .clipPoolChanged:
                 shouldInvalidatePreparedTick = true
+
+            case .masterBusChanged:
+                apply(masterBus: documentModel.masterBus)
 
             case .trackParameterChanged,
                  .tracksInsertedOrRemoved,

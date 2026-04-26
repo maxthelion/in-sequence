@@ -121,6 +121,87 @@ extension SequencerDocumentSession {
         return true
     }
 
+    // MARK: - Master bus mutations
+
+    @discardableResult
+    func mutateMasterBus(_ update: (inout MasterBusState) -> Void) -> Bool {
+        let changed = store.mutateMasterBus(update)
+        guard changed else { return false }
+        let masterBus = store.masterBus
+        if isInBatch {
+            recordBatchChange(.none)
+            return true
+        }
+        dispatchImpact(.scopedRuntime(update: .masterBus(masterBus)), changed: .none)
+        return true
+    }
+
+    func setActiveMasterScene(_ sceneID: UUID) {
+        mutateMasterBus { masterBus in
+            masterBus.setActiveScene(id: sceneID)
+        }
+    }
+
+    func setMasterBusDraft(_ scene: MasterBusScene) {
+        mutateMasterBus { masterBus in
+            masterBus.setDraft(scene)
+        }
+    }
+
+    func discardMasterBusDraft() {
+        mutateMasterBus { masterBus in
+            masterBus.discardDraft()
+        }
+    }
+
+    func commitMasterBusDraft(name: String? = nil) {
+        mutateMasterBus { masterBus in
+            masterBus.commitDraft(name: name)
+        }
+    }
+
+    func saveMasterBusDraft(as name: String) {
+        mutateMasterBus { masterBus in
+            masterBus.saveDraftAsNewScene(name: name)
+        }
+    }
+
+    func addMasterBusInsert(_ insert: MasterBusInsert) {
+        mutateMasterBus { masterBus in
+            masterBus.addInsert(insert)
+        }
+    }
+
+    func updateMasterBusInsert(_ insertID: UUID, edit: (inout MasterBusInsert) -> Void) {
+        mutateMasterBus { masterBus in
+            masterBus.updateInsert(id: insertID, edit)
+        }
+    }
+
+    func removeMasterBusInsert(_ insertID: UUID) {
+        mutateMasterBus { masterBus in
+            masterBus.removeInsert(id: insertID)
+        }
+    }
+
+    func reorderMasterBusInserts(_ ids: [UUID]) {
+        mutateMasterBus { masterBus in
+            masterBus.reorderInserts(ids: ids)
+        }
+    }
+
+    func setMasterABMode(_ selection: MasterBusABSelection?) {
+        mutateMasterBus { masterBus in
+            masterBus.setABSelection(selection)
+        }
+    }
+
+    func setMasterCrossfader(_ value: Double) {
+        mutateMasterBus { masterBus in
+            masterBus.setCrossfader(value)
+        }
+    }
+
     // MARK: - Phrase mutations
 
     /// Mutate a phrase by ID, then dispatch impact.

@@ -13,6 +13,7 @@ struct Project: Codable, Equatable {
     var clipPool: [ClipPoolEntry]
     var layers: [PhraseLayerDefinition]
     var routes: [Route]
+    var masterBus: MasterBusState
     var patternBanks: [TrackPatternBank]
     var selectedTrackID: UUID
     var phrases: [PhraseModel]
@@ -26,6 +27,7 @@ struct Project: Codable, Equatable {
         clipPool: [ClipPoolEntry] = [],
         layers: [PhraseLayerDefinition] = [],
         routes: [Route] = [],
+        masterBus: MasterBusState = .default,
         patternBanks: [TrackPatternBank] = [],
         selectedTrackID: UUID,
         phrases: [PhraseModel],
@@ -49,6 +51,7 @@ struct Project: Codable, Equatable {
         self.clipPool = clipPool
         self.layers = normalized.layers
         self.routes = routes
+        self.masterBus = masterBus.normalized()
         self.patternBanks = normalized.patternBanks
         self.selectedTrackID = normalized.selectedTrackID
         self.phrases = normalized.phrases
