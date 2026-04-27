@@ -237,44 +237,58 @@ struct ScenesWorkspaceView: View {
     }
 
     private var sceneEditor: some View {
-        StudioPanel(title: selectedScene.name, accent: StudioTheme.cyan) {
-            VStack(alignment: .leading, spacing: 18) {
-                editorToolbar
+        VStack(alignment: .leading, spacing: 18) {
+            sceneEditorHeader
 
-                HStack(spacing: 12) {
-                    TextField("Scene Name", text: sceneNameBinding(selectedScene.id, fallback: selectedScene.name))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 320)
+            sliderRow(
+                title: "Output",
+                value: outputGainBinding(selectedScene.id, fallback: selectedScene.outputGain),
+                range: 0...1.5,
+                label: String(format: "%.2f", selectedScene.outputGain)
+            )
 
-                    sliderRow(
-                        title: "Output",
-                        value: outputGainBinding(selectedScene.id, fallback: selectedScene.outputGain),
-                        range: 0...1.5,
-                        label: String(format: "%.2f", selectedScene.outputGain)
-                    )
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 18) {
+                    insertList
+                        .frame(minWidth: 300, maxWidth: 380, alignment: .topLeading)
+                    insertEditor
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
 
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 18) {
-                        insertList
-                            .frame(minWidth: 300, maxWidth: 380, alignment: .topLeading)
-                        insertEditor
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
-
-                    VStack(alignment: .leading, spacing: 18) {
-                        insertList
-                        insertEditor
-                    }
+                VStack(alignment: .leading, spacing: 18) {
+                    insertList
+                    insertEditor
                 }
-
-                macroAssignments
             }
+
+            macroAssignments
         }
+        .padding(StudioMetrics.Spacing.loose)
+        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: 1)
+                .allowsHitTesting(false)
+        )
+        .shadow(color: .black.opacity(StudioOpacity.subtleStroke), radius: StudioMetrics.CornerRadius.panel, x: 0, y: 10)
     }
 
-    private var editorToolbar: some View {
-        HStack(spacing: 8) {
+    private var sceneEditorHeader: some View {
+        HStack(alignment: .center, spacing: 14) {
+            TextField("Scene Name", text: sceneNameBinding(selectedScene.id, fallback: selectedScene.name))
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+                .textFieldStyle(.plain)
+                .frame(minWidth: 180, maxWidth: 420, alignment: .leading)
+                .padding(.vertical, 4)
+                .overlay(alignment: .bottomLeading) {
+                    Rectangle()
+                        .fill(StudioTheme.cyan)
+                        .frame(width: 36, height: 2)
+                }
+
+            Spacer()
+
             Button {
                 selectedSceneID = nil
                 selectedInsertID = nil
@@ -282,28 +296,6 @@ struct ScenesWorkspaceView: View {
                 Label("Scenes", systemImage: "chevron.left")
             }
             .buttonStyle(.bordered)
-
-            Spacer()
-
-            Button {
-                let createdID = session.duplicateMasterBusScene(selectedScene.id)
-                selectedSceneID = createdID ?? selectedSceneID
-                selectedInsertID = createdID.flatMap { session.store.masterBus.scene(id: $0)?.inserts.first?.id }
-            } label: {
-                Label("Duplicate", systemImage: "plus.square.on.square")
-            }
-            .buttonStyle(.bordered)
-
-            Button(role: .destructive) {
-                let removedID = selectedScene.id
-                session.removeMasterBusScene(removedID)
-                selectedSceneID = nil
-                selectedInsertID = nil
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-            .buttonStyle(.bordered)
-            .disabled(masterBus.scenes.count <= 2)
         }
     }
 
