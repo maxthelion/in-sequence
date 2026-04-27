@@ -178,12 +178,6 @@ extension SequencerDocumentSession {
         }
     }
 
-    func setMasterSceneOutputGain(_ sceneID: UUID, value: Double) {
-        updateMasterBusScene(sceneID) { scene in
-            scene.outputGain = value
-        }
-    }
-
     func addMasterBusInsert(_ insert: MasterBusInsert, to sceneID: UUID? = nil) {
         mutateMasterBus { masterBus in
             masterBus.addInsert(insert, sceneID: sceneID)

@@ -71,23 +71,25 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         )
 
         let sceneID = session.store.masterBus.activeSceneID
-        let macro = MasterSceneMacroBinding(slotIndex: 0, target: .outputGain)
+        let insert = MasterBusInsert.filter()
+        session.addMasterBusInsert(insert, to: sceneID)
+        let macro = MasterSceneMacroBinding(slotIndex: 0, target: .filterCutoff(insertID: insert.id))
         session.upsertMasterSceneMacroBinding(macro, in: sceneID)
 
         let revisionBefore = session.store.revision
         let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
         let masterBusCallsBefore = engine.masterBusApplyCallCount
 
-        engine.setMasterSceneMacroOverride(sceneID: sceneID, macroID: macro.id, value: 0.4)
+        engine.setMasterSceneMacroOverride(sceneID: sceneID, macroID: macro.id, value: 2_000)
 
         XCTAssertEqual(session.store.revision, revisionBefore)
         XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
         XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore)
-        XCTAssertEqual(engine.masterBusState.activeScene.outputGain, 1)
-        XCTAssertEqual(engine.resolvedMasterBusState.activeScene.outputGain, 0.4)
+        XCTAssertEqual(engine.masterBusState.activeScene.inserts[0].kind.summary, "12000 Hz")
+        XCTAssertEqual(engine.resolvedMasterBusState.activeScene.inserts[0].kind.summary, "2000 Hz")
 
         engine.clearMasterSceneMacroOverrides(sceneID: sceneID)
-        XCTAssertEqual(engine.resolvedMasterBusState.activeScene.outputGain, 1)
+        XCTAssertEqual(engine.resolvedMasterBusState.activeScene.inserts[0].kind.summary, "12000 Hz")
 
         SequencerDocumentSessionRegistry.unregister(session)
     }
@@ -105,15 +107,17 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         )
 
         let sceneID = session.store.masterBus.activeSceneID
-        let macro = MasterSceneMacroBinding(slotIndex: 0, target: .outputGain)
+        let insert = MasterBusInsert.filter()
+        session.addMasterBusInsert(insert, to: sceneID)
+        let macro = MasterSceneMacroBinding(slotIndex: 0, target: .filterCutoff(insertID: insert.id))
         session.upsertMasterSceneMacroBinding(macro, in: sceneID)
-        engine.setMasterSceneMacroOverride(sceneID: sceneID, macroID: macro.id, value: 0.25)
+        engine.setMasterSceneMacroOverride(sceneID: sceneID, macroID: macro.id, value: 2_000)
 
         session.saveMasterScenePerformanceOverrides(engine.masterSceneMacroOverrides(sceneID: sceneID), to: sceneID)
         engine.clearMasterSceneMacroOverrides(sceneID: sceneID)
 
-        XCTAssertEqual(session.store.masterBus.activeScene.outputGain, 0.25)
-        XCTAssertEqual(engine.resolvedMasterBusState.activeScene.outputGain, 0.25)
+        XCTAssertEqual(session.store.masterBus.activeScene.inserts[0].kind.summary, "2000 Hz")
+        XCTAssertEqual(engine.resolvedMasterBusState.activeScene.inserts[0].kind.summary, "2000 Hz")
 
         SequencerDocumentSessionRegistry.unregister(session)
     }

@@ -198,11 +198,6 @@ struct ScenesWorkspaceView: View {
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
                 }
-
-                Text(String(format: "%.2f out", scene.outputGain))
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.amber)
             }
             .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
             .padding(12)
@@ -239,13 +234,6 @@ struct ScenesWorkspaceView: View {
     private var sceneEditor: some View {
         VStack(alignment: .leading, spacing: 18) {
             sceneEditorHeader
-
-            sliderRow(
-                title: "Output",
-                value: outputGainBinding(selectedScene.id, fallback: selectedScene.outputGain),
-                range: 0...1.5,
-                label: String(format: "%.2f", selectedScene.outputGain)
-            )
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 18) {
@@ -363,59 +351,73 @@ struct ScenesWorkspaceView: View {
     }
 
     private func insertRow(_ insert: MasterBusInsert) -> some View {
-        Button {
-            selectedInsertID = insert.id
-        } label: {
-            HStack(spacing: 10) {
+        let isSelected = insert.id == selectedInsertID
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .top, spacing: 10) {
                 Image(systemName: iconName(for: insert.kind))
-                    .frame(width: 18)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 28, height: 28)
+                    .background(StudioTheme.amber.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(insert.name)
+                    TextField("Insert Name", text: insertNameBinding(insert.id, fallback: insert.name))
                         .studioText(.bodyEmphasis)
                         .foregroundStyle(StudioTheme.text)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1)
+
                     Text(insert.kind.summary)
                         .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
                 }
-                Spacer()
-                Text(insert.isEnabled ? "ON" : "BYP")
+
+                Spacer(minLength: 4)
+
+                Toggle("Enabled", isOn: binding(for: insert.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .tint(StudioTheme.success)
+            }
+
+            HStack(spacing: 6) {
+                Text(insert.isEnabled ? "Enabled" : "Bypassed")
                     .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(insert.isEnabled ? StudioTheme.success : StudioTheme.mutedText)
+
+                Spacer()
+
+                insertMoveButtons(insert)
+
+                Button(role: .destructive) {
+                    session.removeMasterBusInsert(insert.id, from: selectedScene.id)
+                    selectedInsertID = selectedScene.inserts.first(where: { $0.id != insert.id })?.id
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.bordered)
+                .help("Remove insert")
             }
-            .padding(10)
-            .background(insert.id == selectedInsertID ? StudioTheme.cyan.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(insert.id == selectedInsertID ? StudioTheme.cyan : StudioTheme.border, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
+        .padding(10)
+        .background(isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .onTapGesture {
+            selectedInsertID = insert.id
+        }
     }
 
     @ViewBuilder
     private var insertEditor: some View {
         if let insert = selectedInsert {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    TextField("Insert Name", text: insertNameBinding(insert.id, fallback: insert.name))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 260)
-
-                    Spacer()
-                    insertMoveButtons(insert)
-                    Button(role: .destructive) {
-                        session.removeMasterBusInsert(insert.id, from: selectedScene.id)
-                        selectedInsertID = selectedScene.inserts.first(where: { $0.id != insert.id })?.id
-                    } label: {
-                        Label("Remove", systemImage: "trash")
-                    }
-                }
-
-                Toggle("Enabled", isOn: binding(for: insert.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
-                    .toggleStyle(.switch)
-                    .tint(StudioTheme.success)
-
                 sliderRow(
                     title: "Wet",
                     value: binding(for: insert.id, keyPath: \.wetDry, fallback: insert.wetDry),
@@ -595,13 +597,6 @@ struct ScenesWorkspaceView: View {
         Binding(
             get: { masterBus.scene(id: sceneID)?.name ?? fallback },
             set: { session.setMasterSceneName(sceneID, name: $0) }
-        )
-    }
-
-    private func outputGainBinding(_ sceneID: UUID, fallback: Double) -> Binding<Double> {
-        Binding(
-            get: { masterBus.scene(id: sceneID)?.outputGain ?? fallback },
-            set: { session.setMasterSceneOutputGain(sceneID, value: $0) }
         )
     }
 
@@ -803,6 +798,7 @@ struct ScenesWorkspaceView: View {
             .disabled(index(of: insert.id) == selectedScene.inserts.count - 1)
         }
         .buttonStyle(.bordered)
+        .controlSize(.small)
     }
 
     private func move(_ insert: MasterBusInsert, by delta: Int) {
@@ -820,7 +816,7 @@ struct ScenesWorkspaceView: View {
     }
 
     private func macroTargets(for scene: MasterBusScene) -> [MasterSceneMacroTarget] {
-        var targets: [MasterSceneMacroTarget] = [.outputGain]
+        var targets: [MasterSceneMacroTarget] = []
         for insert in scene.inserts {
             targets.append(.insertWetDry(insertID: insert.id))
             switch insert.kind {

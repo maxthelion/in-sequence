@@ -89,6 +89,19 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertTrue(state.activeScene.macroBindings.isEmpty)
     }
 
+    func test_sceneOutputGain_isNormalizedToUnityAndNotAMacroTarget() {
+        let scene = MasterBusScene(
+            name: "Gain",
+            outputGain: 0.2,
+            macroBindings: [MasterSceneMacroBinding(slotIndex: 0, target: .outputGain)]
+        )
+
+        let state = MasterBusState(scenes: [scene], activeSceneID: scene.id)
+
+        XCTAssertEqual(state.activeScene.outputGain, 1)
+        XCTAssertTrue(state.activeScene.macroBindings.isEmpty)
+    }
+
     func test_legacyDraftPromotesIntoActiveSceneOnDecode() throws {
         struct LegacyMasterBusState: Encodable {
             let scenes: [MasterBusScene]

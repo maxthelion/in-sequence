@@ -294,7 +294,7 @@ struct MasterBusScene: Codable, Equatable, Identifiable, Sendable {
         var copy = self
         let trimmed = copy.name.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.name = trimmed.isEmpty ? "Scene" : trimmed
-        copy.outputGain = copy.outputGain.clamped(to: 0...1.5)
+        copy.outputGain = 1
         copy.inserts = copy.inserts.map { $0.normalized() }
         copy.macroBindings = Self.normalizedMacroBindings(copy.macroBindings, in: copy)
         return copy
@@ -421,7 +421,7 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
     func isValid(in scene: MasterBusScene) -> Bool {
         switch self {
         case .outputGain:
-            return true
+            return false
         case let .insertWetDry(insertID):
             return scene.inserts.contains { $0.id == insertID }
         case let .filterCutoff(insertID),
@@ -474,7 +474,7 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
     func read(from scene: MasterBusScene) -> Double? {
         switch self {
         case .outputGain:
-            return scene.outputGain
+            return nil
         case let .insertWetDry(insertID):
             return scene.inserts.first(where: { $0.id == insertID })?.wetDry
         case let .filterCutoff(insertID):
@@ -504,7 +504,7 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
         let clamped = value.clamped(to: valueRange)
         switch self {
         case .outputGain:
-            scene.outputGain = clamped
+            return
         case let .insertWetDry(insertID):
             guard let index = scene.inserts.firstIndex(where: { $0.id == insertID }) else { return }
             scene.inserts[index].wetDry = clamped

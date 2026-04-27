@@ -80,8 +80,8 @@ final class MasterBusHostTests: XCTestCase {
     func test_abModeInstallsTwoSceneBranchesWithEqualPowerGains() throws {
         let graph = MainAudioGraph()
         let host = MasterBusHost()
-        let sceneA = MasterBusScene(name: "A")
-        let sceneB = MasterBusScene(name: "B")
+        let sceneA = MasterBusScene(name: "A", outputGain: 0.2)
+        let sceneB = MasterBusScene(name: "B", outputGain: 1.5)
         host.attach(to: graph)
 
         host.apply(MasterBusState(
@@ -97,6 +97,8 @@ final class MasterBusHostTests: XCTestCase {
         XCTAssertEqual(graph.masterBranchesForTesting.count, 2)
         XCTAssertEqual(graph.masterBranchesForTesting[0].gain, Float(sqrt(0.5)), accuracy: 0.0001)
         XCTAssertEqual(graph.masterBranchesForTesting[1].gain, Float(sqrt(0.5)), accuracy: 0.0001)
+        XCTAssertEqual(host.appliedState.scene(id: sceneA.id)?.outputGain, 1)
+        XCTAssertEqual(host.appliedState.scene(id: sceneB.id)?.outputGain, 1)
     }
 
     @MainActor

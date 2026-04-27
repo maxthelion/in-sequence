@@ -306,12 +306,12 @@ final class MasterBusHost: MasterBusHosting {
         {
             let gains = equalPowerGains(crossfader: selection.crossfader)
             return [
-                MasterBusBranch(scene: sceneA, gain: sceneA.outputGain * gains.a),
-                MasterBusBranch(scene: sceneB, gain: sceneB.outputGain * gains.b),
+                MasterBusBranch(scene: sceneA, gain: gains.a),
+                MasterBusBranch(scene: sceneB, gain: gains.b),
             ]
         }
         let scene = state.activeScene
-        return [MasterBusBranch(scene: scene, gain: scene.outputGain)]
+        return [MasterBusBranch(scene: scene, gain: 1)]
     }
 
     private static func graphShape(for state: MasterBusState) -> MasterBusGraphShape {
