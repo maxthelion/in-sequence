@@ -2,7 +2,7 @@
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md`
 **Reference branch:** `codex/max-8-destination-au` — original implementation, authored against the pre-v2 mutation API. **Do not cherry-pick from it.** Read each commit's diff for design intent; re-author against `LiveSequencerStore`'s typed API.
-**Status:** Not started. Tag `v0.0.NN-au-card-and-macro-lanes` at completion.
+**Status:** ✅ Completed 2026-04-27. Tag `v0.0.5-au-card-and-macro-lanes`. Three review rounds (spec / quality / adversarial) closed eight criticals; 738 tests pass. Deferred: sampler-track AU-macro saturation (8 built-ins fill the slot row — design call needed before raising the cap), test-isolation tearDown discipline (caused one flaky AppDelegate run; passed on re-run), CR2-3 incremental-compile coverage of clipB through the rebuild path, async preset stepper cancel-on-disappear.
 
 ## Why this plan exists
 
@@ -102,12 +102,12 @@ Tests/SequencerAITests/
 
 **Tests:** port the assertions from max-8's added tests in `ProjectAddDrumGroupTests.swift`; update if the typed-API mutation path differs.
 
-- [ ] Read `e2030f8` and `24eda8b` diffs end-to-end
-- [ ] Implement preset-browser fix; manually smoke that opening the preset browser on an AU destination doesn't hang
-- [ ] Implement drum-group macro layer preservation
-- [ ] Tests green
-- [ ] Commit: `fix(ui): preset browser sheet sizing deadlock`
-- [ ] Commit: `fix(document): keep macro layers when adding drum groups`
+- [x] Read `e2030f8` and `24eda8b` diffs end-to-end
+- [x] Implement preset-browser fix; manually smoke that opening the preset browser on an AU destination doesn't hang
+- [x] Implement drum-group macro layer preservation
+- [x] Tests green
+- [x] Commit: `fix(ui): preset browser sheet sizing deadlock`
+- [x] Commit: `fix(document): keep macro layers when adding drum groups`
 
 ## Task 2 — Replace auMacroGrid with auMacroSlots
 
@@ -123,14 +123,14 @@ The `onRemove` per-slot path uses the `session.batch` pattern documented in the 
 
 **Tests:** none in `c06fb20` itself for this surface (matches repo convention: SwiftUI views are integration-tested manually).
 
-- [ ] Read `c06fb20` diff
-- [ ] Replace `auMacroGrid`/`DestinationMacroKnob` with `auMacroSlots`/`AUMacroSlotKnob`
-- [ ] `auMacroBindings` becomes the source of slot data; introduce `slotIndex` ordering if not already on `TrackMacroBinding`
-- [ ] Drag → `session.setMacroLayerDefault`
-- [ ] Remove → `session.batch` with `removeMacro` + `syncMacroLayers`
-- [ ] Build green
-- [ ] Manual smoke: open an AU destination, drag a macro knob, watch the layer default update
-- [ ] Commit: `feat(au): destination macro slot row`
+- [x] Read `c06fb20` diff
+- [x] Replace `auMacroGrid`/`DestinationMacroKnob` with `auMacroSlots`/`AUMacroSlotKnob`
+- [x] `auMacroBindings` becomes the source of slot data; introduce `slotIndex` ordering if not already on `TrackMacroBinding`
+- [x] Drag → `session.setMacroLayerDefault`
+- [x] Remove → `session.batch` with `removeMacro` + `syncMacroLayers`
+- [x] Build green
+- [x] Manual smoke: open an AU destination, drag a macro knob, watch the layer default update
+- [x] Commit: `feat(au): destination macro slot row`
 
 ## Task 3 — Step presets inline (PresetStepper)
 
@@ -142,11 +142,11 @@ A small standalone view: prev / next buttons that step through factory + user pr
 
 **Tests:** port `PresetStepperTests.swift` directly. It's a ViewModel-shaped test that asserts prev/next traversal and edge behaviour (empty preset list, single preset, wrap). Update any session-API mocking to use `session.writeStateBlob` typed mock.
 
-- [ ] Port `PresetStepper` view from `a91cc15`
-- [ ] Port `PresetStepperTests` and update for v2 typed-API mock
-- [ ] Wire into `TrackDestinationEditor`'s preset section (the "CURRENT PRESET" card from `18d8b73`)
-- [ ] Build + tests green
-- [ ] Commit: `feat(au): inline preset stepper on destination card`
+- [x] Port `PresetStepper` view from `a91cc15`
+- [x] Port `PresetStepperTests` and update for v2 typed-API mock
+- [x] Wire into `TrackDestinationEditor`'s preset section (the "CURRENT PRESET" card from `18d8b73`)
+- [x] Build + tests green
+- [x] Commit: `feat(au): inline preset stepper on destination card`
 
 ## Task 4 — Sampler destination card restyle
 
@@ -158,13 +158,13 @@ Restyle of `SamplerDestinationWidget` to match the new AU card aesthetic. Side-e
 
 **Tests:** `SamplerSettingsTests` and `SamplePlaybackEngineTests` already exist; max-8's diff added a small number of new assertions (+10 across both). Port those.
 
-- [ ] Read `9d808ee` diff
-- [ ] Port `SamplerSettings` clamping cleanup + tests
-- [ ] Port `SamplePlaybackEngine` test surface + tests
-- [ ] Restyle `SamplerDestinationWidget` to match the AU card; reuse the same shape primitives (rounded panel + eyebrow + body + action row) so the two destinations look like siblings
-- [ ] Build + tests green
-- [ ] Manual smoke: switch a track to a sample destination, verify gain slider, audition button, and waveform render
-- [ ] Commit: `feat(sample): restyle sampler destination card`
+- [x] Read `9d808ee` diff
+- [x] Port `SamplerSettings` clamping cleanup + tests
+- [x] Port `SamplePlaybackEngine` test surface + tests
+- [x] Restyle `SamplerDestinationWidget` to match the AU card; reuse the same shape primitives (rounded panel + eyebrow + body + action row) so the two destinations look like siblings
+- [x] Build + tests green
+- [x] Manual smoke: switch a track to a sample destination, verify gain slider, audition button, and waveform render
+- [x] Commit: `feat(sample): restyle sampler destination card`
 
 ## Task 5 — Layout polish
 
@@ -178,11 +178,11 @@ These are the kind of changes that need to be re-authored against the actual lay
 
 If `5f507ea`'s root cause depended on a specific shape from `9d808ee` that you didn't faithfully reproduce in Task 4, the fix may not be needed at all — verify before adding.
 
-- [ ] Verify each bug reproduces on current main (after Task 4 lands)
-- [ ] Apply each fix; only commit fixes that address a real reproducer
-- [ ] Build green
-- [ ] Manual smoke: resize window across narrow / medium / wide inspector widths
-- [ ] Commit(s): `fix(ui): destination card width`, `fix(ui): destination beside source`, optionally `fix(ui): track page hit-testing`
+- [x] Verify each bug reproduces on current main (after Task 4 lands)
+- [x] Apply each fix; only commit fixes that address a real reproducer
+- [x] Build green
+- [x] Manual smoke: resize window across narrow / medium / wide inspector widths
+- [x] Commit(s): `fix(ui): destination card width`, `fix(ui): destination beside source`, optionally `fix(ui): track page hit-testing`
 
 ## Task 6 — Per-step macro lane slots in clips
 
@@ -198,19 +198,19 @@ This sits on top of Task 2's slot-index model — the slot picker writes `slotIn
 
 Round-trip codable for everything; legacy decode without `slotIndex` falls back to insertion order.
 
-- [ ] Tests: `TrackMacroDescriptorTests` slotIndex round-trip; `ProjectTrackMacroTests` slot ordering; `ClipContent` MacroLane round-trip
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(document): macro slot index + clip macro lanes`
+- [x] Tests: `TrackMacroDescriptorTests` slotIndex round-trip; `ProjectTrackMacroTests` slot ordering; `ClipContent` MacroLane round-trip
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(document): macro slot index + clip macro lanes`
 
 ### 6b — Snapshot compiler awareness
 
 `SequencerSnapshotCompiler` resolves a clip macro lane override at step time, layered on top of the phrase-layer default. When a step has `macroLanes[bindingID][stepIndex] = some(value)`, that wins; otherwise the phrase layer's value applies.
 
-- [ ] Test: a clip with a macro lane override fires through the snapshot at the expected step
-- [ ] Implement
-- [ ] Green
-- [ ] Commit: `feat(engine): clip macro lane resolution`
+- [x] Test: a clip with a macro lane override fires through the snapshot at the expected step
+- [x] Implement
+- [x] Green
+- [x] Commit: `feat(engine): clip macro lane resolution`
 
 ### 6c — `SingleMacroSlotPickerSheet`
 
@@ -218,10 +218,10 @@ Modal sheet for choosing one AU parameter to bind to a slot. Lifts the parameter
 
 The commit handler uses the `session.batch` pattern (Task 1's architecture note) — `addAUMacro(descriptor:to:slotIndex:)` then `syncMacroLayers()` then publish. See `SequencerDocumentSession+Mutations.swift:applyMacroDiff` for the established pattern.
 
-- [ ] Implement view
-- [ ] Implement assignMacro typed-API call
-- [ ] Manual smoke: tap an empty slot, pick a parameter, see the slot fill
-- [ ] Commit: `feat(ui): SingleMacroSlotPickerSheet for per-slot macro binding`
+- [x] Implement view
+- [x] Implement assignMacro typed-API call
+- [x] Manual smoke: tap an empty slot, pick a parameter, see the slot fill
+- [x] Commit: `feat(ui): SingleMacroSlotPickerSheet for per-slot macro binding`
 
 ### 6d — `ClipContentPreview` macro slot strip
 
@@ -233,11 +233,11 @@ When a macro slot is the selected mode, the cell grid edits `macroLanes[bindingI
 
 The lane editor itself: reuse `ClipMacroLaneEditor` from main (the standalone editor that the AU card redesign introduced) — but invoke it inline inside `ClipContentPreview`, not as a separate panel below. Pass `showsHeader: false`.
 
-- [ ] Add macro slot strip view
-- [ ] Wire selected slot → `selectedMacroSlotIndex` → routes the cell grid through the lane editor
-- [ ] `onUpdateMacroLanes` callback writes via `session.ensureClipAndMutate` setting `entry.macroLanes`
-- [ ] Manual smoke: bind a macro slot, switch to it, set per-step values, watch them apply during playback
-- [ ] Commit: `feat(ui): per-step macro lane in ClipContentPreview`
+- [x] Add macro slot strip view
+- [x] Wire selected slot → `selectedMacroSlotIndex` → routes the cell grid through the lane editor
+- [x] `onUpdateMacroLanes` callback writes via `session.ensureClipAndMutate` setting `entry.macroLanes`
+- [x] Manual smoke: bind a macro slot, switch to it, set per-step values, watch them apply during playback
+- [x] Commit: `feat(ui): per-step macro lane in ClipContentPreview`
 
 ### 6e — `TrackSourceEditorView` wiring
 
@@ -245,17 +245,17 @@ Update `TrackSourceEditorView` to compute `clipMacroSlots` from `track.macros` o
 
 Use v2 typed APIs throughout — `session.ensureClipAndMutate` for content + lane updates; `session.batch` for the slot-assign flow.
 
-- [ ] Wire props
-- [ ] Drop the standalone `ClipMacroLaneEditor` block
-- [ ] Build + manual smoke
-- [ ] Commit: `feat(ui): wire ClipContentPreview macro slot strip from TrackSourceEditorView`
+- [x] Wire props
+- [x] Drop the standalone `ClipMacroLaneEditor` block
+- [x] Build + manual smoke
+- [x] Commit: `feat(ui): wire ClipContentPreview macro slot strip from TrackSourceEditorView`
 
 ## Task 7 — Wiki + tag
 
-- [ ] `wiki/pages/track-macros.md` (or update existing macros page) — document the slot model, the per-step lane, and the precedence rule (clip lane override > phrase layer default > descriptor default).
-- [ ] `wiki/pages/track-destinations.md` — note the new `PresetStepper` and the macro slot row.
-- [ ] Tag `v0.0.NN-au-card-and-macro-lanes` (increment NN against latest at completion).
-- [ ] Mark this plan completed.
+- [x] `wiki/pages/track-macros.md` (or update existing macros page) — document the slot model, the per-step lane, and the precedence rule (clip lane override > phrase layer default > descriptor default).
+- [x] `wiki/pages/track-destinations.md` — note the new `PresetStepper` and the macro slot row.
+- [x] Tag `v0.0.NN-au-card-and-macro-lanes` (increment NN against latest at completion).
+- [x] Mark this plan completed.
 
 ## Test plan (whole-plan)
 
