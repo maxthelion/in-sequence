@@ -93,19 +93,37 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let handleID = UUID()
         mainVoiceHandles[voiceIndex] = handleID
         nextVoiceIndex = (nextVoiceIndex &+ 1) % mainVoices.count
+        let params = voiceParams[trackID]
 
         // Route to this track's mixer; reconnect only when the voice was last used
-        // by a different track (first-use on this voice also triggers reconnect).
-        let mixer = trackMixer(for: trackID)
-        voice.stop()
+        // by a different track. Reconnect + start must happen together on the main
+        // actor so AVAudioEngine cannot observe a freshly-routed player as detached.
         if mainVoiceCurrentTrack[voiceIndex] != trackID {
-            audioGraph.disconnectOutput(voice)
-            audioGraph.connect(voice, to: mixer)
-            mainVoiceCurrentTrack[voiceIndex] = trackID
+            return performOnMain { [self] in
+                guard isStarted else { return nil }
+                let mixer = trackMixer(for: trackID)
+                audioGraph.disconnectOutput(voice)
+                audioGraph.connect(voice, to: mixer)
+                mainVoiceCurrentTrack[voiceIndex] = trackID
+                scheduleAndStart(voice, file: file, settings: settings, params: params, at: when)
+                return VoiceHandle(id: handleID)
+            }
         }
 
+        scheduleAndStart(voice, file: file, settings: settings, params: params, at: when)
+        return VoiceHandle(id: handleID)
+    }
+
+    private func scheduleAndStart(
+        _ voice: AVAudioPlayerNode,
+        file: AVAudioFile,
+        settings: SamplerSettings,
+        params: [BuiltinMacroKind: Double]?,
+        at when: AVAudioTime?
+    ) {
+        voice.stop()
+
         // Apply built-in macro voice params (set by TrackMacroApplier for the current step).
-        let params = voiceParams[trackID]
         let gainDB = params?[.sampleGain] ?? settings.gain
         voice.volume = linearGain(dB: gainDB)
 
@@ -118,8 +136,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let frameLength = AVAudioFrameCount(min(max(1, lengthNorm * frameCount), remainingFrames))
         voice.scheduleSegment(file, startingFrame: startFrame, frameCount: frameLength, at: when, completionHandler: nil)
         voice.play()
-
-        return VoiceHandle(id: handleID)
     }
 
     func stopVoice(_ handle: VoiceHandle) {
@@ -215,5 +231,21 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     private func linearGain(dB: Double) -> Float {
         Float(pow(10, dB / 20))
+    }
+
+    private func performOnMain<T>(_ work: @escaping @MainActor () -> T) -> T {
+        if Thread.isMainThread {
+            return MainActor.assumeIsolated {
+                work()
+            }
+        }
+
+        var result: T?
+        DispatchQueue.main.sync {
+            result = MainActor.assumeIsolated {
+                work()
+            }
+        }
+        return result!
     }
 }

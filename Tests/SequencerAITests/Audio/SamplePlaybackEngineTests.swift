@@ -59,6 +59,30 @@ final class SamplePlaybackEngineTests: XCTestCase {
         }
     }
 
+    func test_playFromBackgroundQueue_connectsBeforeStartingVoice() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+
+        let expectation = expectation(description: "background sample play completes")
+        let trackID = UUID()
+        let lock = NSLock()
+        var handle: VoiceHandle?
+
+        DispatchQueue(label: "SamplePlaybackEngineTests.background-play").async {
+            let result = engine.play(sampleURL: self.fixtureURL, settings: .default, trackID: trackID, at: nil)
+            lock.lock()
+            handle = result
+            lock.unlock()
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        lock.lock()
+        let resolvedHandle = handle
+        lock.unlock()
+        XCTAssertNotNil(resolvedHandle)
+    }
+
     func test_audition_runsIndependent() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
