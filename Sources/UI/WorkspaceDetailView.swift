@@ -37,8 +37,6 @@ struct WorkspaceDetailView: View {
             MixerWorkspaceView(document: $document) { trackID in
                 session.setSelectedTrackID(trackID)
                 section = .track
-            } onOpenScenes: {
-                section = .scenes
             }
         case .scenes:
             ScenesWorkspaceView(document: $document, resetToken: scenesResetToken)
