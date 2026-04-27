@@ -6,6 +6,8 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>SequencerAI</string>
+	<key>CFBundleIconFile</key>
+	<string>SequencerAIDocument.icns</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

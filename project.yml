@@ -35,6 +35,7 @@ targets:
       path: Sources/Resources/Info.plist
       properties:
         CFBundleDisplayName: SequencerAI
+        CFBundleIconFile: SequencerAIDocument.icns
         CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleName: $(PRODUCT_NAME)
         CFBundleShortVersionString: "0.0.1"
