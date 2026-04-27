@@ -3,6 +3,7 @@ import SwiftUI
 struct WorkspaceDetailView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
+    var scenesResetToken: Int = 0
     @State private var liveLayerID = "pattern"
     @State private var tracksMode: TracksWorkspaceMode = .edit
     @Environment(SequencerDocumentSession.self) private var session
@@ -40,7 +41,7 @@ struct WorkspaceDetailView: View {
                 section = .scenes
             }
         case .scenes:
-            ScenesWorkspaceView(document: $document)
+            ScenesWorkspaceView(document: $document, resetToken: scenesResetToken)
                 .padding(20)
         case .library:
             LibraryWorkspaceView()

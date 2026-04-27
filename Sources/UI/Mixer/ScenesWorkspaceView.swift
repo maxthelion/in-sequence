@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ScenesWorkspaceView: View {
     @Binding var document: SeqAIDocument
+    var resetToken: Int = 0
     @Environment(SequencerDocumentSession.self) var session
     @Environment(EngineController.self) var engineController
 
@@ -53,6 +54,11 @@ struct ScenesWorkspaceView: View {
         }
         .onAppear {
             selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
+        }
+        .onChange(of: resetToken) {
+            selectedSceneID = nil
+            selectedInsertID = nil
+            mode = .browseEdit
         }
         .onChange(of: masterBus.scenes.map(\.id)) {
             guard let selectedSceneID else {
