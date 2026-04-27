@@ -130,8 +130,12 @@ struct MasterBusState: Codable, Equatable, Sendable {
 
     mutating func setMacroValue(sceneID: UUID, macroID: UUID, value: Double) {
         updateScene(id: sceneID) { scene in
-            guard let binding = scene.macroBindings.first(where: { $0.id == macroID }) else {
+            guard let index = scene.macroBindings.firstIndex(where: { $0.id == macroID }) else {
                 return
+            }
+            let binding = scene.macroBindings[index]
+            if binding.target.storesAuthoredValue {
+                scene.macroBindings[index].authoredValue = value.clamped(to: binding.target.valueRange)
             }
             binding.target.write(value, to: &scene)
         }
@@ -370,17 +374,20 @@ struct MasterSceneMacroBinding: Codable, Equatable, Identifiable, Sendable {
     var slotIndex: Int
     var name: String
     var target: MasterSceneMacroTarget
+    var authoredValue: Double?
 
     init(
         id: UUID = UUID(),
         slotIndex: Int,
         name: String? = nil,
-        target: MasterSceneMacroTarget
+        target: MasterSceneMacroTarget,
+        authoredValue: Double? = nil
     ) {
         self.id = id
         self.slotIndex = slotIndex
         self.name = name ?? ""
         self.target = target
+        self.authoredValue = authoredValue
     }
 
     func normalized(in scene: MasterBusScene) -> MasterSceneMacroBinding {
@@ -388,11 +395,16 @@ struct MasterSceneMacroBinding: Codable, Equatable, Identifiable, Sendable {
         copy.slotIndex = Int(Double(copy.slotIndex).clamped(to: 0...Double(Self.slotCount - 1)))
         let trimmed = copy.name.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.name = trimmed.isEmpty ? copy.target.label(in: scene) : trimmed
+        if let value = copy.authoredValue {
+            copy.authoredValue = value.clamped(to: copy.target.valueRange)
+        } else if let defaultValue = copy.target.authoredDefaultValue {
+            copy.authoredValue = defaultValue.clamped(to: copy.target.valueRange)
+        }
         return copy
     }
 
     func value(in scene: MasterBusScene) -> Double? {
-        target.read(from: scene)
+        target.read(from: scene) ?? authoredValue
     }
 }
 
@@ -403,6 +415,16 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
     case filterResonance(insertID: UUID)
     case bitcrusherRate(insertID: UUID)
     case bitcrusherDrive(insertID: UUID)
+    case auParameter(
+        insertID: UUID,
+        address: UInt64,
+        identifier: String,
+        displayName: String,
+        minValue: Double,
+        maxValue: Double,
+        defaultValue: Double,
+        unit: String?
+    )
 
     var valueRange: ClosedRange<Double> {
         switch self {
@@ -415,7 +437,24 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
             return 0...1
         case .filterCutoff:
             return 20...20_000
+        case let .auParameter(_, _, _, _, minValue, maxValue, _, _):
+            let lower = min(minValue, maxValue)
+            let upper = max(minValue, maxValue)
+            return lower == upper ? (lower...(lower + 1)) : (lower...upper)
         }
+    }
+
+    var authoredDefaultValue: Double? {
+        switch self {
+        case let .auParameter(_, _, _, _, _, _, defaultValue, _):
+            return defaultValue
+        default:
+            return nil
+        }
+    }
+
+    var storesAuthoredValue: Bool {
+        authoredDefaultValue != nil
     }
 
     func isValid(in scene: MasterBusScene) -> Bool {
@@ -438,6 +477,12 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
                 if case .nativeBitcrusher = insert.kind { return true }
                 return false
             }
+        case let .auParameter(insertID, _, _, _, _, _, _, _):
+            return scene.inserts.contains { insert in
+                guard insert.id == insertID else { return false }
+                if case .auEffect = insert.kind { return true }
+                return false
+            }
         }
     }
 
@@ -449,7 +494,8 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
              let .filterCutoff(id),
              let .filterResonance(id),
              let .bitcrusherRate(id),
-             let .bitcrusherDrive(id):
+             let .bitcrusherDrive(id),
+             let .auParameter(id, _, _, _, _, _, _, _):
             return id == insertID
         }
     }
@@ -468,6 +514,17 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
             return .bitcrusherRate(insertID: insertIDMap[insertID] ?? insertID)
         case let .bitcrusherDrive(insertID):
             return .bitcrusherDrive(insertID: insertIDMap[insertID] ?? insertID)
+        case let .auParameter(insertID, address, identifier, displayName, minValue, maxValue, defaultValue, unit):
+            return .auParameter(
+                insertID: insertIDMap[insertID] ?? insertID,
+                address: address,
+                identifier: identifier,
+                displayName: displayName,
+                minValue: minValue,
+                maxValue: maxValue,
+                defaultValue: defaultValue,
+                unit: unit
+            )
         }
     }
 
@@ -497,6 +554,8 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
                 return nil
             }
             return settings.drive
+        case .auParameter:
+            return nil
         }
     }
 
@@ -516,6 +575,8 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
             updateBitcrusher(insertID: insertID, in: &scene) { $0.sampleRateScale = clamped }
         case let .bitcrusherDrive(insertID):
             updateBitcrusher(insertID: insertID, in: &scene) { $0.drive = clamped }
+        case .auParameter:
+            return
         }
     }
 
@@ -533,6 +594,8 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
             return "\(insertName(insertID, in: scene)) Rate"
         case let .bitcrusherDrive(insertID):
             return "\(insertName(insertID, in: scene)) Drive"
+        case let .auParameter(insertID, _, _, displayName, _, _, _, _):
+            return "\(insertName(insertID, in: scene)) \(displayName)"
         }
     }
 

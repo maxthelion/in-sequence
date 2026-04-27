@@ -174,6 +174,9 @@ extension ScenesWorkspaceView {
             return "\(Int(value.rounded())) Hz"
         case .outputGain:
             return String(format: "%.2f", value)
+        case let .auParameter(_, _, _, _, _, _, _, unit):
+            let suffix = unit.map { " \($0)" } ?? ""
+            return String(format: "%.2f", value) + suffix
         default:
             return "\(Int((value * 100).rounded()))%"
         }

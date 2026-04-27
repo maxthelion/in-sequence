@@ -771,6 +771,8 @@ struct TrackDestinationEditor: View {
                     return .group(groupID)
                 case .track(let trackID):
                     return .track(trackID)
+                case .masterInsert:
+                    return .track(trackID)
                 }
             }())
         }

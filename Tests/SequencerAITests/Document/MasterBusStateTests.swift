@@ -102,6 +102,36 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertTrue(state.activeScene.macroBindings.isEmpty)
     }
 
+    func test_auParameterMacroStoresAuthoredValueAndCleansUpWithInsert() {
+        var state = MasterBusState.default
+        let sceneID = state.activeSceneID
+        let insert = MasterBusInsert.auEffect(.testEffect)
+        state.addInsert(insert, sceneID: sceneID)
+        let macro = MasterSceneMacroBinding(
+            slotIndex: 0,
+            target: .auParameter(
+                insertID: insert.id,
+                address: 3000,
+                identifier: "3000",
+                displayName: "Frequency",
+                minValue: 10,
+                maxValue: 20_000,
+                defaultValue: 440,
+                unit: "Hz"
+            )
+        )
+
+        state.upsertMacroBinding(macro, sceneID: sceneID)
+        state.setMacroValue(sceneID: sceneID, macroID: state.activeScene.macroBindings[0].id, value: 2_000)
+
+        XCTAssertEqual(state.activeScene.macroBindings[0].name, "Codex Test Effect Frequency")
+        XCTAssertEqual(state.activeScene.macroBindings[0].value(in: state.activeScene), 2_000)
+
+        state.removeInsert(id: insert.id, sceneID: sceneID)
+
+        XCTAssertTrue(state.activeScene.macroBindings.isEmpty)
+    }
+
     func test_legacyDraftPromotesIntoActiveSceneOnDecode() throws {
         struct LegacyMasterBusState: Encodable {
             let scenes: [MasterBusScene]

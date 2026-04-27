@@ -508,6 +508,18 @@ final class EngineController: RouterDispatcher {
         masterBusPerformanceOverlay.hasMacroOverrides(sceneID: sceneID)
     }
 
+    func prepareMasterAUEffect(insertID: UUID) {
+        masterBusHost.prepareAUEffect(insertID: insertID)
+    }
+
+    func currentMasterAUEffect(insertID: UUID) -> AVAudioUnit? {
+        masterBusHost.currentAUEffect(insertID: insertID)
+    }
+
+    func masterAUEffectParameterReadout(insertID: UUID) -> [AUParameterDescriptor]? {
+        masterBusHost.auEffectParameterReadout(insertID: insertID)
+    }
+
     var availableAudioInstruments: [AudioInstrumentChoice] {
         sharedAudioOutput?.availableInstruments ?? AudioInstrumentChoice.defaultChoices
     }

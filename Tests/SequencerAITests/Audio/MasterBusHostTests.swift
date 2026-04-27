@@ -144,4 +144,56 @@ final class MasterBusHostTests: XCTestCase {
         XCTAssertEqual(host.appliedState.abSelection?.crossfader, 0)
         XCTAssertEqual(host.resolvedState.abSelection?.crossfader, 1)
     }
+
+    @MainActor
+    func test_auParameterMacroWritesLiveEffectWithoutReapply() throws {
+        let graph = MainAudioGraph()
+        let eq = AVAudioUnitEQ(numberOfBands: 1)
+        let factory = AUAudioUnitFactory { _, completion in
+            DispatchQueue.main.async {
+                completion(eq, nil)
+            }
+        }
+        let host = MasterBusHost(factory: factory)
+        host.attach(to: graph)
+        let insert = MasterBusInsert(name: "EQ", kind: .auEffect(componentID: AudioEffectChoice.testEffect.audioComponentID, stateBlob: nil))
+        let macro = MasterSceneMacroBinding(
+            slotIndex: 0,
+            target: .auParameter(
+                insertID: insert.id,
+                address: 3000,
+                identifier: "3000",
+                displayName: "Frequency",
+                minValue: 10,
+                maxValue: 20_000,
+                defaultValue: 440,
+                unit: "Hz"
+            ),
+            authoredValue: 2_000
+        )
+        let scene = MasterBusScene(name: "AU", inserts: [insert], macroBindings: [macro])
+
+        host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id))
+        waitUntil(timeout: 1) {
+            host.currentAUEffect(insertID: insert.id) != nil
+        }
+        let param = try XCTUnwrap(eq.auAudioUnit.parameterTree?.parameter(withAddress: 3000))
+
+        XCTAssertEqual(param.value, 2_000, accuracy: 0.0001)
+        XCTAssertEqual(host.auEffectParameterReadout(insertID: insert.id)?.contains { $0.address == 3000 }, true)
+
+        host.setSceneMacroOverride(sceneID: scene.id, macroID: macro.id, value: 4_000)
+
+        XCTAssertEqual(param.value, 4_000, accuracy: 0.0001)
+        XCTAssertEqual(host.applyCallCount, 1)
+        XCTAssertEqual(host.appliedState.activeScene.macroBindings[0].value(in: host.appliedState.activeScene), 2_000)
+        XCTAssertEqual(host.resolvedState.activeScene.macroBindings[0].value(in: host.resolvedState.activeScene), 4_000)
+    }
+
+    private func waitUntil(timeout: TimeInterval, condition: @escaping () -> Bool) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition(), Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+        }
+    }
 }

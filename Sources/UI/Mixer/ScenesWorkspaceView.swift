@@ -9,6 +9,7 @@ struct ScenesWorkspaceView: View {
     @State private var mode: ScenesWorkspaceMode = .browseEdit
     @State private var selectedSceneID: UUID?
     @State private var selectedInsertID: UUID?
+    @State private var auMacroSlotPickerRequest: SceneAUMacroSlotPickerRequest?
 
     private let sceneColumns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -75,6 +76,9 @@ struct ScenesWorkspaceView: View {
             {
                 self.selectedInsertID = selectedScene.inserts.first?.id
             }
+        }
+        .sheet(item: $auMacroSlotPickerRequest) { request in
+            sceneAUMacroSlotPickerSheet(request)
         }
     }
 
@@ -494,6 +498,20 @@ struct ScenesWorkspaceView: View {
                         session.upsertMasterSceneMacroBinding(macro, in: selectedScene.id)
                     }
                 }
+                if !auMacroInsertCandidates(in: selectedScene).isEmpty {
+                    Divider()
+                    Menu("AU Parameter") {
+                        ForEach(auMacroInsertCandidates(in: selectedScene)) { insert in
+                            Button(insert.name) {
+                                prepareAndPresentAUMacroSlotPicker(
+                                    slotIndex: slotIndex,
+                                    sceneID: selectedScene.id,
+                                    insertID: insert.id
+                                )
+                            }
+                        }
+                    }
+                }
             } label: {
                 Label(binding == nil ? "Assign" : "Change", systemImage: "slider.horizontal.3")
             }
@@ -563,9 +581,7 @@ struct ScenesWorkspaceView: View {
             )
 
         case .auEffect:
-            Label("AU parameter editing is not available yet", systemImage: "slider.horizontal.3")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
+            auEffectEditor(insert, scene: selectedScene)
         }
     }
 
@@ -617,6 +633,9 @@ struct ScenesWorkspaceView: View {
             return "\(Int(value.rounded())) Hz"
         case .outputGain:
             return String(format: "%.2f", value)
+        case let .auParameter(_, _, _, _, _, _, _, unit):
+            let suffix = unit.map { " \($0)" } ?? ""
+            return String(format: "%.2f", value) + suffix
         default:
             return "\(Int((value * 100).rounded()))%"
         }
@@ -823,6 +842,22 @@ struct ScenesWorkspaceView: View {
             }
         }
         return targets
+    }
+
+    private func auMacroInsertCandidates(in scene: MasterBusScene) -> [MasterBusInsert] {
+        scene.inserts.filter { insert in
+            if case .auEffect = insert.kind { return true }
+            return false
+        }
+    }
+
+    private func prepareAndPresentAUMacroSlotPicker(slotIndex: Int, sceneID: UUID, insertID: UUID) {
+        engineController.prepareMasterAUEffect(insertID: insertID)
+        auMacroSlotPickerRequest = SceneAUMacroSlotPickerRequest(
+            sceneID: sceneID,
+            insertID: insertID,
+            slotIndex: slotIndex
+        )
     }
 
     private func iconName(for kind: MasterBusInsertKind) -> String {

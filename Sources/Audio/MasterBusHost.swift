@@ -13,11 +13,15 @@ protocol MasterBusHosting: AnyObject {
     func clearSceneMacroOverrides(sceneID: UUID)
     func setLiveCrossfaderOverride(_ value: Double?)
     func clearPerformanceOverlay()
+    func prepareAUEffect(insertID: UUID)
+    func currentAUEffect(insertID: UUID) -> AVAudioUnit?
+    func auEffectParameterReadout(insertID: UUID) -> [AUParameterDescriptor]?
 }
 
 final class MasterBusHost: MasterBusHosting {
     private let lock = NSLock()
     private let factory: AUAudioUnitFactory
+    private let parameterObserverToken = AUParameterObserverToken(bitPattern: Int.random(in: 1...Int.max))!
     private var state: MasterBusState = .default
     private var performanceOverlay: MasterBusPerformanceOverlayState = MasterBusPerformanceOverlayState()
     private var count: Int = 0
@@ -137,6 +141,41 @@ final class MasterBusHost: MasterBusHosting {
         refreshAudioGraphForPerformanceChange()
     }
 
+    func prepareAUEffect(insertID: UUID) {
+        guard let spec = lock.withLock({ auEffectSpec(insertID: insertID, in: state) }) else {
+            return
+        }
+        if let cached = lock.withLock({ cachedAUEffects[insertID] }),
+           cached.componentID == spec.componentID,
+           cached.stateBlob == spec.stateBlob
+        {
+            return
+        }
+        startLoadingAUEffect(insertID: insertID, componentID: spec.componentID, stateBlob: spec.stateBlob)
+    }
+
+    func currentAUEffect(insertID: UUID) -> AVAudioUnit? {
+        lock.withLock {
+            guard let spec = auEffectSpec(insertID: insertID, in: state),
+                  let cached = cachedAUEffects[insertID],
+                  cached.componentID == spec.componentID,
+                  cached.stateBlob == spec.stateBlob
+            else {
+                return nil
+            }
+            return cached.unit
+        }
+    }
+
+    func auEffectParameterReadout(insertID: UUID) -> [AUParameterDescriptor]? {
+        guard let unit = currentAUEffect(insertID: insertID),
+              let tree = unit.auAudioUnit.parameterTree
+        else {
+            return nil
+        }
+        return AudioInstrumentHost.parameterDescriptors(from: tree)
+    }
+
     var activeScene: MasterBusScene {
         resolvedState.activeScene
     }
@@ -195,6 +234,7 @@ final class MasterBusHost: MasterBusHosting {
             let node = node(for: insert)
             if let node {
                 nodesByInsertID[insert.id] = node
+                configureExistingNode(node, for: insert, in: scene)
             }
             return node
         }
@@ -281,21 +321,54 @@ final class MasterBusHost: MasterBusHosting {
             for branch in branches {
                 for insert in branch.scene.inserts where insert.isEnabled {
                     guard let node = nodesByInsertID[insert.id] else { continue }
-                    self.configureExistingNode(node, for: insert)
+                    self.configureExistingNode(node, for: insert, in: branch.scene)
                 }
             }
         }
     }
 
     @MainActor
-    private func configureExistingNode(_ node: AVAudioNode, for insert: MasterBusInsert) {
+    private func configureExistingNode(_ node: AVAudioNode, for insert: MasterBusInsert, in scene: MasterBusScene) {
         switch (node, insert.kind) {
         case let (eq as AVAudioUnitEQ, .nativeFilter(settings)):
             configureFilterNode(eq, settings: settings, wetDry: insert.wetDry)
         case let (distortion as AVAudioUnitDistortion, .nativeBitcrusher(settings)):
             configureLoFiNode(distortion, settings: settings, wetDry: insert.wetDry)
+        case let (unit as AVAudioUnit, .auEffect):
+            applyAUMacroValues(to: unit, insertID: insert.id, scene: scene)
         default:
             return
+        }
+    }
+
+    @MainActor
+    private func applyAUMacroValues(to unit: AVAudioUnit, insertID: UUID, scene: MasterBusScene) {
+        guard let tree = unit.auAudioUnit.parameterTree else { return }
+        for macro in scene.macroBindings {
+            guard case let .auParameter(targetInsertID, address, identifier, _, _, _, _, _) = macro.target,
+                  targetInsertID == insertID,
+                  let value = macro.value(in: scene)
+            else {
+                continue
+            }
+            setAUParameterValue(value, address: address, identifier: identifier, tree: tree)
+        }
+    }
+
+    @MainActor
+    private func setAUParameterValue(
+        _ value: Double,
+        address: UInt64,
+        identifier: String,
+        tree: AUParameterTree
+    ) {
+        if let param = tree.parameter(withAddress: address) {
+            param.setValue(AUValue(value), originator: parameterObserverToken)
+            return
+        }
+
+        if let param = tree.value(forKeyPath: identifier) as? AUParameter {
+            param.setValue(AUValue(value), originator: parameterObserverToken)
         }
     }
 
@@ -337,6 +410,21 @@ final class MasterBusHost: MasterBusHosting {
         case let .auEffect(componentID, stateBlob):
             return .auEffect(componentID: componentID, stateBlob: stateBlob)
         }
+    }
+
+    private func auEffectSpec(
+        insertID: UUID,
+        in state: MasterBusState
+    ) -> (componentID: AudioComponentID, stateBlob: Data?)? {
+        for scene in state.scenes {
+            guard let insert = scene.inserts.first(where: { $0.id == insertID }),
+                  case let .auEffect(componentID, stateBlob) = insert.kind
+            else {
+                continue
+            }
+            return (componentID, stateBlob)
+        }
+        return nil
     }
 
     @MainActor

@@ -190,6 +190,13 @@ extension SequencerDocumentSession {
         }
     }
 
+    func setMasterAUEffectStateBlob(_ insertID: UUID, in sceneID: UUID, stateBlob: Data?) {
+        updateMasterBusInsert(insertID, in: sceneID) { insert in
+            guard case let .auEffect(componentID, _) = insert.kind else { return }
+            insert.kind = .auEffect(componentID: componentID, stateBlob: stateBlob)
+        }
+    }
+
     func removeMasterBusInsert(_ insertID: UUID, from sceneID: UUID? = nil) {
         mutateMasterBus { masterBus in
             masterBus.removeInsert(id: insertID, sceneID: sceneID)
