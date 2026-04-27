@@ -402,10 +402,7 @@ extension SequencerDocumentSession {
             s.replaceTracks(p.tracks)
             s.setLayers(p.layers)
             s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            let liveByID = Dictionary(uniqueKeysWithValues: s.clipPool.map { ($0.id, $0) })
-            for clip in p.clipPool where liveByID[clip.id] != clip {
-                s.mutateClip(id: clip.id) { $0 = clip }
-            }
+            s.writeBackChangedClips(from: p)
         }
     }
 
@@ -449,11 +446,7 @@ extension SequencerDocumentSession {
             s.replaceTracks(p.tracks)
             s.setLayers(p.layers)
             s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            // macroLanes may have changed on clips (removeMacro cascades into clipPool).
-            let liveByID = Dictionary(uniqueKeysWithValues: s.clipPool.map { ($0.id, $0) })
-            for clip in p.clipPool where liveByID[clip.id] != clip {
-                s.mutateClip(id: clip.id) { $0 = clip }
-            }
+            s.writeBackChangedClips(from: p)
         }
     }
 
@@ -501,10 +494,7 @@ extension SequencerDocumentSession {
             s.replaceTrackGroups(p.trackGroups)
             s.setLayers(p.layers)
             s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            let liveByID = Dictionary(uniqueKeysWithValues: s.clipPool.map { ($0.id, $0) })
-            for clip in p.clipPool where liveByID[clip.id] != clip {
-                s.mutateClip(id: clip.id) { $0 = clip }
-            }
+            s.writeBackChangedClips(from: p)
         }
     }
 
@@ -768,5 +758,17 @@ extension SequencerDocumentSession {
         guard changed else { return }
         guard !isInBatch else { return }
         dispatchImpact(.snapshotOnly)
+    }
+}
+
+private extension LiveSequencerStore {
+    /// Write back any clips in `project` that differ from the live clip pool.
+    /// Used after `Project`-side helpers (e.g. `removeMacro`, `setDestinationWithMacros`)
+    /// that may mutate `clipPool[].macroLanes` so the cascade reaches the store.
+    func writeBackChangedClips(from project: Project) {
+        let liveByID = Dictionary(uniqueKeysWithValues: clipPool.map { ($0.id, $0) })
+        for clip in project.clipPool where liveByID[clip.id] != clip {
+            _ = mutateClip(id: clip.id) { $0 = clip }
+        }
     }
 }

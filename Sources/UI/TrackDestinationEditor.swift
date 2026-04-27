@@ -400,15 +400,17 @@ struct TrackDestinationEditor: View {
             return
         }
 
-        engineController.prepareAudioUnit(for: track.id)
+        let trackID = track.id
+        let writeTarget = currentWriteTarget
+        engineController.prepareAudioUnit(for: trackID)
         presetStepInFlight = true
         presetLoadFailed = false
 
         Task { @MainActor in
             defer { presetStepInFlight = false }
             do {
-                let blob = try engineController.loadPreset(descriptor, for: track.id)
-                writeStateBlobAndRecord(blob, target: currentWriteTarget)
+                let blob = try engineController.loadPreset(descriptor, for: trackID)
+                writeStateBlobAndRecord(blob, target: writeTarget)
                 presetReadoutState = PresetReadout(
                     factory: readout.factory,
                     user: readout.user,
