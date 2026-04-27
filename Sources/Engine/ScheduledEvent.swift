@@ -11,6 +11,15 @@ struct ScheduledEvent: Equatable, Sendable {
         /// node via `SamplePlaybackSink.setTrackMix(...)` outside the trigger path, so
         /// in-flight voices respond to live fader moves.
         case sampleTrigger(trackID: UUID, sampleID: UUID, settings: SamplerSettings, scheduledHostTime: TimeInterval)
+        case sliceTrigger(
+            trackID: UUID,
+            sampleURL: URL,
+            startFrame: Int64,
+            endFrame: Int64,
+            settings: SlicerSettings,
+            reverse: Bool,
+            scheduledHostTime: TimeInterval
+        )
     }
 
     let scheduledHostTime: TimeInterval

@@ -190,4 +190,34 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         XCTAssertEqual(notes.map(\.velocity), [80])
         XCTAssertEqual(notes.map(\.length), [2])
     }
+
+    func test_resolveClipStep_sliceTriggers_emitSliceVoiceTags() {
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: "Slices",
+            trackType: .slice,
+            content: .sliceTriggers(
+                stepPattern: [true, true],
+                sliceIndexes: [3, 4],
+                stepModes: [.single, .runFromHere]
+            )
+        )
+
+        var rng = PreviewRNG()
+        let first = GeneratedSourceEvaluator.resolveClipStep(
+            for: clip,
+            stepIndex: 0,
+            fillEnabled: false,
+            rng: &rng
+        )
+        let second = GeneratedSourceEvaluator.resolveClipStep(
+            for: clip,
+            stepIndex: 1,
+            fillEnabled: false,
+            rng: &rng
+        )
+
+        XCTAssertEqual(first.first?.voiceTag, "slice-3")
+        XCTAssertEqual(second.first?.voiceTag, "slice-run-4")
+    }
 }

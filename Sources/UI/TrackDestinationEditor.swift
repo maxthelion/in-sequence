@@ -144,6 +144,8 @@ struct TrackDestinationEditor: View {
                 }
             case .sample:
                 samplerEditor
+            case .slicer:
+                slicerEditor
             case .none:
                 EmptyView()
             }
@@ -634,6 +636,42 @@ struct TrackDestinationEditor: View {
         )
     }
 
+    private var slicerEditor: some View {
+        SlicerSourceWidget(
+            destination: Binding(
+                get: { editedDestination },
+                set: { newDestination in
+                    session.setEditedDestination(newDestination, for: track.id)
+                }
+            ),
+            sliceSet: currentSlicerSliceSet,
+            library: AudioSampleLibrary.shared,
+            sampleEngine: engineController.sampleEngineSink,
+            trackID: track.id,
+            onInstallSliceSet: { sliceSet, settings in
+                session.setSlicerDestination(sliceSet: sliceSet, settings: settings, for: track.id)
+            },
+            onUpdateSliceSet: { sliceSet, sampleLengthFrames in
+                session.mutateSliceSet(id: sliceSet.id, sampleLengthFrames: sampleLengthFrames) { current in
+                    current = sliceSet
+                }
+            },
+            onManageMacros: {
+                showingMacroPickerSheet = true
+            },
+            onRemove: {
+                clearDestination()
+            }
+        )
+    }
+
+    private var currentSlicerSliceSet: SliceSet? {
+        guard case let .slicer(sliceSetID, _) = editedDestination else {
+            return nil
+        }
+        return session.store.sliceSet(id: sliceSetID)
+    }
+
     private var internalSamplerEditor: some View {
         VStack(alignment: .leading, spacing: 10) {
             StudioPlaceholderTile(
@@ -831,7 +869,7 @@ struct TrackDestinationEditor: View {
                 applyMacroDiff(added: added, removed: removed, trackID: trackID)
             }
 
-        case .sample, .internalSampler:
+        case .sample, .internalSampler, .slicer:
             MacroPickerSheet(
                 mode: .builtinReadOnly(bindings: builtinBindings),
                 currentBindingAddresses: []

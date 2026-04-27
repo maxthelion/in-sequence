@@ -15,6 +15,7 @@ struct Project: Codable, Equatable {
     var routes: [Route]
     var masterBus: MasterBusState
     var patternBanks: [TrackPatternBank]
+    var sliceSetPool: [SliceSet]
     var selectedTrackID: UUID
     var phrases: [PhraseModel]
     var selectedPhraseID: UUID
@@ -29,6 +30,7 @@ struct Project: Codable, Equatable {
         routes: [Route] = [],
         masterBus: MasterBusState = .default,
         patternBanks: [TrackPatternBank] = [],
+        sliceSetPool: [SliceSet] = [],
         selectedTrackID: UUID,
         phrases: [PhraseModel],
         selectedPhraseID: UUID
@@ -53,6 +55,7 @@ struct Project: Codable, Equatable {
         self.routes = routes
         self.masterBus = masterBus.normalized()
         self.patternBanks = normalized.patternBanks
+        self.sliceSetPool = sliceSetPool
         self.selectedTrackID = normalized.selectedTrackID
         self.phrases = normalized.phrases
         self.selectedPhraseID = normalized.selectedPhraseID

@@ -136,7 +136,7 @@ struct ClipContentPreview: View {
             case let .noteGrid(lengthSteps, steps):
                 noteGridEditor(lengthSteps: lengthSteps, steps: steps)
 
-            case let .sliceTriggers(stepPattern, sliceIndexes):
+            case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
                 VStack(alignment: .leading, spacing: 14) {
                     StepGridView(
                         stepStates: stepPattern.map { $0 ? .on : .off },
@@ -145,7 +145,7 @@ struct ClipContentPreview: View {
                         var nextPattern = stepPattern
                         guard nextPattern.indices.contains(index) else { return }
                         nextPattern[index].toggle()
-                        commit(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes))
+                        commit(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes, stepModes: stepModes))
                     }
                     .allowsHitTesting(onCommit != nil)
 
@@ -158,12 +158,18 @@ struct ClipContentPreview: View {
                                     .split(separator: ",")
                                     .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
                                 if !parsed.isEmpty {
-                                    commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed))
+                                    commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed, stepModes: stepModes))
                                 }
                             }
                         )
                     )
                     .textFieldStyle(.roundedBorder)
+
+                    sliceStepModeEditor(
+                        stepPattern: stepPattern,
+                        sliceIndexes: sliceIndexes,
+                        stepModes: stepModes
+                    )
                 }
             }
         }
@@ -718,11 +724,63 @@ struct ClipContentPreview: View {
         switch content {
         case let .noteGrid(lengthSteps, steps):
             return "noteGrid length=\(lengthSteps) notes=\(noteCount(in: steps))"
-        case let .sliceTriggers(stepPattern, _):
+        case let .sliceTriggers(stepPattern, _, _):
             return "sliceTriggers length=\(stepPattern.count) active=\(stepPattern.filter { $0 }.count)"
         }
     }
     #endif
+
+    private func sliceStepModeEditor(
+        stepPattern: [Bool],
+        sliceIndexes: [Int],
+        stepModes: [SliceTriggerStepMode]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("RUN MODE")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8),
+                alignment: .leading,
+                spacing: 8
+            ) {
+                ForEach(stepPattern.indices, id: \.self) { index in
+                    let mode = stepModes.indices.contains(index) ? stepModes[index] : .single
+                    Button {
+                        var nextModes = stepModes
+                        if nextModes.count < stepPattern.count {
+                            nextModes.append(contentsOf: Array(repeating: .single, count: stepPattern.count - nextModes.count))
+                        }
+                        nextModes[index] = mode == .single ? .runFromHere : .single
+                        commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: sliceIndexes, stepModes: nextModes))
+                    } label: {
+                        VStack(spacing: 3) {
+                            Text("\(index + 1)")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(StudioTheme.text)
+                            Text(mode == .runFromHere ? "Run" : "One")
+                                .font(.system(size: 9, weight: .medium, design: .rounded))
+                                .foregroundStyle(stepPattern[index] ? StudioTheme.text : StudioTheme.mutedText.opacity(0.55))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 34)
+                        .background(
+                            mode == .runFromHere ? StudioTheme.violet.opacity(0.2) : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(mode == .runFromHere ? StudioTheme.violet.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!stepPattern[index] || onCommit == nil)
+                    .opacity(stepPattern[index] ? 1 : 0.45)
+                }
+            }
+        }
+    }
 
     private func summaryText(lengthSteps: Int, page: Int, pageCount: Int, steps: [ClipStep]) -> String {
         if let selectedMacroBinding {

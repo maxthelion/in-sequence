@@ -11,6 +11,8 @@ final class DestinationTests: XCTestCase {
                 stateBlob: Data(repeating: 0xAB, count: 64)
             ),
             .internalSampler(bankID: .drumKitDefault, preset: "kick-909"),
+            .sample(sampleID: UUID(), settings: SamplerSettings(gain: -3)),
+            .slicer(sliceSetID: UUID(), settings: SlicerSettings(gain: -6, transpose: 12, voiceMode: .polyphonic)),
             .inheritGroup,
             .none,
         ]

@@ -60,16 +60,21 @@ struct ClipStep: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+enum SliceTriggerStepMode: String, Codable, Equatable, Hashable, Sendable, CaseIterable {
+    case single
+    case runFromHere
+}
+
 enum ClipContent: Equatable, Hashable, Sendable {
     case noteGrid(lengthSteps: Int, steps: [ClipStep])
-    case sliceTriggers(stepPattern: [Bool], sliceIndexes: [Int])
+    case sliceTriggers(stepPattern: [Bool], sliceIndexes: [Int], stepModes: [SliceTriggerStepMode])
 
     /// Number of steps in the clip — used to size macro lane values arrays.
     var stepCount: Int {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
-        case let .sliceTriggers(stepPattern, _):
+        case let .sliceTriggers(stepPattern, _, _):
             return max(1, stepPattern.count)
         }
     }
@@ -129,7 +134,7 @@ extension ClipContent {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
-        case let .sliceTriggers(stepPattern, _):
+        case let .sliceTriggers(stepPattern, _, _):
             return max(1, stepPattern.count)
         }
     }
@@ -145,9 +150,10 @@ extension ClipContent {
                 return .empty
             }
             return .noteGrid(lengthSteps: resolvedLength, steps: normalizedSteps)
-        case let .sliceTriggers(stepPattern, sliceIndexes):
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
             let resolvedPattern = stepPattern.isEmpty ? [false] : stepPattern
-            return .sliceTriggers(stepPattern: resolvedPattern, sliceIndexes: sliceIndexes)
+            let resolvedModes = Self.syncedSliceModes(stepModes, stepCount: resolvedPattern.count)
+            return .sliceTriggers(stepPattern: resolvedPattern, sliceIndexes: sliceIndexes, stepModes: resolvedModes)
         }
     }
 
@@ -216,6 +222,7 @@ extension ClipContent: Codable {
     private enum SliceTriggersCodingKeys: String, CodingKey {
         case stepPattern
         case sliceIndexes
+        case stepModes
     }
 
     init(from decoder: Decoder) throws {
@@ -249,7 +256,8 @@ extension ClipContent: Codable {
             let nested = try container.nestedContainer(keyedBy: SliceTriggersCodingKeys.self, forKey: key)
             self = ClipContent.sliceTriggers(
                 stepPattern: try nested.decode([Bool].self, forKey: .stepPattern),
-                sliceIndexes: try nested.decode([Int].self, forKey: .sliceIndexes)
+                sliceIndexes: try nested.decode([Int].self, forKey: .sliceIndexes),
+                stepModes: try nested.decodeIfPresent([SliceTriggerStepMode].self, forKey: .stepModes) ?? []
             ).normalized
         default:
             throw DecodingError.dataCorruptedError(
@@ -268,11 +276,21 @@ extension ClipContent: Codable {
             var nested = container.nestedContainer(keyedBy: NoteGridCodingKeys.self, forKey: DynamicCodingKey("noteGrid"))
             try nested.encode(lengthSteps, forKey: .lengthSteps)
             try nested.encode(steps, forKey: .steps)
-        case let .sliceTriggers(stepPattern, sliceIndexes):
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
             var nested = container.nestedContainer(keyedBy: SliceTriggersCodingKeys.self, forKey: DynamicCodingKey("sliceTriggers"))
             try nested.encode(stepPattern, forKey: .stepPattern)
             try nested.encode(sliceIndexes, forKey: .sliceIndexes)
+            try nested.encode(stepModes, forKey: .stepModes)
         }
+    }
+
+    private static func syncedSliceModes(_ modes: [SliceTriggerStepMode], stepCount: Int) -> [SliceTriggerStepMode] {
+        let count = max(1, stepCount)
+        if modes.count == count { return modes }
+        if modes.count < count {
+            return modes + Array(repeating: .single, count: count - modes.count)
+        }
+        return Array(modes.prefix(count))
     }
 }
 

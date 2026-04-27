@@ -426,6 +426,13 @@ final class EngineController: RouterDispatcher {
         let track = currentDocumentModel.tracks[trackIndex]
 
         guard case .sample = track.destination else {
+            if case .slicer = track.destination {
+                sampleEngine.setTrackMix(
+                    trackID: trackID,
+                    level: mix.clampedLevel,
+                    pan: mix.clampedPan
+                )
+            }
             return
         }
 
@@ -747,6 +754,10 @@ final class EngineController: RouterDispatcher {
         case .sample:
             // TODO: Task 11 will wire sample dispatch
             return "Sample playback pending"
+        case let .slicer(sliceSetID, _):
+            let sliceSet = currentPlaybackSnapshot.sliceSet(id: sliceSetID)
+            let count = sliceSet?.displaySliceCount ?? 0
+            return count > 0 ? "Slicer • \(count) slices" : "Slicer • Choose a loop"
         case .inheritGroup, .none:
             return "No default output"
         }
@@ -881,7 +892,7 @@ final class EngineController: RouterDispatcher {
             )
         }
 
-        // Sample dispatch → queue (drum tracks and any other track with .sample destination).
+        // Sample/slicer dispatch → queue (drum tracks and any other track with sample-like destinations).
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         for track in playbackSnapshot.tracks {
             guard !track.mix.isMuted,
@@ -890,17 +901,37 @@ final class EngineController: RouterDispatcher {
                   case let .notes(events)? = outputs[generatorID]?["notes"],
                   !events.isEmpty
             else { continue }
-            guard case let .sample(sampleID, settings) = track.destination else { continue }
-            for _ in events {
-                eventQueue.enqueue(ScheduledEvent(
-                    scheduledHostTime: now,
-                    payload: .sampleTrigger(
-                        trackID: track.id,
-                        sampleID: sampleID,
-                        settings: settings,
-                        scheduledHostTime: now
-                    )
-                ))
+            switch track.destination {
+            case let .sample(sampleID, settings):
+                for _ in events {
+                    eventQueue.enqueue(ScheduledEvent(
+                        scheduledHostTime: now,
+                        payload: .sampleTrigger(
+                            trackID: track.id,
+                            sampleID: sampleID,
+                            settings: settings,
+                            scheduledHostTime: now
+                        )
+                    ))
+                }
+
+            case let .slicer(sliceSetID, settings):
+                EngineSlicerDispatcher.enqueueSliceTriggers(
+                    for: events,
+                    trackID: track.id,
+                    sliceSetID: sliceSetID,
+                    settings: settings,
+                    snapshot: playbackSnapshot,
+                    sampleLibrary: sampleLibrary,
+                    sampleLibraryRoot: sampleLibraryRoot,
+                    stepsPerBar: stepsPerBar,
+                    bpm: executor.currentBPM,
+                    now: now,
+                    eventQueue: eventQueue
+                )
+
+            default:
+                continue
             }
         }
 
@@ -955,6 +986,17 @@ final class EngineController: RouterDispatcher {
                 guard let sample = sampleLibrary.sample(id: sampleID) else { continue }
                 guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
                 _ = sampleEngine.play(sampleURL: url, settings: settings, trackID: trackID, at: nil)
+
+            case let .sliceTrigger(trackID, sampleURL, startFrame, endFrame, settings, reverse, _):
+                _ = sampleEngine.playSlice(
+                    sampleURL: sampleURL,
+                    startFrame: AVAudioFramePosition(startFrame),
+                    endFrame: AVAudioFramePosition(endFrame),
+                    settings: settings,
+                    trackID: trackID,
+                    at: nil,
+                    reverse: reverse
+                )
             }
         }
     }
@@ -1030,8 +1072,7 @@ final class EngineController: RouterDispatcher {
                     destination: effectiveDestination,
                     pitchOffset: pitchOffset
                 )
-            case .internalSampler, .sample, .inheritGroup, .none:
-                // TODO: Task 11 will wire .sample dispatch
+            case .internalSampler, .sample, .slicer, .inheritGroup, .none:
                 break
             }
         }
@@ -1181,8 +1222,28 @@ final class EngineController: RouterDispatcher {
                 )
             )
 
+        case let .slicer(sliceSetID, settings):
+            guard let track,
+                  !track.mix.isMuted,
+                  !currentLayerSnapshot.isMuted(track.id)
+            else {
+                return
+            }
+            EngineSlicerDispatcher.enqueueSliceTriggers(
+                for: notes,
+                trackID: track.id,
+                sliceSetID: sliceSetID,
+                settings: settings,
+                snapshot: currentPlaybackSnapshot,
+                sampleLibrary: sampleLibrary,
+                sampleLibraryRoot: sampleLibraryRoot,
+                stepsPerBar: stepsPerBar,
+                bpm: bpm,
+                now: routeDispatchNow,
+                eventQueue: eventQueue
+            )
+
         case .internalSampler, .sample, .inheritGroup, .none:
-            // TODO: Task 11 will wire .sample dispatch
             return
         }
     }
@@ -1348,7 +1409,12 @@ final class EngineController: RouterDispatcher {
     private func syncSampleMixers(for documentModel: Project) {
         var sampleTrackIDs: Set<UUID> = []
         for track in documentModel.tracks {
-            guard case .sample = track.destination else { continue }
+            switch track.destination {
+            case .sample, .slicer:
+                break
+            default:
+                continue
+            }
             sampleTrackIDs.insert(track.id)
             sampleEngine.setTrackMix(
                 trackID: track.id,

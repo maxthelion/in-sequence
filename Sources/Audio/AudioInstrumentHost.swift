@@ -258,7 +258,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 if self.shouldBeRunning {
                     self.ensureInstrumentLoadedIfNeeded()
                 }
-            case .midi, .internalSampler, .sample, .inheritGroup, .none:
+            case .midi, .internalSampler, .sample, .slicer, .inheritGroup, .none:
                 self.pendingLoadGeneration = nil
                 self.disconnectCurrentInstrument()
             }

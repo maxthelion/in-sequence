@@ -478,7 +478,8 @@ private func makeRichProject() -> Project {
         trackType: .slice,
         content: .sliceTriggers(
             stepPattern: [true, false, false, true, false, false, true, false],
-            sliceIndexes: [0, 1, 2]
+            sliceIndexes: [0, 1, 2],
+            stepModes: []
         )
     )
     let generator = GeneratorPoolEntry.makeDefault(

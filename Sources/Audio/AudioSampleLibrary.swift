@@ -95,13 +95,15 @@ final class AudioSampleLibrary {
                 let relativePath = "\(categoryName)/\(fileURL.lastPathComponent)"
                 let id = uuidV5(namespace: namespace, name: relativePath)
                 let name = (fileURL.lastPathComponent as NSString).deletingPathExtension
-                let length = audioLengthSeconds(url: fileURL)
+                let metadata = audioMetadata(url: fileURL)
                 found.append(AudioSample(
                     id: id,
                     name: name,
                     fileRef: .appSupportLibrary(relativePath: relativePath),
                     category: category,
-                    lengthSeconds: length
+                    lengthSeconds: metadata.lengthSeconds,
+                    lengthFrames: metadata.lengthFrames,
+                    sampleRate: metadata.sampleRate
                 ))
             }
         }
@@ -109,12 +111,12 @@ final class AudioSampleLibrary {
         return found
     }
 
-    private static func audioLengthSeconds(url: URL) -> Double? {
-        guard let file = try? AVAudioFile(forReading: url) else { return nil }
-        let frames = Double(file.length)
+    private static func audioMetadata(url: URL) -> (lengthSeconds: Double?, lengthFrames: Int64?, sampleRate: Double?) {
+        guard let file = try? AVAudioFile(forReading: url) else { return (nil, nil, nil) }
+        let lengthFrames = Int64(file.length)
         let rate = file.processingFormat.sampleRate
-        guard rate > 0 else { return nil }
-        return frames / rate
+        guard rate > 0 else { return (nil, lengthFrames, nil) }
+        return (Double(lengthFrames) / rate, lengthFrames, rate)
     }
 
     private static func uuidV5(namespace: UUID, name: String) -> UUID {

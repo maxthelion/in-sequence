@@ -45,7 +45,7 @@ Currently: `SequencerAIApp.swift`.
 
 Everything about the `.seqai` document. `FileDocument` conformance, the `Codable` model that's serialized, UTType declarations, phrase/pattern/generator model types, and the pure generator-algo value types used by document data. **No UI, no engine, no platform concerns.** This module may depend on `Musical/` for shipped lookup tables, but should remain importable into a hypothetical CLI tool that only processes documents.
 
-Currently: `SeqAIDocument.swift`, `Project.swift`, `PhraseModel.swift`, `Destination.swift`, `TrackGroup.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. Fresh-model document state now centers on inline `Destination`, optional `track.groupID`, project-scoped `trackGroups`, and per-track pattern banks. See [[document-model]], [[generator-algos]], [[track-destinations]], and [[routing]].
+Currently: `SeqAIDocument.swift`, `Project.swift`, `PhraseModel.swift`, `Destination.swift`, `SliceSet.swift`, `TrackGroup.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. Fresh-model document state now centers on inline `Destination`, optional `track.groupID`, project-scoped `trackGroups`, project-scoped `sliceSetPool`, and per-track pattern banks. See [[document-model]], [[generator-algos]], [[track-destinations]], [[slicer-tracks]], and [[routing]].
 
 ### `Sources/Musical/`
 
@@ -57,7 +57,7 @@ Currently: `ScaleID.swift`, `Scale.swift`, `Scales.swift`, `ChordID.swift`, `Cho
 
 SwiftUI views only. Each view in its own file. Composed into `ContentView` (NavigationSplitView) via `SequencerAIApp`. Views read from `MIDISession.shared` and the document binding; they never own business logic or talk to platform APIs directly.
 
-Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `TransportBar`, `StudioTopBar`, `PhraseWorkspaceView`, `TracksMatrixView`, `PreferencesView`, `TrackDestinationEditor`, `VoicePickerView`, `RoutesListView`, `RouteEditorSheet`.
+Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `TransportBar`, `StudioTopBar`, `PhraseWorkspaceView`, `TracksMatrixView`, `PreferencesView`, `TrackDestinationEditor`, `Sources/UI/Slicer/`, `VoicePickerView`, `RoutesListView`, `RouteEditorSheet`.
 
 ### `Sources/Engine/`
 
@@ -81,7 +81,7 @@ Currently: `MIDIClient.swift`, `MIDIEndpoint.swift`, `MIDISession.swift`.
 
 Native audio output and AU instrument hosting. This layer owns `AVAudioEngine`, built-in or hosted instrument nodes, and mixer routing for tracks that play sound inside the app instead of emitting only CoreMIDI. It does not know about SwiftUI or document bindings directly; the controller layer feeds it note events.
 
-Currently: `AudioInstrumentChoice.swift`, `AudioInstrumentHost.swift`, `AUAudioUnitFactory.swift`, `AUWindowHost.swift`, `FullStateCoder.swift`. See [[track-destinations]].
+Currently: `AudioInstrumentChoice.swift`, `AudioInstrumentHost.swift`, `AUAudioUnitFactory.swift`, `AUWindowHost.swift`, `FullStateCoder.swift`, `SamplePlaybackEngine.swift`, `SliceAnalyzer.swift`, and sampler filter nodes. See [[track-destinations]] and [[slicer-tracks]].
 
 ### `Sources/Resources/`
 
@@ -147,6 +147,7 @@ Each new directory comes with a wiki page like this one describing what it conta
 - [[document-model]] — what lives in a `.seqai`
 - [[generator-algos]] — musical tables, generator kinds, and algo composition
 - [[track-destinations]] — per-track `Destination`, groups, and AU state persistence
+- [[slicer-tracks]] — slice-set document data, slicer UI, and frame-range playback
 - [[track-groups]] — grouped track bundles and shared destinations
 - [[tracks-matrix]] — the flat/group-aware track selection workspace
 - [[live-view]] — the performance-facing layer/cell editor

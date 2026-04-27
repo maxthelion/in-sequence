@@ -25,6 +25,7 @@ enum SequencerSnapshotCompiler {
         return PlaybackSnapshot(
             selectedPhraseID: state.selectedPhraseID,
             clipPool: state.clipPool,
+            sliceSetPool: state.sliceSetPool,
             generatorPool: state.generatorPool,
             tracks: state.tracks,
             trackOrder: trackOrder,
@@ -49,6 +50,7 @@ enum SequencerSnapshotCompiler {
         let tracks = replacingTracks(in: previous.tracks, from: state, changedTrackIDs: changed.trackIDs)
         let clipPool = replacingClips(in: previous.clipPool, from: state, changedClipIDs: changed.clipIDs)
         let generatorPool = replacingGenerators(in: previous.generatorPool, from: state, changedGeneratorIDs: changed.generatorIDs)
+        let sliceSetPool = replacingSliceSets(in: previous.sliceSetPool, from: state, changedSliceSetIDs: changed.sliceSetIDs)
 
         let clipOwnerByID = makeClipOwnerMap(patternBanks: state.patternBanksByTrackID)
         var clipBuffersByID = previous.clipBuffersByID
@@ -115,6 +117,7 @@ enum SequencerSnapshotCompiler {
         return PlaybackSnapshot(
             selectedPhraseID: changed.selectedPhraseChanged ? state.selectedPhraseID : previous.selectedPhraseID,
             clipPool: clipPool,
+            sliceSetPool: sliceSetPool,
             generatorPool: generatorPool,
             tracks: tracks,
             trackOrder: previous.trackOrder,
@@ -142,6 +145,7 @@ enum SequencerSnapshotCompiler {
             tracks: project.tracks,
             generatorPool: project.generatorPool,
             clipPool: project.clipPool,
+            sliceSetPool: project.sliceSetPool,
             layers: project.layers,
             patternBanksByTrackID: banksByID,
             phrasesByID: phrasesByID,
@@ -184,7 +188,7 @@ enum SequencerSnapshotCompiler {
         switch normalized {
         case let .noteGrid(_, clipSteps):
             steps = clipSteps.map(compileStepBuffer)
-        case let .sliceTriggers(stepPattern, sliceIndexes):
+        case let .sliceTriggers(stepPattern, sliceIndexes, _):
             let normalizedIndexes = sliceIndexes.isEmpty ? [60] : sliceIndexes.map { 60 + $0 }
             steps = stepPattern.map { isOn in
                 guard isOn else {
@@ -441,6 +445,30 @@ enum SequencerSnapshotCompiler {
             }
         }
         return generators
+    }
+
+    private static func replacingSliceSets(
+        in previous: [SliceSet],
+        from state: LiveSequencerStoreState,
+        changedSliceSetIDs: Set<UUID>
+    ) -> [SliceSet] {
+        guard !changedSliceSetIDs.isEmpty else {
+            return previous
+        }
+
+        let updatedByID = Dictionary(uniqueKeysWithValues: state.sliceSetPool.map { ($0.id, $0) })
+        var sliceSets = previous
+        for sliceSetID in changedSliceSetIDs {
+            guard let updated = updatedByID[sliceSetID] else {
+                return state.sliceSetPool
+            }
+            if let index = sliceSets.firstIndex(where: { $0.id == sliceSetID }) {
+                sliceSets[index] = updated
+            } else {
+                sliceSets.append(updated)
+            }
+        }
+        return sliceSets
     }
 }
 

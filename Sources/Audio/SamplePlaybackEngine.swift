@@ -12,6 +12,15 @@ protocol SamplePlaybackSink: AnyObject {
     /// The track mixer's `outputVolume` and `pan` (controlled via `setTrackMix`) are
     /// what the UI fader writes to — this call does not take a mix level.
     func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle?
+    func playSlice(
+        sampleURL: URL,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        trackID: UUID,
+        at when: AVAudioTime?,
+        reverse: Bool
+    ) -> VoiceHandle?
     /// Apply the track's fader state to its mixer node. Takes effect live for
     /// in-flight voices as well as subsequent triggers.
     func setTrackMix(trackID: UUID, level: Double, pan: Double)
@@ -35,19 +44,43 @@ protocol SamplePlaybackSink: AnyObject {
     func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)?
 }
 
+extension SamplePlaybackSink {
+    func playSlice(
+        sampleURL: URL,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        trackID: UUID,
+        at when: AVAudioTime?,
+        reverse: Bool
+    ) -> VoiceHandle? {
+        nil
+    }
+}
+
 /// Hosts sample player nodes with per-track `AVAudioMixerNode`s. Voices are
 /// dynamically routed to the requesting track's mixer on each `play` call; the
 /// mixer's `outputVolume` / `pan` is what the track fader writes to. A separate
 /// preview node drives audition and bypasses track mixers entirely.
 final class SamplePlaybackEngine: SamplePlaybackSink {
+    private struct ReversedSliceCacheKey: Hashable {
+        let url: URL
+        let startFrame: AVAudioFramePosition
+        let endFrame: AVAudioFramePosition
+    }
+
     private static let mainVoiceCount = 16
+    private static let reversedSliceCacheLimit = 32
     private let audioGraph: MainAudioGraph
     private var mainVoices: [AVAudioPlayerNode] = []
     private var mainVoiceHandles: [UUID] = []
     private var mainVoiceCurrentTrack: [UUID?] = []
     private var nextVoiceIndex = 0
+    private var monoSliceVoiceByTrackID: [UUID: Int] = [:]
     private let previewNode = AVAudioPlayerNode()
     private var fileCache: [URL: AVAudioFile] = [:]
+    private var reversedSliceCache: [ReversedSliceCacheKey: AVAudioPCMBuffer] = [:]
+    private var reversedSliceCacheOrder: [ReversedSliceCacheKey] = []
     private var isStarted = false
     private var trackMixers: [UUID: AVAudioMixerNode] = [:]
     /// Per-track filter nodes inserted between the track mixer and the main mixer.
@@ -114,6 +147,66 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return VoiceHandle(id: handleID)
     }
 
+    @discardableResult
+    func playSlice(
+        sampleURL: URL,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        trackID: UUID,
+        at when: AVAudioTime? = nil,
+        reverse: Bool = false
+    ) -> VoiceHandle? {
+        guard isStarted else { return nil }
+        guard let file = cachedFile(url: sampleURL) else { return nil }
+
+        let clampedSettings = settings.clamped
+        let resolvedStart = max(0, min(startFrame, max(file.length - 1, 0)))
+        let resolvedEnd = max(resolvedStart + 1, min(endFrame, file.length))
+        guard resolvedEnd > resolvedStart else { return nil }
+
+        let voiceIndex = voiceIndex(for: clampedSettings.voiceMode, trackID: trackID)
+        let voice = mainVoices[voiceIndex]
+        let handleID = UUID()
+        mainVoiceHandles[voiceIndex] = handleID
+        let params = voiceParams[trackID]
+
+        if mainVoiceCurrentTrack[voiceIndex] != trackID {
+            return performOnMain { [self] in
+                guard isStarted else { return nil }
+                let mixer = trackMixer(for: trackID)
+                audioGraph.disconnectOutput(voice)
+                audioGraph.connect(voice, to: mixer)
+                mainVoiceCurrentTrack[voiceIndex] = trackID
+                scheduleAndStartSlice(
+                    voice,
+                    sampleURL: sampleURL,
+                    file: file,
+                    startFrame: resolvedStart,
+                    endFrame: resolvedEnd,
+                    settings: clampedSettings,
+                    params: params,
+                    at: when,
+                    reverse: reverse
+                )
+                return VoiceHandle(id: handleID)
+            }
+        }
+
+        scheduleAndStartSlice(
+            voice,
+            sampleURL: sampleURL,
+            file: file,
+            startFrame: resolvedStart,
+            endFrame: resolvedEnd,
+            settings: clampedSettings,
+            params: params,
+            at: when,
+            reverse: reverse
+        )
+        return VoiceHandle(id: handleID)
+    }
+
     private func scheduleAndStart(
         _ voice: AVAudioPlayerNode,
         file: AVAudioFile,
@@ -138,6 +231,42 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         voice.play()
     }
 
+    private func scheduleAndStartSlice(
+        _ voice: AVAudioPlayerNode,
+        sampleURL: URL,
+        file: AVAudioFile,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        params: [BuiltinMacroKind: Double]?,
+        at when: AVAudioTime?,
+        reverse: Bool
+    ) {
+        voice.stop()
+        let gainDB = params?[.sampleGain] ?? settings.gain
+        voice.volume = linearGain(dB: gainDB)
+
+        if reverse,
+           let buffer = reversedSliceBuffer(
+               sampleURL: sampleURL,
+               format: file.processingFormat,
+               startFrame: startFrame,
+               endFrame: endFrame
+           )
+        {
+            voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
+        } else {
+            voice.scheduleSegment(
+                file,
+                startingFrame: startFrame,
+                frameCount: AVAudioFrameCount(endFrame - startFrame),
+                at: when,
+                completionHandler: nil
+            )
+        }
+        voice.play()
+    }
+
     func stopVoice(_ handle: VoiceHandle) {
         guard let idx = mainVoiceHandles.firstIndex(of: handle.id) else { return }
         mainVoices[idx].stop()
@@ -155,6 +284,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     func removeTrack(trackID: UUID) {
         guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
+        monoSliceVoiceByTrackID.removeValue(forKey: trackID)
         for (i, currentTrackID) in mainVoiceCurrentTrack.enumerated() where currentTrackID == trackID {
             mainVoices[i].stop()
             audioGraph.disconnectOutput(mainVoices[i])
@@ -227,6 +357,80 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
         fileCache[url] = f
         return f
+    }
+
+    private func voiceIndex(for mode: SlicerVoiceMode, trackID: UUID) -> Int {
+        switch mode {
+        case .mono:
+            if let existing = monoSliceVoiceByTrackID[trackID] {
+                return existing
+            }
+            let index = nextVoiceIndex
+            monoSliceVoiceByTrackID[trackID] = index
+            nextVoiceIndex = (nextVoiceIndex &+ 1) % mainVoices.count
+            return index
+        case .polyphonic:
+            let index = nextVoiceIndex
+            nextVoiceIndex = (nextVoiceIndex &+ 1) % mainVoices.count
+            return index
+        }
+    }
+
+    private func reversedSliceBuffer(
+        sampleURL: URL,
+        format: AVAudioFormat,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition
+    ) -> AVAudioPCMBuffer? {
+        let key = ReversedSliceCacheKey(url: sampleURL, startFrame: startFrame, endFrame: endFrame)
+        if let cached = reversedSliceCache[key] {
+            return cached
+        }
+        guard let file = try? AVAudioFile(forReading: sampleURL) else {
+            return nil
+        }
+        let frameCount = AVAudioFrameCount(max(1, endFrame - startFrame))
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            return nil
+        }
+        do {
+            file.framePosition = startFrame
+            try file.read(into: buffer, frameCount: frameCount)
+        } catch {
+            return nil
+        }
+        reverse(buffer)
+        cacheReversedSlice(buffer, for: key)
+        return buffer
+    }
+
+    private func reverse(_ buffer: AVAudioPCMBuffer) {
+        guard let channelData = buffer.floatChannelData else { return }
+        let frameCount = Int(buffer.frameLength)
+        let channelCount = Int(buffer.format.channelCount)
+        guard frameCount > 1 else { return }
+        for channel in 0..<channelCount {
+            let samples = channelData[channel]
+            var left = 0
+            var right = frameCount - 1
+            while left < right {
+                let temp = samples[left]
+                samples[left] = samples[right]
+                samples[right] = temp
+                left += 1
+                right -= 1
+            }
+        }
+    }
+
+    private func cacheReversedSlice(_ buffer: AVAudioPCMBuffer, for key: ReversedSliceCacheKey) {
+        reversedSliceCache[key] = buffer
+        reversedSliceCacheOrder.removeAll { $0 == key }
+        reversedSliceCacheOrder.append(key)
+        while reversedSliceCacheOrder.count > Self.reversedSliceCacheLimit {
+            let removed = reversedSliceCacheOrder.removeFirst()
+            reversedSliceCache.removeValue(forKey: removed)
+        }
     }
 
     private func linearGain(dB: Double) -> Float {

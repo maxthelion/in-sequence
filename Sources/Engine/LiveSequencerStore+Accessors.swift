@@ -121,6 +121,18 @@ extension LiveSequencerStore {
         return clipPool.first(where: { $0.id == id })
     }
 
+    func sliceSet(id: UUID?) -> SliceSet? {
+        guard let id else { return nil }
+        if id == SliceSet.emptyID {
+            return SliceSet.empty
+        }
+        return sliceSetPool.first(where: { $0.id == id })
+    }
+
+    func firstSliceSet(for sampleID: UUID) -> SliceSet? {
+        sliceSetPool.first(where: { $0.sampleID == sampleID })
+    }
+
     /// Returns the generator pool entry with the given ID, or `nil`.
     ///
     /// Matches `Project.generatorEntry(id:)`.

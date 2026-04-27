@@ -12,6 +12,7 @@ struct SnapshotChange: Equatable, Sendable {
     var trackIDs: Set<UUID> = []
     var patternBankTrackIDs: Set<UUID> = []
     var generatorIDs: Set<UUID> = []
+    var sliceSetIDs: Set<UUID> = []
     var layersChanged: Bool = false
     var fullRebuild: Bool = false
 
@@ -47,6 +48,12 @@ struct SnapshotChange: Equatable, Sendable {
         return change
     }
 
+    static func sliceSet(_ id: UUID) -> SnapshotChange {
+        var change = SnapshotChange()
+        change.sliceSetIDs.insert(id)
+        return change
+    }
+
     static let selectedTrack = SnapshotChange(selectedTrackChanged: true)
     static let selectedPhrase = SnapshotChange(selectedPhraseChanged: true)
     static let layers = SnapshotChange(layersChanged: true)
@@ -60,6 +67,7 @@ struct SnapshotChange: Equatable, Sendable {
         trackIDs.formUnion(other.trackIDs)
         patternBankTrackIDs.formUnion(other.patternBankTrackIDs)
         generatorIDs.formUnion(other.generatorIDs)
+        sliceSetIDs.formUnion(other.sliceSetIDs)
         layersChanged = layersChanged || other.layersChanged
         fullRebuild = fullRebuild || other.fullRebuild
     }
@@ -79,6 +87,7 @@ struct SnapshotChange: Equatable, Sendable {
             !phraseIDs.isEmpty ||
             !trackIDs.isEmpty ||
             !patternBankTrackIDs.isEmpty ||
-            !generatorIDs.isEmpty
+            !generatorIDs.isEmpty ||
+            !sliceSetIDs.isEmpty
     }
 }

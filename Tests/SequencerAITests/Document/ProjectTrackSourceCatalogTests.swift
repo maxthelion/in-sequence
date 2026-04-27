@@ -32,7 +32,7 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
                     id: UUID(),
                     name: "Drum",
                     trackType: .slice,
-                    content: .sliceTriggers(stepPattern: [true, false, true, false], sliceIndexes: [0, 1, 0, 1])
+                    content: .sliceTriggers(stepPattern: [true, false, true, false], sliceIndexes: [0, 1, 0, 1], stepModes: [])
                 ),
             ],
             layers: layers,

@@ -121,6 +121,53 @@ extension SequencerDocumentSession {
         return true
     }
 
+    // MARK: - Slice set mutations
+
+    @discardableResult
+    func mutateSliceSet(
+        id: UUID,
+        sampleLengthFrames: Int64,
+        impact: LiveMutationImpact = .snapshotOnly,
+        _ update: (inout SliceSet) -> Void
+    ) -> Bool {
+        let changed = store.mutateSliceSet(id: id) { sliceSet in
+            update(&sliceSet)
+            sliceSet.normalize(sampleLengthFrames: sampleLengthFrames)
+        }
+        guard changed else { return false }
+        if isInBatch {
+            recordBatchChange(.sliceSet(id))
+            return true
+        }
+        dispatchImpact(impact, changed: .sliceSet(id))
+        return true
+    }
+
+    func setSlicerDestination(sliceSet: SliceSet, settings: SlicerSettings, for trackID: UUID) {
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            s.appendSliceSet(sliceSet)
+            var p = s.exportToProject()
+            p.addSliceSet(sliceSet)
+            p.setDestinationWithMacros(
+                .slicer(sliceSetID: sliceSet.id, settings: settings.clamped),
+                for: trackID
+            )
+            p.syncMacroLayers()
+            s.replaceTracks(p.tracks)
+            s.replaceTrackGroups(p.trackGroups)
+            s.setLayers(p.layers)
+            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+            s.writeBackChangedClips(from: p)
+        }
+    }
+
+    func setSlicerSettings(_ settings: SlicerSettings, for trackID: UUID) {
+        guard case let .slicer(sliceSetID, _) = store.resolvedDestination(for: trackID) else {
+            return
+        }
+        setEditedDestination(.slicer(sliceSetID: sliceSetID, settings: settings.clamped), for: trackID)
+    }
+
     // MARK: - Master bus mutations
 
     @discardableResult

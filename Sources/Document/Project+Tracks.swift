@@ -99,7 +99,7 @@ extension Project {
         case .monoMelodic, .polyMelodic:
             return .none
         case .slice:
-            return .internalSampler(bankID: .sliceDefault, preset: "empty-slice")
+            return .slicer(sliceSetID: SliceSet.emptyID, settings: .default)
         }
     }
 

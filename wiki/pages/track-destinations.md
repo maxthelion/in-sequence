@@ -30,6 +30,7 @@ This keeps routing and document persistence aligned: a track can have no default
 - `.auInstrument(componentID, stateBlob)`
 - `.internalSampler(bankID, preset)`
 - `.sample(sampleID:, settings:)` — plays a file from the read-only Application Support sample library; editor is `SamplerDestinationWidget` (see [[drum-track-mvp]])
+- `.slicer(sliceSetID:, settings:)` — plays frame ranges from a project-scoped `SliceSet`; editor is `SlicerSourceWidget` (see [[slicer-tracks]])
 - `.none`
 
 `Destination` is the concrete "where notes go" value. It is intentionally portable:
@@ -37,6 +38,7 @@ This keeps routing and document persistence aligned: a track can have no default
 - MIDI endpoints are referenced by `MIDIEndpointName`
 - AU instruments are referenced by `AudioComponentID`
 - AU preset state is stored as opaque `Data`
+- sampler and slicer destinations reference stable document/library IDs rather than absolute paths
 - `.none` means the track relies on project routes instead of a default sink
 
 ### `Voicing`
@@ -61,7 +63,7 @@ Track creation now seeds `Voicing.defaults(forType:)`:
 
 - instrument tracks start at `.none`
 - drum racks start with internal-sampler defaults for the seed kit tags
-- slice tracks start with an internal-sampler slice placeholder
+- slice tracks start with `.slicer(sliceSetID: SliceSet.emptyID, settings: .default)`
 
 The important design point is that "playable immediately" and "editable later" are both represented in document data rather than hidden in controller defaults.
 
@@ -157,7 +159,22 @@ The AU card renders:
 
 `Sources/UI/SamplerDestinationWidget.swift` is restyled to match the AU card: a rounded panel with an eyebrow label, body content (gain slider, waveform, audition button), and an action row — so the two destination kinds look like siblings in the inspector.
 
-Sampler tracks receive 8 built-in macros automatically on kind transition. The built-ins cover the full BuiltinMacroKind set: sample start, sample length, sample gain, and the five filter macros. See [[track-macros]] for the full slot model and kind-transition cascade.
+Sampler-like tracks receive 8 built-in macros automatically on kind transition. The built-ins cover the full BuiltinMacroKind set: sample start, sample length, sample gain, and the five filter macros. `Destination.sample`, `.internalSampler`, and `.slicer` share that built-in macro sync path. See [[track-macros]] for the full slot model and kind-transition cascade.
+
+### Slicer destination card
+
+`Sources/UI/Slicer/SlicerSourceWidget.swift` is the destination editor for `.slicer`.
+
+It supports:
+
+- choosing a sample from the app-support sample library
+- creating/updating a project-scoped `SliceSet`
+- grid and transient analysis
+- an 8-wide slice audition grid
+- track-wide gain, transpose, and mono/poly voice mode
+- a waveform editor sheet for marker range, gain, timing, reverse, and tag edits
+
+Slice clips emit `slice-N` or `slice-run-N` voice tags. The engine resolves those tags against the snapshot's `SliceSet` and dispatches `SamplePlaybackEngine.playSlice(...)` with concrete frame ranges. See [[slicer-tracks]] for the full runtime path.
 
 ## Testing and limits
 
@@ -174,6 +191,7 @@ The document shape, recent-voice store, and UI/editor plumbing are otherwise ver
 ## Related pages
 
 - [[track-macros]] — macro slot model, per-step clip lanes, and snapshot compiler precedence
+- [[slicer-tracks]] — `SliceSet`, slice clips, and frame-range playback
 - [[project-layout]] — where `Document/`, `Audio/`, `Platform/`, and `UI/` split responsibilities
 - [[document-model]] — the wider `.seqai` persistence model
 - [[routing]] — project-level additive routing on top of default destinations

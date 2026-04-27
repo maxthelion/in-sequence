@@ -68,6 +68,13 @@ struct AddDestinationSheet: View {
                         commit(defaultSampleDestination)
                     }
 
+                    optionButton(
+                        title: "Slicer",
+                        detail: "Slice a sample and trigger its regions from the sequencer."
+                    ) {
+                        commit(.slicer(sliceSetID: SliceSet.emptyID, settings: .default))
+                    }
+
                     if trackHasGroup {
                         optionButton(
                             title: "Inherit Group",

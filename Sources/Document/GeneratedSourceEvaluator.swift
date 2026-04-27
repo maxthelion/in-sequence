@@ -136,10 +136,10 @@ enum GeneratedSourceEvaluator {
             return seeds.enumerated().map { index, _ in
                 let sliceIndex = resolvedIndexes[(stepIndex + index) % resolvedIndexes.count]
                 return GeneratedNote(
-                    pitch: clampMIDI(60 + sliceIndex),
+                    pitch: 60,
                     velocity: clampMIDI(NoteShape.default.velocity),
                     length: max(1, NoteShape.default.gateLength),
-                    voiceTag: nil
+                    voiceTag: sliceVoiceTag(sliceIndex)
                 )
             }
 
@@ -230,10 +230,10 @@ enum GeneratedSourceEvaluator {
             return seeds.enumerated().map { index, _ in
                 let sliceIndex = resolvedIndexes[(stepIndex + index) % resolvedIndexes.count]
                 return GeneratedNote(
-                    pitch: clampMIDI(60 + sliceIndex),
+                    pitch: 60,
                     velocity: clampMIDI(NoteShape.default.velocity),
                     length: max(1, NoteShape.default.gateLength),
-                    voiceTag: nil
+                    voiceTag: sliceVoiceTag(sliceIndex)
                 )
             }
         }
@@ -286,7 +286,7 @@ enum GeneratedSourceEvaluator {
             guard !steps.isEmpty else { return false }
             let normalizedStep = positiveModulo(stepIndex, max(lengthSteps, 1))
             return !steps[normalizedStep].isEmpty
-        case let .sliceTriggers(stepPattern, _):
+        case let .sliceTriggers(stepPattern, _, _):
             guard !stepPattern.isEmpty else { return false }
             return stepPattern[stepIndex % stepPattern.count]
         }
@@ -326,18 +326,19 @@ enum GeneratedSourceEvaluator {
                 )
             } ?? []
 
-        case let .sliceTriggers(stepPattern, sliceIndexes):
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
             guard !stepPattern.isEmpty else { return [] }
             let normalizedStep = positiveModulo(stepIndex, stepPattern.count)
             guard stepPattern[normalizedStep] else { return [] }
             let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
             let sliceIndex = resolvedIndexes[normalizedStep % resolvedIndexes.count]
+            let mode = stepModes[safe: normalizedStep] ?? .single
             return [
                 GeneratedNote(
-                    pitch: clampMIDI(60 + sliceIndex),
+                    pitch: 60,
                     velocity: clampMIDI(NoteShape.default.velocity),
                     length: max(1, NoteShape.default.gateLength),
-                    voiceTag: nil
+                    voiceTag: sliceVoiceTag(sliceIndex, runFromHere: mode == .runFromHere)
                 )
             ]
         }
@@ -690,5 +691,15 @@ enum GeneratedSourceEvaluator {
 
     private static func clampMIDI(_ value: Int) -> Int {
         min(max(value, 0), 127)
+    }
+
+    private static func sliceVoiceTag(_ index: Int, runFromHere: Bool = false) -> String {
+        "\(runFromHere ? "slice-run" : "slice")-\(max(0, index))"
+    }
+}
+
+private extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

@@ -881,7 +881,8 @@ struct ClipPoolEntry: Equatable, Identifiable, Sendable {
             trackType: .slice,
             content: .sliceTriggers(
                 stepPattern: [true, false, false, true, false, false, true, false, true, false, false, true, false, true, false, false],
-                sliceIndexes: [0, 2, 4, 5]
+                sliceIndexes: [0, 2, 4, 5],
+                stepModes: []
             )
         )
     ]
@@ -939,7 +940,7 @@ extension ClipPoolEntry {
                 )
             )
             .sorted()
-        case let .sliceTriggers(_, sliceIndexes):
+        case let .sliceTriggers(_, sliceIndexes, _):
             return sliceIndexes.map { 60 + $0 }
         }
     }

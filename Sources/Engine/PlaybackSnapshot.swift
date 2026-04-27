@@ -12,6 +12,7 @@ struct PlaybackSnapshot: Equatable, Sendable {
     // Phase 1b of the live-store v2 remediation.
     let selectedPhraseID: UUID
     let clipPool: [ClipPoolEntry]
+    let sliceSetPool: [SliceSet]
     let generatorPool: [GeneratorPoolEntry]
     /// Ordered track list, carried from `LiveSequencerStoreState.tracks`.
     /// The tick path iterates this instead of `currentDocumentModel.tracks` (Phase 1b).
@@ -31,6 +32,14 @@ struct PlaybackSnapshot: Equatable, Sendable {
     func generatorEntry(id: UUID?) -> GeneratorPoolEntry? {
         guard let id else { return nil }
         return generatorPool.first(where: { $0.id == id })
+    }
+
+    func sliceSet(id: UUID?) -> SliceSet? {
+        guard let id else { return nil }
+        if id == SliceSet.emptyID {
+            return SliceSet.empty
+        }
+        return sliceSetPool.first(where: { $0.id == id })
     }
 
     // MARK: - Buffer accessors

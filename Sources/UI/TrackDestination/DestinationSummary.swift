@@ -62,6 +62,14 @@ struct DestinationSummary: Equatable {
                 detail: "Sample not in library"
             )
 
+        case let .slicer(sliceSetID, settings):
+            let gainSuffix = settings.gain == 0 ? "" : String(format: " · %+.1f dB", settings.gain)
+            return DestinationSummary(
+                iconName: "waveform.path.ecg.rectangle",
+                typeLabel: "Slicer",
+                detail: "Slice set \(sliceSetID.uuidString.prefix(8))\(gainSuffix)"
+            )
+
         case .inheritGroup:
             guard let group = groupLookup(trackID) else {
                 return DestinationSummary(

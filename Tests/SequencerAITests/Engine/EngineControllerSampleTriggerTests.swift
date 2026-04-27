@@ -5,12 +5,25 @@ import AVFoundation
 final class EngineControllerSampleTriggerTests: XCTestCase {
     private final class SpySamplePlaybackSink: SamplePlaybackSink {
         var playCalls: [(URL, SamplerSettings, UUID)] = []
+        var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, Bool)] = []
         var setTrackMixCalls: [(UUID, Double, Double)] = []
         var removeTrackCalls: [UUID] = []
         func start() throws {}
         func stop() {}
         func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? {
             playCalls.append((sampleURL, settings, trackID))
+            return nil
+        }
+        func playSlice(
+            sampleURL: URL,
+            startFrame: AVAudioFramePosition,
+            endFrame: AVAudioFramePosition,
+            settings: SlicerSettings,
+            trackID: UUID,
+            at when: AVAudioTime?,
+            reverse: Bool
+        ) -> VoiceHandle? {
+            playSliceCalls.append((sampleURL, startFrame, endFrame, settings, trackID, reverse))
             return nil
         }
         func setTrackMix(trackID: UUID, level: Double, pan: Double) {
@@ -31,7 +44,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
     override func setUpWithError() throws {
         libraryRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: libraryRoot.appendingPathComponent("kick"), withIntermediateDirectories: true)
-        try Data().write(to: libraryRoot.appendingPathComponent("kick/test-kick.wav"))
+        try writeSilentWAV(to: libraryRoot.appendingPathComponent("kick/test-kick.wav"), sampleRate: 48_000)
     }
 
     override func tearDownWithError() throws {
@@ -54,13 +67,25 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         )
     }
 
+    private func writeSilentWAV(to url: URL, sampleRate: Double) throws {
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        let frameCount = AVAudioFrameCount(sampleRate * 0.1)
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+        buffer.frameLength = frameCount
+        let file = try AVAudioFile(forWriting: url, settings: format.settings)
+        try file.write(from: buffer)
+    }
+
     private func makeProject(
         track: StepSequenceTrack,
         generator: GeneratorPoolEntry,
         phrase: PhraseModel,
-        layers: [PhraseLayerDefinition]
+        layers: [PhraseLayerDefinition],
+        clipPool: [ClipPoolEntry] = [],
+        patternBank: TrackPatternBank? = nil,
+        sliceSetPool: [SliceSet] = []
     ) -> Project {
-        let patternBank = TrackPatternBank(
+        let resolvedPatternBank = patternBank ?? TrackPatternBank(
             trackID: track.id,
             slots: (0..<16).map { TrackPatternSlot(slotIndex: $0, sourceRef: .generator(generator.id)) }
         )
@@ -68,9 +93,10 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             version: 1,
             tracks: [track],
             generatorPool: [generator],
-            clipPool: [],
+            clipPool: clipPool,
             layers: layers,
-            patternBanks: [patternBank],
+            patternBanks: [resolvedPatternBank],
+            sliceSetPool: sliceSetPool,
             selectedTrackID: track.id,
             phrases: [phrase],
             selectedPhraseID: phrase.id
@@ -280,5 +306,165 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         controller.stop()
 
         XCTAssertEqual(spy.playCalls.count, 0, "orphan sample ID should no-op cleanly")
+    }
+
+    func test_slicerDestination_dispatchesSliceRangeAndMergedGain() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let sample = library.firstSample(in: .kick) else {
+            XCTFail("fixture missing"); return
+        }
+        let spy = SpySamplePlaybackSink()
+        let sliceSet = SliceSet(
+            sampleID: sample.id,
+            markers: [
+                SliceMarker(startFrame: 0, endFrame: 44_100),
+                SliceMarker(startFrame: 100, endFrame: 300, gain: 3, reverse: true)
+            ]
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: "Slice Clip",
+            trackType: .slice,
+            content: .sliceTriggers(stepPattern: [true], sliceIndexes: [1], stepModes: [.single])
+        )
+        let track = StepSequenceTrack(
+            name: "Slice",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .slicer(sliceSetID: sliceSet.id, settings: SlicerSettings(gain: -2, transpose: 0, voiceMode: .mono)),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [clip])
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        let project = makeProject(
+            track: track,
+            generator: generator,
+            phrase: phrase,
+            layers: layers,
+            clipPool: [clip],
+            patternBank: bank,
+            sliceSetPool: [sliceSet]
+        )
+        let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
+
+        XCTAssertEqual(spy.playCalls.count, 0)
+        let call = spy.playSliceCalls.first
+        XCTAssertEqual(spy.playSliceCalls.count, 1)
+        XCTAssertEqual(call?.1, 100)
+        XCTAssertEqual(call?.2, 300)
+        XCTAssertEqual(call?.3.gain ?? 0, 1, accuracy: 1e-9)
+        XCTAssertEqual(call?.4, track.id)
+        XCTAssertEqual(call?.5, true)
+    }
+
+    func test_slicerDestination_appliesMicroTimingAtSampleRate() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let sample = library.firstSample(in: .kick) else {
+            XCTFail("fixture missing"); return
+        }
+        let spy = SpySamplePlaybackSink()
+        let sliceSet = SliceSet(
+            sampleID: sample.id,
+            markers: [
+                SliceMarker(startFrame: 0, endFrame: 4_800),
+                SliceMarker(startFrame: 100, endFrame: 4_000, microTimingSteps: 0.5)
+            ]
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: "Slice Clip",
+            trackType: .slice,
+            content: .sliceTriggers(stepPattern: [true], sliceIndexes: [1], stepModes: [.single])
+        )
+        let track = StepSequenceTrack(
+            name: "Slice",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .slicer(sliceSetID: sliceSet.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [clip])
+        let bank = TrackPatternBank(trackID: track.id, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))])
+        let project = makeProject(
+            track: track,
+            generator: generator,
+            phrase: phrase,
+            layers: layers,
+            clipPool: [clip],
+            patternBank: bank,
+            sliceSetPool: [sliceSet]
+        )
+        let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
+
+        XCTAssertEqual(sample.sampleRate, 48_000)
+        XCTAssertEqual(spy.playSliceCalls.first?.1, 3_100)
+        XCTAssertEqual(spy.playSliceCalls.first?.2, 4_000)
+    }
+
+    func test_slicerRunFromHere_extendsToWholeSampleEnd() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let sample = library.firstSample(in: .kick) else {
+            XCTFail("fixture missing"); return
+        }
+        let spy = SpySamplePlaybackSink()
+        let sliceSet = SliceSet(
+            sampleID: sample.id,
+            markers: [
+                SliceMarker(startFrame: 0, endFrame: 44_100),
+                SliceMarker(startFrame: 100, endFrame: 300)
+            ]
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: "Slice Clip",
+            trackType: .slice,
+            content: .sliceTriggers(stepPattern: [true], sliceIndexes: [1], stepModes: [.runFromHere])
+        )
+        let track = StepSequenceTrack(
+            name: "Slice",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .slicer(sliceSetID: sliceSet.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [clip])
+        let bank = TrackPatternBank(trackID: track.id, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))])
+        let project = makeProject(
+            track: track,
+            generator: generator,
+            phrase: phrase,
+            layers: layers,
+            clipPool: [clip],
+            patternBank: bank,
+            sliceSetPool: [sliceSet]
+        )
+        let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
+
+        XCTAssertEqual(spy.playSliceCalls.first?.1, 100)
+        XCTAssertEqual(spy.playSliceCalls.first?.2, 44_100)
     }
 }

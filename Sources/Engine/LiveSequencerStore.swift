@@ -33,6 +33,7 @@ struct LiveSequencerStoreState {
     let tracks: [StepSequenceTrack]
     let generatorPool: [GeneratorPoolEntry]
     let clipPool: [ClipPoolEntry]
+    let sliceSetPool: [SliceSet]
     let layers: [PhraseLayerDefinition]
     let patternBanksByTrackID: [UUID: TrackPatternBank]
     let phrasesByID: [UUID: PhraseModel]
@@ -45,6 +46,7 @@ struct LiveSequencerStoreState {
         tracks: [],
         generatorPool: [],
         clipPool: [],
+        sliceSetPool: [],
         layers: [],
         patternBanksByTrackID: [:],
         phrasesByID: [:],
@@ -90,6 +92,10 @@ final class LiveSequencerStore {
     /// Clip pool indexed by ID. `storeClipOrder` preserves insertion order.
     private var storeClipsByID: [UUID: ClipPoolEntry] = [:]
     private var storeClipOrder: [UUID] = []
+
+    /// Slice set pool indexed by ID. `storeSliceSetOrder` preserves insertion order.
+    private var storeSliceSetsByID: [UUID: SliceSet] = [:]
+    private var storeSliceSetOrder: [UUID] = []
 
     /// Phrase layer definitions, ordered as stored.
     private var storeLayers: [PhraseLayerDefinition] = []
@@ -138,6 +144,9 @@ final class LiveSequencerStore {
         storeClipOrder = project.clipPool.map(\.id)
         storeClipsByID = Dictionary(uniqueKeysWithValues: project.clipPool.map { ($0.id, $0) })
 
+        storeSliceSetOrder = project.sliceSetPool.map(\.id)
+        storeSliceSetsByID = Dictionary(uniqueKeysWithValues: project.sliceSetPool.map { ($0.id, $0) })
+
         storePhraseOrder = project.phrases.map(\.id)
         storePhrasesByID = Dictionary(uniqueKeysWithValues: project.phrases.map { ($0.id, $0) })
 
@@ -168,6 +177,7 @@ final class LiveSequencerStore {
         exportToProjectCallCount += 1
         let orderedGenerators = storeGeneratorOrder.compactMap { storeGeneratorsByID[$0] }
         let orderedClips = storeClipOrder.compactMap { storeClipsByID[$0] }
+        let orderedSliceSets = storeSliceSetOrder.compactMap { storeSliceSetsByID[$0] }
         let orderedPhrases = storePhraseOrder.compactMap { storePhrasesByID[$0] }
         let orderedBanks = storeTracks.compactMap { storePatternBanksByTrackID[$0.id] }
 
@@ -181,6 +191,7 @@ final class LiveSequencerStore {
             routes: storeRoutes,
             masterBus: storeMasterBus,
             patternBanks: orderedBanks,
+            sliceSetPool: orderedSliceSets,
             selectedTrackID: storeSelectedTrackID,
             phrases: orderedPhrases,
             selectedPhraseID: storeSelectedPhraseID
@@ -265,6 +276,40 @@ final class LiveSequencerStore {
             return false
         }
         storeGeneratorsByID[id] = entry
+        revision &+= 1
+        return true
+    }
+
+    /// Mutate a slice set in the slice set pool by ID.
+    ///
+    /// - Returns: `true` if the slice set existed and the closure produced a change.
+    @discardableResult
+    func mutateSliceSet(id: UUID, _ update: (inout SliceSet) -> Void) -> Bool {
+        guard var entry = storeSliceSetsByID[id] else {
+            return false
+        }
+        let before = entry
+        update(&entry)
+        guard entry != before else {
+            return false
+        }
+        storeSliceSetsByID[id] = entry
+        revision &+= 1
+        return true
+    }
+
+    @discardableResult
+    func appendSliceSet(_ set: SliceSet) -> Bool {
+        guard set.id != SliceSet.emptyID else {
+            return false
+        }
+        if storeSliceSetsByID[set.id] == set {
+            return false
+        }
+        storeSliceSetsByID[set.id] = set
+        if !storeSliceSetOrder.contains(set.id) {
+            storeSliceSetOrder.append(set.id)
+        }
         revision &+= 1
         return true
     }
@@ -482,6 +527,10 @@ final class LiveSequencerStore {
         storeClipOrder.compactMap { storeClipsByID[$0] }
     }
 
+    var sliceSetPool: [SliceSet] {
+        storeSliceSetOrder.compactMap { storeSliceSetsByID[$0] }
+    }
+
     var phrases: [PhraseModel] {
         storePhraseOrder.compactMap { storePhrasesByID[$0] }
     }
@@ -496,11 +545,13 @@ final class LiveSequencerStore {
     func compileInput() -> LiveSequencerStoreState {
         let orderedGenerators = storeGeneratorOrder.compactMap { storeGeneratorsByID[$0] }
         let orderedClips = storeClipOrder.compactMap { storeClipsByID[$0] }
+        let orderedSliceSets = storeSliceSetOrder.compactMap { storeSliceSetsByID[$0] }
         let orderedPhrases = storePhraseOrder.compactMap { storePhrasesByID[$0] }
         return LiveSequencerStoreState(
             tracks: storeTracks,
             generatorPool: orderedGenerators,
             clipPool: orderedClips,
+            sliceSetPool: orderedSliceSets,
             layers: storeLayers,
             patternBanksByTrackID: storePatternBanksByTrackID,
             phrasesByID: Dictionary(uniqueKeysWithValues: orderedPhrases.map { ($0.id, $0) }),

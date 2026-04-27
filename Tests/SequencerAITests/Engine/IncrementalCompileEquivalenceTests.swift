@@ -241,6 +241,31 @@ final class IncrementalCompileEquivalenceTests: XCTestCase {
         XCTAssertEqual(incremental, expected)
     }
 
+    func test_sliceSetChange_matchesFullCompileOracle() throws {
+        let (project, _, _) = makeLiveStoreProject(clipPitch: 60)
+        let store = LiveSequencerStore(project: project)
+        let sliceSet = SliceSet(
+            sampleID: UUID(),
+            markers: [SliceMarker(startFrame: 0, endFrame: 100)]
+        )
+        store.appendSliceSet(sliceSet)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+
+        store.mutateSliceSet(id: sliceSet.id) { set in
+            set.markers.append(SliceMarker(startFrame: 10, endFrame: 30))
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .sliceSet(sliceSet.id),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+    }
+
     func test_fullRebuildChange_matchesFullCompileOracle() throws {
         let (project, _, _) = makeLiveStoreProject()
         let store = LiveSequencerStore(project: project)

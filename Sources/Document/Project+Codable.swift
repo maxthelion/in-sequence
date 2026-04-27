@@ -19,6 +19,7 @@ struct NormalizedFields {
         case routes
         case masterBus
         case patternBanks
+        case sliceSetPool
         case selectedTrackID
         case phrases
         case selectedPhraseID
@@ -106,6 +107,7 @@ static func normalize(
             clipPool: defaultClipPool,
             layers: defaultLayers,
             patternBanks: Self.defaultPatternBanks(for: tracks, generatorPool: defaultGeneratorPool, clipPool: defaultClipPool),
+            sliceSetPool: [],
             selectedTrackID: selectedTrackID,
             phrases: defaultPhrases,
             selectedPhraseID: defaultPhrases[0].id
@@ -141,6 +143,7 @@ static func normalize(
         routes = resolvedRoutes
         masterBus = resolvedMasterBus
         patternBanks = normalized.patternBanks
+        sliceSetPool = try container.decodeIfPresent([SliceSet].self, forKey: .sliceSetPool) ?? []
         selectedTrackID = normalized.selectedTrackID
         phrases = normalized.phrases
         selectedPhraseID = normalized.selectedPhraseID
@@ -158,6 +161,7 @@ static func normalize(
         try container.encode(routes, forKey: .routes)
         try container.encode(masterBus.normalized(), forKey: .masterBus)
         try container.encode(patternBanks, forKey: .patternBanks)
+        try container.encode(sliceSetPool, forKey: .sliceSetPool)
         try container.encode(selectedTrackID, forKey: .selectedTrackID)
         try container.encode(phrases, forKey: .phrases)
         try container.encode(selectedPhraseID, forKey: .selectedPhraseID)

@@ -30,6 +30,7 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
     case auInstrument(componentID: AudioComponentID, stateBlob: Data?)
     case internalSampler(bankID: InternalSamplerBankID, preset: String)
     case sample(sampleID: UUID, settings: SamplerSettings)
+    case slicer(sliceSetID: UUID, settings: SlicerSettings)
     case inheritGroup
     case none
 
@@ -38,6 +39,7 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
         case auInstrument
         case internalSampler
         case sample
+        case slicer
         case inheritGroup
         case none
     }
@@ -52,6 +54,8 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
             return .internalSampler
         case .sample:
             return .sample
+        case .slicer:
+            return .slicer
         case .inheritGroup:
             return .inheritGroup
         case .none:
@@ -69,6 +73,8 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
             return "Internal"
         case .sample:
             return "Sampler"
+        case .slicer:
+            return "Slicer"
         case .inheritGroup:
             return "Group"
         case .none:
@@ -80,7 +86,7 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
         switch self {
         case let .auInstrument(componentID, _):
             return .auInstrument(componentID: componentID, stateBlob: nil)
-        case .midi, .internalSampler, .sample, .inheritGroup, .none:
+        case .midi, .internalSampler, .sample, .slicer, .inheritGroup, .none:
             return self
         }
     }
@@ -131,6 +137,9 @@ enum Destination: Codable, Equatable, Hashable, Sendable {
         case let .sample(sampleID, settings):
             let gainLabel = settings.gain == 0 ? "" : String(format: " • %+.1f dB", settings.gain)
             return "Sample \(sampleID.uuidString.prefix(8))\(gainLabel)"
+        case let .slicer(sliceSetID, settings):
+            let gainLabel = settings.gain == 0 ? "" : String(format: " • %+.1f dB", settings.gain)
+            return "Slicer \(sliceSetID.uuidString.prefix(8))\(gainLabel)"
         case .inheritGroup:
             return "Inherited from group"
         case .none:

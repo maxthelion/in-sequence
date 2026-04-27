@@ -21,7 +21,7 @@ extension Project {
     /// True if the destination kind should carry sampler built-in macros.
     private static func isSamplerKind(_ destination: Destination) -> Bool {
         switch destination.kind {
-        case .internalSampler, .sample:
+        case .internalSampler, .sample, .slicer:
             return true
         default:
             return false

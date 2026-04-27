@@ -15,14 +15,14 @@ final class ClipContentEmptyTests: XCTestCase {
     }
 
     func test_sliceTriggers_allFalse_isEmpty() {
-        let content = ClipContent.sliceTriggers(stepPattern: Array(repeating: false, count: 16), sliceIndexes: [])
+        let content = ClipContent.sliceTriggers(stepPattern: Array(repeating: false, count: 16), sliceIndexes: [], stepModes: [])
         XCTAssertTrue(clipIsEmpty(content))
     }
 
     func test_sliceTriggers_anyTrue_isNotEmpty() {
         var pattern = Array(repeating: false, count: 16)
         pattern[0] = true
-        let content = ClipContent.sliceTriggers(stepPattern: pattern, sliceIndexes: [0])
+        let content = ClipContent.sliceTriggers(stepPattern: pattern, sliceIndexes: [0], stepModes: [])
         XCTAssertFalse(clipIsEmpty(content))
     }
 

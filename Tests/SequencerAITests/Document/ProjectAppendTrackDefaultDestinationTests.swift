@@ -19,15 +19,15 @@ final class ProjectAppendTrackDefaultDestinationTests: XCTestCase {
         XCTAssertEqual(project.selectedTrack.destination, .none)
     }
 
-    func test_appendTrack_slice_defaults_to_internalSampler() {
+    func test_appendTrack_slice_defaults_to_slicerPlaceholder() {
         var project = Project.empty
 
         project.appendTrack(trackType: .slice)
 
-        guard case let .internalSampler(bankID, preset) = project.selectedTrack.destination else {
-            return XCTFail("expected .internalSampler default for slice track; got \(project.selectedTrack.destination)")
+        guard case let .slicer(sliceSetID, settings) = project.selectedTrack.destination else {
+            return XCTFail("expected .slicer default for slice track; got \(project.selectedTrack.destination)")
         }
-        XCTAssertEqual(bankID, .sliceDefault)
-        XCTAssertEqual(preset, "empty-slice")
+        XCTAssertEqual(sliceSetID, SliceSet.emptyID)
+        XCTAssertEqual(settings, .default)
     }
 }
