@@ -1,7 +1,7 @@
 # Sampler Filter: Built-in Per-Track Multi-mode Filter
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md`
-**Status:** Not started. Tag `v0.0.NN-sampler-filter` at completion.
+**Status:** ✅ Completed. Implemented across `bc470ed` (settings), `7672fe6` (track field + built-in macro cases), `a9f7f51` (filter node), `2e53e0e` (sample engine wiring), `2e5351c` (macro dispatch), `a96e9be` (destination UI), and `9b9057c` (stabilization). Later live-store authority work moved sampler-filter edits onto the scoped runtime path in `90935af`.
 
 ## Summary
 
