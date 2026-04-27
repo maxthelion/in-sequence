@@ -264,7 +264,7 @@ struct ScenesWorkspaceView: View {
     private var sceneEditorHeader: some View {
         HStack(alignment: .center, spacing: 14) {
             TextField("Scene Name", text: sceneNameBinding(selectedScene.id, fallback: selectedScene.name))
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .studioText(.display)
                 .foregroundStyle(StudioTheme.text)
                 .textFieldStyle(.plain)
                 .frame(minWidth: 180, maxWidth: 420, alignment: .leading)
@@ -276,14 +276,6 @@ struct ScenesWorkspaceView: View {
                 }
 
             Spacer()
-
-            Button {
-                selectedSceneID = nil
-                selectedInsertID = nil
-            } label: {
-                Label("Scenes", systemImage: "chevron.left")
-            }
-            .buttonStyle(.bordered)
         }
     }
 
