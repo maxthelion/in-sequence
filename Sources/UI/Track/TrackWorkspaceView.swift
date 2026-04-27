@@ -32,21 +32,13 @@ struct TrackWorkspaceView: View {
         VStack(alignment: .leading, spacing: 18) {
             trackHeader
 
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 18) {
-                    TrackSourceEditorView(document: $document, accent: sourceAccent)
-                        .frame(minWidth: 760, maxWidth: .infinity, alignment: .topLeading)
-                        .layoutPriority(1)
+            HStack(alignment: .top, spacing: 18) {
+                TrackSourceEditorView(document: $document, accent: sourceAccent)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+                    .layoutPriority(1)
 
-                    destinationColumn
-                        .frame(width: 320, alignment: .topLeading)
-                        .clipped()
-                }
-
-                VStack(alignment: .leading, spacing: 18) {
-                    TrackSourceEditorView(document: $document, accent: sourceAccent)
-                    destinationColumn
-                }
+                destinationColumn
+                    .frame(width: 320, alignment: .topLeading)
             }
         }
         .padding(20)

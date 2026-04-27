@@ -71,6 +71,11 @@ private enum ClipEditorMode: String, CaseIterable, Identifiable {
     }
 }
 
+private enum ClipEditorLayer: Equatable {
+    case mode(ClipEditorMode)
+    case macro(slotIndex: Int)
+}
+
 private struct ClipStepInspectorTarget: Identifiable, Equatable {
     let stepIndex: Int
 
@@ -97,10 +102,9 @@ struct ClipContentPreview: View {
 
     @State private var displayedContent: ClipContent
     @State private var selectedLane: ClipEditorLane = .main
-    @State private var selectedMode: ClipEditorMode = .trigger
+    @State private var selectedLayer: ClipEditorLayer = .mode(.trigger)
     @State private var selectedPage = 0
     @State private var editingStepTarget: ClipStepInspectorTarget?
-    @State private var selectedMacroSlotIndex: Int?
 
     init(
         content: ClipContent,
@@ -184,90 +188,40 @@ struct ClipContentPreview: View {
         let visibleIndices = Array(pageStart..<pageEnd)
         let visibleSteps = visibleIndices.map { steps[$0] }
 
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 16) {
-                controlGroup(title: "Lane") {
-                    HStack(spacing: 8) {
-                        ForEach(ClipEditorLane.allCases) { lane in
-                            chipButton(
-                                title: lane.title,
-                                accent: lane.accent,
-                                isSelected: selectedLane == lane,
-                                action: { selectedLane = lane }
-                            )
-                        }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            clipHeaderControls(lengthSteps: lengthSteps, steps: steps)
 
-                Spacer(minLength: 0)
-
-                controlGroup(title: "Length") {
-                    HStack(spacing: 8) {
-                        ForEach([16, 32, 64, 128], id: \.self) { option in
-                            chipButton(
-                                title: "\(option)",
-                                accent: StudioTheme.violet,
-                                isSelected: lengthSteps == option,
-                                isEnabled: onCommit != nil,
-                                action: {
-                                    commit(resizingNoteGrid(to: option, currentSteps: steps))
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            if pageCount > 1 {
-                controlGroup(title: "Page") {
-                    HStack(spacing: 8) {
-                        ForEach(0..<pageCount, id: \.self) { index in
-                            let start = index * 16 + 1
-                            let end = min((index + 1) * 16, lengthSteps)
-                            chipButton(
-                                title: "\(start)-\(end)",
-                                accent: selectedLane.accent,
-                                isSelected: page == index,
-                                isPlaying: playheadPage == index,
-                                action: { selectedPage = index }
-                            )
-                        }
-                    }
-                }
-            }
-
-            controlGroup(title: "Edit") {
-                HStack(spacing: 8) {
-                    ForEach(ClipEditorMode.allCases) { mode in
-                        chipButton(
-                            title: mode.title,
-                            accent: selectedLane.accent,
-                            isSelected: selectedMode == mode,
-                            action: {
-                                selectedMacroSlotIndex = nil
-                                selectedMode = mode
-                            }
-                        )
-                    }
-                }
-            }
-
-            if !macroSlots.isEmpty || onAssignMacroSlot != nil {
-                controlGroup(title: "Macros") {
-                    macroSlotStrip
-                }
+            controlGroup(title: "Layer") {
+                editorLayerStrip
             }
 
             if let selectedMacroBinding {
-                ClipMacroLaneEditor(
-                    macros: [selectedMacroBinding],
-                    macroLanes: syncedMacroLanes(stepCount: lengthSteps),
-                    stepCount: lengthSteps,
-                    phraseLayerValues: macroFallbackValues,
-                    showsHeader: false
-                ) { updatedLanes in
-                    onUpdateMacroLanes?(updatedLanes)
+                GridEditor(
+                    values: visibleMacroValues(
+                        binding: selectedMacroBinding,
+                        visibleIndices: visibleIndices,
+                        stepCount: lengthSteps
+                    ),
+                    allowedValues: macroAllowedValues(for: selectedMacroBinding),
+                    accent: StudioTheme.cyan,
+                    valueRange: macroValueRange(for: selectedMacroBinding),
+                    indexOffset: pageStart,
+                    onLongPress: { stepIndex in
+                        clearMacroLaneValue(
+                            binding: selectedMacroBinding,
+                            stepIndex: stepIndex,
+                            stepCount: lengthSteps
+                        )
+                    }
+                ) { nextValues in
+                    updateMacroLaneValues(
+                        binding: selectedMacroBinding,
+                        values: nextValues,
+                        visibleIndices: visibleIndices,
+                        stepCount: lengthSteps
+                    )
                 }
+                .allowsHitTesting(onUpdateMacroLanes != nil)
             } else {
                 switch selectedMode {
                 case .trigger:
@@ -333,10 +287,7 @@ struct ClipContentPreview: View {
                 }
             }
 
-            Text(summaryText(lengthSteps: lengthSteps, page: page, pageCount: pageCount, steps: steps))
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
+            clipFooter(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage, steps: steps)
         }
         .sheet(item: $editingStepTarget) { target in
             Group {
@@ -366,78 +317,327 @@ struct ClipContentPreview: View {
             }
         }
         .onChange(of: macroSlots) { _, slots in
-            guard let selectedMacroSlotIndex else {
+            guard case let .macro(slotIndex) = selectedLayer else {
                 return
             }
-            if !slots.contains(where: { $0.slotIndex == selectedMacroSlotIndex && $0.binding != nil }) {
-                self.selectedMacroSlotIndex = nil
+            if !slots.contains(where: { $0.slotIndex == slotIndex && $0.binding != nil }) {
+                selectedLayer = .mode(.trigger)
+            }
+        }
+    }
+
+    private func clipHeaderControls(lengthSteps: Int, steps: [ClipStep]) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("CLIP")
+                        .studioText(.bodyEmphasis)
+                        .tracking(1.1)
+                        .foregroundStyle(StudioTheme.text)
+
+                    Rectangle()
+                        .fill(StudioTheme.violet)
+                        .frame(width: 36, height: 2)
+                }
+
+                Text("Pattern editor")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            HStack(alignment: .top, spacing: 16) {
+                headerControlGroup(title: "Lane") {
+                    HStack(spacing: 8) {
+                        ForEach(ClipEditorLane.allCases) { lane in
+                            chipButton(
+                                title: lane.title,
+                                accent: lane.accent,
+                                isSelected: selectedLane == lane,
+                                action: { selectedLane = lane }
+                            )
+                        }
+                    }
+                }
+
+                headerControlGroup(title: "Length") {
+                    HStack(spacing: 8) {
+                        ForEach([16, 32, 64, 128], id: \.self) { option in
+                            chipButton(
+                                title: "\(option)",
+                                accent: StudioTheme.violet,
+                                isSelected: lengthSteps == option,
+                                isEnabled: onCommit != nil,
+                                action: {
+                                    commit(resizingNoteGrid(to: option, currentSteps: steps))
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func clipFooter(
+        lengthSteps: Int,
+        page: Int,
+        pageCount: Int,
+        playheadPage: Int?,
+        steps: [ClipStep]
+    ) -> some View {
+        HStack(alignment: .bottom, spacing: 12) {
+            Text(summaryText(lengthSteps: lengthSteps, page: page, pageCount: pageCount, steps: steps))
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 12)
+
+            if pageCount > 1 {
+                pageSelector(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
+            }
+        }
+    }
+
+    private func pageSelector(lengthSteps: Int, page: Int, pageCount: Int, playheadPage: Int?) -> some View {
+        HStack(spacing: 8) {
+            ForEach(0..<pageCount, id: \.self) { index in
+                let start = index * 16 + 1
+                let end = min((index + 1) * 16, lengthSteps)
+                chipButton(
+                    title: "\(start)-\(end)",
+                    accent: selectedLane.accent,
+                    isSelected: page == index,
+                    isPlaying: playheadPage == index,
+                    action: { selectedPage = index }
+                )
             }
         }
     }
 
     @ViewBuilder
-    private var macroSlotStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(macroSlots) { slot in
-                    let isSelected = selectedMacroSlotIndex == slot.slotIndex && slot.binding != nil
-                    Button {
-                        if slot.binding != nil {
-                            selectedMacroSlotIndex = slot.slotIndex
-                        } else {
-                            onAssignMacroSlot?(slot.slotIndex)
-                        }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("M\(slot.slotIndex + 1)")
-                                .studioText(.eyebrow)
-                                .foregroundStyle(slot.binding == nil ? StudioTheme.mutedText : StudioTheme.text)
-
-                            Text(slot.binding?.displayName ?? "Assign")
-                                .studioText(.labelBold)
-                                .foregroundStyle(slot.binding == nil ? StudioTheme.mutedText : StudioTheme.text)
-                                .lineLimit(1)
-                        }
-                        .frame(minWidth: 92, alignment: .leading)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(
-                            isSelected
-                                ? StudioTheme.cyan.opacity(StudioOpacity.hoverFill)
-                                : Color.white.opacity(StudioOpacity.subtleFill),
-                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                                .stroke(
-                                    slot.binding == nil
-                                        ? StudioTheme.border.opacity(StudioOpacity.subtleStroke)
-                                        : (isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke)),
-                                    style: StrokeStyle(lineWidth: 1, dash: slot.binding == nil ? [4, 3] : [])
-                                )
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(slot.binding == nil && onAssignMacroSlot == nil)
-                    .opacity(slot.binding == nil && onAssignMacroSlot == nil ? 0.4 : 1)
+    private var editorLayerStrip: some View {
+        LazyVGrid(columns: layerGridColumns, alignment: .leading, spacing: 8) {
+            ForEach(ClipEditorMode.allCases) { mode in
+                layerButton(
+                    eyebrow: selectedLane.title,
+                    title: mode.title,
+                    accent: selectedLane.accent,
+                    isSelected: selectedLayer == .mode(mode),
+                    isPlaceholder: false
+                ) {
+                    selectedLayer = .mode(mode)
                 }
+            }
+
+            ForEach(0..<layerGridModePlaceholderCount, id: \.self) { _ in
+                Color.clear
+                    .frame(minHeight: 48)
+                    .accessibilityHidden(true)
+            }
+
+            ForEach(macroSlots.prefix(layerGridColumnCount)) { slot in
+                let isSelected = selectedLayer == .macro(slotIndex: slot.slotIndex) && slot.binding != nil
+                layerButton(
+                    eyebrow: "M\(slot.slotIndex + 1)",
+                    title: slot.binding?.displayName ?? "Assign",
+                    accent: StudioTheme.cyan,
+                    isSelected: isSelected,
+                    isPlaceholder: slot.binding == nil,
+                    isEnabled: slot.binding != nil || onAssignMacroSlot != nil
+                ) {
+                    if slot.binding != nil {
+                        selectedLayer = .macro(slotIndex: slot.slotIndex)
+                    } else {
+                        onAssignMacroSlot?(slot.slotIndex)
+                    }
+                }
+            }
+
+            ForEach(0..<macroLayerPlaceholderCount, id: \.self) { _ in
+                Color.clear
+                    .frame(minHeight: 48)
+                    .accessibilityHidden(true)
             }
         }
     }
 
+    private var layerGridColumnCount: Int { 8 }
+
+    private var layerGridColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 64), spacing: 8, alignment: .topLeading), count: layerGridColumnCount)
+    }
+
+    private var layerGridModePlaceholderCount: Int {
+        max(0, layerGridColumnCount - ClipEditorMode.allCases.count)
+    }
+
+    private var macroLayerPlaceholderCount: Int {
+        max(0, layerGridColumnCount - min(macroSlots.count, layerGridColumnCount))
+    }
+
+    private func layerButton(
+        eyebrow: String,
+        title: String,
+        accent: Color,
+        isSelected: Bool,
+        isPlaceholder: Bool,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(eyebrow)
+                    .studioText(.eyebrow)
+                    .foregroundStyle(isPlaceholder ? StudioTheme.mutedText : StudioTheme.text)
+
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(isPlaceholder ? StudioTheme.mutedText : StudioTheme.text)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(
+                        isPlaceholder
+                            ? StudioTheme.border.opacity(StudioOpacity.subtleStroke)
+                            : (isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke)),
+                        style: StrokeStyle(lineWidth: 1, dash: isPlaceholder ? [4, 3] : [])
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.45)
+    }
+
+    private var selectedMode: ClipEditorMode {
+        guard case let .mode(mode) = selectedLayer else {
+            return .trigger
+        }
+        return mode
+    }
+
     private var selectedMacroBinding: TrackMacroBinding? {
-        guard let selectedMacroSlotIndex else {
+        guard case let .macro(slotIndex) = selectedLayer else {
             return nil
         }
-        return macroSlots.first(where: { $0.slotIndex == selectedMacroSlotIndex })?.binding
+        return macroSlots.first(where: { $0.slotIndex == slotIndex })?.binding
     }
 
     private func syncedMacroLanes(stepCount: Int) -> [UUID: MacroLane] {
         macroLanes.mapValues { $0.synced(stepCount: stepCount) }
     }
 
+    private func visibleMacroValues(
+        binding: TrackMacroBinding,
+        visibleIndices: [Int],
+        stepCount: Int
+    ) -> [Double] {
+        let lane = macroLanes[binding.id]?.synced(stepCount: stepCount)
+        let fallback = macroFallbackValue(for: binding)
+        return visibleIndices.map { index in
+            guard let lane, lane.values.indices.contains(index) else {
+                return fallback
+            }
+            return lane.values[index] ?? fallback
+        }
+    }
+
+    private func updateMacroLaneValues(
+        binding: TrackMacroBinding,
+        values: [Double],
+        visibleIndices: [Int],
+        stepCount: Int
+    ) {
+        guard let onUpdateMacroLanes else { return }
+        var updatedLanes = syncedMacroLanes(stepCount: stepCount)
+        var lane = updatedLanes[binding.id] ?? MacroLane(stepCount: stepCount)
+        for (stepIndex, value) in zip(visibleIndices, values) where lane.values.indices.contains(stepIndex) {
+            lane.values[stepIndex] = clampedMacroValue(value, for: binding)
+        }
+        updatedLanes[binding.id] = lane
+        onUpdateMacroLanes(updatedLanes)
+    }
+
+    private func clearMacroLaneValue(
+        binding: TrackMacroBinding,
+        stepIndex: Int,
+        stepCount: Int
+    ) {
+        guard let onUpdateMacroLanes else { return }
+        var updatedLanes = syncedMacroLanes(stepCount: stepCount)
+        var lane = updatedLanes[binding.id] ?? MacroLane(stepCount: stepCount)
+        guard lane.values.indices.contains(stepIndex) else { return }
+        lane.values[stepIndex] = nil
+        updatedLanes[binding.id] = lane
+        onUpdateMacroLanes(updatedLanes)
+    }
+
+    private func macroFallbackValue(for binding: TrackMacroBinding) -> Double {
+        clampedMacroValue(macroFallbackValues[binding.id] ?? binding.descriptor.defaultValue, for: binding)
+    }
+
+    private func clampedMacroValue(_ value: Double, for binding: TrackMacroBinding) -> Double {
+        min(max(value, binding.descriptor.minValue), binding.descriptor.maxValue)
+    }
+
+    private func macroValueRange(for binding: TrackMacroBinding) -> ClosedRange<Double> {
+        let minValue = binding.descriptor.minValue
+        let maxValue = binding.descriptor.maxValue
+        guard maxValue > minValue else {
+            return minValue...(minValue + 1)
+        }
+        return minValue...maxValue
+    }
+
+    private func macroAllowedValues(for binding: TrackMacroBinding) -> [Double] {
+        let descriptor = binding.descriptor
+        switch descriptor.valueType {
+        case .boolean:
+            return [descriptor.minValue, descriptor.maxValue]
+        case .patternIndex:
+            let lower = Int(descriptor.minValue.rounded(.up))
+            let upper = Int(descriptor.maxValue.rounded(.down))
+            guard lower <= upper else {
+                return [descriptor.minValue]
+            }
+            return (lower...upper).map(Double.init)
+        case .scalar:
+            let minValue = descriptor.minValue
+            let maxValue = descriptor.maxValue
+            guard maxValue > minValue else {
+                return [minValue]
+            }
+            let divisionCount = 8
+            return (0...divisionCount).map { index in
+                minValue + ((maxValue - minValue) * Double(index) / Double(divisionCount))
+            }
+        }
+    }
+
     private func controlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            content()
+        }
+    }
+
+    private func headerControlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
                 .studioText(.eyebrow)
                 .tracking(0.8)

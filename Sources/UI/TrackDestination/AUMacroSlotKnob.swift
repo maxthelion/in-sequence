@@ -116,7 +116,7 @@ struct AUMacroSlotKnob: View {
                 .multilineTextAlignment(.center)
                 .frame(width: knobSize + 18)
         }
-        .frame(maxWidth: .infinity)
+        .frame(minWidth: knobSize + 18, maxWidth: .infinity, minHeight: 86, alignment: .top)
         .contextMenu {
             if let onRemove {
                 Button("Remove Macro", role: .destructive, action: onRemove)

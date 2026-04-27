@@ -358,7 +358,8 @@ struct TrackSourceEditorView: View {
         StudioPanel(
             title: "Clip",
             eyebrow: "Pattern editor",
-            accent: StudioTheme.violet
+            accent: StudioTheme.violet,
+            showsHeader: false
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 ClipContentPreview(

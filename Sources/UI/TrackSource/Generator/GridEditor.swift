@@ -4,23 +4,29 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
     let values: [Value]
     let allowedValues: [Value]
     let accent: Color
+    let valueRange: ClosedRange<Value>?
     let indexOffset: Int
     let onDoubleTap: ((Int) -> Void)?
+    let onLongPress: ((Int) -> Void)?
     let onChange: ([Value]) -> Void
 
     init(
         values: [Value],
         allowedValues: [Value],
         accent: Color,
+        valueRange: ClosedRange<Value>? = nil,
         indexOffset: Int = 0,
         onDoubleTap: ((Int) -> Void)? = nil,
+        onLongPress: ((Int) -> Void)? = nil,
         onChange: @escaping ([Value]) -> Void
     ) {
         self.values = values
         self.allowedValues = allowedValues
         self.accent = accent
+        self.valueRange = valueRange
         self.indexOffset = indexOffset
         self.onDoubleTap = onDoubleTap
+        self.onLongPress = onLongPress
         self.onChange = onChange
     }
 
@@ -43,6 +49,9 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
                 .onTapGesture {
                     onChange(cycledValues(tapping: index))
                 }
+                .onLongPressGesture {
+                    onLongPress?(index + indexOffset)
+                }
                 .accessibilityLabel("Step \(index + indexOffset + 1)")
                 .accessibilityAction(named: "Inspect Step") {
                     onDoubleTap?(index + indexOffset)
@@ -51,6 +60,11 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
                     if let onDoubleTap {
                         Button("Inspect Step") {
                             onDoubleTap(index + indexOffset)
+                        }
+                    }
+                    if let onLongPress {
+                        Button("Clear Step") {
+                            onLongPress(index + indexOffset)
                         }
                     }
                 }
@@ -69,6 +83,11 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
     }
 
     func normalizedFill(for value: Value) -> Double {
+        if let valueRange {
+            let span = valueRange.upperBound - valueRange.lowerBound
+            guard span > .zero else { return 0 }
+            return min(max(Double((value - valueRange.lowerBound) / span), 0), 1)
+        }
         guard let maxValue = allowedValues.max(), maxValue > .zero else { return 0 }
         return min(max(Double(value / maxValue), 0), 1)
     }

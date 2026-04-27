@@ -235,7 +235,7 @@ struct TrackDestinationEditor: View {
 
     private var auEditor: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(currentAudioInstrumentChoice.displayName)
                         .studioText(.subtitle)
@@ -249,8 +249,6 @@ struct TrackDestinationEditor: View {
                 }
 
                 Spacer(minLength: 12)
-
-                presetSelectorButton
 
                 compactIconButton(
                     systemName: "slider.horizontal.3",
@@ -271,41 +269,44 @@ struct TrackDestinationEditor: View {
             Divider()
                 .overlay(StudioTheme.border.opacity(0.7))
 
-            // Fixed-width slot row: M1…M8 always occupy the same horizontal position
-            // so muscle memory for slot positions is preserved. Scrollable if the
-            // inspector column is too narrow.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(auMacroSlots) { slot in
-                        AUMacroSlotKnob(
-                            slotIndex: slot.slotIndex,
-                            binding: slot.binding,
-                            value: slot.binding.map { macroValue(for: $0) },
-                            onAssign: {
-                                prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex)
-                            },
-                            onChange: { newValue in
-                                guard let binding = slot.binding else {
-                                    return
-                                }
-                                session.setMacroLayerDefault(
-                                    value: newValue,
-                                    bindingID: binding.id,
-                                    trackID: track.id
-                                )
-                            },
-                            onRemove: slot.binding.map { binding in
-                                {
-                                    removeMacroSlot(bindingID: binding.id)
-                                }
+            presetSelectorButton
+                .padding(12)
+
+            Divider()
+                .overlay(StudioTheme.border.opacity(0.7))
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 58, maximum: 64), spacing: 8, alignment: .top)],
+                alignment: .leading,
+                spacing: 12
+            ) {
+                ForEach(auMacroSlots) { slot in
+                    AUMacroSlotKnob(
+                        slotIndex: slot.slotIndex,
+                        binding: slot.binding,
+                        value: slot.binding.map { macroValue(for: $0) },
+                        onAssign: {
+                            prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex)
+                        },
+                        onChange: { newValue in
+                            guard let binding = slot.binding else {
+                                return
                             }
-                        )
-                        .frame(width: 68)
-                    }
+                            session.setMacroLayerDefault(
+                                value: newValue,
+                                bindingID: binding.id,
+                                trackID: track.id
+                            )
+                        },
+                        onRemove: slot.binding.map { binding in
+                            {
+                                removeMacroSlot(bindingID: binding.id)
+                            }
+                        }
+                    )
                 }
-                .padding(.horizontal, 12)
             }
-            .padding(.vertical, 12)
+            .padding(12)
 
             if macroSlotFull {
                 Text("All macro slots are full")
@@ -359,10 +360,10 @@ struct TrackDestinationEditor: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .frame(maxWidth: 170, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
-            Capsule()
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 .stroke(presetLoadFailed ? Color.red.opacity(0.5) : StudioTheme.border.opacity(0.8), lineWidth: 1)
         )
         .help(currentPresetSupportingText)

@@ -33,4 +33,17 @@ final class GridEditorTests: XCTestCase {
         XCTAssertEqual(editor.normalizedFill(for: -0.25), 0)
         XCTAssertEqual(editor.normalizedFill(for: 1.25), 1)
     }
+
+    func test_normalizedFill_uses_explicit_value_range_for_macro_values() {
+        let editor = GridEditor(
+            values: [-60.0],
+            allowedValues: [-60.0, -24.0, 12.0],
+            accent: StudioTheme.cyan,
+            valueRange: -60.0...12.0
+        ) { _ in }
+
+        XCTAssertEqual(editor.normalizedFill(for: -60.0), 0)
+        XCTAssertEqual(editor.normalizedFill(for: -24.0), 0.5, accuracy: 0.001)
+        XCTAssertEqual(editor.normalizedFill(for: 12.0), 1)
+    }
 }
