@@ -135,8 +135,29 @@ It supports:
 - reopening the current AU plug-in window
 - saving/recalling recent voices
 - showing how many project routes currently fan out from the selected track
+- a fixed-width macro slot row (M1–M8) for AU and sampler destinations
+- an inline preset stepper (prev/next) beside the "Browse presets…" button
 
 Important UI rule: the editor owns default destination state, while project routes are additive and live in the routing UI.
+
+### AU destination card
+
+The AU card renders:
+
+- A current-preset pill showing the active preset name plus prev/next chevron buttons (`PresetStepper`). Rapid taps are guarded by an in-flight `Task` so only one load request runs at a time. A load failure surfaces an `exclamationmark.circle.fill` icon inline and colours the pill border red; the icon carries an accessibility label ("Preset failed to load").
+- A fixed-width macro slot row of eight `AUMacroSlotKnob` views. Each slot shows its position label (M1–M8), a circular drag knob when bound, or a dashed ring with a `+` icon when empty. Tapping an empty slot opens `SingleMacroSlotPickerSheet`; right-clicking a bound slot shows a "Remove Macro" context menu item.
+
+`AUMacroSlot` and `AUMacroSlotKnob` live in `Sources/UI/TrackDestination/AUMacroSlotKnob.swift`. The eight slots are always rendered; a slot's `binding: TrackMacroBinding?` is `nil` for unoccupied positions. Slot indices are stable: add or remove a binding and the surviving bindings do not shift positions.
+
+`PresetStepper` (`Sources/UI/TrackDestination/PresetStepper.swift`) is a pure logic enum — it takes a `PresetReadout` and a `Direction` and returns the target `AUPresetDescriptor`. The view wires prev/next buttons in `TrackDestinationEditor` and disables them when no adjacent preset exists (single-preset list or no readout available).
+
+`SingleMacroSlotPickerSheet` (`Sources/UI/TrackDestination/SingleMacroSlotPickerSheet.swift`) is a modal sheet that fetches the AU's parameter tree from `engineController.audioInstrumentHost(for:)?.parameterReadout()`, applies the same candidate-ranking logic as the existing multi-select `MacroPickerSheet`, and returns a single `AUParameterDescriptor`. Already-bound parameter addresses are excluded from the list. If the parameter tree is not available immediately, the sheet polls at 300 ms intervals for up to 6 seconds.
+
+### Sampler destination card
+
+`Sources/UI/SamplerDestinationWidget.swift` is restyled to match the AU card: a rounded panel with an eyebrow label, body content (gain slider, waveform, audition button), and an action row — so the two destination kinds look like siblings in the inspector.
+
+Sampler tracks receive 8 built-in macros automatically on kind transition. The built-ins cover the full BuiltinMacroKind set: sample start, sample length, sample gain, and the five filter macros. See [[track-macros]] for the full slot model and kind-transition cascade.
 
 ## Testing and limits
 
@@ -152,6 +173,7 @@ The document shape, recent-voice store, and UI/editor plumbing are otherwise ver
 
 ## Related pages
 
+- [[track-macros]] — macro slot model, per-step clip lanes, and snapshot compiler precedence
 - [[project-layout]] — where `Document/`, `Audio/`, `Platform/`, and `UI/` split responsibilities
 - [[document-model]] — the wider `.seqai` persistence model
 - [[routing]] — project-level additive routing on top of default destinations
