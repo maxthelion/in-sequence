@@ -9,12 +9,33 @@ struct ScenesWorkspaceView: View {
     @State private var selectedSceneID: UUID?
     @State private var selectedInsertID: UUID?
 
+    private let sceneColumns = Array(
+        repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
+        count: 8
+    )
+
+    private let macroColumns = Array(
+        repeating: GridItem(.flexible(minimum: 120, maximum: 170), spacing: 10),
+        count: 8
+    )
+
     var masterBus: MasterBusState {
         session.store.masterBus
     }
 
     private var selectedScene: MasterBusScene {
         masterBus.scene(id: selectedSceneID ?? masterBus.activeSceneID) ?? masterBus.activeScene
+    }
+
+    var activeABSelection: MasterBusABSelection {
+        if let selection = masterBus.abSelection {
+            return selection
+        }
+        let scenes = masterBus.scenes
+        return MasterBusABSelection(
+            sceneAID: scenes.first?.id ?? MasterBusScene.sceneAID,
+            sceneBID: scenes.dropFirst().first?.id ?? scenes.first?.id ?? MasterBusScene.sceneBID
+        )
     }
 
     var body: some View {
@@ -29,13 +50,16 @@ struct ScenesWorkspaceView: View {
             }
         }
         .onAppear {
-            selectedSceneID = selectedSceneID ?? masterBus.activeSceneID
-            selectedInsertID = selectedScene.inserts.first?.id
+            selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
         }
         .onChange(of: masterBus.scenes.map(\.id)) {
-            guard masterBus.scene(id: selectedSceneID ?? masterBus.activeSceneID) != nil else {
-                selectedSceneID = masterBus.activeSceneID
-                selectedInsertID = selectedScene.inserts.first?.id
+            guard let selectedSceneID else {
+                selectedInsertID = nil
+                return
+            }
+            guard masterBus.scene(id: selectedSceneID) != nil else {
+                self.selectedSceneID = nil
+                selectedInsertID = nil
                 return
             }
             if let selectedInsertID,
@@ -69,64 +93,73 @@ struct ScenesWorkspaceView: View {
         }
     }
 
+    @ViewBuilder
     private var browseEdit: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 18) {
-                sceneBrowser
-                    .frame(minWidth: 300, maxWidth: 380, alignment: .topLeading)
-                sceneEditor
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-            }
-
-            VStack(alignment: .leading, spacing: 18) {
-                sceneBrowser
-                sceneEditor
-            }
+        if selectedSceneID == nil {
+            sceneBrowser
+        } else {
+            sceneEditor
         }
     }
 
     private var sceneBrowser: some View {
-        StudioPanel(title: "Scene Library", eyebrow: "Saved master bus scenes", accent: StudioTheme.amber) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Button {
-                        selectedSceneID = session.addMasterBusScene()
-                        selectedInsertID = nil
-                    } label: {
-                        Label("New", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(StudioTheme.success)
-
-                    Button {
-                        selectedSceneID = session.duplicateMasterBusScene(selectedScene.id) ?? selectedSceneID
-                        selectedInsertID = selectedScene.inserts.first?.id
-                    } label: {
-                        Label("Duplicate", systemImage: "plus.square.on.square")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button(role: .destructive) {
-                        let removedID = selectedScene.id
-                        session.removeMasterBusScene(removedID)
-                        selectedSceneID = session.store.masterBus.activeSceneID
-                        selectedInsertID = session.store.masterBus.activeScene.inserts.first?.id
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(masterBus.scenes.count <= 1)
+        StudioPanel(title: "Scene Library", accent: StudioTheme.amber) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    Text("\(masterBus.scenes.count) scenes")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Spacer()
+                    addSceneButton
                 }
 
-                VStack(spacing: 8) {
+                LazyVGrid(columns: sceneColumns, spacing: 12) {
                     ForEach(masterBus.scenes) { scene in
                         sceneCard(scene)
                     }
+                    addSceneCard
                 }
-
-                abSetup
             }
         }
+    }
+
+    private var addSceneButton: some View {
+        Button {
+            openNewScene()
+        } label: {
+            Label("Add Scene", systemImage: "plus")
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(StudioTheme.success)
+    }
+
+    private var addSceneCard: some View {
+        Button {
+            openNewScene()
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(StudioTheme.success)
+                    .frame(width: 34, height: 34)
+                    .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: Circle())
+                Text("Add Scene")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+            }
+            .frame(maxWidth: .infinity, minHeight: 132)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(StudioTheme.success.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func openNewScene() {
+        selectedSceneID = session.addMasterBusScene()
+        selectedInsertID = nil
     }
 
     private func sceneCard(_ scene: MasterBusScene) -> some View {
@@ -135,23 +168,40 @@ struct ScenesWorkspaceView: View {
             selectedInsertID = scene.inserts.first?.id
             session.setActiveMasterScene(scene.id)
         } label: {
-            HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: 30, height: 30)
+                        .background(StudioTheme.amber.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                    Spacer(minLength: 0)
+                    sceneSlotBadges(scene.id)
+                }
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scene.name)
                         .studioText(.bodyEmphasis)
                         .foregroundStyle(StudioTheme.text)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
                     Text("\(scene.inserts.count) inserts - \(scene.macroBindings.count) macros")
-                        .studioText(.label)
+                        .studioText(.micro)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
                 }
-                Spacer()
-                sceneSlotBadges(scene.id)
+
+                Text(String(format: "%.2f out", scene.outputGain))
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.amber)
             }
+            .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
             .padding(12)
-            .background(scene.id == selectedScene.id ? StudioTheme.amber.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(scene.id == masterBus.activeSceneID ? StudioTheme.amber.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(scene.id == selectedScene.id ? StudioTheme.amber : StudioTheme.border, lineWidth: 1)
+                    .stroke(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border, lineWidth: scene.id == masterBus.activeSceneID ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
@@ -160,10 +210,10 @@ struct ScenesWorkspaceView: View {
     @ViewBuilder
     private func sceneSlotBadges(_ sceneID: UUID) -> some View {
         HStack(spacing: 5) {
-            if masterBus.abSelection?.sceneAID == sceneID {
+            if activeABSelection.sceneAID == sceneID {
                 slotBadge("A")
             }
-            if masterBus.abSelection?.sceneBID == sceneID {
+            if activeABSelection.sceneBID == sceneID {
                 slotBadge("B")
             }
         }
@@ -178,55 +228,11 @@ struct ScenesWorkspaceView: View {
             .background(StudioTheme.amber.opacity(StudioOpacity.hoverFill), in: Capsule())
     }
 
-    private var abSetup: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("A/B Slots")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            if let selection = masterBus.abSelection {
-                Picker("Scene A", selection: sceneABinding(selection)) {
-                    ForEach(masterBus.scenes) { scene in
-                        Text(scene.name).tag(scene.id)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                Picker("Scene B", selection: sceneBBinding(selection)) {
-                    ForEach(masterBus.scenes) { scene in
-                        Text(scene.name).tag(scene.id)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                sliderRow(
-                    title: "Saved Blend",
-                    value: Binding(
-                        get: { masterBus.abSelection?.crossfader ?? selection.crossfader },
-                        set: { session.setMasterCrossfader($0) }
-                    ),
-                    range: 0...1,
-                    label: "\(Int(((masterBus.abSelection?.crossfader ?? selection.crossfader) * 100).rounded()))%"
-                )
-            } else {
-                Button {
-                    enableABMode()
-                } label: {
-                    Label("Enable A/B", systemImage: "arrow.left.arrow.right")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.amber)
-                .disabled(masterBus.scenes.count < 2)
-            }
-        }
-        .padding(12)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-    }
-
     private var sceneEditor: some View {
-        StudioPanel(title: selectedScene.name, eyebrow: "Direct scene editor", accent: StudioTheme.cyan) {
+        StudioPanel(title: selectedScene.name, accent: StudioTheme.cyan) {
             VStack(alignment: .leading, spacing: 18) {
+                editorToolbar
+
                 HStack(spacing: 12) {
                     TextField("Scene Name", text: sceneNameBinding(selectedScene.id, fallback: selectedScene.name))
                         .textFieldStyle(.roundedBorder)
@@ -256,6 +262,40 @@ struct ScenesWorkspaceView: View {
 
                 macroAssignments
             }
+        }
+    }
+
+    private var editorToolbar: some View {
+        HStack(spacing: 8) {
+            Button {
+                selectedSceneID = nil
+                selectedInsertID = nil
+            } label: {
+                Label("Scenes", systemImage: "chevron.left")
+            }
+            .buttonStyle(.bordered)
+
+            Spacer()
+
+            Button {
+                let createdID = session.duplicateMasterBusScene(selectedScene.id)
+                selectedSceneID = createdID ?? selectedSceneID
+                selectedInsertID = createdID.flatMap { session.store.masterBus.scene(id: $0)?.inserts.first?.id }
+            } label: {
+                Label("Duplicate", systemImage: "plus.square.on.square")
+            }
+            .buttonStyle(.bordered)
+
+            Button(role: .destructive) {
+                let removedID = selectedScene.id
+                session.removeMasterBusScene(removedID)
+                selectedSceneID = nil
+                selectedInsertID = nil
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+            .disabled(masterBus.scenes.count <= 2)
         }
     }
 
@@ -417,7 +457,7 @@ struct ScenesWorkspaceView: View {
                     .foregroundStyle(StudioTheme.cyan)
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 240), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: macroColumns, spacing: 10) {
                 ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
                     macroSlot(slotIndex)
                 }
@@ -464,6 +504,22 @@ struct ScenesWorkspaceView: View {
                 Label(binding == nil ? "Assign" : "Change", systemImage: "slider.horizontal.3")
             }
             .buttonStyle(.bordered)
+
+            if let binding,
+               let value = binding.value(in: selectedScene)
+            {
+                Slider(
+                    value: macroValueBinding(binding, fallback: value),
+                    in: binding.target.valueRange
+                )
+                .tint(StudioTheme.cyan)
+
+                Text(sceneMacroValueLabel(value, target: binding.target))
+                    .studioText(.micro)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
         }
         .padding(12)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
@@ -547,6 +603,36 @@ struct ScenesWorkspaceView: View {
             get: { masterBus.scene(id: sceneID)?.outputGain ?? fallback },
             set: { session.setMasterSceneOutputGain(sceneID, value: $0) }
         )
+    }
+
+    private func macroValueBinding(_ binding: MasterSceneMacroBinding, fallback: Double) -> Binding<Double> {
+        let sceneID = selectedScene.id
+        let macroID = binding.id
+        return Binding(
+            get: {
+                guard let scene = masterBus.scene(id: sceneID),
+                      let binding = scene.macroBindings.first(where: { $0.id == macroID }),
+                      let value = binding.value(in: scene)
+                else {
+                    return fallback
+                }
+                return value
+            },
+            set: { value in
+                session.setMasterSceneMacroValue(sceneID: sceneID, macroID: macroID, value: value)
+            }
+        )
+    }
+
+    private func sceneMacroValueLabel(_ value: Double, target: MasterSceneMacroTarget) -> String {
+        switch target {
+        case .filterCutoff:
+            return "\(Int(value.rounded())) Hz"
+        case .outputGain:
+            return String(format: "%.2f", value)
+        default:
+            return "\(Int((value * 100).rounded()))%"
+        }
     }
 
     private func insertNameBinding(_ insertID: UUID, fallback: String) -> Binding<String> {
@@ -682,7 +768,8 @@ struct ScenesWorkspaceView: View {
             set: { sceneID in
                 engineController.clearMasterBusPerformanceOverlay()
                 let current = masterBus.abSelection ?? selection
-                session.setMasterABMode(MasterBusABSelection(sceneAID: sceneID, sceneBID: current.sceneBID, crossfader: current.crossfader))
+                let sceneBID = current.sceneBID == sceneID ? current.sceneAID : current.sceneBID
+                session.setMasterABMode(MasterBusABSelection(sceneAID: sceneID, sceneBID: sceneBID, crossfader: current.crossfader))
             }
         )
     }
@@ -693,17 +780,10 @@ struct ScenesWorkspaceView: View {
             set: { sceneID in
                 engineController.clearMasterBusPerformanceOverlay()
                 let current = masterBus.abSelection ?? selection
-                session.setMasterABMode(MasterBusABSelection(sceneAID: current.sceneAID, sceneBID: sceneID, crossfader: current.crossfader))
+                let sceneAID = current.sceneAID == sceneID ? current.sceneBID : current.sceneAID
+                session.setMasterABMode(MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneID, crossfader: current.crossfader))
             }
         )
-    }
-
-    func enableABMode() {
-        let sceneAID = masterBus.activeSceneID
-        guard let sceneBID = masterBus.scenes.first(where: { $0.id != sceneAID })?.id else {
-            return
-        }
-        session.setMasterABMode(MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneBID))
     }
 
     private func insertMoveButtons(_ insert: MasterBusInsert) -> some View {

@@ -2,12 +2,15 @@ import XCTest
 @testable import SequencerAI
 
 final class MasterBusStateTests: XCTestCase {
-    func test_defaultProject_hasCleanMasterBusScene() {
+    func test_defaultProject_hasBlankSceneSlots() {
         let project = Project.empty
 
-        XCTAssertEqual(project.masterBus.scenes.count, 1)
-        XCTAssertEqual(project.masterBus.activeScene.name, "Clean")
+        XCTAssertEqual(project.masterBus.scenes.count, 2)
+        XCTAssertEqual(project.masterBus.scenes.map(\.name), ["Scene A", "Scene B"])
+        XCTAssertEqual(project.masterBus.activeScene.name, "Scene A")
         XCTAssertTrue(project.masterBus.activeScene.macroBindings.isEmpty)
+        XCTAssertEqual(project.masterBus.abSelection?.sceneAID, project.masterBus.scenes[0].id)
+        XCTAssertEqual(project.masterBus.abSelection?.sceneBID, project.masterBus.scenes[1].id)
     }
 
     func test_oldProjectJSONDecodesWithDefaultMasterBus() throws {
@@ -18,8 +21,10 @@ final class MasterBusStateTests: XCTestCase {
 
         let decoded = try JSONDecoder().decode(Project.self, from: oldData)
 
-        XCTAssertEqual(decoded.masterBus.activeScene.name, "Clean")
+        XCTAssertEqual(decoded.masterBus.scenes.count, 2)
+        XCTAssertEqual(decoded.masterBus.activeScene.name, "Scene A")
         XCTAssertTrue(decoded.masterBus.scenes[0].inserts.isEmpty)
+        XCTAssertNotNil(decoded.masterBus.abSelection)
     }
 
     func test_auEffectStateBlob_roundTrips() throws {
@@ -59,7 +64,7 @@ final class MasterBusStateTests: XCTestCase {
         let newSceneID = state.addScene(name: "Crush")
         state.addInsert(.bitcrusher(), sceneID: newSceneID)
 
-        XCTAssertEqual(state.scenes.count, 2)
+        XCTAssertEqual(state.scenes.count, 3)
         XCTAssertEqual(state.activeScene.name, "Crush")
         XCTAssertEqual(state.activeScene.inserts.count, 1)
     }
@@ -106,11 +111,13 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(decoded.activeScene.id, active.id)
         XCTAssertEqual(decoded.activeScene.name, "Draft")
         XCTAssertEqual(decoded.activeScene.inserts.count, 1)
+        XCTAssertEqual(decoded.scenes.count, 2)
+        XCTAssertNotNil(decoded.abSelection)
         let reencoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any]
         XCTAssertNil(reencoded?["draftScene"])
     }
 
-    func test_invalidABSelection_isNormalizedAway() {
+    func test_invalidABSelection_defaultsToFirstTwoScenes() {
         let scene = MasterBusScene.clean
         let missingID = UUID()
         let state = MasterBusState(
@@ -119,6 +126,20 @@ final class MasterBusStateTests: XCTestCase {
             abSelection: MasterBusABSelection(sceneAID: scene.id, sceneBID: missingID, crossfader: 2)
         )
 
-        XCTAssertNil(state.abSelection)
+        XCTAssertEqual(state.scenes.count, 2)
+        XCTAssertEqual(state.abSelection?.sceneAID, state.scenes[0].id)
+        XCTAssertEqual(state.abSelection?.sceneBID, state.scenes[1].id)
+        XCTAssertEqual(state.abSelection?.crossfader, 1)
+    }
+
+    func test_removingScenes_keepsTwoABSlots() {
+        var state = MasterBusState.default
+        let addedID = state.addScene(name: "Third")
+
+        state.removeScene(id: addedID)
+        state.removeScene(id: state.scenes[0].id)
+
+        XCTAssertEqual(state.scenes.count, 2)
+        XCTAssertNotNil(state.abSelection)
     }
 }

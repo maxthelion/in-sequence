@@ -26,6 +26,8 @@ final class MasterBusHostTests: XCTestCase {
         host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id))
 
         XCTAssertEqual(host.applyCallCount, 1)
+        XCTAssertEqual(host.appliedState.scenes.count, 2)
+        XCTAssertNotNil(host.appliedState.abSelection)
         XCTAssertEqual(host.appliedState.activeScene.name, "Scene")
         XCTAssertEqual(host.appliedState.activeScene.inserts[0].wetDry, 1)
         guard case let .nativeFilter(settings) = host.appliedState.activeScene.inserts[0].kind else {
@@ -46,12 +48,9 @@ final class MasterBusHostTests: XCTestCase {
 
         host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id))
 
-        let preMasterOutputs = graph.engine.outputConnectionPoints(
-            for: graph.preMasterMixer,
-            outputBus: 0
-        )
-        XCTAssertEqual(preMasterOutputs.count, 1)
-        XCTAssertTrue(preMasterOutputs[0].node is AVAudioUnitEQ)
+        XCTAssertEqual(graph.masterBranchesForTesting.count, 2)
+        XCTAssertTrue(graph.masterBranchesForTesting[0].nodes.first is AVAudioUnitEQ)
+        XCTAssertEqual(graph.masterBranchesForTesting[1].nodes.count, 0)
     }
 
     @MainActor

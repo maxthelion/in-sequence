@@ -3,37 +3,23 @@ import SwiftUI
 extension ScenesWorkspaceView {
     @ViewBuilder
     var performView: some View {
-        if let selection = masterBus.abSelection,
-           let sceneA = masterBus.scene(id: selection.sceneAID),
-           let sceneB = masterBus.scene(id: selection.sceneBID)
-        {
-            StudioPanel(title: "Scenes Perform", eyebrow: "Runtime scene macro overrides", accent: StudioTheme.amber) {
-                VStack(alignment: .leading, spacing: 16) {
-                    crossfader(selection)
-                    ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .top, spacing: 16) {
-                            performSlot(title: "Slot A", scene: sceneA, selection: selection, isA: true)
-                            performSlot(title: "Slot B", scene: sceneB, selection: selection, isA: false)
-                        }
-                        VStack(alignment: .leading, spacing: 16) {
-                            performSlot(title: "Slot A", scene: sceneA, selection: selection, isA: true)
-                            performSlot(title: "Slot B", scene: sceneB, selection: selection, isA: false)
-                        }
+        let selection = activeABSelection
+        let sceneA = masterBus.scene(id: selection.sceneAID) ?? masterBus.activeScene
+        let sceneB = masterBus.scene(id: selection.sceneBID)
+            ?? masterBus.scenes.first { $0.id != sceneA.id }
+            ?? MasterBusScene.sceneB
+        StudioPanel(title: "Scenes Perform", eyebrow: "Runtime scene macro overrides", accent: StudioTheme.amber) {
+            VStack(alignment: .leading, spacing: 16) {
+                crossfader(selection)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 16) {
+                        performSlot(title: "Slot A", scene: sceneA, selection: selection, isA: true)
+                        performSlot(title: "Slot B", scene: sceneB, selection: selection, isA: false)
                     }
-                }
-            }
-        } else {
-            StudioPanel(title: "Scenes Perform", eyebrow: "Select two scenes for A/B performance", accent: StudioTheme.amber) {
-                VStack(alignment: .leading, spacing: 12) {
-                    StudioPlaceholderTile(title: "A/B Not Enabled", detail: "Create or select a second scene, then enable A/B.", accent: StudioTheme.amber)
-                    Button {
-                        enableABMode()
-                    } label: {
-                        Label("Enable A/B", systemImage: "arrow.left.arrow.right")
+                    VStack(alignment: .leading, spacing: 16) {
+                        performSlot(title: "Slot A", scene: sceneA, selection: selection, isA: true)
+                        performSlot(title: "Slot B", scene: sceneB, selection: selection, isA: false)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(StudioTheme.amber)
-                    .disabled(masterBus.scenes.count < 2)
                 }
             }
         }

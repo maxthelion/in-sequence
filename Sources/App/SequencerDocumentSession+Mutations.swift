@@ -220,6 +220,12 @@ extension SequencerDocumentSession {
         }
     }
 
+    func setMasterSceneMacroValue(sceneID: UUID, macroID: UUID, value: Double) {
+        mutateMasterBus { masterBus in
+            masterBus.setMacroValue(sceneID: sceneID, macroID: macroID, value: value)
+        }
+    }
+
     func saveMasterScenePerformanceOverrides(_ valuesByMacroID: [UUID: Double], to sceneID: UUID) {
         mutateMasterBus { masterBus in
             for (macroID, value) in valuesByMacroID {

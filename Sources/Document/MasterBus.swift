@@ -6,12 +6,13 @@ struct MasterBusState: Codable, Equatable, Sendable {
     var abSelection: MasterBusABSelection?
 
     init(
-        scenes: [MasterBusScene] = [.clean],
-        activeSceneID: UUID = MasterBusScene.cleanID,
+        scenes: [MasterBusScene]? = nil,
+        activeSceneID: UUID? = nil,
         abSelection: MasterBusABSelection? = nil
     ) {
-        self.scenes = scenes
-        self.activeSceneID = activeSceneID
+        let resolvedScenes = scenes ?? [.sceneA, .sceneB]
+        self.scenes = resolvedScenes
+        self.activeSceneID = activeSceneID ?? resolvedScenes.first?.id ?? MasterBusScene.sceneAID
         self.abSelection = abSelection
         normalize()
     }
@@ -19,7 +20,7 @@ struct MasterBusState: Codable, Equatable, Sendable {
     static let `default` = MasterBusState()
 
     var activeScene: MasterBusScene {
-        scenes.first(where: { $0.id == activeSceneID }) ?? .clean
+        scenes.first(where: { $0.id == activeSceneID }) ?? .sceneA
     }
 
     var sceneA: MasterBusScene? {
@@ -53,10 +54,10 @@ struct MasterBusState: Codable, Equatable, Sendable {
     }
 
     mutating func removeScene(id: UUID) {
-        guard scenes.count > 1 else { return }
+        guard scenes.count > 2 else { return }
         scenes.removeAll { $0.id == id }
         if activeSceneID == id {
-            activeSceneID = scenes.first?.id ?? MasterBusScene.cleanID
+            activeSceneID = scenes.first?.id ?? MasterBusScene.sceneAID
         }
         if abSelection?.sceneAID == id || abSelection?.sceneBID == id {
             abSelection = nil
@@ -149,7 +150,7 @@ struct MasterBusState: Codable, Equatable, Sendable {
 
     mutating func normalize() {
         if scenes.isEmpty {
-            scenes = [.clean]
+            scenes = [.sceneA, .sceneB]
         }
 
         var seenSceneIDs = Set<UUID>()
@@ -162,17 +163,30 @@ struct MasterBusState: Codable, Equatable, Sendable {
             return normalized
         }
 
+        if scenes.count < 2 {
+            var fallback = scenes.first?.id == MasterBusScene.sceneAID ? MasterBusScene.sceneB : MasterBusScene.sceneA
+            if scenes.contains(where: { $0.id == fallback.id }) {
+                fallback.id = UUID()
+            }
+            scenes.append(fallback.normalized())
+        }
+
         if !scenes.contains(where: { $0.id == activeSceneID }) {
             activeSceneID = scenes[0].id
         }
 
         if let selection = abSelection?.normalized(),
            scenes.contains(where: { $0.id == selection.sceneAID }),
-           scenes.contains(where: { $0.id == selection.sceneBID })
+           scenes.contains(where: { $0.id == selection.sceneBID }),
+           selection.sceneAID != selection.sceneBID
         {
             abSelection = selection
         } else {
-            abSelection = nil
+            abSelection = MasterBusABSelection(
+                sceneAID: scenes[0].id,
+                sceneBID: scenes[1].id,
+                crossfader: abSelection?.crossfader ?? 0
+            )
         }
     }
 
@@ -220,10 +234,10 @@ extension MasterBusState {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        scenes = try container.decodeIfPresent([MasterBusScene].self, forKey: .scenes) ?? [.clean]
+        scenes = try container.decodeIfPresent([MasterBusScene].self, forKey: .scenes) ?? [.sceneA, .sceneB]
         activeSceneID = try container.decodeIfPresent(UUID.self, forKey: .activeSceneID)
             ?? scenes.first?.id
-            ?? MasterBusScene.cleanID
+            ?? MasterBusScene.sceneAID
         abSelection = try container.decodeIfPresent(MasterBusABSelection.self, forKey: .abSelection)
 
         if let draftScene = try container.decodeIfPresent(MasterBusScene.self, forKey: .draftScene) {
@@ -249,8 +263,12 @@ extension MasterBusState {
 }
 
 struct MasterBusScene: Codable, Equatable, Identifiable, Sendable {
-    static let cleanID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
-    static let clean = MasterBusScene(id: cleanID, name: "Clean", inserts: [], outputGain: 1, macroBindings: [])
+    static let sceneAID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    static let sceneBID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+    static let cleanID = sceneAID
+    static let sceneA = MasterBusScene(id: sceneAID, name: "Scene A", inserts: [], outputGain: 1, macroBindings: [])
+    static let sceneB = MasterBusScene(id: sceneBID, name: "Scene B", inserts: [], outputGain: 1, macroBindings: [])
+    static let clean = sceneA
 
     var id: UUID
     var name: String
@@ -593,7 +611,7 @@ struct MasterBusPerformanceOverlayState: Equatable, Sendable {
 
         return MasterBusPerformanceOverlayState(
             sceneMacroOverrides: normalizedOverrides,
-            crossfaderOverride: masterBus.abSelection == nil ? nil : crossfaderOverride?.clamped(to: 0...1)
+            crossfaderOverride: crossfaderOverride?.clamped(to: 0...1)
         )
     }
 }

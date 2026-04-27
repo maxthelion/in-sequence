@@ -46,7 +46,7 @@ private struct ScenesSummary: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: masterBus.abSelection == nil ? "square.stack.3d.up" : "arrow.left.arrow.right")
+            Image(systemName: "arrow.left.arrow.right")
                 .foregroundStyle(StudioTheme.amber)
             VStack(alignment: .leading, spacing: 4) {
                 Text(masterBus.activeScene.name)
@@ -69,6 +69,6 @@ private struct ScenesSummary: View {
         {
             return "\(sceneA.name) / \(sceneB.name) - \(Int((selection.crossfader * 100).rounded()))%"
         }
-        return "\(masterBus.scenes.count) scenes - \(masterBus.activeScene.inserts.count) inserts active"
+        return "\(masterBus.scenes.count) scenes"
     }
 }
