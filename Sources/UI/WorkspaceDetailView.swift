@@ -4,6 +4,7 @@ struct WorkspaceDetailView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
     @State private var liveLayerID = "pattern"
+    @State private var tracksMode: TracksWorkspaceMode = .edit
     @Environment(SequencerDocumentSession.self) private var session
 
     var body: some View {
@@ -26,26 +27,21 @@ struct WorkspaceDetailView: View {
             PhraseWorkspaceView(document: $document)
                 .padding(10)
         case .tracks:
-            TracksMatrixView(document: $document) {
+            TracksWorkspaceView(document: $document, mode: $tracksMode, selectedLayerID: $liveLayerID) {
                 section = .track
             }
-            .padding(20)
         case .track:
             TrackWorkspaceView(document: $document)
         case .mixer:
             MixerWorkspaceView(document: $document) { trackID in
                 session.setSelectedTrackID(trackID)
                 section = .track
+            } onOpenScenes: {
+                section = .scenes
             }
-        case .live:
-            StudioPanel(
-                title: "Live",
-                eyebrow: "Current phrase cells under direct transport control",
-                accent: StudioTheme.amber
-            ) {
-                LiveWorkspaceView(document: $document, selectedLayerID: $liveLayerID)
-            }
-            .padding(20)
+        case .scenes:
+            ScenesWorkspaceView(document: $document)
+                .padding(20)
         case .library:
             LibraryWorkspaceView()
         }

@@ -7,7 +7,7 @@ final class MasterBusStateTests: XCTestCase {
 
         XCTAssertEqual(project.masterBus.scenes.count, 1)
         XCTAssertEqual(project.masterBus.activeScene.name, "Clean")
-        XCTAssertFalse(project.masterBus.hasUnsavedDraft)
+        XCTAssertTrue(project.masterBus.activeScene.macroBindings.isEmpty)
     }
 
     func test_oldProjectJSONDecodesWithDefaultMasterBus() throws {
@@ -50,24 +50,64 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(decodedBlob, blob)
     }
 
-    func test_draftCommitAndSaveAs() {
+    func test_directSceneEditingMutatesActiveScene() {
         var state = MasterBusState.default
         state.addInsert(.filter())
 
-        XCTAssertTrue(state.hasUnsavedDraft)
-        XCTAssertEqual(state.liveScene.inserts.count, 1)
-        XCTAssertEqual(state.activeScene.inserts.count, 0)
-
-        state.commitDraft(name: "Warm")
-        XCTAssertFalse(state.hasUnsavedDraft)
-        XCTAssertEqual(state.activeScene.name, "Warm")
         XCTAssertEqual(state.activeScene.inserts.count, 1)
 
-        state.addInsert(.bitcrusher())
-        state.saveDraftAsNewScene(name: "Crush")
+        let newSceneID = state.addScene(name: "Crush")
+        state.addInsert(.bitcrusher(), sceneID: newSceneID)
+
         XCTAssertEqual(state.scenes.count, 2)
         XCTAssertEqual(state.activeScene.name, "Crush")
-        XCTAssertEqual(state.activeScene.inserts.count, 2)
+        XCTAssertEqual(state.activeScene.inserts.count, 1)
+    }
+
+    func test_macroBindingsAreCappedAndCleanedUpWhenInsertIsRemoved() {
+        var state = MasterBusState.default
+        let sceneID = state.activeSceneID
+        let insert = MasterBusInsert.filter()
+        state.addInsert(insert, sceneID: sceneID)
+
+        for slot in 0..<12 {
+            state.upsertMacroBinding(
+                MasterSceneMacroBinding(slotIndex: slot, target: .filterCutoff(insertID: insert.id)),
+                sceneID: sceneID
+            )
+        }
+
+        XCTAssertEqual(state.activeScene.macroBindings.count, 8)
+
+        state.removeInsert(id: insert.id, sceneID: sceneID)
+
+        XCTAssertTrue(state.activeScene.macroBindings.isEmpty)
+    }
+
+    func test_legacyDraftPromotesIntoActiveSceneOnDecode() throws {
+        struct LegacyMasterBusState: Encodable {
+            let scenes: [MasterBusScene]
+            let activeSceneID: UUID
+            let draftScene: MasterBusScene
+        }
+
+        let active = MasterBusScene(id: MasterBusScene.cleanID, name: "Clean")
+        let draft = MasterBusScene(id: UUID(), name: "Draft", inserts: [.filter()])
+        let data = try JSONEncoder().encode(
+            LegacyMasterBusState(
+                scenes: [active],
+                activeSceneID: active.id,
+                draftScene: draft
+            )
+        )
+
+        let decoded = try JSONDecoder().decode(MasterBusState.self, from: data)
+
+        XCTAssertEqual(decoded.activeScene.id, active.id)
+        XCTAssertEqual(decoded.activeScene.name, "Draft")
+        XCTAssertEqual(decoded.activeScene.inserts.count, 1)
+        let reencoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any]
+        XCTAssertNil(reencoded?["draftScene"])
     }
 
     func test_invalidABSelection_isNormalizedAway() {

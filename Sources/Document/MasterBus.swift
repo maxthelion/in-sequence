@@ -3,18 +3,15 @@ import Foundation
 struct MasterBusState: Codable, Equatable, Sendable {
     var scenes: [MasterBusScene]
     var activeSceneID: UUID
-    var draftScene: MasterBusScene?
     var abSelection: MasterBusABSelection?
 
     init(
         scenes: [MasterBusScene] = [.clean],
         activeSceneID: UUID = MasterBusScene.cleanID,
-        draftScene: MasterBusScene? = nil,
         abSelection: MasterBusABSelection? = nil
     ) {
         self.scenes = scenes
         self.activeSceneID = activeSceneID
-        self.draftScene = draftScene
         self.abSelection = abSelection
         normalize()
     }
@@ -23,15 +20,6 @@ struct MasterBusState: Codable, Equatable, Sendable {
 
     var activeScene: MasterBusScene {
         scenes.first(where: { $0.id == activeSceneID }) ?? .clean
-    }
-
-    var liveScene: MasterBusScene {
-        draftScene ?? activeScene
-    }
-
-    var hasUnsavedDraft: Bool {
-        guard let draftScene else { return false }
-        return draftScene != activeScene
     }
 
     var sceneA: MasterBusScene? {
@@ -48,70 +36,57 @@ struct MasterBusState: Codable, Equatable, Sendable {
         scenes.first(where: { $0.id == id })
     }
 
+    @discardableResult
+    mutating func addScene(name: String? = nil, copyFrom sourceSceneID: UUID? = nil) -> UUID {
+        let sourceScene = sourceSceneID.flatMap { self.scene(id: $0) }
+        var newScene = sourceScene?.duplicatedForNewScene() ?? MasterBusScene(name: resolvedNewSceneName())
+        if let name {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            newScene.name = trimmed.isEmpty ? resolvedNewSceneName() : trimmed
+        } else if sourceScene != nil {
+            newScene.name = resolvedNewSceneName(base: "\(newScene.name) Copy")
+        }
+        scenes.append(newScene.normalized())
+        activeSceneID = newScene.id
+        normalize()
+        return newScene.id
+    }
+
+    mutating func removeScene(id: UUID) {
+        guard scenes.count > 1 else { return }
+        scenes.removeAll { $0.id == id }
+        if activeSceneID == id {
+            activeSceneID = scenes.first?.id ?? MasterBusScene.cleanID
+        }
+        if abSelection?.sceneAID == id || abSelection?.sceneBID == id {
+            abSelection = nil
+        }
+        normalize()
+    }
+
     mutating func setActiveScene(id: UUID) {
         guard scenes.contains(where: { $0.id == id }) else { return }
         activeSceneID = id
-        draftScene = nil
         normalize()
     }
 
-    mutating func beginDraftIfNeeded() {
-        if draftScene == nil {
-            draftScene = activeScene
+    mutating func updateScene(id: UUID, _ update: (inout MasterBusScene) -> Void) {
+        guard let index = scenes.firstIndex(where: { $0.id == id }) else {
+            return
         }
-    }
-
-    mutating func setDraft(_ scene: MasterBusScene) {
-        draftScene = scene.normalized()
-    }
-
-    mutating func updateDraft(_ update: (inout MasterBusScene) -> Void) {
-        beginDraftIfNeeded()
-        guard var draft = draftScene else { return }
-        update(&draft)
-        draftScene = draft.normalized()
-    }
-
-    mutating func discardDraft() {
-        draftScene = nil
-    }
-
-    mutating func commitDraft(name: String? = nil) {
-        guard var draft = draftScene?.normalized() else { return }
-        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let trimmedName, !trimmedName.isEmpty {
-            draft.name = trimmedName
-        }
-        if let index = scenes.firstIndex(where: { $0.id == activeSceneID }) {
-            draft.id = activeSceneID
-            scenes[index] = draft
-        } else {
-            activeSceneID = draft.id
-            scenes.append(draft)
-        }
-        draftScene = nil
+        update(&scenes[index])
+        scenes[index] = scenes[index].normalized()
         normalize()
     }
 
-    mutating func saveDraftAsNewScene(name: String) {
-        guard var draft = draftScene?.normalized() else { return }
-        draft.id = UUID()
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        draft.name = trimmed.isEmpty ? "Scene \(scenes.count + 1)" : trimmed
-        scenes.append(draft)
-        activeSceneID = draft.id
-        draftScene = nil
-        normalize()
-    }
-
-    mutating func addInsert(_ insert: MasterBusInsert) {
-        updateDraft { scene in
+    mutating func addInsert(_ insert: MasterBusInsert, sceneID: UUID? = nil) {
+        updateScene(id: sceneID ?? activeSceneID) { scene in
             scene.inserts.append(insert.normalized())
         }
     }
 
-    mutating func updateInsert(id: UUID, _ update: (inout MasterBusInsert) -> Void) {
-        updateDraft { scene in
+    mutating func updateInsert(id: UUID, sceneID: UUID? = nil, _ update: (inout MasterBusInsert) -> Void) {
+        updateScene(id: sceneID ?? activeSceneID) { scene in
             guard let index = scene.inserts.firstIndex(where: { $0.id == id }) else {
                 return
             }
@@ -119,18 +94,45 @@ struct MasterBusState: Codable, Equatable, Sendable {
         }
     }
 
-    mutating func removeInsert(id: UUID) {
-        updateDraft { scene in
+    mutating func removeInsert(id: UUID, sceneID: UUID? = nil) {
+        updateScene(id: sceneID ?? activeSceneID) { scene in
             scene.inserts.removeAll { $0.id == id }
+            scene.macroBindings.removeAll { $0.target.targetsInsert(id) }
         }
     }
 
-    mutating func reorderInserts(ids: [UUID]) {
-        updateDraft { scene in
+    mutating func reorderInserts(ids: [UUID], sceneID: UUID? = nil) {
+        updateScene(id: sceneID ?? activeSceneID) { scene in
             let byID = Dictionary(uniqueKeysWithValues: scene.inserts.map { ($0.id, $0) })
             let ordered = ids.compactMap { byID[$0] }
             let missing = scene.inserts.filter { !ids.contains($0.id) }
             scene.inserts = ordered + missing
+        }
+    }
+
+    mutating func upsertMacroBinding(_ binding: MasterSceneMacroBinding, sceneID: UUID? = nil) {
+        updateScene(id: sceneID ?? activeSceneID) { scene in
+            guard binding.target.isValid(in: scene) else { return }
+            if let index = scene.macroBindings.firstIndex(where: { $0.id == binding.id }) {
+                scene.macroBindings[index] = binding
+            } else if scene.macroBindings.count < MasterSceneMacroBinding.slotCount {
+                scene.macroBindings.append(binding)
+            }
+        }
+    }
+
+    mutating func removeMacroBinding(id: UUID, sceneID: UUID? = nil) {
+        updateScene(id: sceneID ?? activeSceneID) { scene in
+            scene.macroBindings.removeAll { $0.id == id }
+        }
+    }
+
+    mutating func setMacroValue(sceneID: UUID, macroID: UUID, value: Double) {
+        updateScene(id: sceneID) { scene in
+            guard let binding = scene.macroBindings.first(where: { $0.id == macroID }) else {
+                return
+            }
+            binding.target.write(value, to: &scene)
         }
     }
 
@@ -164,8 +166,6 @@ struct MasterBusState: Codable, Equatable, Sendable {
             activeSceneID = scenes[0].id
         }
 
-        draftScene = draftScene?.normalized()
-
         if let selection = abSelection?.normalized(),
            scenes.contains(where: { $0.id == selection.sceneAID }),
            scenes.contains(where: { $0.id == selection.sceneBID })
@@ -181,27 +181,95 @@ struct MasterBusState: Codable, Equatable, Sendable {
         copy.normalize()
         return copy
     }
+
+    func applyingPerformanceOverlay(_ overlay: MasterBusPerformanceOverlayState) -> MasterBusState {
+        var copy = self
+        for (sceneID, valuesByMacroID) in overlay.sceneMacroOverrides {
+            for (macroID, value) in valuesByMacroID {
+                copy.setMacroValue(sceneID: sceneID, macroID: macroID, value: value)
+            }
+        }
+        if let crossfader = overlay.crossfaderOverride {
+            copy.setCrossfader(crossfader)
+        }
+        return copy.normalized()
+    }
+
+    private func resolvedNewSceneName(base: String = "Scene") -> String {
+        var candidate = base
+        var index = scenes.count + 1
+        let existingNames = Set(scenes.map(\.name))
+        if !existingNames.contains(candidate) {
+            return candidate
+        }
+        repeat {
+            candidate = "\(base) \(index)"
+            index += 1
+        } while existingNames.contains(candidate)
+        return candidate
+    }
+}
+
+extension MasterBusState {
+    private enum CodingKeys: String, CodingKey {
+        case scenes
+        case activeSceneID
+        case draftScene
+        case abSelection
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        scenes = try container.decodeIfPresent([MasterBusScene].self, forKey: .scenes) ?? [.clean]
+        activeSceneID = try container.decodeIfPresent(UUID.self, forKey: .activeSceneID)
+            ?? scenes.first?.id
+            ?? MasterBusScene.cleanID
+        abSelection = try container.decodeIfPresent(MasterBusABSelection.self, forKey: .abSelection)
+
+        if let draftScene = try container.decodeIfPresent(MasterBusScene.self, forKey: .draftScene) {
+            if let index = scenes.firstIndex(where: { $0.id == activeSceneID }) {
+                var promoted = draftScene
+                promoted.id = activeSceneID
+                scenes[index] = promoted
+            } else {
+                scenes.append(draftScene)
+                activeSceneID = draftScene.id
+            }
+        }
+
+        normalize()
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(scenes, forKey: .scenes)
+        try container.encode(activeSceneID, forKey: .activeSceneID)
+        try container.encodeIfPresent(abSelection, forKey: .abSelection)
+    }
 }
 
 struct MasterBusScene: Codable, Equatable, Identifiable, Sendable {
     static let cleanID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
-    static let clean = MasterBusScene(id: cleanID, name: "Clean", inserts: [], outputGain: 1)
+    static let clean = MasterBusScene(id: cleanID, name: "Clean", inserts: [], outputGain: 1, macroBindings: [])
 
     var id: UUID
     var name: String
     var inserts: [MasterBusInsert]
     var outputGain: Double
+    var macroBindings: [MasterSceneMacroBinding]
 
     init(
         id: UUID = UUID(),
         name: String,
         inserts: [MasterBusInsert] = [],
-        outputGain: Double = 1
+        outputGain: Double = 1,
+        macroBindings: [MasterSceneMacroBinding] = []
     ) {
         self.id = id
         self.name = name
         self.inserts = inserts
         self.outputGain = outputGain
+        self.macroBindings = macroBindings
     }
 
     func normalized() -> MasterBusScene {
@@ -210,7 +278,323 @@ struct MasterBusScene: Codable, Equatable, Identifiable, Sendable {
         copy.name = trimmed.isEmpty ? "Scene" : trimmed
         copy.outputGain = copy.outputGain.clamped(to: 0...1.5)
         copy.inserts = copy.inserts.map { $0.normalized() }
+        copy.macroBindings = Self.normalizedMacroBindings(copy.macroBindings, in: copy)
         return copy
+    }
+
+    func duplicatedForNewScene() -> MasterBusScene {
+        var copy = self
+        copy.id = UUID()
+        var insertIDMap: [UUID: UUID] = [:]
+        copy.inserts = inserts.map { insert in
+            var duplicated = insert
+            let newID = UUID()
+            insertIDMap[insert.id] = newID
+            duplicated.id = newID
+            return duplicated
+        }
+        copy.macroBindings = macroBindings.map { binding in
+            var duplicated = binding
+            duplicated.id = UUID()
+            duplicated.target = duplicated.target.remappedInsertIDs(insertIDMap)
+            return duplicated
+        }
+        return copy.normalized()
+    }
+
+    private static func normalizedMacroBindings(
+        _ bindings: [MasterSceneMacroBinding],
+        in scene: MasterBusScene
+    ) -> [MasterSceneMacroBinding] {
+        var occupiedSlots = Set<Int>()
+        var seenIDs = Set<UUID>()
+        var normalizedBindings: [MasterSceneMacroBinding] = []
+
+        for binding in bindings.sorted(by: { lhs, rhs in
+            if lhs.slotIndex == rhs.slotIndex {
+                return lhs.name < rhs.name
+            }
+            return lhs.slotIndex < rhs.slotIndex
+        }) {
+            guard binding.target.isValid(in: scene) else { continue }
+            guard normalizedBindings.count < MasterSceneMacroBinding.slotCount else { break }
+
+            var normalized = binding.normalized(in: scene)
+            if seenIDs.contains(normalized.id) {
+                normalized.id = UUID()
+            }
+            guard let slotIndex = availableSlot(preferred: normalized.slotIndex, occupied: occupiedSlots) else {
+                continue
+            }
+            normalized.slotIndex = slotIndex
+            seenIDs.insert(normalized.id)
+            occupiedSlots.insert(slotIndex)
+            normalizedBindings.append(normalized)
+        }
+
+        return normalizedBindings.sorted { $0.slotIndex < $1.slotIndex }
+    }
+
+    private static func availableSlot(preferred: Int, occupied: Set<Int>) -> Int? {
+        if (0..<MasterSceneMacroBinding.slotCount).contains(preferred),
+           !occupied.contains(preferred)
+        {
+            return preferred
+        }
+        return (0..<MasterSceneMacroBinding.slotCount).first { !occupied.contains($0) }
+    }
+}
+
+struct MasterSceneMacroBinding: Codable, Equatable, Identifiable, Sendable {
+    static let slotCount = 8
+
+    var id: UUID
+    var slotIndex: Int
+    var name: String
+    var target: MasterSceneMacroTarget
+
+    init(
+        id: UUID = UUID(),
+        slotIndex: Int,
+        name: String? = nil,
+        target: MasterSceneMacroTarget
+    ) {
+        self.id = id
+        self.slotIndex = slotIndex
+        self.name = name ?? ""
+        self.target = target
+    }
+
+    func normalized(in scene: MasterBusScene) -> MasterSceneMacroBinding {
+        var copy = self
+        copy.slotIndex = Int(Double(copy.slotIndex).clamped(to: 0...Double(Self.slotCount - 1)))
+        let trimmed = copy.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        copy.name = trimmed.isEmpty ? copy.target.label(in: scene) : trimmed
+        return copy
+    }
+
+    func value(in scene: MasterBusScene) -> Double? {
+        target.read(from: scene)
+    }
+}
+
+enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
+    case outputGain
+    case insertWetDry(insertID: UUID)
+    case filterCutoff(insertID: UUID)
+    case filterResonance(insertID: UUID)
+    case bitcrusherRate(insertID: UUID)
+    case bitcrusherDrive(insertID: UUID)
+
+    var valueRange: ClosedRange<Double> {
+        switch self {
+        case .outputGain:
+            return 0...1.5
+        case .insertWetDry,
+             .filterResonance,
+             .bitcrusherRate,
+             .bitcrusherDrive:
+            return 0...1
+        case .filterCutoff:
+            return 20...20_000
+        }
+    }
+
+    func isValid(in scene: MasterBusScene) -> Bool {
+        switch self {
+        case .outputGain:
+            return true
+        case let .insertWetDry(insertID):
+            return scene.inserts.contains { $0.id == insertID }
+        case let .filterCutoff(insertID),
+             let .filterResonance(insertID):
+            return scene.inserts.contains { insert in
+                guard insert.id == insertID else { return false }
+                if case .nativeFilter = insert.kind { return true }
+                return false
+            }
+        case let .bitcrusherRate(insertID),
+             let .bitcrusherDrive(insertID):
+            return scene.inserts.contains { insert in
+                guard insert.id == insertID else { return false }
+                if case .nativeBitcrusher = insert.kind { return true }
+                return false
+            }
+        }
+    }
+
+    func targetsInsert(_ insertID: UUID) -> Bool {
+        switch self {
+        case .outputGain:
+            return false
+        case let .insertWetDry(id),
+             let .filterCutoff(id),
+             let .filterResonance(id),
+             let .bitcrusherRate(id),
+             let .bitcrusherDrive(id):
+            return id == insertID
+        }
+    }
+
+    func remappedInsertIDs(_ insertIDMap: [UUID: UUID]) -> MasterSceneMacroTarget {
+        switch self {
+        case .outputGain:
+            return self
+        case let .insertWetDry(insertID):
+            return .insertWetDry(insertID: insertIDMap[insertID] ?? insertID)
+        case let .filterCutoff(insertID):
+            return .filterCutoff(insertID: insertIDMap[insertID] ?? insertID)
+        case let .filterResonance(insertID):
+            return .filterResonance(insertID: insertIDMap[insertID] ?? insertID)
+        case let .bitcrusherRate(insertID):
+            return .bitcrusherRate(insertID: insertIDMap[insertID] ?? insertID)
+        case let .bitcrusherDrive(insertID):
+            return .bitcrusherDrive(insertID: insertIDMap[insertID] ?? insertID)
+        }
+    }
+
+    func read(from scene: MasterBusScene) -> Double? {
+        switch self {
+        case .outputGain:
+            return scene.outputGain
+        case let .insertWetDry(insertID):
+            return scene.inserts.first(where: { $0.id == insertID })?.wetDry
+        case let .filterCutoff(insertID):
+            guard case let .nativeFilter(settings)? = scene.inserts.first(where: { $0.id == insertID })?.kind else {
+                return nil
+            }
+            return settings.cutoffHz
+        case let .filterResonance(insertID):
+            guard case let .nativeFilter(settings)? = scene.inserts.first(where: { $0.id == insertID })?.kind else {
+                return nil
+            }
+            return settings.resonance
+        case let .bitcrusherRate(insertID):
+            guard case let .nativeBitcrusher(settings)? = scene.inserts.first(where: { $0.id == insertID })?.kind else {
+                return nil
+            }
+            return settings.sampleRateScale
+        case let .bitcrusherDrive(insertID):
+            guard case let .nativeBitcrusher(settings)? = scene.inserts.first(where: { $0.id == insertID })?.kind else {
+                return nil
+            }
+            return settings.drive
+        }
+    }
+
+    func write(_ value: Double, to scene: inout MasterBusScene) {
+        let clamped = value.clamped(to: valueRange)
+        switch self {
+        case .outputGain:
+            scene.outputGain = clamped
+        case let .insertWetDry(insertID):
+            guard let index = scene.inserts.firstIndex(where: { $0.id == insertID }) else { return }
+            scene.inserts[index].wetDry = clamped
+        case let .filterCutoff(insertID):
+            updateFilter(insertID: insertID, in: &scene) { $0.cutoffHz = clamped }
+        case let .filterResonance(insertID):
+            updateFilter(insertID: insertID, in: &scene) { $0.resonance = clamped }
+        case let .bitcrusherRate(insertID):
+            updateBitcrusher(insertID: insertID, in: &scene) { $0.sampleRateScale = clamped }
+        case let .bitcrusherDrive(insertID):
+            updateBitcrusher(insertID: insertID, in: &scene) { $0.drive = clamped }
+        }
+    }
+
+    func label(in scene: MasterBusScene) -> String {
+        switch self {
+        case .outputGain:
+            return "Output Gain"
+        case let .insertWetDry(insertID):
+            return "\(insertName(insertID, in: scene)) Wet"
+        case let .filterCutoff(insertID):
+            return "\(insertName(insertID, in: scene)) Cutoff"
+        case let .filterResonance(insertID):
+            return "\(insertName(insertID, in: scene)) Resonance"
+        case let .bitcrusherRate(insertID):
+            return "\(insertName(insertID, in: scene)) Rate"
+        case let .bitcrusherDrive(insertID):
+            return "\(insertName(insertID, in: scene)) Drive"
+        }
+    }
+
+    private func insertName(_ insertID: UUID, in scene: MasterBusScene) -> String {
+        scene.inserts.first(where: { $0.id == insertID })?.name ?? "Insert"
+    }
+
+    private func updateFilter(
+        insertID: UUID,
+        in scene: inout MasterBusScene,
+        _ update: (inout MasterFilterSettings) -> Void
+    ) {
+        guard let index = scene.inserts.firstIndex(where: { $0.id == insertID }),
+              case var .nativeFilter(settings) = scene.inserts[index].kind
+        else { return }
+        update(&settings)
+        scene.inserts[index].kind = .nativeFilter(settings)
+    }
+
+    private func updateBitcrusher(
+        insertID: UUID,
+        in scene: inout MasterBusScene,
+        _ update: (inout MasterBitcrusherSettings) -> Void
+    ) {
+        guard let index = scene.inserts.firstIndex(where: { $0.id == insertID }),
+              case var .nativeBitcrusher(settings) = scene.inserts[index].kind
+        else { return }
+        update(&settings)
+        scene.inserts[index].kind = .nativeBitcrusher(settings)
+    }
+}
+
+struct MasterBusPerformanceOverlayState: Equatable, Sendable {
+    var sceneMacroOverrides: [UUID: [UUID: Double]] = [:]
+    var crossfaderOverride: Double?
+
+    var isActive: Bool {
+        !sceneMacroOverrides.isEmpty || crossfaderOverride != nil
+    }
+
+    func macroOverride(sceneID: UUID, macroID: UUID) -> Double? {
+        sceneMacroOverrides[sceneID]?[macroID]
+    }
+
+    func macroOverrides(sceneID: UUID) -> [UUID: Double] {
+        sceneMacroOverrides[sceneID] ?? [:]
+    }
+
+    func hasMacroOverrides(sceneID: UUID) -> Bool {
+        !(sceneMacroOverrides[sceneID]?.isEmpty ?? true)
+    }
+
+    mutating func setMacroOverride(sceneID: UUID, macroID: UUID, value: Double) {
+        sceneMacroOverrides[sceneID, default: [:]][macroID] = value
+    }
+
+    mutating func clearMacroOverrides(sceneID: UUID) {
+        sceneMacroOverrides.removeValue(forKey: sceneID)
+    }
+
+    mutating func clearAll() {
+        sceneMacroOverrides = [:]
+        crossfaderOverride = nil
+    }
+
+    func normalized(for masterBus: MasterBusState) -> MasterBusPerformanceOverlayState {
+        var normalizedOverrides: [UUID: [UUID: Double]] = [:]
+        for (sceneID, valuesByMacroID) in sceneMacroOverrides {
+            guard let scene = masterBus.scene(id: sceneID) else { continue }
+            let validMacroIDs = Set(scene.macroBindings.map(\.id))
+            let filtered = valuesByMacroID.filter { validMacroIDs.contains($0.key) }
+            if !filtered.isEmpty {
+                normalizedOverrides[sceneID] = filtered
+            }
+        }
+
+        return MasterBusPerformanceOverlayState(
+            sceneMacroOverrides: normalizedOverrides,
+            crossfaderOverride: masterBus.abSelection == nil ? nil : crossfaderOverride?.clamped(to: 0...1)
+        )
     }
 }
 

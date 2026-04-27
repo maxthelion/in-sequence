@@ -181,7 +181,6 @@
 		8FCC27A09C5C15A0209F162F /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16D79D625BD5365928D750F6 /* Block.swift */; };
 		8FD9738657BE81975D328519 /* Project+Destinations.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA4AB8938322081B3FF85AA /* Project+Destinations.swift */; };
 		910E0C50B0167745C9EFC3C2 /* MIDIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5287FF85E53E1D764EC6FD /* MIDIRouter.swift */; };
-		91F32D12B640727BCE6BEDF3 /* EndOfChainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A262052F4611836ED802B8 /* EndOfChainView.swift */; };
 		9288FD7EF3B31BDBD796F0BE /* DestinationInheritGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E2B29F7D70977445686F711 /* DestinationInheritGroupTests.swift */; };
 		93D66B65020831B6627FBD8A /* Stream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97637E4515BD5143B0324852 /* Stream.swift */; };
 		94B0EB5599FB87ADC565B50E /* PhraseLayerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B25BBA0A63F5333205728D /* PhraseLayerPresentation.swift */; };
@@ -258,8 +257,10 @@
 		C640534EF17D6C61D5A97851 /* RouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEC56AA6719CAB570D637520 /* RouteTests.swift */; };
 		C846AC278CE5037551F59604 /* Project+Diff.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB87BCC372BECFFFDA53634 /* Project+Diff.swift */; };
 		C91FB5C671AA6F8F0800FF70 /* AUWindowHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD640D179A56602EB2915A6 /* AUWindowHost.swift */; };
+		C9777BCEAD988B928C7F7CD0 /* ScenesWorkspaceView+Perform.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C31B96BF171AC5CF4AC7EF /* ScenesWorkspaceView+Perform.swift */; };
 		C9E289C623F888F35AC0BF8D /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2561F568C71A15D68F51397 /* SidebarView.swift */; };
 		CB8D9B429450773494BCDB06 /* StyleProfileID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749C06C9DB7D9BE3891FCE4B /* StyleProfileID.swift */; };
+		CB991309D61E18E92CAF80BF /* ScenesWorkspaceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9EBFA9ADC66EE6D0211CFC /* ScenesWorkspaceMode.swift */; };
 		CCDD8565324F4AABBC097EE0 /* LiveWorkspaceViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8902AAA59D7978EEAC717F95 /* LiveWorkspaceViewTests.swift */; };
 		CD365053A22AE3B4D897BA9D /* GeneratorPoolEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79348F939FFFE4ADE1B1EC55 /* GeneratorPoolEntryTests.swift */; };
 		CDA543F2C9A473C71669754A /* PlaybackSnapshotConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82E7BD2488E628F87C0B2076 /* PlaybackSnapshotConcurrencyTests.swift */; };
@@ -321,6 +322,7 @@
 		F86135C6DD3E41946DBD7990 /* StepGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1490D75AF2FF879A11CA425 /* StepGridView.swift */; };
 		F88247786BE58D914B52A4F5 /* ProjectSwitchAttachedGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37ED4F8564EB456EEF5D966 /* ProjectSwitchAttachedGeneratorTests.swift */; };
 		F98D02D44AE1C4B1C07C4832 /* LiveSequencerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A268898E48CD801E7859CB51 /* LiveSequencerStore.swift */; };
+		F9B9CA4B718EC637611C7FE5 /* ScenesWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0619E0BB4AADB4779CCCCDA /* ScenesWorkspaceView.swift */; };
 		F9C159A9F0D02E0FE8D05013 /* VoicePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8403FE3BB7DC17548B87C /* VoicePickerView.swift */; };
 		FB62905FA6BBAD358D7C0407 /* PresetStepper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B538DEA2E634E22CF6ED727 /* PresetStepper.swift */; };
 		FD3B9E87ADA540AEE60F3CA4 /* PhrasePlaybackBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D351F99ADA535260060C8D /* PhrasePlaybackBuffer.swift */; };
@@ -343,6 +345,7 @@
 /* Begin PBXFileReference section */
 		0097C26CE717B68546B671EB /* TracksMatrixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracksMatrixView.swift; sourceTree = "<group>"; };
 		0100B9863536E42584BF23A1 /* 2026-04-23-live-sequencer-store-v1-transcript.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-23-live-sequencer-store-v1-transcript.md"; sourceTree = "<group>"; };
+		01A28B3FD95122AA1D9D9B9F /* track-macros.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "track-macros.md"; sourceTree = "<group>"; };
 		0224EC5D5236D7C6BF250225 /* 2026-04-19-track-group-reshape.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-19-track-group-reshape.md"; sourceTree = "<group>"; };
 		02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetBrowserSheetViewModelTests.swift; sourceTree = "<group>"; };
 		0323634862A85A4F878E6C2F /* SamplerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplerSettings.swift; sourceTree = "<group>"; };
@@ -467,7 +470,6 @@
 		502A93B74D6805E67DA16441 /* ThrottledMixControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThrottledMixControl.swift; sourceTree = "<group>"; };
 		50ED56D271B145418277C59E /* 2026-04-21-single-destination-ui.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-single-destination-ui.md"; sourceTree = "<group>"; };
 		516D8F17D3FBB41335AAD779 /* WaveformDownsampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformDownsampler.swift; sourceTree = "<group>"; };
-		51A262052F4611836ED802B8 /* EndOfChainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndOfChainView.swift; sourceTree = "<group>"; };
 		522921C6F5937EAC50CB65D3 /* AudioSampleLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSampleLibraryTests.swift; sourceTree = "<group>"; };
 		52ECD033E445DA7818675738 /* glaypen-reference.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "glaypen-reference.md"; sourceTree = "<group>"; };
 		533B12DD624110D076F79BD4 /* ScalarValueEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScalarValueEditor.swift; sourceTree = "<group>"; };
@@ -539,6 +541,7 @@
 		7F07E37386B12E35F924B137 /* 2026-04-20-drum-track-mvp-design.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-20-drum-track-mvp-design.md"; sourceTree = "<group>"; };
 		7F163DCD249FD8CC6A4DB7D7 /* 2026-04-21-remove-unnecessary-ui.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-remove-unnecessary-ui.md"; sourceTree = "<group>"; };
 		7F838D5FE391E75B5C3051E5 /* PitchAlgoEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchAlgoEditor.swift; sourceTree = "<group>"; };
+		7F9EBFA9ADC66EE6D0211CFC /* ScenesWorkspaceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenesWorkspaceMode.swift; sourceTree = "<group>"; };
 		806222840FB3F12A0D3A6063 /* ClipContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipContent.swift; sourceTree = "<group>"; };
 		809E64B6CA9D3F7D45855691 /* StyleProfiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleProfiles.swift; sourceTree = "<group>"; };
 		80CB8C67404FC27B5540A444 /* DestinationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationTests.swift; sourceTree = "<group>"; };
@@ -592,6 +595,7 @@
 		9F746B1B4B99A1410F789D27 /* StudioPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioPanel.swift; sourceTree = "<group>"; };
 		9FE8CABD8D76656CFF5C637A /* phatcontroller.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = phatcontroller.md; sourceTree = "<group>"; };
 		A02F5350AA667365216279FB /* MultiDocumentEngineIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiDocumentEngineIsolationTests.swift; sourceTree = "<group>"; };
+		A0619E0BB4AADB4779CCCCDA /* ScenesWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenesWorkspaceView.swift; sourceTree = "<group>"; };
 		A12E764D761321EA7D363A24 /* GeneratorKindTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorKindTests.swift; sourceTree = "<group>"; };
 		A268898E48CD801E7859CB51 /* LiveSequencerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSequencerStore.swift; sourceTree = "<group>"; };
 		A2B25BBA0A63F5333205728D /* PhraseLayerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseLayerPresentation.swift; sourceTree = "<group>"; };
@@ -660,6 +664,7 @@
 		C2764FC6A9FDC023A55124FC /* TickClockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickClockTests.swift; sourceTree = "<group>"; };
 		C28D5ECF8458D17E12C59FEE /* MainAudioGraphTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAudioGraphTests.swift; sourceTree = "<group>"; };
 		C2D6E2667D8A2247B650F0C2 /* 2026-04-21-source-pipeline-refactor.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-source-pipeline-refactor.md"; sourceTree = "<group>"; };
+		C3C31B96BF171AC5CF4AC7EF /* ScenesWorkspaceView+Perform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ScenesWorkspaceView+Perform.swift"; sourceTree = "<group>"; };
 		C3D255BAF257E78267B5E832 /* ChordsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordsTests.swift; sourceTree = "<group>"; };
 		C47538876A26095AF24114B6 /* midi-layer.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "midi-layer.md"; sourceTree = "<group>"; };
 		C4976F7F2DD944611264495D /* AudioInstrumentChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInstrumentChoice.swift; sourceTree = "<group>"; };
@@ -1150,8 +1155,10 @@
 		618E24DD34A33A1C6886E728 /* Mixer */ = {
 			isa = PBXGroup;
 			children = (
-				51A262052F4611836ED802B8 /* EndOfChainView.swift */,
 				6194E08282F2BADA7BA93009 /* MixerWorkspaceView.swift */,
+				7F9EBFA9ADC66EE6D0211CFC /* ScenesWorkspaceMode.swift */,
+				A0619E0BB4AADB4779CCCCDA /* ScenesWorkspaceView.swift */,
+				C3C31B96BF171AC5CF4AC7EF /* ScenesWorkspaceView+Perform.swift */,
 			);
 			path = Mixer;
 			sourceTree = "<group>";
@@ -1517,6 +1524,7 @@
 				687CE8FD9BE8A437DCB3B482 /* sequencerbox-domain-model.md */,
 				8B196722EA9AAAD60ED7AD4B /* track-destinations.md */,
 				F8C94A1219D274CCD7A58DC4 /* track-groups.md */,
+				01A28B3FD95122AA1D9D9B9F /* track-macros.md */,
 				3DA5B02204DC7871C4096EC9 /* tracks-matrix.md */,
 			);
 			path = pages;
@@ -1837,7 +1845,6 @@
 				3A3A015CEE1FE4CBD087F985 /* DrumGroupPlan.swift in Sources */,
 				7CAFC81CB0B468221FC5C3DF /* DrumKitNoteMap.swift in Sources */,
 				46C1105DADE78059A0749B58 /* DrumKitPreset.swift in Sources */,
-				91F32D12B640727BCE6BEDF3 /* EndOfChainView.swift in Sources */,
 				A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */,
 				567F11938E493D08CA5F6BE4 /* Euclidean.swift in Sources */,
 				A56B19EE665B750B0C8A70F4 /* EventQueue.swift in Sources */,
@@ -1923,6 +1930,9 @@
 				56E996514E75314A686609B5 /* Scale.swift in Sources */,
 				4BDBF980AD3C92A4FC469B13 /* ScaleID.swift in Sources */,
 				77048FF48C257E1240690195 /* Scales.swift in Sources */,
+				CB991309D61E18E92CAF80BF /* ScenesWorkspaceMode.swift in Sources */,
+				C9777BCEAD988B928C7F7CD0 /* ScenesWorkspaceView+Perform.swift in Sources */,
+				F9B9CA4B718EC637611C7FE5 /* ScenesWorkspaceView.swift in Sources */,
 				10C28AF256596B11EE34B0FB /* ScheduledEvent.swift in Sources */,
 				710B658B41C2704648725560 /* SeqAIDocument.swift in Sources */,
 				FF0E1A8B761188143DF58D72 /* SequencerAIApp.swift in Sources */,

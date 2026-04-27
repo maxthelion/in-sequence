@@ -110,6 +110,7 @@ final class EngineController: RouterDispatcher {
     private(set) var lastNoteTriggerCount: Int = 0
     private(set) var executor: Executor?
     private(set) var selectedOutput: Destination.Kind
+    private(set) var masterBusPerformanceOverlay = MasterBusPerformanceOverlayState()
 
     private var currentTrackMix = TrackMixSettings.default
     private var currentDocumentModel: Project = .empty
@@ -329,6 +330,7 @@ final class EngineController: RouterDispatcher {
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
+        syncMasterBusPerformanceOverlay(for: documentModel.masterBus)
         masterBusHost.apply(documentModel.masterBus)
         let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
         withStateLock {
@@ -448,13 +450,62 @@ final class EngineController: RouterDispatcher {
         masterBusHost.appliedState
     }
 
+    var resolvedMasterBusState: MasterBusState {
+        masterBusHost.resolvedState
+    }
+
     var masterBusApplyCallCount: Int {
         masterBusHost.applyCallCount
     }
 
     func apply(masterBus: MasterBusState) {
-        masterBusHost.apply(masterBus)
-        currentDocumentModel.masterBus = masterBus.normalized()
+        let normalized = masterBus.normalized()
+        syncMasterBusPerformanceOverlay(for: normalized)
+        masterBusHost.apply(normalized)
+        currentDocumentModel.masterBus = normalized
+    }
+
+    func setMasterSceneMacroOverride(sceneID: UUID, macroID: UUID, value: Double) {
+        masterBusPerformanceOverlay.setMacroOverride(sceneID: sceneID, macroID: macroID, value: value)
+        masterBusPerformanceOverlay = masterBusPerformanceOverlay.normalized(for: currentDocumentModel.masterBus)
+        masterBusHost.setSceneMacroOverride(sceneID: sceneID, macroID: macroID, value: value)
+    }
+
+    func clearMasterSceneMacroOverrides(sceneID: UUID) {
+        masterBusPerformanceOverlay.clearMacroOverrides(sceneID: sceneID)
+        masterBusHost.clearSceneMacroOverrides(sceneID: sceneID)
+    }
+
+    func setLiveMasterCrossfader(_ value: Double) {
+        masterBusPerformanceOverlay.crossfaderOverride = value.clamped(to: 0...1)
+        masterBusPerformanceOverlay = masterBusPerformanceOverlay.normalized(for: currentDocumentModel.masterBus)
+        masterBusHost.setLiveCrossfaderOverride(value)
+    }
+
+    func clearLiveMasterCrossfader() {
+        masterBusPerformanceOverlay.crossfaderOverride = nil
+        masterBusHost.setLiveCrossfaderOverride(nil)
+    }
+
+    func clearMasterBusPerformanceOverlay() {
+        masterBusPerformanceOverlay.clearAll()
+        masterBusHost.clearPerformanceOverlay()
+    }
+
+    var hasMasterBusPerformanceOverlay: Bool {
+        masterBusPerformanceOverlay.isActive
+    }
+
+    func masterSceneMacroOverride(sceneID: UUID, macroID: UUID) -> Double? {
+        masterBusPerformanceOverlay.macroOverride(sceneID: sceneID, macroID: macroID)
+    }
+
+    func masterSceneMacroOverrides(sceneID: UUID) -> [UUID: Double] {
+        masterBusPerformanceOverlay.macroOverrides(sceneID: sceneID)
+    }
+
+    func hasMasterSceneMacroOverrides(sceneID: UUID) -> Bool {
+        masterBusPerformanceOverlay.hasMacroOverrides(sceneID: sceneID)
     }
 
     var availableAudioInstruments: [AudioInstrumentChoice] {
@@ -1541,6 +1592,19 @@ final class EngineController: RouterDispatcher {
         defer { stateLock.unlock() }
         return body()
     }
+
+    private func syncMasterBusPerformanceOverlay(for masterBus: MasterBusState) {
+        let normalizedOverlay = masterBusPerformanceOverlay.normalized(for: masterBus)
+        if normalizedOverlay != masterBusPerformanceOverlay {
+            masterBusPerformanceOverlay = normalizedOverlay
+        }
+    }
 }
 
 extension EngineController: EngineLifecycleControlling {}
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        min(max(self, range.lowerBound), range.upperBound)
+    }
+}

@@ -1,5 +1,58 @@
 import SwiftUI
 
+enum TracksWorkspaceMode: String, CaseIterable, Identifiable {
+    case edit
+    case perform
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .edit:
+            return "Edit"
+        case .perform:
+            return "Perform"
+        }
+    }
+}
+
+struct TracksWorkspaceView: View {
+    @Binding var document: SeqAIDocument
+    @Binding var mode: TracksWorkspaceMode
+    @Binding var selectedLayerID: String
+    let onOpenTrack: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 12) {
+                Picker("Mode", selection: $mode) {
+                    ForEach(TracksWorkspaceMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 220)
+
+                Spacer()
+            }
+
+            switch mode {
+            case .edit:
+                TracksMatrixView(document: $document, onOpenTrack: onOpenTrack)
+            case .perform:
+                StudioPanel(
+                    title: "Tracks Perform",
+                    eyebrow: "Phrase cells under direct transport control",
+                    accent: StudioTheme.amber
+                ) {
+                    LiveWorkspaceView(document: $document, selectedLayerID: $selectedLayerID)
+                }
+            }
+        }
+        .padding(20)
+    }
+}
+
 struct TracksMatrixView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
@@ -50,7 +103,6 @@ struct TracksMatrixView: View {
                 }
             }
         }
-        .padding(20)
         .sheet(isPresented: $isPresentingCreateTrack) {
             CreateTrackSheet(document: $document, onOpenTrack: onOpenTrack)
         }

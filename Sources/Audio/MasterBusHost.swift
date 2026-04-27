@@ -3,24 +3,65 @@ import Foundation
 
 protocol MasterBusHosting: AnyObject {
     var appliedState: MasterBusState { get }
+    var resolvedState: MasterBusState { get }
+    var performanceOverlayState: MasterBusPerformanceOverlayState { get }
     var applyCallCount: Int { get }
     func attach(to audioGraph: MainAudioGraph)
     func apply(_ state: MasterBusState)
+    func setPerformanceOverlay(_ overlay: MasterBusPerformanceOverlayState)
+    func setSceneMacroOverride(sceneID: UUID, macroID: UUID, value: Double)
+    func clearSceneMacroOverrides(sceneID: UUID)
+    func setLiveCrossfaderOverride(_ value: Double?)
+    func clearPerformanceOverlay()
 }
 
 final class MasterBusHost: MasterBusHosting {
     private let lock = NSLock()
     private let factory: AUAudioUnitFactory
     private var state: MasterBusState = .default
+    private var performanceOverlay: MasterBusPerformanceOverlayState = MasterBusPerformanceOverlayState()
     private var count: Int = 0
     private weak var audioGraph: MainAudioGraph?
     private var cachedAUEffects: [UUID: CachedAUEffect] = [:]
     private var pendingAUEffectIDs: Set<UUID> = []
+    private var installedShape: MasterBusGraphShape?
+    private var installedNodesByInsertID: [UUID: AVAudioNode] = [:]
 
     private struct CachedAUEffect {
         let componentID: AudioComponentID
         let stateBlob: Data?
         let unit: AVAudioUnit
+    }
+
+    private struct MasterBusGraphShape: Equatable {
+        let branches: [MasterBusBranchShape]
+    }
+
+    private struct MasterBusBranchShape: Equatable {
+        let sceneID: UUID
+        let inserts: [MasterBusInsertShape]
+    }
+
+    private struct MasterBusInsertShape: Equatable {
+        let id: UUID
+        let kind: MasterBusInsertKindShape
+    }
+
+    private enum MasterBusInsertKindShape: Equatable {
+        case nativeFilter
+        case nativeBitcrusher
+        case auEffect(componentID: AudioComponentID, stateBlob: Data?)
+    }
+
+    private struct BuiltMasterChains {
+        let chains: [MainAudioGraph.MasterChain]
+        let nodesByInsertID: [UUID: AVAudioNode]
+        let shape: MasterBusGraphShape
+    }
+
+    private struct MasterBusBranch {
+        let scene: MasterBusScene
+        let gain: Double
     }
 
     init(factory: AUAudioUnitFactory = AUAudioUnitFactory()) {
@@ -29,6 +70,14 @@ final class MasterBusHost: MasterBusHosting {
 
     var appliedState: MasterBusState {
         lock.withLock { state }
+    }
+
+    var resolvedState: MasterBusState {
+        lock.withLock { state.applyingPerformanceOverlay(performanceOverlay.normalized(for: state)) }
+    }
+
+    var performanceOverlayState: MasterBusPerformanceOverlayState {
+        lock.withLock { performanceOverlay }
     }
 
     var applyCallCount: Int {
@@ -45,17 +94,55 @@ final class MasterBusHost: MasterBusHosting {
     func apply(_ state: MasterBusState) {
         lock.withLock {
             self.state = state.normalized()
+            self.performanceOverlay = self.performanceOverlay.normalized(for: self.state)
             self.count += 1
         }
         rebuildAudioGraph()
     }
 
+    func setPerformanceOverlay(_ overlay: MasterBusPerformanceOverlayState) {
+        lock.withLock {
+            self.performanceOverlay = overlay.normalized(for: state)
+        }
+        refreshAudioGraphForPerformanceChange()
+    }
+
+    func setSceneMacroOverride(sceneID: UUID, macroID: UUID, value: Double) {
+        lock.withLock {
+            performanceOverlay.setMacroOverride(sceneID: sceneID, macroID: macroID, value: value)
+            performanceOverlay = performanceOverlay.normalized(for: state)
+        }
+        refreshAudioGraphForPerformanceChange()
+    }
+
+    func clearSceneMacroOverrides(sceneID: UUID) {
+        lock.withLock {
+            performanceOverlay.clearMacroOverrides(sceneID: sceneID)
+        }
+        refreshAudioGraphForPerformanceChange()
+    }
+
+    func setLiveCrossfaderOverride(_ value: Double?) {
+        lock.withLock {
+            performanceOverlay.crossfaderOverride = value?.clamped(to: 0...1)
+            performanceOverlay = performanceOverlay.normalized(for: state)
+        }
+        refreshAudioGraphForPerformanceChange()
+    }
+
+    func clearPerformanceOverlay() {
+        lock.withLock {
+            performanceOverlay.clearAll()
+        }
+        refreshAudioGraphForPerformanceChange()
+    }
+
     var activeScene: MasterBusScene {
-        appliedState.liveScene
+        resolvedState.activeScene
     }
 
     var abCrossfadeGains: (a: Double, b: Double)? {
-        guard let selection = appliedState.abSelection else { return nil }
+        guard let selection = resolvedState.abSelection else { return nil }
         return Self.equalPowerGains(crossfader: selection.crossfader)
     }
 
@@ -69,40 +156,47 @@ final class MasterBusHost: MasterBusHosting {
 
     private func rebuildAudioGraph() {
         let (state, audioGraph) = lock.withLock {
-            (self.state, self.audioGraph)
+            (self.state.applyingPerformanceOverlay(self.performanceOverlay.normalized(for: self.state)), self.audioGraph)
         }
         guard let audioGraph else { return }
 
         performOnMain {
-            let chains = self.chains(for: state)
-            audioGraph.installMasterChains(chains)
+            let built = self.buildMasterChains(for: state)
+            audioGraph.installMasterChains(built.chains)
+            self.lock.withLock {
+                self.installedShape = built.shape
+                self.installedNodesByInsertID = built.nodesByInsertID
+            }
         }
     }
 
     @MainActor
-    private func chains(for state: MasterBusState) -> [MainAudioGraph.MasterChain] {
-        let chains: [MainAudioGraph.MasterChain]
-        if let selection = state.abSelection,
-           let sceneA = state.scene(id: selection.sceneAID),
-           let sceneB = state.scene(id: selection.sceneBID)
-        {
-            let gains = Self.equalPowerGains(crossfader: selection.crossfader)
-            chains = [
-                chain(for: sceneA, gain: sceneA.outputGain * gains.a),
-                chain(for: sceneB, gain: sceneB.outputGain * gains.b),
-            ]
-        } else {
-            let scene = state.liveScene
-            chains = [chain(for: scene, gain: scene.outputGain)]
+    private func buildMasterChains(for state: MasterBusState) -> BuiltMasterChains {
+        var nodesByInsertID: [UUID: AVAudioNode] = [:]
+        let branches = Self.branches(for: state)
+        let chains = branches.map { branch in
+            chain(for: branch.scene, gain: branch.gain, nodesByInsertID: &nodesByInsertID)
         }
-        return chains
+        return BuiltMasterChains(
+            chains: chains,
+            nodesByInsertID: nodesByInsertID,
+            shape: Self.graphShape(for: state)
+        )
     }
 
     @MainActor
-    private func chain(for scene: MasterBusScene, gain: Double) -> MainAudioGraph.MasterChain {
+    private func chain(
+        for scene: MasterBusScene,
+        gain: Double,
+        nodesByInsertID: inout [UUID: AVAudioNode]
+    ) -> MainAudioGraph.MasterChain {
         let nodes = scene.inserts.compactMap { insert -> AVAudioNode? in
-            guard insert.isEnabled, insert.wetDry > 0 else { return nil }
-            return node(for: insert)
+            guard insert.isEnabled else { return nil }
+            let node = node(for: insert)
+            if let node {
+                nodesByInsertID[insert.id] = node
+            }
+            return node
         }
         return MainAudioGraph.MasterChain(nodes: nodes, gain: gain)
     }
@@ -121,20 +215,31 @@ final class MasterBusHost: MasterBusHosting {
 
     @MainActor
     private func makeFilterNode(settings: MasterFilterSettings, wetDry: Double) -> AVAudioNode {
-        let normalized = settings.normalized()
         let eq = AVAudioUnitEQ(numberOfBands: 1)
+        configureFilterNode(eq, settings: settings, wetDry: wetDry)
+        return eq
+    }
+
+    @MainActor
+    private func configureFilterNode(_ eq: AVAudioUnitEQ, settings: MasterFilterSettings, wetDry: Double) {
+        let normalized = settings.normalized()
         let band = eq.bands[0]
         band.bypass = wetDry <= 0
         band.filterType = normalized.mode == .lowPass ? .lowPass : .highPass
         band.frequency = Float(normalized.cutoffHz)
         band.bandwidth = Float(2 - (normalized.resonance * 1.9))
-        return eq
     }
 
     @MainActor
     private func makeLoFiNode(settings: MasterBitcrusherSettings, wetDry: Double) -> AVAudioNode {
-        let normalized = settings.normalized()
         let distortion = AVAudioUnitDistortion()
+        configureLoFiNode(distortion, settings: settings, wetDry: wetDry)
+        return distortion
+    }
+
+    @MainActor
+    private func configureLoFiNode(_ distortion: AVAudioUnitDistortion, settings: MasterBitcrusherSettings, wetDry: Double) {
+        let normalized = settings.normalized()
         let crushAmount = ((16 - Double(normalized.bitDepth)) / 12 * 0.4)
             + ((1 - normalized.sampleRateScale) * 0.6)
         let preset: AVAudioUnitDistortionPreset
@@ -151,7 +256,87 @@ final class MasterBusHost: MasterBusHosting {
         distortion.loadFactoryPreset(preset)
         distortion.wetDryMix = Float(wetDry.clamped(to: 0...1) * 100)
         distortion.preGain = Float(normalized.drive * 36)
-        return distortion
+    }
+
+    private func refreshAudioGraphForPerformanceChange() {
+        let (state, audioGraph, installedShape, nodesByInsertID) = lock.withLock {
+            (
+                self.state.applyingPerformanceOverlay(self.performanceOverlay.normalized(for: self.state)),
+                self.audioGraph,
+                self.installedShape,
+                self.installedNodesByInsertID
+            )
+        }
+
+        guard let audioGraph else { return }
+        let nextShape = Self.graphShape(for: state)
+        guard installedShape == nextShape else {
+            rebuildAudioGraph()
+            return
+        }
+
+        performOnMain {
+            let branches = Self.branches(for: state)
+            audioGraph.setMasterBranchGains(branches.map(\.gain))
+            for branch in branches {
+                for insert in branch.scene.inserts where insert.isEnabled {
+                    guard let node = nodesByInsertID[insert.id] else { continue }
+                    self.configureExistingNode(node, for: insert)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func configureExistingNode(_ node: AVAudioNode, for insert: MasterBusInsert) {
+        switch (node, insert.kind) {
+        case let (eq as AVAudioUnitEQ, .nativeFilter(settings)):
+            configureFilterNode(eq, settings: settings, wetDry: insert.wetDry)
+        case let (distortion as AVAudioUnitDistortion, .nativeBitcrusher(settings)):
+            configureLoFiNode(distortion, settings: settings, wetDry: insert.wetDry)
+        default:
+            return
+        }
+    }
+
+    private static func branches(for state: MasterBusState) -> [MasterBusBranch] {
+        if let selection = state.abSelection,
+           let sceneA = state.scene(id: selection.sceneAID),
+           let sceneB = state.scene(id: selection.sceneBID)
+        {
+            let gains = equalPowerGains(crossfader: selection.crossfader)
+            return [
+                MasterBusBranch(scene: sceneA, gain: sceneA.outputGain * gains.a),
+                MasterBusBranch(scene: sceneB, gain: sceneB.outputGain * gains.b),
+            ]
+        }
+        let scene = state.activeScene
+        return [MasterBusBranch(scene: scene, gain: scene.outputGain)]
+    }
+
+    private static func graphShape(for state: MasterBusState) -> MasterBusGraphShape {
+        MasterBusGraphShape(
+            branches: branches(for: state).map { branch in
+                MasterBusBranchShape(
+                    sceneID: branch.scene.id,
+                    inserts: branch.scene.inserts.compactMap { insert in
+                        guard insert.isEnabled else { return nil }
+                        return MasterBusInsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
+                    }
+                )
+            }
+        )
+    }
+
+    private static func insertKindShape(for kind: MasterBusInsertKind) -> MasterBusInsertKindShape {
+        switch kind {
+        case .nativeFilter:
+            return .nativeFilter
+        case .nativeBitcrusher:
+            return .nativeBitcrusher
+        case let .auEffect(componentID, stateBlob):
+            return .auEffect(componentID: componentID, stateBlob: stateBlob)
+        }
     }
 
     @MainActor

@@ -99,4 +99,48 @@ final class MasterBusHostTests: XCTestCase {
         XCTAssertEqual(graph.masterBranchesForTesting[0].gain, Float(sqrt(0.5)), accuracy: 0.0001)
         XCTAssertEqual(graph.masterBranchesForTesting[1].gain, Float(sqrt(0.5)), accuracy: 0.0001)
     }
+
+    @MainActor
+    func test_liveMacroOverrideUpdatesExistingNodeWithoutReapply() throws {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        host.attach(to: graph)
+        let insert = MasterBusInsert(name: "Filter", kind: .nativeFilter(.default))
+        let macro = MasterSceneMacroBinding(slotIndex: 0, target: .filterCutoff(insertID: insert.id))
+        let scene = MasterBusScene(name: "Filter", inserts: [insert], macroBindings: [macro])
+
+        host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id))
+        let eqBefore = try XCTUnwrap(graph.masterBranchesForTesting.first?.nodes.first as? AVAudioUnitEQ)
+
+        host.setSceneMacroOverride(sceneID: scene.id, macroID: macro.id, value: 2_000)
+
+        let eqAfter = try XCTUnwrap(graph.masterBranchesForTesting.first?.nodes.first as? AVAudioUnitEQ)
+        XCTAssertTrue(eqBefore === eqAfter)
+        XCTAssertEqual(host.applyCallCount, 1)
+        XCTAssertEqual(eqAfter.bands[0].frequency, 2_000, accuracy: 0.0001)
+        XCTAssertEqual(host.appliedState.activeScene.inserts[0].kind.summary, "12000 Hz")
+        XCTAssertEqual(host.resolvedState.activeScene.inserts[0].kind.summary, "2000 Hz")
+    }
+
+    @MainActor
+    func test_liveCrossfaderOverrideUpdatesBranchGainsWithoutReapply() {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        let sceneA = MasterBusScene(name: "A")
+        let sceneB = MasterBusScene(name: "B")
+        host.attach(to: graph)
+        host.apply(MasterBusState(
+            scenes: [sceneA, sceneB],
+            activeSceneID: sceneA.id,
+            abSelection: MasterBusABSelection(sceneAID: sceneA.id, sceneBID: sceneB.id, crossfader: 0)
+        ))
+
+        host.setLiveCrossfaderOverride(1)
+
+        XCTAssertEqual(host.applyCallCount, 1)
+        XCTAssertEqual(graph.masterBranchesForTesting[0].gain, 0, accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[1].gain, 1, accuracy: 0.0001)
+        XCTAssertEqual(host.appliedState.abSelection?.crossfader, 0)
+        XCTAssertEqual(host.resolvedState.abSelection?.crossfader, 1)
+    }
 }

@@ -5,7 +5,7 @@ enum WorkspaceSection: String, CaseIterable, Hashable {
     case tracks
     case track
     case mixer
-    case live
+    case scenes
     case library
 
     var title: String {
@@ -18,8 +18,8 @@ enum WorkspaceSection: String, CaseIterable, Hashable {
             return "Track"
         case .mixer:
             return "Mixer"
-        case .live:
-            return "Live"
+        case .scenes:
+            return "Scenes"
         case .library:
             return "Library"
         }
@@ -35,8 +35,8 @@ enum WorkspaceSection: String, CaseIterable, Hashable {
             return "waveform.path"
         case .mixer:
             return "slider.vertical.3"
-        case .live:
-            return "sparkles"
+        case .scenes:
+            return "square.stack.3d.up"
         case .library:
             return "books.vertical"
         }

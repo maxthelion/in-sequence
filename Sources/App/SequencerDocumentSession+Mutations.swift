@@ -142,51 +142,89 @@ extension SequencerDocumentSession {
         }
     }
 
-    func setMasterBusDraft(_ scene: MasterBusScene) {
+    @discardableResult
+    func addMasterBusScene(name: String? = nil) -> UUID {
+        var createdID = MasterBusScene.cleanID
         mutateMasterBus { masterBus in
-            masterBus.setDraft(scene)
+            createdID = masterBus.addScene(name: name)
+        }
+        return createdID
+    }
+
+    @discardableResult
+    func duplicateMasterBusScene(_ sceneID: UUID) -> UUID? {
+        var createdID: UUID?
+        mutateMasterBus { masterBus in
+            createdID = masterBus.addScene(copyFrom: sceneID)
+        }
+        return createdID
+    }
+
+    func removeMasterBusScene(_ sceneID: UUID) {
+        mutateMasterBus { masterBus in
+            masterBus.removeScene(id: sceneID)
         }
     }
 
-    func discardMasterBusDraft() {
+    func updateMasterBusScene(_ sceneID: UUID, edit: (inout MasterBusScene) -> Void) {
         mutateMasterBus { masterBus in
-            masterBus.discardDraft()
+            masterBus.updateScene(id: sceneID, edit)
         }
     }
 
-    func commitMasterBusDraft(name: String? = nil) {
-        mutateMasterBus { masterBus in
-            masterBus.commitDraft(name: name)
+    func setMasterSceneName(_ sceneID: UUID, name: String) {
+        updateMasterBusScene(sceneID) { scene in
+            scene.name = name
         }
     }
 
-    func saveMasterBusDraft(as name: String) {
-        mutateMasterBus { masterBus in
-            masterBus.saveDraftAsNewScene(name: name)
+    func setMasterSceneOutputGain(_ sceneID: UUID, value: Double) {
+        updateMasterBusScene(sceneID) { scene in
+            scene.outputGain = value
         }
     }
 
-    func addMasterBusInsert(_ insert: MasterBusInsert) {
+    func addMasterBusInsert(_ insert: MasterBusInsert, to sceneID: UUID? = nil) {
         mutateMasterBus { masterBus in
-            masterBus.addInsert(insert)
+            masterBus.addInsert(insert, sceneID: sceneID)
         }
     }
 
-    func updateMasterBusInsert(_ insertID: UUID, edit: (inout MasterBusInsert) -> Void) {
+    func updateMasterBusInsert(_ insertID: UUID, in sceneID: UUID? = nil, edit: (inout MasterBusInsert) -> Void) {
         mutateMasterBus { masterBus in
-            masterBus.updateInsert(id: insertID, edit)
+            masterBus.updateInsert(id: insertID, sceneID: sceneID, edit)
         }
     }
 
-    func removeMasterBusInsert(_ insertID: UUID) {
+    func removeMasterBusInsert(_ insertID: UUID, from sceneID: UUID? = nil) {
         mutateMasterBus { masterBus in
-            masterBus.removeInsert(id: insertID)
+            masterBus.removeInsert(id: insertID, sceneID: sceneID)
         }
     }
 
-    func reorderMasterBusInserts(_ ids: [UUID]) {
+    func reorderMasterBusInserts(_ ids: [UUID], in sceneID: UUID? = nil) {
         mutateMasterBus { masterBus in
-            masterBus.reorderInserts(ids: ids)
+            masterBus.reorderInserts(ids: ids, sceneID: sceneID)
+        }
+    }
+
+    func upsertMasterSceneMacroBinding(_ binding: MasterSceneMacroBinding, in sceneID: UUID) {
+        mutateMasterBus { masterBus in
+            masterBus.upsertMacroBinding(binding, sceneID: sceneID)
+        }
+    }
+
+    func removeMasterSceneMacroBinding(_ bindingID: UUID, from sceneID: UUID) {
+        mutateMasterBus { masterBus in
+            masterBus.removeMacroBinding(id: bindingID, sceneID: sceneID)
+        }
+    }
+
+    func saveMasterScenePerformanceOverrides(_ valuesByMacroID: [UUID: Double], to sceneID: UUID) {
+        mutateMasterBus { masterBus in
+            for (macroID, value) in valuesByMacroID {
+                masterBus.setMacroValue(sceneID: sceneID, macroID: macroID, value: value)
+            }
         }
     }
 

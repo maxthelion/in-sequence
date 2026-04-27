@@ -45,7 +45,7 @@ struct SidebarView: View {
             }
             Section("Global") {
                 globalRow(title: "Mixer", systemImage: "slider.vertical.3", sectionValue: .mixer)
-                globalRow(title: "Live", systemImage: "sparkles", sectionValue: .live)
+                globalRow(title: "Scenes", systemImage: "square.stack.3d.up", sectionValue: .scenes)
                 globalRow(title: "Library", systemImage: "books.vertical", sectionValue: .library)
             }
         }

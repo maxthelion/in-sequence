@@ -19,6 +19,7 @@ final class MainAudioGraph {
     private let graphLock = NSLock()
     private let finalOutputMixer = AVAudioMixerNode()
     private var managedMasterNodes: [AVAudioNode] = []
+    private var managedMasterGainMixers: [AVAudioMixerNode] = []
     private var isStarted = false
 
     init(engine: AVAudioEngine = AVAudioEngine()) {
@@ -97,6 +98,7 @@ final class MainAudioGraph {
                 }
             }
             self.managedMasterNodes = []
+            self.managedMasterGainMixers = []
 
             let resolvedChains = chains.isEmpty ? [MasterChain(nodes: [], gain: 1)] : chains
             var firstDestinations: [AVAudioConnectionPoint] = []
@@ -108,6 +110,7 @@ final class MainAudioGraph {
                 gainMixer.outputVolume = clampedGain
                 self.engine.attach(gainMixer)
                 self.managedMasterNodes.append(gainMixer)
+                self.managedMasterGainMixers.append(gainMixer)
 
                 let chainNodes = chain.nodes.filter { node in
                     node.engine == nil || node.engine === self.engine
@@ -138,6 +141,22 @@ final class MainAudioGraph {
             if wasRunning {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
+            }
+        }
+    }
+
+    func setMasterBranchGains(_ gains: [Double]) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            guard !gains.isEmpty else { return }
+            for (index, gain) in gains.enumerated() where index < self.managedMasterGainMixers.count {
+                let clampedGain = Float(min(max(gain, 0), 1.5))
+                self.managedMasterGainMixers[index].outputVolume = clampedGain
+                if index < self.masterBranchesForTesting.count {
+                    self.masterBranchesForTesting[index].gain = clampedGain
+                }
             }
         }
     }

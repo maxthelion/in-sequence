@@ -204,12 +204,18 @@ struct LiveWorkspaceView: View {
 
             Spacer()
 
-            Text(editingPhrase.name)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.violet)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: Capsule())
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("BASIS PHRASE")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text(editingPhrase.name)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.violet)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
 
             if !session.store.trackGroups.isEmpty {
                 Toggle("Collapse groups", isOn: $collapseGroups)
