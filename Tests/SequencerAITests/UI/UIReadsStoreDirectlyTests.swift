@@ -97,15 +97,22 @@ final class UIReadsStoreDirectlyTests: XCTestCase {
 
     // MARK: - TracksMatrixView read path
 
-    /// TracksMatrixView reads tracks, trackGroups, patternIndex, selectedTrackID.
+    /// TracksMatrixView reads tracks, phrase layers, basis phrase, patternIndex, selectedTrackID.
     func test_tracksMatrixView_readPath_doesNotCallExportToProject() {
         let (session, _) = makeSession()
         assertNoExportDuring(session.store) {
             let tracks = session.store.tracks
             let selectedTrackID = session.store.selectedTrackID
+            _ = session.store.layers
+            _ = session.store.selectedPhraseID
+            _ = session.store.selectedPhrase
+            _ = session.store.phrases
+            _ = session.store.layer(id: "pattern")
+            _ = session.store.patternLayer
             _ = session.store.trackGroups
             for track in tracks {
                 _ = session.store.selectedPatternIndex(for: track.id)
+                _ = session.store.tracksInGroup(track.groupID ?? UUID())
                 _ = track.id == selectedTrackID
             }
         }

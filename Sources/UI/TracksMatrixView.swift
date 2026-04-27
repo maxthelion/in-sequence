@@ -23,48 +23,92 @@ struct TracksWorkspaceView: View {
     let onOpenTrack: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 12) {
-                Picker("Mode", selection: $mode) {
-                    ForEach(TracksWorkspaceMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 220)
-
-                Spacer()
-            }
-
-            switch mode {
-            case .edit:
-                TracksMatrixView(document: $document, onOpenTrack: onOpenTrack)
-            case .perform:
-                StudioPanel(
-                    title: "Tracks Perform",
-                    eyebrow: "Phrase cells under direct transport control",
-                    accent: StudioTheme.amber
-                ) {
-                    LiveWorkspaceView(document: $document, selectedLayerID: $selectedLayerID)
-                }
-            }
-        }
+        TracksMatrixView(
+            document: $document,
+            selectedLayerID: $selectedLayerID,
+            isPerforming: mode == .perform,
+            onTogglePerform: {
+                mode = mode == .perform ? .edit : .perform
+            },
+            onOpenTrack: onOpenTrack
+        )
         .padding(20)
     }
 }
 
 struct TracksMatrixView: View {
     @Binding var document: SeqAIDocument
+    @Binding var selectedLayerID: String
     @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
+    let isPerforming: Bool
+    let onTogglePerform: () -> Void
     let onOpenTrack: () -> Void
 
     @State private var isPresentingCreateTrack = false
     @State private var isPresentingAddDrumGroup = false
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 14)
-    ]
+    private let columns = Array(
+        repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
+        count: 8
+    )
+
+    private var selectedLayer: PhraseLayerDefinition {
+        let layers = session.store.layers
+        return session.store.layer(id: selectedLayerID)
+            ?? session.store.patternLayer
+            ?? layers.first!
+    }
+
+    private var layers: [PhraseLayerDefinition] {
+        session.store.layers
+    }
+
+    private var selectedLayerIndex: Int {
+        layers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
+    }
+
+    private var editingPhrase: PhraseModel {
+        let phrases = session.store.phrases
+        return phrases.first(where: { $0.id == editingPhraseID }) ?? session.store.selectedPhrase
+    }
+
+    private var editingPhraseID: UUID {
+        guard engineController.transportMode == .song,
+              engineController.isRunning,
+              let playbackPhraseIndex
+        else {
+            return session.store.selectedPhraseID
+        }
+
+        let phrases = session.store.phrases
+        return phrases[playbackPhraseIndex].id
+    }
+
+    private var playbackPhraseIndex: Int? {
+        let phrases = session.store.phrases
+        guard engineController.isRunning, !phrases.isEmpty else {
+            return nil
+        }
+
+        let totalBars = phrases.reduce(0) { $0 + max(1, $1.lengthBars) }
+        guard totalBars > 0 else {
+            return nil
+        }
+
+        let absoluteBar = Int(engineController.transportTickIndex) / max(1, session.store.selectedPhrase.stepsPerBar)
+        var cycleBar = absoluteBar % totalBars
+
+        for (index, phrase) in phrases.enumerated() {
+            let phraseBars = max(1, phrase.lengthBars)
+            if cycleBar < phraseBars {
+                return index
+            }
+            cycleBar -= phraseBars
+        }
+
+        return nil
+    }
 
     private var groupedSections: [GroupedTrackSection] {
         session.store.trackGroups.compactMap { group in
@@ -86,7 +130,7 @@ struct TracksMatrixView: View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
-                accent: StudioTheme.cyan
+                accent: isPerforming ? StudioTheme.amber : StudioTheme.cyan
             ) {
                 VStack(alignment: .leading, spacing: 18) {
                     actionBar
@@ -124,13 +168,24 @@ struct TracksMatrixView: View {
 
     private var actionBar: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 createTrackButtons
                 Spacer()
+                layerControl
+                basisPhrasePill
+                performToggleButton
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                createTrackButtons
+                HStack(spacing: 10) {
+                    createTrackButtons
+                }
+                HStack(spacing: 10) {
+                    layerControl
+                    basisPhrasePill
+                    performToggleButton
+                    Spacer()
+                }
             }
         }
     }
@@ -163,6 +218,100 @@ struct TracksMatrixView: View {
         }
     }
 
+    private var layerControl: some View {
+        HStack(spacing: 8) {
+            Button {
+                cycleLayer(by: -1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .studioText(.chromeLabel)
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 30, height: 30)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(selectedLayer.name.uppercased())
+                        .studioText(.labelBold)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+
+                    Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
+                        .studioText(.micro)
+                        .foregroundStyle(layerAccent(selectedLayer.id))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(layerAccent(selectedLayer.id).opacity(StudioOpacity.hoverFill), in: Capsule())
+                }
+
+                Text(layerSubtitle(selectedLayer))
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+            .frame(width: 190, alignment: .leading)
+
+            Button {
+                cycleLayer(by: 1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .studioText(.chromeLabel)
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 30, height: 30)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(layerAccent(selectedLayer.id).opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+        )
+    }
+
+    private var basisPhrasePill: some View {
+        VStack(alignment: .trailing, spacing: 3) {
+            Text("BASIS PHRASE")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+            Text(editingPhrase.name)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.violet)
+                .lineLimit(1)
+        }
+        .frame(width: 130, alignment: .trailing)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+    }
+
+    private var performToggleButton: some View {
+        Button(action: onTogglePerform) {
+            Label("Perform", systemImage: isPerforming ? "record.circle.fill" : "record.circle")
+                .studioText(.labelBold)
+                .frame(minWidth: 96)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(isPerforming ? StudioTheme.amber : StudioTheme.cyan)
+    }
+
+    private func cycleLayer(by delta: Int) {
+        guard !layers.isEmpty else {
+            return
+        }
+
+        let nextIndex = (selectedLayerIndex + delta + layers.count) % layers.count
+        selectedLayerID = layers[nextIndex].id
+    }
+
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if !ungroupedTracks.isEmpty {
@@ -182,17 +331,105 @@ struct TracksMatrixView: View {
     private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?, selectedTrackID: UUID) -> some View {
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(tracks, id: \.id) { track in
+                let cell = editableCell(for: track.id)
+                let resolvedValue = editingPhrase.resolvedValue(
+                    for: selectedLayer,
+                    trackID: track.id,
+                    stepIndex: currentStepIndexInPhrase
+                )
                 TrackMatrixCard(
                     track: track,
                     group: group,
                     patternIndex: session.store.selectedPatternIndex(for: track.id),
-                    isSelected: track.id == selectedTrackID
+                    layer: selectedLayer,
+                    cell: cell,
+                    resolvedValue: resolvedValue,
+                    valueSummary: valueLabel(resolvedValue, layer: selectedLayer),
+                    isSelected: track.id == selectedTrackID,
+                    isPerforming: isPerforming
                 ) {
                     session.setSelectedTrackID(track.id)
-                    onOpenTrack()
+                    if isPerforming {
+                        performPrimaryAction(trackID: track.id)
+                    } else {
+                        onOpenTrack()
+                    }
                 }
             }
         }
+    }
+
+    private var currentStepIndexInPhrase: Int {
+        let stepCount = max(1, editingPhrase.stepCount)
+        return Int(engineController.transportTickIndex) % stepCount
+    }
+
+    private var currentBarIndexInPhrase: Int {
+        min(max(0, currentStepIndexInPhrase / max(1, editingPhrase.stepsPerBar)), max(editingPhrase.lengthBars - 1, 0))
+    }
+
+    private func performPrimaryAction(trackID: UUID) {
+        let cell = editableCell(for: trackID)
+
+        switch cell {
+        case .inheritDefault:
+            let seedValue = editingPhrase.resolvedValue(
+                for: selectedLayer,
+                trackID: trackID,
+                stepIndex: currentStepIndexInPhrase
+            )
+            session.setPhraseCell(
+                .single(cycledValue(seedValue, for: selectedLayer)),
+                layerID: selectedLayer.id,
+                trackIDs: [trackID],
+                phraseID: editingPhraseID
+            )
+        case let .single(value):
+            session.setPhraseCell(
+                .single(cycledValue(value, for: selectedLayer)),
+                layerID: selectedLayer.id,
+                trackIDs: [trackID],
+                phraseID: editingPhraseID
+            )
+        case let .bars(values):
+            guard !values.isEmpty else { return }
+            var nextValues = values
+            let index = min(currentBarIndexInPhrase, nextValues.count - 1)
+            nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
+            session.setPhraseCell(
+                .bars(nextValues),
+                layerID: selectedLayer.id,
+                trackIDs: [trackID],
+                phraseID: editingPhraseID
+            )
+        case let .steps(values):
+            guard !values.isEmpty else { return }
+            var nextValues = values
+            let index = min(currentStepIndexInPhrase, nextValues.count - 1)
+            nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
+            session.setPhraseCell(
+                .steps(nextValues),
+                layerID: selectedLayer.id,
+                trackIDs: [trackID],
+                phraseID: editingPhraseID
+            )
+        case .curve:
+            let seedValue = editingPhrase.resolvedValue(
+                for: selectedLayer,
+                trackID: trackID,
+                stepIndex: currentStepIndexInPhrase
+            )
+            session.setPhraseCell(
+                .single(cycledValue(seedValue, for: selectedLayer)),
+                layerID: selectedLayer.id,
+                trackIDs: [trackID],
+                phraseID: editingPhraseID
+            )
+        }
+    }
+
+    private func editableCell(for trackID: UUID) -> PhraseCell {
+        editingPhrase.cell(for: selectedLayer.id, trackID: trackID)
     }
 
 }
@@ -251,7 +488,12 @@ private struct TrackMatrixCard: View {
     let track: StepSequenceTrack
     let group: TrackGroup?
     let patternIndex: Int
+    let layer: PhraseLayerDefinition
+    let cell: PhraseCell
+    let resolvedValue: PhraseCellValue
+    let valueSummary: String
     let isSelected: Bool
+    let isPerforming: Bool
     let onTap: () -> Void
 
     private var accent: Color {
@@ -286,17 +528,22 @@ private struct TrackMatrixCard: View {
         return offset > 0 ? "+\(offset)" : "\(offset)"
     }
 
+    private var layerAccentColor: Color {
+        layerAccent(layer.id)
+    }
+
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     TrackTypeBadge(trackType: track.trackType, accent: accent)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(track.name)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(StudioTheme.text)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.7)
 
                         HStack(spacing: 6) {
                             Text(typeLabel)
@@ -309,6 +556,8 @@ private struct TrackMatrixCard: View {
                         .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                     }
 
                     Spacer(minLength: 0)
@@ -322,22 +571,61 @@ private struct TrackMatrixCard: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(accent.opacity(StudioOpacity.faintStroke), in: Capsule())
+                        .lineLimit(1)
                 } else {
                     Text(track.defaultDestination.summary)
                         .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text(cell.editMode.label.uppercased())
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .foregroundStyle(layerAccentColor)
+                            .lineLimit(1)
+
+                        Spacer(minLength: 0)
+
+                        if isPerforming {
+                            Text("LIVE")
+                                .studioText(.micro)
+                                .tracking(0.8)
+                                .foregroundStyle(StudioTheme.amber)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                        }
+                    }
+
+                    PhraseCellPreview(
+                        layer: layer,
+                        cell: cell,
+                        resolvedValue: resolvedValue,
+                        accent: layerAccentColor,
+                        summary: valueSummary,
+                        metrics: .matrix
+                    )
+                    .opacity(isPerforming ? 1 : 0.82)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
-            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+            .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .fill(isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(isSelected ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
+                    .stroke(
+                        isPerforming
+                            ? layerAccentColor.opacity(StudioOpacity.accentFill)
+                            : (isSelected ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border),
+                        lineWidth: isSelected || isPerforming ? 2 : 1
+                    )
             )
         }
         .buttonStyle(.plain)
