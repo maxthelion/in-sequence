@@ -40,7 +40,9 @@ struct ScenesWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            header
+            if selectedSceneID == nil {
+                header
+            }
 
             switch mode {
             case .browseEdit:
