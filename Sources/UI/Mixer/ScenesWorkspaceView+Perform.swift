@@ -159,7 +159,7 @@ extension ScenesWorkspaceView {
             value: macro.map { resolvedMacroValue($0, scene: scene) },
             accent: StudioTheme.amber,
             onAssign: {
-                openSceneEditor(scene)
+                sceneMacroTargetPickerRequest = SceneMacroTargetPickerRequest(sceneID: scene.id, slotIndex: slotIndex)
             },
             onChange: { value in
                 guard let macro else { return }
@@ -171,11 +171,5 @@ extension ScenesWorkspaceView {
     private func resolvedMacroValue(_ macro: MasterSceneMacroBinding, scene: MasterBusScene) -> Double {
         let authoredValue = macro.value(in: scene) ?? macro.target.valueRange.lowerBound
         return engineController.masterSceneMacroOverride(sceneID: scene.id, macroID: macro.id) ?? authoredValue
-    }
-
-    private func openSceneEditor(_ scene: MasterBusScene) {
-        selectedSceneID = scene.id
-        selectedInsertID = scene.inserts.first?.id
-        mode = .browseEdit
     }
 }

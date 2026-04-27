@@ -16,7 +16,7 @@ struct ScenesWorkspaceView: View {
     @State var selectedSceneID: UUID?
     @State var selectedInsertID: UUID?
     @State private var auMacroSlotPickerRequest: SceneAUMacroSlotPickerRequest?
-    @State private var sceneMacroTargetPickerRequest: SceneMacroTargetPickerRequest?
+    @State var sceneMacroTargetPickerRequest: SceneMacroTargetPickerRequest?
 
     private let sceneColumns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -81,9 +81,11 @@ struct ScenesWorkspaceView: View {
         }
         .sheet(item: $auMacroSlotPickerRequest) { request in
             sceneAUMacroSlotPickerSheet(request)
+                .presentationBackground(.ultraThinMaterial)
         }
         .sheet(item: $sceneMacroTargetPickerRequest) { request in
             sceneMacroTargetPickerSheet(request)
+                .presentationBackground(.clear)
         }
     }
 
@@ -509,65 +511,76 @@ struct ScenesWorkspaceView: View {
 
     @ViewBuilder
     private func sceneMacroTargetPickerSheet(_ request: SceneMacroTargetPickerRequest) -> some View {
-        if let scene = masterBus.scene(id: request.sceneID) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("M\(request.slotIndex + 1)")
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    Button("Cancel") {
-                        sceneMacroTargetPickerRequest = nil
-                    }
-                    .buttonStyle(.bordered)
-                }
+        ZStack {
+            StudioTheme.stageFill
+                .ignoresSafeArea()
 
-                let nativeTargets = macroTargets(for: scene)
-                if !nativeTargets.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("INSERTS")
-                            .studioText(.eyebrow)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-                        ForEach(Array(nativeTargets.enumerated()), id: \.offset) { _, target in
-                            Button {
-                                assignSceneMacroTarget(target, request: request, scene: scene)
-                            } label: {
-                                Label(target.label(in: scene), systemImage: "slider.horizontal.3")
+            if let scene = masterBus.scene(id: request.sceneID) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("M\(request.slotIndex + 1)")
+                            .studioText(.title)
+                            .foregroundStyle(StudioTheme.text)
+                        Spacer()
+                        Button("Cancel") {
+                            sceneMacroTargetPickerRequest = nil
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(StudioTheme.cyan)
+                    }
+
+                    let nativeTargets = macroTargets(for: scene)
+                    if !nativeTargets.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("INSERTS")
+                                .studioText(.eyebrow)
+                                .tracking(0.8)
+                                .foregroundStyle(StudioTheme.mutedText)
+                            ForEach(Array(nativeTargets.enumerated()), id: \.offset) { _, target in
+                                Button {
+                                    assignSceneMacroTarget(target, request: request, scene: scene)
+                                } label: {
+                                    Label(target.label(in: scene), systemImage: "slider.horizontal.3")
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(StudioTheme.cyan)
                             }
-                            .buttonStyle(.bordered)
                         }
                     }
-                }
 
-                let auCandidates = auMacroInsertCandidates(in: scene)
-                if !auCandidates.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("AU PARAMETERS")
-                            .studioText(.eyebrow)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-                        ForEach(auCandidates) { insert in
-                            Button {
-                                openAUMacroSlotPicker(insert, request: request)
-                            } label: {
-                                Label(insert.name, systemImage: "slider.horizontal.3")
+                    let auCandidates = auMacroInsertCandidates(in: scene)
+                    if !auCandidates.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("AU PARAMETERS")
+                                .studioText(.eyebrow)
+                                .tracking(0.8)
+                                .foregroundStyle(StudioTheme.mutedText)
+                            ForEach(auCandidates) { insert in
+                                Button {
+                                    openAUMacroSlotPicker(insert, request: request)
+                                } label: {
+                                    Label(insert.name, systemImage: "slider.horizontal.3")
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(StudioTheme.cyan)
                             }
-                            .buttonStyle(.bordered)
                         }
                     }
-                }
 
-                if nativeTargets.isEmpty, auCandidates.isEmpty {
-                    StudioPlaceholderTile(title: "No Assignable Targets", detail: "Add an insert", accent: StudioTheme.cyan)
+                    if nativeTargets.isEmpty, auCandidates.isEmpty {
+                        StudioPlaceholderTile(title: "No Assignable Targets", detail: "Add an insert", accent: StudioTheme.cyan)
+                    }
                 }
-            }
-            .padding(20)
-            .frame(minWidth: 360)
-        } else {
-            StudioPlaceholderTile(title: "Scene Missing", detail: "Select another scene", accent: StudioTheme.cyan)
                 .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else {
+                StudioPlaceholderTile(title: "Scene Missing", detail: "Select another scene", accent: StudioTheme.cyan)
+                    .padding(20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
         }
+        .frame(minWidth: 420, minHeight: 260)
+        .background(StudioTheme.stageFill)
     }
 
     private func assignSceneMacroTarget(
