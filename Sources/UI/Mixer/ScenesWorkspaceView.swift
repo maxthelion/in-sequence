@@ -6,6 +6,23 @@ struct SceneMacroTargetPickerRequest: Identifiable, Equatable {
     let slotIndex: Int
 }
 
+struct ScenePerformSlotPickerRequest: Identifiable, Equatable {
+    enum Slot: String, Equatable {
+        case a
+        case b
+
+        var title: String {
+            switch self {
+            case .a: "Slot A"
+            case .b: "Slot B"
+            }
+        }
+    }
+
+    let id = UUID()
+    let slot: Slot
+}
+
 struct ScenesWorkspaceView: View {
     @Binding var document: SeqAIDocument
     var resetToken: Int = 0
@@ -17,6 +34,7 @@ struct ScenesWorkspaceView: View {
     @State var selectedInsertID: UUID?
     @State private var auMacroSlotPickerRequest: SceneAUMacroSlotPickerRequest?
     @State var sceneMacroTargetPickerRequest: SceneMacroTargetPickerRequest?
+    @State var scenePerformSlotPickerRequest: ScenePerformSlotPickerRequest?
 
     private let sceneColumns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -85,6 +103,10 @@ struct ScenesWorkspaceView: View {
         }
         .sheet(item: $sceneMacroTargetPickerRequest) { request in
             sceneMacroTargetPickerSheet(request)
+                .presentationBackground(.clear)
+        }
+        .sheet(item: $scenePerformSlotPickerRequest) { request in
+            scenePerformSlotPickerSheet(request)
                 .presentationBackground(.clear)
         }
     }
@@ -834,30 +856,6 @@ struct ScenesWorkspaceView: View {
               case let .nativeBitcrusher(settings) = insert.kind
         else { return nil }
         return settings
-    }
-
-    func sceneABinding(_ selection: MasterBusABSelection) -> Binding<UUID> {
-        Binding(
-            get: { masterBus.abSelection?.sceneAID ?? selection.sceneAID },
-            set: { sceneID in
-                engineController.clearMasterBusPerformanceOverlay()
-                let current = masterBus.abSelection ?? selection
-                let sceneBID = current.sceneBID == sceneID ? current.sceneAID : current.sceneBID
-                session.setMasterABMode(MasterBusABSelection(sceneAID: sceneID, sceneBID: sceneBID, crossfader: current.crossfader))
-            }
-        )
-    }
-
-    func sceneBBinding(_ selection: MasterBusABSelection) -> Binding<UUID> {
-        Binding(
-            get: { masterBus.abSelection?.sceneBID ?? selection.sceneBID },
-            set: { sceneID in
-                engineController.clearMasterBusPerformanceOverlay()
-                let current = masterBus.abSelection ?? selection
-                let sceneAID = current.sceneAID == sceneID ? current.sceneBID : current.sceneAID
-                session.setMasterABMode(MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneID, crossfader: current.crossfader))
-            }
-        )
     }
 
     private func insertMoveButtons(_ insert: MasterBusInsert) -> some View {
