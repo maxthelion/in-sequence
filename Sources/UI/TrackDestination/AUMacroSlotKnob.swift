@@ -7,6 +7,18 @@ struct AUMacroSlot: Identifiable {
     var id: Int { slotIndex }
 }
 
+struct MacroSlotKnobDescriptor: Equatable, Sendable {
+    let displayName: String
+    let minValue: Double
+    let maxValue: Double
+
+    init(displayName: String, valueRange: ClosedRange<Double>) {
+        self.displayName = displayName
+        self.minValue = valueRange.lowerBound
+        self.maxValue = valueRange.upperBound
+    }
+}
+
 struct AUMacroSlotKnob: View {
     let slotIndex: Int
     let binding: TrackMacroBinding?
@@ -14,12 +26,6 @@ struct AUMacroSlotKnob: View {
     let onAssign: () -> Void
     let onChange: (Double) -> Void
     let onRemove: (() -> Void)?
-
-    @State private var dragStartValue: Double?
-    @State private var displayValue: Double
-
-    private let knobSize: CGFloat = 40
-    private let dragSensitivity: Double = 220
 
     init(
         slotIndex: Int,
@@ -35,36 +41,84 @@ struct AUMacroSlotKnob: View {
         self.onAssign = onAssign
         self.onChange = onChange
         self.onRemove = onRemove
-        _displayValue = State(initialValue: value ?? 0)
+    }
+
+    var body: some View {
+        MacroSlotKnob(
+            slotIndex: slotIndex,
+            descriptor: binding.map {
+                MacroSlotKnobDescriptor(
+                    displayName: $0.displayName,
+                    valueRange: $0.descriptor.minValue...$0.descriptor.maxValue
+                )
+            },
+            value: value,
+            accent: StudioTheme.cyan,
+            onAssign: onAssign,
+            onChange: onChange,
+            onRemove: onRemove
+        )
+    }
+}
+
+struct MacroSlotKnob: View {
+    let slotIndex: Int
+    let descriptor: MacroSlotKnobDescriptor?
+    let value: Double?
+    let accent: Color
+    let emptyLabel: String
+    let onAssign: (() -> Void)?
+    let onChange: (Double) -> Void
+    let onRemove: (() -> Void)?
+
+    @State private var dragStartValue: Double?
+    @State private var displayValue: Double
+
+    private let knobSize: CGFloat = 40
+    private let dragSensitivity: Double = 220
+
+    init(
+        slotIndex: Int,
+        descriptor: MacroSlotKnobDescriptor?,
+        value: Double?,
+        accent: Color,
+        emptyLabel: String = "Assign",
+        onAssign: (() -> Void)?,
+        onChange: @escaping (Double) -> Void,
+        onRemove: (() -> Void)? = nil
+    ) {
+        self.slotIndex = slotIndex
+        self.descriptor = descriptor
+        self.value = value
+        self.accent = accent
+        self.emptyLabel = emptyLabel
+        self.onAssign = onAssign
+        self.onChange = onChange
+        self.onRemove = onRemove
+        _displayValue = State(initialValue: value ?? descriptor?.minValue ?? 0)
     }
 
     private var normalized: Double {
-        guard let binding else {
-            return 0
-        }
-        let range = binding.descriptor.maxValue - binding.descriptor.minValue
+        guard let descriptor else { return 0 }
+        let range = descriptor.maxValue - descriptor.minValue
         guard range > 0 else { return 0 }
-        return (displayValue - binding.descriptor.minValue) / range
+        return (displayValue - descriptor.minValue) / range
     }
 
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { drag in
-                guard let binding else {
-                    return
-                }
+                guard let descriptor else { return }
                 let delta = -drag.translation.height / dragSensitivity
-                let range = binding.descriptor.maxValue - binding.descriptor.minValue
+                let range = descriptor.maxValue - descriptor.minValue
                 if dragStartValue == nil {
                     dragStartValue = displayValue
                 }
                 let nextValue = (dragStartValue ?? displayValue) + delta * range
-                displayValue = min(max(nextValue, binding.descriptor.minValue), binding.descriptor.maxValue)
+                displayValue = min(max(nextValue, descriptor.minValue), descriptor.maxValue)
             }
             .onEnded { _ in
-                guard binding != nil else {
-                    return
-                }
+                guard descriptor != nil else { return }
                 dragStartValue = nil
                 onChange(displayValue)
             }
@@ -80,19 +134,19 @@ struct AUMacroSlotKnob: View {
             ZStack {
                 Circle()
                     .stroke(
-                        binding == nil ? StudioTheme.border.opacity(0.7) : StudioTheme.border,
-                        style: StrokeStyle(lineWidth: 2, dash: binding == nil ? [5, 4] : [])
+                        descriptor == nil ? StudioTheme.border.opacity(0.7) : StudioTheme.border,
+                        style: StrokeStyle(lineWidth: 2, dash: descriptor == nil ? [5, 4] : [])
                     )
                     .frame(width: knobSize, height: knobSize)
 
-                if binding == nil {
+                if descriptor == nil {
                     Image(systemName: "plus")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     Circle()
                         .trim(from: 0.15, to: 0.15 + 0.7 * normalized)
-                        .stroke(StudioTheme.cyan, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .stroke(accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                         .frame(width: knobSize - 6, height: knobSize - 6)
                         .rotationEffect(.degrees(-90))
 
@@ -102,16 +156,16 @@ struct AUMacroSlotKnob: View {
                 }
             }
             .contentShape(Rectangle())
-            .gesture(dragGesture, including: binding == nil ? .none : .all)
+            .gesture(dragGesture, including: descriptor == nil ? .none : .all)
             .onTapGesture {
-                if binding == nil {
-                    onAssign()
+                if descriptor == nil {
+                    onAssign?()
                 }
             }
 
-            Text(binding?.displayName ?? "Assign")
+            Text(descriptor?.displayName ?? emptyLabel)
                 .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(binding == nil ? StudioTheme.mutedText : StudioTheme.text)
+                .foregroundStyle(descriptor == nil ? StudioTheme.mutedText : StudioTheme.text)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .frame(width: knobSize + 18)
@@ -130,6 +184,11 @@ struct AUMacroSlotKnob: View {
                 displayValue = newValue
             }
         }
+        .onChange(of: descriptor) { _, newDescriptor in
+            if dragStartValue == nil {
+                displayValue = value ?? newDescriptor?.minValue ?? 0
+            }
+        }
     }
 
     private static let shortValueFormatter: NumberFormatter = {
@@ -140,10 +199,8 @@ struct AUMacroSlotKnob: View {
     }()
 
     private func shortLabel(_ value: Double) -> String {
-        guard let binding else {
-            return ""
-        }
-        if binding.descriptor.maxValue > 10 {
+        guard let descriptor else { return "" }
+        if descriptor.maxValue > 10 {
             return "\(Int(value.rounded()))"
         }
         return Self.shortValueFormatter.string(from: NSNumber(value: value)) ?? "\(value)"

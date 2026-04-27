@@ -6,9 +6,9 @@ struct ScenesWorkspaceView: View {
     @Environment(SequencerDocumentSession.self) var session
     @Environment(EngineController.self) var engineController
 
-    @State private var mode: ScenesWorkspaceMode = .browseEdit
-    @State private var selectedSceneID: UUID?
-    @State private var selectedInsertID: UUID?
+    @State var mode: ScenesWorkspaceMode = .browseEdit
+    @State var selectedSceneID: UUID?
+    @State var selectedInsertID: UUID?
     @State private var auMacroSlotPickerRequest: SceneAUMacroSlotPickerRequest?
 
     private let sceneColumns = Array(

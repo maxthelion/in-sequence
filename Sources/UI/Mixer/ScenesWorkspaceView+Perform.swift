@@ -99,15 +99,7 @@ extension ScenesWorkspaceView {
             }
             .pickerStyle(.menu)
 
-            if scene.macroBindings.isEmpty {
-                StudioPlaceholderTile(title: "No Scene Macros", detail: "Assign macros in Browse/Edit.", accent: StudioTheme.amber)
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(scene.macroBindings) { macro in
-                        performMacroRow(macro, scene: scene)
-                    }
-                }
-            }
+            performMacroSlots(scene)
 
             HStack(spacing: 8) {
                 Button {
@@ -139,46 +131,51 @@ extension ScenesWorkspaceView {
         )
     }
 
-    private func performMacroRow(_ macro: MasterSceneMacroBinding, scene: MasterBusScene) -> some View {
-        let authoredValue = macro.value(in: scene) ?? macro.target.valueRange.lowerBound
-        let resolvedValue = engineController.masterSceneMacroOverride(sceneID: scene.id, macroID: macro.id) ?? authoredValue
-        return HStack(spacing: 10) {
-            Text(macro.name)
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 116, alignment: .leading)
-                .lineLimit(1)
-            Slider(
-                value: Binding(
-                    get: {
-                        engineController.masterSceneMacroOverride(sceneID: scene.id, macroID: macro.id) ?? authoredValue
-                    },
-                    set: { value in
-                        engineController.setMasterSceneMacroOverride(sceneID: scene.id, macroID: macro.id, value: value)
-                    }
-                ),
-                in: macro.target.valueRange
-            )
-            .tint(StudioTheme.amber)
-            Text(valueLabel(resolvedValue, target: macro.target))
-                .studioText(.eyebrow)
-                .monospacedDigit()
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 76, alignment: .trailing)
+    private func performMacroSlots(_ scene: MasterBusScene) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
+                    performMacroSlot(slotIndex, scene: scene)
+                        .frame(width: 68)
+                }
+            }
+            .padding(.horizontal, 12)
         }
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: 1)
+        )
     }
 
-    private func valueLabel(_ value: Double, target: MasterSceneMacroTarget) -> String {
-        switch target {
-        case .filterCutoff:
-            return "\(Int(value.rounded())) Hz"
-        case .outputGain:
-            return String(format: "%.2f", value)
-        case let .auParameter(_, _, _, _, _, _, _, unit):
-            let suffix = unit.map { " \($0)" } ?? ""
-            return String(format: "%.2f", value) + suffix
-        default:
-            return "\(Int((value * 100).rounded()))%"
-        }
+    private func performMacroSlot(_ slotIndex: Int, scene: MasterBusScene) -> some View {
+        let macro = scene.macroBindings.first { $0.slotIndex == slotIndex }
+        return MacroSlotKnob(
+            slotIndex: slotIndex,
+            descriptor: macro.map {
+                MacroSlotKnobDescriptor(displayName: $0.name, valueRange: $0.target.valueRange)
+            },
+            value: macro.map { resolvedMacroValue($0, scene: scene) },
+            accent: StudioTheme.amber,
+            onAssign: {
+                openSceneEditor(scene)
+            },
+            onChange: { value in
+                guard let macro else { return }
+                engineController.setMasterSceneMacroOverride(sceneID: scene.id, macroID: macro.id, value: value)
+            }
+        )
+    }
+
+    private func resolvedMacroValue(_ macro: MasterSceneMacroBinding, scene: MasterBusScene) -> Double {
+        let authoredValue = macro.value(in: scene) ?? macro.target.valueRange.lowerBound
+        return engineController.masterSceneMacroOverride(sceneID: scene.id, macroID: macro.id) ?? authoredValue
+    }
+
+    private func openSceneEditor(_ scene: MasterBusScene) {
+        selectedSceneID = scene.id
+        selectedInsertID = scene.inserts.first?.id
+        mode = .browseEdit
     }
 }
