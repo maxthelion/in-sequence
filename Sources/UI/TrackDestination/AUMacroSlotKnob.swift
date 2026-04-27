@@ -68,6 +68,7 @@ struct MacroSlotKnob: View {
     let accent: Color
     let emptyLabel: String
     let onAssign: (() -> Void)?
+    let onEdit: (() -> Void)?
     let onChange: (Double) -> Void
     let onRemove: (() -> Void)?
 
@@ -84,6 +85,7 @@ struct MacroSlotKnob: View {
         accent: Color,
         emptyLabel: String = "Assign",
         onAssign: (() -> Void)?,
+        onEdit: (() -> Void)? = nil,
         onChange: @escaping (Double) -> Void,
         onRemove: (() -> Void)? = nil
     ) {
@@ -93,6 +95,7 @@ struct MacroSlotKnob: View {
         self.accent = accent
         self.emptyLabel = emptyLabel
         self.onAssign = onAssign
+        self.onEdit = onEdit
         self.onChange = onChange
         self.onRemove = onRemove
         _displayValue = State(initialValue: value ?? descriptor?.minValue ?? 0)
@@ -172,6 +175,12 @@ struct MacroSlotKnob: View {
         }
         .frame(minWidth: knobSize + 18, maxWidth: .infinity, minHeight: 86, alignment: .top)
         .contextMenu {
+            if let onEdit {
+                Button("Change Macro", action: onEdit)
+            }
+            if onEdit != nil, onRemove != nil {
+                Divider()
+            }
             if let onRemove {
                 Button("Remove Macro", role: .destructive, action: onRemove)
             }

@@ -1,5 +1,11 @@
 import SwiftUI
 
+struct SceneMacroTargetPickerRequest: Identifiable, Equatable {
+    let id = UUID()
+    let sceneID: UUID
+    let slotIndex: Int
+}
+
 struct ScenesWorkspaceView: View {
     @Binding var document: SeqAIDocument
     var resetToken: Int = 0
@@ -10,14 +16,10 @@ struct ScenesWorkspaceView: View {
     @State var selectedSceneID: UUID?
     @State var selectedInsertID: UUID?
     @State private var auMacroSlotPickerRequest: SceneAUMacroSlotPickerRequest?
+    @State private var sceneMacroTargetPickerRequest: SceneMacroTargetPickerRequest?
 
     private let sceneColumns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
-        count: 8
-    )
-
-    private let macroColumns = Array(
-        repeating: GridItem(.flexible(minimum: 120, maximum: 170), spacing: 10),
         count: 8
     )
 
@@ -79,6 +81,9 @@ struct ScenesWorkspaceView: View {
         }
         .sheet(item: $auMacroSlotPickerRequest) { request in
             sceneAUMacroSlotPickerSheet(request)
+        }
+        .sheet(item: $sceneMacroTargetPickerRequest) { request in
+            sceneMacroTargetPickerSheet(request)
         }
     }
 
@@ -455,90 +460,140 @@ struct ScenesWorkspaceView: View {
                     .foregroundStyle(StudioTheme.cyan)
             }
 
-            LazyVGrid(columns: macroColumns, spacing: 10) {
-                ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
-                    macroSlot(slotIndex)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
+                        macroSlot(slotIndex)
+                            .frame(width: 68)
+                    }
                 }
+                .padding(.horizontal, 12)
             }
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: 1)
+            )
         }
     }
 
     private func macroSlot(_ slotIndex: Int) -> some View {
         let binding = selectedScene.macroBindings.first { $0.slotIndex == slotIndex }
-        return VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Text("M\(slotIndex + 1)")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.cyan)
-                Spacer()
-                if let binding {
-                    Button {
-                        session.removeMasterSceneMacroBinding(binding.id, from: selectedScene.id)
-                    } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .buttonStyle(.plain)
+        return MacroSlotKnob(
+            slotIndex: slotIndex,
+            descriptor: binding.map {
+                MacroSlotKnobDescriptor(displayName: $0.name, valueRange: $0.target.valueRange)
+            },
+            value: binding.flatMap { $0.value(in: selectedScene) },
+            accent: StudioTheme.cyan,
+            onAssign: {
+                sceneMacroTargetPickerRequest = SceneMacroTargetPickerRequest(sceneID: selectedScene.id, slotIndex: slotIndex)
+            },
+            onEdit: binding.map { _ in
+                {
+                    sceneMacroTargetPickerRequest = SceneMacroTargetPickerRequest(sceneID: selectedScene.id, slotIndex: slotIndex)
+                }
+            },
+            onChange: { value in
+                guard let binding else { return }
+                session.setMasterSceneMacroValue(sceneID: selectedScene.id, macroID: binding.id, value: value)
+            },
+            onRemove: binding.map { binding in
+                {
+                    session.removeMasterSceneMacroBinding(binding.id, from: selectedScene.id)
                 }
             }
+        )
+    }
 
-            Text(binding?.name ?? "Assign")
-                .studioText(.bodyEmphasis)
-                .foregroundStyle(binding == nil ? StudioTheme.mutedText : StudioTheme.text)
-                .lineLimit(1)
-
-            Menu {
-                ForEach(Array(macroTargets(for: selectedScene).enumerated()), id: \.offset) { _, target in
-                    Button(target.label(in: selectedScene)) {
-                        let macro = MasterSceneMacroBinding(
-                            id: binding?.id ?? UUID(),
-                            slotIndex: slotIndex,
-                            target: target
-                        )
-                        session.upsertMasterSceneMacroBinding(macro, in: selectedScene.id)
+    @ViewBuilder
+    private func sceneMacroTargetPickerSheet(_ request: SceneMacroTargetPickerRequest) -> some View {
+        if let scene = masterBus.scene(id: request.sceneID) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("M\(request.slotIndex + 1)")
+                        .studioText(.title)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer()
+                    Button("Cancel") {
+                        sceneMacroTargetPickerRequest = nil
                     }
+                    .buttonStyle(.bordered)
                 }
-                if !auMacroInsertCandidates(in: selectedScene).isEmpty {
-                    Divider()
-                    Menu("AU Parameter") {
-                        ForEach(auMacroInsertCandidates(in: selectedScene)) { insert in
-                            Button(insert.name) {
-                                prepareAndPresentAUMacroSlotPicker(
-                                    slotIndex: slotIndex,
-                                    sceneID: selectedScene.id,
-                                    insertID: insert.id
-                                )
+
+                let nativeTargets = macroTargets(for: scene)
+                if !nativeTargets.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("INSERTS")
+                            .studioText(.eyebrow)
+                            .tracking(0.8)
+                            .foregroundStyle(StudioTheme.mutedText)
+                        ForEach(Array(nativeTargets.enumerated()), id: \.offset) { _, target in
+                            Button {
+                                assignSceneMacroTarget(target, request: request, scene: scene)
+                            } label: {
+                                Label(target.label(in: scene), systemImage: "slider.horizontal.3")
                             }
+                            .buttonStyle(.bordered)
                         }
                     }
                 }
-            } label: {
-                Label(binding == nil ? "Assign" : "Change", systemImage: "slider.horizontal.3")
-            }
-            .buttonStyle(.bordered)
 
-            if let binding,
-               let value = binding.value(in: selectedScene)
-            {
-                Slider(
-                    value: macroValueBinding(binding, fallback: value),
-                    in: binding.target.valueRange
-                )
-                .tint(StudioTheme.cyan)
+                let auCandidates = auMacroInsertCandidates(in: scene)
+                if !auCandidates.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("AU PARAMETERS")
+                            .studioText(.eyebrow)
+                            .tracking(0.8)
+                            .foregroundStyle(StudioTheme.mutedText)
+                        ForEach(auCandidates) { insert in
+                            Button {
+                                openAUMacroSlotPicker(insert, request: request)
+                            } label: {
+                                Label(insert.name, systemImage: "slider.horizontal.3")
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }
 
-                Text(sceneMacroValueLabel(value, target: binding.target))
-                    .studioText(.micro)
-                    .monospacedDigit()
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
+                if nativeTargets.isEmpty, auCandidates.isEmpty {
+                    StudioPlaceholderTile(title: "No Assignable Targets", detail: "Add an insert", accent: StudioTheme.cyan)
+                }
             }
+            .padding(20)
+            .frame(minWidth: 360)
+        } else {
+            StudioPlaceholderTile(title: "Scene Missing", detail: "Select another scene", accent: StudioTheme.cyan)
+                .padding(20)
         }
-        .padding(12)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(binding == nil ? StudioTheme.border : StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+    }
+
+    private func assignSceneMacroTarget(
+        _ target: MasterSceneMacroTarget,
+        request: SceneMacroTargetPickerRequest,
+        scene: MasterBusScene
+    ) {
+        let existing = scene.macroBindings.first { $0.slotIndex == request.slotIndex }
+        let macro = MasterSceneMacroBinding(
+            id: existing?.id ?? UUID(),
+            slotIndex: request.slotIndex,
+            target: target
         )
+        session.upsertMasterSceneMacroBinding(macro, in: request.sceneID)
+        sceneMacroTargetPickerRequest = nil
+    }
+
+    private func openAUMacroSlotPicker(_ insert: MasterBusInsert, request: SceneMacroTargetPickerRequest) {
+        let sceneID = request.sceneID
+        let slotIndex = request.slotIndex
+        let insertID = insert.id
+        sceneMacroTargetPickerRequest = nil
+        Task { @MainActor in
+            await Task.yield()
+            prepareAndPresentAUMacroSlotPicker(slotIndex: slotIndex, sceneID: sceneID, insertID: insertID)
+        }
     }
 
     @ViewBuilder
