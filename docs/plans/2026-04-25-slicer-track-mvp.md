@@ -2,7 +2,9 @@
 
 **Parent spec:** `docs/specs/2026-04-18-north-star-design.md` §"Sliced-loop tracks"
 **Reference:** `wiki/pages/octatrack-reference.md` (Flex machine + slice grid + sample locks)
-**Status:** Not started. Tag `v0.0.NN-slicer-track-mvp` at completion.
+**Status:** MVP implemented on `codex/slicer-track-mvp` in commit `3f27351` (`feat(slicer): add sliced-loop playback destination`). This document is now a historical implementation plan.
+
+**Deferred scope:** Pieces from this plan that did not land in the MVP have been split into `docs/plans/2026-04-28-slicer-track-post-mvp-follow-ups.md`.
 
 ## Summary
 
