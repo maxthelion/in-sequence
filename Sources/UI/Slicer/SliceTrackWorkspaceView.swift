@@ -108,22 +108,6 @@ struct SliceTrackWorkspaceView: View {
 
     private var mainColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Slicer", accent: accent) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(currentSample?.name ?? track.name)
-                        .studioText(.subtitle)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    Text(sliceTrackSummary)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
-            }
-
             StudioPanel(title: "Slice Clip", accent: accent) {
                 VStack(alignment: .leading, spacing: 16) {
                     patternControls
@@ -551,14 +535,6 @@ private extension SliceTrackWorkspaceView {
             return .default
         }
         return parts.stepParameters[selectedStepIndex]
-    }
-
-    var sliceTrackSummary: String {
-        guard let sliceSet = currentSliceSet else {
-            return "\(clipContent.stepCount) step clip"
-        }
-        let slices = sliceSet.userSliceCount == 1 ? "1 slice" : "\(sliceSet.userSliceCount) slices"
-        return "\(slices) - \(clipContent.stepCount) step clip"
     }
 
     var defaultSliceIndex: Int {
