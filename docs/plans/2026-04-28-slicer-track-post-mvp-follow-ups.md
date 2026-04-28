@@ -34,6 +34,8 @@ The follow-up work should reuse the MVP's existing architecture:
 
 The original MVP plan called for an "Add Slice Track from loop" entry point. The shipped MVP has `Add Slice`, an empty slicer destination, and a sample picker inside `SlicerSourceWidget`, but not the one-step loop workflow.
 
+Deferred until the wireframe is decided: seed `Resources/StarterSamples/loop` with a small handful of real break WAVs from `/Users/maxwilliams/Documents/Samples/Jungle Jungle - 1989 to 1999 Samplepack/Breaks`, and add a proper loop sample category if the chosen wireframe still depends on bundled loop fixtures.
+
 Build:
 
 - A track-create flow that lets the user pick a loop/sample first, then creates a slice track already pointed at a new grid-sliced `SliceSet`.

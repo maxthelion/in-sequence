@@ -4,6 +4,23 @@ struct NoteEvent: Equatable, Sendable {
     let length: UInt16
     let gate: Bool
     let voiceTag: String?
+    let sliceParameters: SliceTriggerStepParameters?
+
+    init(
+        pitch: UInt8,
+        velocity: UInt8,
+        length: UInt16,
+        gate: Bool,
+        voiceTag: String?,
+        sliceParameters: SliceTriggerStepParameters? = nil
+    ) {
+        self.pitch = pitch
+        self.velocity = velocity
+        self.length = length
+        self.gate = gate
+        self.voiceTag = voiceTag
+        self.sliceParameters = sliceParameters
+    }
 }
 
 struct Chord: Equatable, Sendable {

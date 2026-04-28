@@ -1,0 +1,1795 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slicer Workspace Wireframe</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f7f7;
+      --ink: #1f1f1f;
+      --muted: #707070;
+      --line: #222;
+      --soft-line: #9a9a9a;
+      --panel: #ffffff;
+      --stub: #e8e8e8;
+      --accent: #1477d4;
+      --accent-soft: #d9ebff;
+      --disabled: #b7b7b7;
+      --changed: #fff3bf;
+      --error: #ffd8d8;
+      --success: #d9f5dd;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      overflow-x: hidden;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.35;
+      overflow-x: hidden;
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      padding: 8px 12px;
+      min-height: 38px;
+    }
+
+    button:hover,
+    button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    .app-stub {
+      display: grid;
+      grid-template-columns: 210px 1fr 260px;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 2px solid var(--line);
+      background:
+        repeating-linear-gradient(45deg, var(--stub), var(--stub) 8px, #f2f2f2 8px, #f2f2f2 16px);
+    }
+
+    .stub-label {
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .stub-button {
+      color: var(--muted);
+      border-style: dashed;
+      background: transparent;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: 360px;
+      display: none;
+      border: 2px solid var(--line);
+      background: var(--changed);
+      padding: 12px 14px;
+      z-index: 10;
+    }
+
+    .toast.visible {
+      display: block;
+    }
+
+    .workspace {
+      padding: 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 22px;
+      align-items: start;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    .column {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .panel {
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .panel.stub {
+      border-style: dashed;
+      color: var(--muted);
+      background:
+        repeating-linear-gradient(45deg, var(--stub), var(--stub) 7px, #f5f5f5 7px, #f5f5f5 14px);
+    }
+
+    .header-row,
+    .toolbar,
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 750;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 750;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 15px;
+      font-weight: 750;
+      margin-bottom: 8px;
+    }
+
+    .annotation {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .primary {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+      font-weight: 750;
+    }
+
+    .secondary {
+      background: var(--panel);
+      font-weight: 650;
+    }
+
+    .danger {
+      background: var(--error);
+    }
+
+    .changed {
+      background: var(--changed);
+    }
+
+    .disabled {
+      color: var(--disabled);
+      border-color: var(--disabled);
+      background: #f0f0f0;
+      cursor: default;
+    }
+
+    .mode-tabs {
+      display: inline-flex;
+      gap: 0;
+      border: 2px solid var(--line);
+      background: var(--panel);
+    }
+
+    .mode-tabs button {
+      border: 0;
+      border-right: 2px solid var(--line);
+      min-height: 34px;
+      padding: 6px 10px;
+    }
+
+    .mode-tabs button:last-child {
+      border-right: 0;
+    }
+
+    .mode-tabs button.active {
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .clip-controls {
+      display: flex;
+      gap: 18px;
+      align-items: start;
+      flex-wrap: wrap;
+    }
+
+    .control-block {
+      display: grid;
+      gap: 6px;
+    }
+
+    .control-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .pattern-strip {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .pattern-scroll {
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(16, minmax(48px, 1fr));
+      gap: 6px;
+      min-width: 860px;
+    }
+
+    .pattern-cell {
+      min-height: 36px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      font-weight: 800;
+      background: #fff;
+    }
+
+    .pattern-cell.active {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .pattern-dot {
+      width: 6px;
+      height: 6px;
+      border: 1px solid var(--line);
+      background: var(--muted);
+    }
+
+    .pattern-cell.active .pattern-dot {
+      border-color: #fff;
+      background: #fff;
+    }
+
+    .layer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .layer-card {
+      min-height: 58px;
+      display: grid;
+      gap: 3px;
+      justify-items: start;
+      text-align: left;
+      background: #fff;
+    }
+
+    .layer-card.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .layer-card span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .sample-strip {
+      display: grid;
+      gap: 12px;
+      align-items: center;
+      margin-top: 14px;
+      padding: 12px;
+      border: 2px solid var(--line);
+      background: #efefef;
+    }
+
+    .sample-name {
+      font-size: 20px;
+      font-weight: 760;
+      overflow-wrap: anywhere;
+    }
+
+    .sample-meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .wave-shell {
+      margin-top: 14px;
+      border: 2px solid var(--line);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .wave-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-bottom: 2px solid var(--line);
+      background: #efefef;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .wave-toolbar {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-bottom: 2px solid var(--line);
+      background: #fff;
+    }
+
+    .wave-controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .wave-controls button {
+      min-height: 32px;
+      padding: 5px 9px;
+    }
+
+    .analysis-strip {
+      display: grid;
+      gap: 10px;
+      padding: 10px;
+      border-bottom: 2px solid var(--line);
+      background: var(--changed);
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 8px;
+    }
+
+    .analysis-cell {
+      display: grid;
+      gap: 5px;
+      padding: 8px;
+      border: 2px solid var(--line);
+      background: var(--panel);
+    }
+
+    .analysis-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .analysis-option.active {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .range-readout {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .wave-viewport {
+      overflow-x: auto;
+      overflow-y: hidden;
+      background: #fff;
+    }
+
+    .wave-track {
+      position: relative;
+      height: 240px;
+      min-width: 100%;
+      background: #fff;
+    }
+
+    .wave-canvas {
+      display: block;
+      width: 100%;
+      height: 240px;
+    }
+
+    .marker-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .sample-range-mask {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background:
+        repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12) 6px, transparent 6px, transparent 12px),
+        rgba(255, 255, 255, 0.64);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .sample-range-window {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-left: 0;
+      border-right: 0;
+      background: rgba(20, 119, 212, 0.07);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .sample-boundary {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      background: var(--accent);
+      cursor: ew-resize;
+      pointer-events: auto;
+      touch-action: none;
+      z-index: 5;
+    }
+
+    .sample-boundary.dragging {
+      background: var(--line);
+    }
+
+    .sample-boundary-label {
+      position: absolute;
+      top: 8px;
+      padding: 3px 5px;
+      border: 1px solid var(--line);
+      background: var(--changed);
+      font-size: 12px;
+      font-weight: 800;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    .slice-region {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .slice-region.selected {
+      background: var(--accent-soft);
+      opacity: 0.68;
+    }
+
+    .slice-marker {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      padding: 0;
+      min-height: 0;
+      border: 0;
+      background: var(--line);
+      pointer-events: auto;
+      z-index: 4;
+    }
+
+    .slice-marker.selected {
+      width: 5px;
+      background: var(--accent);
+    }
+
+    .slice-chip-label {
+      position: absolute;
+      bottom: 8px;
+      padding: 3px 5px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .slice-controls {
+      display: grid;
+      grid-template-columns: repeat(16, minmax(42px, 1fr));
+      gap: 6px;
+      margin-top: 10px;
+      overflow-x: auto;
+    }
+
+    .slice-controls button,
+    .page-button,
+    .step {
+      min-width: 0;
+    }
+
+    .slice-controls button.selected {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .slice-empty {
+      grid-column: 1 / -1;
+      border: 2px dashed var(--line);
+      background: var(--stub);
+      padding: 12px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .sequencer {
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(16, minmax(64px, 1fr));
+      gap: 8px;
+      min-width: 1080px;
+    }
+
+    .step {
+      min-height: 74px;
+      padding: 6px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      align-items: center;
+      text-align: center;
+      background: #fff;
+    }
+
+    .step.on {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .step.playing {
+      outline: 4px solid var(--line);
+      outline-offset: -7px;
+    }
+
+    .step .number {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .step .value {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .step .mode {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 750;
+    }
+
+    .page-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .pages {
+      display: flex;
+      gap: 6px;
+    }
+
+    .page-button.active {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .destination-surface {
+      border: 2px solid var(--line);
+      padding: 12px;
+      display: grid;
+      gap: 14px;
+      background: #fff;
+    }
+
+    .destination-surface.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .param-row label,
+    .toggle-row span:first-child {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .sample-player {
+      display: grid;
+      gap: 10px;
+      border: 2px solid var(--line);
+      background: #fff;
+      padding: 10px;
+    }
+
+    .param-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .param-row {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr) 52px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .param-row input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .toggle-row {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .toggle-row button.enabled {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .empty-state {
+      border: 2px dashed var(--line);
+      padding: 18px;
+      background: var(--stub);
+      margin-top: 14px;
+    }
+
+    @media (max-width: 980px) {
+      .app-stub,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="app-stub">
+      <strong>Slicer Workspace Prototype</strong>
+      <span class="stub-label">[transport + global navigation stubbed]</span>
+      <button class="stub-button" data-stub="[project menu]">-&gt; [project menu]</button>
+    </header>
+
+    <main class="workspace">
+      <section class="column">
+        <section class="panel">
+          <div class="header-row">
+            <div>
+              <h1>Slicer</h1>
+              <p class="annotation">Loop is fixed for this slice track in the MVP; use a new slice track for a different loop.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="loopPanel">
+          <div class="pattern-strip">
+            <span class="control-label">Pattern</span>
+            <div class="pattern-scroll">
+              <div class="pattern-grid" id="patternGrid" aria-label="Pattern slots"></div>
+            </div>
+          </div>
+          <div class="toolbar">
+            <div>
+              <h2>Slice Clip</h2>
+              <p class="annotation" id="clipStatus">No clip yet. Picking a loop creates a 32-step clip with 16 visible steps per page.</p>
+            </div>
+            <div class="clip-controls">
+              <div class="control-block">
+                <span class="control-label">Lane</span>
+                <div class="mode-tabs" aria-label="Clip lane">
+                  <button data-lane="normal" class="active">Normal</button>
+                  <button data-lane="fill">Fill</button>
+                </div>
+              </div>
+              <div class="control-block">
+                <span class="control-label">Length</span>
+                <div class="mode-tabs" aria-label="Clip length">
+                  <button data-length="16">16</button>
+                  <button data-length="32" class="active">32</button>
+                  <button data-length="64">64</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sample-strip" id="sampleStrip">
+            <div>
+              <div class="sample-name" id="sampleName">Let There Break</div>
+              <div class="sample-meta" id="sampleMeta">unknown BPM - 2.82s - 44.1k - raw loop</div>
+            </div>
+          </div>
+
+          <div id="waveContent">
+            <div class="empty-state">
+              <h2>Empty loop state</h2>
+              <p>Primary action is above. Off-path controls stay stubbed until a loop exists.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="sequencePanel">
+          <h2>Step Layers</h2>
+          <div class="control-block">
+            <span class="control-label">Layer</span>
+            <div class="layer-grid" aria-label="Clip layer">
+              <button class="layer-card active" data-layer="steps">
+                <span>Normal</span>
+                <strong>Steps</strong>
+              </button>
+              <button class="layer-card" data-layer="velocity">
+                <span>Normal</span>
+                <strong>Velocity</strong>
+              </button>
+              <button class="layer-card" data-layer="chance">
+                <span>Normal</span>
+                <strong>Chance</strong>
+              </button>
+            </div>
+          </div>
+          <div class="sequencer">
+            <div class="steps" id="steps"></div>
+          </div>
+          <div class="page-row">
+            <span class="annotation" id="pageStatus">Page 1 of 2</span>
+            <div class="pages" id="pages"></div>
+          </div>
+        </section>
+
+        <section class="panel stub">
+          <h2>Adjacent Source Modes</h2>
+          <p>-&gt; [generator source], -&gt; [manual slice insert], -&gt; [record into loop] are intentionally stubbed.</p>
+        </section>
+      </section>
+
+      <aside class="column">
+        <section class="panel" id="destinationPanel">
+          <h2>Sample Player</h2>
+          <div class="empty-state">
+            <strong>No assigned slice</strong>
+            <p>Assign a slice in the clip editor to inspect its sample-player parameters.</p>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">Stubbed</div>
+
+  <script>
+    const fixtures = [
+      {
+        id: "let-there-break",
+        name: "Let There Break",
+        meta: "2.82s - 44.1k - raw loop",
+        bpm: "unknown BPM",
+        warning: "Unknown BPM: clip length inferred by analysis",
+        steps: 32,
+        markers: [0, 0.055, 0.126, 0.184, 0.244, 0.318, 0.371, 0.438, 0.505, 0.562, 0.634, 0.692, 0.748, 0.817, 0.874, 0.944, 1]
+      },
+      {
+        id: "reel-funk-amen",
+        name: "Reel Funk Amen",
+        meta: "2.82s - 44.1k - raw loop",
+        bpm: "estimated 170 BPM",
+        warning: "",
+        steps: 32,
+        markers: [0, 0.0625, 0.125, 0.1875, 0.25, 0.3125, 0.375, 0.4375, 0.5, 0.5625, 0.625, 0.6875, 0.75, 0.8125, 0.875, 0.9375, 1]
+      },
+      {
+        id: "calling-reverse-break",
+        name: "Calling Reverse Break - filename long enough to wrap in the picker",
+        meta: "1.19s - reverse feel - raw loop",
+        bpm: "unknown BPM",
+        warning: "Very short loop: analysis should fit one page",
+        steps: 16,
+        markers: [0, 0.041, 0.098, 0.159, 0.225, 0.291, 0.353, 0.421, 0.494, 0.552, 0.615, 0.691, 0.742, 0.811, 0.879, 0.938, 1]
+      },
+      {
+        id: "sao-tome-amen",
+        name: "São Tomé Amen With Diacritics",
+        meta: "3.08s - raw loop",
+        bpm: "metadata says 0 BPM",
+        warning: "Bad metadata fixture",
+        steps: 64,
+        markers: [0, 0.07, 0.118, 0.191, 0.255, 0.299, 0.366, 0.431, 0.488, 0.566, 0.612, 0.684, 0.739, 0.806, 0.861, 0.932, 1]
+      }
+    ];
+
+    function initialFixture() {
+      const loopID = new URLSearchParams(window.location.search).get("loop");
+      return fixtures.find(fixture => fixture.id === loopID) || fixtures[0];
+    }
+
+    const sliceLabels = [
+      "kick", "hat", "snare", "ghost", "kick", "hat open", "snare", "perc",
+      "kick 2", "hat", "snare 2", "shuffle", "kick tail", "ride", "fill", "turn"
+    ];
+
+    const defaultPlayerParams = {
+      gain: 0,
+      pitch: 0,
+      startTrim: 0,
+      endTrim: 0,
+      pan: 0,
+      filter: 100,
+      attack: 0,
+      release: 12,
+      reverse: false,
+      choke: true
+    };
+
+    const laneLabels = {
+      normal: "Normal",
+      fill: "Fill"
+    };
+
+    const layerLabels = {
+      steps: "Steps",
+      velocity: "Velocity",
+      chance: "Chance"
+    };
+
+    function makeStepSlices(lane, patternIndex = 0, withSlices = false) {
+      return Array.from({ length: 64 }, (_, index) => {
+        if (!withSlices) return null;
+        const shifted = index + patternIndex;
+        if (lane === "fill") {
+          if (shifted % 4 === 1) return (index + 5 + patternIndex) % 16;
+          if (shifted % 8 === 6) return (index + 9 + patternIndex) % 16;
+          return null;
+        }
+        if (shifted % 4 === 0) return (Math.floor(index / 4) + patternIndex) % 16;
+        if (shifted % 8 === 2) return (index + 3 + patternIndex) % 16;
+        return null;
+      });
+    }
+
+    function makeVelocityValues(lane, patternIndex = 0) {
+      return Array.from({ length: 64 }, (_, index) => {
+        const swing = lane === "fill" ? 12 : 0;
+        const patternLift = (patternIndex % 5) * 3;
+        return Math.max(24, Math.min(127, 96 - (index % 4) * 8 + swing + patternLift));
+      });
+    }
+
+    function makeChanceValues(lane, patternIndex = 0) {
+      return Array.from({ length: 64 }, (_, index) => {
+        const moved = index + patternIndex;
+        if (lane === "fill") return moved % 4 === 1 ? 100 : 62;
+        return moved % 8 === 2 ? 74 : 100;
+      });
+    }
+
+    function makeStepParams(lane, patternIndex = 0) {
+      return Array.from({ length: 64 }, (_, index) => ({
+        ...defaultPlayerParams,
+        gain: index % 8 === 0 ? 2 : lane === "fill" ? -1 : 0,
+        pitch: lane === "fill" && (index + patternIndex) % 8 === 6 ? 5 : patternIndex % 3,
+        reverse: (index + patternIndex) % 16 === 8 || (lane === "fill" && (index + patternIndex) % 8 === 6)
+      }));
+    }
+
+    function makePattern(patternIndex) {
+      const clipLengths = [32, 32, 16, 64];
+      return {
+        clipLength: clipLengths[patternIndex % clipLengths.length],
+        stepParams: {
+          normal: makeStepParams("normal", patternIndex),
+          fill: makeStepParams("fill", patternIndex)
+        },
+        clipLanes: {
+          normal: {
+            slices: makeStepSlices("normal", patternIndex),
+            velocity: makeVelocityValues("normal", patternIndex),
+            chance: makeChanceValues("normal", patternIndex)
+          },
+          fill: {
+            slices: makeStepSlices("fill", patternIndex),
+            velocity: makeVelocityValues("fill", patternIndex),
+            chance: makeChanceValues("fill", patternIndex)
+          }
+        }
+      };
+    }
+
+    const selectedFixture = initialFixture();
+    const patterns = Array.from({ length: 16 }, (_, index) => makePattern(index));
+    patterns[0].clipLength = selectedFixture.steps;
+    const initialAnalysisBars = Math.max(1, Math.round(selectedFixture.steps / 16));
+
+    const state = {
+      sample: selectedFixture,
+      selectedSlice: 0,
+      selectedStep: 0,
+      activePattern: 0,
+      activeLane: "normal",
+      activeLayer: "steps",
+      clipLength: selectedFixture.steps,
+      page: 0,
+      waveZoom: 1,
+      waveScroll: 0,
+      sampleStart: 0.04,
+      sampleEnd: 0.96,
+      analysisOpen: false,
+      analysisApplied: false,
+      analysisSensitivity: "medium",
+      analysisBars: initialAnalysisBars,
+      analysisMaxSlices: 16,
+      appliedMarkers: [],
+      patterns
+    };
+
+    const toast = document.querySelector("#toast");
+
+    document.querySelectorAll("[data-stub], .stub-button").forEach(button => {
+      button.addEventListener("click", () => showToast(button.dataset.stub || "stubbed"));
+    });
+
+    document.querySelectorAll("[data-length]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.clipLength = Number(button.dataset.length);
+        currentPattern().clipLength = state.clipLength;
+        state.page = Math.min(state.page, pageCount() - 1);
+        state.selectedStep = Math.min(state.selectedStep, state.clipLength - 1);
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll("[data-lane]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.activeLane = button.dataset.lane;
+        const sliceIndex = currentSlices()[state.selectedStep];
+        if (sliceIndex !== null && sliceIndex !== undefined) {
+          state.selectedSlice = sliceIndex;
+        }
+        renderAll();
+      });
+    });
+
+    document.querySelectorAll("[data-layer]").forEach(button => {
+      button.addEventListener("click", () => {
+        state.activeLayer = button.dataset.layer;
+        renderAll();
+      });
+    });
+
+    function showToast(message) {
+      toast.textContent = `${message}: stubbed for this prototype`;
+      toast.classList.add("visible");
+      window.setTimeout(() => toast.classList.remove("visible"), 1400);
+    }
+
+    function renderAll() {
+      renderWave();
+      renderSequencer();
+      renderDestination();
+      lockPageScrollX();
+    }
+
+    function renderWave() {
+      const name = document.querySelector("#sampleName");
+      const meta = document.querySelector("#sampleMeta");
+      const waveContent = document.querySelector("#waveContent");
+
+      if (!state.sample) {
+        name.textContent = "No loop selected";
+        meta.textContent = "Empty state: choose a drum break to create a slice set.";
+        waveContent.innerHTML = `
+          <div class="empty-state">
+            <h2>Empty loop state</h2>
+            <p>Primary action is above. Off-path controls stay stubbed until a loop exists.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const slicesApplied = hasSlices();
+      name.textContent = state.sample.name;
+      meta.textContent = slicesApplied
+        ? `${state.sample.bpm} - ${state.sample.meta} - sample ${sampleRangeLabel()} - ${analysisSliceCount()} slices - ${state.clipLength} step clip`
+        : `${state.sample.bpm} - ${state.sample.meta} - analysis pending - sample ${sampleRangeLabel()}`;
+
+      waveContent.innerHTML = `
+        <div class="wave-shell">
+          <div class="wave-caption">
+            <span>${slicesApplied ? "Whole waveform with slice markers" : "Whole waveform - no slices yet"}</span>
+            <div class="wave-controls">
+              <span id="waveSelectedCaption">${slicesApplied ? `Sample ${sampleRangeLabel()} - Selected: S${state.selectedSlice + 1} (${sliceLabels[state.selectedSlice]})` : "Run Auto Detect to propose transient slices and clip length."}</span>
+              <button id="autoDetectButton">${state.analysisOpen ? "Hide Detect" : "Auto Detect"}</button>
+            </div>
+          </div>
+          ${state.analysisOpen ? analysisControlsTemplate() : ""}
+          <div class="wave-toolbar">
+            <span class="annotation">Zoom ${state.waveZoom.toFixed(1)}x. Scroll left/right to inspect the same loop.</span>
+            <div class="wave-controls" aria-label="Waveform navigation">
+              <button id="waveScrollLeft">Left</button>
+              <button id="waveZoomOut">Zoom out</button>
+              <button id="waveZoomIn">Zoom in</button>
+              <button id="waveScrollRight">Right</button>
+            </div>
+            <div class="wave-controls" aria-label="Sample start and end">
+              <span class="range-readout" id="sampleRangeReadout">Sample start/end: ${sampleRangeLabel()}</span>
+              <button id="sampleStartMinus">Start -</button>
+              <button id="sampleStartPlus">Start +</button>
+              <button id="sampleEndMinus">End -</button>
+              <button id="sampleEndPlus">End +</button>
+            </div>
+          </div>
+          <div class="wave-viewport" id="waveViewport">
+            <div class="wave-track" id="waveTrack" style="width:${Math.round(state.waveZoom * 100)}%">
+              <canvas class="wave-canvas" id="waveCanvas"></canvas>
+              <div class="marker-layer" id="markerLayer"></div>
+            </div>
+          </div>
+        </div>
+        <div class="slice-controls" id="sliceControls"></div>
+      `;
+
+      const viewport = document.querySelector("#waveViewport");
+      const track = document.querySelector("#waveTrack");
+      const markers = markerPositions();
+      const markerLayer = document.querySelector("#markerLayer");
+      markerLayer.innerHTML = "";
+      markerLayer.insertAdjacentHTML(
+        "beforeend",
+        `<span class="sample-range-mask" data-sample-mask="before" style="left:0;width:${state.sampleStart * 100}%"></span>`
+      );
+      markerLayer.insertAdjacentHTML(
+        "beforeend",
+        `<span class="sample-range-window" data-sample-window style="left:${state.sampleStart * 100}%;width:${(state.sampleEnd - state.sampleStart) * 100}%"></span>`
+      );
+      markerLayer.insertAdjacentHTML(
+        "beforeend",
+        `<span class="sample-range-mask" data-sample-mask="after" style="left:${state.sampleEnd * 100}%;width:${(1 - state.sampleEnd) * 100}%"></span>`
+      );
+      markerLayer.insertAdjacentHTML(
+        "beforeend",
+        `<button class="sample-boundary" data-sample-boundary="start" style="left:calc(${state.sampleStart * 100}% - 3px)" title="Sample start"></button>`
+      );
+      markerLayer.insertAdjacentHTML(
+        "beforeend",
+        `<button class="sample-boundary" data-sample-boundary="end" style="left:calc(${state.sampleEnd * 100}% - 3px)" title="Sample end"></button>`
+      );
+      markerLayer.insertAdjacentHTML(
+        "beforeend",
+        `<span class="sample-boundary-label" data-sample-boundary-label="start" style="left:calc(${state.sampleStart * 100}% + 6px)">Start</span>`
+      );
+      markerLayer.insertAdjacentHTML(
+        "beforeend",
+        `<span class="sample-boundary-label" data-sample-boundary-label="end" style="left:calc(${state.sampleEnd * 100}% - 42px)">End</span>`
+      );
+      for (let i = 0; i < markers.length - 1; i += 1) {
+        const left = markers[i] * 100;
+        const width = Math.max(0.2, (markers[i + 1] - markers[i]) * 100);
+        markerLayer.insertAdjacentHTML(
+          "beforeend",
+          `<button class="slice-region ${state.selectedSlice === i ? "selected" : ""}" data-region-slice="${i}" style="left:${left}%;width:${width}%"></button>`
+        );
+        markerLayer.insertAdjacentHTML(
+          "beforeend",
+          `<span class="slice-chip-label" data-slice-chip-label="${i}" style="left:calc(${left}% + 4px)">S${i + 1}</span>`
+        );
+      }
+      for (let i = 0; i < markers.length; i += 1) {
+        const left = markers[i] * 100;
+        markerLayer.insertAdjacentHTML(
+          "beforeend",
+          `<button class="slice-marker ${i === state.selectedSlice || i === state.selectedSlice + 1 ? "selected" : ""}" data-marker-index="${i}" style="left:${left}%"></button>`
+        );
+      }
+
+      markerLayer.querySelectorAll("[data-region-slice]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.selectedSlice = Number(button.dataset.regionSlice);
+          renderAll();
+        });
+      });
+      markerLayer.querySelectorAll("[data-marker-index]").forEach(button => {
+        button.addEventListener("click", () => {
+          const markerIndex = Number(button.dataset.markerIndex);
+          state.selectedSlice = Math.max(0, Math.min(15, markerIndex === 16 ? 15 : markerIndex));
+          renderAll();
+        });
+      });
+      bindSampleBoundaryDrag(track, markerLayer);
+      document.querySelector("#autoDetectButton").addEventListener("click", () => {
+        state.analysisOpen = !state.analysisOpen;
+        renderAll();
+      });
+      bindAnalysisControls();
+
+      viewport.scrollLeft = state.waveScroll;
+      viewport.addEventListener("scroll", () => {
+        state.waveScroll = viewport.scrollLeft;
+      });
+      document.querySelector("#waveScrollLeft").addEventListener("click", () => scrollWave(-1));
+      document.querySelector("#waveScrollRight").addEventListener("click", () => scrollWave(1));
+      document.querySelector("#waveZoomOut").addEventListener("click", () => setWaveZoom(state.waveZoom - 0.5));
+      document.querySelector("#waveZoomIn").addEventListener("click", () => setWaveZoom(state.waveZoom + 0.5));
+      document.querySelector("#sampleStartMinus").addEventListener("click", () => setSampleBoundary("start", state.sampleStart - 0.02));
+      document.querySelector("#sampleStartPlus").addEventListener("click", () => setSampleBoundary("start", state.sampleStart + 0.02));
+      document.querySelector("#sampleEndMinus").addEventListener("click", () => setSampleBoundary("end", state.sampleEnd - 0.02));
+      document.querySelector("#sampleEndPlus").addEventListener("click", () => setSampleBoundary("end", state.sampleEnd + 0.02));
+
+      requestAnimationFrame(() => drawWaveform(track));
+
+      const controls = document.querySelector("#sliceControls");
+      controls.innerHTML = slicesApplied
+        ? Array.from({ length: analysisSliceCount() }, (_, index) => `
+          <button class="${state.selectedSlice === index ? "selected" : ""}" data-slice="${index}">S${index + 1}</button>
+        `).join("")
+        : `<div class="slice-empty">No slices yet. Use Auto Detect to create a proposed transient map, sound labels, and clip length.</div>`;
+      controls.querySelectorAll("[data-slice]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.selectedSlice = Number(button.dataset.slice);
+          renderAll();
+        });
+      });
+    }
+
+    function analysisControlsTemplate() {
+      const sliceCount = proposedMarkerPositions().length - 1;
+      const proposedLength = proposedClipLength();
+      return `
+        <div class="analysis-strip" id="analysisStrip">
+          <div class="analysis-grid">
+            <div class="analysis-cell">
+              <span class="control-label">Method</span>
+              <strong>Onset + spectral flux</strong>
+              <span class="annotation">Transient prior art, then tempo-grid fit.</span>
+            </div>
+            <div class="analysis-cell">
+              <span class="control-label">Sensitivity</span>
+              <div class="analysis-actions">
+                ${["low", "medium", "high"].map(value => `
+                  <button class="analysis-option ${state.analysisSensitivity === value ? "active" : ""}" data-analysis-sensitivity="${value}">${value}</button>
+                `).join("")}
+              </div>
+            </div>
+            <div class="analysis-cell">
+              <span class="control-label">Bars</span>
+              <div class="analysis-actions">
+                ${[1, 2, 4].map(value => `
+                  <button class="analysis-option ${state.analysisBars === value ? "active" : ""}" data-analysis-bars="${value}">${value}</button>
+                `).join("")}
+              </div>
+            </div>
+            <div class="analysis-cell">
+              <span class="control-label">Result</span>
+              <strong>${sliceCount} transients -> ${proposedLength} steps</strong>
+              <span class="annotation">Kick/snare/hat/noise labels proposed.</span>
+            </div>
+          </div>
+          <div class="analysis-actions">
+            <span class="annotation">Temporary proposal only. Apply commits slice markers and clip length.</span>
+            <button class="primary" id="applyAnalysis">Apply</button>
+            <button id="cancelAnalysis">Cancel</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function bindAnalysisControls() {
+      document.querySelectorAll("[data-analysis-sensitivity]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.analysisSensitivity = button.dataset.analysisSensitivity;
+          renderAll();
+        });
+      });
+      document.querySelectorAll("[data-analysis-bars]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.analysisBars = Number(button.dataset.analysisBars);
+          renderAll();
+        });
+      });
+      const applyButton = document.querySelector("#applyAnalysis");
+      if (applyButton) {
+        applyButton.addEventListener("click", applyAnalysis);
+      }
+      const cancelButton = document.querySelector("#cancelAnalysis");
+      if (cancelButton) {
+        cancelButton.addEventListener("click", () => {
+          state.analysisOpen = false;
+          renderAll();
+        });
+      }
+    }
+
+    function applyAnalysis() {
+      state.appliedMarkers = proposedMarkerPositions();
+      state.analysisApplied = true;
+      state.analysisOpen = false;
+      state.clipLength = proposedClipLength();
+      state.page = 0;
+      state.selectedStep = 0;
+      state.selectedSlice = 0;
+
+      const pattern = currentPattern();
+      pattern.clipLength = state.clipLength;
+      pattern.clipLanes.normal.slices = detectedSlicesForLane("normal");
+      pattern.clipLanes.fill.slices = detectedSlicesForLane("fill");
+      renderAll();
+    }
+
+    function detectedSlicesForLane(lane) {
+      const sliceCount = Math.max(1, analysisSliceCount());
+      return makeStepSlices(lane, state.activePattern, true)
+        .map((slice, index) => index < state.clipLength && slice !== null ? slice % sliceCount : null);
+    }
+
+    function hasSlices() {
+      return state.analysisApplied && state.appliedMarkers.length > 1;
+    }
+
+    function analysisSliceCount() {
+      if (hasSlices()) {
+        return state.appliedMarkers.length - 1;
+      }
+      return Math.max(0, proposedMarkerPositions().length - 1);
+    }
+
+    function proposedClipLength() {
+      return state.analysisBars * 16;
+    }
+
+    function proposedMarkerPositions() {
+      const rawMarkers = state.sample?.markers?.length ? state.sample.markers : Array.from({ length: 17 }, (_, index) => index / 16);
+      const availableSlices = rawMarkers.length - 1;
+      const targetSlices = Math.max(1, Math.min(state.analysisMaxSlices, availableSlices));
+      if (targetSlices >= availableSlices) {
+        return rawMarkers;
+      }
+      return Array.from({ length: targetSlices + 1 }, (_, index) => {
+        const rawIndex = Math.round((index / targetSlices) * availableSlices);
+        return rawMarkers[rawIndex];
+      });
+    }
+
+    function sampleRangeLabel() {
+      return `${Math.round(state.sampleStart * 100)}% to ${Math.round(state.sampleEnd * 100)}%`;
+    }
+
+    function sourceMarkerPositions() {
+      if (hasSlices()) {
+        return state.appliedMarkers;
+      }
+      return [];
+    }
+
+    function markerPositions() {
+      const sampleSpan = state.sampleEnd - state.sampleStart;
+      return sourceMarkerPositions().map(position => state.sampleStart + position * sampleSpan);
+    }
+
+    function sliceIndexAt(normalizedPosition) {
+      const markers = markerPositions();
+      if (markers.length < 2) return null;
+      for (let i = 0; i < markers.length - 1; i += 1) {
+        if (normalizedPosition >= markers[i] && normalizedPosition <= markers[i + 1]) {
+          return i;
+        }
+      }
+      return normalizedPosition >= 1 ? 15 : 0;
+    }
+
+    function setSampleBoundary(boundary, nextValue, shouldRender = true) {
+      const minimumSpan = 0.08;
+      if (boundary === "start") {
+        state.sampleStart = Math.max(0, Math.min(state.sampleEnd - minimumSpan, nextValue));
+      } else {
+        state.sampleEnd = Math.min(1, Math.max(state.sampleStart + minimumSpan, nextValue));
+      }
+      if (shouldRender) {
+        renderAll();
+      }
+    }
+
+    function bindSampleBoundaryDrag(track, markerLayer) {
+      markerLayer.querySelectorAll("[data-sample-boundary]").forEach(handle => {
+        handle.addEventListener("pointerdown", event => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const boundary = handle.dataset.sampleBoundary;
+          handle.classList.add("dragging");
+          try {
+            handle.setPointerCapture(event.pointerId);
+          } catch {
+            // Pointer capture is best effort for old embedded browsers.
+          }
+
+          const updateFromEvent = pointerEvent => {
+            pointerEvent.preventDefault();
+            const bounds = track.getBoundingClientRect();
+            if (bounds.width <= 0) return;
+
+            const normalized = Math.max(0, Math.min(1, (pointerEvent.clientX - bounds.left) / bounds.width));
+            setSampleBoundary(boundary, normalized, false);
+            updateSampleRangeGeometry();
+          };
+
+          const stopDrag = pointerEvent => {
+            document.removeEventListener("pointermove", updateFromEvent);
+            document.removeEventListener("pointerup", stopDrag);
+            document.removeEventListener("pointercancel", stopDrag);
+            handle.classList.remove("dragging");
+            if (pointerEvent?.pointerId !== undefined) {
+              try {
+                handle.releasePointerCapture(pointerEvent.pointerId);
+              } catch {
+                // The pointer may already be released if the browser cancelled it.
+              }
+            }
+            renderAll();
+          };
+
+          document.addEventListener("pointermove", updateFromEvent);
+          document.addEventListener("pointerup", stopDrag);
+          document.addEventListener("pointercancel", stopDrag);
+          updateFromEvent(event);
+        });
+      });
+    }
+
+    function updateSampleRangeGeometry() {
+      const beforeMask = document.querySelector('[data-sample-mask="before"]');
+      const afterMask = document.querySelector('[data-sample-mask="after"]');
+      const rangeWindow = document.querySelector("[data-sample-window]");
+      const startHandle = document.querySelector('[data-sample-boundary="start"]');
+      const endHandle = document.querySelector('[data-sample-boundary="end"]');
+      const startLabel = document.querySelector('[data-sample-boundary-label="start"]');
+      const endLabel = document.querySelector('[data-sample-boundary-label="end"]');
+      const markers = markerPositions();
+
+      if (beforeMask) beforeMask.style.width = `${state.sampleStart * 100}%`;
+      if (rangeWindow) {
+        rangeWindow.style.left = `${state.sampleStart * 100}%`;
+        rangeWindow.style.width = `${(state.sampleEnd - state.sampleStart) * 100}%`;
+      }
+      if (afterMask) {
+        afterMask.style.left = `${state.sampleEnd * 100}%`;
+        afterMask.style.width = `${(1 - state.sampleEnd) * 100}%`;
+      }
+      if (startHandle) startHandle.style.left = `calc(${state.sampleStart * 100}% - 3px)`;
+      if (endHandle) endHandle.style.left = `calc(${state.sampleEnd * 100}% - 3px)`;
+      if (startLabel) startLabel.style.left = `calc(${state.sampleStart * 100}% + 6px)`;
+      if (endLabel) endLabel.style.left = `calc(${state.sampleEnd * 100}% - 42px)`;
+
+      for (let i = 0; i < markers.length - 1; i += 1) {
+        const left = markers[i] * 100;
+        const width = Math.max(0.2, (markers[i + 1] - markers[i]) * 100);
+        const region = document.querySelector(`[data-region-slice="${i}"]`);
+        const label = document.querySelector(`[data-slice-chip-label="${i}"]`);
+        if (region) {
+          region.style.left = `${left}%`;
+          region.style.width = `${width}%`;
+        }
+        if (label) {
+          label.style.left = `calc(${left}% + 4px)`;
+        }
+      }
+
+      for (let i = 0; i < markers.length; i += 1) {
+        const marker = document.querySelector(`[data-marker-index="${i}"]`);
+        if (marker) marker.style.left = `${markers[i] * 100}%`;
+      }
+
+      const readout = document.querySelector("#sampleRangeReadout");
+      if (readout) readout.textContent = `Sample start/end: ${sampleRangeLabel()}`;
+      const caption = document.querySelector("#waveSelectedCaption");
+      if (caption) {
+        caption.textContent = hasSlices()
+          ? `Sample ${sampleRangeLabel()} - Selected: S${state.selectedSlice + 1} (${sliceLabels[state.selectedSlice]})`
+          : "Run Auto Detect to propose transient slices and clip length.";
+      }
+      const meta = document.querySelector("#sampleMeta");
+      if (meta && state.sample) {
+        meta.textContent = hasSlices()
+          ? `${state.sample.bpm} - ${state.sample.meta} - sample ${sampleRangeLabel()} - ${analysisSliceCount()} slices - ${state.clipLength} step clip`
+          : `${state.sample.bpm} - ${state.sample.meta} - analysis pending - sample ${sampleRangeLabel()}`;
+      }
+    }
+
+    function setWaveZoom(nextZoom) {
+      const viewport = document.querySelector("#waveViewport");
+      if (viewport) {
+        state.waveScroll = viewport.scrollLeft;
+      }
+      state.waveZoom = Math.max(1, Math.min(4, nextZoom));
+      renderWave();
+      lockPageScrollX();
+    }
+
+    function scrollWave(direction) {
+      const viewport = document.querySelector("#waveViewport");
+      if (!viewport) return;
+      const next = viewport.scrollLeft + direction * viewport.clientWidth * 0.75;
+      viewport.scrollLeft = Math.max(0, Math.min(viewport.scrollWidth - viewport.clientWidth, next));
+      state.waveScroll = viewport.scrollLeft;
+      lockPageScrollX();
+    }
+
+    function lockPageScrollX() {
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
+    }
+
+    function drawWaveform() {
+      const canvas = document.querySelector("#waveCanvas");
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * scale));
+      canvas.height = Math.max(1, Math.floor(rect.height * scale));
+
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const width = rect.width;
+      const height = rect.height;
+      const center = height * 0.48;
+      const topPad = 18;
+      const bottomPad = 40;
+      const drawable = center - topPad;
+
+      ctx.strokeStyle = "#b0b0b0";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, center);
+      ctx.lineTo(width, center);
+      ctx.stroke();
+
+      ctx.fillStyle = "#777";
+      ctx.beginPath();
+      for (let x = 0; x <= width; x += 4) {
+        const n = x / width;
+        const pulse = Math.abs(Math.sin(n * Math.PI * 10.5));
+        const chatter = Math.abs(Math.sin((n * 83) + 1.7)) * 0.34;
+        const transient = (Math.floor(n * 16) % 4 === 0 && (n * 16) % 1 < 0.18) ? 0.45 : 0;
+        const amp = Math.min(1, 0.16 + pulse * 0.58 + chatter + transient);
+        const y = center - amp * drawable;
+        if (x === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      for (let x = width; x >= 0; x -= 4) {
+        const n = x / width;
+        const pulse = Math.abs(Math.sin(n * Math.PI * 10.5));
+        const chatter = Math.abs(Math.sin((n * 83) + 1.7)) * 0.34;
+        const transient = (Math.floor(n * 16) % 4 === 0 && (n * 16) % 1 < 0.18) ? 0.45 : 0;
+        const amp = Math.min(1, 0.16 + pulse * 0.58 + chatter + transient);
+        const y = center + amp * (height - center - bottomPad);
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      canvas.addEventListener("click", event => {
+        const bounds = canvas.getBoundingClientRect();
+        const normalized = (event.clientX - bounds.left) / bounds.width;
+        const sliceIndex = sliceIndexAt(Math.max(0, Math.min(1, normalized)));
+        if (sliceIndex !== null) {
+          state.selectedSlice = sliceIndex;
+          renderAll();
+        }
+      });
+    }
+
+    function currentPattern() {
+      return state.patterns[state.activePattern];
+    }
+
+    function currentLaneData() {
+      return currentPattern().clipLanes[state.activeLane];
+    }
+
+    function currentSlices() {
+      return currentLaneData().slices;
+    }
+
+    function currentStepParams() {
+      return currentPattern().stepParams[state.activeLane];
+    }
+
+    function stepDisplayValue(index, sliceIndex) {
+      if (index >= state.clipLength) return "-";
+      if (sliceIndex === null || sliceIndex === undefined) return "-";
+      if (state.activeLayer === "velocity") return currentLaneData().velocity[index];
+      if (state.activeLayer === "chance") return `${currentLaneData().chance[index]}%`;
+      return `S${sliceIndex + 1}`;
+    }
+
+    function renderSequencer() {
+      const patternGrid = document.querySelector("#patternGrid");
+      const steps = document.querySelector("#steps");
+      const pages = document.querySelector("#pages");
+      const start = state.page * 16;
+      const slices = currentSlices();
+      const laneLabel = laneLabels[state.activeLane];
+      const layerLabel = layerLabels[state.activeLayer];
+      patternGrid.innerHTML = state.patterns.map((pattern, index) => {
+        const hasData = pattern.clipLanes.normal.slices.some(slice => slice !== null)
+          || pattern.clipLanes.fill.slices.some(slice => slice !== null);
+        return `
+          <button class="pattern-cell ${state.activePattern === index ? "active" : ""}" data-pattern="${index}">
+            <span>${index + 1}</span>
+            ${hasData ? '<span class="pattern-dot" aria-hidden="true"></span>' : ""}
+          </button>
+        `;
+      }).join("");
+      patternGrid.querySelectorAll("[data-pattern]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.activePattern = Number(button.dataset.pattern);
+          state.clipLength = currentPattern().clipLength;
+          state.page = Math.min(state.page, pageCount() - 1);
+          state.selectedStep = Math.min(state.selectedStep, state.clipLength - 1);
+          const sliceIndex = currentSlices()[state.selectedStep];
+          if (sliceIndex !== null && sliceIndex !== undefined) {
+            state.selectedSlice = sliceIndex;
+          }
+          renderAll();
+        });
+      });
+      document.querySelectorAll("[data-lane]").forEach(button => {
+        button.classList.toggle("active", button.dataset.lane === state.activeLane);
+      });
+      document.querySelectorAll("[data-layer]").forEach(button => {
+        button.classList.toggle("active", button.dataset.layer === state.activeLayer);
+        const span = button.querySelector("span");
+        if (span) span.textContent = laneLabel;
+      });
+      document.querySelectorAll("[data-length]").forEach(button => {
+        button.classList.toggle("active", Number(button.dataset.length) === state.clipLength);
+      });
+      document.querySelector("#clipStatus").textContent = state.sample
+        ? hasSlices()
+          ? `Pattern ${state.activePattern + 1} - ${laneLabel} lane - ${layerLabel} layer for ${state.sample.name}. Destination follows the selected step.`
+          : `Pattern ${state.activePattern + 1} - ${laneLabel} lane - no slices yet for ${state.sample.name}. Run Auto Detect above.`
+        : "No clip yet. Picking a loop creates a blank slice track.";
+      document.querySelector("#pageStatus").textContent = hasSlices()
+        ? `Page ${state.page + 1} of ${pageCount()} - ${state.clipLength} step clip`
+        : `Blank clip - ${state.clipLength} steps pending analysis`;
+
+      steps.innerHTML = Array.from({ length: 16 }, (_, offset) => {
+        const index = start + offset;
+        const slice = index < state.clipLength ? slices[index] : null;
+        const on = slice !== null;
+        const value = stepDisplayValue(index, slice);
+        const mode = index >= state.clipLength ? "out" : on ? layerLabel : "off";
+        return `
+          <button class="step ${on ? "on" : ""} ${state.selectedStep === index ? "playing" : ""}" data-step="${index}" ${index >= state.clipLength ? "disabled" : ""}>
+            <span class="number">${index + 1}</span>
+            <span class="value">${value}</span>
+            <span class="mode">${mode}</span>
+          </button>
+        `;
+      }).join("");
+
+      steps.querySelectorAll("[data-step]").forEach(button => {
+        button.addEventListener("click", () => {
+          const index = Number(button.dataset.step);
+          if (index >= state.clipLength) return;
+          state.selectedStep = index;
+          if (slices[index] !== null && slices[index] !== undefined) {
+            state.selectedSlice = slices[index];
+          }
+          renderAll();
+        });
+      });
+
+      pages.innerHTML = Array.from({ length: pageCount() }, (_, index) => `
+        <button class="page-button ${state.page === index ? "active" : ""}" data-page="${index}">${index + 1}</button>
+      `).join("");
+      pages.querySelectorAll("[data-page]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.page = Number(button.dataset.page);
+          renderAll();
+        });
+      });
+    }
+
+    function renderDestination() {
+      const panel = document.querySelector("#destinationPanel");
+      if (!state.sample) {
+        panel.innerHTML = `
+          <h2>Sample Player</h2>
+          <div class="empty-state">
+            <strong>No assigned slice</strong>
+            <p>Assign a slice in the clip editor to inspect its sample-player parameters.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (!hasSlices()) {
+        panel.innerHTML = `
+          <h2>Sample Player</h2>
+          <div class="destination-surface">
+            <strong>No slices yet</strong>
+            <span class="annotation">Run Auto Detect and apply the proposal before step destinations can target sample-player voices.</span>
+          </div>
+        `;
+        return;
+      }
+
+      const stepIndex = state.selectedStep;
+      const slices = currentSlices();
+      const sliceIndex = slices[stepIndex];
+      if (sliceIndex === null || sliceIndex === undefined) {
+        panel.innerHTML = `
+          <h2>Sample Player</h2>
+          <div class="destination-surface">
+            <strong>No assigned slice</strong>
+            <span class="annotation">Assign a slice in the clip editor to inspect its sample-player parameters.</span>
+          </div>
+        `;
+        return;
+      }
+
+      const params = currentStepParams()[stepIndex];
+      panel.innerHTML = `
+        <h2>Sample Player</h2>
+        <div class="destination-surface active">
+          <div class="sample-player">
+            <h3>Parameters</h3>
+            <div class="param-grid">
+              ${rangeParam("gain", "Gain", -24, 12, params.gain, "dB")}
+              ${rangeParam("pitch", "Pitch", -12, 12, params.pitch, "st")}
+              ${rangeParam("startTrim", "Start", 0, 50, params.startTrim, "%")}
+              ${rangeParam("endTrim", "End", 0, 50, params.endTrim, "%")}
+              ${rangeParam("pan", "Pan", -50, 50, params.pan, "")}
+              ${rangeParam("filter", "Filter", 0, 100, params.filter, "%")}
+              ${rangeParam("attack", "Attack", 0, 100, params.attack, "ms")}
+              ${rangeParam("release", "Release", 0, 200, params.release, "ms")}
+              <div class="toggle-row">
+                <span>Reverse</span>
+                <button class="${params.reverse ? "enabled" : ""}" data-toggle-param="reverse">${params.reverse ? "on" : "off"}</button>
+              </div>
+              <div class="toggle-row">
+                <span>Choke</span>
+                <button class="${params.choke ? "enabled" : ""}" data-toggle-param="choke">${params.choke ? "mono/steal" : "poly"}</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      panel.querySelectorAll("[data-param]").forEach(input => {
+        input.addEventListener("input", () => {
+          const key = input.dataset.param;
+          currentStepParams()[stepIndex][key] = Number(input.value);
+          const readout = panel.querySelector(`[data-readout="${key}"]`);
+          if (readout) readout.textContent = formatParamValue(key, currentStepParams()[stepIndex][key]);
+        });
+      });
+      panel.querySelectorAll("[data-toggle-param]").forEach(button => {
+        button.addEventListener("click", () => {
+          const key = button.dataset.toggleParam;
+          currentStepParams()[stepIndex][key] = !currentStepParams()[stepIndex][key];
+          renderDestination();
+        });
+      });
+    }
+
+    function rangeParam(key, label, min, max, value, suffix) {
+      return `
+        <div class="param-row">
+          <label for="param-${key}">${label}</label>
+          <input id="param-${key}" data-param="${key}" type="range" min="${min}" max="${max}" value="${value}">
+          <span data-readout="${key}">${formatParamValue(key, value, suffix)}</span>
+        </div>
+      `;
+    }
+
+    function formatParamValue(key, value, explicitSuffix) {
+      const suffixByKey = {
+        gain: "dB",
+        pitch: "st",
+        startTrim: "%",
+        endTrim: "%",
+        pan: "",
+        filter: "%",
+        attack: "ms",
+        release: "ms"
+      };
+      const suffix = explicitSuffix ?? suffixByKey[key] ?? "";
+      if (key === "pan" && value === 0) return "C";
+      return `${value}${suffix}`;
+    }
+
+    function pageCount() {
+      return Math.max(1, Math.ceil(state.clipLength / 16));
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>

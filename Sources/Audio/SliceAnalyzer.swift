@@ -47,6 +47,7 @@ enum SliceAnalyzer {
         let threshold = mean + max(0, sensitivity) * sqrt(variance)
         let minDistanceFrames = max(1, Int(file.processingFormat.sampleRate * 0.05))
         var transientFrames: [Int64] = []
+        var transientScores: [Double] = []
 
         for index in smoothed.indices {
             guard smoothed[index] > threshold,
@@ -54,15 +55,23 @@ enum SliceAnalyzer {
             else {
                 continue
             }
-            let frame = Int64((index + 1) * windowSize)
+            let frame = refinedTransientFrame(
+                around: Int64((index + 1) * windowSize),
+                samples: samples,
+                sampleRate: file.processingFormat.sampleRate,
+                length: length
+            )
             if let last = transientFrames.last,
                frame - last < Int64(minDistanceFrames)
             {
-                if smoothed[index] > smoothed[Int(max(0, last / Int64(windowSize) - 1))] {
+                if let lastScore = transientScores.last,
+                   smoothed[index] > lastScore {
                     transientFrames[transientFrames.count - 1] = frame
+                    transientScores[transientScores.count - 1] = smoothed[index]
                 }
             } else {
                 transientFrames.append(min(max(frame, 0), length - 1))
+                transientScores.append(smoothed[index])
             }
         }
 
@@ -81,6 +90,45 @@ enum SliceAnalyzer {
         }
 
         return markers
+    }
+
+    private static func refinedTransientFrame(
+        around roughFrame: Int64,
+        samples: [Float],
+        sampleRate: Double,
+        length: Int64
+    ) -> Int64 {
+        guard !samples.isEmpty else {
+            return min(max(roughFrame, 0), max(0, length - 1))
+        }
+
+        let sampleCount = samples.count
+        let center = min(max(Int(roughFrame), 0), sampleCount - 1)
+        let lookBack = min(center, max(1, Int(sampleRate * 0.03)))
+        let lookAhead = min(sampleCount - 1, center + max(1, Int(sampleRate * 0.01)))
+        let lower = max(0, center - lookBack)
+        let upper = max(lower, lookAhead)
+
+        var peakIndex = lower
+        var peakMagnitude = abs(samples[lower])
+        for index in lower...upper {
+            let magnitude = abs(samples[index])
+            if magnitude > peakMagnitude {
+                peakMagnitude = magnitude
+                peakIndex = index
+            }
+        }
+
+        guard peakMagnitude > 0 else {
+            return min(max(roughFrame, 0), max(0, length - 1))
+        }
+
+        let threshold = max(peakMagnitude * 0.2, 0.015)
+        var onset = peakIndex
+        while onset > lower, abs(samples[onset - 1]) > threshold {
+            onset -= 1
+        }
+        return min(max(Int64(onset), 0), max(0, length - 1))
     }
 
     private static func monoSamples(from file: AVAudioFile) -> [Float]? {

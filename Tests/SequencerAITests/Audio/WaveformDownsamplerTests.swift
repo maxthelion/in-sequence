@@ -61,6 +61,14 @@ final class WaveformDownsamplerTests: XCTestCase {
         XCTAssertEqual(first, second)
     }
 
+    func test_cacheKeepsBucketCountsSeparate() {
+        _ = WaveformDownsampler.downsample(url: tempURL, bucketCount: 8)
+
+        let buckets = WaveformDownsampler.downsample(url: tempURL, bucketCount: 32)
+
+        XCTAssertEqual(buckets.count, 32)
+    }
+
     func test_missingFile_returnsZeros() {
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID()).wav")
         let buckets = WaveformDownsampler.downsample(url: missing, bucketCount: 10)

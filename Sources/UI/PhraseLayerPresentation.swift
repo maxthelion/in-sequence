@@ -6,14 +6,15 @@ func layerAccent(_ layerID: String) -> Color {
         return StudioTheme.violet
     case "mute", "fill-flag":
         return StudioTheme.success
-    case "tension", "transpose":
+    case "tension", "transpose", "swing":
         return StudioTheme.amber
+    case "volume", "intensity", "density", "variance":
+        return StudioTheme.cyan
     default:
         // Macro param layers follow the convention "macro-<trackID>-<bindingID>".
         if layerID.hasPrefix("macro-") {
             return StudioTheme.cyan
         }
-        assertionFailure("Unhandled phrase layer accent id: \(layerID)")
         return StudioTheme.cyan
     }
 }

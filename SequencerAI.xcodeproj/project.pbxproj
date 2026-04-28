@@ -243,6 +243,8 @@
 		AFEC910ED207BA5E8F1AADA9 /* Project+TrackMacros.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773F90C630CF113A01EEBE27 /* Project+TrackMacros.swift */; };
 		B04D33E65E6D0FF3E2FBD89E /* SamplerFilterSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47991C72ED92062FA4C7B60 /* SamplerFilterSettings.swift */; };
 		B09365E9EF3326B7CEA39839 /* GeneratorDisplaySupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D96304AF6465BA172C1C420 /* GeneratorDisplaySupport.swift */; };
+		ABCD1311ABCD1311ABCD1311 /* SliceTrackEditingControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCD1310ABCD1310ABCD1310 /* SliceTrackEditingControls.swift */; };
+		ABCD1301ABCD1301ABCD1301 /* SliceTrackWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCD1300ABCD1300ABCD1300 /* SliceTrackWorkspaceView.swift */; };
 		B1E6C92D0B6E2A233808A1D0 /* SlicerSourceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686BCD83DAE9CA8DE8722088 /* SlicerSourceWidget.swift */; };
 		B1E9D2674C7F45983E382984 /* TrackMacroApplier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54005765D1EB6C8DDA9716C9 /* TrackMacroApplier.swift */; };
 		B210AAE86C5E2F866C001541 /* ChordsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D255BAF257E78267B5E832 /* ChordsTests.swift */; };
@@ -306,6 +308,7 @@
 		E5D850D36A04C9A9F10EE2E8 /* StepAlgoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B57F2D76ACEE6E284F48C57 /* StepAlgoTests.swift */; };
 		E5DED0443CBBFBB090BFA6DF /* IncrementalCompileEquivalenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1093F2D07C44977D2CF6F55 /* IncrementalCompileEquivalenceTests.swift */; };
 		E80E6F92E23134EEEEDA1F92 /* StudioTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A23362B81E182775F742464 /* StudioTheme.swift */; };
+		ABCD1201ABCD1201ABCD1201 /* ProjectAppendSliceTrackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCD1200ABCD1200ABCD1200 /* ProjectAppendSliceTrackTests.swift */; };
 		E9D51F7061902CA6A05E16F5 /* ProjectAppendTrackClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1B8B7F12FF451ABA239E2C /* ProjectAppendTrackClipTests.swift */; };
 		E9E6CBE9359498316F504996 /* ProjectTrackSamplerFilterMacrosTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331B0D6DF5D2261BD79B0BD5 /* ProjectTrackSamplerFilterMacrosTests.swift */; };
 		EA241B061391FE44AD46A4E3 /* ProjectEmptyDefaultsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 448467596CF9C92D665D1B98 /* ProjectEmptyDefaultsTests.swift */; };
@@ -509,6 +512,8 @@
 		5BFB523CBDC50B50E99FADEE /* 2026-04-21-fix-sample-playback-graph-mutation-on-tickclock.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-fix-sample-playback-graph-mutation-on-tickclock.md"; sourceTree = "<group>"; };
 		5DE2E6B18CB11560E0791821 /* NoteShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteShapeTests.swift; sourceTree = "<group>"; };
 		5EE2F38562F3B0EF98D7C39D /* SliceInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceInspectorView.swift; sourceTree = "<group>"; };
+		ABCD1310ABCD1310ABCD1310 /* SliceTrackEditingControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceTrackEditingControls.swift; sourceTree = "<group>"; };
+		ABCD1300ABCD1300ABCD1300 /* SliceTrackWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceTrackWorkspaceView.swift; sourceTree = "<group>"; };
 		5F321A75B2E13B96537229EB /* LibraryWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryWorkspaceView.swift; sourceTree = "<group>"; };
 		5F905C61C81FC1E24DACFB58 /* category-taxonomy.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "category-taxonomy.md"; sourceTree = "<group>"; };
 		602521066F31995FF617B8F8 /* Project+Tracks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Tracks.swift"; sourceTree = "<group>"; };
@@ -531,6 +536,7 @@
 		6A722A3FE340A068B514DB7E /* SequencerDocumentSessionRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerDocumentSessionRegistry.swift; sourceTree = "<group>"; };
 		6AAFEACE9EB181127A5EA6C7 /* SamplerSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplerSettingsTests.swift; sourceTree = "<group>"; };
 		6ACF8984A61584E576746127 /* 2026-04-24-sub-cell-modulation.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-24-sub-cell-modulation.md"; sourceTree = "<group>"; };
+		ABCD1200ABCD1200ABCD1200 /* ProjectAppendSliceTrackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAppendSliceTrackTests.swift; sourceTree = "<group>"; };
 		6B1B8B7F12FF451ABA239E2C /* ProjectAppendTrackClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAppendTrackClipTests.swift; sourceTree = "<group>"; };
 		6D1774291FC8B91A91B042E6 /* ClipContentMacroLaneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipContentMacroLaneTests.swift; sourceTree = "<group>"; };
 		6E5287FF85E53E1D764EC6FD /* MIDIRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIRouter.swift; sourceTree = "<group>"; };
@@ -1137,6 +1143,8 @@
 			isa = PBXGroup;
 			children = (
 				5EE2F38562F3B0EF98D7C39D /* SliceInspectorView.swift */,
+				ABCD1310ABCD1310ABCD1310 /* SliceTrackEditingControls.swift */,
+				ABCD1300ABCD1300ABCD1300 /* SliceTrackWorkspaceView.swift */,
 				E1A43942B9DE664F56D3D1E7 /* SlicerControlField.swift */,
 				686BCD83DAE9CA8DE8722088 /* SlicerSourceWidget.swift */,
 				3CBBE661BFC976779D2F2326 /* SlicerWaveformView.swift */,
@@ -1517,6 +1525,7 @@
 				8548BD802026811169481E96 /* ProjectAddDrumGroupTests.swift */,
 				370F7CF0CDFDBF463EF231FE /* ProjectAddDrumKitClipTests.swift */,
 				FC96F0AEE0AD4870120E4B42 /* ProjectAddDrumKitShimTests.swift */,
+				ABCD1200ABCD1200ABCD1200 /* ProjectAppendSliceTrackTests.swift */,
 				6B1B8B7F12FF451ABA239E2C /* ProjectAppendTrackClipTests.swift */,
 				FD89550D3BD60A558D57F6DA /* ProjectAppendTrackDefaultDestinationTests.swift */,
 				E6CC65391D8DDD5FD5350FE3 /* ProjectAttachNewGeneratorTests.swift */,
@@ -1804,6 +1813,7 @@
 				B56E1A4B4F8B75D1A7131822 /* ProjectAddDrumGroupTests.swift in Sources */,
 				9EDFA24DDA0130DAFEEB5722 /* ProjectAddDrumKitClipTests.swift in Sources */,
 				64DACCB33481CA01A2E4C0C8 /* ProjectAddDrumKitShimTests.swift in Sources */,
+				ABCD1201ABCD1201ABCD1201 /* ProjectAppendSliceTrackTests.swift in Sources */,
 				E9D51F7061902CA6A05E16F5 /* ProjectAppendTrackClipTests.swift in Sources */,
 				4597C8E722BACABA440DC4A3 /* ProjectAppendTrackDefaultDestinationTests.swift in Sources */,
 				6F6F86BF92A2F0E984201AEE /* ProjectAttachNewGeneratorTests.swift in Sources */,
@@ -2023,6 +2033,8 @@
 				D2FFED2DE7F0FF065F2AC963 /* SliceAnalyzer.swift in Sources */,
 				EE125CE0AB3CC4B23D073F52 /* SliceIndexEditor.swift in Sources */,
 				F43E88D9A5286376C0B09DED /* SliceInspectorView.swift in Sources */,
+				ABCD1311ABCD1311ABCD1311 /* SliceTrackEditingControls.swift in Sources */,
+				ABCD1301ABCD1301ABCD1301 /* SliceTrackWorkspaceView.swift in Sources */,
 				F3BD3C15B233A27E35B0F202 /* SliceMarker.swift in Sources */,
 				16163F2E83F6190EAE85C8DA /* SliceSet.swift in Sources */,
 				43564851CC4ECFAC1E7C50A1 /* SlicerControlField.swift in Sources */,

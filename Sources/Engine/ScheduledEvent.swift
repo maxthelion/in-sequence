@@ -18,6 +18,7 @@ struct ScheduledEvent: Equatable, Sendable {
             endFrame: Int64,
             settings: SlicerSettings,
             reverse: Bool,
+            stepParameters: SliceTriggerStepParameters,
             scheduledHostTime: TimeInterval
         )
     }

@@ -656,6 +656,14 @@ struct TrackDestinationEditor: View {
                     current = sliceSet
                 }
             },
+            onApplyAnalyzedSliceSet: { sliceSet, sampleLengthFrames, clipLengthSteps in
+                session.applySlicerAnalysis(
+                    sliceSet: sliceSet,
+                    sampleLengthFrames: sampleLengthFrames,
+                    clipLengthSteps: clipLengthSteps,
+                    for: track.id
+                )
+            },
             onManageMacros: {
                 showingMacroPickerSheet = true
             },

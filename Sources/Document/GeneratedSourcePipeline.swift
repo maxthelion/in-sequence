@@ -10,6 +10,21 @@ struct GeneratedNote: Codable, Equatable, Hashable, Sendable {
     var velocity: Int
     var length: Int
     var voiceTag: VoiceTag?
+    var sliceParameters: SliceTriggerStepParameters?
+
+    init(
+        pitch: Int,
+        velocity: Int,
+        length: Int,
+        voiceTag: VoiceTag?,
+        sliceParameters: SliceTriggerStepParameters? = nil
+    ) {
+        self.pitch = pitch
+        self.velocity = velocity
+        self.length = length
+        self.voiceTag = voiceTag
+        self.sliceParameters = sliceParameters
+    }
 }
 
 enum HarmonicSidechainSource: Codable, Equatable, Hashable, Sendable {

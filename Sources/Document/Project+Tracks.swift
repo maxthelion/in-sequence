@@ -22,6 +22,38 @@ extension Project {
     }
 
     @discardableResult
+    mutating func appendSliceTrack(sample: AudioSample) -> UUID {
+        appendTrack(trackType: .slice)
+
+        let trackID = selectedTrackID
+        let sampleLengthFrames = max(0, sample.lengthFrames ?? 0)
+        var sliceSet = SliceSet(
+            sampleID: sample.id,
+            markers: [SliceMarker(startFrame: 0, endFrame: sampleLengthFrames)],
+            mode: .manual
+        )
+        sliceSet.normalize(sampleLengthFrames: sampleLengthFrames)
+        addSliceSet(sliceSet)
+
+        if let trackIndex = tracks.firstIndex(where: { $0.id == trackID }) {
+            tracks[trackIndex].name = sample.name
+            tracks[trackIndex].destination = .slicer(sliceSetID: sliceSet.id, settings: .default)
+            tracks[trackIndex].stepPattern = Array(repeating: false, count: 16)
+            tracks[trackIndex].stepAccents = Array(repeating: false, count: 16)
+        }
+
+        if let clipID = patternBank(for: trackID).slot(at: 0).sourceRef.clipID {
+            updateClipEntry(id: clipID) { clip in
+                clip.name = "\(sample.name) clip"
+                clip.content = .emptySliceTriggers(lengthSteps: 16)
+                clip.macroLanes = clip.macroLanes.mapValues { $0.synced(stepCount: 16) }
+            }
+        }
+
+        return trackID
+    }
+
+    @discardableResult
     mutating func addDrumKit(
         _ preset: DrumKitPreset,
         library: AudioSampleLibrary = .shared
@@ -90,7 +122,7 @@ extension Project {
         case .monoMelodic, .polyMelodic:
             return StepSequenceTrack.default.stepPattern
         case .slice:
-            return [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false]
+            return Array(repeating: false, count: 16)
         }
     }
 
@@ -104,6 +136,15 @@ extension Project {
     }
 
     static func makeOwnedClip(for track: StepSequenceTrack) -> ClipPoolEntry {
+        if track.trackType == .slice {
+            return ClipPoolEntry(
+                id: UUID(),
+                name: "\(track.name) clip",
+                trackType: .slice,
+                content: .emptySliceTriggers(lengthSteps: 16)
+            )
+        }
+
         guard let template = ClipPoolEntry.defaultPool.first(where: { $0.trackType == track.trackType }) else {
             // No template for this trackType — synthesise an empty note-grid clip.
             return ClipPoolEntry(

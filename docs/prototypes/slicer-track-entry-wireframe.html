@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slicer Track Entry Wireframe</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f7f7;
+      --ink: #1f1f1f;
+      --muted: #707070;
+      --line: #222;
+      --soft-line: #9a9a9a;
+      --panel: #ffffff;
+      --stub: #e8e8e8;
+      --accent: #1477d4;
+      --accent-soft: #d9ebff;
+      --disabled: #b7b7b7;
+      --changed: #fff3bf;
+      --error: #ffd8d8;
+      --success: #d9f5dd;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      overflow-x: hidden;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.35;
+      overflow-x: hidden;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    button:hover,
+    button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 750;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 750;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 15px;
+      font-weight: 750;
+      margin-bottom: 6px;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    .app-stub {
+      display: grid;
+      grid-template-columns: 210px 1fr 260px;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 2px solid var(--line);
+      background:
+        repeating-linear-gradient(45deg, var(--stub), var(--stub) 8px, #f2f2f2 8px, #f2f2f2 16px);
+    }
+
+    .stub-label {
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .stub-button {
+      color: var(--muted);
+      border-style: dashed;
+      background: transparent;
+    }
+
+    .workspace {
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+    }
+
+    .panel.stub {
+      border-style: dashed;
+      color: var(--muted);
+      background:
+        repeating-linear-gradient(45deg, var(--stub), var(--stub) 7px, #f5f5f5 7px, #f5f5f5 14px);
+    }
+
+    .header-row,
+    .toolbar,
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .annotation {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .primary {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+      font-weight: 750;
+    }
+
+    .secondary {
+      background: var(--panel);
+      font-weight: 650;
+    }
+
+    .danger {
+      background: var(--error);
+    }
+
+    .disabled {
+      color: var(--disabled);
+      border-color: var(--disabled);
+      background: #f0f0f0;
+      cursor: default;
+    }
+
+    .control-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .track-scroll {
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .track-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(124px, 1fr));
+      gap: 10px;
+      min-width: 1060px;
+    }
+
+    .track-card {
+      min-height: 132px;
+      display: grid;
+      align-content: space-between;
+      gap: 12px;
+      text-align: left;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 12px;
+    }
+
+    .track-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .track-card.pending {
+      border-style: dashed;
+      background: var(--changed);
+    }
+
+    .track-card.stub {
+      border-style: dashed;
+      color: var(--muted);
+      background:
+        repeating-linear-gradient(45deg, var(--stub), var(--stub) 6px, #f5f5f5 6px, #f5f5f5 12px);
+    }
+
+    .track-kind {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .track-name {
+      margin-top: 6px;
+      font-size: 17px;
+      font-weight: 780;
+      overflow-wrap: anywhere;
+    }
+
+    .track-meta {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .empty-state {
+      border: 2px dashed var(--line);
+      padding: 18px;
+      background: var(--stub);
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: 100px minmax(0, 1fr);
+      gap: 10px;
+      padding: 8px;
+      border: 2px solid var(--line);
+      background: var(--panel);
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.35);
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(940px, calc(100vw - 48px));
+      max-height: calc(100vh - 48px);
+      display: grid;
+      gap: 14px;
+      overflow: auto;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .close-button {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      font-size: 22px;
+      font-weight: 750;
+      line-height: 1;
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .search-row input {
+      min-height: 38px;
+      border: 2px solid var(--line);
+      padding: 8px 10px;
+      background: var(--panel);
+    }
+
+    .loop-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .loop-card {
+      min-height: 112px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 140px;
+      gap: 12px;
+      align-items: stretch;
+      text-align: left;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 12px;
+    }
+
+    .loop-card.warning {
+      background: var(--changed);
+    }
+
+    .loop-card.error {
+      background: var(--error);
+    }
+
+    .loop-card.previewing {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .loop-name {
+      font-weight: 780;
+      overflow-wrap: anywhere;
+    }
+
+    .loop-meta {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .loop-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .preview-status {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 6px;
+      border: 2px solid var(--line);
+      background: var(--success);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .mini-wave {
+      position: relative;
+      min-height: 72px;
+      border: 2px solid var(--line);
+      background:
+        linear-gradient(90deg, transparent 0 5%, var(--soft-line) 5% 6%, transparent 6% 12%, var(--soft-line) 12% 13%, transparent 13% 21%, var(--soft-line) 21% 22%, transparent 22% 31%, var(--soft-line) 31% 32%, transparent 32% 44%, var(--soft-line) 44% 45%, transparent 45% 55%, var(--soft-line) 55% 56%, transparent 56% 67%, var(--soft-line) 67% 68%, transparent 68% 78%, var(--soft-line) 78% 79%, transparent 79% 100%),
+        #efefef;
+    }
+
+    .mini-wave::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: 22px;
+      height: 28px;
+      background: #8a8a8a;
+      clip-path: polygon(0 58%, 8% 30%, 17% 48%, 25% 18%, 33% 70%, 42% 36%, 50% 52%, 60% 26%, 68% 74%, 76% 42%, 86% 22%, 100% 66%, 100% 100%, 0 100%);
+    }
+
+    .loop-card.previewing .mini-wave {
+      background:
+        linear-gradient(90deg, transparent 0 5%, var(--accent) 5% 6%, transparent 6% 12%, var(--accent) 12% 13%, transparent 13% 21%, var(--accent) 21% 22%, transparent 22% 31%, var(--accent) 31% 32%, transparent 32% 44%, var(--accent) 44% 45%, transparent 45% 55%, var(--accent) 55% 56%, transparent 56% 67%, var(--accent) 67% 68%, transparent 68% 78%, var(--accent) 78% 79%, transparent 79% 100%),
+        #efefef;
+    }
+
+    .state-panel {
+      border: 2px dashed var(--line);
+      background: var(--stub);
+      padding: 12px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 30;
+      display: none;
+      max-width: 360px;
+      border: 2px solid var(--line);
+      background: var(--changed);
+      padding: 12px 14px;
+    }
+
+    .toast.visible {
+      display: block;
+    }
+
+    @media (max-width: 980px) {
+      .app-stub,
+      .detail-grid,
+      .loop-list {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="app-stub">
+      <strong>Tracks Entry Prototype</strong>
+      <span class="stub-label">[transport + global navigation stubbed]</span>
+      <button class="stub-button" data-stub="[project menu]">-&gt; [project menu]</button>
+    </header>
+
+    <main class="workspace">
+      <section class="panel">
+        <div class="header-row">
+          <div>
+            <h1>Tracks</h1>
+            <p class="annotation">Primary path: New Slice Track -> choose loop -> open slicer workspace.</p>
+          </div>
+          <div class="toolbar" aria-label="Track actions">
+            <button class="secondary" data-stub="Add mono track">Add Mono</button>
+            <button class="secondary" data-stub="Add poly track">Add Poly</button>
+            <button class="primary" id="newSliceTrack">New Slice Track</button>
+            <button class="secondary" data-stub="Add drum group">Add Drum Group</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="detail-grid">
+        <section class="panel">
+          <div class="header-row">
+            <span class="control-label">Track Cells</span>
+            <span class="annotation" id="trackStatus">No slice track created yet.</span>
+          </div>
+          <div class="track-scroll">
+            <div class="track-grid" id="trackGrid"></div>
+          </div>
+        </section>
+
+        <aside class="panel" id="detailPanel">
+          <h2>Main Track</h2>
+          <div class="empty-state">
+            <strong>No slicer open</strong>
+            <p class="annotation">Click New Slice Track to choose a loop before the slicer page is created.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="panel stub">
+        <h2>Off-Path Tracks UI</h2>
+        <p>-&gt; [track destinations], -&gt; [mute/solo], -&gt; [perform toggle], -&gt; [track settings] stay stubbed here.</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="loopModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <section class="modal">
+      <div class="modal-head">
+        <div>
+          <span class="control-label">New Slice Track</span>
+          <h2 id="modalTitle">Choose Drum Loop</h2>
+          <p class="annotation">Selecting a loop creates a blank slice track and opens the slicer workspace. Cancel leaves Tracks unchanged.</p>
+        </div>
+        <button class="close-button" id="cancelModal" aria-label="Close">x</button>
+      </div>
+
+      <div class="search-row">
+        <input id="loopSearch" type="search" value="" placeholder="Filter loops">
+        <button id="showEmpty">Empty</button>
+        <button id="showError">Error</button>
+      </div>
+
+      <div class="loop-list" id="loopList"></div>
+      <div class="state-panel" id="modalState" hidden></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast">Stubbed</div>
+
+  <script>
+    const loops = [
+      {
+        id: "let-there-break",
+        name: "Let There Break",
+        bpm: "unknown BPM",
+        meta: "2.82s - 44.1k - raw loop",
+        warning: "Analysis will infer transient slices and length"
+      },
+      {
+        id: "reel-funk-amen",
+        name: "Reel Funk Amen",
+        bpm: "estimated 170 BPM",
+        meta: "2.82s - 44.1k - raw loop",
+        warning: ""
+      },
+      {
+        id: "calling-reverse-break",
+        name: "Calling Reverse Break - filename long enough to wrap in the picker",
+        bpm: "unknown BPM",
+        meta: "1.19s - reverse feel - raw loop",
+        warning: "Very short loop: analysis should fit one page"
+      },
+      {
+        id: "sao-tome-amen",
+        name: "São Tomé Amen With Diacritics",
+        bpm: "metadata says 0 BPM",
+        meta: "3.08s - raw loop",
+        warning: "Bad metadata fixture"
+      }
+    ];
+
+    const state = {
+      modalOpen: false,
+      modalMode: "list",
+      query: "",
+      pendingSlice: false,
+      previewLoopID: null,
+      selectedTrack: "main"
+    };
+
+    const trackGrid = document.querySelector("#trackGrid");
+    const trackStatus = document.querySelector("#trackStatus");
+    const detailPanel = document.querySelector("#detailPanel");
+    const loopModal = document.querySelector("#loopModal");
+    const loopList = document.querySelector("#loopList");
+    const modalState = document.querySelector("#modalState");
+    const loopSearch = document.querySelector("#loopSearch");
+    const toast = document.querySelector("#toast");
+
+    document.querySelector("#newSliceTrack").addEventListener("click", () => openLoopModal());
+    document.querySelector("#cancelModal").addEventListener("click", () => closeLoopModal());
+    document.querySelector("#showEmpty").addEventListener("click", () => {
+      state.modalMode = state.modalMode === "empty" ? "list" : "empty";
+      renderLoopModal();
+    });
+    document.querySelector("#showError").addEventListener("click", () => {
+      state.modalMode = state.modalMode === "error" ? "list" : "error";
+      renderLoopModal();
+    });
+    loopSearch.addEventListener("input", () => {
+      state.query = loopSearch.value;
+      state.modalMode = "list";
+      renderLoopModal();
+    });
+    loopModal.addEventListener("click", event => {
+      if (event.target === loopModal) {
+        closeLoopModal();
+      }
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && state.modalOpen) {
+        closeLoopModal();
+      }
+    });
+    document.querySelectorAll("[data-stub], .stub-button").forEach(button => {
+      button.addEventListener("click", () => showToast(button.dataset.stub || "stubbed"));
+    });
+
+    function openLoopModal() {
+      state.modalOpen = true;
+      state.pendingSlice = true;
+      state.selectedTrack = "slice-pending";
+      state.modalMode = "list";
+      renderAll();
+      loopSearch.focus();
+    }
+
+    function closeLoopModal() {
+      state.modalOpen = false;
+      state.pendingSlice = false;
+      state.previewLoopID = null;
+      state.selectedTrack = "main";
+      renderAll();
+    }
+
+    function chooseLoop(loopID) {
+      state.previewLoopID = null;
+      const nextURL = `slicer-workspace-wireframe.html?loop=${encodeURIComponent(loopID)}`;
+      window.location.href = nextURL;
+    }
+
+    function togglePreview(loopID) {
+      state.previewLoopID = state.previewLoopID === loopID ? null : loopID;
+      renderLoopModal();
+    }
+
+    function renderAll() {
+      renderTracks();
+      renderDetail();
+      renderLoopModal();
+    }
+
+    function renderTracks() {
+      const cards = [
+        { id: "main", kind: "Single", name: "Main Track", meta: "Mono - P1 - no default destination" },
+        { id: "poly", kind: "Poly", name: "Poly 2", meta: "Poly - P1 - no default destination" }
+      ];
+
+      if (state.pendingSlice) {
+        cards.push({ id: "slice-pending", kind: "Slice", name: "New Slice Track", meta: "Waiting for loop choice" });
+      }
+
+      cards.push(
+        { id: "empty-1", kind: "Empty", name: "+", meta: "Track slot", stub: true },
+        { id: "empty-2", kind: "Empty", name: "+", meta: "Track slot", stub: true },
+        { id: "empty-3", kind: "Empty", name: "+", meta: "Track slot", stub: true },
+        { id: "empty-4", kind: "Empty", name: "+", meta: "Track slot", stub: true },
+        { id: "empty-5", kind: "Empty", name: "+", meta: "Track slot", stub: true }
+      );
+
+      trackGrid.innerHTML = cards.map(card => `
+        <button class="track-card ${state.selectedTrack === card.id ? "selected" : ""} ${card.id === "slice-pending" ? "pending" : ""} ${card.stub ? "stub" : ""}" data-track="${card.id}">
+          <div>
+            <div class="track-kind">${card.kind}</div>
+            <div class="track-name">${card.name}</div>
+          </div>
+          <div class="track-meta">${card.meta}</div>
+        </button>
+      `).join("");
+
+      trackGrid.querySelectorAll("[data-track]").forEach(card => {
+        card.addEventListener("click", () => {
+          const id = card.dataset.track;
+          if (id === "slice-pending") {
+            openLoopModal();
+            return;
+          }
+          if (id.startsWith("empty")) {
+            showToast("empty track slot");
+            return;
+          }
+          state.selectedTrack = id;
+          renderAll();
+        });
+      });
+
+      trackStatus.textContent = state.pendingSlice
+        ? "New slice track is pending loop selection."
+        : "Primary goal in <=2 interactions: New Slice Track, then loop.";
+    }
+
+    function renderDetail() {
+      if (state.selectedTrack === "slice-pending") {
+        detailPanel.innerHTML = `
+          <h2>New Slice Track</h2>
+          <div class="empty-state">
+            <strong>Loop choice required</strong>
+            <p class="annotation">The track is not created until a loop is selected in the modal.</p>
+          </div>
+        `;
+        return;
+      }
+
+      detailPanel.innerHTML = `
+        <h2>${state.selectedTrack === "poly" ? "Poly 2" : "Main Track"}</h2>
+        <div class="detail-list">
+          <div class="detail-row"><span class="control-label">Type</span><strong>${state.selectedTrack === "poly" ? "Poly" : "Mono"}</strong></div>
+          <div class="detail-row"><span class="control-label">Phrase</span><strong>Phrase A</strong></div>
+          <div class="detail-row"><span class="control-label">Destination</span><strong>No default destination</strong></div>
+        </div>
+      `;
+    }
+
+    function renderLoopModal() {
+      loopModal.classList.toggle("open", state.modalOpen);
+      if (!state.modalOpen) {
+        return;
+      }
+
+      const matchingLoops = loops.filter(loop => {
+        const query = state.query.trim().toLowerCase();
+        if (!query) return true;
+        return `${loop.name} ${loop.bpm} ${loop.meta}`.toLowerCase().includes(query);
+      });
+
+      if (state.modalMode === "empty" || matchingLoops.length === 0) {
+        loopList.innerHTML = "";
+        modalState.hidden = false;
+        modalState.innerHTML = `
+          <strong>No loops found</strong>
+          <p class="annotation">This validates the empty picker state. Cancel returns to Tracks.</p>
+        `;
+        return;
+      }
+
+      if (state.modalMode === "error") {
+        loopList.innerHTML = "";
+        modalState.hidden = false;
+        modalState.innerHTML = `
+          <strong>Loop library unavailable</strong>
+          <p class="annotation">This validates the recoverable error state. Retry is stubbed.</p>
+          <button data-stub="retry loop library">Retry</button>
+        `;
+        modalState.querySelector("[data-stub]").addEventListener("click", () => showToast("retry loop library"));
+        return;
+      }
+
+      modalState.hidden = true;
+      modalState.innerHTML = "";
+      loopList.innerHTML = matchingLoops.map(loop => `
+        <div class="loop-card ${loop.warning ? "warning" : ""} ${state.previewLoopID === loop.id ? "previewing" : ""}">
+          <div>
+            <div class="loop-name">${loop.name}</div>
+            <div class="loop-meta">${loop.bpm} - ${loop.meta}${loop.warning ? `<br>${loop.warning}` : ""}</div>
+            ${state.previewLoopID === loop.id ? '<span class="preview-status">Previewing</span>' : ""}
+            <div class="loop-actions">
+              <button data-preview-loop="${loop.id}">${state.previewLoopID === loop.id ? "Stop" : "Play"}</button>
+              <button class="primary" data-use-loop="${loop.id}">Use Loop</button>
+            </div>
+          </div>
+          <div class="mini-wave" aria-hidden="true"></div>
+        </div>
+      `).join("");
+
+      loopList.querySelectorAll("[data-preview-loop]").forEach(button => {
+        button.addEventListener("click", () => togglePreview(button.dataset.previewLoop));
+      });
+      loopList.querySelectorAll("[data-use-loop]").forEach(button => {
+        button.addEventListener("click", () => chooseLoop(button.dataset.useLoop));
+      });
+    }
+
+    function showToast(message) {
+      toast.textContent = `${message}: stubbed for this prototype`;
+      toast.classList.add("visible");
+      window.setTimeout(() => toast.classList.remove("visible"), 1400);
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>

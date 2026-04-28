@@ -188,7 +188,7 @@ enum SequencerSnapshotCompiler {
         switch normalized {
         case let .noteGrid(_, clipSteps):
             steps = clipSteps.map(compileStepBuffer)
-        case let .sliceTriggers(stepPattern, sliceIndexes, _):
+        case let .sliceTriggers(stepPattern, sliceIndexes, _, _):
             let normalizedIndexes = sliceIndexes.isEmpty ? [60] : sliceIndexes.map { 60 + $0 }
             steps = stepPattern.map { isOn in
                 guard isOn else {

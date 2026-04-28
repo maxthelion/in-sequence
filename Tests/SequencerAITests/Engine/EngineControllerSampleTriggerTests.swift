@@ -5,7 +5,7 @@ import AVFoundation
 final class EngineControllerSampleTriggerTests: XCTestCase {
     private final class SpySamplePlaybackSink: SamplePlaybackSink {
         var playCalls: [(URL, SamplerSettings, UUID)] = []
-        var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, Bool)] = []
+        var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, Bool, SliceTriggerStepParameters?)] = []
         var prepareTrackCalls: [UUID] = []
         var setTrackMixCalls: [(UUID, Double, Double)] = []
         var removeTrackCalls: [UUID] = []
@@ -25,9 +25,10 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             settings: SlicerSettings,
             trackID: UUID,
             at when: AVAudioTime?,
-            reverse: Bool
+            reverse: Bool,
+            stepParameters: SliceTriggerStepParameters?
         ) -> VoiceHandle? {
-            playSliceCalls.append((sampleURL, startFrame, endFrame, settings, trackID, reverse))
+            playSliceCalls.append((sampleURL, startFrame, endFrame, settings, trackID, reverse, stepParameters))
             return nil
         }
         func setTrackMix(trackID: UUID, level: Double, pan: Double) {
@@ -423,6 +424,80 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(call?.3.gain ?? 0, 1, accuracy: 1e-9)
         XCTAssertEqual(call?.4, track.id)
         XCTAssertEqual(call?.5, true)
+    }
+
+    func test_slicerDestination_appliesPerStepSamplePlayerParameters() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let sample = library.firstSample(in: .kick) else {
+            XCTFail("fixture missing"); return
+        }
+        let spy = SpySamplePlaybackSink()
+        let sliceSet = SliceSet(
+            sampleID: sample.id,
+            markers: [
+                SliceMarker(startFrame: 0, endFrame: 44_100),
+                SliceMarker(startFrame: 100, endFrame: 1_100, gain: 3)
+            ]
+        )
+        let stepParameters = SliceTriggerStepParameters(
+            gain: 4,
+            pitch: 2,
+            startTrim: 0.1,
+            endTrim: 0.2,
+            reverse: true,
+            choke: false
+        )
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: "Slice Clip",
+            trackType: .slice,
+            content: .sliceTriggers(
+                stepPattern: [true],
+                sliceIndexes: [1],
+                stepModes: [.single],
+                stepParameters: [stepParameters]
+            )
+        )
+        let track = StepSequenceTrack(
+            name: "Slice",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .slicer(sliceSetID: sliceSet.id, settings: SlicerSettings(gain: -2, transpose: 1, voiceMode: .mono)),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [clip])
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        let project = makeProject(
+            track: track,
+            generator: generator,
+            phrase: phrase,
+            layers: layers,
+            clipPool: [clip],
+            patternBank: bank,
+            sliceSetPool: [sliceSet]
+        )
+        let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
+
+        let call = spy.playSliceCalls.first
+        XCTAssertEqual(spy.playSliceCalls.count, 1)
+        XCTAssertEqual(call?.1, 200)
+        XCTAssertEqual(call?.2, 900)
+        XCTAssertEqual(call?.3.gain ?? 0, 5, accuracy: 1e-9)
+        XCTAssertEqual(call?.3.transpose, 3)
+        XCTAssertEqual(call?.3.voiceMode, .polyphonic)
+        XCTAssertEqual(call?.5, true)
+        XCTAssertEqual(call?.6?.pan, 0)
+        XCTAssertEqual(call?.6?.filter, 1)
     }
 
     func test_slicerDestination_appliesMicroTimingAtSampleRate() {

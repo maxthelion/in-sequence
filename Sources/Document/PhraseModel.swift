@@ -940,7 +940,7 @@ extension ClipPoolEntry {
                 )
             )
             .sorted()
-        case let .sliceTriggers(_, sliceIndexes, _):
+        case let .sliceTriggers(_, sliceIndexes, _, _):
             return sliceIndexes.map { 60 + $0 }
         }
     }

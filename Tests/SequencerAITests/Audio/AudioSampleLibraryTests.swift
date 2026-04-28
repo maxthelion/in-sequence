@@ -8,10 +8,12 @@ final class AudioSampleLibraryTests: XCTestCase {
         tempRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempRoot.appendingPathComponent("kick"), withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: tempRoot.appendingPathComponent("snare"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempRoot.appendingPathComponent("breaks"), withIntermediateDirectories: true)
         try Data().write(to: tempRoot.appendingPathComponent("kick/k-a.wav"))
         try Data().write(to: tempRoot.appendingPathComponent("kick/k-b.wav"))
         try Data().write(to: tempRoot.appendingPathComponent("kick/k-c.wav"))
         try Data().write(to: tempRoot.appendingPathComponent("snare/s-a.wav"))
+        try Data().write(to: tempRoot.appendingPathComponent("breaks/amen.wav"))
     }
 
     override func tearDownWithError() throws {
@@ -22,7 +24,12 @@ final class AudioSampleLibraryTests: XCTestCase {
         let lib = AudioSampleLibrary(libraryRoot: tempRoot)
         XCTAssertEqual(lib.samples(in: .kick).count, 3)
         XCTAssertEqual(lib.samples(in: .snare).count, 1)
+        XCTAssertEqual(lib.samples(in: .breaks).count, 1)
         XCTAssertTrue(lib.samples(in: .hatOpen).isEmpty)
+    }
+
+    func test_breaks_areNotDrumVoices() {
+        XCTAssertFalse(AudioSampleCategory.breaks.isDrumVoice)
     }
 
     func test_samples_sortedByFilename() {

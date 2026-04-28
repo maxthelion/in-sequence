@@ -69,7 +69,8 @@ final class SamplePlaybackEngineTests: XCTestCase {
             settings: .default,
             trackID: UUID(),
             at: nil,
-            reverse: false
+            reverse: false,
+            stepParameters: nil
         ))
     }
 
@@ -85,9 +86,46 @@ final class SamplePlaybackEngineTests: XCTestCase {
             settings: .default,
             trackID: trackID,
             at: nil,
-            reverse: false
+            reverse: false,
+            stepParameters: nil
         )
         XCTAssertNotNil(handle)
+    }
+
+    func test_applyEnvelope_shapesAttackAndRelease() throws {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 1_000, channels: 1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 10)!
+        buffer.frameLength = 10
+        let samples = try XCTUnwrap(buffer.floatChannelData?[0])
+        for index in 0..<10 {
+            samples[index] = 1
+        }
+
+        SamplePlaybackEngine.applyEnvelope(to: buffer, attackMs: 3, releaseMs: 3)
+
+        XCTAssertEqual(samples[0], 0, accuracy: 0.0001)
+        XCTAssertEqual(samples[1], Float(1.0 / 3.0), accuracy: 0.0001)
+        XCTAssertEqual(samples[3], 1, accuracy: 0.0001)
+        XCTAssertEqual(samples[6], 1, accuracy: 0.0001)
+        XCTAssertEqual(samples[8], Float(1.0 / 3.0), accuracy: 0.0001)
+        XCTAssertEqual(samples[9], 0, accuracy: 0.0001)
+    }
+
+    func test_applyEnvelope_zeroEnvelopeLeavesBufferUntouched() throws {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 1_000, channels: 1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4)!
+        buffer.frameLength = 4
+        let samples = try XCTUnwrap(buffer.floatChannelData?[0])
+        for index in 0..<4 {
+            samples[index] = Float(index + 1)
+        }
+
+        SamplePlaybackEngine.applyEnvelope(to: buffer, attackMs: 0, releaseMs: 0)
+
+        XCTAssertEqual(samples[0], 1, accuracy: 0.0001)
+        XCTAssertEqual(samples[1], 2, accuracy: 0.0001)
+        XCTAssertEqual(samples[2], 3, accuracy: 0.0001)
+        XCTAssertEqual(samples[3], 4, accuracy: 0.0001)
     }
 
     func test_prepareTrack_isIdempotent() {

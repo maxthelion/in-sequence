@@ -2,7 +2,7 @@ import Foundation
 import AVFoundation
 
 enum WaveformDownsampler {
-    private static let cache = NSCache<NSURL, NSArray>()
+    private static let cache = NSCache<NSString, NSArray>()
 
     /// Reads the audio file at `url`, computes peak absolute magnitude per bucket
     /// (mono sum across channels), returns `bucketCount` floats in `[0, 1]`.
@@ -10,13 +10,18 @@ enum WaveformDownsampler {
     static func downsample(url: URL, bucketCount: Int = 64) -> [Float] {
         precondition(bucketCount > 0, "bucketCount must be positive")
 
-        if let cached = cache.object(forKey: url as NSURL) as? [NSNumber] {
+        let key = cacheKey(url: url, bucketCount: bucketCount)
+        if let cached = cache.object(forKey: key) as? [NSNumber] {
             return cached.map { $0.floatValue }
         }
 
         let buckets = computeBuckets(url: url, bucketCount: bucketCount)
-        cache.setObject(buckets.map { NSNumber(value: $0) } as NSArray, forKey: url as NSURL)
+        cache.setObject(buckets.map { NSNumber(value: $0) } as NSArray, forKey: key)
         return buckets
+    }
+
+    private static func cacheKey(url: URL, bucketCount: Int) -> NSString {
+        "\(url.absoluteString)#\(bucketCount)" as NSString
     }
 
     private static func computeBuckets(url: URL, bucketCount: Int) -> [Float] {
@@ -43,12 +48,10 @@ enum WaveformDownsampler {
 
         let channels = Int(buffer.format.channelCount)
         let totalFrames = Int(buffer.frameLength)
-        let framesPerBucket = max(1, totalFrames / bucketCount)
-
         var out = Array<Float>(repeating: 0, count: bucketCount)
         for bucket in 0..<bucketCount {
-            let start = bucket * framesPerBucket
-            let end = min(start + framesPerBucket, totalFrames)
+            let start = Int((Double(bucket) / Double(bucketCount)) * Double(totalFrames))
+            let end = Int((Double(bucket + 1) / Double(bucketCount)) * Double(totalFrames))
             guard start < end else { break }
 
             var peak: Float = 0

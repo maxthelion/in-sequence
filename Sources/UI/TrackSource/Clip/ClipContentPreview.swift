@@ -136,7 +136,7 @@ struct ClipContentPreview: View {
             case let .noteGrid(lengthSteps, steps):
                 noteGridEditor(lengthSteps: lengthSteps, steps: steps)
 
-            case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
+            case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
                 VStack(alignment: .leading, spacing: 14) {
                     StepGridView(
                         stepStates: stepPattern.map { $0 ? .on : .off },
@@ -145,7 +145,7 @@ struct ClipContentPreview: View {
                         var nextPattern = stepPattern
                         guard nextPattern.indices.contains(index) else { return }
                         nextPattern[index].toggle()
-                        commit(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes, stepModes: stepModes))
+                        commit(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes, stepModes: stepModes, stepParameters: stepParameters))
                     }
                     .allowsHitTesting(onCommit != nil)
 
@@ -158,7 +158,7 @@ struct ClipContentPreview: View {
                                     .split(separator: ",")
                                     .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
                                 if !parsed.isEmpty {
-                                    commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed, stepModes: stepModes))
+                                    commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed, stepModes: stepModes, stepParameters: stepParameters))
                                 }
                             }
                         )
@@ -168,7 +168,8 @@ struct ClipContentPreview: View {
                     sliceStepModeEditor(
                         stepPattern: stepPattern,
                         sliceIndexes: sliceIndexes,
-                        stepModes: stepModes
+                        stepModes: stepModes,
+                        stepParameters: stepParameters
                     )
                 }
             }
@@ -724,7 +725,7 @@ struct ClipContentPreview: View {
         switch content {
         case let .noteGrid(lengthSteps, steps):
             return "noteGrid length=\(lengthSteps) notes=\(noteCount(in: steps))"
-        case let .sliceTriggers(stepPattern, _, _):
+        case let .sliceTriggers(stepPattern, _, _, _):
             return "sliceTriggers length=\(stepPattern.count) active=\(stepPattern.filter { $0 }.count)"
         }
     }
@@ -733,7 +734,8 @@ struct ClipContentPreview: View {
     private func sliceStepModeEditor(
         stepPattern: [Bool],
         sliceIndexes: [Int],
-        stepModes: [SliceTriggerStepMode]
+        stepModes: [SliceTriggerStepMode],
+        stepParameters: [SliceTriggerStepParameters]
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("RUN MODE")
@@ -754,7 +756,7 @@ struct ClipContentPreview: View {
                             nextModes.append(contentsOf: Array(repeating: .single, count: stepPattern.count - nextModes.count))
                         }
                         nextModes[index] = mode == .single ? .runFromHere : .single
-                        commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: sliceIndexes, stepModes: nextModes))
+                        commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: sliceIndexes, stepModes: nextModes, stepParameters: stepParameters))
                     } label: {
                         VStack(spacing: 3) {
                             Text("\(index + 1)")

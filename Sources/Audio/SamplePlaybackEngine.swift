@@ -23,7 +23,8 @@ protocol SamplePlaybackSink: AnyObject {
         settings: SlicerSettings,
         trackID: UUID,
         at when: AVAudioTime?,
-        reverse: Bool
+        reverse: Bool,
+        stepParameters: SliceTriggerStepParameters?
     ) -> VoiceHandle?
     /// Apply the track's fader state to its mixer node. Takes effect live for
     /// in-flight voices as well as subsequent triggers.
@@ -58,9 +59,44 @@ extension SamplePlaybackSink {
         settings: SlicerSettings,
         trackID: UUID,
         at when: AVAudioTime?,
-        reverse: Bool
+        reverse: Bool,
+        stepParameters: SliceTriggerStepParameters?
     ) -> VoiceHandle? {
         nil
+    }
+}
+
+private extension AVAudioPCMBuffer {
+    func convertingForPlayback(to playbackFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
+        guard format.channelCount != playbackFormat.channelCount ||
+              format.sampleRate != playbackFormat.sampleRate
+        else {
+            return self
+        }
+
+        let ratio = playbackFormat.sampleRate / max(format.sampleRate, 1)
+        let convertedCapacity = AVAudioFrameCount(ceil(Double(frameLength) * ratio)) + 1
+        guard let converter = AVAudioConverter(from: format, to: playbackFormat),
+              let converted = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: convertedCapacity)
+        else {
+            return nil
+        }
+
+        var didProvideInput = false
+        var conversionError: NSError?
+        converter.convert(to: converted, error: &conversionError) { _, status in
+            if didProvideInput {
+                status.pointee = .noDataNow
+                return nil
+            }
+            didProvideInput = true
+            status.pointee = .haveData
+            return self
+        }
+        guard conversionError == nil else {
+            return nil
+        }
+        return converted
     }
 }
 
@@ -70,25 +106,17 @@ extension SamplePlaybackSink {
 /// `outputVolume` / `pan` is what the track fader writes to. A separate preview
 /// node drives audition and bypasses track mixers entirely.
 final class SamplePlaybackEngine: SamplePlaybackSink {
-    private struct ReversedSliceCacheKey: Hashable {
-        let url: URL
-        let startFrame: AVAudioFramePosition
-        let endFrame: AVAudioFramePosition
-    }
-
     private struct TrackVoicePool {
         var voices: [AVAudioPlayerNode]
+        var voiceFilters: [SamplerFilterNode]
         var handles: [UUID]
         var cursor: Int
     }
 
     private static let voicesPerTrack = 4
-    private static let reversedSliceCacheLimit = 32
     private let audioGraph: MainAudioGraph
     private let previewNode = AVAudioPlayerNode()
     private var fileCache: [URL: AVAudioFile] = [:]
-    private var reversedSliceCache: [ReversedSliceCacheKey: AVAudioPCMBuffer] = [:]
-    private var reversedSliceCacheOrder: [ReversedSliceCacheKey] = []
     private var isStarted = false
     private var trackVoicePools: [UUID: TrackVoicePool] = [:]
     private var trackMixers: [UUID: AVAudioMixerNode] = [:]
@@ -132,18 +160,24 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             guard trackVoicePools[trackID] == nil else { return }
             let mixer = trackMixer(for: trackID)
             var voices: [AVAudioPlayerNode] = []
+            var voiceFilters: [SamplerFilterNode] = []
             var handles: [UUID] = []
 
             for _ in 0..<Self.voicesPerTrack {
                 let voice = AVAudioPlayerNode()
+                let voiceFilter = SamplerFilterNode()
                 audioGraph.attach(voice)
-                audioGraph.connect(voice, to: mixer)
+                audioGraph.attach(voiceFilter.avNode)
+                audioGraph.connect(voice, to: voiceFilter.avNode)
+                audioGraph.connect(voiceFilter.avNode, to: mixer)
                 voices.append(voice)
+                voiceFilters.append(voiceFilter)
                 handles.append(UUID())
             }
 
             trackVoicePools[trackID] = TrackVoicePool(
                 voices: voices,
+                voiceFilters: voiceFilters,
                 handles: handles,
                 cursor: 0
             )
@@ -162,13 +196,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
         let voiceIndex = pool.cursor % pool.voices.count
         let voice = pool.voices[voiceIndex]
+        let voiceFilter = voiceIndex < pool.voiceFilters.count ? pool.voiceFilters[voiceIndex] : nil
         let handleID = UUID()
         pool.handles[voiceIndex] = handleID
         pool.cursor = (voiceIndex &+ 1) % pool.voices.count
         trackVoicePools[trackID] = pool
         let params = voiceParams[trackID]
 
-        scheduleAndStart(voice, file: file, settings: settings, params: params, at: when)
+        scheduleAndStart(voice, voiceFilter: voiceFilter, file: file, settings: settings, params: params, at: when)
         return VoiceHandle(id: handleID)
     }
 
@@ -180,12 +215,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         settings: SlicerSettings,
         trackID: UUID,
         at when: AVAudioTime? = nil,
-        reverse: Bool = false
+        reverse: Bool = false,
+        stepParameters: SliceTriggerStepParameters? = nil
     ) -> VoiceHandle? {
         guard isStarted else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
 
         let clampedSettings = settings.clamped
+        let sliceParameters = (stepParameters ?? .default).clamped
         let resolvedStart = max(0, min(startFrame, max(file.length - 1, 0)))
         let resolvedEnd = max(resolvedStart + 1, min(endFrame, file.length))
         guard resolvedEnd > resolvedStart else { return nil }
@@ -206,6 +243,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
 
         let voice = pool.voices[voiceIndex]
+        let voiceFilter = voiceIndex < pool.voiceFilters.count ? pool.voiceFilters[voiceIndex] : nil
         let handleID = UUID()
         pool.handles[voiceIndex] = handleID
         trackVoicePools[trackID] = pool
@@ -213,6 +251,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
         scheduleAndStartSlice(
             voice,
+            voiceFilter: voiceFilter,
             sampleURL: sampleURL,
             file: file,
             startFrame: resolvedStart,
@@ -220,13 +259,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             settings: clampedSettings,
             params: params,
             at: when,
-            reverse: reverse
+            reverse: reverse,
+            sliceParameters: sliceParameters
         )
         return VoiceHandle(id: handleID)
     }
 
     private func scheduleAndStart(
         _ voice: AVAudioPlayerNode,
+        voiceFilter: SamplerFilterNode?,
         file: AVAudioFile,
         settings: SamplerSettings,
         params: [BuiltinMacroKind: Double]?,
@@ -237,6 +278,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // Apply built-in macro voice params (set by TrackMacroApplier for the current step).
         let gainDB = params?[.sampleGain] ?? settings.gain
         voice.volume = linearGain(dB: gainDB)
+        voice.pan = 0
+        voice.rate = 1
+        voiceFilter?.apply(SamplerFilterSettings())
 
         // Sample start / length: schedule a segment of the file if set.
         let startNorm = min(max(params?[.sampleStart] ?? settings.start, 0), 1)
@@ -251,6 +295,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     private func scheduleAndStartSlice(
         _ voice: AVAudioPlayerNode,
+        voiceFilter: SamplerFilterNode?,
         sampleURL: URL,
         file: AVAudioFile,
         startFrame: AVAudioFramePosition,
@@ -258,20 +303,34 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         settings: SlicerSettings,
         params: [BuiltinMacroKind: Double]?,
         at when: AVAudioTime?,
-        reverse: Bool
+        reverse: Bool,
+        sliceParameters: SliceTriggerStepParameters
     ) {
         voice.stop()
         let gainDB = params?[.sampleGain] ?? settings.gain
         voice.volume = linearGain(dB: gainDB)
+        voice.pan = Float(sliceParameters.pan)
+        voice.rate = Float(playbackRate(forSemitoneOffset: settings.transpose))
+        voiceFilter?.setCutoff(hz: cutoffHz(for: sliceParameters.filter))
 
-        if reverse,
-           let buffer = reversedSliceBuffer(
+        let shouldBuffer = reverse || sliceParameters.attackMs > 0 || sliceParameters.releaseMs > 0
+        if shouldBuffer,
+           let buffer = sliceBuffer(
                sampleURL: sampleURL,
-               format: file.processingFormat,
+               fileFormat: file.processingFormat,
+               playbackFormat: voice.outputFormat(forBus: 0),
                startFrame: startFrame,
                endFrame: endFrame
            )
         {
+            if reverse {
+                Self.reverse(buffer)
+            }
+            applyEnvelope(
+                to: buffer,
+                attackMs: sliceParameters.attackMs,
+                releaseMs: sliceParameters.releaseMs
+            )
             voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
         } else {
             voice.scheduleSegment(
@@ -316,6 +375,10 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 voice.stop()
                 audioGraph.disconnectOutput(voice)
                 audioGraph.detach(voice)
+            }
+            for filter in pool.voiceFilters {
+                audioGraph.disconnectOutput(filter.avNode)
+                audioGraph.detach(filter.avNode)
             }
         }
         voiceParams.removeValue(forKey: trackID)
@@ -389,21 +452,18 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return f
     }
 
-    private func reversedSliceBuffer(
+    private func sliceBuffer(
         sampleURL: URL,
-        format: AVAudioFormat,
+        fileFormat: AVAudioFormat,
+        playbackFormat: AVAudioFormat,
         startFrame: AVAudioFramePosition,
         endFrame: AVAudioFramePosition
     ) -> AVAudioPCMBuffer? {
-        let key = ReversedSliceCacheKey(url: sampleURL, startFrame: startFrame, endFrame: endFrame)
-        if let cached = reversedSliceCache[key] {
-            return cached
-        }
         guard let file = try? AVAudioFile(forReading: sampleURL) else {
             return nil
         }
         let frameCount = AVAudioFrameCount(max(1, endFrame - startFrame))
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: fileFormat, frameCapacity: frameCount) else {
             return nil
         }
         do {
@@ -412,12 +472,10 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         } catch {
             return nil
         }
-        reverse(buffer)
-        cacheReversedSlice(buffer, for: key)
-        return buffer
+        return buffer.convertingForPlayback(to: playbackFormat) ?? buffer
     }
 
-    private func reverse(_ buffer: AVAudioPCMBuffer) {
+    private static func reverse(_ buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.floatChannelData else { return }
         let frameCount = Int(buffer.frameLength)
         let channelCount = Int(buffer.format.channelCount)
@@ -436,18 +494,59 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
     }
 
-    private func cacheReversedSlice(_ buffer: AVAudioPCMBuffer, for key: ReversedSliceCacheKey) {
-        reversedSliceCache[key] = buffer
-        reversedSliceCacheOrder.removeAll { $0 == key }
-        reversedSliceCacheOrder.append(key)
-        while reversedSliceCacheOrder.count > Self.reversedSliceCacheLimit {
-            let removed = reversedSliceCacheOrder.removeFirst()
-            reversedSliceCache.removeValue(forKey: removed)
+    private func applyEnvelope(to buffer: AVAudioPCMBuffer, attackMs: Double, releaseMs: Double) {
+        guard attackMs > 0 || releaseMs > 0 else { return }
+        Self.applyEnvelope(to: buffer, attackMs: attackMs, releaseMs: releaseMs)
+    }
+
+    static func applyEnvelope(to buffer: AVAudioPCMBuffer, attackMs: Double, releaseMs: Double) {
+        guard let channelData = buffer.floatChannelData else { return }
+        let frameCount = Int(buffer.frameLength)
+        guard frameCount > 0 else { return }
+
+        let sampleRate = buffer.format.sampleRate
+        let attackFrames = max(0, Int((max(0, attackMs) / 1000) * sampleRate))
+        let releaseFrames = max(0, Int((max(0, releaseMs) / 1000) * sampleRate))
+        guard attackFrames > 0 || releaseFrames > 0 else { return }
+
+        let channelCount = Int(buffer.format.channelCount)
+        for frame in 0..<frameCount {
+            let attackGain: Float
+            if attackFrames > 0 {
+                attackGain = Float(min(1, Double(frame) / Double(max(attackFrames, 1))))
+            } else {
+                attackGain = 1
+            }
+
+            let releaseGain: Float
+            if releaseFrames > 0 {
+                let framesFromEnd = max(0, frameCount - 1 - frame)
+                releaseGain = Float(min(1, Double(framesFromEnd) / Double(max(releaseFrames, 1))))
+            } else {
+                releaseGain = 1
+            }
+
+            let gain = min(attackGain, releaseGain)
+            guard gain < 1 else { continue }
+            for channel in 0..<channelCount {
+                channelData[channel][frame] *= gain
+            }
         }
     }
 
     private func linearGain(dB: Double) -> Float {
         Float(pow(10, dB / 20))
+    }
+
+    private func playbackRate(forSemitoneOffset semitones: Int) -> Double {
+        min(max(pow(2, Double(semitones) / 12), 0.25), 4)
+    }
+
+    private func cutoffHz(for normalized: Double) -> Double {
+        let value = min(max(normalized, 0), 1)
+        let minLog = log10(20.0)
+        let maxLog = log10(20_000.0)
+        return pow(10, minLog + ((maxLog - minLog) * value))
     }
 
     private func performOnMain<T>(_ work: @escaping @MainActor () -> T) -> T {

@@ -199,7 +199,11 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
             content: .sliceTriggers(
                 stepPattern: [true, true],
                 sliceIndexes: [3, 4],
-                stepModes: [.single, .runFromHere]
+                stepModes: [.single, .runFromHere],
+                stepParameters: [
+                    SliceTriggerStepParameters(gain: 2),
+                    SliceTriggerStepParameters(startTrim: 0.15, reverse: true)
+                ]
             )
         )
 
@@ -218,6 +222,9 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         )
 
         XCTAssertEqual(first.first?.voiceTag, "slice-3")
+        XCTAssertEqual(first.first?.sliceParameters?.gain, 2)
         XCTAssertEqual(second.first?.voiceTag, "slice-run-4")
+        XCTAssertEqual(second.first?.sliceParameters?.startTrim, 0.15)
+        XCTAssertEqual(second.first?.sliceParameters?.reverse, true)
     }
 }

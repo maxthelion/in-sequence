@@ -36,6 +36,22 @@ final class SliceAnalyzerTests: XCTestCase {
         XCTAssertEqual(slices[0].endFrame, file.length)
     }
 
+    func test_transientSlices_alignMarkersToPulseOnsets() throws {
+        let file = try AVAudioFile(forReading: tempURL)
+
+        let slices = SliceAnalyzer.transientSlices(file: file, sensitivity: 0.35)
+        let starts = slices.dropFirst().map(\.startFrame)
+
+        XCTAssertTrue(
+            starts.contains { abs($0 - 11_025) <= 512 },
+            "expected a marker near the second pulse onset, got \(starts)"
+        )
+        XCTAssertTrue(
+            starts.contains { abs($0 - 22_050) <= 512 },
+            "expected a marker near the third pulse onset, got \(starts)"
+        )
+    }
+
     private func writePulseWAV(to url: URL) throws {
         let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
         let frameCount = AVAudioFrameCount(44_100)

@@ -32,13 +32,17 @@ struct TrackWorkspaceView: View {
         VStack(alignment: .leading, spacing: 18) {
             trackHeader
 
-            HStack(alignment: .top, spacing: 18) {
-                TrackSourceEditorView(document: $document, accent: sourceAccent)
-                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
-                    .layoutPriority(1)
+            if track.trackType == .slice {
+                SliceTrackWorkspaceView(document: $document, accent: sourceAccent)
+            } else {
+                HStack(alignment: .top, spacing: 18) {
+                    TrackSourceEditorView(document: $document, accent: sourceAccent)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+                        .layoutPriority(1)
 
-                destinationColumn
-                    .frame(width: 320, alignment: .topLeading)
+                    destinationColumn
+                        .frame(width: 320, alignment: .topLeading)
+                }
             }
         }
         .padding(20)

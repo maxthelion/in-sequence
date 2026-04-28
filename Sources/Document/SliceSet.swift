@@ -49,18 +49,34 @@ struct SliceSet: Codable, Equatable, Hashable, Sendable, Identifiable {
     mutating func normalize(sampleLengthFrames: Int64) {
         let sampleLength = max(0, sampleLengthFrames)
         let wholeID = markers.first?.id ?? id
+        var wholeStart = min(max(markers.first?.startFrame ?? 0, 0), sampleLength)
+        var wholeEnd = min(max(markers.first?.endFrame ?? sampleLength, wholeStart), sampleLength)
+        if sampleLength > 0, wholeEnd <= wholeStart {
+            wholeStart = 0
+            wholeEnd = sampleLength
+        }
         let wholeSample = SliceMarker(
             id: wholeID,
-            startFrame: 0,
-            endFrame: sampleLength,
+            startFrame: wholeStart,
+            endFrame: wholeEnd,
+            gain: markers.first?.clampedGain ?? 0,
+            reverse: markers.first?.reverse ?? false,
+            microTimingSteps: markers.first?.clampedMicroTimingSteps ?? 0,
             tag: markers.first?.tag ?? ""
         )
+        let cropStart = wholeSample.startFrame
+        let cropEnd = wholeSample.endFrame
 
         var seenIDs: Set<UUID> = [wholeSample.id]
         let userMarkers = markers
             .dropFirst()
             .compactMap { marker -> SliceMarker? in
                 guard var normalized = marker.normalized(sampleLengthFrames: sampleLength) else {
+                    return nil
+                }
+                normalized.startFrame = min(max(normalized.startFrame, cropStart), cropEnd)
+                normalized.endFrame = min(max(normalized.endFrame, normalized.startFrame), cropEnd)
+                guard sampleLength == 0 || normalized.endFrame > normalized.startFrame else {
                     return nil
                 }
                 if seenIDs.contains(normalized.id) {

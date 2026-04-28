@@ -65,16 +65,102 @@ enum SliceTriggerStepMode: String, Codable, Equatable, Hashable, Sendable, CaseI
     case runFromHere
 }
 
+struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
+    var gain: Double
+    var pitch: Double
+    var startTrim: Double
+    var endTrim: Double
+    var pan: Double
+    var filter: Double
+    var attackMs: Double
+    var releaseMs: Double
+    var reverse: Bool
+    var choke: Bool
+
+    init(
+        gain: Double = 0,
+        pitch: Double = 0,
+        startTrim: Double = 0,
+        endTrim: Double = 0,
+        pan: Double = 0,
+        filter: Double = 1,
+        attackMs: Double = 0,
+        releaseMs: Double = 0,
+        reverse: Bool = false,
+        choke: Bool = true
+    ) {
+        self.gain = gain
+        self.pitch = pitch
+        self.startTrim = startTrim
+        self.endTrim = endTrim
+        self.pan = pan
+        self.filter = filter
+        self.attackMs = attackMs
+        self.releaseMs = releaseMs
+        self.reverse = reverse
+        self.choke = choke
+    }
+
+    static let `default` = SliceTriggerStepParameters()
+
+    var clamped: SliceTriggerStepParameters {
+        SliceTriggerStepParameters(
+            gain: min(max(gain, -24), 12),
+            pitch: min(max(pitch, -12), 12),
+            startTrim: min(max(startTrim, 0), 0.99),
+            endTrim: min(max(endTrim, 0), 0.99),
+            pan: min(max(pan, -1), 1),
+            filter: min(max(filter, 0), 1),
+            attackMs: min(max(attackMs, 0), 100),
+            releaseMs: min(max(releaseMs, 0), 200),
+            reverse: reverse,
+            choke: choke
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case gain
+        case pitch
+        case startTrim
+        case endTrim
+        case pan
+        case filter
+        case attackMs
+        case releaseMs
+        case reverse
+        case choke
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        gain = try container.decodeIfPresent(Double.self, forKey: .gain) ?? 0
+        pitch = try container.decodeIfPresent(Double.self, forKey: .pitch) ?? 0
+        startTrim = try container.decodeIfPresent(Double.self, forKey: .startTrim) ?? 0
+        endTrim = try container.decodeIfPresent(Double.self, forKey: .endTrim) ?? 0
+        pan = try container.decodeIfPresent(Double.self, forKey: .pan) ?? 0
+        filter = try container.decodeIfPresent(Double.self, forKey: .filter) ?? 1
+        attackMs = try container.decodeIfPresent(Double.self, forKey: .attackMs) ?? 0
+        releaseMs = try container.decodeIfPresent(Double.self, forKey: .releaseMs) ?? 0
+        reverse = try container.decodeIfPresent(Bool.self, forKey: .reverse) ?? false
+        choke = try container.decodeIfPresent(Bool.self, forKey: .choke) ?? true
+    }
+}
+
 enum ClipContent: Equatable, Hashable, Sendable {
     case noteGrid(lengthSteps: Int, steps: [ClipStep])
-    case sliceTriggers(stepPattern: [Bool], sliceIndexes: [Int], stepModes: [SliceTriggerStepMode])
+    case sliceTriggers(
+        stepPattern: [Bool],
+        sliceIndexes: [Int],
+        stepModes: [SliceTriggerStepMode],
+        stepParameters: [SliceTriggerStepParameters] = []
+    )
 
     /// Number of steps in the clip — used to size macro lane values arrays.
     var stepCount: Int {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
-        case let .sliceTriggers(stepPattern, _, _):
+        case let .sliceTriggers(stepPattern, _, _, _):
             return max(1, stepPattern.count)
         }
     }
@@ -86,6 +172,16 @@ extension ClipContent {
         return .noteGrid(
             lengthSteps: resolvedLength,
             steps: Array(repeating: .empty, count: resolvedLength)
+        )
+    }
+
+    static func emptySliceTriggers(lengthSteps: Int) -> ClipContent {
+        let resolvedLength = max(1, lengthSteps)
+        return .sliceTriggers(
+            stepPattern: Array(repeating: false, count: resolvedLength),
+            sliceIndexes: Array(repeating: 0, count: resolvedLength),
+            stepModes: Array(repeating: .single, count: resolvedLength),
+            stepParameters: Array(repeating: .default, count: resolvedLength)
         )
     }
 
@@ -134,7 +230,7 @@ extension ClipContent {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
-        case let .sliceTriggers(stepPattern, _, _):
+        case let .sliceTriggers(stepPattern, _, _, _):
             return max(1, stepPattern.count)
         }
     }
@@ -150,10 +246,17 @@ extension ClipContent {
                 return .empty
             }
             return .noteGrid(lengthSteps: resolvedLength, steps: normalizedSteps)
-        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
             let resolvedPattern = stepPattern.isEmpty ? [false] : stepPattern
+            let resolvedIndexes = Self.syncedSliceIndexes(sliceIndexes, stepCount: resolvedPattern.count)
             let resolvedModes = Self.syncedSliceModes(stepModes, stepCount: resolvedPattern.count)
-            return .sliceTriggers(stepPattern: resolvedPattern, sliceIndexes: sliceIndexes, stepModes: resolvedModes)
+            let resolvedParameters = Self.syncedSliceParameters(stepParameters, stepCount: resolvedPattern.count)
+            return .sliceTriggers(
+                stepPattern: resolvedPattern,
+                sliceIndexes: resolvedIndexes,
+                stepModes: resolvedModes,
+                stepParameters: resolvedParameters
+            )
         }
     }
 
@@ -223,6 +326,7 @@ extension ClipContent: Codable {
         case stepPattern
         case sliceIndexes
         case stepModes
+        case stepParameters
     }
 
     init(from decoder: Decoder) throws {
@@ -257,7 +361,8 @@ extension ClipContent: Codable {
             self = ClipContent.sliceTriggers(
                 stepPattern: try nested.decode([Bool].self, forKey: .stepPattern),
                 sliceIndexes: try nested.decode([Int].self, forKey: .sliceIndexes),
-                stepModes: try nested.decodeIfPresent([SliceTriggerStepMode].self, forKey: .stepModes) ?? []
+                stepModes: try nested.decodeIfPresent([SliceTriggerStepMode].self, forKey: .stepModes) ?? [],
+                stepParameters: try nested.decodeIfPresent([SliceTriggerStepParameters].self, forKey: .stepParameters) ?? []
             ).normalized
         default:
             throw DecodingError.dataCorruptedError(
@@ -276,12 +381,22 @@ extension ClipContent: Codable {
             var nested = container.nestedContainer(keyedBy: NoteGridCodingKeys.self, forKey: DynamicCodingKey("noteGrid"))
             try nested.encode(lengthSteps, forKey: .lengthSteps)
             try nested.encode(steps, forKey: .steps)
-        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
             var nested = container.nestedContainer(keyedBy: SliceTriggersCodingKeys.self, forKey: DynamicCodingKey("sliceTriggers"))
             try nested.encode(stepPattern, forKey: .stepPattern)
             try nested.encode(sliceIndexes, forKey: .sliceIndexes)
             try nested.encode(stepModes, forKey: .stepModes)
+            try nested.encode(stepParameters, forKey: .stepParameters)
         }
+    }
+
+    private static func syncedSliceIndexes(_ indexes: [Int], stepCount: Int) -> [Int] {
+        let count = max(1, stepCount)
+        if indexes.count == count { return indexes.map { max(0, $0) } }
+        if indexes.count < count {
+            return (indexes + Array(repeating: 0, count: count - indexes.count)).map { max(0, $0) }
+        }
+        return Array(indexes.prefix(count)).map { max(0, $0) }
     }
 
     private static func syncedSliceModes(_ modes: [SliceTriggerStepMode], stepCount: Int) -> [SliceTriggerStepMode] {
@@ -291,6 +406,19 @@ extension ClipContent: Codable {
             return modes + Array(repeating: .single, count: count - modes.count)
         }
         return Array(modes.prefix(count))
+    }
+
+    private static func syncedSliceParameters(
+        _ parameters: [SliceTriggerStepParameters],
+        stepCount: Int
+    ) -> [SliceTriggerStepParameters] {
+        let count = max(1, stepCount)
+        let clamped = parameters.map(\.clamped)
+        if clamped.count == count { return clamped }
+        if clamped.count < count {
+            return clamped + Array(repeating: .default, count: count - clamped.count)
+        }
+        return Array(clamped.prefix(count))
     }
 }
 

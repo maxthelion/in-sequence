@@ -286,7 +286,7 @@ enum GeneratedSourceEvaluator {
             guard !steps.isEmpty else { return false }
             let normalizedStep = positiveModulo(stepIndex, max(lengthSteps, 1))
             return !steps[normalizedStep].isEmpty
-        case let .sliceTriggers(stepPattern, _, _):
+        case let .sliceTriggers(stepPattern, _, _, _):
             guard !stepPattern.isEmpty else { return false }
             return stepPattern[stepIndex % stepPattern.count]
         }
@@ -326,19 +326,21 @@ enum GeneratedSourceEvaluator {
                 )
             } ?? []
 
-        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes):
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
             guard !stepPattern.isEmpty else { return [] }
             let normalizedStep = positiveModulo(stepIndex, stepPattern.count)
             guard stepPattern[normalizedStep] else { return [] }
             let resolvedIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes
             let sliceIndex = resolvedIndexes[normalizedStep % resolvedIndexes.count]
             let mode = stepModes[safe: normalizedStep] ?? .single
+            let parameters = stepParameters[safe: normalizedStep] ?? .default
             return [
                 GeneratedNote(
                     pitch: 60,
                     velocity: clampMIDI(NoteShape.default.velocity),
                     length: max(1, NoteShape.default.gateLength),
-                    voiceTag: sliceVoiceTag(sliceIndex, runFromHere: mode == .runFromHere)
+                    voiceTag: sliceVoiceTag(sliceIndex, runFromHere: mode == .runFromHere),
+                    sliceParameters: parameters
                 )
             ]
         }
@@ -478,7 +480,8 @@ enum GeneratedSourceEvaluator {
                     pitch: clampMIDI(pitch),
                     velocity: clampMIDI(sourceNote.velocity),
                     length: max(1, sourceNote.length),
-                    voiceTag: sourceNote.voiceTag
+                    voiceTag: sourceNote.voiceTag,
+                    sliceParameters: sourceNote.sliceParameters
                 )
             }
         }

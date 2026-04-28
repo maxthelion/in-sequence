@@ -46,6 +46,7 @@ struct TracksMatrixView: View {
     let onOpenTrack: () -> Void
 
     @State private var isPresentingCreateTrack = false
+    @State private var isPresentingAddSliceTrack = false
     @State private var isPresentingAddDrumGroup = false
 
     private let columns = Array(
@@ -150,6 +151,21 @@ struct TracksMatrixView: View {
         .sheet(isPresented: $isPresentingCreateTrack) {
             CreateTrackSheet(document: $document, onOpenTrack: onOpenTrack)
         }
+        .sheet(isPresented: $isPresentingAddSliceTrack) {
+            AddSliceTrackSheet(
+                library: .shared,
+                sampleEngine: engineController.sampleEngineSink,
+                onCreate: { sample in
+                    _ = session.appendSliceTrack(sample: sample)
+                    isPresentingAddSliceTrack = false
+                    onOpenTrack()
+                },
+                onCancel: {
+                    isPresentingAddSliceTrack = false
+                }
+            )
+            .presentationBackground(.clear)
+        }
         .sheet(isPresented: $isPresentingAddDrumGroup) {
             AddDrumGroupSheet(
                 auInstruments: engineController.availableAudioInstruments,
@@ -205,9 +221,8 @@ struct TracksMatrixView: View {
             }
             .buttonStyle(.bordered)
 
-            Button("Add Slice") {
-                session.appendTrack(trackType: .slice)
-                onOpenTrack()
+            Button("New Slice Track") {
+                isPresentingAddSliceTrack = true
             }
             .buttonStyle(.bordered)
 
@@ -712,6 +727,160 @@ private struct CreateTrackSheet: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+private struct AddSliceTrackSheet: View {
+    let library: AudioSampleLibrary
+    let sampleEngine: SamplePlaybackSink
+    let onCreate: (AudioSample) -> Void
+    let onCancel: () -> Void
+
+    @State private var previewingSampleID: UUID?
+
+    private var samples: [AudioSample] {
+        library.samples(in: .breaks).sorted { lhs, rhs in
+            lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: 220, maximum: 280), spacing: 12)]
+    }
+
+    private var breaksFolderPath: String {
+        library.libraryRoot.appendingPathComponent("breaks", isDirectory: true).path
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            StudioTheme.stageFill
+                .ignoresSafeArea()
+
+            StudioPanel(title: "New Slice Track", eyebrow: "Choose a loop. Slices are detected after the track opens.", accent: StudioTheme.violet) {
+                VStack(alignment: .leading, spacing: 16) {
+                    if samples.isEmpty {
+                        StudioPlaceholderTile(
+                            title: "No Break Loops Found",
+                            detail: "Add WAV loops to \(breaksFolderPath).",
+                            accent: StudioTheme.violet
+                        )
+                    } else {
+                        ScrollView {
+                            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                                ForEach(samples) { sample in
+                                    sampleCard(sample)
+                                }
+                            }
+                        }
+                        .frame(maxHeight: 440)
+                    }
+                }
+            }
+            .padding(24)
+            .frame(minWidth: 760, minHeight: 520)
+
+            Button {
+                sampleEngine.stopAudition()
+                onCancel()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 30, height: 30)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border.opacity(0.8), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .padding(30)
+        }
+        .onDisappear {
+            sampleEngine.stopAudition()
+        }
+        .onAppear {
+            library.reload()
+        }
+    }
+
+    private func sampleCard(_ sample: AudioSample) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(sample.name)
+                        .studioText(.bodyBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+
+                    Text(sampleDetail(sample))
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 6)
+
+                Button {
+                    togglePreview(sample)
+                } label: {
+                    Image(systemName: previewingSampleID == sample.id ? "stop.fill" : "play.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: 28, height: 28)
+                        .background(StudioTheme.violet.opacity(StudioOpacity.selectedFill), in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help(previewingSampleID == sample.id ? "Stop preview" : "Preview loop")
+            }
+
+            Button {
+                sampleEngine.stopAudition()
+                onCreate(sample)
+            } label: {
+                Text("Use Loop")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(StudioTheme.violet.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                            .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+        )
+    }
+
+    private func togglePreview(_ sample: AudioSample) {
+        if previewingSampleID == sample.id {
+            sampleEngine.stopAudition()
+            previewingSampleID = nil
+            return
+        }
+
+        guard let url = try? sample.fileRef.resolve(libraryRoot: library.libraryRoot) else {
+            return
+        }
+
+        sampleEngine.stopAudition()
+        sampleEngine.audition(sampleURL: url)
+        previewingSampleID = sample.id
+    }
+
+    private func sampleDetail(_ sample: AudioSample) -> String {
+        let length = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "--"
+        let rate = sample.sampleRate.map { String(format: "%.1fk", $0 / 1_000) } ?? "--"
+        return "\(sample.category.displayName) • \(length) • \(rate)"
+    }
+
 }
 
 private extension Color {

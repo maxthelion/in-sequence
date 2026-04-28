@@ -31,17 +31,22 @@ enum EngineSlicerDispatcher {
             guard let marker = sliceSet.marker(at: resolution.index) else {
                 continue
             }
+            let stepParameters = (event.sliceParameters ?? .default).clamped
             let wholeEndFrame = sliceSet.markers.first?.endFrame ?? marker.endFrame
+            let baseEndFrame = resolution.runFromHere ? wholeEndFrame : marker.endFrame
+            let baseLength = max(1, baseEndFrame - marker.startFrame)
+            let startTrimFrames = Int64((Double(baseLength) * stepParameters.startTrim).rounded())
+            let endTrimFrames = Int64((Double(baseLength) * stepParameters.endTrim).rounded())
             let microOffset = Int64(marker.microTimingSteps * Double(framesPerStep))
-            let startFrame = max(0, marker.startFrame + microOffset)
-            let endFrame = resolution.runFromHere ? wholeEndFrame : marker.endFrame
+            let startFrame = max(0, marker.startFrame + startTrimFrames + microOffset)
+            let endFrame = max(startFrame + 1, baseEndFrame - endTrimFrames)
             guard endFrame > startFrame else {
                 continue
             }
             let effectiveSettings = SlicerSettings(
-                gain: settings.gain + marker.gain,
-                transpose: settings.transpose,
-                voiceMode: settings.voiceMode
+                gain: settings.gain + marker.gain + stepParameters.gain,
+                transpose: settings.transpose + Int(stepParameters.pitch.rounded()),
+                voiceMode: stepParameters.choke ? .mono : .polyphonic
             ).clamped
 
             eventQueue.enqueue(ScheduledEvent(
@@ -52,7 +57,8 @@ enum EngineSlicerDispatcher {
                     startFrame: startFrame,
                     endFrame: endFrame,
                     settings: effectiveSettings,
-                    reverse: marker.reverse,
+                    reverse: marker.reverse || stepParameters.reverse,
+                    stepParameters: stepParameters,
                     scheduledHostTime: now
                 )
             ))

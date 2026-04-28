@@ -168,6 +168,75 @@ extension SequencerDocumentSession {
         setEditedDestination(.slicer(sliceSetID: sliceSetID, settings: settings.clamped), for: trackID)
     }
 
+    func applySlicerAnalysis(
+        sliceSet: SliceSet,
+        sampleLengthFrames: Int64,
+        clipLengthSteps: Int,
+        for trackID: UUID
+    ) {
+        let resolvedStepCount = max(1, clipLengthSteps)
+        batch(impact: .snapshotOnly, changed: .sliceSet(sliceSet.id).union(.patternBank(trackID))) { s in
+            var normalizedSliceSet = sliceSet
+            normalizedSliceSet.normalize(sampleLengthFrames: sampleLengthFrames)
+            if s.sliceSet(id: normalizedSliceSet.id) == nil {
+                s.appendSliceSet(normalizedSliceSet)
+            } else {
+                s.mutateSliceSet(id: normalizedSliceSet.id) { current in
+                    current = normalizedSliceSet
+                }
+            }
+            recordBatchChange(.sliceSet(normalizedSliceSet.id))
+
+            var p = s.exportToProject()
+            guard let clipID = p.ensureClipForCurrentPattern(trackID: trackID) else {
+                return
+            }
+
+            let liveClipIDs = Set(s.clipPool.map(\.id))
+            for clip in p.clipPool where !liveClipIDs.contains(clip.id) {
+                s.appendClip(clip)
+                recordBatchChange(.clip(clip.id))
+            }
+            for bank in p.patternBanks {
+                s.setPatternBank(trackID: bank.trackID, bank: bank)
+            }
+            recordBatchChange(.patternBank(trackID))
+
+            s.mutateClip(id: clipID) { entry in
+                entry.content = Self.sliceTriggerContent(
+                    userSliceCount: normalizedSliceSet.userSliceCount,
+                    stepCount: resolvedStepCount
+                )
+                entry.macroLanes = entry.macroLanes.mapValues { $0.synced(stepCount: resolvedStepCount) }
+            }
+            recordBatchChange(.clip(clipID))
+        }
+    }
+
+    private static func sliceTriggerContent(userSliceCount: Int, stepCount: Int) -> ClipContent {
+        let resolvedStepCount = max(1, stepCount)
+        guard userSliceCount > 0 else {
+            return .emptySliceTriggers(lengthSteps: resolvedStepCount)
+        }
+
+        var pattern = Array(repeating: false, count: resolvedStepCount)
+        var indexes = Array(repeating: 1, count: resolvedStepCount)
+        let sliceCount = max(1, userSliceCount)
+        for sliceOffset in 0..<sliceCount {
+            let ratio = Double(sliceOffset) / Double(sliceCount)
+            let step = min(resolvedStepCount - 1, Int((ratio * Double(resolvedStepCount)).rounded(.down)))
+            pattern[step] = true
+            indexes[step] = sliceOffset + 1
+        }
+
+        return .sliceTriggers(
+            stepPattern: pattern,
+            sliceIndexes: indexes,
+            stepModes: Array(repeating: .single, count: resolvedStepCount),
+            stepParameters: Array(repeating: .default, count: resolvedStepCount)
+        )
+    }
+
     // MARK: - Master bus mutations
 
     @discardableResult
@@ -798,6 +867,17 @@ extension SequencerDocumentSession {
             p.appendTrack(trackType: trackType)
             s.importFromProject(p)
         }
+    }
+
+    @discardableResult
+    func appendSliceTrack(sample: AudioSample) -> UUID? {
+        var createdTrackID: UUID?
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            createdTrackID = p.appendSliceTrack(sample: sample)
+            s.importFromProject(p)
+        }
+        return createdTrackID
     }
 
     /// Remove the currently selected track (guard: must have >1 track).

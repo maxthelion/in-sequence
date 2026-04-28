@@ -987,7 +987,7 @@ final class EngineController: RouterDispatcher {
                 guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
                 _ = sampleEngine.play(sampleURL: url, settings: settings, trackID: trackID, at: nil)
 
-            case let .sliceTrigger(trackID, sampleURL, startFrame, endFrame, settings, reverse, _):
+            case let .sliceTrigger(trackID, sampleURL, startFrame, endFrame, settings, reverse, stepParameters, _):
                 _ = sampleEngine.playSlice(
                     sampleURL: sampleURL,
                     startFrame: AVAudioFramePosition(startFrame),
@@ -995,7 +995,8 @@ final class EngineController: RouterDispatcher {
                     settings: settings,
                     trackID: trackID,
                     at: nil,
-                    reverse: reverse
+                    reverse: reverse,
+                    stepParameters: stepParameters
                 )
             }
         }
@@ -1156,7 +1157,8 @@ final class EngineController: RouterDispatcher {
                     velocity: note.velocity,
                     length: note.length,
                     gate: note.gate,
-                    voiceTag: note.voiceTag
+                    voiceTag: note.voiceTag,
+                    sliceParameters: note.sliceParameters
                 )
             }
             routedMIDINotes[.midi(port: port, channel: channel, noteOffset: noteOffset), default: []]
@@ -1518,7 +1520,8 @@ final class EngineController: RouterDispatcher {
             velocity: UInt8(min(max(generated.velocity, 0), 127)),
             length: UInt16(min(max(generated.length, 0), Int(UInt16.max))),
             gate: true,
-            voiceTag: generated.voiceTag
+            voiceTag: generated.voiceTag,
+            sliceParameters: generated.sliceParameters
         )
     }
 
@@ -1654,7 +1657,8 @@ final class EngineController: RouterDispatcher {
                 velocity: note.velocity,
                 length: note.length,
                 gate: note.gate,
-                voiceTag: note.voiceTag
+                voiceTag: note.voiceTag,
+                sliceParameters: note.sliceParameters
             )
         }
     }

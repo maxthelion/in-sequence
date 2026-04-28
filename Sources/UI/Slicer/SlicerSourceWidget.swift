@@ -9,11 +9,16 @@ struct SlicerSourceWidget: View {
     let trackID: UUID
     var onInstallSliceSet: (SliceSet, SlicerSettings) -> Void
     var onUpdateSliceSet: (SliceSet, Int64) -> Void
+    var onApplyAnalyzedSliceSet: (SliceSet, Int64, Int) -> Void = { _, _, _ in }
     var onManageMacros: () -> Void = {}
     var onRemove: () -> Void = {}
 
     @State private var analysisMessage: String?
     @State private var showingWaveformEditor = false
+    @State private var analysisDraft: SliceSet?
+    @State private var analysisMode: SliceMode = .transient
+    @State private var analysisSensitivity = 0.35
+    @State private var analysisBars = 2
 
     private let sliceColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 8)
 
@@ -51,6 +56,14 @@ struct SlicerSourceWidget: View {
         }
     }
 
+    private var displayedSliceSet: SliceSet {
+        analysisDraft ?? effectiveSliceSet
+    }
+
+    private var hasUserSlices: Bool {
+        effectiveSliceSet.userSliceCount > 0
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -59,7 +72,11 @@ struct SlicerSourceWidget: View {
             if let sample = currentSample {
                 waveformSection(sample: sample)
                 divider
-                sliceGrid(sample: sample)
+                if hasUserSlices || analysisDraft != nil {
+                    sliceGrid(sample: sample)
+                } else {
+                    noSlicesState
+                }
                 divider
                 settingsSection
             } else {
@@ -108,18 +125,20 @@ struct SlicerSourceWidget: View {
 
             Spacer(minLength: 8)
 
-            Menu {
-                ForEach(sampleChoices) { sample in
-                    Button("\(sample.category.displayName) • \(sample.name)") {
-                        install(sample: sample, mode: .grid)
+            if currentSample == nil {
+                Menu {
+                    ForEach(sampleChoices) { sample in
+                        Button("\(sample.category.displayName) • \(sample.name)") {
+                            installBlank(sample: sample)
+                        }
                     }
+                } label: {
+                    Label("Choose", systemImage: "folder")
+                        .labelStyle(.iconOnly)
                 }
-            } label: {
-                Label("Choose", systemImage: "folder")
-                    .labelStyle(.iconOnly)
+                .help("Choose sample")
+                .disabled(sampleChoices.isEmpty)
             }
-            .help("Choose sample")
-            .disabled(sampleChoices.isEmpty)
 
             compactIconButton(systemName: "slider.horizontal.3", help: "View built-in slicer macros", action: onManageMacros)
             compactIconButton(systemName: "xmark", help: "Remove this slicer destination", action: onRemove)
@@ -141,7 +160,7 @@ struct SlicerSourceWidget: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], alignment: .leading, spacing: 10) {
                     ForEach(sampleChoices.prefix(12)) { sample in
                         Button {
-                            install(sample: sample, mode: .grid)
+                            installBlank(sample: sample)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(sample.name)
@@ -178,7 +197,7 @@ struct SlicerSourceWidget: View {
         VStack(alignment: .leading, spacing: 12) {
             SlicerWaveformView(
                 buckets: waveformBuckets(sample: sample),
-                sliceSet: effectiveSliceSet,
+                sliceSet: displayedSliceSet,
                 sampleLengthFrames: sampleLengthFrames(sample: sample),
                 selectedMarkerID: nil,
                 onBoundaryMove: nil
@@ -192,21 +211,28 @@ struct SlicerSourceWidget: View {
             )
 
             HStack(spacing: 8) {
-                modeButton(.grid, title: "Grid") {
-                    reanalyze(sample: sample, mode: .grid)
+                Button {
+                    proposeAutoSlices(sample: sample)
+                } label: {
+                    Label(analysisDraft == nil ? "Auto Detect" : "Refresh Detection", systemImage: "waveform.badge.magnifyingglass")
                 }
-                modeButton(.transient, title: "Transient") {
-                    reanalyze(sample: sample, mode: .transient)
-                }
+                .buttonStyle(.borderedProminent)
+                .tint(StudioTheme.violet)
 
                 Spacer()
 
-                Button {
-                    showingWaveformEditor = true
-                } label: {
-                    Label("Edit", systemImage: "waveform")
+                if hasUserSlices {
+                    Button {
+                        showingWaveformEditor = true
+                    } label: {
+                        Label("Edit Markers", systemImage: "waveform")
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
+            }
+
+            if analysisDraft != nil {
+                autoDetectControls(sample: sample)
             }
 
             if let analysisMessage {
@@ -216,11 +242,20 @@ struct SlicerSourceWidget: View {
             }
         }
         .padding(12)
+        .onChange(of: analysisMode) { _, _ in
+            refreshAutoSlicesIfNeeded(sample: sample)
+        }
+        .onChange(of: analysisSensitivity) { _, _ in
+            refreshAutoSlicesIfNeeded(sample: sample)
+        }
+        .onChange(of: analysisBars) { _, _ in
+            refreshAutoSlicesIfNeeded(sample: sample)
+        }
     }
 
     private func sliceGrid(sample: AudioSample) -> some View {
         LazyVGrid(columns: sliceColumns, alignment: .leading, spacing: 8) {
-            ForEach(Array(effectiveSliceSet.markers.enumerated()), id: \.element.id) { index, marker in
+            ForEach(Array(displayedSliceSet.markers.enumerated()), id: \.element.id) { index, marker in
                 Button {
                     audition(marker: marker, sample: sample)
                 } label: {
@@ -246,6 +281,87 @@ struct SlicerSourceWidget: View {
             }
         }
         .padding(12)
+    }
+
+    private var noSlicesState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("No slices yet")
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
+            Text("Use Auto Detect above to preview transient markers and apply them to the clip.")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+    }
+
+    private func autoDetectControls(sample: AudioSample) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Picker("Method", selection: $analysisMode) {
+                    Text("Transients").tag(SliceMode.transient)
+                    Text("Grid").tag(SliceMode.grid)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 220)
+
+                Picker("Bars", selection: $analysisBars) {
+                    Text("1 bar").tag(1)
+                    Text("2 bars").tag(2)
+                    Text("4 bars").tag(4)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 220)
+
+                Spacer()
+
+                Text(analysisSummary)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.violet)
+                    .lineLimit(1)
+            }
+
+            if analysisMode == .transient {
+                HStack(spacing: 10) {
+                    Text("Sensitivity")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Slider(value: $analysisSensitivity, in: 0.15...0.75)
+                    Text(String(format: "%.2f", analysisSensitivity))
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: 44, alignment: .trailing)
+                }
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    applyAnalysis(sample: sample)
+                } label: {
+                    Label("Apply", systemImage: "checkmark.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(StudioTheme.success)
+
+                Button {
+                    analysisDraft = nil
+                    analysisMessage = nil
+                } label: {
+                    Label("Cancel", systemImage: "xmark.circle")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+            }
+        }
+        .padding(12)
+        .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+        )
     }
 
     private var settingsSection: some View {
@@ -296,7 +412,14 @@ struct SlicerSourceWidget: View {
             return "Slicer destination"
         }
         let length = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "--"
-        return "\(sample.category.displayName) • \(length) • \(max(0, effectiveSliceSet.markers.count - 1)) slices"
+        return "\(sample.category.displayName) • \(length) • \(effectiveSliceSet.userSliceCount) slices"
+    }
+
+    private var analysisSummary: String {
+        guard let analysisDraft else {
+            return "\(analysisBars * 16) step clip"
+        }
+        return "\(analysisDraft.userSliceCount) slices • \(analysisBars * 16) steps"
     }
 
     private var divider: some View {
@@ -330,41 +453,76 @@ struct SlicerSourceWidget: View {
         .help(help)
     }
 
-    private func install(sample: AudioSample, mode: SliceMode) {
-        guard let set = analyzedSliceSet(sample: sample, mode: mode) else {
-            analysisMessage = "Could not analyse \(sample.name)."
+    private func installBlank(sample: AudioSample) {
+        guard let set = blankSliceSet(sample: sample) else {
+            analysisMessage = "Could not load \(sample.name)."
             return
         }
         analysisMessage = nil
         onInstallSliceSet(set, currentSettings)
     }
 
-    private func reanalyze(sample: AudioSample, mode: SliceMode) {
-        guard var set = analyzedSliceSet(sample: sample, mode: mode) else {
+    private func proposeAutoSlices(sample: AudioSample) {
+        guard var set = analyzedSliceSet(sample: sample) else {
             analysisMessage = "Could not analyse \(sample.name)."
             return
         }
         set.id = currentSliceSetID == SliceSet.emptyID ? set.id : currentSliceSetID
+        analysisDraft = set
         analysisMessage = nil
-        onUpdateSliceSet(set, sampleLengthFrames(sample: sample))
     }
 
-    private func analyzedSliceSet(sample: AudioSample, mode: SliceMode) -> SliceSet? {
+    private func refreshAutoSlicesIfNeeded(sample: AudioSample) {
+        guard analysisDraft != nil else {
+            return
+        }
+        proposeAutoSlices(sample: sample)
+    }
+
+    private func applyAnalysis(sample: AudioSample) {
+        guard var set = analysisDraft else {
+            return
+        }
+        set.id = currentSliceSetID == SliceSet.emptyID ? set.id : currentSliceSetID
+        onApplyAnalyzedSliceSet(set, sampleLengthFrames(sample: sample), analysisBars * 16)
+        analysisDraft = nil
+        analysisMessage = "\(set.userSliceCount) slices applied to a \(analysisBars * 16)-step clip."
+    }
+
+    private func blankSliceSet(sample: AudioSample) -> SliceSet? {
+        guard let url = try? sample.fileRef.resolve(libraryRoot: library.libraryRoot),
+              let file = try? AVAudioFile(forReading: url)
+        else {
+            return nil
+        }
+        var set = SliceSet(
+            sampleID: sample.id,
+            markers: [SliceMarker(startFrame: 0, endFrame: file.length)],
+            mode: .manual
+        )
+        set.normalize(sampleLengthFrames: file.length)
+        return set
+    }
+
+    private func analyzedSliceSet(sample: AudioSample) -> SliceSet? {
         guard let url = try? sample.fileRef.resolve(libraryRoot: library.libraryRoot),
               let file = try? AVAudioFile(forReading: url)
         else {
             return nil
         }
         let markers: [SliceMarker]
-        switch mode {
+        switch analysisMode {
         case .grid:
-            markers = SliceAnalyzer.gridSlices(file: file, divisions: 16)
+            markers = SliceAnalyzer.gridSlices(file: file, divisions: max(1, analysisBars * 16))
         case .transient:
-            markers = SliceAnalyzer.transientSlices(file: file)
+            let transientMarkers = SliceAnalyzer.transientSlices(file: file, sensitivity: analysisSensitivity)
+            markers = transientMarkers.count > 1
+                ? transientMarkers
+                : SliceAnalyzer.gridSlices(file: file, divisions: max(1, analysisBars * 16))
         case .manual:
             markers = [SliceMarker(startFrame: 0, endFrame: file.length)]
         }
-        var set = SliceSet(sampleID: sample.id, markers: markers, mode: mode, bars: 1)
+        var set = SliceSet(sampleID: sample.id, markers: markers, mode: analysisMode, bars: Double(analysisBars))
         set.normalize(sampleLengthFrames: file.length)
         return set
     }
@@ -423,7 +581,8 @@ struct SlicerSourceWidget: View {
             ).clamped,
             trackID: trackID,
             at: nil,
-            reverse: marker.reverse
+            reverse: marker.reverse,
+            stepParameters: nil
         )
     }
 
