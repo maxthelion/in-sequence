@@ -105,7 +105,7 @@ enum SliceAnalyzer {
         let sampleCount = samples.count
         let center = min(max(Int(roughFrame), 0), sampleCount - 1)
         let lookBack = min(center, max(1, Int(sampleRate * 0.03)))
-        let lookAhead = min(sampleCount - 1, center + max(1, Int(sampleRate * 0.01)))
+        let lookAhead = min(sampleCount - 1, center + max(1, Int(sampleRate * 0.04)))
         let lower = max(0, center - lookBack)
         let upper = max(lower, lookAhead)
 
@@ -123,12 +123,87 @@ enum SliceAnalyzer {
             return min(max(roughFrame, 0), max(0, length - 1))
         }
 
+        if let attackEdge = strongestAttackEdge(
+            before: peakIndex,
+            lowerBound: lower,
+            samples: samples,
+            sampleRate: sampleRate,
+            peakMagnitude: peakMagnitude
+        ) {
+            return min(max(Int64(attackEdge), 0), max(0, length - 1))
+        }
+
         let threshold = max(peakMagnitude * 0.2, 0.015)
+        let maxBacktrack = max(1, Int(sampleRate * 0.008))
+        let boundedLower = max(lower, peakIndex - maxBacktrack)
         var onset = peakIndex
-        while onset > lower, abs(samples[onset - 1]) > threshold {
+        while onset > boundedLower, abs(samples[onset - 1]) > threshold {
             onset -= 1
         }
         return min(max(Int64(onset), 0), max(0, length - 1))
+    }
+
+    private static func strongestAttackEdge(
+        before peakIndex: Int,
+        lowerBound: Int,
+        samples: [Float],
+        sampleRate: Double,
+        peakMagnitude: Float
+    ) -> Int? {
+        guard peakIndex > lowerBound else {
+            return nil
+        }
+
+        let lag = max(8, Int(sampleRate * 0.002))
+        let radius = max(4, lag / 2)
+        let searchStart = max(lowerBound + lag, peakIndex - max(lag, Int(sampleRate * 0.025)))
+        guard searchStart < peakIndex else {
+            return nil
+        }
+
+        var bestIndex = searchStart
+        var bestRise: Float = 0
+        for index in searchStart...peakIndex {
+            let before = meanAbsoluteMagnitude(samples, center: index - lag, radius: radius)
+            let after = meanAbsoluteMagnitude(samples, center: index, radius: radius)
+            let rise = after - before
+            if rise > bestRise {
+                bestRise = rise
+                bestIndex = index
+            }
+        }
+
+        guard bestRise > max(0.004, peakMagnitude * 0.035) else {
+            return nil
+        }
+
+        let preEdgeFloor = meanAbsoluteMagnitude(samples, center: max(lowerBound, bestIndex - lag), radius: radius)
+        let onsetThreshold = preEdgeFloor + (bestRise * 0.2)
+        var onset = bestIndex
+        while onset > lowerBound,
+              meanAbsoluteMagnitude(samples, center: onset - 1, radius: radius) > onsetThreshold
+        {
+            onset -= 1
+        }
+        return onset
+    }
+
+    private static func meanAbsoluteMagnitude(_ samples: [Float], center: Int, radius: Int) -> Float {
+        guard !samples.isEmpty else {
+            return 0
+        }
+
+        let lower = max(0, center - radius)
+        let upper = min(samples.count - 1, center + radius)
+        guard lower <= upper else {
+            return 0
+        }
+
+        var sum: Float = 0
+        for index in lower...upper {
+            sum += abs(samples[index])
+        }
+        return sum / Float(upper - lower + 1)
     }
 
     private static func monoSamples(from file: AVAudioFile) -> [Float]? {
@@ -191,4 +266,5 @@ enum SliceAnalyzer {
         let upper = min(values.endIndex - 1, index + radius)
         return values[lower...upper].allSatisfy { values[index] >= $0 }
     }
+
 }
