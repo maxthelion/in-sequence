@@ -163,7 +163,6 @@ struct SliceTrackWorkspaceView: View {
 
     private func sampleWaveformSection(sample: AudioSample, sliceSet: SliceSet) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            sampleHeader(sample: sample, sliceSet: sliceSet)
             waveformShell(sample: sample, sliceSet: sliceSet)
 
             if let analysisMessage {
@@ -174,40 +173,12 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    private func sampleHeader(sample: AudioSample, sliceSet: SliceSet) -> some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 3) {
+    private func waveformShell(sample: AudioSample, sliceSet: SliceSet) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 14) {
                 Text(sample.name)
                     .studioText(.subtitle)
                     .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-
-                Text(sampleDetail(sample: sample, sliceSet: sliceSet))
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-        }
-        .padding(12)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
-        )
-    }
-
-    private func waveformShell(sample: AudioSample, sliceSet: SliceSet) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(sliceSet.userSliceCount > 0 ? "Whole waveform with slice markers" : "Whole waveform - no slices yet")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text(waveformCaption(sliceSet: sliceSet))
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
                     .lineLimit(1)
 
                 Spacer()
@@ -255,11 +226,6 @@ struct SliceTrackWorkspaceView: View {
                     .foregroundStyle(StudioTheme.mutedText)
                 Slider(value: $waveformScroll, in: 0...1)
                     .disabled(waveformZoom <= 1.01)
-                Spacer()
-                Text(sampleRangeLabel(sliceSet: sliceSet, sample: sample))
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
             }
         }
         .padding(12)
@@ -615,37 +581,6 @@ private extension SliceTrackWorkspaceView {
             return 0
         }
         return min(max(parts.sliceIndexes[selectedStepIndex], 0), max(0, (displayedSliceSet?.markers.count ?? 1) - 1))
-    }
-
-    func sliceLabel(for index: Int) -> String {
-        index == 0 ? "Whole Sample" : "S\(index)"
-    }
-
-    func sampleDetail(sample: AudioSample, sliceSet: SliceSet) -> String {
-        let seconds = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "--"
-        let bars = sliceSet.bars.map { String(format: "%.0f bars", $0) } ?? "unknown bars"
-        let rate = sample.sampleRate.map { String(format: "%.1fk", $0 / 1_000) } ?? "--"
-        return "unknown BPM - \(seconds) - \(rate) - \(sliceSet.userSliceCount) slices - \(bars)"
-    }
-
-    func waveformCaption(sliceSet: SliceSet) -> String {
-        if sliceSet.userSliceCount == 0 {
-            return "Run Auto Detect to propose transient slices and clip length."
-        }
-        guard let parts = sliceTriggerParts else {
-            return "\(sliceSet.userSliceCount) slices"
-        }
-        return "Selected: \(sliceLabel(for: selectedSliceIndex(parts: parts)))"
-    }
-
-    func sampleRangeLabel(sliceSet: SliceSet, sample: AudioSample) -> String {
-        guard let whole = sliceSet.markers.first else {
-            return "Sample start/end: --"
-        }
-        let length = max(1, Double(sampleLengthFrames(sample: sample)))
-        let start = (Double(whole.startFrame) / length) * 100
-        let end = (Double(whole.endFrame) / length) * 100
-        return String(format: "Sample start/end: %.0f%%-%.0f%%", start, end)
     }
 
     func waveformBuckets(sample: AudioSample) -> [Float] {
