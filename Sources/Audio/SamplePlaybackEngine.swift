@@ -8,6 +8,10 @@ struct VoiceHandle: Equatable, Hashable {
 protocol SamplePlaybackSink: AnyObject {
     func start() throws
     func stop()
+    /// Ensures `trackID` has a ready mixer, filter, and voice pool attached to
+    /// the engine graph. This is safe to call repeatedly and should happen from
+    /// the document apply path before transport ticks can dispatch sample events.
+    func prepareTrack(trackID: UUID)
     /// Play a sample on a voice routed to `trackID`'s mixer node.
     /// The track mixer's `outputVolume` and `pan` (controlled via `setTrackMix`) are
     /// what the UI fader writes to — this call does not take a mix level.
@@ -45,6 +49,8 @@ protocol SamplePlaybackSink: AnyObject {
 }
 
 extension SamplePlaybackSink {
+    func prepareTrack(trackID: UUID) {}
+
     func playSlice(
         sampleURL: URL,
         startFrame: AVAudioFramePosition,
@@ -58,10 +64,11 @@ extension SamplePlaybackSink {
     }
 }
 
-/// Hosts sample player nodes with per-track `AVAudioMixerNode`s. Voices are
-/// dynamically routed to the requesting track's mixer on each `play` call; the
-/// mixer's `outputVolume` / `pan` is what the track fader writes to. A separate
-/// preview node drives audition and bypasses track mixers entirely.
+/// Hosts sample player nodes with per-track `AVAudioMixerNode`s and static
+/// per-track voice pools. `prepareTrack(trackID:)` builds the graph up front, so
+/// transport playback only schedules already-connected voices. The mixer's
+/// `outputVolume` / `pan` is what the track fader writes to. A separate preview
+/// node drives audition and bypasses track mixers entirely.
 final class SamplePlaybackEngine: SamplePlaybackSink {
     private struct ReversedSliceCacheKey: Hashable {
         let url: URL
@@ -69,35 +76,33 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let endFrame: AVAudioFramePosition
     }
 
-    private static let mainVoiceCount = 16
+    private struct TrackVoicePool {
+        var voices: [AVAudioPlayerNode]
+        var handles: [UUID]
+        var cursor: Int
+    }
+
+    private static let voicesPerTrack = 4
     private static let reversedSliceCacheLimit = 32
     private let audioGraph: MainAudioGraph
-    private var mainVoices: [AVAudioPlayerNode] = []
-    private var mainVoiceHandles: [UUID] = []
-    private var mainVoiceCurrentTrack: [UUID?] = []
-    private var nextVoiceIndex = 0
-    private var monoSliceVoiceByTrackID: [UUID: Int] = [:]
     private let previewNode = AVAudioPlayerNode()
     private var fileCache: [URL: AVAudioFile] = [:]
     private var reversedSliceCache: [ReversedSliceCacheKey: AVAudioPCMBuffer] = [:]
     private var reversedSliceCacheOrder: [ReversedSliceCacheKey] = []
     private var isStarted = false
+    private var trackVoicePools: [UUID: TrackVoicePool] = [:]
     private var trackMixers: [UUID: AVAudioMixerNode] = [:]
     /// Per-track filter nodes inserted between the track mixer and the main mixer.
     private var trackFilters: [UUID: SamplerFilterNode] = [:]
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
 
+    var preparedTrackIDs: Set<UUID> {
+        Set(trackVoicePools.keys)
+    }
+
     init(audioGraph: MainAudioGraph = MainAudioGraph()) {
         self.audioGraph = audioGraph
-        for _ in 0..<Self.mainVoiceCount {
-            let node = AVAudioPlayerNode()
-            audioGraph.attach(node)
-            // Voices are connected lazily at first play(), when the target track is known.
-            mainVoices.append(node)
-            mainVoiceHandles.append(UUID())
-            mainVoiceCurrentTrack.append(nil)
-        }
         audioGraph.attach(previewNode)
         audioGraph.connect(previewNode, to: audioGraph.preMasterMixer)
     }
@@ -110,38 +115,58 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     func stop() {
         guard isStarted else { return }
-        for voice in mainVoices { voice.stop() }
+        for pool in trackVoicePools.values {
+            for voice in pool.voices {
+                voice.stop()
+            }
+        }
         previewNode.stop()
         audioGraph.stop()
         isStarted = false
+    }
+
+    func prepareTrack(trackID: UUID) {
+        guard trackVoicePools[trackID] == nil else { return }
+
+        performOnMain { [self] in
+            guard trackVoicePools[trackID] == nil else { return }
+            let mixer = trackMixer(for: trackID)
+            var voices: [AVAudioPlayerNode] = []
+            var handles: [UUID] = []
+
+            for _ in 0..<Self.voicesPerTrack {
+                let voice = AVAudioPlayerNode()
+                audioGraph.attach(voice)
+                audioGraph.connect(voice, to: mixer)
+                voices.append(voice)
+                handles.append(UUID())
+            }
+
+            trackVoicePools[trackID] = TrackVoicePool(
+                voices: voices,
+                handles: handles,
+                cursor: 0
+            )
+        }
     }
 
     @discardableResult
     func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime? = nil) -> VoiceHandle? {
         guard isStarted else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
-
-        let voiceIndex = nextVoiceIndex
-        let voice = mainVoices[voiceIndex]
-        let handleID = UUID()
-        mainVoiceHandles[voiceIndex] = handleID
-        nextVoiceIndex = (nextVoiceIndex &+ 1) % mainVoices.count
-        let params = voiceParams[trackID]
-
-        // Route to this track's mixer; reconnect only when the voice was last used
-        // by a different track. Reconnect + start must happen together on the main
-        // actor so AVAudioEngine cannot observe a freshly-routed player as detached.
-        if mainVoiceCurrentTrack[voiceIndex] != trackID {
-            return performOnMain { [self] in
-                guard isStarted else { return nil }
-                let mixer = trackMixer(for: trackID)
-                audioGraph.disconnectOutput(voice)
-                audioGraph.connect(voice, to: mixer)
-                mainVoiceCurrentTrack[voiceIndex] = trackID
-                scheduleAndStart(voice, file: file, settings: settings, params: params, at: when)
-                return VoiceHandle(id: handleID)
-            }
+        guard var pool = trackVoicePools[trackID],
+              !pool.voices.isEmpty
+        else {
+            return nil
         }
+
+        let voiceIndex = pool.cursor % pool.voices.count
+        let voice = pool.voices[voiceIndex]
+        let handleID = UUID()
+        pool.handles[voiceIndex] = handleID
+        pool.cursor = (voiceIndex &+ 1) % pool.voices.count
+        trackVoicePools[trackID] = pool
+        let params = voiceParams[trackID]
 
         scheduleAndStart(voice, file: file, settings: settings, params: params, at: when)
         return VoiceHandle(id: handleID)
@@ -165,33 +190,26 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let resolvedEnd = max(resolvedStart + 1, min(endFrame, file.length))
         guard resolvedEnd > resolvedStart else { return nil }
 
-        let voiceIndex = voiceIndex(for: clampedSettings.voiceMode, trackID: trackID)
-        let voice = mainVoices[voiceIndex]
-        let handleID = UUID()
-        mainVoiceHandles[voiceIndex] = handleID
-        let params = voiceParams[trackID]
-
-        if mainVoiceCurrentTrack[voiceIndex] != trackID {
-            return performOnMain { [self] in
-                guard isStarted else { return nil }
-                let mixer = trackMixer(for: trackID)
-                audioGraph.disconnectOutput(voice)
-                audioGraph.connect(voice, to: mixer)
-                mainVoiceCurrentTrack[voiceIndex] = trackID
-                scheduleAndStartSlice(
-                    voice,
-                    sampleURL: sampleURL,
-                    file: file,
-                    startFrame: resolvedStart,
-                    endFrame: resolvedEnd,
-                    settings: clampedSettings,
-                    params: params,
-                    at: when,
-                    reverse: reverse
-                )
-                return VoiceHandle(id: handleID)
-            }
+        guard var pool = trackVoicePools[trackID],
+              !pool.voices.isEmpty
+        else {
+            return nil
         }
+
+        let voiceIndex: Int
+        switch clampedSettings.voiceMode {
+        case .mono:
+            voiceIndex = 0
+        case .polyphonic:
+            voiceIndex = pool.cursor % pool.voices.count
+            pool.cursor = (voiceIndex &+ 1) % pool.voices.count
+        }
+
+        let voice = pool.voices[voiceIndex]
+        let handleID = UUID()
+        pool.handles[voiceIndex] = handleID
+        trackVoicePools[trackID] = pool
+        let params = voiceParams[trackID]
 
         scheduleAndStartSlice(
             voice,
@@ -268,28 +286,40 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func stopVoice(_ handle: VoiceHandle) {
-        guard let idx = mainVoiceHandles.firstIndex(of: handle.id) else { return }
-        mainVoices[idx].stop()
+        for pool in trackVoicePools.values {
+            guard let index = pool.handles.firstIndex(of: handle.id) else {
+                continue
+            }
+            pool.voices[index].stop()
+            return
+        }
     }
 
     func stopAllMainVoices() {
-        for voice in mainVoices { voice.stop() }
+        for pool in trackVoicePools.values {
+            for voice in pool.voices {
+                voice.stop()
+            }
+        }
     }
 
     func setTrackMix(trackID: UUID, level: Double, pan: Double) {
+        prepareTrack(trackID: trackID)
         let mixer = trackMixer(for: trackID)
         mixer.outputVolume = Float(min(max(level, 0), 1))
         mixer.pan = Float(min(max(pan, -1), 1))
     }
 
     func removeTrack(trackID: UUID) {
-        guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
-        monoSliceVoiceByTrackID.removeValue(forKey: trackID)
-        for (i, currentTrackID) in mainVoiceCurrentTrack.enumerated() where currentTrackID == trackID {
-            mainVoices[i].stop()
-            audioGraph.disconnectOutput(mainVoices[i])
-            mainVoiceCurrentTrack[i] = nil
+        if let pool = trackVoicePools.removeValue(forKey: trackID) {
+            for voice in pool.voices {
+                voice.stop()
+                audioGraph.disconnectOutput(voice)
+                audioGraph.detach(voice)
+            }
         }
+        voiceParams.removeValue(forKey: trackID)
+        guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
         audioGraph.disconnectOutput(mixer)
         audioGraph.detach(mixer)
         // Also tear down the filter inserted after this mixer.
@@ -357,23 +387,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
         fileCache[url] = f
         return f
-    }
-
-    private func voiceIndex(for mode: SlicerVoiceMode, trackID: UUID) -> Int {
-        switch mode {
-        case .mono:
-            if let existing = monoSliceVoiceByTrackID[trackID] {
-                return existing
-            }
-            let index = nextVoiceIndex
-            monoSliceVoiceByTrackID[trackID] = index
-            nextVoiceIndex = (nextVoiceIndex &+ 1) % mainVoices.count
-            return index
-        case .polyphonic:
-            let index = nextVoiceIndex
-            nextVoiceIndex = (nextVoiceIndex &+ 1) % mainVoices.count
-            return index
-        }
     }
 
     private func reversedSliceBuffer(

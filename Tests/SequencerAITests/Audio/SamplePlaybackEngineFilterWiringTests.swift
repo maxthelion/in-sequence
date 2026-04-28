@@ -57,7 +57,8 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
 
         let trackID = UUID()
         let url = try makeTempWAV()
-        // Trigger a play to force trackMixer (and filter) allocation.
+        // Prepare the track to force trackMixer (and filter) allocation.
+        engine.prepareTrack(trackID: trackID)
         _ = engine.play(sampleURL: url, settings: .default, trackID: trackID, at: nil)
 
         XCTAssertNotNil(engine.filterNode(for: trackID),
@@ -84,6 +85,8 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
         let trackB = UUID()
         let url = try makeTempWAV()
 
+        engine.prepareTrack(trackID: trackA)
+        engine.prepareTrack(trackID: trackB)
         _ = engine.play(sampleURL: url, settings: .default, trackID: trackA, at: nil)
         _ = engine.play(sampleURL: url, settings: .default, trackID: trackB, at: nil)
 
@@ -102,6 +105,7 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
 
         let trackID = UUID()
         let url = try makeTempWAV()
+        engine.prepareTrack(trackID: trackID)
         _ = engine.play(sampleURL: url, settings: .default, trackID: trackID, at: nil)
         XCTAssertNotNil(engine.filterNode(for: trackID))
 
@@ -116,11 +120,13 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
 
         let trackID = UUID()
         let url = try makeTempWAV()
+        engine.prepareTrack(trackID: trackID)
         _ = engine.play(sampleURL: url, settings: .default, trackID: trackID, at: nil)
         let firstFilter = engine.filterNode(for: trackID)
         engine.removeTrack(trackID: trackID)
 
         // Re-add the track.
+        engine.prepareTrack(trackID: trackID)
         _ = engine.play(sampleURL: url, settings: .default, trackID: trackID, at: nil)
         let secondFilter = engine.filterNode(for: trackID)
 

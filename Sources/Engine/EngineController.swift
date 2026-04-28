@@ -1404,8 +1404,8 @@ final class EngineController: RouterDispatcher {
 
     /// Push per-track fader state to `sampleEngine`. Called from `syncAudioOutputs`
     /// every time the document model changes, which includes fader moves via the
-    /// mixer UI. The engine creates per-track mixer nodes lazily on first use; this
-    /// just configures them.
+    /// mixer UI. The engine prepares per-track mixers and voice pools here so
+    /// tick-time sample dispatch never mutates the AVAudioEngine graph.
     private func syncSampleMixers(for documentModel: Project) {
         var sampleTrackIDs: Set<UUID> = []
         for track in documentModel.tracks {
@@ -1416,6 +1416,7 @@ final class EngineController: RouterDispatcher {
                 continue
             }
             sampleTrackIDs.insert(track.id)
+            sampleEngine.prepareTrack(trackID: track.id)
             sampleEngine.setTrackMix(
                 trackID: track.id,
                 level: track.mix.clampedLevel,

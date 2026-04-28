@@ -6,10 +6,14 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
     private final class SpySamplePlaybackSink: SamplePlaybackSink {
         var playCalls: [(URL, SamplerSettings, UUID)] = []
         var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, Bool)] = []
+        var prepareTrackCalls: [UUID] = []
         var setTrackMixCalls: [(UUID, Double, Double)] = []
         var removeTrackCalls: [UUID] = []
         func start() throws {}
         func stop() {}
+        func prepareTrack(trackID: UUID) {
+            prepareTrackCalls.append(trackID)
+        }
         func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? {
             playCalls.append((sampleURL, settings, trackID))
             return nil
@@ -171,6 +175,60 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertNotNil(last, "sample track should get a setTrackMix call")
         XCTAssertEqual(last?.1 ?? -1, 0.25, accuracy: 1e-9, "fader level should reach sample engine")
         XCTAssertEqual(last?.2 ?? 0, -0.5, accuracy: 1e-9, "pan should reach sample engine")
+    }
+
+    func test_documentApply_preparesSampleAndSlicerTracksBeforePlayback() {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        guard let kick = library.firstSample(in: .kick) else {
+            XCTFail("fixture missing"); return
+        }
+        let spy = SpySamplePlaybackSink()
+        let sliceSet = SliceSet(
+            sampleID: kick.id,
+            markers: [
+                SliceMarker(startFrame: 0, endFrame: 4_800),
+                SliceMarker(startFrame: 0, endFrame: 2_400)
+            ]
+        )
+        let drumTrack = StepSequenceTrack(
+            name: "Drum",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let sliceTrack = StepSequenceTrack(
+            name: "Slice",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .slicer(sliceSetID: sliceSet.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [drumTrack, sliceTrack])
+        let phrase = PhraseModel.default(tracks: [drumTrack, sliceTrack], layers: layers)
+        let project = Project(
+            version: 1,
+            tracks: [drumTrack, sliceTrack],
+            layers: layers,
+            sliceSetPool: [sliceSet],
+            selectedTrackID: drumTrack.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+
+        controller.apply(documentModel: project)
+
+        XCTAssertEqual(Set(spy.prepareTrackCalls), [drumTrack.id, sliceTrack.id])
+        XCTAssertEqual(Set(spy.setTrackMixCalls.map(\.0)), [drumTrack.id, sliceTrack.id])
     }
 
     func test_destinationChangedAwayFromSample_triggersRemoveTrack() {
