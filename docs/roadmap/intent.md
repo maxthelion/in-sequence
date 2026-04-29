@@ -345,3 +345,11 @@ Raw input:
 ```text
 There's another bunch of stuff to capture about phrase cells. Make that a separate item that we can get to later.
 ```
+
+## 2026-04-29 - Song Mode And Phrase Looping Clarification
+
+Raw input:
+
+```text
+Re item 11, I kind of described it in the last item about the phrase grid. Perhaps the only other addition would be that when we are in free play mode, the bar at the top should show the current playing phrase. It should also have a button that allows cueing up a next phrase for when this cycle finishes. This can open a dropdown for now. There should be a button on each option to switch immediately.
+```
