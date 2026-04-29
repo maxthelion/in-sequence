@@ -164,6 +164,10 @@ The user will provide feature-specific instructions for the prototype phase. HTM
 
 ### 5. Review Prototype UX
 
+Prototype review starts with the user. The selector should surface `review-prototypes` in the user lane whenever prototype artifacts exist and `ux-review.md` is missing.
+
+The user should inspect the prototypes and give product feedback: what feels promising, what fails, what direction to keep, and what needs another pass. After that, the PM assistant can synthesize the feedback into `ux-review.md` using the checklist below.
+
 Evaluate each prototype against a UX checklist before choosing a direction.
 
 Checklist:
@@ -273,7 +277,7 @@ The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/
 
 This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, and prototype review outcomes.
 
-Actions after `clarify-feature` are intended for `pm-assistant` unless the next action explicitly needs user input. `clarify-feature` remains a direct conversation with the user.
+Actions after `clarify-feature` are intended for `pm-assistant` unless the next action explicitly needs user input. `clarify-feature`, `blocked`, and `review-prototypes` remain direct conversations with the user.
 
 ### End-Of-Response Attention Check
 
@@ -293,19 +297,18 @@ Roadmap attention: 2 items need your input: item 7 Input Audio, item 13 Autoslic
 
 Keep this note brief. It should alert the user without hijacking the response they asked for.
 
-### Active Heartbeat Automation
+### Background Loop
 
-The Codex app has a heartbeat automation named `Roadmap PM loop`.
+The roadmap PM loop may be run by Claude or another background worker. Do not run multiple PM loops against the same branch at the same time.
 
 Its contract:
 
 - Operate only in `/Users/maxwilliams/dev/in-sequence`.
-- Wake every 10 minutes.
 - Run `scripts/roadmap/next-roadmap-actions.sh` first.
 - Execute exactly one item from the "Next Agent Item" section per wakeup.
 - Use `pm-assistant` rules for PM work.
 - Edit only `docs/roadmap/**`.
-- Stop instead of guessing when no "Next Agent Item" exists or when the action requires user input.
+- Stop instead of guessing when no "Next Agent Item" exists or when the action requires user input, including `review-prototypes`.
 - Rerun `scripts/roadmap/next-roadmap-actions.sh` and `scripts/roadmap/attention-summary.sh` before reporting.
 - Commit completed roadmap actions with `scripts/roadmap/commit-roadmap-action.sh`.
 - Do not create a commit when the wakeup only refreshed `docs/roadmap/next-actions.md` or only discovered that user input is needed.

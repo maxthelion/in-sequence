@@ -1,14 +1,14 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T12:34:46Z
-Repo HEAD: 41b1f02
+Generated: 2026-04-29T12:37:33Z
+Repo HEAD: aa4866c
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
 
 Each roadmap item has front matter in its feature `README.md`: `id`, `title`, `status`, `priority`, `blocked_by`, `stage`, `owner`, and `updated`.
 
-Planning actions after `clarify-feature` are intended for the `pm-assistant` role. `clarify-feature` and `blocked` require user input.
+Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-prototypes`, which requires user judgment. `clarify-feature`, `blocked`, and `review-prototypes` require user input.
 
 ## Selector
 
@@ -26,25 +26,25 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 
 ## Next User Item
 
-- **Item:** 15
-- **Feature:** Note Repeat
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `clarify-feature`
-- **Role:** `user`
-- **Why:** No `notes.md` yet.
-- **Output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
-
-## Next Agent Item
-
 - **Item:** 1
 - **Feature:** Clip History
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `review-prototypes`
-- **Role:** `pm-assistant`
+- **Role:** `user`
 - **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Output:** Review variants against the UX checklist and choose or reject a direction.
+
+## Next Agent Item
+
+- **Item:** 2
+- **Feature:** Scene Perform
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `draft-user-stories`
+- **Role:** `pm-assistant`
+- **Why:** `notes.md` exists, but `user-stories.md` is missing.
+- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ## Feature Actions
 
@@ -55,7 +55,7 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `pm-assistant`
+- **Role:** `user`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 

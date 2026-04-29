@@ -172,7 +172,7 @@ action_agent() {
   local action="$1"
 
   case "$action" in
-    clarify-feature|blocked)
+    clarify-feature|blocked|review-prototypes)
       printf '%s\n' "user"
       ;;
     ready-for-build-queue)
@@ -196,7 +196,7 @@ tmp="$OUT.tmp.$$"
   echo
   echo "Each roadmap item has front matter in its feature \`README.md\`: \`id\`, \`title\`, \`status\`, \`priority\`, \`blocked_by\`, \`stage\`, \`owner\`, and \`updated\`."
   echo
-  echo "Planning actions after \`clarify-feature\` are intended for the \`pm-assistant\` role. \`clarify-feature\` and \`blocked\` require user input."
+  echo "Planning actions after \`clarify-feature\` are intended for the \`pm-assistant\` role, except \`review-prototypes\`, which requires user judgment. \`clarify-feature\`, \`blocked\`, and \`review-prototypes\` require user input."
   echo
   echo "## Selector"
   echo
