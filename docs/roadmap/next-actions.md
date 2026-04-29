@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T14:25:09Z
-Repo HEAD: 0d56026
+Generated: 2026-04-29T14:32:08Z
+Repo HEAD: aef6f7a
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -41,14 +41,14 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 
 ## Next Agent Item
 
-- **Item:** 1
-- **Feature:** Clip History
+- **Item:** 2
+- **Feature:** Scene Perform
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-implementation-handoff`
+- **Action:** `draft-user-stories`
 - **Role:** `pm-assistant`
-- **Why:** Plan exists, but `implementation-handoff.md` is missing.
-- **Output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
+- **Why:** `notes.md` exists, but `user-stories.md` is missing.
+- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ## Feature Actions
 
@@ -58,10 +58,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-implementation-handoff`
-- **Role:** `pm-assistant`
-- **Reason:** Plan exists, but `implementation-handoff.md` is missing.
-- **Suggested output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Planning artifacts are present.
+- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
 
 ### 2. Scene Perform
 
