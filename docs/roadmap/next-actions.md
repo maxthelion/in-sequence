@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T13:12:13Z
-Repo HEAD: 58e9e52
+Generated: 2026-04-29T13:13:45Z
+Repo HEAD: 15f49f7
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -23,7 +23,8 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 7. `architecture.md` -> write-architecture
 8. `spec.md` -> write-spec
 9. `plan.md` -> write-plan
-10. all present -> ready-for-build-queue
+10. `implementation-handoff.md` -> write-implementation-handoff
+11. all present -> ready-for-build-queue
 
 ## Next User Item
 
@@ -42,10 +43,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Feature:** Clip History
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-architecture`
+- **Action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Why:** UX review exists, but `architecture.md` is missing.
-- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Why:** Architecture guardrails exist, but `spec.md` is missing.
+- **Output:** Write the feature specification from the selected prototype direction and architecture guardrails.
 
 ## Feature Actions
 
@@ -55,10 +56,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
+- **Next action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Reason:** Architecture guardrails exist, but `spec.md` is missing.
+- **Suggested output:** Write the feature specification from the selected prototype direction and architecture guardrails.
 
 ### 2. Scene Perform
 

@@ -163,10 +163,14 @@ classify_feature() {
     next_action="write-plan"
     reason="Spec exists, but \`plan.md\` is missing."
     output_hint="Write the implementation plan without starting production work."
+  elif ! has_content_file "$dir/implementation-handoff.md"; then
+    next_action="write-implementation-handoff"
+    reason="Plan exists, but \`implementation-handoff.md\` is missing."
+    output_hint="Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions."
   else
     next_action="ready-for-build-queue"
     reason="Planning artifacts are present."
-    output_hint="Promote stable spec/plan into the normal build queue when the user chooses."
+    output_hint="Promote the implementation handoff into the normal build queue when the user chooses."
   fi
 
   printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
@@ -215,7 +219,8 @@ tmp="$OUT.tmp.$$"
   echo "7. \`architecture.md\` -> write-architecture"
   echo "8. \`spec.md\` -> write-spec"
   echo "9. \`plan.md\` -> write-plan"
-  echo "10. all present -> ready-for-build-queue"
+  echo "10. \`implementation-handoff.md\` -> write-implementation-handoff"
+  echo "11. all present -> ready-for-build-queue"
   echo
   echo "## Next User Item"
   echo

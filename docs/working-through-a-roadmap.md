@@ -46,6 +46,7 @@ docs/roadmap/<feature-slug>/
   architecture.md
   spec.md
   plan.md
+  implementation-handoff.md
 ```
 
 `README.md` is the feature's lightweight index. Use the other files as the feature matures; do not create empty documents before they have useful content.
@@ -66,6 +67,23 @@ updated: 2026-04-29
 ```
 
 Use integer IDs when discussing, blocking, or prioritising items. `blocked_by` should refer to item IDs, for example `[4, 5]`.
+
+### Implementation Artifact Bundle
+
+The PM process should accumulate artifacts that can be handed to the implementation loop without requiring the implementer to reconstruct product context from chat history.
+
+The important PM artifacts are:
+
+- `notes.md` and `intent.md` entries for raw user language.
+- `user-stories.md` for goals and acceptance signals.
+- `existing-state.md` for current model/UI/test reality.
+- `prototypes/` and `ux-review.md` for selected UX direction.
+- `architecture.md` for guardrails and invariants.
+- `spec.md` for the buildable product contract.
+- `plan.md` for execution sequence.
+- `implementation-handoff.md` as the final index and ingestion packet for the build loop.
+
+The implementation loop should consume the handoff first, then follow links to deeper artifacts as needed.
 
 ### Intent Log
 
@@ -238,6 +256,7 @@ Promotion means:
 
 - The feature has a coherent `spec.md`.
 - The feature has a buildable `plan.md` or is ready to be copied into the existing `docs/specs/` / `docs/plans/` automation flow.
+- The feature has an `implementation-handoff.md` that indexes the PM artifacts and states what the build loop should consume.
 - Open questions are resolved or explicitly deferred.
 - Acceptance criteria and non-goals are clear enough for an implementation worker to execute without re-litigating the product direction.
 - The feature `README.md` front matter can move to `status: ready-for-build`.
@@ -296,7 +315,8 @@ The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/
 7. `architecture.md` -> write-architecture
 8. `spec.md` -> write-spec
 9. `plan.md` -> write-plan
-10. all present -> ready-for-build-queue
+10. `implementation-handoff.md` -> write-implementation-handoff
+11. all present -> ready-for-build-queue
 
 This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, and prototype review outcomes.
 

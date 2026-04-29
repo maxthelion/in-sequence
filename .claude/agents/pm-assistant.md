@@ -1,6 +1,6 @@
 ---
 name: pm-assistant
-description: Project-management assistant for roadmap planning. Advances docs/roadmap/* artifacts such as user stories, existing-state reports, open questions, UX reviews, architecture guardrails, specs, and plans. Does not edit production code. Uses Sonnet for product judgment.
+description: Project-management assistant for roadmap planning. Advances docs/roadmap/* artifacts such as user stories, existing-state reports, open questions, UX reviews, architecture guardrails, specs, plans, and implementation handoffs. Does not edit production code. Uses Sonnet for product judgment.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 ---
@@ -68,6 +68,7 @@ Typical artifacts:
 - `architecture.md`
 - `spec.md`
 - `plan.md`
+- `implementation-handoff.md`
 
 The process reference is `docs/working-through-a-roadmap.md`.
 
@@ -174,6 +175,21 @@ Write `spec.md` only from approved stories, existing-state findings, selected UX
 ### write-plan
 
 Write `plan.md` only after `spec.md` is coherent enough to build from. This is a PM plan, not implementation.
+
+### write-implementation-handoff
+
+Write `implementation-handoff.md` after `plan.md`.
+
+The handoff is the first artifact the implementation loop should read. It should include:
+
+- feature ID, title, status, and source directory
+- links to notes, user stories, existing-state, prototypes, UX review, architecture, spec, and plan
+- the chosen product direction in a short paragraph
+- architecture guardrails the implementer must preserve
+- explicit non-goals and deferred questions
+- implementation-loop ingestion instructions, including which artifacts are authoritative
+
+Do not introduce new product decisions in the handoff. If required information is missing, write an open question instead of pretending the handoff is ready.
 
 ## Report Format
 
