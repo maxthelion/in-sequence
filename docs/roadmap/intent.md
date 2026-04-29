@@ -449,3 +449,11 @@ Raw input:
 ```text
 I think this can be deferred
 ```
+
+## 2026-04-29 - Scenes In Phrases Clarification
+
+Raw input:
+
+```text
+The phrase view should have two modes: tracks and scenes. In the scene version, A and B scene slots should be configurable per phrase, as well as the position of the slider. I imagine a similar matrix with only 3 columns for A, crossfader, and B. Different modes for the crossfader should be allowed, such as value for the whole phrase, or bars within it having different values.
+```

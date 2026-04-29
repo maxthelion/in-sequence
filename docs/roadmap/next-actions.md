@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T14:17:12Z
-Repo HEAD: 8f0214a
+Generated: 2026-04-29T14:22:09Z
+Repo HEAD: c120506
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -30,8 +30,8 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 
 ## Next User Item
 
-- **Item:** 22
-- **Feature:** Scenes In Phrases
+- **Item:** 23
+- **Feature:** Phrase Cells
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `clarify-feature`
@@ -45,10 +45,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Feature:** Clip History
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-plan`
+- **Action:** `write-implementation-handoff`
 - **Role:** `pm-assistant`
-- **Why:** Spec exists, but `plan.md` is missing.
-- **Output:** Write the implementation plan without starting production work.
+- **Why:** Plan exists, but `implementation-handoff.md` is missing.
+- **Output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
 
 ## Feature Actions
 
@@ -58,10 +58,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-plan`
+- **Next action:** `write-implementation-handoff`
 - **Role:** `pm-assistant`
-- **Reason:** Spec exists, but `plan.md` is missing.
-- **Suggested output:** Write the implementation plan without starting production work.
+- **Reason:** Plan exists, but `implementation-handoff.md` is missing.
+- **Suggested output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
 
 ### 2. Scene Perform
 
@@ -289,10 +289,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `clarify-feature`
-- **Role:** `user`
-- **Reason:** No `notes.md` yet.
-- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+- **Next action:** `draft-user-stories`
+- **Role:** `pm-assistant`
+- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
+- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ### 23. Phrase Cells
 
