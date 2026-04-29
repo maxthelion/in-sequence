@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T14:22:09Z
-Repo HEAD: c120506
+Generated: 2026-04-29T14:24:32Z
+Repo HEAD: a3a1da3
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -30,8 +30,8 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 
 ## Next User Item
 
-- **Item:** 23
-- **Feature:** Phrase Cells
+- **Item:** 24
+- **Feature:** Track Perform Multi-Select And Latch
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `clarify-feature`
@@ -297,13 +297,13 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 ### 23. Phrase Cells
 
 - **Directory:** `docs/roadmap/phrase-cells/`
-- **Status:** `inventory`
+- **Status:** `deferred`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `clarify-feature`
-- **Role:** `user`
-- **Reason:** No `notes.md` yet.
-- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+- **Next action:** `deferred`
+- **Role:** `pm`
+- **Reason:** Status is `deferred`; this item is intentionally skipped for now.
+- **Suggested output:** No action until the user reactivates this item.
 
 ### 24. Track Perform Multi-Select And Latch
 

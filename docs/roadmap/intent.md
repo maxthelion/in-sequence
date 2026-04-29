@@ -457,3 +457,11 @@ Raw input:
 ```text
 The phrase view should have two modes: tracks and scenes. In the scene version, A and B scene slots should be configurable per phrase, as well as the position of the slider. I imagine a similar matrix with only 3 columns for A, crossfader, and B. Different modes for the crossfader should be allowed, such as value for the whole phrase, or bars within it having different values.
 ```
+
+## 2026-04-29 - Phrase Cells Deferred
+
+Raw input:
+
+```text
+Let's defer this
+```
