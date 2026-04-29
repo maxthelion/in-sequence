@@ -123,6 +123,14 @@ classify_feature() {
   status="$(feature_meta "$dir" "status" "unknown")"
   blocked_by="$(feature_meta "$dir" "blocked_by" "[]")"
 
+  if [ "$status" = "deferred" ]; then
+    next_action="deferred"
+    reason="Status is \`deferred\`; this item is intentionally skipped for now."
+    output_hint="No action until the user reactivates this item."
+    printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+    return
+  fi
+
   if [ "$status" = "blocked" ] || { [ -n "$blocked_by" ] && [ "$blocked_by" != "[]" ]; } || has_content_file "$dir/open-questions.md"; then
     next_action="blocked"
     reason="Status is \`$status\`, blocked_by is \`$blocked_by\`, or \`open-questions.md\` exists."
@@ -186,6 +194,9 @@ action_agent() {
   case "$action" in
     clarify-feature|blocked|review-prototypes|review-architecture)
       printf '%s\n' "user"
+      ;;
+    deferred)
+      printf '%s\n' "pm"
       ;;
     ready-for-build-queue)
       printf '%s\n' "pm"

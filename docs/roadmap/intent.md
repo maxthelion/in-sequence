@@ -394,6 +394,14 @@ Raw input:
 I think this might duplicate the input audio idea as it relates to tracks. A second idea that is lower priority is to have a separate live looping page that allows toggling record and playback of capable tracks at a macro level.
 ```
 
+## 2026-04-29 - Fill A Clip From Current Generator Deferred
+
+Raw input:
+
+```text
+Let's skip 17 for now
+```
+
 ## 2026-04-29 - Track Perform Multi-Select And Latch Backlog Item
 
 Raw input:
