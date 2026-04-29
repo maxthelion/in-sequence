@@ -385,3 +385,11 @@ Raw input:
 ```text
 Re item 13, the auto slice algorithm should be slightly smarter. I'm not sure what kind of prior art there is around this. The length of the sample can give some indication of a bpm assuming it is 1 bar, 2 bars etc. But there's also the question of whether the transients approximately line up to a grid of 16. The problematic cases are where the snippet of audio isn't exactly a loop - is slightly longer (shorter presents worse challenges). Then it would be nice if there are a bunch of suggested loop start ends. Maybe it looks at the transients to see if they are snares, kicks, hi hats etc. It feels like pattern matching that humans do intuitively, but could be determined by a heuristic. Perhaps we can explore several different options in isolation. Eg don't build it into the app yet. Just take a few samples, and build a couple of simple interfaces demonstrating how it handles the loops.
 ```
+
+## 2026-04-29 - Audio Looping Clarification
+
+Raw input:
+
+```text
+I think this might duplicate the input audio idea as it relates to tracks. A second idea that is lower priority is to have a separate live looping page that allows toggling record and playback of capable tracks at a macro level.
+```
