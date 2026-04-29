@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Scene Perform — Compact Variant</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Scene Perform: Compact variant.
+
+  DIFFERENCE FROM PRIMARY:
+  - Save Blend pos. and Reset are inside the crossfader column
+    (same as primary, both variants settled on this placement).
+  - The REAL variant difference: macro slots rendered as a 4×2 grid
+    (4 columns × 2 rows) rather than 2×4. This is wider per slot and
+    more compressed vertically, testing whether the card can be kept
+    shorter. The trade-off is narrower labels (truncation risk) vs
+    reduced height.
+  - Active-scene indicator uses a LEFT/RIGHT border accent (3px) on
+    the card's left edge (Scene A) or right edge (Scene B), as a
+    spatial complement to the header colour-flip in the primary. This
+    tests a lighter-weight active indicator.
+  - Hard-switch tap target is the ENTIRE card header (same as primary)
+    but the visual treatment is a subtle background shift rather than
+    full colour inversion — tests whether performers can find it
+    without the stark contrast.
+
+  INTERACTION BUDGET: primary goal (hard-switch) in ≤1 interaction.
+
+  STATES: use the state buttons to cycle through all rendered states.
+  Same fixtures as primary variant for fair comparison.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    padding: 24px;
+  }
+
+  .proto-banner {
+    background: #222;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .state-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .state-controls label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-right: 4px;
+  }
+  .state-btn {
+    padding: 4px 10px;
+    border: 1px solid #999;
+    background: #e8e8e8;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .state-btn.active { background: #333; color: #fff; border-color: #333; }
+  .state-btn:hover:not(.active) { background: #d8d8d8; }
+
+  .pane {
+    background: #fafafa;
+    border: 1px solid #ccc;
+    max-width: 900px;
+  }
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #ccc;
+    background: #f0f0f0;
+  }
+  .pane-title {
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .mode-toggle-stub {
+    border: 1px dashed #aaa;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: #888;
+    cursor: not-allowed;
+  }
+  .mode-toggle-stub::after { content: " [stub]"; font-size: 10px; }
+
+  /* 3-column grid: wider cards, narrower centre */
+  .perform-columns {
+    display: grid;
+    grid-template-columns: 1fr 110px 1fr;
+    gap: 8px;
+    padding: 12px;
+    align-items: start;
+  }
+
+  /* Scene card — compact variant uses edge accent for active state */
+  .scene-card {
+    border: 2px solid #bbb;
+    background: #f5f5f5;
+    transition: border-color 0.15s;
+  }
+  /* Active: strong left accent on A, right accent on B, plus subtle bg */
+  .scene-card.is-active {
+    background: #f0f0f0;
+    border-color: #999;
+  }
+  #card-a.is-active {
+    border-left: 4px solid #222;
+  }
+  #card-b.is-active {
+    border-right: 4px solid #222;
+  }
+  /* Active label strip under header */
+  .active-strip {
+    display: none;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: #333;
+    padding: 2px 10px;
+    text-align: center;
+  }
+  .scene-card.is-active .active-strip { display: block; }
+
+  /* Card header: hard-switch tap target — lighter treatment in this variant */
+  .card-header {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ddd;
+    background: #e8e8e8;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+  }
+  .card-header:hover { background: #d8d8d8; }
+  .scene-card.is-active .card-header { background: #ddd; }
+  .scene-card.is-active .card-header:hover { background: #ccc; }
+
+  .card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .slot-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #777;
+  }
+  .scene-title { font-weight: 600; font-size: 13px; color: #111; }
+  .tap-hint { font-size: 10px; color: #888; margin-top: 2px; }
+
+  .scene-picker-stub {
+    border: 1px dashed #aaa;
+    padding: 2px 5px;
+    font-size: 10px;
+    color: #888;
+    cursor: not-allowed;
+    white-space: nowrap;
+  }
+  .scene-picker-stub::after { content: " [stub]"; font-size: 9px; }
+
+  /* 4-column × 2-row macro grid — COMPACT VARIANT DIFFERENCE */
+  .macro-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    padding: 8px 8px;
+  }
+  .macro-slot {
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 4px 5px;
+    min-width: 0; /* allow shrink */
+  }
+  .macro-slot.has-override { border-color: #888; background: #f8f8f0; }
+  .macro-label {
+    font-size: 9px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .macro-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #111;
+    margin-top: 1px;
+  }
+  .macro-value.blended { color: #444; }
+  .override-dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    background: #555;
+    border-radius: 50%;
+    margin-left: 3px;
+    vertical-align: middle;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 5px;
+    padding: 5px 8px;
+    border-top: 1px solid #ddd;
+    background: #f0f0f0;
+    flex-wrap: wrap;
+  }
+  .card-btn {
+    padding: 4px 7px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .card-btn:hover { background: #ccc; }
+  .card-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+  .modified-badge {
+    display: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: #333;
+    padding: 2px 5px;
+    border: 1px solid #999;
+    background: #e8e8e8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .modified-badge.visible { display: inline-block; }
+
+  /* Crossfader column */
+  .crossfader-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 4px;
+    border: 1px solid #ccc;
+    background: #ebebeb;
+    min-height: 200px;
+    justify-content: center;
+  }
+  .fader-label-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #555;
+    padding: 0 2px;
+  }
+  .crossfader-track-wrap { width: 100%; padding: 2px; }
+  #crossfader-input {
+    width: 100%;
+    cursor: pointer;
+    accent-color: #333;
+    height: 20px;
+  }
+  .blend-readout {
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #222;
+  }
+  .fader-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+  .fader-btn {
+    padding: 4px 5px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+  }
+  .fader-btn:hover { background: #ccc; }
+  .fader-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Save confirm */
+  .save-confirm-row {
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    border: 1px solid #888;
+    background: #fff;
+    padding: 5px;
+  }
+  .save-confirm-row.visible { display: flex; }
+  .save-confirm-label { font-size: 10px; color: #444; line-height: 1.3; }
+  .save-confirm-actions { display: flex; gap: 3px; }
+  .confirm-btn {
+    flex: 1;
+    padding: 3px 3px;
+    border: 1px solid #888;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .confirm-btn.ok { background: #333; color: #fff; border-color: #333; }
+  .confirm-btn.ok:hover { background: #111; }
+  .confirm-btn.cancel { background: #e0e0e0; }
+  .confirm-btn.cancel:hover { background: #ccc; }
+
+  .reset-annotation {
+    display: none;
+    font-size: 10px;
+    color: #444;
+    border: 1px solid #bbb;
+    background: #f8f8f8;
+    padding: 3px 5px;
+    line-height: 1.3;
+    width: 100%;
+  }
+  .reset-annotation.visible { display: block; }
+
+  /* Semantic note stub in fader col */
+  .save-semantic-note {
+    margin-top: 6px;
+    border-top: 1px dashed #bbb;
+    padding-top: 5px;
+    width: 100%;
+    font-size: 9px;
+    color: #888;
+    line-height: 1.4;
+  }
+
+  .annotation-strip {
+    border-top: 1px solid #ccc;
+    padding: 8px 12px;
+    background: #f0f0f0;
+    font-size: 11px;
+    color: #555;
+    line-height: 1.5;
+  }
+  .annotation-strip strong { color: #222; }
+
+  /* Variant comparison note */
+  .variant-note {
+    margin-top: 16px;
+    max-width: 900px;
+    border: 1px dashed #bbb;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: #555;
+    line-height: 1.6;
+    background: #f8f8f8;
+  }
+  .variant-note strong { color: #222; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">[PROTOTYPE — NOT PRODUCTION UI] Scene Perform · Compact Variant · 4-col macro grid + edge-accent active indicator</div>
+
+<div class="state-controls">
+  <label>State:</label>
+  <button class="state-btn" data-state="idle">Idle (A full)</button>
+  <button class="state-btn" data-state="a-active">A active (0.15)</button>
+  <button class="state-btn" data-state="b-active">B active (0.85)</button>
+  <button class="state-btn" data-state="mid-blend">Mid blend (0.5)</button>
+  <button class="state-btn" data-state="post-reset">Post-Reset</button>
+  <button class="state-btn" data-state="save-confirm">Save Blend confirm</button>
+</div>
+
+<div class="pane">
+  <div class="pane-header">
+    <span class="pane-title">Scenes</span>
+    <div class="mode-toggle-stub">Browse / Edit | Perform</div>
+  </div>
+
+  <div class="perform-columns">
+
+    <!-- SCENE A -->
+    <div class="scene-card" id="card-a">
+      <div class="card-header" onclick="hardSwitch('a')" title="Click to hard-switch to Scene A">
+        <div class="card-header-row">
+          <div>
+            <div class="slot-label">Slot A</div>
+            <div class="scene-title">Dark Pulse</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="scene-picker-stub" onclick="event.stopPropagation()">&#9783; Pick</span>
+          </div>
+        </div>
+        <div class="tap-hint">Tap to switch fully to A</div>
+      </div>
+      <div class="active-strip">LIVE</div>
+
+      <div class="macro-grid">
+        <div class="macro-slot has-override">
+          <div class="macro-label">M1 Cutoff<span class="override-dot"></span></div>
+          <div class="macro-value" id="ma1-val">72%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M2 Reso</div>
+          <div class="macro-value" id="ma2-val">45%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M3 Drive</div>
+          <div class="macro-value" id="ma3-val">88%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M4 Wet/Dry</div>
+          <div class="macro-value" id="ma4-val">60%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M5 Delay</div>
+          <div class="macro-value" id="ma5-val">30%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M6 Reverb</div>
+          <div class="macro-value" id="ma6-val">55%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M7 BitRate</div>
+          <div class="macro-value" id="ma7-val">100%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M8 Output</div>
+          <div class="macro-value" id="ma8-val">80%</div>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <span class="modified-badge" id="modified-a">MOD</span>
+        <button class="card-btn disabled" id="revert-a" onclick="stubAction('Revert A')">Revert</button>
+        <button class="card-btn" onclick="stubAction('Save to Scene A')">Save to Scene</button>
+      </div>
+    </div>
+
+    <!-- CROSSFADER COLUMN -->
+    <div class="crossfader-col">
+      <div class="fader-label-row">
+        <span>A</span>
+        <span>B</span>
+      </div>
+      <div class="crossfader-track-wrap">
+        <input type="range" id="crossfader-input" min="0" max="100" value="0"
+               oninput="onFaderInput(this.value)">
+      </div>
+      <div class="blend-readout" id="blend-readout">A 100%</div>
+
+      <div class="fader-controls">
+        <button class="fader-btn" id="reset-btn" onclick="doReset()">Reset→nearest</button>
+        <div class="reset-annotation" id="reset-annotation">Snapped A (was 18%)</div>
+
+        <button class="fader-btn" id="save-blend-btn" onclick="showSaveConfirm()">Save Blend pos.</button>
+        <div class="save-confirm-row" id="save-confirm-row">
+          <div class="save-confirm-label">Save fader position to doc? Cannot undo here.</div>
+          <div class="save-confirm-actions">
+            <button class="confirm-btn ok" onclick="confirmSave()">Save</button>
+            <button class="confirm-btn cancel" onclick="cancelSave()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-semantic-note">
+        "Save Blend pos." = fader position only.<br>
+        Macro values → each card's "Save to Scene".
+      </div>
+    </div>
+
+    <!-- SCENE B -->
+    <div class="scene-card" id="card-b">
+      <div class="card-header" onclick="hardSwitch('b')" title="Click to hard-switch to Scene B">
+        <div class="card-header-row">
+          <div>
+            <div class="slot-label">Slot B</div>
+            <div class="scene-title">Acid Rain '94</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="scene-picker-stub" onclick="event.stopPropagation()">&#9783; Pick</span>
+          </div>
+        </div>
+        <div class="tap-hint">Tap to switch fully to B</div>
+      </div>
+      <div class="active-strip">LIVE</div>
+
+      <div class="macro-grid">
+        <div class="macro-slot">
+          <div class="macro-label">M1 Cutoff</div>
+          <div class="macro-value" id="mb1-val">40%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M2 Reso</div>
+          <div class="macro-value" id="mb2-val">90%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M3 Drive</div>
+          <div class="macro-value" id="mb3-val">20%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M4 Wet/Dry</div>
+          <div class="macro-value" id="mb4-val">80%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M5 Delay</div>
+          <div class="macro-value" id="mb5-val">70%</div>
+        </div>
+        <div class="macro-slot has-override">
+          <div class="macro-label">M6 Reverb<span class="override-dot"></span></div>
+          <div class="macro-value" id="mb6-val">95%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M7 BitRate</div>
+          <div class="macro-value" id="mb7-val">65%</div>
+        </div>
+        <div class="macro-slot">
+          <div class="macro-label">M8 Output</div>
+          <div class="macro-value" id="mb8-val">75%</div>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <span class="modified-badge" id="modified-b">MOD</span>
+        <button class="card-btn disabled" id="revert-b" onclick="stubAction('Revert B')">Revert</button>
+        <button class="card-btn" onclick="stubAction('Save to Scene B')">Save to Scene</button>
+      </div>
+    </div>
+
+  </div><!-- /perform-columns -->
+
+  <div class="annotation-strip" id="annotation-strip">
+    <strong>Idle state.</strong> Fader at A=0. Scene A fully live. Edge accent (left border) marks active card.
+  </div>
+</div><!-- /pane -->
+
+<div class="variant-note">
+  <strong>Compact variant differences vs primary:</strong>
+  Macro grid is 4 columns × 2 rows (vs 2×4 in primary) — tests label truncation risk at narrow card widths.
+  Active-scene indicator: left/right border accent on card edge rather than full header colour inversion — tests whether the lighter treatment is findable under stage conditions.
+  Hard-switch tap target remains the full card header in both variants.
+  Save Blend / Reset placement is identical in both variants (inside crossfader column).
+</div>
+
+<script>
+  const macroA = [72, 45, 88, 60, 30, 55, 100, 80];
+  const macroB = [40, 90, 20, 80, 70, 95, 65, 75];
+  const idsA = ['ma1-val','ma2-val','ma3-val','ma4-val','ma5-val','ma6-val','ma7-val','ma8-val'];
+  const idsB = ['mb1-val','mb2-val','mb3-val','mb4-val','mb5-val','mb6-val','mb7-val','mb8-val'];
+  let currentFader = 0;
+
+  function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+
+  function updateBlendReadout(v) {
+    const el = document.getElementById('blend-readout');
+    if (v === 0) el.textContent = 'A 100%';
+    else if (v === 100) el.textContent = 'B 100%';
+    else if (v === 50) el.textContent = 'A=B 50%';
+    else if (v < 50) el.textContent = 'A ' + (100 - v) + '%';
+    else el.textContent = 'B ' + v + '%';
+  }
+
+  function updateMacroValues(v) {
+    const t = v / 100;
+    idsA.forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.textContent = lerp(macroA[i], macroB[i], t) + '%';
+      el.className = 'macro-value' + (t > 0 && t < 1 ? ' blended' : '');
+    });
+    idsB.forEach((id, i) => {
+      document.getElementById(id).textContent = macroB[i] + '%';
+      document.getElementById(id).className = 'macro-value';
+    });
+  }
+
+  function updateActiveIndicator(v) {
+    const ca = document.getElementById('card-a');
+    const cb = document.getElementById('card-b');
+    if (v < 50) { ca.classList.add('is-active'); cb.classList.remove('is-active'); }
+    else if (v > 50) { ca.classList.remove('is-active'); cb.classList.add('is-active'); }
+    else { ca.classList.remove('is-active'); cb.classList.remove('is-active'); }
+  }
+
+  const STATES = {
+    'idle': { fader: 0, resetDisabled: true, confirmVisible: false, resetAnn: false, modA: false, modB: false,
+      note: '<strong>Idle.</strong> Fader A=0. Edge accent on A card (left border). Reset disabled.' },
+    'a-active': { fader: 15, resetDisabled: false, confirmVisible: false, resetAnn: false, modA: true, modB: false,
+      note: '<strong>A active (15%).</strong> Left-edge accent on A. MOD badge visible. Override dot M1 Cutoff.' },
+    'b-active': { fader: 85, resetDisabled: false, confirmVisible: false, resetAnn: false, modA: false, modB: true,
+      note: '<strong>B active (85%).</strong> Right-edge accent on B. MOD badge visible. Override dot M6 Reverb.' },
+    'mid-blend': { fader: 50, resetDisabled: false, confirmVisible: false, resetAnn: false, modA: false, modB: false,
+      note: '<strong>Mid blend (50%).</strong> Neither card has edge accent. No active indicator.' },
+    'post-reset': { fader: 0, resetDisabled: true, confirmVisible: false, resetAnn: true, modA: false, modB: false,
+      note: '<strong>Post-Reset.</strong> Snapped to A (nearest). Annotation below Reset.' },
+    'save-confirm': { fader: 62, resetDisabled: false, confirmVisible: true, resetAnn: false, modA: false, modB: false,
+      note: '<strong>Save Blend confirm.</strong> Inline confirm row in fader column. No modal.' },
+  };
+
+  function applyState(name) {
+    const s = STATES[name];
+    if (!s) return;
+    currentFader = s.fader;
+    document.getElementById('crossfader-input').value = s.fader;
+    updateBlendReadout(s.fader);
+    updateMacroValues(s.fader);
+    updateActiveIndicator(s.fader);
+    document.getElementById('reset-btn').classList.toggle('disabled', s.resetDisabled);
+    document.getElementById('reset-annotation').classList.toggle('visible', s.resetAnn);
+    const confirmRow = document.getElementById('save-confirm-row');
+    confirmRow.classList.toggle('visible', s.confirmVisible);
+    document.getElementById('save-blend-btn').style.display = s.confirmVisible ? 'none' : '';
+    document.getElementById('modified-a').classList.toggle('visible', s.modA);
+    document.getElementById('modified-b').classList.toggle('visible', s.modB);
+    document.getElementById('revert-a').classList.toggle('disabled', !s.modA);
+    document.getElementById('revert-b').classList.toggle('disabled', !s.modB);
+    document.getElementById('annotation-strip').innerHTML = s.note;
+    document.querySelectorAll('.state-btn').forEach(b => b.classList.toggle('active', b.dataset.state === name));
+  }
+
+  function onFaderInput(v) {
+    currentFader = parseInt(v);
+    updateBlendReadout(currentFader);
+    updateMacroValues(currentFader);
+    updateActiveIndicator(currentFader);
+    document.getElementById('reset-annotation').classList.remove('visible');
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+    document.getElementById('reset-btn').classList.toggle('disabled', currentFader === 0 || currentFader === 100);
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Live drag.</strong> Fader at ' + currentFader + '%.';
+    document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+  }
+
+  function hardSwitch(side) {
+    const target = side === 'a' ? 0 : 100;
+    currentFader = target;
+    document.getElementById('crossfader-input').value = target;
+    updateBlendReadout(target);
+    updateMacroValues(target);
+    updateActiveIndicator(target);
+    document.getElementById('reset-annotation').classList.remove('visible');
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+    document.getElementById('reset-btn').classList.add('disabled');
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Hard-switch → ' + side.toUpperCase() + '.</strong> One click. Fader snapped to end.';
+    document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+  }
+
+  function doReset() {
+    const btn = document.getElementById('reset-btn');
+    if (btn.classList.contains('disabled')) return;
+    const prev = currentFader;
+    const nearest = currentFader <= 50 ? 0 : 100;
+    const nearestLabel = nearest === 0 ? 'A' : 'B';
+    currentFader = nearest;
+    document.getElementById('crossfader-input').value = nearest;
+    updateBlendReadout(nearest);
+    updateMacroValues(nearest);
+    updateActiveIndicator(nearest);
+    btn.classList.add('disabled');
+    const ann = document.getElementById('reset-annotation');
+    ann.textContent = 'Snapped ' + nearestLabel + ' (was ' + prev + '%)';
+    ann.classList.add('visible');
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Reset.</strong> Snapped to ' + nearestLabel + ' end (nearest). Was at ' + prev + '%.';
+    document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+  }
+
+  function showSaveConfirm() {
+    document.getElementById('save-confirm-row').classList.add('visible');
+    document.getElementById('save-blend-btn').style.display = 'none';
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Save Blend confirm.</strong> Inline row. Save or Cancel.';
+  }
+  function confirmSave() {
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Saved.</strong> Fader position (' + currentFader + '%) written to document.';
+  }
+  function cancelSave() {
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Cancelled.</strong> No change.';
+  }
+  function stubAction(label) {
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>[stub]</strong> "' + label + '" is off the primary path.';
+  }
+
+  document.querySelectorAll('.state-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyState(btn.dataset.state));
+  });
+
+  applyState('idle');
+</script>
+
+</body>
+</html>

@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Scene Perform — Primary Variant</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Scene Perform: 3-column layout (Scene A | Crossfader column | Scene B)
+  Primary variant.
+
+  FADER ORIENTATION CHOICE: Horizontal.
+  The centre crossfader column sits between two scene cards whose
+  heights are driven by an 8-slot 2×4 macro grid. A vertical fader
+  would need to span that same height (~260px) and would be a very
+  long mouse drag in the vertical axis for what is conceptually a
+  left-right A↔B gesture. Horizontal maps directly to the A-left /
+  B-right spatial metaphor and the travel distance equals the width of
+  the centre column (~120px), which is short and deliberate.
+
+  STATES RENDERED (use the state buttons at the top to switch):
+    idle          — fader at 0 (full A), no overrides
+    a-active      — fader at 0.15 (mostly A), A card highlighted
+    b-active      — fader at 0.85 (mostly B), B card highlighted
+    mid-blend     — fader at 0.5, neither card highlighted
+    post-reset    — fader snapped to nearest end (0) after Reset
+    save-confirm  — Save Blend inline confirm row visible
+
+  INTERACTION BUDGET: primary goal (hard-switch) in ≤1 interaction.
+  Click-path: click scene card header → fader snaps to that end,
+  active indicator updates, done.
+
+  STUBS (dashed border): Browse/Edit toggle, scene slot picker (grid icon).
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ---- Typography & Base ---- */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    padding: 24px;
+  }
+
+  /* ---- Prototype Banner ---- */
+  .proto-banner {
+    background: #222;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  /* ---- State Controls ---- */
+  .state-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .state-controls label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-right: 4px;
+  }
+  .state-btn {
+    padding: 4px 10px;
+    border: 1px solid #999;
+    background: #e8e8e8;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .state-btn.active {
+    background: #333;
+    color: #fff;
+    border-color: #333;
+  }
+  .state-btn:hover:not(.active) {
+    background: #d8d8d8;
+  }
+
+  /* ---- Pane Shell ---- */
+  .pane {
+    background: #fafafa;
+    border: 1px solid #ccc;
+    max-width: 860px;
+  }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #ccc;
+    background: #f0f0f0;
+  }
+  .pane-title {
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Stub: mode toggle */
+  .mode-toggle-stub {
+    border: 1px dashed #aaa;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: #888;
+    cursor: not-allowed;
+  }
+  .mode-toggle-stub::after {
+    content: " [stub]";
+    font-size: 10px;
+  }
+
+  /* ---- 3-Column Perform Layout ---- */
+  .perform-columns {
+    display: grid;
+    grid-template-columns: 1fr 120px 1fr;
+    gap: 0;
+    align-items: start;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  /* ---- Scene Card ---- */
+  .scene-card {
+    border: 2px solid #bbb;
+    background: #f5f5f5;
+    transition: border-color 0.15s;
+  }
+
+  /* Active scene: thicker accent border + background shift */
+  .scene-card.is-active {
+    border-color: #222;
+    background: #efefef;
+  }
+  .scene-card.is-active .card-header {
+    background: #222;
+    color: #fff;
+  }
+  .scene-card.is-active .card-header .scene-title {
+    color: #fff;
+  }
+  .scene-card.is-active .active-badge {
+    display: inline-block;
+  }
+
+  /* Card header — this IS the hard-switch tap target */
+  .card-header {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ccc;
+    background: #e8e8e8;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+  }
+  .card-header:hover {
+    background: #ddd;
+  }
+  .scene-card.is-active .card-header:hover {
+    background: #333;
+  }
+  .card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .slot-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #777;
+  }
+  .scene-card.is-active .slot-label {
+    color: #aaa;
+  }
+  .scene-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #111;
+  }
+  .active-badge {
+    display: none;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: #fff;
+    color: #222;
+    padding: 1px 5px;
+    border: 1px solid #fff;
+    font-weight: 700;
+  }
+  .tap-hint {
+    font-size: 10px;
+    color: #888;
+    margin-top: 2px;
+  }
+  .scene-card.is-active .tap-hint {
+    color: #aaa;
+  }
+
+  /* Card header stub: scene picker */
+  .scene-picker-stub {
+    border: 1px dashed #aaa;
+    padding: 2px 5px;
+    font-size: 10px;
+    color: #888;
+    cursor: not-allowed;
+    white-space: nowrap;
+  }
+  .scene-picker-stub::after {
+    content: " [stub]";
+    font-size: 9px;
+  }
+
+  /* Macro grid — 2 columns × 4 rows so all 8 fit without scrolling */
+  .macro-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .macro-slot {
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 5px 6px;
+  }
+  .macro-slot.has-override {
+    border-color: #888;
+    background: #f8f8f0;
+  }
+  .macro-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .macro-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #111;
+    margin-top: 2px;
+  }
+  .macro-value.blended {
+    color: #444;
+  }
+  .override-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    background: #555;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* Per-card actions */
+  .card-actions {
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px;
+    border-top: 1px solid #ddd;
+    background: #f0f0f0;
+  }
+  .card-btn {
+    padding: 4px 8px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .card-btn:hover {
+    background: #ccc;
+  }
+  .card-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .modified-badge {
+    display: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: #333;
+    padding: 2px 5px;
+    border: 1px solid #999;
+    background: #e8e8e8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .modified-badge.visible {
+    display: inline-block;
+  }
+
+  /* ---- Crossfader Column ---- */
+  .crossfader-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    border: 1px solid #ccc;
+    background: #f0f0f0;
+    min-height: 240px;
+    justify-content: center;
+  }
+
+  .fader-label-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #555;
+    padding: 0 2px;
+  }
+
+  /* The actual crossfader slider */
+  .crossfader-track-wrap {
+    width: 100%;
+    padding: 4px 2px;
+  }
+  #crossfader-input {
+    width: 100%;
+    cursor: pointer;
+    accent-color: #333;
+    height: 20px;
+  }
+
+  /* Blend readout */
+  .blend-readout {
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #222;
+    letter-spacing: 0.02em;
+  }
+
+  /* Fader controls: Reset and Save Blend live in the crossfader column */
+  .fader-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    margin-top: 4px;
+  }
+  .fader-btn {
+    padding: 5px 6px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    font-size: 11px;
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+  }
+  .fader-btn:hover {
+    background: #ccc;
+  }
+  .fader-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .fader-btn.destructive {
+    border-color: #999;
+  }
+  .fader-btn.destructive:hover {
+    background: #d8d8d8;
+  }
+
+  /* Save Blend confirmation — inline, not a modal */
+  .save-confirm-row {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    border: 1px solid #888;
+    background: #fff;
+    padding: 6px;
+  }
+  .save-confirm-row.visible {
+    display: flex;
+  }
+  .save-confirm-label {
+    font-size: 10px;
+    color: #444;
+    line-height: 1.3;
+  }
+  .save-confirm-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .confirm-btn {
+    flex: 1;
+    padding: 4px 4px;
+    border: 1px solid #888;
+    font-size: 11px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .confirm-btn.ok {
+    background: #333;
+    color: #fff;
+    border-color: #333;
+  }
+  .confirm-btn.ok:hover {
+    background: #111;
+  }
+  .confirm-btn.cancel {
+    background: #e0e0e0;
+  }
+  .confirm-btn.cancel:hover {
+    background: #ccc;
+  }
+
+  /* Post-reset annotation */
+  .reset-annotation {
+    display: none;
+    font-size: 10px;
+    color: #444;
+    border: 1px solid #bbb;
+    background: #f8f8f8;
+    padding: 4px 6px;
+    line-height: 1.3;
+    width: 100%;
+  }
+  .reset-annotation.visible {
+    display: block;
+  }
+
+  /* ---- Annotation strip ---- */
+  .annotation-strip {
+    border-top: 1px solid #ccc;
+    padding: 8px 12px;
+    background: #f0f0f0;
+    font-size: 11px;
+    color: #555;
+    line-height: 1.5;
+  }
+  .annotation-strip strong {
+    color: #222;
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">[PROTOTYPE — NOT PRODUCTION UI] Scene Perform · Primary Variant · 3-column layout</div>
+
+<!-- State selector -->
+<div class="state-controls">
+  <label>State:</label>
+  <button class="state-btn" data-state="idle">Idle (A full)</button>
+  <button class="state-btn" data-state="a-active">A active (0.15)</button>
+  <button class="state-btn" data-state="b-active">B active (0.85)</button>
+  <button class="state-btn" data-state="mid-blend">Mid blend (0.5)</button>
+  <button class="state-btn" data-state="post-reset">Post-Reset</button>
+  <button class="state-btn" data-state="save-confirm">Save Blend confirm</button>
+</div>
+
+<!-- Main pane -->
+<div class="pane">
+  <div class="pane-header">
+    <span class="pane-title">Scenes</span>
+    <div class="mode-toggle-stub">Browse / Edit | Perform</div>
+  </div>
+
+  <!-- 3-column perform layout -->
+  <div class="perform-columns">
+
+    <!-- === SCENE A CARD === -->
+    <div class="scene-card" id="card-a">
+      <div class="card-header" id="header-a" onclick="hardSwitch('a')" title="Click to hard-switch to Scene A">
+        <div class="card-header-row">
+          <div>
+            <div class="slot-label">Slot A</div>
+            <div class="scene-title">Dark Pulse</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="active-badge" id="badge-a">LIVE</span>
+            <span class="scene-picker-stub" onclick="event.stopPropagation()">&#9783; Pick</span>
+          </div>
+        </div>
+        <div class="tap-hint">Tap to switch fully to A</div>
+      </div>
+
+      <div class="macro-grid">
+        <div class="macro-slot" id="ma1">
+          <div class="macro-label">M1 Cutoff</div>
+          <div class="macro-value" id="ma1-val">72%</div>
+        </div>
+        <div class="macro-slot" id="ma2">
+          <div class="macro-label">M2 Reso</div>
+          <div class="macro-value" id="ma2-val">45%</div>
+        </div>
+        <div class="macro-slot has-override" id="ma3">
+          <div class="macro-label">M3 Drive<span class="override-dot" title="Override active"></span></div>
+          <div class="macro-value" id="ma3-val">88%</div>
+        </div>
+        <div class="macro-slot" id="ma4">
+          <div class="macro-label">M4 Wet/Dry</div>
+          <div class="macro-value" id="ma4-val">60%</div>
+        </div>
+        <div class="macro-slot" id="ma5">
+          <div class="macro-label">M5 Delay Send</div>
+          <div class="macro-value" id="ma5-val">30%</div>
+        </div>
+        <div class="macro-slot" id="ma6">
+          <div class="macro-label">M6 Reverb</div>
+          <div class="macro-value" id="ma6-val">55%</div>
+        </div>
+        <div class="macro-slot" id="ma7">
+          <div class="macro-label">M7 Bit Rate</div>
+          <div class="macro-value" id="ma7-val">100%</div>
+        </div>
+        <div class="macro-slot" id="ma8">
+          <div class="macro-label">M8 Output</div>
+          <div class="macro-value" id="ma8-val">80%</div>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <span class="modified-badge" id="modified-a">MODIFIED</span>
+        <button class="card-btn disabled" id="revert-a" onclick="stubAction('Revert A')">Revert</button>
+        <button class="card-btn" onclick="stubAction('Save to Scene A')">Save to Scene</button>
+      </div>
+    </div>
+
+    <!-- === CROSSFADER COLUMN === -->
+    <div class="crossfader-col">
+      <div class="fader-label-row">
+        <span>A</span>
+        <span>B</span>
+      </div>
+
+      <div class="crossfader-track-wrap">
+        <input type="range" id="crossfader-input" min="0" max="100" value="0"
+               oninput="onFaderInput(this.value)"
+               title="Drag to blend A↔B">
+      </div>
+
+      <div class="blend-readout" id="blend-readout">A 100%</div>
+
+      <div class="fader-controls">
+        <!-- Reset: snap to nearest hard end -->
+        <button class="fader-btn" id="reset-btn" onclick="doReset()">
+          Reset to nearest
+        </button>
+        <div class="reset-annotation" id="reset-annotation">
+          Snapped to A end (nearest). Fader was at 18%.
+        </div>
+
+        <!-- Save Blend: shows inline confirm -->
+        <button class="fader-btn destructive" id="save-blend-btn" onclick="showSaveConfirm()">
+          Save Blend pos.
+        </button>
+        <div class="save-confirm-row" id="save-confirm-row">
+          <div class="save-confirm-label">
+            Save fader position to document? This overwrites the stored blend point. Cannot be undone here.
+          </div>
+          <div class="save-confirm-actions">
+            <button class="confirm-btn ok" onclick="confirmSave()">Save</button>
+            <button class="confirm-btn cancel" onclick="cancelSave()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Semantic note stub -->
+      <div style="margin-top:8px;border-top:1px dashed #bbb;padding-top:6px;width:100%;">
+        <div style="font-size:10px;color:#888;line-height:1.4;">
+          "Save Blend pos." saves fader position only.<br>
+          To save blended macro values → use each card's <em>Save to Scene</em>.
+        </div>
+      </div>
+    </div>
+
+    <!-- === SCENE B CARD === -->
+    <div class="scene-card" id="card-b">
+      <div class="card-header" id="header-b" onclick="hardSwitch('b')" title="Click to hard-switch to Scene B">
+        <div class="card-header-row">
+          <div>
+            <div class="slot-label">Slot B</div>
+            <div class="scene-title">Acid Rain '94</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="active-badge" id="badge-b">LIVE</span>
+            <span class="scene-picker-stub" onclick="event.stopPropagation()">&#9783; Pick</span>
+          </div>
+        </div>
+        <div class="tap-hint">Tap to switch fully to B</div>
+      </div>
+
+      <div class="macro-grid">
+        <div class="macro-slot" id="mb1">
+          <div class="macro-label">M1 Cutoff</div>
+          <div class="macro-value" id="mb1-val">40%</div>
+        </div>
+        <div class="macro-slot" id="mb2">
+          <div class="macro-label">M2 Reso</div>
+          <div class="macro-value" id="mb2-val">90%</div>
+        </div>
+        <div class="macro-slot" id="mb3">
+          <div class="macro-label">M3 Drive</div>
+          <div class="macro-value" id="mb3-val">20%</div>
+        </div>
+        <div class="macro-slot" id="mb4">
+          <div class="macro-label">M4 Wet/Dry</div>
+          <div class="macro-value" id="mb4-val">80%</div>
+        </div>
+        <div class="macro-slot" id="mb5">
+          <div class="macro-label">M5 Delay Send</div>
+          <div class="macro-value" id="mb5-val">70%</div>
+        </div>
+        <div class="macro-slot has-override" id="mb6">
+          <div class="macro-label">M6 Reverb<span class="override-dot" title="Override active"></span></div>
+          <div class="macro-value" id="mb6-val">95%</div>
+        </div>
+        <div class="macro-slot" id="mb7">
+          <div class="macro-label">M7 Bit Rate</div>
+          <div class="macro-value" id="mb7-val">65%</div>
+        </div>
+        <div class="macro-slot" id="mb8">
+          <div class="macro-label">M8 Output</div>
+          <div class="macro-value" id="mb8-val">75%</div>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <span class="modified-badge" id="modified-b">MODIFIED</span>
+        <button class="card-btn disabled" id="revert-b" onclick="stubAction('Revert B')">Revert</button>
+        <button class="card-btn" onclick="stubAction('Save to Scene B')">Save to Scene</button>
+      </div>
+    </div>
+
+  </div><!-- /perform-columns -->
+
+  <div class="annotation-strip" id="annotation-strip">
+    <strong>Idle state.</strong>
+    Fader at A end (0). Scene A is fully live.
+    Hard-switch: click either card header to snap fader to that end.
+    Reset: snaps to nearest end, not last-saved position.
+  </div>
+</div><!-- /pane -->
+
+<script>
+  // ---- State definitions ----
+  const STATES = {
+    'idle': {
+      fader: 0,
+      annotation: '<strong>Idle.</strong> Fader at A=0. Scene A fully live. No overrides. Reset disabled (already at end).',
+      resetDisabled: true,
+      saveConfirmVisible: false,
+      resetAnnotation: false,
+      modifiedA: false,
+      modifiedB: false,
+    },
+    'a-active': {
+      fader: 15,
+      annotation: '<strong>A active (fader 15%).</strong> Scene A is dominant (≥50% weight on A side). Active badge shows on A card. Override dot on M3 Drive.',
+      resetDisabled: false,
+      saveConfirmVisible: false,
+      resetAnnotation: false,
+      modifiedA: true,
+      modifiedB: false,
+    },
+    'b-active': {
+      fader: 85,
+      annotation: '<strong>B active (fader 85%).</strong> Scene B is dominant (≥50% weight on B side). Active badge shows on B card. Override on B M6 Reverb.',
+      resetDisabled: false,
+      saveConfirmVisible: false,
+      resetAnnotation: false,
+      modifiedA: false,
+      modifiedB: true,
+    },
+    'mid-blend': {
+      fader: 50,
+      annotation: '<strong>Mid blend (50%).</strong> Neither scene is dominant; no active badge shown on either card. Both cards show blended macro values.',
+      resetDisabled: false,
+      saveConfirmVisible: false,
+      resetAnnotation: false,
+      modifiedA: false,
+      modifiedB: false,
+    },
+    'post-reset': {
+      fader: 0,
+      annotation: '<strong>Post-Reset.</strong> Fader was at 18% (A-side dominant), Reset snapped to nearest end: A=0. Annotation shown below Reset button.',
+      resetDisabled: true,
+      saveConfirmVisible: false,
+      resetAnnotation: true,
+      modifiedA: false,
+      modifiedB: false,
+    },
+    'save-confirm': {
+      fader: 62,
+      annotation: '<strong>Save Blend confirm.</strong> Fader at 62%. User tapped "Save Blend pos." — inline confirm row replaces the button. Confirm or Cancel. No modal.',
+      resetDisabled: false,
+      saveConfirmVisible: true,
+      resetAnnotation: false,
+      modifiedA: false,
+      modifiedB: false,
+    },
+  };
+
+  let currentFader = 0;
+
+  function lerp(a, b, t) {
+    return Math.round(a + (b - a) * t);
+  }
+
+  // Macro values for A and B scenes (integer %)
+  const macroA = [72, 45, 88, 60, 30, 55, 100, 80];
+  const macroB = [40, 90, 20, 80, 70, 95, 65, 75];
+  const macroIds_a = ['ma1-val','ma2-val','ma3-val','ma4-val','ma5-val','ma6-val','ma7-val','ma8-val'];
+  const macroIds_b = ['mb1-val','mb2-val','mb3-val','mb4-val','mb5-val','mb6-val','mb7-val','mb8-val'];
+
+  function updateBlendReadout(faderVal) {
+    // faderVal: 0=A, 100=B
+    const el = document.getElementById('blend-readout');
+    if (faderVal === 0) {
+      el.textContent = 'A 100%';
+    } else if (faderVal === 100) {
+      el.textContent = 'B 100%';
+    } else if (faderVal === 50) {
+      el.textContent = 'A=B 50%';
+    } else if (faderVal < 50) {
+      el.textContent = 'A ' + (100 - faderVal) + '%';
+    } else {
+      el.textContent = 'B ' + faderVal + '%';
+    }
+  }
+
+  function updateMacroValues(faderVal) {
+    const t = faderVal / 100;
+    macroIds_a.forEach((id, i) => {
+      const blended = lerp(macroA[i], macroB[i], t);
+      const el = document.getElementById(id);
+      el.textContent = blended + '%';
+      el.className = 'macro-value' + (t > 0 && t < 1 ? ' blended' : '');
+    });
+    macroIds_b.forEach((id, i) => {
+      // B card always shows its own scene values (off-side shows what it would deliver)
+      const el = document.getElementById(id);
+      el.textContent = macroB[i] + '%';
+      el.className = 'macro-value';
+    });
+  }
+
+  function updateActiveIndicator(faderVal) {
+    const cardA = document.getElementById('card-a');
+    const cardB = document.getElementById('card-b');
+    const badgeA = document.getElementById('badge-a');
+    const badgeB = document.getElementById('badge-b');
+
+    if (faderVal < 50) {
+      cardA.classList.add('is-active');
+      cardB.classList.remove('is-active');
+    } else if (faderVal > 50) {
+      cardA.classList.remove('is-active');
+      cardB.classList.add('is-active');
+    } else {
+      // exactly 50: neither is "active"
+      cardA.classList.remove('is-active');
+      cardB.classList.remove('is-active');
+    }
+  }
+
+  function applyState(stateName) {
+    const s = STATES[stateName];
+    if (!s) return;
+
+    const faderVal = s.fader;
+    currentFader = faderVal;
+
+    document.getElementById('crossfader-input').value = faderVal;
+    updateBlendReadout(faderVal);
+    updateMacroValues(faderVal);
+    updateActiveIndicator(faderVal);
+
+    // Reset button
+    const resetBtn = document.getElementById('reset-btn');
+    resetBtn.classList.toggle('disabled', s.resetDisabled);
+
+    // Reset annotation
+    const resetAnn = document.getElementById('reset-annotation');
+    // Update annotation text dynamically for post-reset
+    if (stateName === 'post-reset') {
+      resetAnn.textContent = 'Snapped to A end (nearest). Fader was at 18%.';
+    }
+    resetAnn.classList.toggle('visible', !!s.resetAnnotation);
+
+    // Save confirm
+    const confirmRow = document.getElementById('save-confirm-row');
+    confirmRow.classList.toggle('visible', !!s.saveConfirmVisible);
+    const saveBlandBtn = document.getElementById('save-blend-btn');
+    saveBlandBtn.style.display = s.saveConfirmVisible ? 'none' : '';
+
+    // Modified badges
+    document.getElementById('modified-a').classList.toggle('visible', !!s.modifiedA);
+    document.getElementById('modified-b').classList.toggle('visible', !!s.modifiedB);
+
+    // Revert buttons
+    document.getElementById('revert-a').classList.toggle('disabled', !s.modifiedA);
+    document.getElementById('revert-b').classList.toggle('disabled', !s.modifiedB);
+
+    // Annotation strip
+    document.getElementById('annotation-strip').innerHTML = s.annotation;
+
+    // State button highlight
+    document.querySelectorAll('.state-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.state === stateName);
+    });
+  }
+
+  function onFaderInput(val) {
+    currentFader = parseInt(val);
+    updateBlendReadout(currentFader);
+    updateMacroValues(currentFader);
+    updateActiveIndicator(currentFader);
+
+    // Hide reset annotation and save confirm on manual drag
+    document.getElementById('reset-annotation').classList.remove('visible');
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+
+    // Enable reset if not at an end
+    const resetBtn = document.getElementById('reset-btn');
+    resetBtn.classList.toggle('disabled', currentFader === 0 || currentFader === 100);
+
+    // Update annotation
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Live drag.</strong> Fader at ' + currentFader + '%. '
+      + (currentFader < 50 ? 'A dominant.' : currentFader > 50 ? 'B dominant.' : 'Exactly mid — neither active.');
+
+    // Deselect state buttons
+    document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+  }
+
+  function hardSwitch(side) {
+    const target = side === 'a' ? 0 : 100;
+    currentFader = target;
+    document.getElementById('crossfader-input').value = target;
+    updateBlendReadout(target);
+    updateMacroValues(target);
+    updateActiveIndicator(target);
+    document.getElementById('reset-annotation').classList.remove('visible');
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+    document.getElementById('reset-btn').classList.add('disabled');
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Hard-switch to ' + side.toUpperCase() + '.</strong> Fader snapped to '
+      + (side === 'a' ? 'A=0' : 'B=100') + '. One click on card header.';
+    document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+  }
+
+  function doReset() {
+    const btn = document.getElementById('reset-btn');
+    if (btn.classList.contains('disabled')) return;
+    // Snap to nearest end
+    const prev = currentFader;
+    const nearest = currentFader <= 50 ? 0 : 100;
+    const nearestLabel = nearest === 0 ? 'A' : 'B';
+    currentFader = nearest;
+    document.getElementById('crossfader-input').value = nearest;
+    updateBlendReadout(nearest);
+    updateMacroValues(nearest);
+    updateActiveIndicator(nearest);
+    btn.classList.add('disabled');
+    const ann = document.getElementById('reset-annotation');
+    ann.textContent = 'Snapped to ' + nearestLabel + ' end (nearest). Fader was at ' + prev + '%.';
+    ann.classList.add('visible');
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Reset.</strong> Snapped to nearest end (' + nearestLabel + '). Was at ' + prev + '%.';
+    document.querySelectorAll('.state-btn').forEach(btn2 => btn2.classList.remove('active'));
+  }
+
+  function showSaveConfirm() {
+    document.getElementById('save-confirm-row').classList.add('visible');
+    document.getElementById('save-blend-btn').style.display = 'none';
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Save Blend: confirm step.</strong> Inline confirm shown. Confirm saves fader position only. Cancel dismisses without change.';
+  }
+
+  function confirmSave() {
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Blend position saved.</strong> Fader position (' + currentFader + '%) written to document. Overlay cleared.';
+  }
+
+  function cancelSave() {
+    document.getElementById('save-confirm-row').classList.remove('visible');
+    document.getElementById('save-blend-btn').style.display = '';
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>Save Blend cancelled.</strong> No change to document.';
+  }
+
+  function stubAction(label) {
+    document.getElementById('annotation-strip').innerHTML =
+      '<strong>[stub]</strong> Action "' + label + '" is off the primary path under test.';
+  }
+
+  // Wire state buttons
+  document.querySelectorAll('.state-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyState(btn.dataset.state));
+  });
+
+  // Initial state
+  applyState('idle');
+</script>
+
+</body>
+</html>
