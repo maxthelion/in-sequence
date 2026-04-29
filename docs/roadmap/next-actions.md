@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T12:00:13Z
-Repo HEAD: 2d46075
+Generated: 2026-04-29T12:01:28Z
+Repo HEAD: 7d3e2d4
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -282,6 +282,17 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 ### 22. Scenes In Phrases
 
 - **Directory:** `docs/roadmap/scenes-in-phrases/`
+- **Status:** `inventory`
+- **Priority:** `unset`
+- **Blocked by:** `[]`
+- **Next action:** `clarify-feature`
+- **Role:** `user`
+- **Reason:** No `notes.md` yet.
+- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+### 23. Phrase Cells
+
+- **Directory:** `docs/roadmap/phrase-cells/`
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`

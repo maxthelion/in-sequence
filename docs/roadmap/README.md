@@ -28,3 +28,4 @@ Backlog order:
 - **20** [Fill Applied To Whole Kit](whole-kit-fill/)
 - **21** [Observability From Application Logs](observability-log-issues/)
 - **22** [Scenes In Phrases](scenes-in-phrases/)
+- **23** [Phrase Cells](phrase-cells/)
