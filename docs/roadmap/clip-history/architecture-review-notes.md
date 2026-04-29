@@ -27,7 +27,14 @@ Architecture interpretation:
 - a ring of step buckets is also acceptable if cheap, because empty buckets over 16 bars are still small;
 - dense `ClipContent` should be created only when needed for pseudo-clip audition or final save.
 
+Revision from follow-up:
+
+- because audition playback will need clip-like step data anyway, keeping history in a step-bucket format may be more useful than translating from MIDI-like events every time the user moves through history;
+- sparse/event-style storage can remain an optimization idea, but the architecture should prefer the simplest representation that supports stable pseudo-clip playback and UI selection;
+- if the history view lets the user move around a 16-bar window, the selected history region must not drift unpredictably while playback continues writing new capture data.
+
 Remaining architecture review questions:
 
 - occupied pattern-slot overwrite behavior;
 - history-region UI behavior.
+- how the UI behaves while new note data continues arriving and the circular history buffer advances.
