@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T13:41:09Z
-Repo HEAD: 762093e
+Generated: 2026-04-29T13:42:28Z
+Repo HEAD: 53aa02e
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -29,8 +29,8 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 
 ## Next User Item
 
-- **Item:** 15
-- **Feature:** Note Repeat
+- **Item:** 16
+- **Feature:** Step Order
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `clarify-feature`
@@ -211,10 +211,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `clarify-feature`
-- **Role:** `user`
-- **Reason:** No `notes.md` yet.
-- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+- **Next action:** `draft-user-stories`
+- **Role:** `pm-assistant`
+- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
+- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ### 16. Step Order
 
