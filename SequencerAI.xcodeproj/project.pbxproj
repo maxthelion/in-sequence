@@ -170,6 +170,8 @@
 		808530F1DECBEDFD2A8B1EC1 /* TrackPatternBankDefaultSeedingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B550FDF4C884B75F74EB1BFB /* TrackPatternBankDefaultSeedingTests.swift */; };
 		80ABD317AEF70A8302FFA72D /* StepAlgoKindTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28FAE49744AFC33D02238A2D /* StepAlgoKindTests.swift */; };
 		80D3D8762D9BDA2E536F8C72 /* SequencerDocumentSessionMasterBusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 175883927299EB7BCF0D274A /* SequencerDocumentSessionMasterBusTests.swift */; };
+		81A64F543B6E68AA5E93FDFB /* ProgressionChordGeneratorEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7289C68DDCA80D85C43D9630 /* ProgressionChordGeneratorEditorView.swift */; };
+		81EB3ED548E606FEDA645369 /* ProgressionChordGeneratorParams.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDD1A18253C6E35FFCE9D14 /* ProgressionChordGeneratorParams.swift */; };
 		832C0294B4DE0CA6BE8DA75A /* EngineIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AC30E4173E634A983D37FB /* EngineIntegrationTests.swift */; };
 		8523DF43F275FD44AF6CD31B /* Destination.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEEBECB6D74E34D75D40A96B /* Destination.swift */; };
 		85EBFB77A837286E5DD85C0D /* ClipContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 806222840FB3F12A0D3A6063 /* ClipContent.swift */; };
@@ -301,6 +303,7 @@
 		DCEA5182138E0D1A74DB5F4C /* ScalesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD744CCDFC9A3A90E909A8B9 /* ScalesTests.swift */; };
 		DE6EC8E3F51E903CF3054A8A /* ProjectTrackMacroTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1525ED94BCDEB1DFAEAD1B2C /* ProjectTrackMacroTests.swift */; };
 		DEE60AD6D95324501D916F60 /* StudioTypographyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8772C8554BBCE9F9C6026A /* StudioTypographyTests.swift */; };
+		DEE974187352B2C7D9A9F01A /* TrackSourceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6E8A6BE0603E794C25C6B4 /* TrackSourceCatalog.swift */; };
 		DF2370F27D9694B3498A6827 /* MultiDocumentEngineIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02F5350AA667365216279FB /* MultiDocumentEngineIsolationTests.swift */; };
 		E027CCBEA143ABC7990EC2BD /* WrapRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA068D16F4542EF4B0C01A5D /* WrapRow.swift */; };
 		E1D63DDCEB92046FA79054BC /* StyleProfilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEA6D90DE06F9CD1503FAF0 /* StyleProfilesTests.swift */; };
@@ -432,6 +435,7 @@
 		2380E2B051CF8B15105441F6 /* 2026-04-21-ui-typography-metrics-tokens.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-ui-typography-metrics-tokens.md"; sourceTree = "<group>"; };
 		255779684CA651C528349FA5 /* RecentVoicesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentVoicesStore.swift; sourceTree = "<group>"; };
 		2576B928F9A263F78F436089 /* MacroKnobRowViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroKnobRowViewModelTests.swift; sourceTree = "<group>"; };
+		2627CDFE9804EF59A1BB7171 /* progression-chord-generator-wireframe.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "progression-chord-generator-wireframe.html"; sourceTree = "<group>"; };
 		2778BA85FAEAD67BA4092E1C /* AudioInstrumentHostPresetsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInstrumentHostPresetsTests.swift; sourceTree = "<group>"; };
 		27B0969D9289A6A242EB5262 /* MIDIEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIEndpoint.swift; sourceTree = "<group>"; };
 		28FAE49744AFC33D02238A2D /* StepAlgoKindTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepAlgoKindTests.swift; sourceTree = "<group>"; };
@@ -538,6 +542,7 @@
 		6ACF8984A61584E576746127 /* 2026-04-24-sub-cell-modulation.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-24-sub-cell-modulation.md"; sourceTree = "<group>"; };
 		ABCD1200ABCD1200ABCD1200 /* ProjectAppendSliceTrackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAppendSliceTrackTests.swift; sourceTree = "<group>"; };
 		6B1B8B7F12FF451ABA239E2C /* ProjectAppendTrackClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAppendTrackClipTests.swift; sourceTree = "<group>"; };
+		6BDD1A18253C6E35FFCE9D14 /* ProgressionChordGeneratorParams.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressionChordGeneratorParams.swift; sourceTree = "<group>"; };
 		6D1774291FC8B91A91B042E6 /* ClipContentMacroLaneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipContentMacroLaneTests.swift; sourceTree = "<group>"; };
 		6E5287FF85E53E1D764EC6FD /* MIDIRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIRouter.swift; sourceTree = "<group>"; };
 		6E54B81F6B860472FC5758B3 /* MIDIRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIRouterTests.swift; sourceTree = "<group>"; };
@@ -546,6 +551,7 @@
 		71C6645325A25EEC2912A8B2 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
 		71E5A7028CA201465F8CC2DC /* 2026-04-21-fix-orderly-au-shutdown-on-app-quit.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-fix-orderly-au-shutdown-on-app-quit.md"; sourceTree = "<group>"; };
 		726A0B95E8C4D84800FC746D /* SeqAIDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeqAIDocument.swift; sourceTree = "<group>"; };
+		7289C68DDCA80D85C43D9630 /* ProgressionChordGeneratorEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressionChordGeneratorEditorView.swift; sourceTree = "<group>"; };
 		72C1C914FAD6639CA332B481 /* codex-behaviour-tree.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "codex-behaviour-tree.md"; sourceTree = "<group>"; };
 		730251EFA3E7138BC71E5EB0 /* project-layout.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "project-layout.md"; sourceTree = "<group>"; };
 		738C8F17B50171BC7386273C /* PitchContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchContext.swift; sourceTree = "<group>"; };
@@ -716,6 +722,7 @@
 		CABE1A8353CDDF5EF51EC571 /* 2026-04-20-document-as-project-refactor.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-20-document-as-project-refactor.md"; sourceTree = "<group>"; };
 		CAF6AFF87A1E07040BD36E4F /* AUPresetDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AUPresetDescriptor.swift; sourceTree = "<group>"; };
 		CBAD4AB364D3C31EAC36F853 /* 2026-04-20-macro-coordinator-and-lookahead-scheduling.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-20-macro-coordinator-and-lookahead-scheduling.md"; sourceTree = "<group>"; };
+		CC6E8A6BE0603E794C25C6B4 /* TrackSourceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSourceCatalog.swift; sourceTree = "<group>"; };
 		CCBD20AD88DE07BAAA0DD021 /* Project+Selection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Selection.swift"; sourceTree = "<group>"; };
 		CD1A1AC6C6690AB9E9295956 /* AddDestinationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDestinationSheet.swift; sourceTree = "<group>"; };
 		CD2EB37ED3671B8A0DC7F6B3 /* TrackDestinationEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackDestinationEditingTests.swift; sourceTree = "<group>"; };
@@ -837,6 +844,7 @@
 				0C530A909C4B6D2D1C09882D /* PitchAlgo.swift */,
 				9C2988718EEAADD360764D6F /* PitchAlgo+Kind.swift */,
 				738C8F17B50171BC7386273C /* PitchContext.swift */,
+				6BDD1A18253C6E35FFCE9D14 /* ProgressionChordGeneratorParams.swift */,
 				4ED86C68C206B2CCCA977574 /* Project.swift */,
 				45ECF72B2A4DC7A9BEA62D9C /* Project+CapturedClips.swift */,
 				AC5C13D6D05134D95CB3A76E /* Project+Codable.swift */,
@@ -864,6 +872,7 @@
 				1A7C2A156C9AA0191029A381 /* TrackGroup.swift */,
 				6F0ECACAA4DC5C06F12D3E2A /* TrackMacroDescriptor.swift */,
 				3BC7DACF1EF2F933F3C2796E /* TrackMixSettings.swift */,
+				CC6E8A6BE0603E794C25C6B4 /* TrackSourceCatalog.swift */,
 				43D4E7BE16D3143128BEE06B /* TrackType.swift */,
 			);
 			path = Document;
@@ -962,6 +971,14 @@
 			path = TrackSource;
 			sourceTree = "<group>";
 		};
+		144A9D93C8F89249978C7E70 /* prototypes */ = {
+			isa = PBXGroup;
+			children = (
+				2627CDFE9804EF59A1BB7171 /* progression-chord-generator-wireframe.html */,
+			);
+			path = prototypes;
+			sourceTree = "<group>";
+		};
 		15C98F2DC36FE362C6E34739 /* Library */ = {
 			isa = PBXGroup;
 			children = (
@@ -994,6 +1011,7 @@
 			children = (
 				72C1C914FAD6639CA332B481 /* codex-behaviour-tree.md */,
 				6C519E1BED9CAFB54B8FF233 /* plans */,
+				144A9D93C8F89249978C7E70 /* prototypes */,
 				7F80040AFC67E98A2E92EAA7 /* reviews */,
 				051FBFD046AD55FBB970EE04 /* screenshots */,
 				7B26832F36D0C9E79B949E0B /* specs */,
@@ -1390,6 +1408,7 @@
 				7C5420375191EDA57F13497C /* NoteShapeEditor.swift */,
 				7F838D5FE391E75B5C3051E5 /* PitchAlgoEditor.swift */,
 				FD9A31C66F688BEFC80CC280 /* PolyLaneSelector.swift */,
+				7289C68DDCA80D85C43D9630 /* ProgressionChordGeneratorEditorView.swift */,
 				B8E7C192A40514A0945B22CA /* SliceIndexEditor.swift */,
 				2AE2A4D45BC0ADF85528C03E /* StepAlgoEditor.swift */,
 			);
@@ -1985,6 +2004,8 @@
 				25453C9E4A6F203ADFF41CFE /* PresetBrowserSheet.swift in Sources */,
 				D6DFC9EE621BE83C4C7F2F80 /* PresetBrowserSheetViewModel.swift in Sources */,
 				FB62905FA6BBAD358D7C0407 /* PresetStepper.swift in Sources */,
+				81A64F543B6E68AA5E93FDFB /* ProgressionChordGeneratorEditorView.swift in Sources */,
+				81EB3ED548E606FEDA645369 /* ProgressionChordGeneratorParams.swift in Sources */,
 				6618BC37FF9347D153B990AD /* Project+CapturedClips.swift in Sources */,
 				EAC647A895161A8030295EC0 /* Project+Codable.swift in Sources */,
 				8FD9738657BE81975D328519 /* Project+Destinations.swift in Sources */,
@@ -2070,6 +2091,7 @@
 				7A3AD0D0C8286855B7F8932A /* TrackMacroDescriptor.swift in Sources */,
 				A30436CF980B2ADCFE36EC40 /* TrackMixSettings.swift in Sources */,
 				97291714B354CC84D3C90211 /* TrackPatternSlotPalette.swift in Sources */,
+				DEE974187352B2C7D9A9F01A /* TrackSourceCatalog.swift in Sources */,
 				30ED3E0739DC51F020DBA586 /* TrackSourceEditorView.swift in Sources */,
 				A02D4CC5950BDF3E3FEA8171 /* TrackSourceProgram.swift in Sources */,
 				71D34A433D642FD790045F20 /* TrackType.swift in Sources */,

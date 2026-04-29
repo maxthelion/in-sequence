@@ -5,6 +5,10 @@ extension Project {
         generatorPool.filter { $0.trackType == track.trackType }
     }
 
+    func compatibleModifierGenerators(for track: StepSequenceTrack) -> [GeneratorPoolEntry] {
+        generatorPool.filter { $0.trackType == track.trackType && $0.kind.supportsModifierStage }
+    }
+
     func compatibleClips(for track: StepSequenceTrack) -> [ClipPoolEntry] {
         clipPool.filter { $0.trackType == track.trackType }
     }

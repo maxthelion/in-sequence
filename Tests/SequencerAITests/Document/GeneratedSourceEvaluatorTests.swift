@@ -137,6 +137,44 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         XCTAssertEqual(results.map(\.pitch), [42, 36])
     }
 
+    func test_progression_chord_generator_outputs_bar_start_chords_until_next_chord() {
+        let params = GeneratorParams.progressionChords(.default)
+
+        var rng = PreviewRNG()
+        var state = GeneratedSourceEvaluationState()
+        let firstStep = GeneratedSourceEvaluator.evaluateStep(
+            for: params,
+            stepIndex: 0,
+            clipChoices: [],
+            chordContext: nil,
+            state: &state,
+            rng: &rng
+        )
+        let secondStep = GeneratedSourceEvaluator.evaluateStep(
+            for: params,
+            stepIndex: 1,
+            clipChoices: [],
+            chordContext: nil,
+            state: &state,
+            rng: &rng
+        )
+        let nextBar = GeneratedSourceEvaluator.evaluateStep(
+            for: params,
+            stepIndex: 16,
+            clipChoices: [],
+            chordContext: nil,
+            state: &state,
+            rng: &rng
+        )
+
+        XCTAssertEqual(firstStep.map(\.pitch), [60, 63, 67])
+        XCTAssertEqual(firstStep.map(\.velocity), [100, 100, 100])
+        XCTAssertEqual(firstStep.map(\.length), [16, 16, 16])
+        XCTAssertTrue(secondStep.isEmpty)
+        XCTAssertEqual(nextBar.map(\.pitch), [70, 74, 77])
+        XCTAssertEqual(nextBar.map(\.length), [16, 16, 16])
+    }
+
     func test_previewNotes_matches_direct_evaluator_loop_for_deterministic_fixture() {
         let params = GeneratorParams.mono(
             trigger: .native(.euclidean(pulses: 2, steps: 4, offset: 0)),

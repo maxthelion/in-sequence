@@ -62,7 +62,8 @@ struct TrackSourceEditorView: View {
         })
     }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
-    private var compatibleGenerators: [GeneratorPoolEntry] { session.store.compatibleGenerators(for: track) }
+    private var compatibleSourceGenerators: [GeneratorPoolEntry] { session.store.compatibleGenerators(for: track) }
+    private var compatibleModifierGenerators: [GeneratorPoolEntry] { session.store.compatibleModifierGenerators(for: track) }
     private var generatedSourceInputClips: [ClipPoolEntry] { session.store.generatedSourceInputClips() }
     private var harmonicSidechainClips: [ClipPoolEntry] { session.store.harmonicSidechainClips() }
     private var currentClip: ClipPoolEntry? { session.store.clipEntry(id: selectedPattern.sourceRef.clipID) }
@@ -182,7 +183,7 @@ struct TrackSourceEditorView: View {
         .sheet(item: $generatorPickerPurpose) { purpose in
             GeneratorSelectionSheet(
                 title: purpose.title,
-                generators: compatibleGenerators,
+                generators: generators(for: purpose),
                 onSelect: { generator in
                     select(generator: generator, for: purpose)
                     generatorPickerPurpose = nil
@@ -224,7 +225,7 @@ struct TrackSourceEditorView: View {
                         .foregroundStyle(StudioTheme.mutedText)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if compatibleGenerators.isEmpty {
+                    if compatibleSourceGenerators.isEmpty {
                         Text("No compatible generators are available for this track yet.")
                             .studioText(.body)
                             .foregroundStyle(StudioTheme.mutedText)
@@ -339,8 +340,8 @@ struct TrackSourceEditorView: View {
                         .foregroundStyle(StudioTheme.mutedText)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if compatibleGenerators.isEmpty {
-                        Text("No compatible generators are available for this track yet.")
+                    if compatibleModifierGenerators.isEmpty {
+                        Text("No compatible modifiers are available for this track yet.")
                             .studioText(.body)
                             .foregroundStyle(StudioTheme.mutedText)
                     } else {
@@ -476,6 +477,15 @@ struct TrackSourceEditorView: View {
                 p.setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
                 for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
             }
+        }
+    }
+
+    private func generators(for purpose: GeneratorPickerPurpose) -> [GeneratorPoolEntry] {
+        switch purpose {
+        case .source:
+            return compatibleSourceGenerators
+        case .modifier:
+            return compatibleModifierGenerators
         }
     }
 

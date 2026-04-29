@@ -16,6 +16,8 @@ enum GeneratedSourceEvaluator {
         case .melodic:
             guard let trigger = pipeline.trigger else { return 1 }
             return max(triggerCycleLength(trigger, clipChoices: clipChoices), 1)
+        case let .progressionChords(params):
+            return max(params.normalized.lengthSteps, 1)
         case let .drum(triggers, _):
             let maxLength = triggers.values.map { triggerCycleLength($0, clipChoices: clipChoices) }.max() ?? 1
             return max(maxLength, 1)
@@ -97,6 +99,9 @@ enum GeneratedSourceEvaluator {
                     voiceTag: seed.voiceTag
                 )
             }
+
+        case let .progressionChords(params):
+            return params.generatedNotes(at: stepIndex)
 
         case let .drum(triggers, shape):
             let totalSteps = cycleLength(for: params, clipChoices: clipChoices)
@@ -185,6 +190,9 @@ enum GeneratedSourceEvaluator {
                     )
                 }
             }
+
+        case let .progressionChords(params):
+            return params.generatedNotes(at: stepIndex)
 
         case let .drum(triggers, shape):
             let totalSteps = cycleLength(for: pipeline, clipChoices: clipChoices)
@@ -384,7 +392,7 @@ enum GeneratedSourceEvaluator {
                     rng: &rng
                 )
             }
-        case .drum, .slice, .template:
+        case .progressionChords, .drum, .slice, .template:
             return notes
         }
     }

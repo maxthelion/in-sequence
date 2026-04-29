@@ -93,4 +93,35 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
         XCTAssertEqual(project.compatibleClips(for: monoTrack).map(\.id), [monoClip.id, drumClip.id])
         XCTAssertEqual(Set(project.harmonicSidechainClips().map(\.id)), Set([monoClip.id, polyClip.id]))
     }
+
+    func test_compatibleModifierGenerators_excludes_source_only_progression_chords() {
+        let polyTrack = StepSequenceTrack(
+            id: UUID(),
+            name: "Poly",
+            trackType: .polyMelodic,
+            pitches: [60, 64, 67],
+            stepPattern: Array(repeating: true, count: 16),
+            destination: nil,
+            velocity: 100,
+            gateLength: 4
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [polyTrack])
+        let phrase = PhraseModel.default(tracks: [polyTrack], layers: layers)
+        let project = Project(
+            version: 1,
+            tracks: [polyTrack],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [TrackPatternBank.default(for: polyTrack, initialClipID: nil)],
+            selectedTrackID: polyTrack.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        XCTAssertTrue(project.compatibleGenerators(for: polyTrack).contains { $0.kind == GeneratorKind.progressionChordGenerator })
+        XCTAssertFalse(project.compatibleModifierGenerators(for: polyTrack).contains { $0.kind == GeneratorKind.progressionChordGenerator })
+        XCTAssertTrue(project.compatibleModifierGenerators(for: polyTrack).allSatisfy { $0.kind.supportsModifierStage })
+    }
 }

@@ -265,6 +265,7 @@ final class UIReadsStoreDirectlyTests: XCTestCase {
             _ = session.store.generatorEntry(id: pattern.sourceRef.generatorID)
             _ = session.store.generatorEntry(id: pattern.sourceRef.modifierGeneratorID)
             _ = session.store.compatibleGenerators(for: track)
+            _ = session.store.compatibleModifierGenerators(for: track)
             _ = session.store.generatedSourceInputClips()
             _ = session.store.harmonicSidechainClips()
             _ = session.store.layers

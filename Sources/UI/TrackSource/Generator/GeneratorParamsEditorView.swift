@@ -91,6 +91,9 @@ struct GeneratorParamsEditorView: View {
                     }
                 }
 
+            case let .progressionChords(params):
+                ProgressionChordGeneratorEditorView(params: params, accent: accent, onUpdate: onUpdate)
+
             case let .slice(trigger, sliceIndexes):
                 StudioPanel(title: "Generator Source", eyebrow: "Used when this slot is set to Generator", accent: accent) {
                     VStack(alignment: .leading, spacing: 16) {
@@ -174,6 +177,14 @@ struct GeneratorParamsEditorView: View {
                         onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
                     }
                 }
+            }
+
+        case .progressionChords:
+            StudioPanel(title: "Pitch Modifier", eyebrow: "Not available for chord sources", accent: StudioTheme.violet) {
+                Text("Progression chord generators emit complete chords, so they do not expose a separate modifier stage.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
         case .slice:

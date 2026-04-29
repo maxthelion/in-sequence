@@ -152,6 +152,14 @@ extension LiveSequencerStore {
         generatorPool.filter { $0.trackType == track.trackType }
     }
 
+    /// Generators whose `trackType` matches the given track and that can run
+    /// after a resolved source.
+    ///
+    /// Matches `Project.compatibleModifierGenerators(for:)`.
+    func compatibleModifierGenerators(for track: StepSequenceTrack) -> [GeneratorPoolEntry] {
+        generatorPool.filter { $0.trackType == track.trackType && $0.kind.supportsModifierStage }
+    }
+
     /// All clips in the clip pool (source inputs for generated sources).
     ///
     /// Matches `Project.generatedSourceInputClips()`. Returns the full clip

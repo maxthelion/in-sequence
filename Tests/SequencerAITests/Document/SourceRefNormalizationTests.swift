@@ -49,4 +49,39 @@ final class SourceRefNormalizationTests: XCTestCase {
         XCTAssertEqual(normalized.clipID, clipID)
         XCTAssertEqual(normalized.generatorID, genID, "generatorID must survive clip-mode normalization so un-bypass can re-engage it")
     }
+
+    func test_normalized_drops_source_only_generator_when_used_as_modifier() {
+        let sourceID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let progressionID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        let ref = SourceRef(
+            mode: .generator,
+            generatorID: sourceID,
+            modifierGeneratorID: progressionID,
+            modifierBypassed: false
+        )
+        let source = GeneratorPoolEntry(
+            id: sourceID,
+            name: "Poly",
+            trackType: .polyMelodic,
+            kind: .polyGenerator,
+            params: GeneratorKind.polyGenerator.defaultParams
+        )
+        let progression = GeneratorPoolEntry(
+            id: progressionID,
+            name: "Progression Chords",
+            trackType: .polyMelodic,
+            kind: .progressionChordGenerator,
+            params: .progressionChords(.default)
+        )
+
+        let normalized = ref.normalized(
+            trackType: .polyMelodic,
+            generatorPool: [source, progression],
+            clipPool: []
+        )
+
+        XCTAssertEqual(normalized.generatorID, sourceID)
+        XCTAssertNil(normalized.modifierGeneratorID)
+        XCTAssertFalse(normalized.modifierBypassed)
+    }
 }

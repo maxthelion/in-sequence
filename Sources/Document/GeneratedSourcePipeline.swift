@@ -85,6 +85,7 @@ enum PitchStageNode: Codable, Equatable, Hashable, Sendable {
 
 enum GeneratedSourcePipelineContent: Codable, Equatable, Hashable, Sendable {
     case melodic(pitches: [PitchStageNode], shape: NoteShape)
+    case progressionChords(ProgressionChordGeneratorParams)
     case drum(triggers: [VoiceTag: TriggerStageNode], shape: NoteShape)
     case slice(sliceIndexes: [Int])
     case template(templateID: UUID)
@@ -112,6 +113,15 @@ struct GeneratedSourcePipeline: Codable, Equatable, Hashable, Sendable {
         GeneratedSourcePipeline(
             trigger: nil,
             content: .drum(triggers: triggers, shape: shape)
+        )
+    }
+
+    static func progressionChords(
+        _ params: ProgressionChordGeneratorParams
+    ) -> GeneratedSourcePipeline {
+        GeneratedSourcePipeline(
+            trigger: nil,
+            content: .progressionChords(params.normalized)
         )
     }
 
@@ -162,6 +172,8 @@ extension GeneratorParams {
             return .melodic(trigger: trigger, pitches: [pitch], shape: shape)
         case let .poly(trigger, pitches, shape):
             return .melodic(trigger: trigger, pitches: pitches, shape: shape)
+        case let .progressionChords(params):
+            return .progressionChords(params)
         case let .drum(triggers, shape):
             return .drum(triggers: triggers, shape: shape)
         case let .slice(trigger, sliceIndexes):

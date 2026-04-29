@@ -18,6 +18,7 @@ final class GeneratorParamsTests: XCTestCase {
                 ],
                 shape: NoteShape(velocity: 96, gateLength: 6, accent: true)
             ),
+            .progressionChords(.default),
             .drum(
                 triggers: [
                     "kick": .native(.euclidean(pulses: 2, steps: 4, offset: 0), basePitch: 36),
@@ -116,6 +117,7 @@ final class GeneratorParamsTests: XCTestCase {
                 trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0), basePitch: 60),
                 sliceIndexes: [0, 2, 4]
             ),
+            .progressionChords(.default),
             .template(templateID: templateID),
         ]
 
@@ -139,6 +141,10 @@ final class GeneratorParamsTests: XCTestCase {
             case let (.slice(trigger, indexes), .slice(pipelineIndexes)):
                 XCTAssertEqual(value.generatedSourcePipeline.trigger, trigger)
                 XCTAssertEqual(pipelineIndexes, indexes)
+
+            case let (.progressionChords(params), .progressionChords(pipelineParams)):
+                XCTAssertNil(value.generatedSourcePipeline.trigger)
+                XCTAssertEqual(pipelineParams, params.normalized)
 
             case let (.template(id), .template(pipelineID)):
                 XCTAssertNil(value.generatedSourcePipeline.trigger)

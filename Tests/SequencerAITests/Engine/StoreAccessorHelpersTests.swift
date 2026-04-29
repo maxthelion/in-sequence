@@ -251,6 +251,15 @@ final class StoreAccessorHelpersTests: XCTestCase {
         )
     }
 
+    func test_compatibleModifierGenerators_matchesProject() {
+        let (store, project, trackID, _, _) = makeFixture()
+        let track = project.tracks.first(where: { $0.id == trackID })!
+        XCTAssertEqual(
+            store.compatibleModifierGenerators(for: track),
+            project.compatibleModifierGenerators(for: track)
+        )
+    }
+
     // MARK: - generatedSourceInputClips()
 
     func test_generatedSourceInputClips_matchesProject() {

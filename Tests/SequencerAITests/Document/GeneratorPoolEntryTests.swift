@@ -3,8 +3,8 @@ import XCTest
 @testable import SequencerAI
 
 final class GeneratorPoolEntryTests: XCTestCase {
-    func test_default_pool_has_three_entries_with_compatible_track_types() {
-        XCTAssertEqual(GeneratorPoolEntry.defaultPool.count, 3)
+    func test_default_pool_has_four_entries_with_compatible_track_types() {
+        XCTAssertEqual(GeneratorPoolEntry.defaultPool.count, 4)
         XCTAssertTrue(
             GeneratorPoolEntry.defaultPool.allSatisfy { entry in
                 entry.kind.compatibleWith.contains(entry.trackType)
@@ -16,6 +16,13 @@ final class GeneratorPoolEntryTests: XCTestCase {
         let polyEntry = GeneratorPoolEntry.defaultPool.first(where: { $0.trackType == .polyMelodic })
 
         XCTAssertEqual(polyEntry?.kind, .polyGenerator)
+    }
+
+    func test_default_pool_includes_progression_chord_generator() {
+        let progressionEntry = GeneratorPoolEntry.defaultPool.first(where: { $0.kind == .progressionChordGenerator })
+
+        XCTAssertEqual(progressionEntry?.trackType, .polyMelodic)
+        XCTAssertEqual(progressionEntry?.name, "Progression Chords")
     }
 
     func test_default_poly_generator_has_active_steps() {
