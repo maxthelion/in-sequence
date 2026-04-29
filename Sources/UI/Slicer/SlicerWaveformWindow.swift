@@ -166,17 +166,12 @@ struct SlicerWaveformWindow: View {
     }
 
     private func moveBoundary(markerID: UUID, to frame: Int64) {
-        guard let index = draft.markers.firstIndex(where: { $0.id == markerID }),
-              index > 0
-        else {
-            return
-        }
-
-        let previousStart = draft.markers[index - 1].startFrame
-        let nextEnd = index + 1 < draft.markers.count ? draft.markers[index + 1].endFrame : sampleLengthFrames
-        let clamped = min(max(frame, previousStart + 1), max(previousStart + 1, nextEnd - 1))
-        draft.markers[index - 1].endFrame = clamped
-        draft.markers[index].startFrame = clamped
+        SliceBoundaryEditing.moveSharedBoundary(
+            markerID: markerID,
+            to: frame,
+            in: &draft,
+            sampleLengthFrames: sampleLengthFrames
+        )
         selectedMarkerID = markerID
         normalizeAndCommit()
     }

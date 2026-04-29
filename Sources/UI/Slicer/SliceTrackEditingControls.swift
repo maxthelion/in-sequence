@@ -303,3 +303,45 @@ private enum SliceTrackWaveformHandle: Equatable {
     case wholeEnd
     case slice(UUID)
 }
+
+enum SliceMarkerSelectionPolicy {
+    static func assignableMarkerIndex(
+        markerID: UUID,
+        currentSliceSet: SliceSet?,
+        analysisDraft: SliceSet?
+    ) -> Int? {
+        guard analysisDraft == nil,
+              let currentSliceSet
+        else {
+            return nil
+        }
+        return currentSliceSet.markers.firstIndex { $0.id == markerID }
+    }
+}
+
+enum SliceBoundaryEditing {
+    static func moveSharedBoundary(
+        markerID: UUID,
+        to frame: Int64,
+        in sliceSet: inout SliceSet,
+        sampleLengthFrames: Int64
+    ) {
+        guard let index = sliceSet.markers.firstIndex(where: { $0.id == markerID }),
+              index > 0
+        else {
+            return
+        }
+
+        let previousStart = sliceSet.markers[index - 1].startFrame
+        let currentEnd = sliceSet.markers[index].endFrame
+        let nextBoundary = index + 1 < sliceSet.markers.count
+            ? sliceSet.markers[index + 1].startFrame
+            : sampleLengthFrames
+        let lowerBound = previousStart + 1
+        let upperBound = max(lowerBound, min(currentEnd, nextBoundary) - 1)
+        let boundary = min(max(frame, lowerBound), upperBound)
+
+        sliceSet.markers[index - 1].endFrame = boundary
+        sliceSet.markers[index].startFrame = boundary
+    }
+}

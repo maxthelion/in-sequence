@@ -444,6 +444,10 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             pitch: 2,
             startTrim: 0.1,
             endTrim: 0.2,
+            pan: -0.25,
+            filter: 0.35,
+            attackMs: 12,
+            releaseMs: 80,
             reverse: true,
             choke: false
         )
@@ -496,8 +500,11 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(call?.3.transpose, 3)
         XCTAssertEqual(call?.3.voiceMode, .polyphonic)
         XCTAssertEqual(call?.5, true)
-        XCTAssertEqual(call?.6?.pan, 0)
-        XCTAssertEqual(call?.6?.filter, 1)
+        XCTAssertEqual(call?.6?.pan, -0.25)
+        XCTAssertEqual(call?.6?.filter, 0.35)
+        XCTAssertEqual(call?.6?.attackMs, 12)
+        XCTAssertEqual(call?.6?.releaseMs, 80)
+        XCTAssertEqual(call?.6?.choke, false)
     }
 
     func test_slicerDestination_appliesMicroTimingAtSampleRate() {

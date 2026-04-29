@@ -675,9 +675,11 @@ private extension SliceTrackWorkspaceView {
     }
 
     func selectMarker(_ markerID: UUID) {
-        guard analysisDraft == nil,
-              let sliceSet = currentSliceSet,
-              let index = sliceSet.markers.firstIndex(where: { $0.id == markerID }),
+        guard let index = SliceMarkerSelectionPolicy.assignableMarkerIndex(
+            markerID: markerID,
+            currentSliceSet: currentSliceSet,
+            analysisDraft: analysisDraft
+        ),
               let parts = sliceTriggerParts
         else {
             return
@@ -703,25 +705,12 @@ private extension SliceTrackWorkspaceView {
 
     func moveSliceBoundary(markerID: UUID, to frame: Int64, sample: AudioSample) {
         mutateCurrentSliceSet(sample: sample) { set in
-            guard let index = set.markers.firstIndex(where: { $0.id == markerID }), index > 0 else {
-                return
-            }
-            if index == 1 {
-                let wholeStart = set.markers.first?.startFrame ?? 0
-                let maxStart = max(wholeStart, set.markers[index].endFrame - 1)
-                set.markers[index].startFrame = min(max(frame, wholeStart), maxStart)
-                return
-            }
-            let previousStart = set.markers[index - 1].startFrame
-            let currentEnd = set.markers[index].endFrame
-            let nextBoundary = index + 1 < set.markers.count
-                ? set.markers[index + 1].startFrame
-                : currentEnd
-            let lowerBound = previousStart + 1
-            let upperBound = max(lowerBound, min(currentEnd, nextBoundary) - 1)
-            let boundary = min(max(frame, lowerBound), upperBound)
-            set.markers[index - 1].endFrame = boundary
-            set.markers[index].startFrame = boundary
+            SliceBoundaryEditing.moveSharedBoundary(
+                markerID: markerID,
+                to: frame,
+                in: &set,
+                sampleLengthFrames: sampleLengthFrames(sample: sample)
+            )
         }
     }
 
