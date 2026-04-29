@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T16:26:42Z
-Repo HEAD: c5a07f1
+Generated: 2026-04-29T18:00:35Z
+Repo HEAD: 7b36ab6
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -45,10 +45,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Feature:** Send Effects
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `draft-user-stories`
+- **Action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Why:** `notes.md` exists, but `user-stories.md` is missing.
-- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
+- **Output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
 
 ## Feature Actions
 
@@ -113,10 +113,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `draft-user-stories`
+- **Next action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
-- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Reason:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
+- **Suggested output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
 
 ### 7. Input Audio
 

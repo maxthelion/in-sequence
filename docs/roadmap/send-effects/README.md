@@ -4,7 +4,7 @@ title: Send Effects
 status: inventory
 priority: unset
 blocked_by: []
-stage: inspect-existing-state
+stage: build-prototypes
 owner: pm
 updated: 2026-04-29
 ---
