@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T13:54:43Z
-Repo HEAD: a2bddac
+Generated: 2026-04-29T13:56:21Z
+Repo HEAD: b230b30
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -12,20 +12,21 @@ Planning actions after `clarify-feature` are intended for the `pm-assistant` rol
 
 ## Selector
 
-For each feature, blocked metadata or open questions win first; otherwise the first missing artifact wins:
+For each feature, deferred status wins first, then blocked metadata or open questions; otherwise the first missing artifact wins:
 
-1. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
-2. `notes.md` -> clarify-feature
-3. `user-stories.md` -> draft-user-stories
-4. `existing-state.md` -> inspect-existing-state
-5. `prototypes/*` -> build-prototypes
-6. `ux-review.md` -> review-prototypes
-7. `architecture.md` -> write-architecture
-8. `architecture-review.md` -> review-architecture
-9. `spec.md` -> write-spec
-10. `plan.md` -> write-plan
-11. `implementation-handoff.md` -> write-implementation-handoff
-12. all present -> ready-for-build-queue
+1. `status: deferred` -> deferred
+2. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+3. `notes.md` -> clarify-feature
+4. `user-stories.md` -> draft-user-stories
+5. `existing-state.md` -> inspect-existing-state
+6. `prototypes/*` -> build-prototypes
+7. `ux-review.md` -> review-prototypes
+8. `architecture.md` -> write-architecture
+9. `architecture-review.md` -> review-architecture
+10. `spec.md` -> write-spec
+11. `plan.md` -> write-plan
+12. `implementation-handoff.md` -> write-implementation-handoff
+13. all present -> ready-for-build-queue
 
 ## Next User Item
 
@@ -44,10 +45,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Feature:** Clip History
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-spec`
+- **Action:** `write-plan`
 - **Role:** `pm-assistant`
-- **Why:** Architecture review exists, but `spec.md` is missing.
-- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Why:** Spec exists, but `plan.md` is missing.
+- **Output:** Write the implementation plan without starting production work.
 
 ## Feature Actions
 
@@ -57,10 +58,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-spec`
+- **Next action:** `write-plan`
 - **Role:** `pm-assistant`
-- **Reason:** Architecture review exists, but `spec.md` is missing.
-- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Reason:** Spec exists, but `plan.md` is missing.
+- **Suggested output:** Write the implementation plan without starting production work.
 
 ### 2. Scene Perform
 

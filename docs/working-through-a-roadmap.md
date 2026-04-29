@@ -69,6 +69,23 @@ updated: 2026-04-29
 
 Use integer IDs when discussing, blocking, or prioritising items. `blocked_by` should refer to item IDs, for example `[4, 5]`.
 
+### Status Values
+
+Use these `status` values consistently in feature `README.md` front matter:
+
+- `inventory`: the item is active in the roadmap workflow and should advance through the next missing artifact.
+- `blocked`: the item needs user input or another dependency before PM work can continue. Use with `open-questions.md` for user questions, or `blocked_by: [<item-id>]` for roadmap dependencies.
+- `deferred`: the item is intentionally skipped for now. The deterministic selector should report it as deferred in the feature list but should not put it in the user lane or PM-assistant lane.
+- `ready-for-build`: the PM artifacts are complete enough for the separate implementation loop.
+
+When deferring an item:
+
+- set `status: deferred`;
+- set `stage: deferred`;
+- keep existing notes/artifacts intact;
+- add a short raw-intent entry explaining why it was deferred;
+- reactivate it later by restoring `status: inventory` and the appropriate `stage`.
+
 ### Implementation Artifact Bundle
 
 The PM process should accumulate artifacts that can be handed to the implementation loop without requiring the implementer to reconstruct product context from chat history.
@@ -326,20 +343,21 @@ Each worker should return a concise handoff: files inspected or changed, conclus
 
 Use `scripts/roadmap/next-roadmap-actions.sh` to run a deterministic scan of the roadmap backlog.
 
-The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/roadmap/next-actions.md`. It does not build anything or dispatch agents. It emits separate "Next User Item" and "Next Agent Item" sections so user clarification can remain visible without blocking autonomous PM-assistant work. For each feature, blocked metadata or open questions win first; otherwise it chooses the first missing planning artifact as the likely next project-management action:
+The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/roadmap/next-actions.md`. It does not build anything or dispatch agents. It emits separate "Next User Item" and "Next Agent Item" sections so user clarification can remain visible without blocking autonomous PM-assistant work. For each feature, deferred status wins first, then blocked metadata or open questions, otherwise it chooses the first missing planning artifact as the likely next project-management action:
 
-1. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
-2. `notes.md` -> clarify-feature
-3. `user-stories.md` -> draft-user-stories
-4. `existing-state.md` -> inspect-existing-state
-5. `prototypes/*` -> build-prototypes
-6. `ux-review.md` -> review-prototypes
-7. `architecture.md` -> write-architecture
-8. `architecture-review.md` -> review-architecture
-9. `spec.md` -> write-spec
-10. `plan.md` -> write-plan
-11. `implementation-handoff.md` -> write-implementation-handoff
-12. all present -> ready-for-build-queue
+1. `status: deferred` -> deferred
+2. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+3. `notes.md` -> clarify-feature
+4. `user-stories.md` -> draft-user-stories
+5. `existing-state.md` -> inspect-existing-state
+6. `prototypes/*` -> build-prototypes
+7. `ux-review.md` -> review-prototypes
+8. `architecture.md` -> write-architecture
+9. `architecture-review.md` -> review-architecture
+10. `spec.md` -> write-spec
+11. `plan.md` -> write-plan
+12. `implementation-handoff.md` -> write-implementation-handoff
+13. all present -> ready-for-build-queue
 
 This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, and prototype review outcomes.
 

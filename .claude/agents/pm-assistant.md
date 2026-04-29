@@ -73,6 +73,17 @@ Typical artifacts:
 
 The process reference is `docs/working-through-a-roadmap.md`.
 
+## Status Values
+
+Feature `README.md` front matter uses these statuses:
+
+- `inventory`: active roadmap item.
+- `blocked`: needs user input or another roadmap dependency.
+- `deferred`: intentionally skipped for now; do not advance it or create new artifacts unless the user reactivates it.
+- `ready-for-build`: ready to hand to the separate implementation loop.
+
+If an item is `deferred`, leave it alone. Do not draft stories, inspect state, prototype, or write specs for it.
+
 ## Actions
 
 ### draft-user-stories
@@ -105,7 +116,7 @@ If there is enough information, write `user-stories.md`:
 Then update the feature `README.md` front matter:
 
 - `stage: inspect-existing-state`
-- keep `status` as `inventory` unless the item is actively blocked
+- keep `status` as `inventory` unless the item is actively blocked or explicitly deferred by the user
 - update `updated` to today's date
 
 If there is not enough information, write `open-questions.md`:
