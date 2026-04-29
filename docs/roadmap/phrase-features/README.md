@@ -4,7 +4,7 @@ title: Phrase Features
 status: inventory
 priority: unset
 blocked_by: []
-stage: clarify-feature
+stage: draft-user-stories
 owner: pm
 updated: 2026-04-29
 ---

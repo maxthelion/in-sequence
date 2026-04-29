@@ -329,3 +329,11 @@ Raw input:
 ```text
 Re item 9. The track UI is a bit confusing re source and modifiers. I'd like it to be a bit like source and modifier slots are tabs. In each, there is a sort of UI well/holder that can contain an item. For the source, this would be either a clip, or a generator. The model should be that the current source can be removed, making a plus button for adding a new source (rather than the current "switch to generator source"). The options when the source is empty should be add new blank clip, select clip from pool, new blank generator, select generator. This UI needs to be quick, the most likely flow is that the track starts with a clip, and the user wants to remove it for a generator. Selecting other options should be the progressive disclosure. Maybe we have a modal for those options, ideally it stays within the same screen. Similar treatment for the modifiers well.
 ```
+
+## 2026-04-29 - Phrase Features Clarification
+
+Raw input:
+
+```text
+There are a couple of things to add. In the phrase button (Phrase A), there should be controls for setting how many bars a phrase should be, and how many times it repeats. There should also be a button for playing a phrase on a permanent loop. This is essentially what the free mode vs song mode is. Then performance modes use the phrase as a baseline and can potentially save back into it. Also the arrows for switching pages of tracks should be in the top left and right corners of the matrix, as cells either side of the track names with some indication of whether there are actually tracks in the next page. The layer selector should be more central and aligned with the grid. It shouldn't change horizontal width with different layers.
+```
