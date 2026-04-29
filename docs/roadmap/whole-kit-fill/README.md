@@ -1,16 +1,18 @@
 ---
 id: 20
 title: Fill Applied To Whole Kit
-status: inventory
+status: deferred
 priority: unset
 blocked_by: []
-stage: clarify-feature
+stage: deferred
 owner: pm
 updated: 2026-04-29
 ---
 
 # Fill Applied To Whole Kit
 
-Status: Inventory only.
+Status: Deferred for now.
 
 Use this directory for Fill applied to whole kit notes, user stories, existing-state reports, prototypes, UX reviews, specs, and build plans.
+
+This should not advance separately until the grouped drum-part model is clearer.

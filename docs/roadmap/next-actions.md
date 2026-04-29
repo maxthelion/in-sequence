@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T14:08:05Z
-Repo HEAD: 1506d75
+Generated: 2026-04-29T14:09:40Z
+Repo HEAD: 4fe0652
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -30,8 +30,8 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 
 ## Next User Item
 
-- **Item:** 20
-- **Feature:** Fill Applied To Whole Kit
+- **Item:** 22
+- **Feature:** Scenes In Phrases
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `clarify-feature`
@@ -264,13 +264,13 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 ### 20. Fill Applied To Whole Kit
 
 - **Directory:** `docs/roadmap/whole-kit-fill/`
-- **Status:** `inventory`
+- **Status:** `deferred`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `clarify-feature`
-- **Role:** `user`
-- **Reason:** No `notes.md` yet.
-- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+- **Next action:** `deferred`
+- **Role:** `pm`
+- **Reason:** Status is `deferred`; this item is intentionally skipped for now.
+- **Suggested output:** No action until the user reactivates this item.
 
 ### 21. Observability From Application Logs
 

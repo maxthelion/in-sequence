@@ -441,3 +441,11 @@ Raw input:
 ```text
 I think this got covered in Making drum parts feel part of a group
 ```
+
+## 2026-04-29 - Fill Applied To Whole Kit Deferred
+
+Raw input:
+
+```text
+I think this can be deferred
+```
