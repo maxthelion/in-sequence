@@ -313,3 +313,11 @@ Raw input:
 ```text
 Re input audio, we should be able to edit our preferences and select an audio interface. We should be able to create an audio track that takes the input and sends it into the mixer. Additionally, we should be able to record the input to a record buffer. On its track page, there should be an option to switch between the input coming in, and the recorded loop. It should be possible to schedule a record trigger, like the octotrack does. It should share some similarity with the slicer track UI - with a waveform. When recording, the length should default to 1, 2, 4, 8 bars.
 ```
+
+## 2026-04-29 - MIDI Interfaces Clarification
+
+Raw input:
+
+```text
+Re item 8 - there might already be a plan for it elsewhere. Essentially, we need a way for midi interfaces to control stuff in a view. Ideally, what we receive from the controller doesn't change, we just route it to different stuff in the ui based on the state. So if we are on live track perform mode, it would have the colours of the tracks and their toggle states.
+```
