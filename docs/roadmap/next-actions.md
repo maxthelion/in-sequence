@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T14:46:08Z
-Repo HEAD: 4572237
+Generated: 2026-04-29T14:55:08Z
+Repo HEAD: 5db9cb9
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -30,25 +30,25 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 
 ## Next User Item
 
-- **Item:** 24
-- **Feature:** Track Perform Multi-Select And Latch
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `clarify-feature`
-- **Role:** `user`
-- **Why:** No `notes.md` yet.
-- **Output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
-
-## Next Agent Item
-
 - **Item:** 2
 - **Feature:** Scene Perform
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `build-prototypes`
+- **Action:** `review-prototypes`
+- **Role:** `user`
+- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Output:** Review variants against the UX checklist and choose or reject a direction.
+
+## Next Agent Item
+
+- **Item:** 3
+- **Feature:** Step Sequencer
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
+- **Why:** User stories exist, but `existing-state.md` is missing.
+- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ## Feature Actions
 
@@ -69,10 +69,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `build-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Suggested output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
+- **Next action:** `review-prototypes`
+- **Role:** `user`
+- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
 ### 3. Step Sequencer
 
