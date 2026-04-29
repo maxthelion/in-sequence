@@ -18,3 +18,9 @@ Re item 11, I kind of described it in the last item about the phrase grid. Perha
 
 - Item 10, Phrase Features, captured phrase length, repeat count, and permanent loop controls in the Phrase Matrix.
 - This item should own the transport/free-play behavior around current phrase, queued next phrase, end-of-cycle switching, and immediate switching.
+
+## 2026-04-29 Clarification
+
+```text
+This also changes the "basis phrase" on the tracks UI. When the current/cued phrase changes in free play or phrase looping, the Tracks UI basis phrase should update to reflect that phrase.
+```

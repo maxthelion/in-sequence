@@ -353,3 +353,11 @@ Raw input:
 ```text
 Re item 11, I kind of described it in the last item about the phrase grid. Perhaps the only other addition would be that when we are in free play mode, the bar at the top should show the current playing phrase. It should also have a button that allows cueing up a next phrase for when this cycle finishes. This can open a dropdown for now. There should be a button on each option to switch immediately.
 ```
+
+## 2026-04-29 - Song Mode And Phrase Looping Clarification
+
+Raw input:
+
+```text
+This also changes the "basis phrase" on the tracks UI. When the current/cued phrase changes in free play or phrase looping, the Tracks UI basis phrase should update to reflect that phrase.
+```
