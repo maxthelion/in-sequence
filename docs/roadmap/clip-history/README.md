@@ -4,7 +4,7 @@ title: Clip History
 status: inventory
 priority: unset
 blocked_by: []
-stage: write-plan
+stage: ready-for-build-queue
 owner: pm
 updated: 2026-04-29
 ---
