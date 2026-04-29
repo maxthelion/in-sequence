@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T13:16:49Z
-Repo HEAD: 7b2ab99
+Generated: 2026-04-29T13:21:40Z
+Repo HEAD: e6a8891
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -40,14 +40,14 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 
 ## Next Agent Item
 
-- **Item:** 3
-- **Feature:** Step Sequencer
+- **Item:** 2
+- **Feature:** Scene Perform
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `inspect-existing-state`
+- **Action:** `draft-user-stories`
 - **Role:** `pm-assistant`
-- **Why:** User stories exist, but `existing-state.md` is missing.
-- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Why:** `notes.md` exists, but `user-stories.md` is missing.
+- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ## Feature Actions
 
@@ -65,13 +65,13 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 ### 2. Scene Perform
 
 - **Directory:** `docs/roadmap/scene-perform/`
-- **Status:** `blocked`
+- **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `blocked`
-- **Role:** `user`
-- **Reason:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Next action:** `draft-user-stories`
+- **Role:** `pm-assistant`
+- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
+- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ### 3. Step Sequencer
 
