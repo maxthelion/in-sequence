@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T14:06:00Z
-Repo HEAD: eff9b4d
+Generated: 2026-04-29T14:08:05Z
+Repo HEAD: 1506d75
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -30,8 +30,8 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 
 ## Next User Item
 
-- **Item:** 19
-- **Feature:** Drum Kit Group View
+- **Item:** 20
+- **Feature:** Fill Applied To Whole Kit
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `clarify-feature`
@@ -253,13 +253,13 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 ### 19. Drum Kit Group View
 
 - **Directory:** `docs/roadmap/drum-kit-group-view/`
-- **Status:** `inventory`
+- **Status:** `deferred`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `clarify-feature`
-- **Role:** `user`
-- **Reason:** No `notes.md` yet.
-- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+- **Next action:** `deferred`
+- **Role:** `pm`
+- **Reason:** Status is `deferred`; this item is intentionally skipped for now.
+- **Suggested output:** No action until the user reactivates this item.
 
 ### 20. Fill Applied To Whole Kit
 

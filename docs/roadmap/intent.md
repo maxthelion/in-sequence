@@ -433,3 +433,11 @@ Raw input:
 ```text
 When in the track editor, there's no way to toggle the fill status for it. We need one so that we can preview the fill pattern playing.
 ```
+
+## 2026-04-29 - Drum Kit Group View Covered By Item 12
+
+Raw input:
+
+```text
+I think this got covered in Making drum parts feel part of a group
+```
