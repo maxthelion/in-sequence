@@ -1,0 +1,344 @@
+# Working Through A Roadmap
+
+This document is the working process for shaping roadmap areas where the underlying model may already be sound, but the user experience is not yet good enough.
+
+The goal is to move each feature area from "we know something is wrong" to a clear, reviewed, prototyped, and buildable specification without losing the design context along the way.
+
+## Roadmap Inventory
+
+Add every feature area under this section before deep-diving any one item. Keep the first pass short: the list should name the areas, not solve them.
+
+Template:
+
+```markdown
+- **Item:** <integer id>
+  - **Feature area:** <short name>
+  - **Current concern:** <what feels wrong or unfinished>
+  - **Known model status:** <correct / partly correct / unknown>
+  - **Roadmap directory:** `docs/roadmap/<feature-slug>/`
+  - **Notes:** <links, screenshots, examples, or constraints>
+```
+
+Feature areas to work through:
+
+The canonical ordered list is `docs/roadmap/README.md`. Each item has a stable integer ID and metadata front matter in its feature `README.md`. Raw user input is preserved in `docs/roadmap/intent.md` before it is normalized into roadmap artifacts.
+
+## Per-Feature Workflow
+
+Use this workflow for each feature area in the inventory.
+
+### Feature Directory
+
+Keep all artifacts for a roadmap item together under `docs/roadmap/<feature-slug>/`.
+
+Suggested layout:
+
+```text
+docs/roadmap/<feature-slug>/
+  README.md
+  artifacts.md
+  notes.md
+  open-questions.md
+  user-stories.md
+  existing-state.md
+  prototypes/
+  ux-review.md
+  spec.md
+  plan.md
+```
+
+`README.md` is the feature's lightweight index. Use the other files as the feature matures; do not create empty documents before they have useful content.
+
+Each feature `README.md` should start with front matter:
+
+```yaml
+---
+id: 1
+title: Clip History
+status: inventory
+priority: unset
+blocked_by: []
+stage: clarify-feature
+owner: pm
+updated: 2026-04-29
+---
+```
+
+Use integer IDs when discussing, blocking, or prioritising items. `blocked_by` should refer to item IDs, for example `[4, 5]`.
+
+### Intent Log
+
+Keep a raw intent log at `docs/roadmap/intent.md`.
+
+Use it to preserve the user's original words before translating them into:
+
+- roadmap item names and IDs
+- metadata front matter
+- feature notes
+- user stories
+- prototype instructions
+- specs or plans
+
+Append new dated entries as the roadmap discussion continues. Do not rewrite older raw input except to fix obvious transcription mistakes.
+
+### 1. Clarify The Feature Problem
+
+Start by asking the user to briefly clarify what needs to be addressed for this feature.
+
+Ask for:
+
+- What feels broken or awkward in the current UX.
+- What users are trying to achieve.
+- What the underlying model already gets right.
+- Any examples, screenshots, references, or "definitely not this" constraints.
+
+Keep this stage lightweight. The purpose is to focus the investigation, not to write the specification yet.
+
+Use the deterministic helper when capturing a clarification:
+
+```bash
+scripts/roadmap/capture-clarification.sh <item-id> "<raw clarification>"
+```
+
+The helper appends the raw input to `docs/roadmap/intent.md`, creates or appends a raw feature `notes.md`, updates the feature front matter, and refreshes the roadmap queues. It should stay deliberately mechanical; story/spec shaping belongs to the PM assistant.
+
+Do not use the helper when the user's intention is too vague, contradictory, or strategically ambiguous for a PM assistant to work from. In that case, keep the work in conversation and ask clarifying questions instead of turning uncertainty into a roadmap artifact.
+
+### 2. Write User Stories
+
+Turn the clarification into user stories that describe goals rather than implementation.
+
+Each story should capture:
+
+- The user role or context.
+- The goal they want to achieve.
+- The reason it matters in a music-making flow.
+- The observable outcome that would make the story feel complete.
+
+Prefer stories that describe real work: creating a track, routing sound, editing a phrase, performing live, recovering from a mistake, understanding what will happen at playback, and so on.
+
+#### Background User Story Pass
+
+This step is safe for a background agent when `notes.md` exists.
+
+The agent should read only the feature directory plus directly linked docs. It should then do one of two things:
+
+- Write `user-stories.md` with a first-pass set of goal-oriented stories and acceptance signals.
+- Write `open-questions.md` and mark the feature as blocked if there is not enough information to infer useful stories.
+
+Blocking on open questions means:
+
+- Create `open-questions.md` with concise questions for the user.
+- Update the feature `README.md` front matter to `status: blocked` and set `stage: clarify-feature`.
+- Keep `blocked_by: []` unless the blocker is another roadmap item; user questions are represented by `status: blocked` plus `open-questions.md`.
+
+The background pass should not inspect the production implementation yet. If it needs code context to know what stories are possible, that is a sign to ask an open question rather than crossing into the existing-state phase.
+
+### 3. Inspect What Exists
+
+Look at the current code, docs, prototypes, and screenshots for the feature.
+
+Report back with:
+
+- What already exists in the model, engine, persistence, and UI.
+- Where the current UX diverges from the user stories.
+- Which gaps are model gaps versus presentation or workflow gaps.
+- Any architecture constraints that should shape the design.
+- Any existing tests or missing test coverage that matter.
+
+This report should be factual and grounded in file references where useful. Do not jump straight to implementation.
+
+### 4. Build Prototypes
+
+Build a small set of prototypes before committing to the production design.
+
+Prototype guidance:
+
+- Prefer fast, inspectable artifacts in the feature directory's `prototypes/` folder unless an in-app prototype is clearly necessary.
+- Build multiple alternatives when the interaction model is uncertain.
+- Keep prototypes focused on the workflow and information hierarchy.
+- Do not polish visual decoration before the flow is understood.
+- Include enough realistic labels, states, and data density to judge the experience honestly.
+
+The user will provide feature-specific instructions for the prototype phase. HTML prototypes should follow `docs/html-prototype-guidelines.md`.
+
+### 5. Review Prototype UX
+
+Evaluate each prototype against a UX checklist before choosing a direction.
+
+Checklist:
+
+- **Goal clarity:** The main user goal is visible without explanation.
+- **Progressive disclosure:** Advanced options appear when useful, not all at once.
+- **Information hierarchy:** Primary state, secondary metadata, and controls have clear visual priority.
+- **No repeated information:** The same concept is not restated in multiple places unless the repetition serves a workflow.
+- **Flow grouping:** Interactions that belong to the same part of the task are grouped together.
+- **State legibility:** The user can tell what is selected, armed, playing, routed, muted, edited, or pending.
+- **Action locality:** Controls appear near the thing they affect.
+- **Reversibility:** Destructive or high-impact actions are either undoable, previewable, or confirmed.
+- **Empty and error states:** The design handles missing data, unavailable devices, no samples, failed scans, and incompatible selections.
+- **Performance feel:** The flow avoids unnecessary modal stops, repeated clicks, and hidden waits during live music work.
+- **Keyboard and pointer ergonomics:** Frequent actions are reachable without precise hunting.
+- **Consistency:** Naming, layout, and control types match nearby parts of the app.
+
+Record the review outcome:
+
+- What works.
+- What fails.
+- Which prototype direction to keep.
+- Which details need another pass.
+
+### 6. Specify The Feature
+
+Once a prototype direction is chosen, write the build specification.
+
+The spec should include:
+
+- User stories and acceptance criteria.
+- The chosen UX flow.
+- Model, engine, persistence, and UI changes.
+- Migration or compatibility notes.
+- Testing requirements.
+- Non-goals and deferred follow-ups.
+- Risks and open questions.
+
+Place the working spec and implementation plan in the feature directory. When a feature is ready for the main build queue, copy or promote stable versions into `docs/specs/` and `docs/plans/` if the broader automation flow needs them there.
+
+### 7. Promote To Build Loop
+
+After the spec is agreed, promote the feature to the separate implementation loop. Roadmap PM work and product-building work should remain different loops with different permissions.
+
+Promotion means:
+
+- The feature has a coherent `spec.md`.
+- The feature has a buildable `plan.md` or is ready to be copied into the existing `docs/specs/` / `docs/plans/` automation flow.
+- Open questions are resolved or explicitly deferred.
+- Acceptance criteria and non-goals are clear enough for an implementation worker to execute without re-litigating the product direction.
+- The feature `README.md` front matter can move to `status: ready-for-build`.
+
+The implementation loop may then create work items, build in slices, run tests, review, and update wiki pages. That loop uses implementation roles and permissions, not `pm-assistant`.
+
+## Parallel Work
+
+Workers can help while the main roadmap discussion continues, but only on bounded steps that do not require the next user decision.
+
+### PM Assistant Role
+
+Use the `pm-assistant` role for roadmap behaviour-tree work.
+
+The role lives at `.claude/agents/pm-assistant.md`. It may edit `docs/roadmap/**` only, and it must not build production code. If the agent is not registered in the current session, dispatch a general-purpose Sonnet agent with the contents of `.claude/agents/pm-assistant.md` as the preamble.
+
+### Two Separate Loops
+
+There are two kinds of elves:
+
+- **Roadmap / PM elves:** operate on `docs/roadmap/**`; clarify intent, draft stories, inspect existing state, review prototypes, write specs/plans, and surface questions. They do not build product code.
+- **Implementation elves:** operate on the normal build loop after work is specced out; they may edit production code, tests, wiki, and state only according to the existing implementation permissions and review gates.
+
+Do not let the PM loop quietly become an implementation loop. When a roadmap item is ready to build, promote it through an explicit handoff instead.
+
+Good parallel tasks:
+
+- Inspect the existing implementation for a named feature area.
+- Gather relevant docs, screenshots, and tests.
+- Build an isolated prototype from already-agreed instructions.
+- Review a completed prototype against the UX checklist.
+- Draft acceptance criteria from approved user stories.
+- Draft first-pass user stories from `notes.md`, or write `open-questions.md` and mark the item blocked.
+
+Avoid parallelizing:
+
+- The initial clarification conversation.
+- Choosing between unresolved UX directions.
+- Production implementation before the spec is agreed.
+- Broad rewrites whose scope depends on pending roadmap decisions.
+
+Each worker should return a concise handoff: files inspected or changed, conclusions, unresolved questions, and any prototype or spec artifact paths.
+
+## Experimental PM Automation
+
+Use `scripts/roadmap/next-roadmap-actions.sh` to run a deterministic scan of the roadmap backlog.
+
+The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/roadmap/next-actions.md`. It does not build anything or dispatch agents. It emits separate "Next User Item" and "Next Agent Item" sections so user clarification can remain visible without blocking autonomous PM-assistant work. For each feature, blocked metadata or open questions win first; otherwise it chooses the first missing planning artifact as the likely next project-management action:
+
+1. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+2. `notes.md` -> clarify-feature
+3. `user-stories.md` -> draft-user-stories
+4. `existing-state.md` -> inspect-existing-state
+5. `prototypes/*` -> build-prototypes
+6. `ux-review.md` -> review-prototypes
+7. `spec.md` -> write-spec
+8. `plan.md` -> write-plan
+9. all present -> ready-for-build-queue
+
+This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, and prototype review outcomes.
+
+Actions after `clarify-feature` are intended for `pm-assistant` unless the next action explicitly needs user input. `clarify-feature` remains a direct conversation with the user.
+
+### End-Of-Response Attention Check
+
+Do not rely on the session-start hook as the main place to surface roadmap questions. It is easy to miss and not always aligned with the user's current focus.
+
+At the end of PM roadmap responses, run or consult:
+
+```bash
+scripts/roadmap/attention-summary.sh
+```
+
+If it reports blocked items or open questions, include a short final note such as:
+
+```text
+Roadmap attention: 2 items need your input: item 7 Input Audio, item 13 Autoslice Algorithm.
+```
+
+Keep this note brief. It should alert the user without hijacking the response they asked for.
+
+### Active Heartbeat Automation
+
+The Codex app has a heartbeat automation named `Roadmap PM loop`.
+
+Its contract:
+
+- Operate only in `/Users/maxwilliams/dev/in-sequence`.
+- Wake every 10 minutes.
+- Run `scripts/roadmap/next-roadmap-actions.sh` first.
+- Execute exactly one item from the "Next Agent Item" section per wakeup.
+- Use `pm-assistant` rules for PM work.
+- Edit only `docs/roadmap/**`.
+- Stop instead of guessing when no "Next Agent Item" exists or when the action requires user input.
+- Rerun `scripts/roadmap/next-roadmap-actions.sh` and `scripts/roadmap/attention-summary.sh` before reporting.
+- Commit completed roadmap actions with `scripts/roadmap/commit-roadmap-action.sh`.
+- Do not create a commit when the wakeup only refreshed `docs/roadmap/next-actions.md` or only discovered that user input is needed.
+
+This automation is intentionally separate from the implementation/build loop.
+
+### Roadmap Commit Discipline
+
+The PM loop should leave a git trail when it successfully advances a roadmap item.
+
+After a PM-assistant action writes or updates a roadmap artifact, run:
+
+```bash
+scripts/roadmap/commit-roadmap-action.sh
+```
+
+The helper stages and commits `docs/roadmap/**` only. It intentionally ignores pure `next-actions.md` churn so the 10-minute heartbeat does not create empty administrative commits.
+
+Use manual commits for changes outside `docs/roadmap/**`, such as updates to the roadmap scripts, the PM assistant role, or this process document. Those are process changes rather than per-item PM action output.
+
+## Roadmap Session Log
+
+Use this section to keep a lightweight trail as the roadmap discussion proceeds.
+
+Template:
+
+```markdown
+### <date> - <feature area>
+
+- **Clarified problem:**
+- **User stories drafted:**
+- **Existing implementation inspected:**
+- **Prototypes built:**
+- **UX review result:**
+- **Spec/build status:**
+```
