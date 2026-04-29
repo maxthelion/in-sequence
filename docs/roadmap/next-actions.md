@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T13:32:07Z
-Repo HEAD: 49288e7
+Generated: 2026-04-29T13:41:09Z
+Repo HEAD: 762093e
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -296,6 +296,17 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 ### 23. Phrase Cells
 
 - **Directory:** `docs/roadmap/phrase-cells/`
+- **Status:** `inventory`
+- **Priority:** `unset`
+- **Blocked by:** `[]`
+- **Next action:** `clarify-feature`
+- **Role:** `user`
+- **Reason:** No `notes.md` yet.
+- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+### 24. Track Perform Multi-Select And Latch
+
+- **Directory:** `docs/roadmap/track-perform-multiselect-latch/`
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
