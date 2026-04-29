@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clip History — Modal Flow (v1)</title>
+<style>
+  /* -------------------------------------------------- reset */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* -------------------------------------------------- tokens */
+  :root {
+    --bg: #f0f0ee;
+    --surface: #e4e4e2;
+    --surface2: #d6d6d4;
+    --border: #999;
+    --border-light: #bbb;
+    --text: #111;
+    --text-dim: #666;
+    --text-stub: #aaa;
+
+    /* semantic state colors — 7 max */
+    --accent: #3a70c4;        /* primary interactive */
+    --accent-dim: #c6d8f5;    /* selected / highlight bg */
+    --success: #2a7a3b;       /* occupied slot */
+    --warn: #b85c00;          /* overwrite danger */
+    --playback: #7a3ab8;      /* virtual clip / audition state */
+    --playback-dim: #ead9f7;
+    --disabled: #bbb;         /* stub / unavailable */
+  }
+
+  body {
+    font-family: system-ui, sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* -------------------------------------------------- annotation */
+  .proto-header {
+    border: 2px dashed var(--border);
+    padding: 10px 14px;
+    margin-bottom: 24px;
+    color: var(--text-dim);
+    max-width: 900px;
+  }
+  .proto-header strong { color: var(--text); }
+  .proto-header ul { margin-top: 6px; padding-left: 18px; }
+  .proto-header li { margin-top: 3px; }
+
+  .stub {
+    border: 1px dashed var(--disabled);
+    color: var(--text-stub);
+    padding: 4px 8px;
+    display: inline-block;
+    font-size: 11px;
+    cursor: not-allowed;
+  }
+
+  /* -------------------------------------------------- app chrome */
+  .app-frame {
+    max-width: 900px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+  }
+
+  .app-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .app-toolbar .stub { font-size: 11px; }
+
+  .app-body {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    min-height: 420px;
+  }
+
+  /* -------------------------------------------------- track list */
+  .track-list {
+    border-right: 1px solid var(--border);
+    padding: 0;
+  }
+  .track-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+  }
+  .track-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .track-item .track-source {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .track-item.active .track-source { color: var(--accent); }
+  .track-item .generator-badge {
+    font-size: 10px;
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 4px;
+    margin-left: 4px;
+  }
+
+  /* -------------------------------------------------- generator panel */
+  .generator-panel {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .panel-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+  }
+
+  .generator-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .generator-name {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .btn:hover { background: var(--accent-dim); border-color: var(--accent); }
+  .btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn.primary:hover { opacity: .88; }
+  .btn.danger { border-color: var(--warn); color: var(--warn); }
+  .btn.danger:hover { background: #fde8d0; }
+  .btn:disabled, .btn[disabled] {
+    color: var(--disabled);
+    border-color: var(--disabled);
+    background: var(--bg);
+    cursor: not-allowed;
+  }
+
+  /* clip-history trigger button — the key entry point */
+  .clip-history-btn {
+    background: var(--playback-dim);
+    border: 1px solid var(--playback);
+    color: var(--playback);
+    font-weight: 600;
+  }
+  .clip-history-btn:hover { background: #d8bef0; }
+
+  .generator-params-stub {
+    border: 1px dashed var(--disabled);
+    padding: 18px 12px;
+    color: var(--text-stub);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .pattern-slot-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .slot-chip {
+    width: 36px;
+    height: 28px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .slot-chip.occupied {
+    border-color: var(--success);
+    color: var(--success);
+  }
+  .slot-chip.active-slot {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* -------------------------------------------------- modal backdrop */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    display: none; /* toggled by JS */
+  }
+  .modal-backdrop.open { display: flex; }
+
+  /* -------------------------------------------------- clip history modal */
+  .clip-history-modal {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    width: 820px;
+    max-width: 96vw;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .modal-titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .modal-title {
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .modal-close {
+    background: none;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    padding: 2px 7px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .modal-close:hover { color: var(--text); background: var(--surface2); }
+
+  .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* -------------------------------------------------- history strip */
+  .history-section {
+    padding: 10px 12px 0;
+  }
+
+  .history-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .history-label {
+    font-weight: 700;
+    font-size: 12px;
+    flex: 0 0 auto;
+  }
+
+  .bar-counter {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .playback-state-badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border: 1px solid var(--playback);
+    color: var(--playback);
+    background: var(--playback-dim);
+    display: none;
+  }
+  .playback-state-badge.visible { display: inline-block; }
+
+  /* 16-bar timeline grid */
+  .history-strip {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    border: 1px solid var(--border);
+    background: #e8e8e6;
+    user-select: none;
+    position: relative;
+    margin-bottom: 4px;
+  }
+
+  .history-bar {
+    height: 72px;
+    border-right: 1px solid var(--border-light);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .history-bar:last-child { border-right: none; }
+  .history-bar:hover { background: rgba(58,112,196,.09); }
+
+  .bar-label {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  /* note blobs inside a bar */
+  .note-blob {
+    position: absolute;
+    height: 5px;
+    background: var(--accent);
+    opacity: .75;
+  }
+
+  /* empty bar state */
+  .history-bar.empty .bar-label { color: var(--text-stub); }
+
+  /* selected bar(s) */
+  .history-bar.selected {
+    background: var(--playback-dim) !important;
+    outline: 2px solid var(--playback);
+    outline-offset: -2px;
+    z-index: 2;
+  }
+  .history-bar.selected .note-blob { background: var(--playback); }
+
+  /* selection range indicators */
+  .history-bar.in-range {
+    background: rgba(122,58,184,.08);
+  }
+  .history-bar.in-range .note-blob { background: var(--playback); opacity: .55; }
+
+  /* "this is live" position marker */
+  .history-strip-playhead {
+    position: absolute;
+    bottom: 0;
+    width: 2px;
+    background: var(--warn);
+    height: 100%;
+    pointer-events: none;
+    opacity: .8;
+  }
+
+  .history-strip-legend {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .legend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 3px;
+    vertical-align: middle;
+    border: 1px solid var(--border);
+  }
+
+  /* -------------------------------------------------- virtual clip / audition row */
+  .audition-section {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .audition-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .audition-clip-display {
+    flex: 1;
+    min-width: 240px;
+    border: 2px solid var(--playback);
+    background: var(--playback-dim);
+    height: 44px;
+    position: relative;
+    overflow: hidden;
+  }
+  .audition-clip-display .audition-note {
+    position: absolute;
+    height: 5px;
+    background: var(--playback);
+    opacity: .85;
+  }
+  .audition-clip-label {
+    font-size: 10px;
+    color: var(--playback);
+    position: absolute;
+    bottom: 2px;
+    left: 4px;
+    font-weight: 700;
+  }
+
+  .audition-empty {
+    flex: 1;
+    min-width: 240px;
+    border: 1px dashed var(--disabled);
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-stub);
+    font-size: 11px;
+  }
+
+  .length-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .length-control label { font-size: 11px; color: var(--text-dim); }
+  .length-select {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    padding: 3px 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .audition-btns {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* -------------------------------------------------- pattern slot picker */
+  .slot-picker-section {
+    padding: 8px 12px 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .slot-picker-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .save-slot-chip {
+    width: 52px;
+    height: 38px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+  }
+  .save-slot-chip:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .save-slot-chip .slot-num { font-size: 11px; font-weight: 700; }
+  .save-slot-chip .slot-name { font-size: 9px; color: var(--text-dim); max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .save-slot-chip.occupied {
+    border-color: var(--success);
+  }
+  .save-slot-chip.occupied .slot-num { color: var(--success); }
+  .save-slot-chip.occupied::after {
+    content: 'USED';
+    position: absolute;
+    bottom: 2px;
+    right: 3px;
+    font-size: 8px;
+    color: var(--success);
+    font-weight: 700;
+  }
+
+  .save-slot-chip.selected-save {
+    border: 2px solid var(--accent);
+    background: var(--accent-dim);
+  }
+  .save-slot-chip.selected-save .slot-num { color: var(--accent); }
+
+  /* overwrite confirmation row */
+  .overwrite-confirm {
+    margin-top: 8px;
+    padding: 7px 10px;
+    border: 1px solid var(--warn);
+    background: #fef5ec;
+    color: var(--warn);
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .overwrite-confirm.visible { display: flex; }
+
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  /* -------------------------------------------------- screen-state labels */
+  .screen-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-stub);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-top: 14px;
+    margin-bottom: 4px;
+  }
+
+  /* -------------------------------------------------- state nav */
+  .state-nav {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    max-width: 900px;
+  }
+  .state-nav button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .state-nav button.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* -------------------------------------------------- notification toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: #fff;
+    padding: 7px 16px;
+    font-size: 12px;
+    z-index: 200;
+    display: none;
+    pointer-events: none;
+  }
+  .toast.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="proto-header">
+  <strong>Prototype: Clip History — Modal Flow (v1)</strong><br>
+  Approach: a dedicated Clip History modal opened from the generator panel.<br>
+  <ul>
+    <li>Interaction budget: open history in 1 click; select+audition in 2 more; save in 1 more = 4 total.</li>
+    <li>Path under test: generator view → open modal → select bar(s) → audition virtual clip → choose slot → save.</li>
+    <li>States reachable via nav buttons below: Default (no selection), Bar Selected + Auditioning, Save Slot Chosen, Overwrite Confirm, Empty History, Successful Save.</li>
+  </ul>
+</div>
+
+<!-- State navigation -->
+<div class="state-nav">
+  <button class="active" onclick="setScene('default')">1. Modal closed (generator view)</button>
+  <button onclick="setScene('modal-open')">2. Modal open — no selection</button>
+  <button onclick="setScene('bar-selected')">3. Bar selected + auditioning</button>
+  <button onclick="setScene('slot-chosen')">4. Save slot chosen (empty)</button>
+  <button onclick="setScene('overwrite')">5. Save slot chosen (occupied)</button>
+  <button onclick="setScene('empty-history')">6. Empty history state</button>
+  <button onclick="setScene('saved')">7. After save</button>
+</div>
+
+<!-- App frame -->
+<div class="app-frame">
+  <div class="app-toolbar">
+    <span class="stub">-> [project nav]</span>
+    <span class="stub">-> [transport]</span>
+    <span class="stub">-> [global settings]</span>
+  </div>
+  <div class="app-body">
+    <!-- Track list -->
+    <div class="track-list">
+      <div class="track-item">
+        <div>Kick 909</div>
+        <div class="track-source">Drum machine</div>
+      </div>
+      <div class="track-item active">
+        <div>Bass Arp <span class="generator-badge">GEN</span></div>
+        <div class="track-source">Chord-step generator</div>
+      </div>
+      <div class="track-item">
+        <div>Plücking Melodié <span class="generator-badge">GEN</span></div>
+        <div class="track-source">Scale walk generator</div>
+      </div>
+      <div class="track-item">
+        <div>Pad Çhords</div>
+        <div class="track-source">MIDI clip</div>
+      </div>
+      <div class="track-item">
+        <div>HH Pattern</div>
+        <div class="track-source">Drum machine</div>
+      </div>
+      <div class="track-stub stub" style="margin:8px;font-size:11px;">-> [add track]</div>
+    </div>
+
+    <!-- Generator panel -->
+    <div class="generator-panel">
+      <div>
+        <div class="panel-section-title">Pattern Slots</div>
+        <div class="pattern-slot-row" id="main-slot-row">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-section-title">Generator Source</div>
+        <div class="generator-header">
+          <span class="generator-name">Chord-step generator</span>
+          <button class="btn clip-history-btn" onclick="setScene('modal-open')" id="open-history-btn">
+            Clip History...
+          </button>
+        </div>
+        <div class="generator-params-stub">
+          [GeneratorParamsEditorView — stub] Root: C, Scale: Dorian, Density: 0.62, Interval: 8ths
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-section-title">Generated Notes Preview</div>
+        <div class="generator-params-stub" style="height:64px;">
+          [GeneratedNotesPreview — deterministic from current settings, not history — stub]
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Clip History Modal -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="clip-history-modal">
+
+    <div class="modal-titlebar">
+      <span class="modal-title">Clip History — Bass Arp</span>
+      <button class="modal-close" onclick="setScene('default')">close</button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- History strip -->
+      <div class="history-section">
+        <div class="history-controls">
+          <span class="history-label">Recent 16 bars</span>
+          <span class="bar-counter" id="bar-counter">Bars 1–16 (oldest → newest)</span>
+          <span class="playback-state-badge" id="playback-badge">AUDITIONING VIRTUAL CLIP</span>
+        </div>
+
+        <div class="history-strip" id="history-strip">
+          <!-- bars filled by JS -->
+          <div class="history-strip-playhead" id="playhead"></div>
+        </div>
+
+        <div class="history-strip-legend">
+          <span><span class="legend-swatch" style="background:var(--accent);border-color:var(--accent);"></span>Generated notes</span>
+          <span><span class="legend-swatch" style="background:var(--playback);border-color:var(--playback);"></span>Selected / auditioning</span>
+          <span><span class="legend-swatch" style="background:var(--warn);opacity:.8;border-color:var(--warn);"></span>Current playhead</span>
+          <span><span class="legend-swatch" style="background:#e8e8e6;border:1px dashed #bbb;"></span>Empty bar</span>
+        </div>
+      </div>
+
+      <!-- Audition / virtual clip row -->
+      <div class="audition-section">
+        <div class="panel-section-title" style="margin-bottom:4px;">Virtual Clip Preview</div>
+        <div class="audition-row">
+          <div id="audition-display-empty" class="audition-empty">No bar selected — click a bar above to preview</div>
+          <div id="audition-display-clip" class="audition-clip-display" style="display:none;">
+            <!-- notes injected by JS -->
+            <span class="audition-clip-label">Virtual clip</span>
+          </div>
+
+          <div class="length-control">
+            <label for="clip-length">Length:</label>
+            <select class="length-select" id="clip-length" onchange="updateLength(this.value)">
+              <option value="0.5">½ bar</option>
+              <option value="1" selected>1 bar</option>
+              <option value="2">2 bars</option>
+              <option value="4">4 bars</option>
+            </select>
+          </div>
+
+          <div class="audition-btns">
+            <button class="btn primary" id="audition-btn" disabled onclick="toggleAudition()">Audition</button>
+            <button class="btn" id="stop-audition-btn" style="display:none;" onclick="stopAudition()">Stop</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pattern slot picker -->
+      <div class="slot-picker-section">
+        <div class="panel-section-title" style="margin-bottom:4px;">Save To Pattern Slot</div>
+        <div class="slot-picker-row" id="save-slot-row">
+          <!-- filled by JS -->
+        </div>
+        <div class="overwrite-confirm" id="overwrite-confirm">
+          <span>Slot <strong id="overwrite-slot-name"></strong> already has a clip (<em id="overwrite-clip-name"></em>). Save will replace it.</span>
+          <button class="btn danger" onclick="executeSave()">Overwrite</button>
+          <button class="btn" onclick="cancelOverwrite()">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" onclick="setScene('default')">Cancel</button>
+      <button class="btn primary" id="save-btn" disabled onclick="inititateSave()">Save to slot</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------------------------------------------------------
+// Fixture data
+// ---------------------------------------------------------------
+const SLOTS = [
+  { num: 1, name: 'Intro Arp',   occupied: true  },
+  { num: 2, name: 'Drop bass',   occupied: true  },
+  { num: 3, name: '',            occupied: false },
+  { num: 4, name: '',            occupied: false },
+  { num: 5, name: 'Breakdown',   occupied: true  },
+  { num: 6, name: '',            occupied: false },
+  { num: 7, name: 'Outro mêlée', occupied: true  },
+  { num: 8, name: '',            occupied: false },
+];
+
+// Fixture: note blobs per bar [top%, left%, width%] (deterministic look)
+// A few bars are intentionally sparse or empty.
+const BAR_NOTES = [
+  [[10,5,30],[30,40,20],[55,70,15],[70,15,25]],         // bar 1
+  [[15,8,28],[40,45,18],[60,65,22]],                    // bar 2
+  [[12,3,35],[35,50,15],[65,20,30],[80,72,12]],         // bar 3
+  [[20,10,20],[45,38,18],[70,60,25]],                   // bar 4
+  [[10,5,40],[50,50,20],[72,75,10]],                    // bar 5
+  [[15,15,25],[38,40,30],[62,70,18],[80,8,22]],         // bar 6
+  [],                                                   // bar 7 — empty
+  [[12,6,38],[45,45,22],[68,72,15]],                    // bar 8
+  [[18,12,28],[42,42,20],[64,65,25],[78,80,12]],        // bar 9
+  [[10,8,42],[55,55,18]],                               // bar 10
+  [[20,5,30],[48,50,15],[70,70,20]],                    // bar 11
+  [[15,10,35],[40,40,25],[65,68,18]],                   // bar 12
+  [],                                                   // bar 13 — empty
+  [[10,6,32],[38,42,22],[62,66,20],[80,82,10]],         // bar 14
+  [[12,8,30],[45,48,18],[68,72,22]],                    // bar 15 — most recent complete
+  [[18,10,28],[50,52,20]],                              // bar 16 — newest (partial)
+];
+
+// ---------------------------------------------------------------
+// State
+// ---------------------------------------------------------------
+let selectedBar  = null;   // 0-based index
+let selectedSlot = null;   // 0-based index
+let isAuditioning = false;
+let clipLength   = 1;      // bars
+
+// ---------------------------------------------------------------
+// Render helpers
+// ---------------------------------------------------------------
+function renderMainSlots() {
+  const row = document.getElementById('main-slot-row');
+  row.innerHTML = SLOTS.map((s, i) => `
+    <div class="slot-chip ${s.occupied ? 'occupied' : ''} ${i === 1 ? 'active-slot' : ''}">
+      ${s.num}
+    </div>
+  `).join('');
+}
+
+function renderHistoryStrip(emptyAll) {
+  const strip = document.getElementById('history-strip');
+  // preserve playhead
+  const bars = BAR_NOTES.map((notes, i) => {
+    const isEmpty = emptyAll || notes.length === 0;
+    const isSelected = i === selectedBar;
+    const inRange = !isSelected && selectedBar !== null && clipLength > 1 &&
+      i > selectedBar && i < selectedBar + clipLength;
+    let classes = 'history-bar';
+    if (isEmpty) classes += ' empty';
+    if (isSelected) classes += ' selected';
+    if (inRange) classes += ' in-range';
+    const noteBlobs = isEmpty ? '' : notes.map(([top, left, width]) =>
+      `<div class="note-blob" style="top:${top}%;left:${left}%;width:${width}%;"></div>`
+    ).join('');
+    return `
+      <div class="${classes}" onclick="selectBar(${i})" title="Bar ${i+1}">
+        <span class="bar-label">${i + 1}</span>
+        ${noteBlobs}
+      </div>
+    `;
+  });
+  strip.innerHTML = bars.join('') +
+    `<div class="history-strip-playhead" id="playhead" style="left:${(15.5/16)*100}%"></div>`;
+}
+
+function renderSaveSlots() {
+  const row = document.getElementById('save-slot-row');
+  row.innerHTML = SLOTS.map((s, i) => {
+    let classes = 'save-slot-chip';
+    if (s.occupied) classes += ' occupied';
+    if (i === selectedSlot) classes += ' selected-save';
+    const label = s.name ? `<span class="slot-name">${s.name}</span>` : '';
+    return `<div class="${classes}" onclick="selectSlot(${i})">
+      <span class="slot-num">${s.num}</span>
+      ${label}
+    </div>`;
+  }).join('');
+}
+
+function renderAuditionClip() {
+  const display = document.getElementById('audition-display-clip');
+  display.innerHTML = '';
+  if (selectedBar === null) return;
+  // Show notes from selected bar (+ range)
+  const barsToShow = Math.min(clipLength, 16 - selectedBar);
+  const totalWidth = barsToShow; // conceptual
+  for (let b = 0; b < barsToShow; b++) {
+    const barIdx = selectedBar + b;
+    if (barIdx >= 16) break;
+    BAR_NOTES[barIdx].forEach(([top, left, width]) => {
+      const blob = document.createElement('div');
+      blob.className = 'audition-note';
+      const offsetLeft = (b / barsToShow) * 100 + (left / 100) * (100 / barsToShow);
+      const w = (width / 100) * (100 / barsToShow);
+      blob.style.cssText = `top:${top}%;left:${offsetLeft.toFixed(1)}%;width:${w.toFixed(1)}%;`;
+      display.appendChild(blob);
+    });
+  }
+  const label = document.createElement('span');
+  label.className = 'audition-clip-label';
+  label.textContent = `Bar ${selectedBar+1}${clipLength > 1 ? '–' + (selectedBar + clipLength) : ''} → ${clipLength} bar${clipLength > 1 ? 's' : ''} virtual clip`;
+  display.appendChild(label);
+}
+
+// ---------------------------------------------------------------
+// Interactions
+// ---------------------------------------------------------------
+function selectBar(idx) {
+  selectedBar = idx;
+  selectedSlot = null;
+  stopAudition();
+  renderHistoryStrip(false);
+  renderAuditionClip();
+  renderSaveSlots();
+
+  document.getElementById('audition-display-empty').style.display = 'none';
+  document.getElementById('audition-display-clip').style.display = '';
+  document.getElementById('audition-btn').disabled = false;
+  document.getElementById('save-btn').disabled = true;
+  document.getElementById('overwrite-confirm').classList.remove('visible');
+}
+
+function selectSlot(idx) {
+  if (selectedBar === null) return;
+  selectedSlot = idx;
+  renderSaveSlots();
+  document.getElementById('save-btn').disabled = false;
+  // show overwrite warning if occupied
+  const slot = SLOTS[idx];
+  const ow = document.getElementById('overwrite-confirm');
+  if (slot.occupied) {
+    document.getElementById('overwrite-slot-name').textContent = `Slot ${slot.num}`;
+    document.getElementById('overwrite-clip-name').textContent = slot.name;
+    ow.classList.add('visible');
+    document.getElementById('save-btn').disabled = true; // must use overwrite btn
+  } else {
+    ow.classList.remove('visible');
+  }
+}
+
+function updateLength(val) {
+  clipLength = parseFloat(val);
+  if (selectedBar !== null) {
+    renderHistoryStrip(false);
+    renderAuditionClip();
+  }
+}
+
+function toggleAudition() {
+  if (selectedBar === null) return;
+  isAuditioning = true;
+  document.getElementById('playback-badge').classList.add('visible');
+  document.getElementById('audition-btn').style.display = 'none';
+  document.getElementById('stop-audition-btn').style.display = '';
+}
+
+function stopAudition() {
+  isAuditioning = false;
+  document.getElementById('playback-badge').classList.remove('visible');
+  document.getElementById('audition-btn').style.display = '';
+  document.getElementById('stop-audition-btn').style.display = 'none';
+}
+
+function inititateSave() {
+  if (selectedBar === null || selectedSlot === null) return;
+  const slot = SLOTS[selectedSlot];
+  if (slot.occupied) {
+    document.getElementById('overwrite-confirm').classList.add('visible');
+    return;
+  }
+  executeSave();
+}
+
+function executeSave() {
+  const slot = SLOTS[selectedSlot];
+  SLOTS[selectedSlot].occupied = true;
+  SLOTS[selectedSlot].name = `Bar ${selectedBar+1} cap.`;
+  stopAudition();
+  selectedBar = null;
+  selectedSlot = null;
+  renderSaveSlots();
+  renderMainSlots();
+  document.getElementById('overwrite-confirm').classList.remove('visible');
+  document.getElementById('save-btn').disabled = true;
+  document.getElementById('audition-display-empty').style.display = '';
+  document.getElementById('audition-display-clip').style.display = 'none';
+  document.getElementById('audition-btn').disabled = true;
+  renderHistoryStrip(false);
+  showToast(`Saved to Slot ${slot.num}`);
+  // close modal after short delay
+  setTimeout(() => setScene('default'), 900);
+}
+
+function cancelOverwrite() {
+  selectedSlot = null;
+  renderSaveSlots();
+  document.getElementById('overwrite-confirm').classList.remove('visible');
+  document.getElementById('save-btn').disabled = true;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 2200);
+}
+
+// ---------------------------------------------------------------
+// Scene management (replaces multiple screen screenshots)
+// ---------------------------------------------------------------
+function setScene(name) {
+  const backdrop = document.getElementById('modal-backdrop');
+  const navBtns = document.querySelectorAll('.state-nav button');
+
+  const sceneMap = {
+    'default': 0,
+    'modal-open': 1,
+    'bar-selected': 2,
+    'slot-chosen': 3,
+    'overwrite': 4,
+    'empty-history': 5,
+    'saved': 6,
+  };
+  navBtns.forEach((b, i) => b.classList.toggle('active', i === sceneMap[name]));
+
+  stopAudition();
+
+  if (name === 'default') {
+    backdrop.classList.remove('open');
+    selectedBar = null;
+    selectedSlot = null;
+    renderHistoryStrip(false);
+    renderSaveSlots();
+    document.getElementById('audition-display-empty').style.display = '';
+    document.getElementById('audition-display-clip').style.display = 'none';
+    document.getElementById('audition-btn').disabled = true;
+    document.getElementById('save-btn').disabled = true;
+    document.getElementById('overwrite-confirm').classList.remove('visible');
+    return;
+  }
+
+  backdrop.classList.add('open');
+
+  if (name === 'modal-open') {
+    selectedBar = null;
+    selectedSlot = null;
+    renderHistoryStrip(false);
+    renderSaveSlots();
+    document.getElementById('audition-display-empty').style.display = '';
+    document.getElementById('audition-display-clip').style.display = 'none';
+    document.getElementById('audition-btn').disabled = true;
+    document.getElementById('save-btn').disabled = true;
+    document.getElementById('overwrite-confirm').classList.remove('visible');
+  }
+
+  if (name === 'bar-selected') {
+    selectBar(9); // bar 10 — has notes
+    document.getElementById('clip-length').value = '1';
+    clipLength = 1;
+  }
+
+  if (name === 'slot-chosen') {
+    selectBar(9);
+    clipLength = 1;
+    document.getElementById('clip-length').value = '1';
+    renderHistoryStrip(false);
+    renderAuditionClip();
+    selectSlot(2); // slot 3 — empty
+  }
+
+  if (name === 'overwrite') {
+    selectBar(9);
+    clipLength = 1;
+    document.getElementById('clip-length').value = '1';
+    renderHistoryStrip(false);
+    renderAuditionClip();
+    selectSlot(0); // slot 1 — occupied
+  }
+
+  if (name === 'empty-history') {
+    selectedBar = null;
+    selectedSlot = null;
+    renderHistoryStrip(true); // all empty
+    renderSaveSlots();
+    document.getElementById('audition-display-empty').style.display = '';
+    document.getElementById('audition-display-clip').style.display = 'none';
+    document.getElementById('audition-btn').disabled = true;
+    document.getElementById('save-btn').disabled = true;
+    document.getElementById('overwrite-confirm').classList.remove('visible');
+  }
+
+  if (name === 'saved') {
+    // Show that save has happened — modal closes, toast shown, slot now marked
+    SLOTS[2].occupied = true;
+    SLOTS[2].name = 'Bar 10 cap.';
+    renderMainSlots();
+    backdrop.classList.remove('open');
+    navBtns.forEach((b, i) => b.classList.toggle('active', i === sceneMap[name]));
+    showToast('Saved to Slot 3');
+  }
+}
+
+// ---------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------
+renderMainSlots();
+renderHistoryStrip(false);
+renderSaveSlots();
+</script>
+</body>
+</html>

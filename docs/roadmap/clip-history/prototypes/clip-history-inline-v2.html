@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clip History — Inline Drawer (v2)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f0f0ee;
+    --surface: #e4e4e2;
+    --surface2: #d6d6d4;
+    --border: #999;
+    --border-light: #bbb;
+    --text: #111;
+    --text-dim: #666;
+    --text-stub: #aaa;
+
+    --accent: #3a70c4;
+    --accent-dim: #c6d8f5;
+    --success: #2a7a3b;
+    --warn: #b85c00;
+    --playback: #7a3ab8;
+    --playback-dim: #ead9f7;
+    --disabled: #bbb;
+  }
+
+  body {
+    font-family: system-ui, sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .proto-header {
+    border: 2px dashed var(--border);
+    padding: 10px 14px;
+    margin-bottom: 24px;
+    color: var(--text-dim);
+    max-width: 960px;
+  }
+  .proto-header strong { color: var(--text); }
+  .proto-header ul { margin-top: 6px; padding-left: 18px; }
+  .proto-header li { margin-top: 3px; }
+
+  .stub {
+    border: 1px dashed var(--disabled);
+    color: var(--text-stub);
+    padding: 4px 8px;
+    display: inline-block;
+    font-size: 11px;
+  }
+
+  /* ---- app chrome ---- */
+  .app-frame {
+    max-width: 960px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+  }
+
+  .app-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .app-body {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    min-height: 520px;
+  }
+
+  .track-list {
+    border-right: 1px solid var(--border);
+  }
+  .track-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+  }
+  .track-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .track-item .track-source { font-size: 11px; color: var(--text-dim); }
+  .track-item.active .track-source { color: var(--accent); }
+  .generator-badge {
+    font-size: 10px;
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 4px;
+    margin-left: 4px;
+  }
+
+  /* ---- right pane: source editor ---- */
+  .source-editor {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .section-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--surface2);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-dim);
+  }
+
+  .btn {
+    padding: 4px 9px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .btn:hover { background: var(--accent-dim); border-color: var(--accent); }
+  .btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn.primary:hover { opacity: .88; }
+  .btn.active-toggle {
+    background: var(--playback-dim);
+    border-color: var(--playback);
+    color: var(--playback);
+    font-weight: 600;
+  }
+  .btn.danger { border-color: var(--warn); color: var(--warn); }
+  .btn.danger:hover { background: #fde8d0; }
+  .btn:disabled { color: var(--disabled); border-color: var(--disabled); cursor: not-allowed; background: var(--bg); }
+
+  /* ---- slot row at top ---- */
+  .slot-section {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .slot-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .slot-chip {
+    width: 36px;
+    height: 26px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: default;
+  }
+  .slot-chip.occupied { border-color: var(--success); color: var(--success); }
+  .slot-chip.active-slot { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+
+  /* ---- generator params area ---- */
+  .generator-area {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .generator-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .generator-title { font-weight: 700; font-size: 13px; }
+
+  .generator-params-stub {
+    border: 1px dashed var(--disabled);
+    padding: 14px 10px;
+    color: var(--text-stub);
+    font-size: 11px;
+    text-align: center;
+  }
+
+  /* ---- clip history inline drawer ---- */
+  .clip-history-drawer {
+    border-top: 2px solid var(--playback);
+    background: #f5f0fa;
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .clip-history-drawer.open { display: flex; }
+
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: var(--playback-dim);
+    border-bottom: 1px solid var(--playback);
+  }
+  .drawer-title {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--playback);
+  }
+  .drawer-close {
+    background: none;
+    border: 1px solid var(--playback);
+    color: var(--playback);
+    cursor: pointer;
+    padding: 1px 6px;
+    font-size: 12px;
+  }
+  .drawer-close:hover { background: var(--playback); color: #fff; }
+
+  .drawer-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* history strip — compressed, 16 bars in less vertical space */
+  .history-strip {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    border: 1px solid var(--border);
+    background: #e8e4f0;
+    position: relative;
+    user-select: none;
+  }
+
+  .history-bar {
+    height: 52px;
+    border-right: 1px solid var(--border-light);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .history-bar:last-child { border-right: none; }
+  .history-bar:hover { background: rgba(122,58,184,.12); }
+
+  .bar-label {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+
+  .note-blob {
+    position: absolute;
+    height: 4px;
+    background: var(--playback);
+    opacity: .7;
+  }
+
+  .history-bar.empty .bar-label { color: var(--text-stub); }
+  .history-bar.empty {
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(0,0,0,.04) 4px,
+      rgba(0,0,0,.04) 8px
+    );
+  }
+
+  .history-bar.selected {
+    background: var(--playback-dim) !important;
+    outline: 2px solid var(--playback);
+    outline-offset: -2px;
+    z-index: 2;
+  }
+  .history-bar.in-range { background: rgba(122,58,184,.1); }
+
+  .playhead-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--warn);
+    pointer-events: none;
+  }
+
+  /* inline controls row below strip */
+  .inline-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .length-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .length-control label { font-size: 11px; color: var(--text-dim); }
+  .length-select {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    padding: 3px 5px;
+    font-size: 12px;
+  }
+
+  .audition-status {
+    font-size: 11px;
+    color: var(--playback);
+    font-weight: 600;
+    padding: 2px 7px;
+    border: 1px solid var(--playback);
+    background: var(--playback-dim);
+    display: none;
+  }
+  .audition-status.visible { display: inline-block; }
+
+  /* mini virtual clip display — narrower, fits inline */
+  .virtual-clip-strip {
+    height: 36px;
+    border: 2px solid var(--playback);
+    background: var(--playback-dim);
+    position: relative;
+    overflow: hidden;
+    flex: 1;
+    min-width: 120px;
+  }
+  .virtual-clip-strip .vc-note {
+    position: absolute;
+    height: 4px;
+    background: var(--playback);
+    opacity: .85;
+  }
+  .virtual-clip-label {
+    position: absolute;
+    bottom: 1px;
+    left: 3px;
+    font-size: 9px;
+    color: var(--playback);
+    font-weight: 700;
+  }
+  .virtual-clip-empty {
+    height: 36px;
+    border: 1px dashed var(--disabled);
+    flex: 1;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-stub);
+    font-size: 11px;
+  }
+
+  /* save slot picker — horizontal compact */
+  .save-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border-light);
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+  .save-row-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .save-slot-chip {
+    width: 46px;
+    height: 32px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    position: relative;
+  }
+  .save-slot-chip:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .save-slot-chip.occupied { border-color: var(--success); color: var(--success); }
+  .save-slot-chip.occupied::after {
+    content: '•';
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    font-size: 10px;
+    color: var(--success);
+  }
+  .save-slot-chip.selected-save {
+    border: 2px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .save-slot-chip .slot-mini-name {
+    font-size: 8px;
+    font-weight: 400;
+    color: var(--text-dim);
+    max-width: 42px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .overwrite-warn {
+    font-size: 11px;
+    color: var(--warn);
+    border: 1px solid var(--warn);
+    padding: 3px 8px;
+    background: #fef5ec;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 4px;
+  }
+  .overwrite-warn.visible { display: flex; }
+
+  .save-confirm-btn {
+    margin-left: auto;
+  }
+
+  /* ---- state nav ---- */
+  .state-nav {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    max-width: 960px;
+  }
+  .state-nav button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .state-nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: #fff;
+    padding: 7px 16px;
+    font-size: 12px;
+    z-index: 200;
+    display: none;
+    pointer-events: none;
+  }
+  .toast.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="proto-header">
+  <strong>Prototype: Clip History — Inline Drawer (v2)</strong><br>
+  Approach: Clip History expands as an inline drawer <em>within</em> the source editor pane — no modal overlay. The user stays in context.<br>
+  <ul>
+    <li>Interaction budget: open drawer in 1 click; select+audition in 2; save in 1 = 4 total. Same as v1.</li>
+    <li>Key strategic difference from v1: no focus-trap, no overlay — user can see the slot palette and the generator params simultaneously with the history.</li>
+    <li>Trade-off: vertical space is constrained, history strip is more compressed. Modal (v1) gives more room.</li>
+    <li>States: generator view → drawer open (no selection) → bar selected + auditioning → slot chosen → overwrite warning → saved.</li>
+  </ul>
+</div>
+
+<div class="state-nav">
+  <button class="active" onclick="setScene('default')">1. Generator view (drawer closed)</button>
+  <button onclick="setScene('drawer-open')">2. Drawer open — no selection</button>
+  <button onclick="setScene('bar-selected')">3. Bar selected + auditioning</button>
+  <button onclick="setScene('slot-chosen')">4. Slot chosen (empty)</button>
+  <button onclick="setScene('overwrite')">5. Slot chosen (occupied)</button>
+  <button onclick="setScene('empty-history')">6. Empty history</button>
+  <button onclick="setScene('saved')">7. After save</button>
+</div>
+
+<div class="app-frame">
+  <div class="app-toolbar">
+    <span class="stub">-> [project nav]</span>
+    <span class="stub">-> [transport]</span>
+    <span class="stub">-> [global settings]</span>
+  </div>
+  <div class="app-body">
+
+    <!-- Track list -->
+    <div class="track-list">
+      <div class="track-item">
+        <div>Kick 909</div>
+        <div class="track-source">Drum machine</div>
+      </div>
+      <div class="track-item active">
+        <div>Bass Arp <span class="generator-badge">GEN</span></div>
+        <div class="track-source">Chord-step generator</div>
+      </div>
+      <div class="track-item">
+        <div>Plücking Melodié <span class="generator-badge">GEN</span></div>
+        <div class="track-source">Scale walk generator</div>
+      </div>
+      <div class="track-item">
+        <div>Pad Çhords</div>
+        <div class="track-source">MIDI clip</div>
+      </div>
+      <div class="track-item">
+        <div>HH Pattern</div>
+        <div class="track-source">Drum machine</div>
+      </div>
+      <div class="stub" style="margin:8px;font-size:11px;">-> [add track]</div>
+    </div>
+
+    <!-- Source editor -->
+    <div class="source-editor">
+
+      <!-- Pattern slots -->
+      <div class="slot-section">
+        <div class="section-bar" style="border-bottom:none;padding:0 0 3px;">
+          <span>Pattern Slots</span>
+        </div>
+        <div class="slot-row" id="main-slot-row"></div>
+      </div>
+
+      <!-- Generator params -->
+      <div class="generator-area">
+        <div class="generator-title-row">
+          <span class="generator-title">Chord-step generator</span>
+          <button class="btn" id="history-toggle-btn" onclick="toggleDrawer()">Clip History</button>
+        </div>
+        <div class="generator-params-stub">
+          [GeneratorParamsEditorView — stub] Root: C, Scale: Dorian, Density: 0.62, Interval: 8ths
+        </div>
+        <div class="generator-params-stub" style="height:48px;">
+          [GeneratedNotesPreview — deterministic preview — stub]
+        </div>
+      </div>
+
+      <!-- Inline clip history drawer -->
+      <div class="clip-history-drawer" id="clip-history-drawer">
+
+        <div class="drawer-header">
+          <span class="drawer-title">Clip History — Bass Arp (recent 16 bars)</span>
+          <button class="drawer-close" onclick="toggleDrawer()">close</button>
+        </div>
+
+        <div class="drawer-body">
+
+          <!-- Strip -->
+          <div>
+            <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">Click a bar to select. Drag to select a range. Newest bar is rightmost.</div>
+            <div class="history-strip" id="history-strip">
+              <div class="playhead-marker" id="playhead"></div>
+            </div>
+          </div>
+
+          <!-- Controls: length + audition + virtual clip preview all in one row -->
+          <div class="inline-controls">
+            <div id="vc-empty" class="virtual-clip-empty">select a bar</div>
+            <div id="vc-display" class="virtual-clip-strip" style="display:none;"></div>
+
+            <div class="length-control">
+              <label for="clip-length-inline">Length:</label>
+              <select class="length-select" id="clip-length-inline" onchange="updateLength(this.value)">
+                <option value="0.5">½ bar</option>
+                <option value="1" selected>1 bar</option>
+                <option value="2">2 bars</option>
+                <option value="4">4 bars</option>
+              </select>
+            </div>
+
+            <button class="btn" id="audition-btn" disabled onclick="toggleAudition()">Audition</button>
+            <button class="btn" id="stop-btn" style="display:none;" onclick="stopAudition()">Stop</button>
+            <span class="audition-status" id="audition-badge">AUDITIONING</span>
+          </div>
+
+          <!-- Save row -->
+          <div class="save-row">
+            <span class="save-row-label">Save to slot:</span>
+            <div id="save-slot-row" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+            <button class="btn primary save-confirm-btn" id="save-btn" disabled onclick="initiateSave()">Save</button>
+          </div>
+
+          <div class="overwrite-warn" id="overwrite-warn">
+            <span>Slot <strong id="ow-slot"></strong> (<em id="ow-name"></em>) already has a clip — this will replace it.</span>
+            <button class="btn danger" style="font-size:11px;padding:3px 7px;" onclick="executeSave()">Overwrite</button>
+            <button class="btn" style="font-size:11px;padding:3px 7px;" onclick="cancelOverwrite()">Cancel</button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SLOTS = [
+  { num: 1, name: 'Intro Arp',   occupied: true  },
+  { num: 2, name: 'Drop bass',   occupied: true  },
+  { num: 3, name: '',            occupied: false },
+  { num: 4, name: '',            occupied: false },
+  { num: 5, name: 'Breakdown',   occupied: true  },
+  { num: 6, name: '',            occupied: false },
+  { num: 7, name: 'Outro mêlée', occupied: true  },
+  { num: 8, name: '',            occupied: false },
+];
+
+const BAR_NOTES = [
+  [[10,5,30],[30,40,20],[55,70,15],[70,15,25]],
+  [[15,8,28],[40,45,18],[60,65,22]],
+  [[12,3,35],[35,50,15],[65,20,30],[80,72,12]],
+  [[20,10,20],[45,38,18],[70,60,25]],
+  [[10,5,40],[50,50,20],[72,75,10]],
+  [[15,15,25],[38,40,30],[62,70,18],[80,8,22]],
+  [],
+  [[12,6,38],[45,45,22],[68,72,15]],
+  [[18,12,28],[42,42,20],[64,65,25],[78,80,12]],
+  [[10,8,42],[55,55,18]],
+  [[20,5,30],[48,50,15],[70,70,20]],
+  [[15,10,35],[40,40,25],[65,68,18]],
+  [],
+  [[10,6,32],[38,42,22],[62,66,20],[80,82,10]],
+  [[12,8,30],[45,48,18],[68,72,22]],
+  [[18,10,28],[50,52,20]],
+];
+
+let selectedBar = null;
+let selectedSlot = null;
+let clipLength = 1;
+let isAuditioning = false;
+let drawerOpen = false;
+
+function renderMainSlots() {
+  document.getElementById('main-slot-row').innerHTML = SLOTS.map((s, i) =>
+    `<div class="slot-chip ${s.occupied ? 'occupied' : ''} ${i === 1 ? 'active-slot' : ''}">${s.num}</div>`
+  ).join('');
+}
+
+function renderStrip(emptyAll) {
+  const strip = document.getElementById('history-strip');
+  const bars = BAR_NOTES.map((notes, i) => {
+    const isEmpty = emptyAll || notes.length === 0;
+    const isSelected = i === selectedBar;
+    const inRange = !isSelected && selectedBar !== null && clipLength > 1 &&
+      i > selectedBar && i < selectedBar + clipLength;
+    let cls = 'history-bar' + (isEmpty ? ' empty' : '') + (isSelected ? ' selected' : '') + (inRange ? ' in-range' : '');
+    const blobs = isEmpty ? '' : notes.map(([t, l, w]) =>
+      `<div class="note-blob" style="top:${t}%;left:${l}%;width:${w}%;"></div>`
+    ).join('');
+    return `<div class="${cls}" onclick="selectBar(${i})" title="Bar ${i+1}">
+      <span class="bar-label">${i+1}</span>${blobs}
+    </div>`;
+  });
+  strip.innerHTML = bars.join('') +
+    `<div class="playhead-marker" id="playhead" style="left:${(15.5/16*100).toFixed(1)}%;"></div>`;
+}
+
+function renderVirtualClip() {
+  const empty = document.getElementById('vc-empty');
+  const display = document.getElementById('vc-display');
+  if (selectedBar === null) {
+    empty.style.display = '';
+    display.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  display.style.display = '';
+  display.innerHTML = '';
+  const barsToShow = Math.min(clipLength, 16 - selectedBar);
+  for (let b = 0; b < barsToShow; b++) {
+    const barIdx = selectedBar + b;
+    if (barIdx >= 16) break;
+    BAR_NOTES[barIdx].forEach(([top, left, width]) => {
+      const n = document.createElement('div');
+      n.className = 'vc-note';
+      const ol = (b / barsToShow) * 100 + (left / 100) * (100 / barsToShow);
+      const w = (width / 100) * (100 / barsToShow);
+      n.style.cssText = `top:${top}%;left:${ol.toFixed(1)}%;width:${w.toFixed(1)}%;`;
+      display.appendChild(n);
+    });
+  }
+  const lbl = document.createElement('span');
+  lbl.className = 'virtual-clip-label';
+  lbl.textContent = `B${selectedBar+1}${clipLength > 1 ? '–'+(selectedBar+clipLength) : ''} · ${clipLength}bar`;
+  display.appendChild(lbl);
+}
+
+function renderSaveSlots() {
+  document.getElementById('save-slot-row').innerHTML = SLOTS.map((s, i) => {
+    let cls = 'save-slot-chip' + (s.occupied ? ' occupied' : '') + (i === selectedSlot ? ' selected-save' : '');
+    const name = s.name ? `<span class="slot-mini-name">${s.name}</span>` : '';
+    return `<div class="${cls}" onclick="selectSlot(${i})">
+      <span>${s.num}</span>${name}
+    </div>`;
+  }).join('');
+}
+
+function toggleDrawer() {
+  drawerOpen = !drawerOpen;
+  const drawer = document.getElementById('clip-history-drawer');
+  const btn = document.getElementById('history-toggle-btn');
+  if (drawerOpen) {
+    drawer.classList.add('open');
+    btn.classList.add('active-toggle');
+    btn.textContent = 'Clip History ▲';
+  } else {
+    drawer.classList.remove('open');
+    btn.classList.remove('active-toggle');
+    btn.textContent = 'Clip History';
+    stopAudition();
+    selectedBar = null;
+    selectedSlot = null;
+    renderStrip(false);
+    renderVirtualClip();
+    renderSaveSlots();
+    document.getElementById('audition-btn').disabled = true;
+    document.getElementById('save-btn').disabled = true;
+    document.getElementById('overwrite-warn').classList.remove('visible');
+  }
+}
+
+function selectBar(idx) {
+  selectedBar = idx;
+  selectedSlot = null;
+  stopAudition();
+  renderStrip(false);
+  renderVirtualClip();
+  renderSaveSlots();
+  document.getElementById('audition-btn').disabled = false;
+  document.getElementById('save-btn').disabled = true;
+  document.getElementById('overwrite-warn').classList.remove('visible');
+}
+
+function selectSlot(idx) {
+  if (selectedBar === null) return;
+  selectedSlot = idx;
+  renderSaveSlots();
+  const slot = SLOTS[idx];
+  const ow = document.getElementById('overwrite-warn');
+  if (slot.occupied) {
+    document.getElementById('ow-slot').textContent = `Slot ${slot.num}`;
+    document.getElementById('ow-name').textContent = slot.name;
+    ow.classList.add('visible');
+    document.getElementById('save-btn').disabled = true;
+  } else {
+    ow.classList.remove('visible');
+    document.getElementById('save-btn').disabled = false;
+  }
+}
+
+function updateLength(val) {
+  clipLength = parseFloat(val);
+  if (selectedBar !== null) {
+    renderStrip(false);
+    renderVirtualClip();
+  }
+}
+
+function toggleAudition() {
+  if (selectedBar === null) return;
+  isAuditioning = true;
+  document.getElementById('audition-badge').classList.add('visible');
+  document.getElementById('audition-btn').style.display = 'none';
+  document.getElementById('stop-btn').style.display = '';
+}
+
+function stopAudition() {
+  isAuditioning = false;
+  document.getElementById('audition-badge').classList.remove('visible');
+  document.getElementById('audition-btn').style.display = '';
+  document.getElementById('stop-btn').style.display = 'none';
+}
+
+function initiateSave() {
+  if (selectedBar === null || selectedSlot === null) return;
+  const slot = SLOTS[selectedSlot];
+  if (slot.occupied) {
+    document.getElementById('overwrite-warn').classList.add('visible');
+    return;
+  }
+  executeSave();
+}
+
+function executeSave() {
+  const slot = SLOTS[selectedSlot];
+  SLOTS[selectedSlot].occupied = true;
+  SLOTS[selectedSlot].name = `Bar ${selectedBar+1} cap.`;
+  stopAudition();
+  const savedSlotNum = slot.num;
+  selectedBar = null;
+  selectedSlot = null;
+  renderSaveSlots();
+  renderMainSlots();
+  renderStrip(false);
+  renderVirtualClip();
+  document.getElementById('save-btn').disabled = true;
+  document.getElementById('audition-btn').disabled = true;
+  document.getElementById('overwrite-warn').classList.remove('visible');
+  showToast(`Saved to Slot ${savedSlotNum}`);
+  // close drawer after short delay
+  setTimeout(() => {
+    drawerOpen = true; // so toggleDrawer closes it
+    toggleDrawer();
+  }, 900);
+}
+
+function cancelOverwrite() {
+  selectedSlot = null;
+  renderSaveSlots();
+  document.getElementById('overwrite-warn').classList.remove('visible');
+  document.getElementById('save-btn').disabled = true;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 2200);
+}
+
+function setScene(name) {
+  const scenes = ['default','drawer-open','bar-selected','slot-chosen','overwrite','empty-history','saved'];
+  document.querySelectorAll('.state-nav button').forEach((b, i) =>
+    b.classList.toggle('active', scenes[i] === name)
+  );
+
+  // Reset overwrite-warn slot data to avoid stale state across resets
+  SLOTS[0] = { num: 1, name: 'Intro Arp',   occupied: true  };
+  SLOTS[1] = { num: 2, name: 'Drop bass',   occupied: true  };
+  SLOTS[2] = { num: 3, name: '',            occupied: false };
+  SLOTS[3] = { num: 4, name: '',            occupied: false };
+  SLOTS[4] = { num: 5, name: 'Breakdown',   occupied: true  };
+  SLOTS[5] = { num: 6, name: '',            occupied: false };
+  SLOTS[6] = { num: 7, name: 'Outro mêlée', occupied: true  };
+  SLOTS[7] = { num: 8, name: '',            occupied: false };
+
+  stopAudition();
+  selectedBar = null;
+  selectedSlot = null;
+  clipLength = 1;
+  document.getElementById('clip-length-inline').value = '1';
+  document.getElementById('overwrite-warn').classList.remove('visible');
+  document.getElementById('save-btn').disabled = true;
+  document.getElementById('audition-btn').disabled = true;
+
+  if (name === 'default') {
+    if (drawerOpen) { drawerOpen = true; toggleDrawer(); } // close
+    drawerOpen = false;
+    const drawer = document.getElementById('clip-history-drawer');
+    drawer.classList.remove('open');
+    document.getElementById('history-toggle-btn').classList.remove('active-toggle');
+    document.getElementById('history-toggle-btn').textContent = 'Clip History';
+    renderStrip(false);
+    renderVirtualClip();
+    renderSaveSlots();
+    renderMainSlots();
+    return;
+  }
+
+  // Ensure drawer is open for all other scenes
+  drawerOpen = false;
+  const drawer = document.getElementById('clip-history-drawer');
+  drawer.classList.add('open');
+  document.getElementById('history-toggle-btn').classList.add('active-toggle');
+  document.getElementById('history-toggle-btn').textContent = 'Clip History ▲';
+  drawerOpen = true;
+
+  if (name === 'drawer-open') {
+    renderStrip(false);
+    renderVirtualClip();
+    renderSaveSlots();
+    renderMainSlots();
+  }
+
+  if (name === 'bar-selected') {
+    selectedBar = 9;
+    renderStrip(false);
+    renderVirtualClip();
+    renderSaveSlots();
+    renderMainSlots();
+    document.getElementById('audition-btn').disabled = false;
+  }
+
+  if (name === 'slot-chosen') {
+    selectedBar = 9;
+    renderStrip(false);
+    renderVirtualClip();
+    selectedSlot = 2;
+    renderSaveSlots();
+    renderMainSlots();
+    document.getElementById('audition-btn').disabled = false;
+    document.getElementById('save-btn').disabled = false;
+  }
+
+  if (name === 'overwrite') {
+    selectedBar = 9;
+    renderStrip(false);
+    renderVirtualClip();
+    selectedSlot = 0;
+    renderSaveSlots();
+    renderMainSlots();
+    document.getElementById('audition-btn').disabled = false;
+    document.getElementById('save-btn').disabled = true;
+    document.getElementById('ow-slot').textContent = 'Slot 1';
+    document.getElementById('ow-name').textContent = 'Intro Arp';
+    document.getElementById('overwrite-warn').classList.add('visible');
+  }
+
+  if (name === 'empty-history') {
+    renderStrip(true);
+    renderVirtualClip();
+    renderSaveSlots();
+    renderMainSlots();
+  }
+
+  if (name === 'saved') {
+    SLOTS[2].occupied = true;
+    SLOTS[2].name = 'Bar 10 cap.';
+    drawerOpen = true; // mark so close works
+    toggleDrawer();
+    renderMainSlots();
+    showToast('Saved to Slot 3');
+  }
+}
+
+// boot
+renderMainSlots();
+renderStrip(false);
+renderVirtualClip();
+renderSaveSlots();
+</script>
+</body>
+</html>
