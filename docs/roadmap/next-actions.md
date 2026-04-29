@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T13:28:08Z
-Repo HEAD: ccf58e7
+Generated: 2026-04-29T13:32:07Z
+Repo HEAD: 49288e7
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -29,25 +29,25 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 
 ## Next User Item
 
+- **Item:** 15
+- **Feature:** Note Repeat
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `clarify-feature`
+- **Role:** `user`
+- **Why:** No `notes.md` yet.
+- **Output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+## Next Agent Item
+
 - **Item:** 1
 - **Feature:** Clip History
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-architecture`
-- **Role:** `user`
-- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
-
-## Next Agent Item
-
-- **Item:** 2
-- **Feature:** Scene Perform
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `draft-user-stories`
+- **Action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Why:** `notes.md` exists, but `user-stories.md` is missing.
-- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Why:** Architecture review exists, but `spec.md` is missing.
+- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ## Feature Actions
 
@@ -57,10 +57,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
-- **Role:** `user`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Next action:** `write-spec`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture review exists, but `spec.md` is missing.
+- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ### 2. Scene Perform
 
