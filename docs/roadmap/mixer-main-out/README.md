@@ -4,7 +4,7 @@ title: Mixer Main Out
 status: inventory
 priority: unset
 blocked_by: []
-stage: build-prototypes
+stage: review-prototypes
 owner: pm
 updated: 2026-04-29
 ---

@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Mixer Main Out — Variant A: Right-Side Master Column</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Mixer Main Out: Variant A — right-side master column.
+  Track strips on the left (horizontal scroll), master out as the
+  rightmost full-height fixed column.
+
+  LAYOUT RATIONALE:
+  The master column is the natural terminus of the signal chain reading
+  left-to-right. Every major DAW (Logic Pro X, Ableton Live, Pro Tools)
+  places the master/output bus as the rightmost column. The column is
+  full-height so fader travel is long, consistent with high-gain-precision
+  expectations on the master bus.
+
+  MASTER COLUMN STRUCTURE (top to bottom):
+    1. Section header — "MASTER OUT" label + section divider.
+    2. Crossfader — compact A↔B horizontal fader with scene name badges.
+    3. Insert FX chain — 4–6 slot strips with bypass + reorder arrows.
+    4. Fader — vertical fader with dB readout.
+    5. Meter — calibrated dBFS bar (L + R channels) with clip latch.
+
+  STATES (use the state buttons to switch):
+    idle        — signal present ~-24 dB, no clip, XF at full A.
+    mid-signal  — signal present ~-12 dB, no clip, XF at mid-blend.
+    near-clip   — signal ~-1 dB, no clip yet, amber zone lit.
+    clipped     — clip latch triggered, red indicator lit, clear-clip button.
+    xf-b        — crossfader at full B.
+
+  INTERACTION BUDGET: primary goal (notice & clear a clip) in ≤2 interactions.
+  Click-path: see METER_CLIP indicator → click "CLR" button → latch clears.
+
+  STUBS (dashed border): Track channel strips (off-path), bus section, FX add picker,
+  insert parameter editing, scene slot assignment picker, undo.
+
+  MODEL NOTES (for spec):
+    - MasterBusScene.outputGain is currently clobbered to 1.0 by normalized()
+      (MasterBus.swift:301). A user-controllable master fader requires either a new
+      MasterBusState.masterOutputGain field OR removal of the normalization override.
+      This must be resolved before Story 1 can be built.
+    - The inline crossfader widget must be extracted from the private function
+      crossfader(...) at ScenesWorkspaceView+Perform.swift:28–72 into a standalone
+      MasterCrossfaderView that can be embedded here without re-implementing.
+    - dBFS metering requires a new installTap on finalOutputMixer (or mainMixerNode)
+      publishing peak values to the main thread via the publishToMain pattern
+      (EngineController.swift:163). No metering infrastructure exists in code yet.
+    - The tap must be removed before engine stop (MainAudioGraph.swift:88–145 stops
+      and restarts the engine on graph rebuilds) and reinstalled after restart.
+    - Insert chain shown here is scene-scoped (active scene's inserts), matching
+      the existing model. A global post-crossfade insert chain would require new model work.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #e8e8e8;
+    color: #111;
+    padding: 24px;
+  }
+
+  /* ---- Prototype Banner ---- */
+  .proto-banner {
+    background: #222;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .proto-variant {
+    background: #555;
+    color: #fff;
+    padding: 4px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    margin-bottom: 16px;
+  }
+
+  /* ---- State Controls ---- */
+  .state-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .state-controls label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-right: 4px;
+  }
+  .state-btn {
+    padding: 4px 10px;
+    border: 1px solid #999;
+    background: #e0e0e0;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .state-btn.active {
+    background: #333;
+    color: #fff;
+    border-color: #333;
+  }
+  .state-btn:hover:not(.active) { background: #d0d0d0; }
+
+  /* ---- Workspace Shell ---- */
+  .workspace {
+    background: #fafafa;
+    border: 1px solid #bbb;
+    display: flex;
+    flex-direction: column;
+    width: 960px;
+    min-height: 560px;
+  }
+
+  .workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    border-bottom: 1px solid #ccc;
+    background: #efefef;
+    flex-shrink: 0;
+  }
+  .workspace-title {
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #333;
+  }
+  .workspace-actions-stub {
+    border: 1px dashed #bbb;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: #999;
+    cursor: not-allowed;
+  }
+  .workspace-actions-stub::after { content: " [stub]"; font-size: 10px; }
+
+  /* ---- Main Mixer Layout ---- */
+  .mixer-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Track strips area */
+  .track-strips-area {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 2px solid #999;
+    display: flex;
+    flex-direction: column;
+  }
+  .track-strips-header {
+    padding: 5px 10px;
+    background: #e8e8e8;
+    border-bottom: 1px solid #ccc;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #666;
+    flex-shrink: 0;
+  }
+  .track-strips-scroll {
+    display: flex;
+    gap: 0;
+    flex: 1;
+    align-items: stretch;
+  }
+
+  /* Individual track strip stub */
+  .track-strip-stub {
+    width: 72px;
+    flex-shrink: 0;
+    border-right: 1px solid #ddd;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px dashed #ccc;
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+  }
+  .track-strip-stub:first-child { border-left: 1px dashed #ccc; }
+  .strip-name {
+    font-size: 10px;
+    color: #aaa;
+    padding: 6px 4px 4px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .strip-fader-stub {
+    width: 24px;
+    flex: 1;
+    margin: 8px auto;
+    border: 1px dashed #ccc;
+    background: #ececec;
+    position: relative;
+    min-height: 200px;
+  }
+  .strip-fader-handle-stub {
+    position: absolute;
+    left: -4px;
+    width: 32px;
+    height: 12px;
+    background: #ccc;
+    border: 1px solid #aaa;
+  }
+  .strip-bottom-stub {
+    width: 100%;
+    padding: 4px;
+    border-top: 1px dashed #ccc;
+  }
+  .strip-knob-stub {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px dashed #ccc;
+    background: #e8e8e8;
+    margin: 0 auto 4px;
+  }
+  .strip-mute-stub {
+    width: 100%;
+    text-align: center;
+    font-size: 9px;
+    color: #bbb;
+    border: 1px dashed #ccc;
+    padding: 2px;
+    margin-bottom: 4px;
+  }
+
+  /* ---- Master Out Column ---- */
+  .master-col {
+    width: 190px;
+    flex-shrink: 0;
+    background: #f0f0f0;
+    border-left: 2px solid #555;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .master-col-header {
+    padding: 6px 10px;
+    background: #333;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .master-section-tag {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    color: #aaa;
+    font-weight: 400;
+  }
+
+  /* ---- Crossfader Section ---- */
+  .xf-section {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ccc;
+    background: #ebebeb;
+    flex-shrink: 0;
+  }
+  .section-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #777;
+    margin-bottom: 5px;
+  }
+  .xf-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .xf-scene-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .xf-scene-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border: 1px solid #888;
+    background: #e0e0e0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .xf-scene-badge.is-active {
+    background: #222;
+    color: #fff;
+    border-color: #222;
+  }
+  .xf-scene-name {
+    font-size: 10px;
+    color: #555;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .xf-track {
+    position: relative;
+    height: 20px;
+    background: #d8d8d8;
+    border: 1px solid #aaa;
+    margin: 2px 0;
+  }
+  .xf-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #888;
+    transition: width 0.15s;
+  }
+  .xf-thumb {
+    position: absolute;
+    top: -3px;
+    width: 12px;
+    height: 26px;
+    background: #333;
+    border: 1px solid #111;
+    cursor: ew-resize;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+  .xf-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #888;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---- Insert FX Chain ---- */
+  .inserts-section {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ccc;
+    flex: 0 0 auto;
+    background: #f0f0f0;
+  }
+  .inserts-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .insert-add-btn {
+    font-size: 10px;
+    padding: 1px 6px;
+    border: 1px solid #999;
+    background: #e0e0e0;
+    cursor: pointer;
+  }
+  .insert-add-btn:hover { background: #ccc; }
+
+  .insert-slot {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 4px;
+    border: 1px solid #ccc;
+    background: #fff;
+    margin-bottom: 3px;
+    font-size: 11px;
+  }
+  .insert-slot.bypassed {
+    background: #ececec;
+    opacity: 0.65;
+  }
+  .insert-bypass-btn {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #999;
+    background: #e0e0e0;
+    cursor: pointer;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .insert-bypass-btn.enabled {
+    background: #444;
+    color: #fff;
+    border-color: #444;
+  }
+  .insert-name {
+    flex: 1;
+    font-size: 10px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .insert-slot.bypassed .insert-name {
+    color: #999;
+    text-decoration: line-through;
+  }
+  .insert-reorder-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex-shrink: 0;
+  }
+  .insert-arrow {
+    width: 14px;
+    height: 11px;
+    border: 1px solid #bbb;
+    background: #e8e8e8;
+    font-size: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .insert-arrow:hover { background: #ccc; }
+  .insert-arrow.disabled { opacity: 0.3; cursor: default; }
+  .insert-remove {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #ccc;
+    background: #e8e8e8;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    flex-shrink: 0;
+  }
+  .insert-remove:hover { background: #e0b0b0; color: #a00; border-color: #a00; }
+
+  .insert-slot-empty {
+    padding: 3px 4px;
+    border: 1px dashed #ccc;
+    background: #f8f8f8;
+    color: #bbb;
+    font-size: 10px;
+    text-align: center;
+    margin-bottom: 3px;
+  }
+
+  /* ---- Fader Section ---- */
+  .fader-section {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ccc;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 140px;
+    background: #f0f0f0;
+  }
+  .fader-area {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex: 1;
+    width: 100%;
+    justify-content: center;
+  }
+  .fader-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .fader-label-top {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #777;
+  }
+  .fader-track {
+    width: 22px;
+    height: 160px;
+    background: #d0d0d0;
+    border: 1px solid #aaa;
+    position: relative;
+    cursor: ns-resize;
+  }
+  /* dB scale ticks */
+  .fader-scale {
+    position: absolute;
+    right: 26px;
+    top: 0;
+    width: 24px;
+    height: 160px;
+    pointer-events: none;
+  }
+  .scale-tick {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .scale-tick-line {
+    width: 6px;
+    height: 1px;
+    background: #999;
+  }
+  .scale-tick-label {
+    font-size: 8px;
+    color: #888;
+    white-space: nowrap;
+    text-align: right;
+    width: 22px;
+  }
+  .fader-handle {
+    position: absolute;
+    left: -5px;
+    width: 32px;
+    height: 14px;
+    background: #444;
+    border: 1px solid #222;
+    cursor: ns-resize;
+    transform: translateY(50%);
+    z-index: 2;
+  }
+  .fader-handle::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 50%;
+    height: 1px;
+    background: #aaa;
+    transform: translateY(-50%);
+  }
+  .fader-db-readout {
+    font-size: 11px;
+    font-weight: 700;
+    color: #222;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---- Meter Section ---- */
+  .meter-section {
+    padding: 8px 10px;
+    flex-shrink: 0;
+    background: #e8e8e8;
+    border-top: 1px solid #bbb;
+  }
+  .meter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .clip-indicator {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border: 1px solid #bbb;
+    background: #ddd;
+    color: #aaa;
+  }
+  .clip-indicator.clipped {
+    background: #c00;
+    color: #fff;
+    border-color: #900;
+  }
+  .clip-clear-btn {
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid #999;
+    background: #e0e0e0;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: none;
+  }
+  .clip-clear-btn.visible { display: inline-block; }
+  .clip-clear-btn:hover { background: #ccc; }
+
+  .meter-bars {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .meter-channel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .meter-ch-label {
+    font-size: 9px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .meter-bar-wrap {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+  }
+  .meter-bar {
+    width: 16px;
+    height: 120px;
+    background: #ccc;
+    border: 1px solid #aaa;
+    position: relative;
+    overflow: hidden;
+  }
+  /* dB meter segments rendered bottom-to-top */
+  .meter-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #555; /* default: below -20 dB — plain grey */
+    transition: height 0.05s linear;
+  }
+  /* color zone overlays */
+  .meter-green-zone {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 65%;  /* -inf to -12 dB */
+    background: #3a3;
+    pointer-events: none;
+  }
+  .meter-amber-zone {
+    position: absolute;
+    bottom: 65%;
+    left: 0;
+    width: 100%;
+    height: 20%;  /* -12 to -3 dB */
+    background: #b80;
+    pointer-events: none;
+  }
+  .meter-red-zone {
+    position: absolute;
+    bottom: 85%;
+    left: 0;
+    width: 100%;
+    height: 15%;  /* -3 to 0+ dB */
+    background: #c00;
+    pointer-events: none;
+  }
+  /* The actual level mask: covers everything above current level */
+  .meter-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #ccc;
+    border-bottom: 1px solid #bbb;
+    transition: height 0.05s linear;
+  }
+  /* peak hold tick */
+  .meter-peak-tick {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: #555;
+    transition: bottom 0.3s ease-out;
+  }
+
+  /* dB scale alongside meter */
+  .meter-scale {
+    width: 24px;
+    height: 120px;
+    position: relative;
+    pointer-events: none;
+  }
+  .meter-scale-tick {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .meter-tick-line {
+    width: 5px;
+    height: 1px;
+    background: #999;
+  }
+  .meter-tick-label {
+    font-size: 7px;
+    color: #777;
+    white-space: nowrap;
+    text-align: right;
+    width: 17px;
+  }
+
+  /* ---- Annotation Banner ---- */
+  .annotation {
+    margin-top: 20px;
+    border: 1px dashed #aaa;
+    padding: 10px 14px;
+    background: #f8f8f8;
+    font-size: 11px;
+    color: #555;
+    max-width: 960px;
+  }
+  .annotation strong { color: #333; }
+  .annotation ul { margin: 6px 0 0 16px; }
+  .annotation li { margin-bottom: 3px; }
+
+</style>
+</head>
+<body>
+
+<div class="proto-banner">PROTOTYPE — NOT PRODUCTION UI</div>
+<div class="proto-variant">Variant A — Right-Side Master Column &nbsp;|&nbsp; Mixer Main Out (roadmap item 4)</div>
+
+<!-- State Controls -->
+<div class="state-controls">
+  <label>State:</label>
+  <button class="state-btn active" onclick="setState('idle')">Idle</button>
+  <button class="state-btn" onclick="setState('mid-signal')">Mid-signal (~-12 dB)</button>
+  <button class="state-btn" onclick="setState('near-clip')">Near clip (~-1 dB)</button>
+  <button class="state-btn" onclick="setState('clipped')">Clipped</button>
+  <button class="state-btn" onclick="setState('xf-b')">Crossfader at B</button>
+</div>
+
+<!-- Workspace Shell -->
+<div class="workspace">
+  <div class="workspace-header">
+    <span class="workspace-title">Mixer</span>
+    <span class="workspace-actions-stub">-> [sections nav / bus view]</span>
+  </div>
+
+  <div class="mixer-body">
+
+    <!-- Track Strips (stubbed) -->
+    <div class="track-strips-area">
+      <div class="track-strips-header">Tracks</div>
+      <div class="track-strips-scroll">
+        <!-- 6 stubbed track strips -->
+        <div class="track-strip-stub">
+          <div class="strip-name">Kick</div>
+          <div class="strip-fader-stub"><div class="strip-fader-handle-stub" style="bottom:66%"></div></div>
+          <div class="strip-bottom-stub">
+            <div class="strip-knob-stub"></div>
+            <div class="strip-mute-stub">M</div>
+          </div>
+        </div>
+        <div class="track-strip-stub">
+          <div class="strip-name">Snare</div>
+          <div class="strip-fader-stub"><div class="strip-fader-handle-stub" style="bottom:60%"></div></div>
+          <div class="strip-bottom-stub">
+            <div class="strip-knob-stub"></div>
+            <div class="strip-mute-stub">M</div>
+          </div>
+        </div>
+        <div class="track-strip-stub">
+          <div class="strip-name">HH Open</div>
+          <div class="strip-fader-stub"><div class="strip-fader-handle-stub" style="bottom:55%"></div></div>
+          <div class="strip-bottom-stub">
+            <div class="strip-knob-stub"></div>
+            <div class="strip-mute-stub">M</div>
+          </div>
+        </div>
+        <div class="track-strip-stub">
+          <div class="strip-name">Bass Sünt.</div>
+          <div class="strip-fader-stub"><div class="strip-fader-handle-stub" style="bottom:72%"></div></div>
+          <div class="strip-bottom-stub">
+            <div class="strip-knob-stub"></div>
+            <div class="strip-mute-stub">M</div>
+          </div>
+        </div>
+        <div class="track-strip-stub">
+          <div class="strip-name">Pad Lush</div>
+          <div class="strip-fader-stub"><div class="strip-fader-handle-stub" style="bottom:50%"></div></div>
+          <div class="strip-bottom-stub">
+            <div class="strip-knob-stub"></div>
+            <div class="strip-mute-stub">M</div>
+          </div>
+        </div>
+        <div class="track-strip-stub">
+          <div class="strip-name">Clap FX</div>
+          <div class="strip-fader-stub"><div class="strip-fader-handle-stub" style="bottom:62%"></div></div>
+          <div class="strip-bottom-stub">
+            <div class="strip-knob-stub"></div>
+            <div class="strip-mute-stub">M</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Master Out Column -->
+    <div class="master-col">
+      <div class="master-col-header">
+        <span>Master Out</span>
+        <span class="master-section-tag">Output</span>
+      </div>
+
+      <!-- Crossfader -->
+      <div class="xf-section">
+        <div class="section-label">Scene Crossfader</div>
+        <div class="xf-widget">
+          <div class="xf-scene-row">
+            <div style="display:flex;align-items:center;gap:4px">
+              <span class="xf-scene-badge is-active" id="xf-badge-a">A</span>
+              <span class="xf-scene-name" id="xf-name-a">Intro Loop</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span class="xf-scene-name" style="text-align:right" id="xf-name-b">Drop Ver.2</span>
+              <span class="xf-scene-badge" id="xf-badge-b">B</span>
+            </div>
+          </div>
+          <div class="xf-track" id="xf-track">
+            <div class="xf-fill" id="xf-fill" style="width:8%"></div>
+            <div class="xf-thumb" id="xf-thumb" style="left:8%"></div>
+          </div>
+          <div class="xf-labels">
+            <span>A</span>
+            <span>MID</span>
+            <span>B</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insert FX Chain -->
+      <div class="inserts-section">
+        <div class="inserts-section-header">
+          <span class="section-label">Inserts (Scene: Intro Loop)</span>
+          <button class="insert-add-btn" onclick="stubClick('FX Picker')">+ Add</button>
+        </div>
+
+        <!-- Slot 1: EQ — enabled -->
+        <div class="insert-slot" id="insert-eq">
+          <div class="insert-bypass-btn enabled" title="Toggle bypass" onclick="toggleBypass('insert-eq', this)">●</div>
+          <span class="insert-name">EQ Eight</span>
+          <div class="insert-reorder-btns">
+            <div class="insert-arrow disabled">▲</div>
+            <div class="insert-arrow" onclick="stubClick('Reorder')">▼</div>
+          </div>
+          <div class="insert-remove" onclick="stubClick('Remove insert')">×</div>
+        </div>
+
+        <!-- Slot 2: Comp — enabled -->
+        <div class="insert-slot" id="insert-comp">
+          <div class="insert-bypass-btn enabled" title="Toggle bypass" onclick="toggleBypass('insert-comp', this)">●</div>
+          <span class="insert-name">Comp (Glue)</span>
+          <div class="insert-reorder-btns">
+            <div class="insert-arrow" onclick="stubClick('Reorder')">▲</div>
+            <div class="insert-arrow" onclick="stubClick('Reorder')">▼</div>
+          </div>
+          <div class="insert-remove" onclick="stubClick('Remove insert')">×</div>
+        </div>
+
+        <!-- Slot 3: Limiter — bypassed -->
+        <div class="insert-slot bypassed" id="insert-limiter">
+          <div class="insert-bypass-btn" title="Toggle bypass" onclick="toggleBypass('insert-limiter', this)">○</div>
+          <span class="insert-name">True Peak Lim.</span>
+          <div class="insert-reorder-btns">
+            <div class="insert-arrow" onclick="stubClick('Reorder')">▲</div>
+            <div class="insert-arrow disabled">▼</div>
+          </div>
+          <div class="insert-remove" onclick="stubClick('Remove insert')">×</div>
+        </div>
+
+        <!-- Empty slots -->
+        <div class="insert-slot-empty">— empty slot —</div>
+        <div class="insert-slot-empty">— empty slot —</div>
+      </div>
+
+      <!-- Fader -->
+      <div class="fader-section">
+        <div class="section-label" style="align-self:flex-start">Output Fader</div>
+        <div class="fader-area">
+          <!-- dB scale -->
+          <div class="fader-scale" id="fader-scale-wrap" style="position:relative;width:36px;height:160px;flex-shrink:0">
+            <!-- ticks injected by JS -->
+          </div>
+          <!-- Fader track -->
+          <div class="fader-col">
+            <div class="fader-track" id="fader-track">
+              <div class="fader-handle" id="fader-handle" style="bottom:66%"></div>
+            </div>
+            <div class="fader-db-readout" id="fader-db-readout">0.0 dB</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meter -->
+      <div class="meter-section">
+        <div class="meter-header">
+          <span class="section-label">Output Level</span>
+          <div style="display:flex;gap:5px;align-items:center">
+            <span class="clip-indicator" id="clip-indicator">CLIP</span>
+            <button class="clip-clear-btn" id="clip-clear-btn" onclick="clearClip()">CLR</button>
+          </div>
+        </div>
+        <div class="meter-bars">
+          <!-- Scale column -->
+          <div class="meter-scale" id="meter-scale">
+            <!-- ticks injected by JS -->
+          </div>
+          <!-- Left channel -->
+          <div class="meter-channel">
+            <div class="meter-bar">
+              <div class="meter-green-zone"></div>
+              <div class="meter-amber-zone"></div>
+              <div class="meter-red-zone"></div>
+              <div class="meter-mask" id="mask-l" style="height:100%"></div>
+              <div class="meter-peak-tick" id="peak-l" style="bottom:0%"></div>
+            </div>
+            <div class="meter-ch-label">L</div>
+          </div>
+          <!-- Right channel -->
+          <div class="meter-channel">
+            <div class="meter-bar">
+              <div class="meter-green-zone"></div>
+              <div class="meter-amber-zone"></div>
+              <div class="meter-red-zone"></div>
+              <div class="meter-mask" id="mask-r" style="height:100%"></div>
+              <div class="meter-peak-tick" id="peak-r" style="bottom:0%"></div>
+            </div>
+            <div class="meter-ch-label">R</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /master-col -->
+  </div><!-- /mixer-body -->
+</div><!-- /workspace -->
+
+<div class="annotation">
+  <strong>Prototype annotations (Variant A — Right-Side Master Column):</strong>
+  <ul>
+    <li><strong>MODEL GAP:</strong> <code>MasterBusScene.outputGain</code> is clobbered to 1.0 by <code>normalized()</code> (MasterBus.swift:301). A user-controllable master fader requires a new <code>MasterBusState.masterOutputGain</code> field or a targeted normalization fix. Spec must flag this as a prerequisite.</li>
+    <li><strong>EXTRACTION NEEDED:</strong> The inline crossfader widget is a <code>private func</code> at <code>ScenesWorkspaceView+Perform.swift:28–72</code>. It must be extracted into a standalone <code>MasterCrossfaderView</code> before it can be embedded here.</li>
+    <li><strong>NEW CAPABILITY:</strong> Metering requires a new <code>installTap</code> on <code>finalOutputMixer</code>, publishing peak values to the main thread via the <code>publishToMain</code> pattern (<code>EngineController.swift:163</code>). No metering tap exists anywhere in the codebase today.</li>
+    <li><strong>ENGINE LIFECYCLE:</strong> The metering tap must be removed before engine stop and reinstalled after restart (<code>MainAudioGraph.swift:88–145</code> stops/restarts on graph rebuilds).</li>
+    <li><strong>INSERT SCOPE:</strong> Inserts shown are scene-scoped (active scene), matching the existing model. The section label makes this explicit ("Inserts (Scene: …)"). A global post-crossfade chain would require new model work.</li>
+    <li><strong>STUBS:</strong> Track channel strips and bus sections are off-path and rendered as dashed-border placeholders.</li>
+  </ul>
+</div>
+
+<script>
+// ---- dB scale helpers ----
+// dBFS ticks for fader scale and meter scale
+const FADER_TICKS = [
+  { db: '+6', pct: 5 },
+  { db: '0', pct: 17 },
+  { db: '-6', pct: 30 },
+  { db: '-12', pct: 43 },
+  { db: '-18', pct: 55 },
+  { db: '-24', pct: 66 },
+  { db: '-36', pct: 78 },
+  { db: '-∞', pct: 100 },
+];
+const METER_TICKS = [
+  { db: '+3', pct: 2 },
+  { db: '0', pct: 15 },
+  { db: '-3', pct: 22 },
+  { db: '-6', pct: 30 },
+  { db: '-12', pct: 43 },
+  { db: '-20', pct: 57 },
+  { db: '-40', pct: 78 },
+  { db: '-60', pct: 90 },
+  { db: '-∞', pct: 100 },
+];
+
+function buildFaderScale() {
+  const wrap = document.getElementById('fader-scale-wrap');
+  wrap.innerHTML = '';
+  const h = 160;
+  FADER_TICKS.forEach(t => {
+    const tick = document.createElement('div');
+    tick.style.cssText = 'position:absolute;right:0;display:flex;align-items:center;gap:2px;transform:translateY(-50%)';
+    tick.style.top = (t.pct / 100 * h) + 'px';
+    tick.innerHTML = `<span style="font-size:8px;color:#888;text-align:right;width:20px">${t.db}</span><div style="width:5px;height:1px;background:#999"></div>`;
+    wrap.appendChild(tick);
+  });
+}
+
+function buildMeterScale() {
+  const wrap = document.getElementById('meter-scale');
+  wrap.innerHTML = '';
+  const h = 120;
+  METER_TICKS.forEach(t => {
+    const tick = document.createElement('div');
+    tick.style.cssText = 'position:absolute;right:0;display:flex;align-items:center;gap:2px;transform:translateY(-50%)';
+    tick.style.top = (t.pct / 100 * h) + 'px';
+    tick.innerHTML = `<span style="font-size:7px;color:#777;text-align:right;width:16px">${t.db}</span><div style="width:4px;height:1px;background:#999"></div>`;
+    wrap.appendChild(tick);
+  });
+}
+
+// ---- State machine ----
+// levelPct: 0 = bottom (-inf), 100 = top (clipping)
+const STATES = {
+  'idle':       { levelL: 18, levelR: 16, peakL: 22, peakR: 20, clipped: false, xfPos: 0.08, faderPos: 0.66 },
+  'mid-signal': { levelL: 57, levelR: 55, peakL: 60, peakR: 58, clipped: false, xfPos: 0.5,  faderPos: 0.66 },
+  'near-clip':  { levelL: 88, levelR: 86, peakL: 90, peakR: 88, clipped: false, xfPos: 0.5,  faderPos: 0.66 },
+  'clipped':    { levelL: 96, levelR: 93, peakL: 97, peakR: 94, clipped: true,  xfPos: 0.5,  faderPos: 0.66 },
+  'xf-b':       { levelL: 57, levelR: 55, peakL: 60, peakR: 58, clipped: false, xfPos: 0.92, faderPos: 0.66 },
+};
+
+let currentState = 'idle';
+let clipLatched = false;
+
+function setState(key) {
+  currentState = key;
+  document.querySelectorAll('.state-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(key.replace('-',' ').substring(0,5)) || b.onclick.toString().includes("'" + key + "'"));
+  });
+  // Re-derive active button cleanly
+  document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.state-btn');
+  btns.forEach(b => { if (b.getAttribute('onclick').includes("'" + key + "'")) b.classList.add('active'); });
+
+  const s = STATES[key];
+  updateMeter(s.levelL, s.levelR, s.peakL, s.peakR);
+  updateXF(s.xfPos);
+  if (s.clipped) triggerClip();
+  else if (!clipLatched) showClip(false);
+}
+
+function updateMeter(levelL, levelR, peakL, peakR) {
+  // mask covers everything ABOVE the level
+  const maskL = document.getElementById('mask-l');
+  const maskR = document.getElementById('mask-r');
+  const pkL = document.getElementById('peak-l');
+  const pkR = document.getElementById('peak-r');
+
+  const levelLPct = levelL;
+  const levelRPct = levelR;
+
+  maskL.style.height = (100 - levelLPct) + '%';
+  maskR.style.height = (100 - levelRPct) + '%';
+  pkL.style.bottom = peakL + '%';
+  pkR.style.bottom = peakR + '%';
+}
+
+function updateXF(pos) {
+  const fill = document.getElementById('xf-fill');
+  const thumb = document.getElementById('xf-thumb');
+  const badgeA = document.getElementById('xf-badge-a');
+  const badgeB = document.getElementById('xf-badge-b');
+
+  const pct = (pos * 100).toFixed(0) + '%';
+  fill.style.width = pct;
+  thumb.style.left = pct;
+
+  badgeA.classList.toggle('is-active', pos < 0.3);
+  badgeB.classList.toggle('is-active', pos > 0.7);
+}
+
+function triggerClip() {
+  clipLatched = true;
+  showClip(true);
+}
+
+function showClip(on) {
+  const ind = document.getElementById('clip-indicator');
+  const btn = document.getElementById('clip-clear-btn');
+  ind.classList.toggle('clipped', on);
+  btn.classList.toggle('visible', on);
+}
+
+function clearClip() {
+  clipLatched = false;
+  showClip(false);
+}
+
+function toggleBypass(slotId, btn) {
+  const slot = document.getElementById(slotId);
+  const enabled = btn.classList.contains('enabled');
+  if (enabled) {
+    btn.classList.remove('enabled');
+    btn.textContent = '○';
+    slot.classList.add('bypassed');
+  } else {
+    btn.classList.add('enabled');
+    btn.textContent = '●';
+    slot.classList.remove('bypassed');
+  }
+}
+
+function stubClick(label) {
+  const msg = document.createElement('div');
+  msg.textContent = '[stub: ' + label + ']';
+  msg.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#444;color:#fff;padding:6px 12px;font-size:11px;letter-spacing:0.04em;z-index:999;pointer-events:none;';
+  document.body.appendChild(msg);
+  setTimeout(() => msg.remove(), 1800);
+}
+
+// Init
+buildFaderScale();
+buildMeterScale();
+setState('idle');
+</script>
+</body>
+</html>
