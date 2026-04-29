@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Mixer Busses — Variant A: Bus Column Section</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Mixer Busses: Variant A — bus column section between tracks and master.
+  Left: track strips (horizontal scroll). Centre: bus strips section with
+  "Add Bus" button at the trailing edge. Right: master out column (stubbed).
+
+  LAYOUT RATIONALE:
+  Classic DAW console layout. Signal flows left-to-right. Track strips feed
+  into bus strips; bus strips feed into master. The bus section is visually
+  distinct (darker header, heavier left border) so the grouping hierarchy is
+  immediately legible. This matches the Variant A direction chosen for
+  Mixer Main Out (roadmap item 4).
+
+  STRIP ANATOMY (same shape for tracks and buses, top to bottom):
+    1. Output selector (top of strip) — track: can target Master or any Bus;
+       bus: restricted to Master only (bus→bus not in scope, user-stories.md §2).
+    2. Insert slot list — compact list of FX slots.
+    3. Vertical fader.
+    4. Pan knob.
+    5. Mute + Solo buttons (Solo is new — does not exist today).
+    6. Name label at bottom (click to rename).
+
+  SOLO CONVENTION (SPEC QUESTION — see inline comment below):
+  This prototype implements EXCLUSIVE solo: soloing one strip un-solos all
+  others. This matches Logic Pro X / Pro Tools behaviour. Additive solo
+  (like Ableton Live) would let multiple strips be soloed simultaneously.
+  The convention chosen here MUST be confirmed in spec before implementation.
+
+  ROUTING CHANGE IN FLIGHT:
+  When a track's output selector dropdown is open and the user chooses a
+  different bus, the strip enters a brief "Applying..." disabled state
+  (300ms in the prototype; real implementation requires engine stop/rewire/
+  restart — see existing-state.md §2, Story 2 architecture constraint).
+  The prototype shows a toast and disabled strip state during this window.
+
+  BUS INSERT CHAIN:
+  Each bus strip has its own insert slot list. This is NOT the same component
+  as the master insert chain in ScenesWorkspaceView — no generic insert chain
+  component exists today. The prototype shows the desired shape; whether the
+  build loop extracts a generic component or duplicates the master one is a
+  spec decision (see existing-state.md §4, Story 4 concern).
+
+  STATES (use scene buttons to switch):
+    default      — normal mix, no solo, no routing change in flight.
+    solo-drums   — Drums Bus soloed; all other strips dimmed.
+    solo-track   — Kick track soloed; all other strips dimmed.
+    routing      — Snare track mid-routing-change (output selector open, brief apply).
+    empty-bus    — Leads Bus has no tracks routed to it (empty state).
+
+  INTERACTION BUDGET: primary goal (add a bus, route a track to it) in <=3 interactions.
+  Click-path: click "+ Add Bus" → new strip appears → click track output selector →
+  choose new bus → brief "Applying..." → routing updated.
+
+  STUBS (dashed border): master out column, scene crossfader, FX picker modal,
+  insert parameter editing, undo, per-track solo→master mute logic.
+
+  OPEN QUESTIONS FOR SPEC:
+  Q1. Solo exclusivity: exclusive (one strip at a time) vs. additive (set of soloed strips)?
+      This prototype picks exclusive. Confirm before implementation.
+  Q2. Bus output selector: should it only ever target Master, or can a bus route to
+      another bus (bus chaining)? User-stories §2 says master only; confirm.
+  Q3. "Applying..." visual during graph rewire: brief disabled state (shown here) vs.
+      modal confirmation vs. nothing visible? The real stop/rewire/restart takes
+      ~50–200 ms; a visual cue prevents double-taps but adds latency perception.
+  Q4. Are bus insert slots scene-scoped (like master inserts) or global per-bus?
+      User stories do not address this. Prototype treats them as global (non-scene).
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #e8e8e8;
+    color: #111;
+    padding: 24px;
+  }
+
+  /* ---- Prototype Banner ---- */
+  .proto-banner {
+    background: #222;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .proto-variant {
+    background: #555;
+    color: #fff;
+    padding: 4px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    margin-bottom: 16px;
+  }
+
+  /* ---- State Controls ---- */
+  .state-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .state-controls label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-right: 4px;
+  }
+  .state-btn {
+    padding: 4px 10px;
+    border: 1px solid #999;
+    background: #e0e0e0;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .state-btn.active { background: #333; color: #fff; border-color: #333; }
+  .state-btn:hover:not(.active) { background: #d0d0d0; }
+
+  /* ---- Solo Banner ---- */
+  .solo-banner {
+    background: #444;
+    color: #ffd700;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .solo-banner.visible { display: flex; }
+  .solo-cancel-btn {
+    font-size: 10px;
+    padding: 1px 7px;
+    border: 1px solid #ffd700;
+    background: transparent;
+    color: #ffd700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+  .solo-cancel-btn:hover { background: #ffd700; color: #333; }
+
+  /* ---- Workspace Shell ---- */
+  .workspace {
+    background: #fafafa;
+    border: 1px solid #bbb;
+    display: flex;
+    flex-direction: column;
+    width: 1060px;
+    min-height: 560px;
+  }
+  .workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    border-bottom: 1px solid #ccc;
+    background: #efefef;
+    flex-shrink: 0;
+  }
+  .workspace-title {
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #333;
+  }
+  .workspace-stub {
+    border: 1px dashed #bbb;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: #999;
+    cursor: not-allowed;
+  }
+  .workspace-stub::after { content: " [stub]"; font-size: 10px; }
+
+  /* ---- Main Mixer Layout ---- */
+  .mixer-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  /* ============================================
+     TRACK STRIPS AREA
+  ============================================ */
+  .track-strips-area {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 2px solid #999;
+    display: flex;
+    flex-direction: column;
+  }
+  .section-header {
+    padding: 5px 10px;
+    background: #e8e8e8;
+    border-bottom: 1px solid #ccc;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #666;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .strips-scroll {
+    display: flex;
+    gap: 0;
+    flex: 1;
+    align-items: stretch;
+  }
+
+  /* ============================================
+     CHANNEL STRIP (shared shape: tracks + buses)
+  ============================================ */
+  .channel-strip {
+    width: 76px;
+    flex-shrink: 0;
+    border-right: 1px solid #ddd;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    position: relative;
+    transition: opacity 0.2s;
+  }
+  .channel-strip.dimmed { opacity: 0.3; }
+  .channel-strip.applying {
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  /* Output selector at top of strip */
+  .strip-output-selector {
+    padding: 3px 4px;
+    border-bottom: 1px solid #ccc;
+    background: #eaeaea;
+  }
+  .output-select {
+    width: 100%;
+    font-size: 9px;
+    border: 1px solid #bbb;
+    background: #fff;
+    color: #333;
+    padding: 1px 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .output-select:disabled { background: #e0e0e0; color: #aaa; cursor: not-allowed; }
+  .applying-label {
+    display: none;
+    font-size: 9px;
+    color: #888;
+    text-align: center;
+    padding: 1px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .channel-strip.applying .applying-label { display: block; }
+  .channel-strip.applying .output-select { display: none; }
+
+  /* Insert slot list */
+  .strip-inserts {
+    padding: 3px 4px;
+    border-bottom: 1px solid #ccc;
+    min-height: 48px;
+    background: #f0f0f0;
+  }
+  .strip-insert-slot {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 2px;
+    border: 1px solid #ccc;
+    background: #fff;
+    margin-bottom: 2px;
+    font-size: 9px;
+    color: #444;
+    overflow: hidden;
+  }
+  .strip-insert-slot.bypassed { background: #ececec; opacity: 0.6; }
+  .strip-insert-bypass {
+    width: 10px;
+    height: 10px;
+    border: 1px solid #aaa;
+    background: #444;
+    border-radius: 50%;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .strip-insert-bypass.off { background: #ddd; }
+  .strip-insert-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 8px;
+    color: #555;
+  }
+  .strip-insert-empty {
+    font-size: 8px;
+    color: #ccc;
+    padding: 2px 3px;
+    border: 1px dashed #ddd;
+    text-align: center;
+    margin-bottom: 2px;
+  }
+  .strip-add-insert {
+    font-size: 8px;
+    color: #888;
+    text-align: center;
+    padding: 1px;
+    border: 1px dashed #ccc;
+    cursor: pointer;
+    background: none;
+    width: 100%;
+    margin-top: 1px;
+  }
+  .strip-add-insert:hover { background: #e8e8e8; }
+
+  /* Fader */
+  .strip-fader-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 4px 4px;
+    min-height: 120px;
+  }
+  .strip-fader-track {
+    width: 20px;
+    flex: 1;
+    background: #d0d0d0;
+    border: 1px solid #aaa;
+    position: relative;
+    cursor: ns-resize;
+    min-height: 80px;
+  }
+  .strip-fader-handle {
+    position: absolute;
+    left: -5px;
+    width: 30px;
+    height: 12px;
+    background: #444;
+    border: 1px solid #222;
+    cursor: ns-resize;
+    transform: translateY(50%);
+    z-index: 2;
+  }
+  .strip-fader-handle::after {
+    content: '';
+    position: absolute;
+    left: 3px; right: 3px;
+    top: 50%; height: 1px;
+    background: #aaa;
+    transform: translateY(-50%);
+  }
+  .strip-db-readout {
+    font-size: 9px;
+    font-weight: 700;
+    color: #333;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Pan knob */
+  .strip-pan-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 0;
+    border-top: 1px solid #ddd;
+  }
+  .strip-pan-label { font-size: 8px; color: #888; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .strip-pan-knob {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid #aaa;
+    background: #ddd;
+    cursor: ew-resize;
+    position: relative;
+  }
+  .strip-pan-knob::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 50%;
+    width: 1px; height: 8px;
+    background: #555;
+    transform: translateX(-50%);
+  }
+
+  /* Mute + Solo row */
+  .strip-ms-row {
+    display: flex;
+    gap: 2px;
+    padding: 3px 4px;
+    border-top: 1px solid #ddd;
+    justify-content: center;
+  }
+  .strip-mute-btn,
+  .strip-solo-btn {
+    flex: 1;
+    padding: 2px 0;
+    font-size: 9px;
+    font-weight: 700;
+    text-align: center;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    user-select: none;
+  }
+  .strip-mute-btn:hover { background: #ccc; }
+  .strip-mute-btn.muted { background: #e08000; color: #fff; border-color: #b05800; }
+  .strip-solo-btn:hover { background: #ccc; }
+  /* SPEC QUESTION (Q1): exclusive solo chosen here — see prototype header comment */
+  .strip-solo-btn.soloed { background: #ffd700; color: #333; border-color: #b89900; }
+
+  /* Name label / rename */
+  .strip-name-wrap {
+    padding: 3px 4px 4px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+  }
+  .strip-name {
+    font-size: 9px;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+    padding: 1px 2px;
+    border: 1px solid transparent;
+  }
+  .strip-name:hover { border-color: #bbb; background: #fff; }
+  .strip-name-input {
+    display: none;
+    width: 100%;
+    font-size: 9px;
+    border: 1px solid #666;
+    padding: 1px 2px;
+    text-align: center;
+    background: #fff;
+    color: #222;
+  }
+  .strip-name-input.visible { display: block; }
+  .strip-name.hidden { display: none; }
+
+  /* ============================================
+     BUS STRIPS AREA
+  ============================================ */
+  .bus-strips-area {
+    flex-shrink: 0;
+    border-right: 2px solid #777;
+    background: #eeeeee;
+    display: flex;
+    flex-direction: column;
+    min-width: 80px; /* at least "Add Bus" button visible */
+  }
+  .bus-section-header {
+    padding: 5px 10px;
+    background: #555;
+    border-bottom: 1px solid #444;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #eee;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .add-bus-btn {
+    font-size: 10px;
+    padding: 2px 7px;
+    border: 1px solid #ccc;
+    background: #f0f0f0;
+    color: #333;
+    cursor: pointer;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .add-bus-btn:hover { background: #ddd; }
+
+  .bus-strips-scroll {
+    display: flex;
+    gap: 0;
+    flex: 1;
+    align-items: stretch;
+    overflow-x: auto;
+  }
+
+  /* Bus strip — same shape as track strip; background slightly different */
+  .bus-strip {
+    width: 76px;
+    flex-shrink: 0;
+    border-right: 1px solid #ccc;
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    position: relative;
+    transition: opacity 0.2s;
+  }
+  .bus-strip.dimmed { opacity: 0.3; }
+
+  /* Bus output selector — restricted to Master only (SPEC QUESTION Q2) */
+  .bus-output-selector {
+    padding: 3px 4px;
+    border-bottom: 1px solid #ccc;
+    background: #e4e4e4;
+  }
+  .bus-output-label {
+    width: 100%;
+    font-size: 9px;
+    color: #666;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 0;
+    border: 1px solid #ccc;
+    background: #ebebeb;
+  }
+
+  /* Empty-state indicator for a bus with no tracks routed to it */
+  .bus-empty-badge {
+    display: none;
+    font-size: 8px;
+    color: #aaa;
+    text-align: center;
+    padding: 2px 4px;
+    border: 1px dashed #ccc;
+    margin: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .bus-empty-badge.visible { display: block; }
+
+  /* "Add Bus" trailing tile — sits after the last bus strip */
+  .add-bus-tile {
+    width: 44px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px dashed #bbb;
+    background: #e8e8e8;
+    cursor: pointer;
+    color: #888;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .add-bus-tile:hover { background: #ddd; color: #444; }
+  .add-bus-tile-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px; }
+
+  /* ============================================
+     MASTER COLUMN (stubbed — off-path)
+  ============================================ */
+  .master-col {
+    width: 120px;
+    flex-shrink: 0;
+    background: #ebebeb;
+    border-left: 2px solid #555;
+    display: flex;
+    flex-direction: column;
+  }
+  .master-col-header {
+    padding: 6px 10px;
+    background: #333;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+  }
+  .master-stub-body {
+    flex: 1;
+    border: 2px dashed #ccc;
+    margin: 8px;
+    background: #e4e4e4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 10px;
+    text-align: center;
+    padding: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---- Annotation Banner ---- */
+  .annotation {
+    margin-top: 20px;
+    border: 1px dashed #aaa;
+    padding: 10px 14px;
+    background: #f8f8f8;
+    font-size: 11px;
+    color: #555;
+    max-width: 1060px;
+  }
+  .annotation strong { color: #333; }
+  .annotation ul { margin: 6px 0 0 16px; }
+  .annotation li { margin-bottom: 4px; }
+
+  /* ---- Toast ---- */
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: #444; color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    z-index: 999;
+    pointer-events: none;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">PROTOTYPE — NOT PRODUCTION UI</div>
+<div class="proto-variant">Variant A — Bus Column Section (tracks | busses | master) &nbsp;|&nbsp; Mixer Busses (roadmap item 5)</div>
+
+<!-- State Controls -->
+<div class="state-controls">
+  <label>State:</label>
+  <button class="state-btn active" onclick="applyState('default')">Default</button>
+  <button class="state-btn" onclick="applyState('solo-drums')">Solo: Drums Bus</button>
+  <button class="state-btn" onclick="applyState('solo-track')">Solo: Kick Track</button>
+  <button class="state-btn" onclick="applyState('routing')">Routing Change (Snare→Drums)</button>
+  <button class="state-btn" onclick="applyState('empty-bus')">Empty Bus State</button>
+</div>
+
+<!-- Solo active banner -->
+<div class="solo-banner" id="solo-banner">
+  SOLO ACTIVE
+  <button class="solo-cancel-btn" onclick="clearAllSolo()">Clear Solo</button>
+</div>
+
+<!-- Workspace -->
+<div class="workspace">
+  <div class="workspace-header">
+    <span class="workspace-title">Mixer</span>
+    <span class="workspace-stub">-> [scene crossfader]</span>
+  </div>
+
+  <div class="mixer-body">
+
+    <!-- ================================
+         TRACK STRIPS
+    ================================ -->
+    <div class="track-strips-area">
+      <div class="section-header">
+        <span>Tracks</span>
+      </div>
+      <div class="strips-scroll" id="track-strips-scroll">
+
+        <!-- Track: Kick -->
+        <div class="channel-strip" id="strip-kick">
+          <div class="strip-output-selector">
+            <!-- SPEC QUESTION Q3: dropdown open = "routing change in flight" state shown separately -->
+            <select class="output-select" onchange="onRouteChange('strip-kick', this)">
+              <option value="drums" selected>→ Drums Bus</option>
+              <option value="synths">→ Synths Bus</option>
+              <option value="leads">→ Leads Bus</option>
+              <option value="master">→ Master</option>
+            </select>
+            <div class="applying-label">Applying…</div>
+          </div>
+          <div class="strip-inserts">
+            <div class="strip-insert-empty">— empty —</div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:68%"></div>
+            </div>
+            <div class="strip-db-readout">0.0 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <!-- SPEC Q1: exclusive solo -->
+            <button class="strip-solo-btn" data-strip-id="strip-kick" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <div class="strip-name" ondblclick="startRename(this)">Kick</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Track: Snare — routing-change state triggered by state buttons -->
+        <div class="channel-strip" id="strip-snare">
+          <div class="strip-output-selector">
+            <select class="output-select" onchange="onRouteChange('strip-snare', this)">
+              <option value="drums" selected>→ Drums Bus</option>
+              <option value="synths">→ Synths Bus</option>
+              <option value="leads">→ Leads Bus</option>
+              <option value="master">→ Master</option>
+            </select>
+            <div class="applying-label">Applying…</div>
+          </div>
+          <div class="strip-inserts">
+            <div class="strip-insert-slot">
+              <div class="strip-insert-bypass" title="bypass"></div>
+              <span class="strip-insert-name">Transient</span>
+            </div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:62%"></div>
+            </div>
+            <div class="strip-db-readout">−2.1 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob" style="transform: rotate(10deg)"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="strip-snare" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <div class="strip-name" ondblclick="startRename(this)">Snare</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Track: HH Closed -->
+        <div class="channel-strip" id="strip-hh">
+          <div class="strip-output-selector">
+            <select class="output-select" onchange="onRouteChange('strip-hh', this)">
+              <option value="drums" selected>→ Drums Bus</option>
+              <option value="synths">→ Synths Bus</option>
+              <option value="leads">→ Leads Bus</option>
+              <option value="master">→ Master</option>
+            </select>
+            <div class="applying-label">Applying…</div>
+          </div>
+          <div class="strip-inserts">
+            <div class="strip-insert-empty">— empty —</div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:55%"></div>
+            </div>
+            <div class="strip-db-readout">−5.0 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob" style="transform: rotate(20deg)"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="strip-hh" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <div class="strip-name" ondblclick="startRename(this)">HH Closed</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Track: Bass Sünt. -->
+        <div class="channel-strip" id="strip-bass">
+          <div class="strip-output-selector">
+            <select class="output-select" onchange="onRouteChange('strip-bass', this)">
+              <option value="drums">→ Drums Bus</option>
+              <option value="synths" selected>→ Synths Bus</option>
+              <option value="leads">→ Leads Bus</option>
+              <option value="master">→ Master</option>
+            </select>
+            <div class="applying-label">Applying…</div>
+          </div>
+          <div class="strip-inserts">
+            <div class="strip-insert-slot">
+              <div class="strip-insert-bypass" title="bypass"></div>
+              <span class="strip-insert-name">Comp</span>
+            </div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:72%"></div>
+            </div>
+            <div class="strip-db-readout">+1.5 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="strip-bass" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <div class="strip-name" ondblclick="startRename(this)">Bass Sünt.</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Track: Pad Lush Strings (long name — adversarial fixture) -->
+        <div class="channel-strip" id="strip-pad">
+          <div class="strip-output-selector">
+            <select class="output-select" onchange="onRouteChange('strip-pad', this)">
+              <option value="drums">→ Drums Bus</option>
+              <option value="synths" selected>→ Synths Bus</option>
+              <option value="leads">→ Leads Bus</option>
+              <option value="master">→ Master</option>
+            </select>
+            <div class="applying-label">Applying…</div>
+          </div>
+          <div class="strip-inserts">
+            <div class="strip-insert-empty">— empty —</div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:60%"></div>
+            </div>
+            <div class="strip-db-readout">−3.0 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob" style="transform: rotate(-15deg)"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="strip-pad" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <!-- Long name — overflows intentionally to test truncation -->
+            <div class="strip-name" ondblclick="startRename(this)">Pad Lush Strings</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Track: Arpeg. Lead (goes to Leads bus, which can be empty) -->
+        <div class="channel-strip" id="strip-arp">
+          <div class="strip-output-selector">
+            <select class="output-select" id="arp-output-select" onchange="onRouteChange('strip-arp', this)">
+              <option value="drums">→ Drums Bus</option>
+              <option value="synths">→ Synths Bus</option>
+              <option value="leads" selected>→ Leads Bus</option>
+              <option value="master">→ Master</option>
+            </select>
+            <div class="applying-label">Applying…</div>
+          </div>
+          <div class="strip-inserts">
+            <div class="strip-insert-empty">— empty —</div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:64%"></div>
+            </div>
+            <div class="strip-db-readout">−1.0 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob" style="transform: rotate(-10deg)"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="strip-arp" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <div class="strip-name" ondblclick="startRename(this)">Arpeg. Lead</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+      </div><!-- /strips-scroll -->
+    </div><!-- /track-strips-area -->
+
+    <!-- ================================
+         BUS STRIPS AREA
+    ================================ -->
+    <div class="bus-strips-area">
+      <div class="bus-section-header">
+        <span>Busses</span>
+        <!-- Add Bus also available in the trailing tile inside the scroll area -->
+        <button class="add-bus-btn" onclick="addBus()">+ Add Bus</button>
+      </div>
+      <div class="bus-strips-scroll" id="bus-strips-scroll">
+
+        <!-- Bus: Drums Bus — has inserts -->
+        <div class="bus-strip" id="bus-drums">
+          <!-- Bus output is always Master (SPEC QUESTION Q2) -->
+          <div class="bus-output-selector">
+            <div class="bus-output-label">→ Master</div>
+          </div>
+          <div class="strip-inserts">
+            <!-- 3 inserts: Glue Comp, Transient Shaper (bypassed), Saturation -->
+            <div class="strip-insert-slot">
+              <div class="strip-insert-bypass" title="bypass" onclick="toggleInsertBypass(this)"></div>
+              <span class="strip-insert-name">Glue Comp</span>
+            </div>
+            <div class="strip-insert-slot bypassed">
+              <div class="strip-insert-bypass off" title="bypass" onclick="toggleInsertBypass(this)"></div>
+              <span class="strip-insert-name">Trans. Shape</span>
+            </div>
+            <div class="strip-insert-slot">
+              <div class="strip-insert-bypass" title="bypass" onclick="toggleInsertBypass(this)"></div>
+              <span class="strip-insert-name">Saturator</span>
+            </div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:66%"></div>
+            </div>
+            <div class="strip-db-readout">0.0 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="bus-drums" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <!-- In-place rename: dblclick to edit -->
+            <div class="strip-name" ondblclick="startRename(this)">Drums Bus</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Bus: Synths Bus — has 1 insert -->
+        <div class="bus-strip" id="bus-synths">
+          <div class="bus-output-selector">
+            <div class="bus-output-label">→ Master</div>
+          </div>
+          <div class="strip-inserts">
+            <div class="strip-insert-slot">
+              <div class="strip-insert-bypass" title="bypass" onclick="toggleInsertBypass(this)"></div>
+              <span class="strip-insert-name">Reverb</span>
+            </div>
+            <div class="strip-insert-empty">— empty —</div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:60%"></div>
+            </div>
+            <div class="strip-db-readout">−3.5 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="bus-synths" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <div class="strip-name" ondblclick="startRename(this)">Synths Bus</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Bus: Leads Bus — EMPTY (no tracks routed; empty-state shown in "empty-bus" state) -->
+        <div class="bus-strip" id="bus-leads">
+          <div class="bus-output-selector">
+            <div class="bus-output-label">→ Master</div>
+          </div>
+          <!-- Empty state badge — visible only in empty-bus state -->
+          <div class="bus-empty-badge" id="leads-empty-badge">No tracks routed here</div>
+          <div class="strip-inserts">
+            <div class="strip-insert-empty">— empty —</div>
+            <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+          </div>
+          <div class="strip-fader-wrap">
+            <div class="strip-fader-track">
+              <div class="strip-fader-handle" style="bottom:66%"></div>
+            </div>
+            <div class="strip-db-readout">0.0 dB</div>
+          </div>
+          <div class="strip-pan-wrap">
+            <div class="strip-pan-label">Pan</div>
+            <div class="strip-pan-knob"></div>
+          </div>
+          <div class="strip-ms-row">
+            <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+            <button class="strip-solo-btn" data-strip-id="bus-leads" onclick="toggleSolo(this)">S</button>
+          </div>
+          <div class="strip-name-wrap">
+            <div class="strip-name" ondblclick="startRename(this)">Leads Bus</div>
+            <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+          </div>
+        </div>
+
+        <!-- Trailing "Add Bus" tile -->
+        <div class="add-bus-tile" onclick="addBus()">
+          <span style="font-size:16px">+</span>
+          <span class="add-bus-tile-label">Add Bus</span>
+        </div>
+
+      </div><!-- /bus-strips-scroll -->
+    </div><!-- /bus-strips-area -->
+
+    <!-- ================================
+         MASTER OUT (stubbed — off-path)
+    ================================ -->
+    <div class="master-col">
+      <div class="master-col-header">Master Out</div>
+      <div class="master-stub-body">
+        [Master Out strip — see Mixer Main Out prototype (item 4)]
+      </div>
+    </div>
+
+  </div><!-- /mixer-body -->
+</div><!-- /workspace -->
+
+<div class="annotation">
+  <strong>Prototype annotations (Variant A — Bus Column Section):</strong>
+  <ul>
+    <li><strong>SPEC Q1 — Solo convention:</strong> This prototype implements <em>exclusive solo</em> (one strip soloed at a time, all others dim). Additive solo (multiple strips can be soloed simultaneously) is the alternative. The convention must be confirmed before implementation — it affects the solo state-machine in <code>EngineController</code>.</li>
+    <li><strong>SPEC Q2 — Bus output selector:</strong> Bus strips show a static "→ Master" label, not a dropdown. If bus-chaining is ever introduced, this becomes a dropdown. User-stories §2 says master-only; prototype matches. Confirm this is not a short-term need.</li>
+    <li><strong>SPEC Q3 — Routing change visual:</strong> Selecting a new bus from a track's output selector triggers a 600 ms "Applying…" disabled state on that strip. The real graph stop/rewire/restart (see existing-state.md §2) takes ~50–200 ms. The prototype overstates the duration for visibility. Decide: (a) no visual; (b) brief disabled state (shown here); (c) toast only; (d) modal. The stop/restart must happen on the main thread.</li>
+    <li><strong>SPEC Q4 — Bus insert scope:</strong> Prototype treats bus inserts as global (not scene-scoped). Master inserts today are scene-scoped (per <code>MasterBusScene</code>). Bus inserts could be global or also scene-scoped. User-stories do not specify — confirm before implementation.</li>
+    <li><strong>COMPONENT GAP (bus inserts):</strong> No generic insert-chain component exists in production code. <code>ScenesWorkspaceView</code> insert UI is coupled to <code>MasterBusState</code>/<code>MasterBusInsert</code>. Implementation loop must decide: extract generic component or duplicate. Prototype shows the desired shape without claiming the component is shared.</li>
+    <li><strong>SOLO — new capability:</strong> No solo button exists anywhere in production today. The solo logic (muting non-soloed buses and tracks routing directly to master) is a new state machine in <code>EngineController</code>. This is non-trivial.</li>
+    <li><strong>NAMING:</strong> Inline rename on double-click shown for both track and bus strips. Production pattern exists for <code>MasterBusScene</code> names. Track strips currently do not support inline rename — confirm whether this rename should also land on track strips as part of this item or is deferred.</li>
+    <li><strong>STUBS:</strong> Master Out column, FX picker modal, insert parameter editors, scene crossfader, undo are all dashed-border stubs.</li>
+    <li><strong>EMPTY STATE (Leads Bus):</strong> Visible in "Empty Bus State" scene. Shows "No tracks routed here" badge inside the insert section. The bus is still controllable (fader, mute, solo) even with no inputs — this is intentional and consistent with DAW conventions (a bus can exist before tracks are routed to it).</li>
+  </ul>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// Solo state (exclusive model — SPEC Q1)
+// ============================================================
+let soloedStripId = null;
+
+// All strip IDs (tracks + buses) for dimming
+const ALL_STRIP_IDS = [
+  'strip-kick','strip-snare','strip-hh','strip-bass','strip-pad','strip-arp',
+  'bus-drums','bus-synths','bus-leads'
+];
+
+function toggleSolo(btn) {
+  const stripId = btn.getAttribute('data-strip-id');
+  const el = document.getElementById(stripId);
+  const wasSoloed = btn.classList.contains('soloed');
+
+  // Clear all solo state first
+  ALL_STRIP_IDS.forEach(id => {
+    const strip = document.getElementById(id);
+    if (!strip) return;
+    const s = strip.querySelector('.strip-solo-btn');
+    if (s) { s.classList.remove('soloed'); }
+    strip.classList.remove('dimmed');
+  });
+  document.getElementById('solo-banner').classList.remove('visible');
+  soloedStripId = null;
+
+  if (!wasSoloed) {
+    // Solo this strip
+    soloedStripId = stripId;
+    btn.classList.add('soloed');
+    document.getElementById('solo-banner').classList.add('visible');
+    // Dim everything else
+    ALL_STRIP_IDS.forEach(id => {
+      if (id !== stripId) {
+        const strip = document.getElementById(id);
+        if (strip) strip.classList.add('dimmed');
+      }
+    });
+  }
+}
+
+function clearAllSolo() {
+  ALL_STRIP_IDS.forEach(id => {
+    const strip = document.getElementById(id);
+    if (!strip) return;
+    const s = strip.querySelector('.strip-solo-btn');
+    if (s) s.classList.remove('soloed');
+    strip.classList.remove('dimmed');
+  });
+  document.getElementById('solo-banner').classList.remove('visible');
+  soloedStripId = null;
+}
+
+// ============================================================
+// Mute
+// ============================================================
+function toggleMute(btn) {
+  btn.classList.toggle('muted');
+}
+
+// ============================================================
+// Insert bypass toggle
+// ============================================================
+function toggleInsertBypass(dot) {
+  const slot = dot.closest('.strip-insert-slot');
+  const isOn = !dot.classList.contains('off');
+  if (isOn) {
+    dot.classList.add('off');
+    slot.classList.add('bypassed');
+  } else {
+    dot.classList.remove('off');
+    slot.classList.remove('bypassed');
+  }
+}
+
+// ============================================================
+// Routing change in flight (SPEC Q3)
+// ============================================================
+function onRouteChange(stripId, selectEl) {
+  const strip = document.getElementById(stripId);
+  strip.classList.add('applying');
+  showToast('Applying routing change…');
+  // Simulate engine stop/rewire/restart window (~600ms in prototype)
+  setTimeout(() => {
+    strip.classList.remove('applying');
+    showToast('Routing updated → ' + selectEl.options[selectEl.selectedIndex].text.replace('→ ',''));
+  }, 600);
+}
+
+// ============================================================
+// Inline rename
+// ============================================================
+function startRename(nameEl) {
+  const input = nameEl.nextElementSibling;
+  input.value = nameEl.textContent;
+  nameEl.classList.add('hidden');
+  input.classList.add('visible');
+  input.focus();
+  input.select();
+}
+
+function finishRename(input) {
+  const nameEl = input.previousElementSibling;
+  const val = input.value.trim();
+  nameEl.textContent = val || nameEl.textContent;
+  input.classList.remove('visible');
+  nameEl.classList.remove('hidden');
+  // If bus name changed, update track output selectors (stubbed — would need live propagation)
+  // SPEC: bus name change must propagate to all track output <select> option text
+}
+
+function nameKeydown(e, input) {
+  if (e.key === 'Enter') input.blur();
+  if (e.key === 'Escape') {
+    const nameEl = input.previousElementSibling;
+    input.classList.remove('visible');
+    nameEl.classList.remove('hidden');
+  }
+}
+
+// ============================================================
+// Add Bus (prototype version)
+// ============================================================
+let busCount = 3;
+function addBus() {
+  busCount++;
+  const busId = 'bus-new-' + busCount;
+  const strip = document.createElement('div');
+  strip.className = 'bus-strip';
+  strip.id = busId;
+  strip.innerHTML = `
+    <div class="bus-output-selector">
+      <div class="bus-output-label">→ Master</div>
+    </div>
+    <div class="strip-inserts">
+      <div class="strip-insert-empty">— empty —</div>
+      <button class="strip-add-insert" onclick="stubClick('Insert picker')">+ insert</button>
+    </div>
+    <div class="strip-fader-wrap">
+      <div class="strip-fader-track">
+        <div class="strip-fader-handle" style="bottom:66%"></div>
+      </div>
+      <div class="strip-db-readout">0.0 dB</div>
+    </div>
+    <div class="strip-pan-wrap">
+      <div class="strip-pan-label">Pan</div>
+      <div class="strip-pan-knob"></div>
+    </div>
+    <div class="strip-ms-row">
+      <button class="strip-mute-btn" onclick="toggleMute(this)">M</button>
+      <button class="strip-solo-btn" data-strip-id="${busId}" onclick="toggleSolo(this)">S</button>
+    </div>
+    <div class="strip-name-wrap">
+      <div class="strip-name" ondblclick="startRename(this)">Bus ${busCount}</div>
+      <input class="strip-name-input" type="text" onblur="finishRename(this)" onkeydown="nameKeydown(event, this)">
+    </div>
+  `;
+
+  // Insert before the trailing tile
+  const scroll = document.getElementById('bus-strips-scroll');
+  const tile = scroll.querySelector('.add-bus-tile');
+  scroll.insertBefore(strip, tile);
+  ALL_STRIP_IDS.push(busId);
+
+  // Add the new bus as option to all track output selectors
+  document.querySelectorAll('.output-select').forEach(sel => {
+    const opt = document.createElement('option');
+    opt.value = busId;
+    opt.textContent = '→ Bus ' + busCount;
+    // Insert before the "→ Master" option
+    const masterOpt = Array.from(sel.options).find(o => o.value === 'master');
+    sel.insertBefore(opt, masterOpt);
+  });
+
+  showToast('Bus ' + busCount + ' added');
+  strip.scrollIntoView({ behavior: 'smooth', inline: 'end' });
+}
+
+// ============================================================
+// Scene / state application
+// ============================================================
+function applyState(key) {
+  // Reset everything
+  clearAllSolo();
+  ALL_STRIP_IDS.forEach(id => {
+    const strip = document.getElementById(id);
+    if (strip) {
+      strip.classList.remove('applying', 'dimmed');
+      const mute = strip.querySelector('.strip-mute-btn');
+      if (mute) mute.classList.remove('muted');
+    }
+  });
+  document.getElementById('leads-empty-badge').classList.remove('visible');
+
+  // Update active button
+  document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.state-btn').forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + key + "'")) {
+      b.classList.add('active');
+    }
+  });
+
+  if (key === 'solo-drums') {
+    // Solo the Drums Bus
+    const bus = document.getElementById('bus-drums');
+    const btn = bus.querySelector('.strip-solo-btn');
+    soloedStripId = 'bus-drums';
+    btn.classList.add('soloed');
+    document.getElementById('solo-banner').classList.add('visible');
+    ALL_STRIP_IDS.forEach(id => {
+      if (id !== 'bus-drums') {
+        const s = document.getElementById(id);
+        if (s) s.classList.add('dimmed');
+      }
+    });
+  } else if (key === 'solo-track') {
+    // Solo the Kick track
+    const strip = document.getElementById('strip-kick');
+    const btn = strip.querySelector('.strip-solo-btn');
+    soloedStripId = 'strip-kick';
+    btn.classList.add('soloed');
+    document.getElementById('solo-banner').classList.add('visible');
+    ALL_STRIP_IDS.forEach(id => {
+      if (id !== 'strip-kick') {
+        const s = document.getElementById(id);
+        if (s) s.classList.add('dimmed');
+      }
+    });
+  } else if (key === 'routing') {
+    // Show Snare strip mid-routing-change
+    const snare = document.getElementById('strip-snare');
+    snare.classList.add('applying');
+    showToast('Applying routing change…');
+    setTimeout(() => {
+      snare.classList.remove('applying');
+      showToast('Routing updated → Drums Bus');
+    }, 2000);
+  } else if (key === 'empty-bus') {
+    // Reroute Arpeg. Lead away from Leads Bus to show Leads Bus as empty
+    const arpSel = document.getElementById('arp-output-select');
+    if (arpSel) {
+      arpSel.value = 'synths';
+    }
+    document.getElementById('leads-empty-badge').classList.add('visible');
+    showToast('Leads Bus: no tracks routed');
+  }
+}
+
+// ============================================================
+// Toast
+// ============================================================
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, 1800);
+}
+
+function stubClick(label) {
+  showToast('[stub: ' + label + ']');
+}
+
+// Init
+applyState('default');
+</script>
+</body>
+</html>
