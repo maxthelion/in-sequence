@@ -28,6 +28,8 @@ This matches the shoe-makers pattern (`bun run setup` before every elf invocatio
 
 Inspiration: <https://github.com/maxthelion/shoe-makers>
 
+Roadmap PM items enter this loop only after an explicit promotion step. `scripts/roadmap/promote-ready-item-to-worktree.sh <item-id>` creates a dedicated implementation worktree and writes a normalized `docs/plans/*roadmap-*.md` plan there. Run `/next-action` from that worktree, not from the PM worktree.
+
 ## How to invoke
 
 - `/next-action` — manual single iteration. Runs setup first (in case state is stale), then dispatches.
@@ -54,8 +56,8 @@ This table describes what each BT action does. For the current agent binding per
 | `adversarial-review` | Invoke the `/adversarial-review` skill against the diff specified in next-action.md. Collect findings; write each as a file in `state/review-queue/` (`severity-slug.md`). | Update `state/last-review-sha` to current HEAD. |
 | `handle-inbox` | Act on the oldest file in `state/inbox/` (redirect, candidate, plan edit, direct task). If it requires user action, exit and leave the file in place. | Move the file to `state/inbox/archive/` only if fully resolved. |
 | `execute-work-item` | Implement `state/work-item.md`; the three-stage review runs after DONE. | Delete work-item.md on DONE. Commit. |
+| `promote-plan-task-to-work-item` | Mechanical: extract the next unticked task from an active plan, including promoted roadmap build plans in implementation worktrees. | Write work-item.md. |
 | `prioritise` | Read `state/candidates.md` + the code-review checklist, pick one, write a detailed `state/work-item.md`, mark the candidate as chosen. | Write work-item.md. Update candidates.md. |
-| `promote-plan-task-to-work-item` | Mechanical: extract the next unticked task from the active plan, write as `state/work-item.md`. No subagent (pure state movement). | Write work-item.md. |
 | `write-next-plan` | Invoke `superpowers:writing-plans` for the next unfinished sub-spec. | Writes `docs/plans/YYYY-MM-DD-<slug>.md`. Commit. |
 | `explore` | Run drift/gap scans (`octowiki-invariants`, TODOs, test-coverage, wiki-code) and rank findings. | Write candidates.md. |
 
@@ -88,6 +90,7 @@ Full table and rationale in `AGENTS.md` § "Per-action subagent configuration". 
 - **No human interaction in the loop.** If a subagent returns BLOCKED or NEEDS_CONTEXT, write the report as a file in `state/inbox/` and exit. The next iteration's setup will see the inbox message and route to `handle-inbox`, which will also exit (since handling a user request usually needs the user). Autonomous run stops cleanly.
 - **Auto-revert on regression.** If a commit causes tests to fail on the next `verify-tests` action, the next iteration's `fix-tests` action should try to fix; if after one iteration it can't, revert the offending commit and write the situation to inbox. (Implementation deferred — first automation of this when we see the pattern in practice.)
 - **Daily branch discipline.** If running autonomously, the caller (the `/loop` driver or a cron trigger) should operate on an auto branch (`auto/YYYY-MM-DD`). Nothing reaches main without human review. This skill doesn't create branches; it assumes the caller has set the working branch.
+- **Roadmap build worktrees.** If a roadmap item has been promoted, stay inside the worktree printed by `promote-ready-item-to-worktree.sh`. The setup hook gives promoted `docs/plans/*roadmap-*.md` plans priority over the generic candidates backlog so the agent advances the promoted feature before exploring unrelated work.
 
 ## Not yet implemented
 

@@ -289,7 +289,7 @@ Place the working spec and implementation plan in the feature directory. When a 
 
 ### 8. Promote To Build Loop
 
-After the spec is agreed, promote the feature to the separate implementation loop. Roadmap PM work and product-building work should remain different loops with different permissions.
+After the spec is agreed, promote the feature to the separate implementation loop. Roadmap PM work and product-building work should remain different loops with different permissions and different worktrees.
 
 Promotion means:
 
@@ -300,7 +300,25 @@ Promotion means:
 - Acceptance criteria and non-goals are clear enough for an implementation worker to execute without re-litigating the product direction.
 - The feature `README.md` front matter can move to `status: ready-for-build`.
 
-The implementation loop may then create work items, build in slices, run tests, review, and update wiki pages. That loop uses implementation roles and permissions, not `pm-assistant`.
+Use the deterministic promotion helper:
+
+```bash
+scripts/roadmap/promote-ready-item-to-worktree.sh <item-id>
+```
+
+The helper creates a dedicated implementation worktree under `.worktrees/`, creates an `auto/roadmap-<id>-<slug>` branch, and writes a normalized `docs/plans/*roadmap-*.md` build plan inside that worktree. It does not build production code.
+
+After promotion, start the implementation loop from the printed worktree:
+
+```bash
+cd .worktrees/roadmap-<id>-<slug>
+.claude/hooks/setup-next-action.sh
+/loop /next-action
+```
+
+The original implementation behaviour tree has a special worktree-only bridge: promoted `docs/plans/*roadmap-*.md` plans outrank the generic candidates backlog, so agents keep advancing the promoted feature in slices. The normal implementation gates still apply: tests, inbox, review queue, partial work, adversarial review, work items, and commits remain owned by the implementation loop.
+
+Do not run implementation agents from the PM worktree. Do not let the PM loop write `.claude/state/`, `docs/specs/`, `docs/plans/`, production code, tests, or wiki pages.
 
 ## Parallel Work
 

@@ -167,6 +167,29 @@ if [ -f "$STATE/work-item.md" ]; then
   exit 0
 fi
 
+# [2a.5] Roadmap build plan in this worktree?
+# Roadmap PM artifacts are promoted into dedicated implementation worktrees as
+# normalized docs/plans/roadmap-*.md files. In those worktrees, the roadmap
+# build plan should outrank the generic candidates backlog so the agent keeps
+# executing the promoted feature instead of drifting into unrelated exploration.
+ROADMAP_BUILD_PLAN=""
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  if ! grep -q "Status:.*Completed" "$f" 2>/dev/null && grep -qE '^[[:space:]]*- \[ \]' "$f" 2>/dev/null; then
+    ROADMAP_BUILD_PLAN="$f"; break
+  fi
+done < <(find docs/plans -maxdepth 1 -type f -name '*roadmap-*.md' 2>/dev/null | sort)
+if [ -n "$ROADMAP_BUILD_PLAN" ]; then
+  UNTICKED=$(grep -nE '^[[:space:]]*- \[ \]' "$ROADMAP_BUILD_PLAN" 2>/dev/null | head -1 || true)
+  emit "promote-plan-task-to-work-item" \
+    "Promoted roadmap build plan: \`$ROADMAP_BUILD_PLAN\`" \
+    "First unticked step: $UNTICKED" \
+    "Extract the enclosing Task section (\`## Task N: …\` through the end of its last step)." \
+    "Write it as \`.claude/state/work-item.md\` with the plan's Architecture + Environment note as preamble." \
+    "The next setup pass will route to execute-work-item."
+  exit 0
+fi
+
 # [2b] Candidates queued?
 if [ -f "$STATE/candidates.md" ]; then
   emit "prioritise" \

@@ -49,6 +49,7 @@ wiki/.meta/
 
 # Git worktrees (isolated workspaces for feature branches)
 .worktrees/
+.claude/worktrees/
 
 # Local AU hosting experiments
 Experiments/PigmentsProbe/

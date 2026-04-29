@@ -34,6 +34,7 @@ Selector: next-action
 ├─ [1f] Unreviewed commits since last review?   → adversarial-review
 │
 ├─ [2a] Work-item present?                      → execute-work-item
+├─ [2a.5] Promoted roadmap build plan?          → promote-plan-task-to-work-item
 ├─ [2b] Candidates queued?                      → prioritise (→ work-item)
 ├─ [2c] Active plan with unticked tasks?        → promote-plan-task-to-work-item
 ├─ [2d] Unfinished sub-specs in north-star?     → write-next-plan
@@ -88,6 +89,16 @@ Codex can use the same selector and state model without a bespoke planner. In th
 That helper refreshes `.claude/state/next-action.md`, prints the chosen BT leaf, and restates the one-iteration contract Codex should follow.
 
 For a Codex-native loop, prefer a heartbeat automation that wakes the same thread, tells Codex to operate only in the dedicated worktree, and execute exactly one action before stopping. See `docs/codex-behaviour-tree.md` for the prompt template and worktree discipline.
+
+## Roadmap promotion variant
+
+Roadmap PM work stays out of the implementation loop until the user explicitly promotes a ready item:
+
+```bash
+scripts/roadmap/promote-ready-item-to-worktree.sh <item-id>
+```
+
+That helper creates a dedicated `.worktrees/roadmap-<id>-<slug>/` checkout on `auto/roadmap-<id>-<slug>` and writes a normalized `docs/plans/*roadmap-*.md` build plan there. Run the original implementation loop from that worktree with `/loop /next-action`. The [2a.5] selector step lets promoted roadmap plans outrank the generic candidates backlog in that worktree.
 
 ## How to pause the loop
 

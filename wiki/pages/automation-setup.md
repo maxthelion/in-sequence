@@ -119,6 +119,7 @@ Selector: next-action
 ├─ [1f] Unreviewed commits since last review? → adversarial-review
 │
 ├─ [2a] Work-item present?                    → execute-work-item
+├─ [2a.5] Promoted roadmap build plan?        → promote-plan-task-to-work-item
 ├─ [2b] Candidates queued?                    → prioritise (→ work-item)
 ├─ [2c] Active plan with unticked tasks?      → promote-plan-task-to-work-item
 ├─ [2d] Unfinished sub-specs in north-star?   → write-next-plan
@@ -127,6 +128,16 @@ Selector: next-action
 ```
 
 One action per invocation. Deterministic given state. Pure bash (no LLM) for evaluation; the LLM is reserved for executing the chosen action.
+
+### Promoted roadmap worktrees
+
+Roadmap PM items enter the implementation tree only after explicit promotion:
+
+```bash
+scripts/roadmap/promote-ready-item-to-worktree.sh <item-id>
+```
+
+The helper creates `.worktrees/roadmap-<id>-<slug>/`, creates an `auto/roadmap-<id>-<slug>` branch, and writes a normalized `docs/plans/*roadmap-*.md` plan inside that worktree. Run `/next-action` from that worktree. The [2a.5] selector step gives promoted roadmap build plans priority over the generic candidates backlog so implementation agents keep working through the promoted feature in slices.
 
 ## Skills
 
