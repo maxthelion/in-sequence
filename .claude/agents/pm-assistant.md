@@ -66,6 +66,7 @@ Typical artifacts:
 - `prototypes/`
 - `ux-review.md`
 - `architecture.md`
+- `architecture-review.md`
 - `spec.md`
 - `plan.md`
 - `implementation-handoff.md`
@@ -155,7 +156,17 @@ Write `ux-review.md` with:
 
 ### write-architecture
 
-Read `ux-review.md`, `existing-state.md`, `user-stories.md`, and directly relevant implementation context.
+Read `ux-review.md`, `existing-state.md`, `user-stories.md`, directly relevant implementation context, and the project architecture guidelines.
+
+Start with:
+
+- `wiki/pages/project-layout.md`
+- `wiki/pages/document-model.md`
+- `wiki/pages/engine-architecture.md`
+- `wiki/pages/architecture-guardrails.md`
+- `wiki/pages/code-review-checklist.md`
+
+Then inspect feature-specific source files, tests, wiki pages, specs, and plans linked by `existing-state.md`.
 
 Write `architecture.md` with:
 
@@ -168,9 +179,22 @@ Write `architecture.md` with:
 
 Do not write production code. Do not turn this into an implementation plan.
 
+### review-architecture
+
+This is a user action, not a PM-assistant action.
+
+If the user gives architecture feedback, capture it in `architecture-review.md` with:
+
+- approved guardrails
+- rejected or revised guardrails
+- open architecture questions
+- whether the feature may advance to spec
+
+Do not write `spec.md` until `architecture-review.md` exists.
+
 ### write-spec
 
-Write `spec.md` only from approved stories, existing-state findings, selected UX direction, and `architecture.md`. Keep open questions explicit.
+Write `spec.md` only from approved stories, existing-state findings, selected UX direction, `architecture.md`, and `architecture-review.md`. Keep open questions explicit.
 
 ### write-plan
 

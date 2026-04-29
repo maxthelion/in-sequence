@@ -44,6 +44,7 @@ docs/roadmap/<feature-slug>/
   prototypes/
   ux-review.md
   architecture.md
+  architecture-review.md
   spec.md
   plan.md
   implementation-handoff.md
@@ -78,7 +79,8 @@ The important PM artifacts are:
 - `user-stories.md` for goals and acceptance signals.
 - `existing-state.md` for current model/UI/test reality.
 - `prototypes/` and `ux-review.md` for selected UX direction.
-- `architecture.md` for guardrails and invariants.
+- `architecture.md` for guardrails and invariants, grounded in code plus wiki/project guidelines.
+- `architecture-review.md` for the user's review of those guardrails before spec.
 - `spec.md` for the buildable product contract.
 - `plan.md` for execution sequence.
 - `implementation-handoff.md` as the final index and ingestion packet for the build loop.
@@ -226,11 +228,31 @@ Write `architecture.md` with:
 - Any existing local patterns to follow, such as array-buffer style sequencer data structures, runtime snapshots, or small focused document deltas.
 - Concrete architecture questions that must be answered before spec.
 
+The architecture pass must inspect the relevant production code and project guidelines before recommending a course of action. Start with:
+
+- `wiki/pages/project-layout.md`
+- `wiki/pages/document-model.md`
+- `wiki/pages/engine-architecture.md`
+- `wiki/pages/architecture-guardrails.md`
+- `wiki/pages/code-review-checklist.md`
+- any feature-specific wiki pages, specs, plans, source files, and tests linked from `existing-state.md`
+
 Examples:
 
 - Clip History should decide how recent step history is stored cheaply, how a scrubbed history region becomes a pseudo clip, and exactly when that pseudo clip becomes a real persisted clip.
 - Step-sequencer features should fit the existing array-buffer style data structures instead of introducing unrelated document storage.
 - Large UX changes should identify the smallest document/runtime boundary they need rather than rewriting the project model around a view.
+
+Architecture guardrails are user-reviewable. The selector should surface `review-architecture` in the user lane whenever `architecture.md` exists and `architecture-review.md` is missing.
+
+The user should review:
+
+- the proposed data/runtime shape;
+- what is transient versus persisted;
+- any guardrails that constrain the product direction;
+- unresolved architecture questions.
+
+After the user responds, capture the outcome in `architecture-review.md`. Do not write the spec until this review exists.
 
 ### 7. Specify The Feature
 
@@ -313,10 +335,11 @@ The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/
 5. `prototypes/*` -> build-prototypes
 6. `ux-review.md` -> review-prototypes
 7. `architecture.md` -> write-architecture
-8. `spec.md` -> write-spec
-9. `plan.md` -> write-plan
-10. `implementation-handoff.md` -> write-implementation-handoff
-11. all present -> ready-for-build-queue
+8. `architecture-review.md` -> review-architecture
+9. `spec.md` -> write-spec
+10. `plan.md` -> write-plan
+11. `implementation-handoff.md` -> write-implementation-handoff
+12. all present -> ready-for-build-queue
 
 This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, and prototype review outcomes.
 

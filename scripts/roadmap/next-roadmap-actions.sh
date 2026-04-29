@@ -155,10 +155,14 @@ classify_feature() {
     next_action="write-architecture"
     reason="UX review exists, but \`architecture.md\` is missing."
     output_hint="Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks."
+  elif ! has_content_file "$dir/architecture-review.md"; then
+    next_action="review-architecture"
+    reason="Architecture guardrails exist, but \`architecture-review.md\` is missing."
+    output_hint="Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions."
   elif ! has_content_file "$dir/spec.md"; then
     next_action="write-spec"
-    reason="Architecture guardrails exist, but \`spec.md\` is missing."
-    output_hint="Write the feature specification from the selected prototype direction and architecture guardrails."
+    reason="Architecture review exists, but \`spec.md\` is missing."
+    output_hint="Write the feature specification from the selected prototype direction and reviewed architecture guardrails."
   elif ! has_content_file "$dir/plan.md"; then
     next_action="write-plan"
     reason="Spec exists, but \`plan.md\` is missing."
@@ -180,7 +184,7 @@ action_agent() {
   local action="$1"
 
   case "$action" in
-    clarify-feature|blocked|review-prototypes)
+    clarify-feature|blocked|review-prototypes|review-architecture)
       printf '%s\n' "user"
       ;;
     ready-for-build-queue)
@@ -204,7 +208,7 @@ tmp="$OUT.tmp.$$"
   echo
   echo "Each roadmap item has front matter in its feature \`README.md\`: \`id\`, \`title\`, \`status\`, \`priority\`, \`blocked_by\`, \`stage\`, \`owner\`, and \`updated\`."
   echo
-  echo "Planning actions after \`clarify-feature\` are intended for the \`pm-assistant\` role, except \`review-prototypes\`, which requires user judgment. \`clarify-feature\`, \`blocked\`, and \`review-prototypes\` require user input."
+  echo "Planning actions after \`clarify-feature\` are intended for the \`pm-assistant\` role, except \`review-prototypes\` and \`review-architecture\`, which require user judgment. \`clarify-feature\`, \`blocked\`, \`review-prototypes\`, and \`review-architecture\` require user input."
   echo
   echo "## Selector"
   echo
@@ -217,10 +221,11 @@ tmp="$OUT.tmp.$$"
   echo "5. \`prototypes/*\` -> build-prototypes"
   echo "6. \`ux-review.md\` -> review-prototypes"
   echo "7. \`architecture.md\` -> write-architecture"
-  echo "8. \`spec.md\` -> write-spec"
-  echo "9. \`plan.md\` -> write-plan"
-  echo "10. \`implementation-handoff.md\` -> write-implementation-handoff"
-  echo "11. all present -> ready-for-build-queue"
+  echo "8. \`architecture-review.md\` -> review-architecture"
+  echo "9. \`spec.md\` -> write-spec"
+  echo "10. \`plan.md\` -> write-plan"
+  echo "11. \`implementation-handoff.md\` -> write-implementation-handoff"
+  echo "12. all present -> ready-for-build-queue"
   echo
   echo "## Next User Item"
   echo

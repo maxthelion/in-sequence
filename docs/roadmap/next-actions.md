@@ -1,14 +1,14 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T13:13:45Z
-Repo HEAD: 15f49f7
+Generated: 2026-04-29T13:16:49Z
+Repo HEAD: 7b2ab99
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
 
 Each roadmap item has front matter in its feature `README.md`: `id`, `title`, `status`, `priority`, `blocked_by`, `stage`, `owner`, and `updated`.
 
-Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-prototypes`, which requires user judgment. `clarify-feature`, `blocked`, and `review-prototypes` require user input.
+Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-prototypes` and `review-architecture`, which require user judgment. `clarify-feature`, `blocked`, `review-prototypes`, and `review-architecture` require user input.
 
 ## Selector
 
@@ -21,32 +21,33 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 5. `prototypes/*` -> build-prototypes
 6. `ux-review.md` -> review-prototypes
 7. `architecture.md` -> write-architecture
-8. `spec.md` -> write-spec
-9. `plan.md` -> write-plan
-10. `implementation-handoff.md` -> write-implementation-handoff
-11. all present -> ready-for-build-queue
+8. `architecture-review.md` -> review-architecture
+9. `spec.md` -> write-spec
+10. `plan.md` -> write-plan
+11. `implementation-handoff.md` -> write-implementation-handoff
+12. all present -> ready-for-build-queue
 
 ## Next User Item
-
-- **Item:** 2
-- **Feature:** Scene Perform
-- **Priority:** `unset`
-- **Status:** `blocked`
-- **Action:** `blocked`
-- **Role:** `user`
-- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Output:** Answer the open questions or resolve the blocker before advancing this item.
-
-## Next Agent Item
 
 - **Item:** 1
 - **Feature:** Clip History
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-spec`
+- **Action:** `review-architecture`
+- **Role:** `user`
+- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+
+## Next Agent Item
+
+- **Item:** 3
+- **Feature:** Step Sequencer
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Why:** Architecture guardrails exist, but `spec.md` is missing.
-- **Output:** Write the feature specification from the selected prototype direction and architecture guardrails.
+- **Why:** User stories exist, but `existing-state.md` is missing.
+- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ## Feature Actions
 
@@ -56,10 +57,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-spec`
-- **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `spec.md` is missing.
-- **Suggested output:** Write the feature specification from the selected prototype direction and architecture guardrails.
+- **Next action:** `review-architecture`
+- **Role:** `user`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 2. Scene Perform
 
