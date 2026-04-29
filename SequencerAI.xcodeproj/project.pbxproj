@@ -161,6 +161,7 @@
 		7731FADB541C47A914C54D3B /* SequencerSnapshotCompilerSemanticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAFCF4B75E7CB71C66AE15D /* SequencerSnapshotCompilerSemanticsTests.swift */; };
 		775EF05EA93FDF55B31D5D9C /* PitchAlgoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F838D5FE391E75B5C3051E5 /* PitchAlgoEditor.swift */; };
 		785629B018B6587B52D24358 /* Project+Tracks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 602521066F31995FF617B8F8 /* Project+Tracks.swift */; };
+		78F336F9A5377136C53475F5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1AA8034C8FCF937C2E3BA61D /* Assets.xcassets */; };
 		7A3AD0D0C8286855B7F8932A /* TrackMacroDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0ECACAA4DC5C06F12D3E2A /* TrackMacroDescriptor.swift */; };
 		7B70BA36F34D54C9B7F6595E /* GeneratorParamsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF081F673B499121B873EDA /* GeneratorParamsTests.swift */; };
 		7CAFC81CB0B468221FC5C3DF /* DrumKitNoteMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E843105F96BC3538CF4728 /* DrumKitNoteMap.swift */; };
@@ -415,6 +416,7 @@
 		192092251AA8C66C80AF9052 /* SequencerAIDocument.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = SequencerAIDocument.icns; sourceTree = "<group>"; };
 		1A23362B81E182775F742464 /* StudioTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioTheme.swift; sourceTree = "<group>"; };
 		1A7C2A156C9AA0191029A381 /* TrackGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackGroup.swift; sourceTree = "<group>"; };
+		1AA8034C8FCF937C2E3BA61D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1B0F0D0A5FD3D2C2260D6EBA /* 2026-04-21-per-track-owned-clips-opt-in-generators.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-per-track-owned-clips-opt-in-generators.md"; sourceTree = "<group>"; };
 		1B1DBE1A94E5A98378041201 /* SessionMacroSlotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMacroSlotTests.swift; sourceTree = "<group>"; };
 		1C05CE93D43B8EBED98931E8 /* GeneratedSourceEvaluatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedSourceEvaluatorTests.swift; sourceTree = "<group>"; };
@@ -1428,6 +1430,7 @@
 			children = (
 				B08DEC3D4F6AC025F79A51F7 /* Info.plist */,
 				1857B367680D1547BFEE9EB6 /* SequencerAI.entitlements */,
+				1AA8034C8FCF937C2E3BA61D /* Assets.xcassets */,
 				192092251AA8C66C80AF9052 /* SequencerAIDocument.icns */,
 			);
 			path = Resources;
@@ -1741,6 +1744,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78F336F9A5377136C53475F5 /* Assets.xcassets in Resources */,
 				A4C105DE2268F16B6C55A132 /* SequencerAIDocument.icns in Resources */,
 				D7767B9D5DC40FBF1880FC66 /* StarterSamples in Resources */,
 			);
