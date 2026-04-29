@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE: Step Sequencer — Variant B: Floating Popover
+  ========================================================
+  This is a Balsamiq-style design prototype. It is NOT a production proposal.
+  Dashed borders and grey fills indicate stubbed areas.
+
+  OPEN QUESTIONS ASSUMED:
+  - OQ1 (existing-state.md §8.1): Same as Variant A — edits write to clip-level MacroLane
+    overrides. Phrase-level PhraseCell.steps storage is out of scope.
+  - OQ2 (existing-state.md §8.2): SliceStepStrip Velocity/Chance stubs are treated as
+    in-scope for the unified primitive.
+  - OQ3 (existing-state.md §8.3): THIS VARIANT assumes Copy/Paste operates on ALL LAYERS
+    at once (unlike Variant A which targets the active layer only). This tests whether
+    the all-layers semantic is more or less surprising to reviewers.
+
+  INTERACTION BUDGET: Primary goal (inspect and edit a step value) in <=3 interactions.
+  Click-path: 1. right-click step → 2. popover appears above/below cell → 3. adjust value.
+
+  KEY DIFFERENCE FROM VARIANT A:
+  The inline column is replaced by a floating popover that anchors to the clicked cell.
+  The grid never gets wider. The popover can overlap adjacent cells but stays anchored.
+  Multi-selection still shows the batch bar, but the popover binds to the last-selected step.
+  Tradeoff to review: popover risks obscuring the grid vs column-right never occludes.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[PROTOTYPE] Step Sequencer — Variant B: Floating Popover</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .proto-banner {
+    background: #111;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .shell {
+    max-width: 760px;
+    margin: 0 auto;
+    background: #fafafa;
+    border: 1px solid #ccc;
+  }
+
+  .stub-chrome {
+    border-bottom: 2px dashed #bbb;
+    padding: 8px 16px;
+    color: #999;
+    font-size: 11px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+  .stub-chrome span { border: 1px dashed #ccc; padding: 2px 8px; }
+
+  .layer-tabs {
+    display: flex;
+    border-bottom: 1px solid #ccc;
+    padding: 0 16px;
+    background: #f5f5f5;
+  }
+  .layer-tab {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    color: #555;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+  }
+  .layer-tab.active { color: #111; border-bottom-color: #111; font-weight: 600; }
+  .layer-tab:hover:not(.active) { color: #333; background: #eee; }
+
+  .sequencer-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Grid area: position:relative so popover can anchor to it */
+  .grid-area {
+    position: relative;
+  }
+
+  .step-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+  }
+
+  .cell {
+    width: 32px;
+    height: 44px;
+    border: 1.5px solid #aaa;
+    background: #e8e8e8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    border-radius: 2px;
+    transition: background 0.08s, border-color 0.08s;
+  }
+  .cell.active { background: #333; border-color: #111; }
+  .cell.active .cell-dot { background: #fff; }
+  .cell.playing { border-color: #3a3 !important; border-width: 2.5px; }
+  .cell.selected { border-color: #e8a020; border-width: 2.5px; box-shadow: inset 0 0 0 1px #e8a020; }
+
+  .cell-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #888;
+  }
+  .cell.active .cell-dot { background: #fff; }
+
+  .cell-bar-wrap {
+    width: 20px;
+    height: 28px;
+    background: #d0d0d0;
+    position: relative;
+    border: 1px solid #bbb;
+    border-radius: 1px;
+  }
+  .cell-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #555;
+    border-radius: 1px 1px 0 0;
+  }
+  .cell.active .cell-bar { background: #fff; }
+
+  .cell-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #555;
+    text-align: center;
+  }
+  .cell.active .cell-label { color: #eee; }
+
+  .step-number-row {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .step-num {
+    width: 32px;
+    text-align: center;
+    font-size: 9px;
+    color: #999;
+  }
+
+  /* ---- Floating popover ---- */
+  .popover {
+    position: absolute;
+    width: 180px;
+    border: 1.5px solid #e8a020;
+    background: #fffbf0;
+    border-radius: 2px;
+    padding: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 11px;
+    z-index: 100;
+    /* Arrow indicator on the popover (downward, connecting to cell) */
+  }
+  .popover.visible { display: flex; }
+
+  /* Caret arrow at bottom of popover pointing down to cell */
+  .popover::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 20px;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 8px solid #e8a020;
+  }
+
+  /* If popover would overflow bottom, flip to below cell */
+  .popover.below::after {
+    bottom: auto;
+    top: -8px;
+    border-top: none;
+    border-bottom: 8px solid #e8a020;
+  }
+
+  .popover-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #888;
+    border-bottom: 1px solid #e8c070;
+    padding-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .popover-close {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  .popover-close:hover { color: #555; }
+
+  .field-label { font-size: 10px; color: #555; margin-bottom: 2px; }
+
+  .toggle-btn {
+    width: 36px;
+    height: 20px;
+    border: 1.5px solid #888;
+    background: #e8e8e8;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 10px;
+    font-family: inherit;
+    font-weight: 600;
+    color: #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .toggle-btn.on { background: #333; color: #fff; border-color: #111; }
+
+  .active-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 4px;
+    border-top: 1px dashed #ccc;
+    margin-top: 2px;
+  }
+
+  .slider-row { display: flex; flex-direction: column; gap: 4px; }
+  .slider-row input[type=range] { width: 100%; accent-color: #555; cursor: pointer; }
+  .slider-val { font-size: 11px; font-weight: 600; color: #222; text-align: right; }
+
+  .picker { display: flex; flex-wrap: wrap; gap: 3px; }
+  .pick-opt {
+    padding: 2px 5px;
+    border: 1px solid #aaa;
+    border-radius: 2px;
+    font-size: 9px;
+    cursor: pointer;
+    background: #eee;
+    color: #333;
+  }
+  .pick-opt.chosen { background: #333; color: #fff; border-color: #111; }
+  .pick-opt:hover:not(.chosen) { background: #ddd; }
+
+  /* Overlay-dimming note for multi-selection */
+  .multi-note {
+    font-size: 10px;
+    color: #888;
+    font-style: italic;
+    border: 1px dashed #ccc;
+    padding: 4px;
+    background: #f5f5f5;
+  }
+
+  /* ---- Batch bar ---- */
+  .batch-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1.5px solid #e8a020;
+    background: #fffbf0;
+    border-radius: 2px;
+    font-size: 11px;
+  }
+  .batch-bar.visible { display: flex; }
+  .batch-bar-label { flex: 1; color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .batch-btn {
+    padding: 4px 12px;
+    border: 1.5px solid #aaa;
+    background: #e8e8e8;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    color: #333;
+  }
+  .batch-btn:hover { background: #ddd; }
+  .batch-btn.danger { border-color: #c55; color: #c55; }
+  .batch-btn.danger:hover { background: #fee; }
+
+  /* Comparison callout */
+  .tradeoff-box {
+    border: 1px dashed #bbb;
+    padding: 8px 12px;
+    font-size: 10px;
+    color: #777;
+    background: #f8f8f8;
+    border-radius: 1px;
+  }
+  .tradeoff-box strong { color: #444; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    border-top: 1px solid #ddd;
+    font-size: 10px;
+    color: #666;
+    background: #f5f5f5;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch { width: 14px; height: 14px; border: 1.5px solid #aaa; border-radius: 1px; background: #e8e8e8; flex-shrink: 0; }
+  .legend-swatch.s-active { background: #333; border-color: #111; }
+  .legend-swatch.s-playing { border-color: #3a3; border-width: 2.5px; }
+  .legend-swatch.s-selected { border-color: #e8a020; border-width: 2.5px; }
+
+  .annotation {
+    font-size: 10px;
+    color: #888;
+    font-style: italic;
+    padding: 0 16px 10px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: -4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  [PROTOTYPE — NOT PRODUCTION UI] Step Sequencer / Variant B: Floating Popover
+</div>
+
+<div class="shell">
+
+  <div class="stub-chrome">
+    <span>-> [Track selector]</span>
+    <span>-> [Transport controls]</span>
+    <span>-> [Pattern picker]</span>
+  </div>
+
+  <div class="layer-tabs">
+    <button class="layer-tab active" data-layer="toggle" onclick="switchLayer('toggle', this)">Steps</button>
+    <button class="layer-tab" data-layer="velocity" onclick="switchLayer('velocity', this)">Velocity</button>
+    <button class="layer-tab" data-layer="chance" onclick="switchLayer('chance', this)">Chance</button>
+    <button class="layer-tab" data-layer="pitch" onclick="switchLayer('pitch', this)">Note</button>
+  </div>
+
+  <div class="sequencer-body">
+    <div class="section-label">16-step grid — "Kick Pattern"</div>
+
+    <div class="grid-area" id="gridArea">
+      <div class="step-grid" id="stepGrid"></div>
+      <div class="step-number-row" id="stepNumbers"></div>
+
+      <!-- Floating popover (position:absolute, anchored to clicked cell) -->
+      <div class="popover" id="popover">
+        <div class="popover-header">
+          <span id="popoverTitle">Step —</span>
+          <button class="popover-close" onclick="closePopover()">&#x2715;</button>
+        </div>
+
+        <!-- Active toggle row (always shown) -->
+        <div class="active-row">
+          <span class="field-label">Active</span>
+          <button class="toggle-btn" id="popActiveBtn" onclick="toggleActive()">ON</button>
+        </div>
+
+        <!-- Layer-specific controls -->
+        <div id="pCtrlToggle">
+          <div style="font-size:10px;color:#aaa;font-style:italic;">Toggle layer — no additional value</div>
+        </div>
+
+        <div id="pCtrlVelocity" style="display:none;">
+          <div class="field-label">Velocity</div>
+          <div class="slider-row">
+            <input type="range" min="0" max="127" value="90" id="pVelSlider" oninput="onSlider('pVelSlider','pVelVal')">
+            <div class="slider-val"><span id="pVelVal">90</span>/127</div>
+          </div>
+        </div>
+
+        <div id="pCtrlChance" style="display:none;">
+          <div class="field-label">Chance</div>
+          <div class="slider-row">
+            <input type="range" min="0" max="100" value="75" id="pChanceSlider" oninput="onSlider('pChanceSlider','pChanceVal')">
+            <div class="slider-val"><span id="pChanceVal">75</span>%</div>
+          </div>
+        </div>
+
+        <div id="pCtrlPitch" style="display:none;">
+          <div class="field-label">Note</div>
+          <div class="picker" id="pNotePicker"></div>
+        </div>
+
+        <!-- Multi-selection note (shown when >1 step selected) -->
+        <div class="multi-note" id="multiNote" style="display:none;">
+          Edits apply to all <strong id="multiCount">N</strong> selected steps.
+        </div>
+
+        <div style="font-size:10px;color:#bbb;font-style:italic;border-top:1px dashed #ddd;padding-top:6px;">
+          -> [Gate / other layers stubbed]
+        </div>
+      </div><!-- end popover -->
+
+    </div><!-- end grid-area -->
+
+    <!-- Batch action bar -->
+    <div class="batch-bar" id="batchBar">
+      <span class="batch-bar-label" id="batchLabel">0 steps selected</span>
+      <button class="batch-btn danger" onclick="batchClear()">Clear</button>
+      <button class="batch-btn" onclick="batchCopy()">Copy</button>
+      <button class="batch-btn" onclick="batchPaste()">Paste</button>
+      <button class="batch-btn" onclick="clearSelection()" style="margin-left:8px;color:#888;">Deselect</button>
+    </div>
+
+    <!-- Reviewer comparison note -->
+    <div class="tradeoff-box">
+      <strong>Variant B tradeoff vs Variant A:</strong> The popover anchors to the selected cell and floats above the grid.
+      The grid retains its full width — no column expansion.
+      Downside: the popover can occlude adjacent cells.
+      Upside: works at narrow widths where Variant A's column would force a scroll.
+      OQ3 variant: this prototype assumes copy/paste writes ALL layers (not active-layer-only).
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch s-active"></div> Active</div>
+    <div class="legend-item"><div class="legend-swatch"></div> Inactive</div>
+    <div class="legend-item"><div class="legend-swatch s-playing"></div> Playing</div>
+    <div class="legend-item"><div class="legend-swatch s-selected"></div> Selected</div>
+    <div class="legend-item" style="color:#aaa;">Left-click: toggle active &nbsp;|&nbsp; Right-click: select + popover &nbsp;|&nbsp; Shift+click: add to selection &nbsp;|&nbsp; Esc: dismiss/deselect</div>
+  </div>
+
+  <div class="annotation">
+    Variant B: popover floats over the grid anchored to the right-clicked cell. Grid width is unchanged.
+    Assumes OQ1: edits write to clip-level MacroLane overrides. OQ3: Copy/Paste writes ALL layers simultaneously.
+  </div>
+
+</div>
+
+<script>
+const STEP_COUNT = 16;
+const NOTE_OPTIONS = ['C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3','A3','Bb3','B3',
+                      'C4','C#4','D4','D#4','E4','F4','F#4','G4','G#4','A4','Bb4','B4','C5'];
+
+// Same fixture data as Variant A for fair comparison
+const steps = [
+  { active: true,  velocity: 110, chance: 100, note: 'C3'  },
+  { active: false, velocity: 64,  chance: 80,  note: 'D3'  },
+  { active: true,  velocity: 90,  chance: 100, note: 'E3'  },
+  { active: false, velocity: 40,  chance: 50,  note: 'F3'  },
+  { active: true,  velocity: 100, chance: 100, note: 'G3'  },
+  { active: false, velocity: 75,  chance: 60,  note: 'A3'  },
+  { active: true,  velocity: 85,  chance: 100, note: 'Bb3' },
+  { active: true,  velocity: 55,  chance: 90,  note: 'C4'  },
+  { active: false, velocity: 45,  chance: 40,  note: 'D4'  },
+  { active: true,  velocity: 120, chance: 100, note: 'E4'  },
+  { active: false, velocity: 30,  chance: 25,  note: 'F#4' },
+  { active: true,  velocity: 95,  chance: 100, note: 'G4'  },
+  { active: false, velocity: 60,  chance: 70,  note: 'A4'  },
+  { active: true,  velocity: 80,  chance: 100, note: 'Bb4' },
+  { active: false, velocity: 50,  chance: 55,  note: 'C5'  },
+  { active: true,  velocity: 105, chance: 100, note: 'D5'  },
+];
+
+let currentLayer = 'toggle';
+let playingStep = 0;
+let selectedSteps = new Set();
+let anchorStepIndex = null; // last right-clicked step
+let clipboard = null;
+let transportInterval = null;
+
+function buildGrid() {
+  const grid = document.getElementById('stepGrid');
+  const nums  = document.getElementById('stepNumbers');
+  grid.innerHTML = '';
+  nums.innerHTML = '';
+
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.id = `cell-${i}`;
+    cell.dataset.index = i;
+    cell.addEventListener('contextmenu', e => { e.preventDefault(); rightClick(i, e); });
+    cell.addEventListener('click', e => leftClick(i, e));
+    grid.appendChild(cell);
+
+    const num = document.createElement('div');
+    num.className = 'step-num';
+    num.textContent = i + 1;
+    nums.appendChild(num);
+  }
+
+  // Populate note picker in popover
+  const picker = document.getElementById('pNotePicker');
+  picker.innerHTML = '';
+  NOTE_OPTIONS.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'pick-opt';
+    btn.textContent = n;
+    btn.onclick = () => pickNote(n);
+    picker.appendChild(btn);
+  });
+
+  renderAll();
+}
+
+function renderAll() {
+  for (let i = 0; i < STEP_COUNT; i++) renderCell(i);
+  renderPopover();
+  renderBatchBar();
+}
+
+function renderCell(i) {
+  const cell = document.getElementById(`cell-${i}`);
+  const step = steps[i];
+
+  cell.className = 'cell';
+  if (step.active) cell.classList.add('active');
+  if (i === playingStep) cell.classList.add('playing');
+  if (selectedSteps.has(i)) cell.classList.add('selected');
+
+  cell.innerHTML = '';
+
+  if (currentLayer === 'toggle') {
+    const dot = document.createElement('div');
+    dot.className = 'cell-dot';
+    cell.appendChild(dot);
+
+  } else if (currentLayer === 'velocity') {
+    const wrap = document.createElement('div');
+    wrap.className = 'cell-bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'cell-bar';
+    bar.style.height = Math.round((step.velocity / 127) * 100) + '%';
+    wrap.appendChild(bar);
+    cell.appendChild(wrap);
+    if (step.active) {
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:8px;color:#aaa;margin-top:2px;';
+      lbl.textContent = step.velocity;
+      cell.appendChild(lbl);
+    }
+
+  } else if (currentLayer === 'chance') {
+    const wrap = document.createElement('div');
+    wrap.className = 'cell-bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'cell-bar';
+    bar.style.height = step.chance + '%';
+    wrap.appendChild(bar);
+    cell.appendChild(wrap);
+    if (step.active) {
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:8px;color:#aaa;margin-top:2px;';
+      lbl.textContent = step.chance + '%';
+      cell.appendChild(lbl);
+    }
+
+  } else if (currentLayer === 'pitch') {
+    const lbl = document.createElement('div');
+    lbl.className = 'cell-label';
+    lbl.textContent = step.note;
+    cell.appendChild(lbl);
+  }
+}
+
+function switchLayer(layer, btn) {
+  currentLayer = layer;
+  document.querySelectorAll('.layer-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.getElementById('pCtrlToggle').style.display   = layer === 'toggle'   ? '' : 'none';
+  document.getElementById('pCtrlVelocity').style.display = layer === 'velocity' ? '' : 'none';
+  document.getElementById('pCtrlChance').style.display   = layer === 'chance'   ? '' : 'none';
+  document.getElementById('pCtrlPitch').style.display    = layer === 'pitch'    ? '' : 'none';
+
+  renderAll();
+}
+
+function leftClick(i, e) {
+  if (e.shiftKey) {
+    selectedSteps.add(i);
+  } else {
+    steps[i].active = !steps[i].active;
+  }
+  renderAll();
+}
+
+function rightClick(i, e) {
+  if (e.shiftKey) {
+    selectedSteps.add(i);
+  } else {
+    selectedSteps.clear();
+    selectedSteps.add(i);
+  }
+  anchorStepIndex = i;
+  positionPopover(i);
+  syncPopoverToStep(i);
+  renderAll();
+}
+
+function positionPopover(i) {
+  const pop = document.getElementById('popover');
+  const cellEl = document.getElementById(`cell-${i}`);
+  const gridArea = document.getElementById('gridArea');
+
+  const cellRect = cellEl.getBoundingClientRect();
+  const areaRect = gridArea.getBoundingClientRect();
+
+  const POPOVER_HEIGHT = 220; // estimated
+  const cellTopRelative = cellRect.top - areaRect.top;
+  const cellLeftRelative = cellRect.left - areaRect.left;
+
+  // Prefer above the cell
+  let topPx = cellTopRelative - POPOVER_HEIGHT - 8;
+  pop.classList.remove('below');
+
+  if (topPx < 0) {
+    // Flip to below
+    topPx = cellTopRelative + cellRect.height + 8;
+    pop.classList.add('below');
+    // Move caret
+    pop.style.setProperty('--caret-top', '-8px');
+  }
+
+  // Horizontal: align left edge of popover with cell, clamp to grid width
+  let leftPx = cellLeftRelative;
+  const maxLeft = areaRect.width - 185;
+  if (leftPx > maxLeft) leftPx = maxLeft;
+  if (leftPx < 0) leftPx = 0;
+
+  pop.style.top  = topPx  + 'px';
+  pop.style.left = leftPx + 'px';
+
+  // Move caret to point at the cell
+  const caretLeft = Math.max(10, (cellLeftRelative - leftPx) + cellRect.width / 2 - 7);
+  pop.style.setProperty('--caret-offset', caretLeft + 'px');
+  // Apply caret position via pseudo-element hack using a wrapper
+  pop.dataset.caretLeft = caretLeft;
+
+  // Inline style for ::after is not possible directly; use a child element instead
+  let caret = pop.querySelector('.pop-caret');
+  if (!caret) {
+    caret = document.createElement('div');
+    caret.className = 'pop-caret';
+    caret.style.cssText = 'position:absolute;width:0;height:0;';
+    pop.appendChild(caret);
+  }
+  if (pop.classList.contains('below')) {
+    caret.style.cssText = `position:absolute;width:0;height:0;top:-8px;left:${caretLeft}px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:8px solid #e8a020;`;
+  } else {
+    caret.style.cssText = `position:absolute;width:0;height:0;bottom:-8px;left:${caretLeft}px;border-left:7px solid transparent;border-right:7px solid transparent;border-top:8px solid #e8a020;`;
+  }
+
+  pop.classList.add('visible');
+}
+
+function syncPopoverToStep(i) {
+  const step = steps[i];
+  document.getElementById('popoverTitle').textContent = `Step ${i + 1}`;
+
+  const btn = document.getElementById('popActiveBtn');
+  btn.textContent = step.active ? 'ON' : 'OFF';
+  btn.className = 'toggle-btn' + (step.active ? ' on' : '');
+
+  document.getElementById('pVelSlider').value     = step.velocity;
+  document.getElementById('pVelVal').textContent  = step.velocity;
+  document.getElementById('pChanceSlider').value    = step.chance;
+  document.getElementById('pChanceVal').textContent = step.chance;
+
+  document.querySelectorAll('#pNotePicker .pick-opt').forEach(opt => {
+    opt.classList.toggle('chosen', opt.textContent === step.note);
+  });
+
+  const multi = document.getElementById('multiNote');
+  const count = document.getElementById('multiCount');
+  if (selectedSteps.size > 1) {
+    multi.style.display = '';
+    count.textContent = selectedSteps.size;
+  } else {
+    multi.style.display = 'none';
+  }
+}
+
+function closePopover() {
+  document.getElementById('popover').classList.remove('visible');
+  clearSelection();
+}
+
+function renderPopover() {
+  if (selectedSteps.size === 0) {
+    document.getElementById('popover').classList.remove('visible');
+    return;
+  }
+  if (anchorStepIndex !== null && selectedSteps.has(anchorStepIndex)) {
+    syncPopoverToStep(anchorStepIndex);
+  }
+}
+
+function renderBatchBar() {
+  const bar = document.getElementById('batchBar');
+  const lbl = document.getElementById('batchLabel');
+  if (selectedSteps.size > 0) {
+    bar.classList.add('visible');
+    lbl.textContent = `${selectedSteps.size} step${selectedSteps.size > 1 ? 's' : ''} selected`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+function clearSelection() {
+  selectedSteps.clear();
+  anchorStepIndex = null;
+  renderAll();
+}
+
+function toggleActive() {
+  if (selectedSteps.size === 0) return;
+  const anyActive = [...selectedSteps].some(i => steps[i].active);
+  selectedSteps.forEach(i => { steps[i].active = !anyActive; });
+  renderAll();
+}
+
+function onSlider(sliderId, valId) {
+  const val = parseInt(document.getElementById(sliderId).value);
+  document.getElementById(valId).textContent = val;
+  selectedSteps.forEach(i => {
+    if (sliderId === 'pVelSlider')    steps[i].velocity = val;
+    if (sliderId === 'pChanceSlider') steps[i].chance   = val;
+  });
+  renderAll();
+}
+
+function pickNote(note) {
+  selectedSteps.forEach(i => { steps[i].note = note; });
+  document.querySelectorAll('#pNotePicker .pick-opt').forEach(opt => {
+    opt.classList.toggle('chosen', opt.textContent === note);
+  });
+  renderAll();
+}
+
+function batchClear() {
+  selectedSteps.forEach(i => { steps[i].active = false; });
+  showToast('Cleared ' + selectedSteps.size + ' step(s)');
+  renderAll();
+}
+
+function batchCopy() {
+  // OQ3 assumption: ALL layers in this variant
+  clipboard = [...selectedSteps].map(i => ({ index: i, ...steps[i] }));
+  showToast('Copied ' + clipboard.length + ' step(s) — ALL layers (Variant B)');
+}
+
+function batchPaste() {
+  if (!clipboard) { showToast('Nothing to paste'); return; }
+  clipboard.forEach(entry => {
+    if (entry.index < STEP_COUNT) Object.assign(steps[entry.index], entry);
+  });
+  showToast('Pasted to original positions (all layers)');
+  renderAll();
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:6px 16px;font-size:11px;border-radius:2px;z-index:999;pointer-events:none;transition:opacity 0.3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+function startTransport() {
+  if (transportInterval) return;
+  transportInterval = setInterval(() => {
+    playingStep = (playingStep + 1) % STEP_COUNT;
+    renderAll();
+  }, 250);
+}
+function stopTransport() {
+  clearInterval(transportInterval);
+  transportInterval = null;
+  playingStep = 0;
+  renderAll();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); transportInterval ? stopTransport() : startTransport(); }
+  if (e.code === 'Escape') closePopover();
+});
+
+buildGrid();
+
+// Pre-select steps 5-8 to demonstrate multi-selection state on load
+setTimeout(() => {
+  [4, 5, 6, 7].forEach(i => selectedSteps.add(i));
+  anchorStepIndex = 6;
+  positionPopover(6);
+  syncPopoverToStep(6);
+  renderAll();
+}, 300);
+
+// Start transport
+setTimeout(() => { startTransport(); }, 600);
+</script>
+
+</body>
+</html>

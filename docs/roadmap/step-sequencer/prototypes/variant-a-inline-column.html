@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE: Step Sequencer — Variant A: Inline Edit Column
+  ==========================================================
+  This is a Balsamiq-style design prototype. It is NOT a production proposal.
+  Dashed borders and grey fills indicate stubbed areas.
+
+  OPEN QUESTIONS ASSUMED:
+  - OQ1 (existing-state.md §8.1): This prototype assumes layer editing in the inline column
+    writes to clip-level MacroLane overrides (ClipContent.noteGrid path), not to the
+    phrase-level PhraseCell.steps storage. Phrase-level editing is out of scope here.
+  - OQ2 (existing-state.md §8.2): The Velocity and Chance layer tabs in SliceStepStrip are
+    treated here as in-scope for the unified primitive (not a separate backlog item), since
+    the prototype must show layer switching.
+  - OQ3 (existing-state.md §8.3): Copy/paste is assumed to operate on the ACTIVE LAYER
+    ONLY in this variant. See Variant B for the all-layers alternative.
+
+  INTERACTION BUDGET: Primary goal (inspect and edit a step value) in <=3 interactions.
+  Click-path: 1. right-click step → 2. view inline column → 3. adjust value.
+
+  VARIANT A DECISION: Inline edit column docks to the RIGHT of the step grid.
+  The grid never reflows; the column slides in to the right of the fixed-width grid.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[PROTOTYPE] Step Sequencer — Variant A: Inline Column</title>
+<style>
+  /* ---- Reset & base ---- */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ---- Prototype banner ---- */
+  .proto-banner {
+    background: #111;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  /* ---- Layout shell ---- */
+  .shell {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fafafa;
+    border: 1px solid #ccc;
+    padding: 0;
+  }
+
+  /* ---- Stub app chrome ---- */
+  .stub-chrome {
+    border-bottom: 2px dashed #bbb;
+    padding: 8px 16px;
+    color: #999;
+    font-size: 11px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+  .stub-chrome span { border: 1px dashed #ccc; padding: 2px 8px; }
+
+  /* ---- Layer tab bar ---- */
+  .layer-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #ccc;
+    padding: 0 16px;
+    background: #f5f5f5;
+  }
+  .layer-tab {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    color: #555;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+  }
+  .layer-tab.active {
+    color: #111;
+    border-bottom-color: #111;
+    font-weight: 600;
+  }
+  .layer-tab:hover:not(.active) { color: #333; background: #eee; }
+
+  /* ---- Sequencer body ---- */
+  .sequencer-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ---- Grid + column wrapper ---- */
+  .grid-and-column {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  /* ---- Step grid ---- */
+  .step-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+    flex-shrink: 0;
+    width: 576px; /* 16 * 32 + 15 * 4 = 572, round up */
+  }
+
+  /* ---- Individual step cell ---- */
+  .cell {
+    width: 32px;
+    height: 44px;
+    border: 1.5px solid #aaa;
+    background: #e8e8e8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    border-radius: 2px;
+    transition: background 0.08s, border-color 0.08s;
+  }
+
+  /* --- State: active (step is on) --- */
+  .cell.active {
+    background: #333;
+    border-color: #111;
+  }
+  .cell.active .cell-dot { background: #fff; }
+
+  /* --- State: playing (transport cursor) --- */
+  .cell.playing {
+    border-color: #3a3 !important;
+    border-width: 2.5px;
+  }
+
+  /* --- State: selected (right-click) --- */
+  .cell.selected {
+    border-color: #e8a020;
+    border-width: 2.5px;
+    box-shadow: inset 0 0 0 1px #e8a020;
+  }
+
+  /* --- inactive --- */
+  .cell.inactive {
+    background: #e8e8e8;
+  }
+
+  /* ---- Toggle-layer cell dot ---- */
+  .cell-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #888;
+    flex-shrink: 0;
+  }
+  .cell.active .cell-dot { background: #fff; }
+  .cell.inactive .cell-dot { background: #bbb; }
+
+  /* ---- Value-bar layer: vertical bar inside cell ---- */
+  .cell-bar-wrap {
+    width: 20px;
+    height: 28px;
+    background: #d0d0d0;
+    position: relative;
+    border: 1px solid #bbb;
+    border-radius: 1px;
+  }
+  .cell-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #555;
+    border-radius: 1px 1px 0 0;
+    transition: height 0.1s;
+  }
+  .cell.active .cell-bar { background: #fff; }
+
+  /* ---- Option-picker layer: label inside cell ---- */
+  .cell-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #555;
+    line-height: 1;
+    text-align: center;
+  }
+  .cell.active .cell-label { color: #eee; }
+
+  /* ---- Value indicator line (shown in all modes if active) ---- */
+  .cell-value-strip {
+    position: absolute;
+    bottom: 2px;
+    left: 3px;
+    right: 3px;
+    height: 3px;
+    background: transparent;
+    border-radius: 1px;
+  }
+
+  /* ---- Step number label under each cell ---- */
+  .step-number-row {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+    width: 576px;
+    flex-shrink: 0;
+  }
+  .step-num {
+    width: 32px;
+    text-align: center;
+    font-size: 9px;
+    color: #999;
+  }
+
+  /* ---- Inline edit column ---- */
+  .edit-column {
+    width: 160px;
+    margin-left: 12px;
+    border: 1.5px solid #e8a020;
+    background: #fffbf0;
+    border-radius: 2px;
+    padding: 10px;
+    display: none; /* hidden until selection */
+    flex-direction: column;
+    gap: 8px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .edit-column.visible { display: flex; }
+
+  .edit-col-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #888;
+    border-bottom: 1px solid #e8c070;
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+  }
+
+  .edit-field-label {
+    font-size: 10px;
+    color: #555;
+    margin-bottom: 2px;
+  }
+
+  /* Toggle control in column */
+  .edit-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toggle-btn {
+    width: 36px;
+    height: 20px;
+    border: 1.5px solid #888;
+    background: #e8e8e8;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 10px;
+    font-family: inherit;
+    font-weight: 600;
+    color: #444;
+    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .toggle-btn.on { background: #333; color: #fff; border-color: #111; }
+  .toggle-btn-label { font-size: 11px; color: #333; }
+
+  /* Slider control in column */
+  .edit-slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .edit-slider-row input[type=range] {
+    width: 100%;
+    accent-color: #555;
+    cursor: pointer;
+  }
+  .edit-slider-val {
+    font-size: 11px;
+    font-weight: 600;
+    color: #222;
+    text-align: right;
+  }
+
+  /* Picker control in column */
+  .edit-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .pick-opt {
+    padding: 2px 6px;
+    border: 1px solid #aaa;
+    border-radius: 2px;
+    font-size: 10px;
+    cursor: pointer;
+    background: #eee;
+    color: #333;
+  }
+  .pick-opt.chosen {
+    background: #333;
+    color: #fff;
+    border-color: #111;
+  }
+  .pick-opt:hover:not(.chosen) { background: #ddd; }
+
+  /* Active-toggle inside edit column */
+  .edit-active-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 4px;
+    border-top: 1px dashed #ccc;
+    margin-top: 2px;
+  }
+
+  /* ---- Batch action bar ---- */
+  .batch-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1.5px solid #e8a020;
+    background: #fffbf0;
+    border-radius: 2px;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+  .batch-bar.visible { display: flex; }
+  .batch-bar-label {
+    flex: 1;
+    color: #888;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .batch-btn {
+    padding: 4px 12px;
+    border: 1.5px solid #aaa;
+    background: #e8e8e8;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    color: #333;
+  }
+  .batch-btn:hover { background: #ddd; }
+  .batch-btn.danger { border-color: #c55; color: #c55; }
+  .batch-btn.danger:hover { background: #fee; }
+
+  /* ---- Legend ---- */
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    border-top: 1px solid #ddd;
+    font-size: 10px;
+    color: #666;
+    background: #f5f5f5;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid #aaa;
+    border-radius: 1px;
+    background: #e8e8e8;
+    flex-shrink: 0;
+  }
+  .legend-swatch.s-active { background: #333; border-color: #111; }
+  .legend-swatch.s-playing { border-color: #3a3; border-width: 2.5px; }
+  .legend-swatch.s-selected { border-color: #e8a020; border-width: 2.5px; }
+
+  /* ---- Annotation notes ---- */
+  .annotation {
+    font-size: 10px;
+    color: #888;
+    font-style: italic;
+    padding: 0 16px 10px;
+  }
+
+  /* ---- Section header inside sequencer body ---- */
+  .section-label {
+    font-size: 10px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: -4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  [PROTOTYPE — NOT PRODUCTION UI] Step Sequencer / Variant A: Inline Edit Column
+</div>
+
+<div class="shell">
+
+  <!-- Stubbed app chrome -->
+  <div class="stub-chrome">
+    <span>-> [Track selector]</span>
+    <span>-> [Transport controls]</span>
+    <span>-> [Pattern picker]</span>
+  </div>
+
+  <!-- Layer tab bar -->
+  <div class="layer-tabs" id="layerTabs">
+    <button class="layer-tab active" data-layer="toggle" onclick="switchLayer('toggle', this)">Steps</button>
+    <button class="layer-tab" data-layer="velocity" onclick="switchLayer('velocity', this)">Velocity</button>
+    <button class="layer-tab" data-layer="chance" onclick="switchLayer('chance', this)">Chance</button>
+    <button class="layer-tab" data-layer="pitch" onclick="switchLayer('pitch', this)">Note</button>
+  </div>
+
+  <div class="sequencer-body">
+    <div class="section-label">16-step grid — "Kick Pattern"</div>
+
+    <div class="grid-and-column">
+
+      <!-- The 16-step grid -->
+      <div>
+        <div class="step-grid" id="stepGrid"></div>
+        <div class="step-number-row" id="stepNumbers"></div>
+      </div>
+
+      <!-- Inline edit column (slides in on selection) -->
+      <div class="edit-column" id="editColumn">
+        <div class="edit-col-header" id="editColHeader">Step —</div>
+
+        <!-- Always-visible: on/off toggle for this step -->
+        <div class="edit-active-row">
+          <span class="edit-field-label">Active</span>
+          <button class="toggle-btn" id="editActiveBtn" onclick="toggleCellActive()">ON</button>
+        </div>
+
+        <!-- Layer-specific controls; shown/hidden by layer -->
+        <div id="ctrlToggle">
+          <!-- Toggle layer has no extra value beyond on/off -->
+          <div style="font-size:10px; color:#aaa; font-style:italic;">Toggle layer — no additional value</div>
+        </div>
+
+        <div id="ctrlVelocity" style="display:none;">
+          <div class="edit-field-label">Velocity</div>
+          <div class="edit-slider-row">
+            <input type="range" min="0" max="127" value="90" id="velSlider" oninput="onSliderChange('velSlider','velVal', '%')">
+            <div class="edit-slider-val"><span id="velVal">90</span>/127</div>
+          </div>
+        </div>
+
+        <div id="ctrlChance" style="display:none;">
+          <div class="edit-field-label">Chance</div>
+          <div class="edit-slider-row">
+            <input type="range" min="0" max="100" value="75" id="chanceSlider" oninput="onSliderChange('chanceSlider','chanceVal', '%')">
+            <div class="edit-slider-val"><span id="chanceVal">75</span>%</div>
+          </div>
+        </div>
+
+        <div id="ctrlPitch" style="display:none;">
+          <div class="edit-field-label">Note</div>
+          <div class="edit-picker" id="notePicker">
+            <!-- populated by JS -->
+          </div>
+        </div>
+
+        <div style="font-size:10px; color:#bbb; font-style:italic; border-top:1px dashed #ddd; padding-top:6px;">
+          -> [Gate / other layers stubbed]
+        </div>
+      </div>
+
+    </div><!-- end grid-and-column -->
+
+    <!-- Batch action bar — visible when >=1 step selected -->
+    <div class="batch-bar" id="batchBar">
+      <span class="batch-bar-label" id="batchLabel">0 steps selected</span>
+      <button class="batch-btn danger" onclick="batchClear()">Clear</button>
+      <button class="batch-btn" onclick="batchCopy()">Copy</button>
+      <button class="batch-btn" onclick="batchPaste()">Paste</button>
+      <button class="batch-btn" onclick="clearSelection()" style="margin-left:8px; color:#888;">Deselect</button>
+    </div>
+
+  </div><!-- end sequencer-body -->
+
+  <!-- State legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch s-active"></div>
+      Active (step triggers)
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch"></div>
+      Inactive
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch s-playing"></div>
+      Playing (transport cursor)
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch s-selected"></div>
+      Selected (right-click or shift+click)
+    </div>
+    <div class="legend-item" style="color:#aaa;">
+      Left-click: toggle active &nbsp;|&nbsp; Right-click: select &nbsp;|&nbsp; Shift+click: add to selection
+    </div>
+  </div>
+
+  <div class="annotation">
+    Variant A: inline edit column docks to the right of the grid. Grid width is fixed; column slides in without reflowing step positions.
+    Assumes OQ1: edits write to clip-level MacroLane overrides. OQ3: Copy/Paste targets active layer only.
+  </div>
+
+</div><!-- end shell -->
+
+<script>
+// ---- Fixture data (adversarial: varied states, real-ish values) ----
+const STEP_COUNT = 16;
+
+// Per-step data model
+const steps = [
+  // idx, active, velocity (0-127), chance (0-100), note
+  { active: true,  velocity: 110, chance: 100, note: 'C3'  },  // 1
+  { active: false, velocity: 64,  chance: 80,  note: 'D3'  },  // 2
+  { active: true,  velocity: 90,  chance: 100, note: 'E3'  },  // 3
+  { active: false, velocity: 40,  chance: 50,  note: 'F3'  },  // 4
+  { active: true,  velocity: 100, chance: 100, note: 'G3'  },  // 5
+  { active: false, velocity: 75,  chance: 60,  note: 'A3'  },  // 6
+  { active: true,  velocity: 85,  chance: 100, note: 'Bb3' },  // 7
+  { active: true,  velocity: 55,  chance: 90,  note: 'C4'  },  // 8
+  { active: false, velocity: 45,  chance: 40,  note: 'D4'  },  // 9
+  { active: true,  velocity: 120, chance: 100, note: 'E4'  },  // 10
+  { active: false, velocity: 30,  chance: 25,  note: 'F#4' },  // 11
+  { active: true,  velocity: 95,  chance: 100, note: 'G4'  },  // 12
+  { active: false, velocity: 60,  chance: 70,  note: 'A4'  },  // 13
+  { active: true,  velocity: 80,  chance: 100, note: 'Bb4' },  // 14
+  { active: false, velocity: 50,  chance: 55,  note: 'C5'  },  // 15
+  { active: true,  velocity: 105, chance: 100, note: 'D5'  },  // 16
+];
+
+const NOTE_OPTIONS = ['C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3','A3','Bb3','B3',
+                      'C4','C#4','D4','D#4','E4','F4','F#4','G4','G#4','A4','Bb4','B4','C5'];
+
+let currentLayer = 'toggle';
+let playingStep = 0;  // simulated transport
+let selectedSteps = new Set();
+let clipboard = null;
+
+// ---- Build the grid ----
+function buildGrid() {
+  const grid = document.getElementById('stepGrid');
+  const nums  = document.getElementById('stepNumbers');
+  grid.innerHTML = '';
+  nums.innerHTML = '';
+
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.id = `cell-${i}`;
+    cell.dataset.index = i;
+
+    // Prevent context menu; use right-click for selection
+    cell.addEventListener('contextmenu', (e) => { e.preventDefault(); rightClickStep(i, e); });
+    cell.addEventListener('click', (e) => { leftClickStep(i, e); });
+
+    grid.appendChild(cell);
+
+    const num = document.createElement('div');
+    num.className = 'step-num';
+    num.textContent = i + 1;
+    nums.appendChild(num);
+  }
+
+  // Populate note picker options
+  const picker = document.getElementById('notePicker');
+  picker.innerHTML = '';
+  NOTE_OPTIONS.forEach(n => {
+    const opt = document.createElement('button');
+    opt.className = 'pick-opt';
+    opt.textContent = n;
+    opt.onclick = () => pickNote(n);
+    picker.appendChild(opt);
+  });
+
+  renderAll();
+}
+
+// ---- Render all cells ----
+function renderAll() {
+  for (let i = 0; i < STEP_COUNT; i++) {
+    renderCell(i);
+  }
+  renderEditColumn();
+  renderBatchBar();
+}
+
+function renderCell(i) {
+  const cell = document.getElementById(`cell-${i}`);
+  const step = steps[i];
+
+  // Reset classes
+  cell.className = 'cell';
+  if (step.active) cell.classList.add('active');
+  if (i === playingStep) cell.classList.add('playing');
+  if (selectedSteps.has(i)) cell.classList.add('selected');
+
+  // Inner content depends on layer
+  cell.innerHTML = '';
+
+  if (currentLayer === 'toggle') {
+    const dot = document.createElement('div');
+    dot.className = 'cell-dot';
+    cell.appendChild(dot);
+
+  } else if (currentLayer === 'velocity') {
+    const wrap = document.createElement('div');
+    wrap.className = 'cell-bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'cell-bar';
+    bar.style.height = Math.round((step.velocity / 127) * 100) + '%';
+    wrap.appendChild(bar);
+    cell.appendChild(wrap);
+    // Numeric hint
+    if (step.active) {
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:8px;color:#aaa;margin-top:2px;';
+      lbl.textContent = step.velocity;
+      cell.appendChild(lbl);
+    }
+
+  } else if (currentLayer === 'chance') {
+    const wrap = document.createElement('div');
+    wrap.className = 'cell-bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'cell-bar';
+    bar.style.height = step.chance + '%';
+    wrap.appendChild(bar);
+    cell.appendChild(wrap);
+    if (step.active) {
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:8px;color:#aaa;margin-top:2px;';
+      lbl.textContent = step.chance + '%';
+      cell.appendChild(lbl);
+    }
+
+  } else if (currentLayer === 'pitch') {
+    const lbl = document.createElement('div');
+    lbl.className = 'cell-label';
+    lbl.textContent = step.note;
+    cell.appendChild(lbl);
+  }
+}
+
+// ---- Layer switching ----
+function switchLayer(layer, btn) {
+  currentLayer = layer;
+  document.querySelectorAll('.layer-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  // Show/hide layer-specific controls in edit column
+  document.getElementById('ctrlToggle').style.display   = (layer === 'toggle')   ? '' : 'none';
+  document.getElementById('ctrlVelocity').style.display = (layer === 'velocity') ? '' : 'none';
+  document.getElementById('ctrlChance').style.display   = (layer === 'chance')   ? '' : 'none';
+  document.getElementById('ctrlPitch').style.display    = (layer === 'pitch')    ? '' : 'none';
+
+  renderAll();
+}
+
+// ---- Interactions ----
+function leftClickStep(i, e) {
+  if (e.shiftKey) {
+    // Multi-select: shift+click adds to selection
+    selectedSteps.add(i);
+  } else {
+    // Single click: toggle active state
+    steps[i].active = !steps[i].active;
+  }
+  renderAll();
+}
+
+function rightClickStep(i, e) {
+  if (e.shiftKey) {
+    selectedSteps.add(i);
+  } else {
+    // Right-click: select this step (clear others unless shift)
+    selectedSteps.clear();
+    selectedSteps.add(i);
+  }
+  // Sync edit column controls to this step's data
+  syncEditColumnToStep(i);
+  renderAll();
+}
+
+function clearSelection() {
+  selectedSteps.clear();
+  renderAll();
+}
+
+// ---- Edit column ----
+function syncEditColumnToStep(i) {
+  const step = steps[i];
+  const btn = document.getElementById('editActiveBtn');
+  btn.textContent = step.active ? 'ON' : 'OFF';
+  btn.className = 'toggle-btn' + (step.active ? ' on' : '');
+
+  document.getElementById('velSlider').value  = step.velocity;
+  document.getElementById('velVal').textContent = step.velocity;
+
+  document.getElementById('chanceSlider').value  = step.chance;
+  document.getElementById('chanceVal').textContent = step.chance;
+
+  // Highlight selected note
+  document.querySelectorAll('.pick-opt').forEach(opt => {
+    opt.classList.toggle('chosen', opt.textContent === step.note);
+  });
+}
+
+function renderEditColumn() {
+  const col = document.getElementById('editColumn');
+  const hdr = document.getElementById('editColHeader');
+
+  if (selectedSteps.size === 0) {
+    col.classList.remove('visible');
+    return;
+  }
+
+  col.classList.add('visible');
+
+  if (selectedSteps.size === 1) {
+    const i = [...selectedSteps][0];
+    hdr.textContent = `Step ${i + 1}`;
+    syncEditColumnToStep(i);
+  } else {
+    hdr.textContent = `Steps ${[...selectedSteps].map(x=>x+1).sort((a,b)=>a-b).join(', ')}`;
+    // Multi: show a note that edits apply to all selected
+    const btn = document.getElementById('editActiveBtn');
+    btn.textContent = '—';
+    btn.className = 'toggle-btn';
+  }
+}
+
+function renderBatchBar() {
+  const bar = document.getElementById('batchBar');
+  const lbl = document.getElementById('batchLabel');
+  if (selectedSteps.size > 0) {
+    bar.classList.add('visible');
+    lbl.textContent = `${selectedSteps.size} step${selectedSteps.size > 1 ? 's' : ''} selected`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+// ---- Edit column controls ----
+function toggleCellActive() {
+  if (selectedSteps.size === 0) return;
+  // Determine new state: if any selected are active, turn all off; else turn all on
+  const anyActive = [...selectedSteps].some(i => steps[i].active);
+  selectedSteps.forEach(i => { steps[i].active = !anyActive; });
+  renderAll();
+}
+
+function onSliderChange(sliderId, valId, suffix) {
+  const val = document.getElementById(sliderId).value;
+  document.getElementById(valId).textContent = val;
+  // Apply to all selected steps
+  if (selectedSteps.size === 0) return;
+  selectedSteps.forEach(i => {
+    if (sliderId === 'velSlider')    steps[i].velocity = parseInt(val);
+    if (sliderId === 'chanceSlider') steps[i].chance   = parseInt(val);
+  });
+  renderAll();
+}
+
+function pickNote(note) {
+  selectedSteps.forEach(i => { steps[i].note = note; });
+  document.querySelectorAll('.pick-opt').forEach(opt => {
+    opt.classList.toggle('chosen', opt.textContent === note);
+  });
+  renderAll();
+}
+
+// ---- Batch bar actions ----
+function batchClear() {
+  selectedSteps.forEach(i => { steps[i].active = false; });
+  showToast('Cleared ' + selectedSteps.size + ' step(s)');
+  renderAll();
+}
+
+function batchCopy() {
+  clipboard = [...selectedSteps].map(i => ({ index: i, ...steps[i] }));
+  showToast('Copied ' + clipboard.length + ' step(s) — active layer only');
+  // OQ3 assumption: active layer only
+}
+
+function batchPaste() {
+  if (!clipboard) { showToast('Nothing to paste'); return; }
+  // Paste: apply clipboard data to same indices (simple paste-in-place)
+  clipboard.forEach(entry => {
+    if (entry.index < STEP_COUNT) Object.assign(steps[entry.index], entry);
+  });
+  showToast('Pasted to original positions');
+  renderAll();
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:6px 16px;font-size:11px;border-radius:2px;z-index:999;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+// ---- Simulated transport ----
+let transportInterval = null;
+function startTransport() {
+  if (transportInterval) return;
+  transportInterval = setInterval(() => {
+    playingStep = (playingStep + 1) % STEP_COUNT;
+    renderAll();
+  }, 250);
+}
+function stopTransport() {
+  clearInterval(transportInterval);
+  transportInterval = null;
+  playingStep = 0;
+  renderAll();
+}
+
+// ---- Transport controls wired into stub chrome ----
+document.addEventListener('DOMContentLoaded', () => {
+  buildGrid();
+
+  // Wire transport to space bar for reviewer convenience
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (transportInterval) stopTransport();
+      else startTransport();
+    }
+    if (e.code === 'Escape') clearSelection();
+  });
+
+  // Pre-select steps 5, 6, 7, 8 to demonstrate multi-selection on load
+  // Reviewer can right-click to change selection
+  // (Not auto-selecting on load to let reviewer explore freely)
+});
+
+buildGrid();
+
+// Auto-demonstrate multi-selection state after 300ms for reviewer
+// Steps 5-8 (index 4-7) are pre-selected to show contextual bar
+setTimeout(() => {
+  [4, 5, 6, 7].forEach(i => selectedSteps.add(i));
+  renderAll();
+}, 300);
+
+// Start transport playback automatically for reviewer
+setTimeout(() => { startTransport(); }, 600);
+</script>
+
+</body>
+</html>
