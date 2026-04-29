@@ -1,10 +1,10 @@
 ---
 id: 2
 title: Scene Perform
-status: inventory
+status: blocked
 priority: unset
 blocked_by: []
-stage: draft-user-stories
+stage: clarify-feature
 owner: pm
 updated: 2026-04-29
 ---
