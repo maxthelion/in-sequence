@@ -151,10 +151,14 @@ classify_feature() {
     next_action="review-prototypes"
     reason="Prototype artifacts exist, but \`ux-review.md\` is missing."
     output_hint="Review variants against the UX checklist and choose or reject a direction."
+  elif ! has_content_file "$dir/architecture.md"; then
+    next_action="write-architecture"
+    reason="UX review exists, but \`architecture.md\` is missing."
+    output_hint="Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks."
   elif ! has_content_file "$dir/spec.md"; then
     next_action="write-spec"
-    reason="UX review exists, but \`spec.md\` is missing."
-    output_hint="Write the feature specification from the selected prototype direction."
+    reason="Architecture guardrails exist, but \`spec.md\` is missing."
+    output_hint="Write the feature specification from the selected prototype direction and architecture guardrails."
   elif ! has_content_file "$dir/plan.md"; then
     next_action="write-plan"
     reason="Spec exists, but \`plan.md\` is missing."
@@ -208,9 +212,10 @@ tmp="$OUT.tmp.$$"
   echo "4. \`existing-state.md\` -> inspect-existing-state"
   echo "5. \`prototypes/*\` -> build-prototypes"
   echo "6. \`ux-review.md\` -> review-prototypes"
-  echo "7. \`spec.md\` -> write-spec"
-  echo "8. \`plan.md\` -> write-plan"
-  echo "9. all present -> ready-for-build-queue"
+  echo "7. \`architecture.md\` -> write-architecture"
+  echo "8. \`spec.md\` -> write-spec"
+  echo "9. \`plan.md\` -> write-plan"
+  echo "10. all present -> ready-for-build-queue"
   echo
   echo "## Next User Item"
   echo

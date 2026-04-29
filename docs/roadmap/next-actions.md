@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-29T12:56:57Z
-Repo HEAD: 1a0b499
+Generated: 2026-04-29T13:11:58Z
+Repo HEAD: 96bb2a4
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -20,31 +20,32 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 4. `existing-state.md` -> inspect-existing-state
 5. `prototypes/*` -> build-prototypes
 6. `ux-review.md` -> review-prototypes
-7. `spec.md` -> write-spec
-8. `plan.md` -> write-plan
-9. all present -> ready-for-build-queue
+7. `architecture.md` -> write-architecture
+8. `spec.md` -> write-spec
+9. `plan.md` -> write-plan
+10. all present -> ready-for-build-queue
 
 ## Next User Item
+
+- **Item:** 2
+- **Feature:** Scene Perform
+- **Priority:** `unset`
+- **Status:** `blocked`
+- **Action:** `blocked`
+- **Role:** `user`
+- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Output:** Answer the open questions or resolve the blocker before advancing this item.
+
+## Next Agent Item
 
 - **Item:** 1
 - **Feature:** Clip History
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-prototypes`
-- **Role:** `user`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
-
-## Next Agent Item
-
-- **Item:** 3
-- **Feature:** Step Sequencer
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `draft-user-stories`
+- **Action:** `write-architecture`
 - **Role:** `pm-assistant`
-- **Why:** `notes.md` exists, but `user-stories.md` is missing.
-- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Why:** UX review exists, but `architecture.md` is missing.
+- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ## Feature Actions
 
@@ -54,10 +55,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
-- **Role:** `user`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Next action:** `write-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** UX review exists, but `architecture.md` is missing.
+- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ### 2. Scene Perform
 
@@ -76,10 +77,10 @@ For each feature, blocked metadata or open questions win first; otherwise the fi
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `draft-user-stories`
+- **Next action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
-- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Reason:** User stories exist, but `existing-state.md` is missing.
+- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ### 4. Mixer Main Out
 

@@ -4,7 +4,7 @@ title: Clip History
 status: inventory
 priority: unset
 blocked_by: []
-stage: review-prototypes
+stage: write-architecture
 owner: pm
 updated: 2026-04-29
 ---

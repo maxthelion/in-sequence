@@ -1,6 +1,6 @@
 ---
 name: pm-assistant
-description: Project-management assistant for roadmap planning. Advances docs/roadmap/* artifacts such as user stories, existing-state reports, open questions, UX reviews, specs, and plans. Does not edit production code. Uses Sonnet for product judgment.
+description: Project-management assistant for roadmap planning. Advances docs/roadmap/* artifacts such as user stories, existing-state reports, open questions, UX reviews, architecture guardrails, specs, and plans. Does not edit production code. Uses Sonnet for product judgment.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 ---
@@ -65,6 +65,7 @@ Typical artifacts:
 - `existing-state.md`
 - `prototypes/`
 - `ux-review.md`
+- `architecture.md`
 - `spec.md`
 - `plan.md`
 
@@ -151,9 +152,24 @@ Write `ux-review.md` with:
 - recommended direction
 - questions or required follow-up
 
+### write-architecture
+
+Read `ux-review.md`, `existing-state.md`, `user-stories.md`, and directly relevant implementation context.
+
+Write `architecture.md` with:
+
+- application invariants the feature must preserve
+- lightweight data/runtime model guardrails
+- transient versus persisted state
+- existing code patterns to follow
+- risks around broad rewrites, duplicated paths, or UI-only playback truth
+- architecture questions that must be answered before spec
+
+Do not write production code. Do not turn this into an implementation plan.
+
 ### write-spec
 
-Write `spec.md` only from approved stories, existing-state findings, and selected UX direction. Keep open questions explicit.
+Write `spec.md` only from approved stories, existing-state findings, selected UX direction, and `architecture.md`. Keep open questions explicit.
 
 ### write-plan
 

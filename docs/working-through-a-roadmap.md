@@ -43,6 +43,7 @@ docs/roadmap/<feature-slug>/
   existing-state.md
   prototypes/
   ux-review.md
+  architecture.md
   spec.md
   plan.md
 ```
@@ -192,7 +193,28 @@ Record the review outcome:
 - Which prototype direction to keep.
 - Which details need another pass.
 
-### 6. Specify The Feature
+### 6. Write Architecture Guardrails
+
+Before writing a build spec, pause to describe how the proposed feature should fit the application architecture.
+
+This is not an implementation plan. It is a guardrail document that prevents plausible UX ideas from turning into expensive rewrites or model shapes that fight the sequencer.
+
+Write `architecture.md` with:
+
+- The important application invariants the feature must preserve.
+- The lightweight data shape or runtime state model that should support the UX.
+- What should remain transient versus what should be persisted in the document.
+- How the feature should avoid broad document rewrites, duplicated code paths, or UI-only state becoming playback truth.
+- Any existing local patterns to follow, such as array-buffer style sequencer data structures, runtime snapshots, or small focused document deltas.
+- Concrete architecture questions that must be answered before spec.
+
+Examples:
+
+- Clip History should decide how recent step history is stored cheaply, how a scrubbed history region becomes a pseudo clip, and exactly when that pseudo clip becomes a real persisted clip.
+- Step-sequencer features should fit the existing array-buffer style data structures instead of introducing unrelated document storage.
+- Large UX changes should identify the smallest document/runtime boundary they need rather than rewriting the project model around a view.
+
+### 7. Specify The Feature
 
 Once a prototype direction is chosen, write the build specification.
 
@@ -208,7 +230,7 @@ The spec should include:
 
 Place the working spec and implementation plan in the feature directory. When a feature is ready for the main build queue, copy or promote stable versions into `docs/specs/` and `docs/plans/` if the broader automation flow needs them there.
 
-### 7. Promote To Build Loop
+### 8. Promote To Build Loop
 
 After the spec is agreed, promote the feature to the separate implementation loop. Roadmap PM work and product-building work should remain different loops with different permissions.
 
@@ -271,9 +293,10 @@ The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/
 4. `existing-state.md` -> inspect-existing-state
 5. `prototypes/*` -> build-prototypes
 6. `ux-review.md` -> review-prototypes
-7. `spec.md` -> write-spec
-8. `plan.md` -> write-plan
-9. all present -> ready-for-build-queue
+7. `architecture.md` -> write-architecture
+8. `spec.md` -> write-spec
+9. `plan.md` -> write-plan
+10. all present -> ready-for-build-queue
 
 This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, and prototype review outcomes.
 
