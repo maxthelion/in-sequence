@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Drum Parts — Part Workspace Header Navigation</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Drum Parts As A Group: 01 — Part workspace header with prev/next sibling
+  navigation and "open kit view" button.
+
+  COVERS STORIES: 1, 2
+
+  LAYOUT RATIONALE:
+  The existing TrackWorkspaceView header shows only the track name (double-tap
+  to rename). This prototype adds a kit-aware header band that sits above the
+  existing step-editor content area. The band contains:
+    LEFT:  prev part arrow  ← [Part Name]  next part arrow →
+    RIGHT: "Kit: <kit name>" label + "Open Kit View" button
+
+  The part name area keeps the existing rename affordance (double-tap).
+  Navigation wraps: stepping past the last part goes to the first (visual
+  indicator shows wrap edge).
+
+  STATES (use the state buttons to switch):
+    default       — middle part selected (Snare); both arrows active.
+    first-part    — Kick selected; left arrow disabled (or wraps — see Q1).
+    last-part     — Open Hat selected; right arrow disabled (or wraps).
+    generator     — Part has a generator source; step grid is read-only.
+    kit-view-open — Kit group view overlay is visible (stubbed).
+
+  INTERACTION BUDGET: navigate to adjacent part in <=1 interaction.
+  Click-path: tap ← or → arrow → part name updates, step grid updates.
+  Open kit view: tap "Open Kit View" button → kit group view opens (Story 2).
+
+  STUBS (dashed border): step grid content, phrase bank selector, settings
+  menu, transport bar, kit group view overlay body.
+
+  FIXTURES:
+  Kit name: "808 Bones"   (long enough to test truncation)
+  Parts: Kick / Snare / Clap / Closed Hat / Open Hat / Rim Shot
+  (6 parts — tests nav bounds)
+
+  OPEN QUESTIONS FOR SPEC:
+  Q1. At kit edges, does navigation wrap (circular) or stop (with disabled arrow)?
+      This prototype shows DISABLED arrow at edges. Circular wrap is the alternative.
+  Q2. Does "Open Kit View" push a new screen or slide in a panel over the part view?
+      Prototype shows an overlay panel; a push navigation is the alternative.
+  Q3. Should the part header show the kit colour strip (from TrackGroup.color) so the
+      user knows which kit the part belongs to without reading the name?
+  Q4. When a generator part is shown (read-only), should the nav arrows still work?
+      Prototype: yes, navigation still works; step grid shows a "generator" notice.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── meta bar ── */
+  .meta-bar {
+    background: #222;
+    color: #ccc;
+    font-size: 11px;
+    padding: 5px 14px;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .meta-bar strong { color: #fff; }
+  .state-btn {
+    border: 1px solid #555;
+    background: #333;
+    color: #ccc;
+    font-size: 11px;
+    padding: 2px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .state-btn.active { background: #0a7; color: #fff; border-color: #0a7; }
+
+  /* ── device frame ── */
+  .device-frame {
+    margin: 20px auto;
+    width: 390px;
+    border: 2px solid #666;
+    border-radius: 4px;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── transport stub ── */
+  .transport-stub {
+    border: 1px dashed #555;
+    background: #222;
+    color: #666;
+    font-size: 11px;
+    text-align: center;
+    padding: 6px;
+  }
+
+  /* ── kit header band (THE FOCUS OF THIS PROTOTYPE) ── */
+  .kit-header-band {
+    background: #1e1e1e;
+    border-bottom: 2px solid #444;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+  }
+
+  .nav-arrow {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #555;
+    background: #2c2c2c;
+    color: #ccc;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    flex-shrink: 0;
+    user-select: none;
+    transition: background 0.1s;
+  }
+  .nav-arrow:hover:not(.disabled) { background: #3a3a3a; }
+  .nav-arrow.disabled {
+    color: #444;
+    border-color: #333;
+    background: #1e1e1e;
+    cursor: default;
+  }
+  .nav-arrow.wrap-hint { border-color: #555; color: #888; }
+
+  .part-name-area {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+  }
+  .part-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #eee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: text;
+    padding: 2px 4px;
+    border-radius: 2px;
+    display: inline-block;
+    max-width: 100%;
+  }
+  .part-name:hover { background: #2a2a2a; }
+  .part-position {
+    font-size: 10px;
+    color: #666;
+    margin-top: 1px;
+  }
+
+  .kit-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  .kit-label {
+    font-size: 10px;
+    color: #777;
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+  }
+  .kit-label span { color: #aaa; }
+  .open-kit-btn {
+    border: 1px solid #0a7;
+    background: transparent;
+    color: #0a7;
+    font-size: 11px;
+    padding: 3px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+    transition: background 0.1s;
+  }
+  .open-kit-btn:hover { background: #0a722; }
+
+  /* ── colour strip (optional — per Q3) ── */
+  .kit-colour-strip {
+    height: 3px;
+    background: #c06030; /* kit colour from TrackGroup.color */
+  }
+
+  /* ── step grid area (existing — mostly stub) ── */
+  .track-workspace {
+    flex: 1;
+    background: #1a1a1a;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step-editor-label {
+    font-size: 10px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Step grid stub */
+  .step-grid-stub {
+    border: 1px dashed #444;
+    background: #1e1e1e;
+    border-radius: 2px;
+    padding: 10px;
+    color: #555;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .step-grid {
+    display: grid;
+    gap: 3px;
+  }
+  .step-row {
+    display: flex;
+    gap: 2px;
+  }
+  .step {
+    flex: 1;
+    height: 26px;
+    border: 1px solid #3a3a3a;
+    background: #252525;
+    border-radius: 1px;
+    cursor: pointer;
+    transition: background 0.08s;
+  }
+  .step.on { background: #ccc; border-color: #ccc; }
+  .step.on.accent { background: #fff; border-color: #fff; }
+  .step:hover { border-color: #666; }
+  .step.ghost { opacity: 0.3; }
+
+  .step-grid-divider {
+    width: 2px;
+    height: 26px;
+    background: #333;
+    flex-shrink: 0;
+  }
+
+  .generator-notice {
+    display: none;
+    border: 1px solid #555;
+    border-radius: 2px;
+    background: #222;
+    padding: 8px 10px;
+    color: #888;
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  .pattern-bank-stub {
+    border: 1px dashed #444;
+    background: #1e1e1e;
+    color: #555;
+    font-size: 10px;
+    padding: 6px;
+    text-align: center;
+  }
+
+  /* ── kit group view overlay (stub — Story 2) ── */
+  .kit-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: #111e;
+    z-index: 10;
+    flex-direction: column;
+  }
+  .kit-overlay.visible { display: flex; }
+  .kit-overlay-header {
+    background: #222;
+    border-bottom: 1px solid #444;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .kit-overlay-header h3 { color: #eee; font-size: 14px; }
+  .kit-overlay-close {
+    border: 1px solid #555;
+    background: #333;
+    color: #ccc;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 2px;
+  }
+  .kit-overlay-body {
+    flex: 1;
+    border: 2px dashed #444;
+    margin: 12px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    font-size: 12px;
+  }
+
+  /* ── bottom bar stub ── */
+  .bottom-bar-stub {
+    border-top: 1px dashed #333;
+    background: #1e1e1e;
+    color: #555;
+    font-size: 10px;
+    text-align: center;
+    padding: 5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── meta / state controls ── -->
+<div class="meta-bar">
+  <strong>[PROTOTYPE]</strong> Drum Parts — Part Workspace Header · Stories 1 &amp; 2
+  <span>State:</span>
+  <button class="state-btn active" onclick="setState('default')">default (Snare)</button>
+  <button class="state-btn" onclick="setState('first-part')">first-part (Kick)</button>
+  <button class="state-btn" onclick="setState('last-part')">last-part (Open Hat)</button>
+  <button class="state-btn" onclick="setState('generator')">generator part</button>
+  <button class="state-btn" onclick="setState('kit-view-open')">kit-view-open</button>
+</div>
+
+<!-- ── device frame ── -->
+<div class="device-frame" id="frame">
+
+  <!-- transport stub -->
+  <div class="transport-stub">→ [transport / scene selector — stub]</div>
+
+  <!-- kit header band (focus of this prototype) -->
+  <div class="kit-colour-strip"></div>
+  <div class="kit-header-band">
+    <button class="nav-arrow" id="prev-btn" onclick="navigate(-1)" title="Previous part">‹</button>
+    <div class="part-name-area">
+      <div class="part-name" id="part-name" title="Double-tap to rename">Snare</div>
+      <div class="part-position" id="part-pos">2 of 6 in 808 Bones</div>
+    </div>
+    <button class="nav-arrow" id="next-btn" onclick="navigate(1)" title="Next part">›</button>
+    <div class="kit-section">
+      <div class="kit-label">Kit: <span id="kit-name-label">808 Bones</span></div>
+      <button class="open-kit-btn" onclick="openKitView()">Open Kit View</button>
+    </div>
+  </div>
+
+  <!-- step editor workspace (existing — stub for off-path content) -->
+  <div class="track-workspace">
+    <div class="step-editor-label">Step Pattern — <span id="pattern-slot-label">P1</span></div>
+
+    <div class="generator-notice" id="generator-notice">
+      This part uses a generator source. Step grid is read-only from the part view.
+      → [Open generator editor]
+    </div>
+
+    <div id="step-grid-container">
+      <!-- 16-step grid, two rows of 8 for mobile width -->
+      <div class="step-row" id="step-row-1"></div>
+      <div style="height:4px"></div>
+      <div class="step-row" id="step-row-2"></div>
+    </div>
+
+    <div class="pattern-bank-stub">→ [Pattern bank (P1–P8) — stub]</div>
+    <div class="step-grid-stub">→ [Step parameter editors (velocity, pitch, length) — stub]</div>
+  </div>
+
+  <!-- bottom bar stub -->
+  <div class="bottom-bar-stub">→ [track settings / destination / modifier chain — stub]</div>
+
+  <!-- kit group view overlay (Story 2 — stubbed body) -->
+  <div class="kit-overlay" id="kit-overlay">
+    <div class="kit-overlay-header">
+      <h3>Kit: 808 Bones</h3>
+      <button class="kit-overlay-close" onclick="closeKitView()">← Back to Snare</button>
+    </div>
+    <div class="kit-overlay-body">
+      [Kit group view — see prototype 02-kit-step-matrix.html]
+    </div>
+  </div>
+
+</div><!-- /device-frame -->
+
+<script>
+  const PARTS = [
+    { name: "Kick",       slot: "P1", steps: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0], generator: false },
+    { name: "Snare",      slot: "P1", steps: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0], generator: false },
+    { name: "Clap",       slot: "P2", steps: [0,0,0,0, 1,0,0,1, 0,0,0,0, 1,0,0,0], generator: false },
+    { name: "Closed Hat", slot: "P1", steps: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0], generator: false },
+    { name: "Open Hat",   slot: "P1", steps: [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,1,0], generator: true  },
+    { name: "Rim Shot",   slot: "P3", steps: [0,0,1,0, 0,0,0,0, 0,0,1,0, 0,0,0,0], generator: false },
+  ];
+
+  let currentIndex = 1; // Snare
+  let currentState = 'default';
+
+  function buildStepGrid(partIndex) {
+    const steps = PARTS[partIndex].steps;
+    const r1 = document.getElementById('step-row-1');
+    const r2 = document.getElementById('step-row-2');
+    r1.innerHTML = '';
+    r2.innerHTML = '';
+    for (let i = 0; i < 16; i++) {
+      const btn = document.createElement('div');
+      btn.className = 'step' + (steps[i] ? ' on' : '');
+      if (steps[i] && i === 0) btn.classList.add('accent');
+      btn.addEventListener('click', () => btn.classList.toggle('on'));
+      (i < 8 ? r1 : r2).appendChild(btn);
+    }
+  }
+
+  function renderPart(index) {
+    const part = PARTS[index];
+    document.getElementById('part-name').textContent = part.name;
+    document.getElementById('part-pos').textContent =
+      (index + 1) + ' of ' + PARTS.length + ' in 808 Bones';
+    document.getElementById('pattern-slot-label').textContent = part.slot;
+    document.getElementById('kit-name-label').textContent = '808 Bones';
+    // Kit overlay close button label
+    document.querySelector('.kit-overlay-close').textContent = '← Back to ' + part.name;
+
+    buildStepGrid(index);
+
+    const genNotice = document.getElementById('generator-notice');
+    const gridContainer = document.getElementById('step-grid-container');
+    const isGen = currentState === 'generator' || part.generator;
+    genNotice.style.display = isGen ? 'block' : 'none';
+    gridContainer.style.opacity = isGen ? '0.35' : '1';
+    gridContainer.style.pointerEvents = isGen ? 'none' : '';
+
+    // Nav arrows
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    prevBtn.className = 'nav-arrow' + (index === 0 ? ' disabled' : '');
+    nextBtn.className = 'nav-arrow' + (index === PARTS.length - 1 ? ' disabled' : '');
+  }
+
+  function navigate(dir) {
+    const next = currentIndex + dir;
+    if (next < 0 || next >= PARTS.length) return;
+    currentIndex = next;
+    renderPart(currentIndex);
+    updateStateBtns();
+  }
+
+  function openKitView() {
+    document.getElementById('kit-overlay').classList.add('visible');
+  }
+
+  function closeKitView() {
+    document.getElementById('kit-overlay').classList.remove('visible');
+  }
+
+  function setState(state) {
+    currentState = state;
+    switch (state) {
+      case 'default':     currentIndex = 1; break; // Snare
+      case 'first-part':  currentIndex = 0; break; // Kick
+      case 'last-part':   currentIndex = PARTS.length - 1; break; // Rim Shot
+      case 'generator':   currentIndex = 4; break; // Open Hat (generator)
+      case 'kit-view-open':
+        currentIndex = 1; // Snare — keep position
+        renderPart(currentIndex);
+        openKitView();
+        updateStateBtns();
+        return;
+    }
+    document.getElementById('kit-overlay').classList.remove('visible');
+    renderPart(currentIndex);
+    updateStateBtns();
+  }
+
+  function updateStateBtns() {
+    document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+    const map = {
+      'default': 0, 'first-part': 1, 'last-part': 2, 'generator': 3, 'kit-view-open': 4
+    };
+    document.querySelectorAll('.state-btn')[map[currentState]]?.classList.add('active');
+  }
+
+  // Init
+  renderPart(currentIndex);
+</script>
+</body>
+</html>

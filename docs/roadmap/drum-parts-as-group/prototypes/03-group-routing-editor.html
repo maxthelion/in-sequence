@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Drum Parts — Group Routing &amp; Trigger Mapping</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Drum Parts As A Group: 03 — Group destination editor and trigger-mapping
+  mode selector. Accessible from the Kit Matrix "Edit Routing…" button.
+
+  COVERS STORIES: 5, 6
+
+  LAYOUT RATIONALE:
+  This is a panel/sheet that sits above the matrix view (or is a separate
+  screen). It is divided into two sections:
+
+  SECTION A — Group Destination (Story 5)
+    Shared destination field: port / channel selector.
+    "Use shared destination" toggle per part (or globally).
+    Individual part destination overrides shown in the part list below when
+    a part is NOT on inheritGroup.
+
+  SECTION B — Trigger Mapping Mode (Story 6)
+    Segmented control: "Per MIDI Note" | "Per MIDI Channel" | "Individual"
+    When "Per MIDI Note" is selected:
+      - Each part row shows its note assignment (derived from noteMapping or DrumKitNoteMap).
+      - The user can adjust the note offset per part.
+    When "Per MIDI Channel" is selected:
+      - Each part row shows its channel assignment (1–16).
+      - NOTE: existing model only has noteMapping (Int offset) — no per-member
+        channel field. This mode requires a model change. Flagged inline.
+    When "Individual":
+      - Each part uses its own destination (no group routing).
+      - The shared destination field is greyed out.
+
+  STATES (use buttons to switch):
+    note-mode     — Per MIDI Note (default for 808 preset)
+    channel-mode  — Per MIDI Channel (requires model change — flagged)
+    individual    — individual destinations
+    unsaved       — changes pending, "Apply" button highlighted
+
+  INTERACTION BUDGET: set group destination and mapping mode in <=3 interactions.
+  Click-path: tap "Edit Routing…" in kit matrix → routing panel opens →
+  tap "Per MIDI Note" / "Per MIDI Channel" → adjust per-part values →
+  tap "Apply".
+
+  STUBS (dashed border): destination picker modal (AddDestinationSheet reuse),
+  per-part destination override editor, undo, test-trigger button.
+
+  FIXTURES:
+  Kit: "808 Bones"  shared destination: IAC Driver Bus 1, Ch 10
+  Parts with note assignments from DrumKitNoteMap (GM):
+    Kick         note 36  (C2)
+    Snare        note 38  (D2)
+    Clap         note 39  (D#2)
+    Closed Hat   note 42  (F#2)
+    Open Hat     note 46  (A#2)
+    Rim Shot     note 37  (C#2)
+
+  MODEL GAPS FLAGGED INLINE:
+  - noteMapping stores INT offsets, not absolute note numbers. UI shows
+    absolute note (offset from baseline 36) but writing requires offset.
+  - Per-channel mode has NO existing field — flagged with a warning banner.
+  - triggerMappingMode enum does not exist in TrackGroup — flagged.
+
+  OPEN QUESTIONS FOR SPEC:
+  Q1. Is "Per MIDI Channel" a new persisted enum value on TrackGroup, or derived
+      from the shape of noteMapping? Model gap means this needs a decision.
+  Q2. When switching from "Per MIDI Note" to "Per MIDI Channel" mid-session,
+      do existing noteMapping values get cleared or archived? Risk of data loss.
+  Q3. When a part has an individual destination override, does the group
+      trigger-mapping mode still apply? Prototype says NO for "Individual" mode,
+      but the interaction with partial overrides is unclear.
+  Q4. Should "Per MIDI Channel" assignments be editable from 1–16 freely, or
+      should the UI prevent assigning two parts to the same channel?
+  Q5. How does this panel relate to AddDrumGroupSheet (creation time)?
+      Should it be the same component, or is a post-creation edit surface
+      separate? Prototype treats it as a standalone edit sheet.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    min-height: 100vh;
+  }
+
+  /* ── meta bar ── */
+  .meta-bar {
+    background: #222;
+    color: #ccc;
+    font-size: 11px;
+    padding: 5px 14px;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .meta-bar strong { color: #fff; }
+  .state-btn {
+    border: 1px solid #555;
+    background: #333;
+    color: #ccc;
+    font-size: 11px;
+    padding: 2px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .state-btn.active { background: #0a7; color: #fff; border-color: #0a7; }
+
+  /* ── device frame ── */
+  .device-frame {
+    margin: 20px auto;
+    width: 390px;
+    border: 2px solid #666;
+    border-radius: 4px;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* stubs */
+  .stub {
+    border: 1px dashed #444;
+    background: #1e1e1e;
+    color: #555;
+    font-size: 11px;
+    text-align: center;
+    padding: 6px 10px;
+  }
+
+  /* ── sheet header ── */
+  .sheet-header {
+    background: #1e1e1e;
+    border-bottom: 2px solid #444;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sheet-title { font-size: 14px; font-weight: 600; color: #eee; }
+  .sheet-subtitle { font-size: 10px; color: #666; margin-top: 2px; }
+  .cancel-btn {
+    border: 1px solid #555;
+    background: #2c2c2c;
+    color: #aaa;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .cancel-btn:hover { background: #3a3a3a; }
+
+  /* ── section ── */
+  .section {
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #666;
+    margin-bottom: 8px;
+  }
+
+  /* destination field */
+  .destination-field {
+    border: 1px solid #444;
+    background: #252525;
+    border-radius: 2px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: border-color 0.1s;
+  }
+  .destination-field:hover { border-color: #666; }
+  .destination-field.disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+  .dest-value { color: #ddd; font-size: 13px; }
+  .dest-channel { font-size: 11px; color: #888; margin-top: 2px; }
+  .dest-edit-hint { font-size: 11px; color: #555; }
+
+  /* ── trigger mode selector ── */
+  .trigger-mode-group {
+    display: flex;
+    border: 1px solid #444;
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .trigger-mode-opt {
+    flex: 1;
+    padding: 7px 4px;
+    text-align: center;
+    font-size: 12px;
+    background: #2a2a2a;
+    color: #888;
+    cursor: pointer;
+    border: none;
+    border-right: 1px solid #444;
+    transition: background 0.1s;
+  }
+  .trigger-mode-opt:last-child { border-right: none; }
+  .trigger-mode-opt:hover:not(.active) { background: #333; }
+  .trigger-mode-opt.active { background: #1e3a1e; color: #8fcc8f; border-color: #3a6a3a; }
+
+  /* model gap warning */
+  .model-gap-warning {
+    display: none;
+    border: 1px solid #5a3000;
+    background: #2a1800;
+    border-radius: 2px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #c07030;
+    margin-top: 8px;
+  }
+  .model-gap-warning.visible { display: block; }
+  .model-gap-warning strong { color: #e09050; }
+
+  /* ── part mapping table ── */
+  .part-mapping-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .part-mapping-table th {
+    font-size: 10px;
+    color: #555;
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 1px solid #2a2a2a;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .part-mapping-table th.right { text-align: right; }
+
+  .part-map-row {
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    padding: 5px 6px;
+    gap: 6px;
+    min-height: 34px;
+  }
+  .part-map-row:hover { background: #1e1e1e; }
+
+  .part-map-name {
+    flex: 1;
+    font-size: 12px;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* inherit toggle */
+  .inherit-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #777;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toggle-track {
+    width: 30px;
+    height: 16px;
+    border-radius: 8px;
+    background: #333;
+    border: 1px solid #555;
+    position: relative;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .toggle-track.on { background: #0a622a; border-color: #0a7; }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #888;
+    transition: left 0.15s, background 0.15s;
+  }
+  .toggle-track.on .toggle-thumb { left: 16px; background: #6ef; }
+
+  /* mapping value cell */
+  .map-value-cell {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .map-value {
+    width: 44px;
+    background: #252525;
+    border: 1px solid #444;
+    color: #ddd;
+    font-size: 12px;
+    padding: 3px 5px;
+    text-align: center;
+    border-radius: 2px;
+  }
+  .map-value:focus { outline: none; border-color: #0a7; background: #1e2e1e; }
+  .map-value.disabled { opacity: 0.3; pointer-events: none; }
+  .map-value-unit {
+    font-size: 10px;
+    color: #555;
+    width: 24px;
+  }
+
+  .override-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+    border: 1px dashed #555;
+    color: #666;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── apply bar ── */
+  .apply-bar {
+    background: #1e1e1e;
+    border-top: 1px solid #333;
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .apply-btn {
+    border: 1px solid #0a7;
+    background: #0a7;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 20px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.1s;
+  }
+  .apply-btn:hover { background: #0c8; }
+  .apply-btn.pending { background: #c07000; border-color: #c07000; }
+  .apply-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .changes-label {
+    font-size: 11px;
+    color: #888;
+  }
+  .changes-label.pending { color: #e0a030; }
+</style>
+</head>
+<body>
+
+<div class="meta-bar">
+  <strong>[PROTOTYPE]</strong> Group Routing &amp; Trigger Mapping · Stories 5 &amp; 6
+  <span>State:</span>
+  <button class="state-btn active" onclick="setState('note-mode')">note-mode</button>
+  <button class="state-btn" onclick="setState('channel-mode')">channel-mode</button>
+  <button class="state-btn" onclick="setState('individual')">individual</button>
+  <button class="state-btn" onclick="setState('unsaved')">unsaved changes</button>
+</div>
+
+<div class="device-frame" id="frame">
+
+  <div class="stub">→ [kit step matrix view behind this sheet — stub]</div>
+
+  <!-- sheet header -->
+  <div class="sheet-header">
+    <div>
+      <div class="sheet-title">808 Bones — Routing</div>
+      <div class="sheet-subtitle">Group destination &amp; trigger mapping</div>
+    </div>
+    <button class="cancel-btn" onclick="stubAction('← Back to kit matrix')">Cancel</button>
+  </div>
+
+  <!-- Section A: Group Destination -->
+  <div class="section">
+    <div class="section-label">Group Destination (sharedDestination)</div>
+    <div class="destination-field" id="dest-field" onclick="stubAction('→ [AddDestinationSheet] — pick destination')">
+      <div>
+        <div class="dest-value" id="dest-value-label">IAC Driver Bus 1</div>
+        <div class="dest-channel" id="dest-channel-label">MIDI Ch 10</div>
+      </div>
+      <div class="dest-edit-hint">Edit…</div>
+    </div>
+    <div style="margin-top:6px; font-size:11px; color:#666; line-height:1.4;">
+      Parts set to <em>Inherit Group</em> use this destination. Parts with individual
+      overrides are shown below as <span style="color:#888">[override]</span>.
+    </div>
+  </div>
+
+  <!-- Section B: Trigger Mapping Mode -->
+  <div class="section">
+    <div class="section-label">Trigger Mapping Mode (triggerMappingMode — new field)</div>
+    <div class="trigger-mode-group">
+      <button class="trigger-mode-opt" id="mode-note" onclick="setMappingMode('note')">Per MIDI Note</button>
+      <button class="trigger-mode-opt" id="mode-channel" onclick="setMappingMode('channel')">Per MIDI Channel</button>
+      <button class="trigger-mode-opt" id="mode-individual" onclick="setMappingMode('individual')">Individual</button>
+    </div>
+
+    <div class="model-gap-warning" id="channel-model-gap">
+      <strong>Model gap:</strong> Per-channel mapping requires a new per-member channel
+      field. <code>noteMapping [UUID: Int]</code> stores pitch offsets only — no channel
+      field exists. A <code>triggerMappingMode</code> enum on <code>TrackGroup</code> is
+      also needed. See existing-state.md §6.
+    </div>
+  </div>
+
+  <!-- Part mapping rows -->
+  <div class="section" style="padding:0">
+    <div style="padding:8px 12px 4px; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#666;">
+      Per-Part Assignments
+    </div>
+    <div id="part-map-rows"></div>
+  </div>
+
+  <!-- apply bar -->
+  <div class="apply-bar">
+    <div class="changes-label" id="changes-label">No changes</div>
+    <button class="apply-btn" id="apply-btn" onclick="applyChanges()" disabled>Apply</button>
+  </div>
+
+</div>
+
+<script>
+  const PARTS = [
+    { name: "Kick",       note: 36, noteName: "C2",  channel: 1,  inherit: true,  hasOverride: false },
+    { name: "Snare",      note: 38, noteName: "D2",  channel: 2,  inherit: true,  hasOverride: false },
+    { name: "Clap",       note: 39, noteName: "D#2", channel: 3,  inherit: false, hasOverride: true  },
+    { name: "Closed Hat", note: 42, noteName: "F#2", channel: 4,  inherit: true,  hasOverride: false },
+    { name: "Open Hat",   note: 46, noteName: "A#2", channel: 5,  inherit: true,  hasOverride: false },
+    { name: "Rim Shot",   note: 37, noteName: "C#2", channel: 6,  inherit: true,  hasOverride: false },
+  ];
+
+  let currentMode = 'note';
+  let currentState = 'note-mode';
+  let hasChanges = false;
+
+  function setMappingMode(mode) {
+    currentMode = mode;
+    hasChanges = true;
+
+    document.getElementById('mode-note').classList.toggle('active', mode === 'note');
+    document.getElementById('mode-channel').classList.toggle('active', mode === 'channel');
+    document.getElementById('mode-individual').classList.toggle('active', mode === 'individual');
+
+    const channelGap = document.getElementById('channel-model-gap');
+    channelGap.classList.toggle('visible', mode === 'channel');
+
+    const destField = document.getElementById('dest-field');
+    destField.classList.toggle('disabled', mode === 'individual');
+
+    renderPartRows();
+    markPending();
+  }
+
+  function renderPartRows() {
+    const container = document.getElementById('part-map-rows');
+    container.innerHTML = '';
+
+    PARTS.forEach((part, idx) => {
+      const row = document.createElement('div');
+      row.className = 'part-map-row';
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'part-map-name';
+      nameEl.textContent = part.name;
+
+      // inherit toggle (only when NOT individual mode)
+      const toggleWrap = document.createElement('label');
+      toggleWrap.className = 'inherit-toggle';
+      if (currentMode !== 'individual') {
+        const track = document.createElement('div');
+        track.className = 'toggle-track' + (part.inherit ? ' on' : '');
+        track.id = 'toggle-' + idx;
+        const thumb = document.createElement('div');
+        thumb.className = 'toggle-thumb';
+        track.appendChild(thumb);
+
+        const label = document.createElement('span');
+        label.textContent = part.inherit ? 'Shared' : 'Own';
+        label.id = 'toggle-label-' + idx;
+
+        track.addEventListener('click', () => {
+          part.inherit = !part.inherit;
+          track.classList.toggle('on', part.inherit);
+          label.textContent = part.inherit ? 'Shared' : 'Own';
+          renderPartRows();
+          markPending();
+        });
+
+        toggleWrap.appendChild(track);
+        toggleWrap.appendChild(label);
+      } else {
+        toggleWrap.style.display = 'none';
+      }
+
+      // mapping value cell
+      const mapCell = document.createElement('div');
+      mapCell.className = 'map-value-cell';
+
+      if (currentMode === 'individual' || !part.inherit) {
+        // show override badge
+        const badge = document.createElement('div');
+        badge.className = 'override-badge';
+        badge.textContent = part.hasOverride ? '[override]' : '[own dest]';
+        badge.title = 'This part uses its own destination setting';
+        mapCell.appendChild(badge);
+      } else if (currentMode === 'note') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'map-value';
+        input.value = part.noteName;
+        input.title = 'noteMapping offset = ' + (part.note - 36) + ' (base 36)';
+        input.addEventListener('change', () => markPending());
+        const unit = document.createElement('div');
+        unit.className = 'map-value-unit';
+        unit.textContent = 'note';
+        mapCell.appendChild(input);
+        mapCell.appendChild(unit);
+      } else if (currentMode === 'channel') {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 1;
+        input.max = 16;
+        input.className = 'map-value';
+        input.value = part.channel;
+        input.title = 'MIDI Channel (1–16) — requires new model field';
+        input.addEventListener('change', () => markPending());
+        const unit = document.createElement('div');
+        unit.className = 'map-value-unit';
+        unit.textContent = 'ch';
+        mapCell.appendChild(input);
+        mapCell.appendChild(unit);
+      }
+
+      row.appendChild(nameEl);
+      row.appendChild(toggleWrap);
+      row.appendChild(mapCell);
+      container.appendChild(row);
+    });
+  }
+
+  function markPending() {
+    hasChanges = true;
+    const btn = document.getElementById('apply-btn');
+    const label = document.getElementById('changes-label');
+    btn.disabled = false;
+    btn.classList.add('pending');
+    label.textContent = 'Unsaved changes';
+    label.classList.add('pending');
+  }
+
+  function applyChanges() {
+    const btn = document.getElementById('apply-btn');
+    const label = document.getElementById('changes-label');
+    btn.classList.remove('pending');
+    btn.disabled = true;
+    label.textContent = 'Saved';
+    label.classList.remove('pending');
+    hasChanges = false;
+    // In production: write sharedDestination, noteMapping, triggerMappingMode to TrackGroup
+    stubAction('APPLY — writes sharedDestination + noteMapping/channelMapping + triggerMappingMode to TrackGroup');
+  }
+
+  function setState(state) {
+    currentState = state;
+    switch (state) {
+      case 'note-mode':    setMappingMode('note'); break;
+      case 'channel-mode': setMappingMode('channel'); break;
+      case 'individual':   setMappingMode('individual'); break;
+      case 'unsaved':
+        setMappingMode(currentMode === 'individual' ? 'note' : currentMode);
+        markPending();
+        break;
+    }
+    updateStateBtns();
+  }
+
+  function updateStateBtns() {
+    document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+    const idx = ['note-mode','channel-mode','individual','unsaved'].indexOf(currentState);
+    document.querySelectorAll('.state-btn')[idx]?.classList.add('active');
+  }
+
+  function stubAction(msg) {
+    alert('[STUB] ' + msg);
+  }
+
+  // Init
+  setMappingMode('note');
+  updateStateBtns();
+</script>
+</body>
+</html>

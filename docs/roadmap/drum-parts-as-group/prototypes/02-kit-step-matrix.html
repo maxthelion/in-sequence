@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Drum Parts — Kit Step Matrix View</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Drum Parts As A Group: 02 — Kit group view: step matrix.
+  Rows = parts, columns = steps. Per-part pattern slot indicator.
+
+  COVERS STORIES: 3, 4
+
+  LAYOUT RATIONALE:
+  Each row in the matrix has:
+    LEFT:  part name label (fixed width)
+    MIDDLE: active pattern slot badge (e.g. "P1")  — warns when parts diverge
+    RIGHT: 16-step (or 32-step) row of step cells, read-legible only in this view
+
+  Pattern coherence signal: when two or more parts are on different pattern
+  slots, the mismatched badges are highlighted amber so the producer can tell
+  at a glance that what they see may NOT be what plays together.
+
+  Rows with generator sources are shown at reduced opacity with a [gen] badge.
+  Clicking a part row navigates into that part's workspace (Story 2 return path).
+
+  A toolbar at the top of the matrix allows:
+    - Switching between 16-step and 32-step column widths
+    - A "kit pattern" concept is noted but left as a stub (not in scope for
+      this feature — see open questions)
+    - "Edit routing" button links to prototype 03
+
+  STATES (use buttons to switch):
+    default       — all parts on P1 (coherent)
+    mixed-patterns — Clap on P2, Rim Shot on P3 (incoherent — amber badges)
+    solo-kick     — Kick row selected (highlight)
+    generator-hat — Open Hat shown as read-only generator row
+
+  INTERACTION BUDGET: understand full kit groove in <=1 interaction (arrive at
+  this view). Click part row → opens part workspace in <=1 more interaction.
+  Click-path: from part view, tap "Open Kit View" → matrix visible immediately.
+  Tap a row → returns to that part's workspace.
+
+  STUBS (dashed border): transport bar, kit pattern selector concept, inline
+  step editing (all step cells read-only in this view per user-story assumption),
+  generator editor links, routing/destination editor (see prototype 03).
+
+  FIXTURES:
+  Kit: "808 Bones"  — 6 parts, 16 steps each
+  Parts: Kick / Snare / Clap / Closed Hat / Open Hat (generator) / Rim Shot
+
+  OPEN QUESTIONS FOR SPEC:
+  Q1. Are step cells in this matrix view read-only, or can they be tapped to
+      toggle? User story says "read-legible"; assumption says inline editing of
+      generator/layer parts is out of scope. Prototype shows ALL steps as
+      read-only here (tap shows "Edit in part view" tip). Confirm scope.
+  Q2. Should 32-step patterns scroll horizontally per row, or compress to fit?
+      Prototype shows a toggle between 16-column and compressed 32-column mode.
+  Q3. "Kit pattern" concept (sets of per-part pattern indices): user notes
+      mention this but it is not in the user stories. Stub shown; defer to
+      spec if picked up.
+  Q4. Should tapping a part row push to the part workspace (full navigation) or
+      open a compact inline expander? Prototype uses a push / return model.
+  Q5. What does "mute" on a TrackGroup member look like in this matrix?
+      The existing TrackGroup has .mute on the group, not per-part. Stub for now.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    min-height: 100vh;
+  }
+
+  /* ── meta bar ── */
+  .meta-bar {
+    background: #222;
+    color: #ccc;
+    font-size: 11px;
+    padding: 5px 14px;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .meta-bar strong { color: #fff; }
+  .state-btn {
+    border: 1px solid #555;
+    background: #333;
+    color: #ccc;
+    font-size: 11px;
+    padding: 2px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .state-btn.active { background: #0a7; color: #fff; border-color: #0a7; }
+
+  /* ── device frame ── */
+  .device-frame {
+    margin: 20px auto;
+    width: 420px;
+    border: 2px solid #666;
+    border-radius: 4px;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* stubs */
+  .transport-stub {
+    border: 1px dashed #555;
+    background: #222;
+    color: #666;
+    font-size: 11px;
+    text-align: center;
+    padding: 6px;
+  }
+
+  /* ── kit matrix header ── */
+  .kit-matrix-header {
+    background: #1e1e1e;
+    border-bottom: 2px solid #444;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .kit-matrix-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .kit-matrix-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #eee;
+  }
+  .kit-matrix-subtitle {
+    font-size: 10px;
+    color: #666;
+  }
+  .kit-colour-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #c06030;
+    display: inline-block;
+    margin-right: 4px;
+  }
+
+  .kit-matrix-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .step-count-toggle {
+    display: flex;
+    border: 1px solid #444;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .step-count-opt {
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    background: #2c2c2c;
+    color: #888;
+    border: none;
+  }
+  .step-count-opt.active { background: #444; color: #eee; }
+
+  .edit-routing-btn {
+    border: 1px solid #555;
+    background: #2c2c2c;
+    color: #aaa;
+    font-size: 11px;
+    padding: 3px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .edit-routing-btn:hover { background: #3a3a3a; }
+
+  /* ── kit pattern selector stub ── */
+  .kit-pattern-stub {
+    border: 1px dashed #444;
+    background: #1e1e1e;
+    color: #555;
+    font-size: 10px;
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .kit-pattern-stub span { color: #444; font-style: italic; }
+
+  /* ── matrix table ── */
+  .matrix-container {
+    overflow-x: auto;
+    padding: 0;
+  }
+  .matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .matrix-col-header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+  }
+  .col-label-cell {
+    width: 90px;
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+  .col-slot-cell {
+    width: 28px;
+    min-width: 28px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 9px;
+    color: #555;
+  }
+  .col-steps-cell {
+    flex: 1;
+    display: flex;
+    gap: 2px;
+    padding: 0 4px;
+  }
+  .col-step-num {
+    flex: 1;
+    text-align: center;
+    font-size: 9px;
+    color: #444;
+  }
+  .col-step-num.beat { color: #666; font-weight: 600; }
+
+  /* part row */
+  .part-row {
+    border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.1s;
+    min-height: 36px;
+  }
+  .part-row:hover { background: #222; }
+  .part-row.selected { background: #1e2e1e; }
+  .part-row.generator { opacity: 0.6; }
+
+  .part-name-cell {
+    width: 90px;
+    min-width: 90px;
+    flex-shrink: 0;
+    padding: 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .part-row-name {
+    font-size: 12px;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gen-badge {
+    display: none;
+    font-size: 9px;
+    color: #666;
+    font-style: italic;
+  }
+  .part-row.generator .gen-badge { display: block; }
+
+  /* pattern slot badge */
+  .pattern-slot-cell {
+    width: 28px;
+    min-width: 28px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .slot-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 3px;
+    border-radius: 2px;
+    background: #2a2a2a;
+    color: #888;
+    border: 1px solid #3a3a3a;
+    white-space: nowrap;
+  }
+  .slot-badge.mismatch {
+    background: #3a2800;
+    color: #e0a030;
+    border-color: #a06010;
+  }
+
+  /* step cells */
+  .steps-cell {
+    flex: 1;
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+  }
+  .step-cell {
+    flex: 1;
+    height: 22px;
+    border: 1px solid #2e2e2e;
+    background: #222;
+    border-radius: 1px;
+    position: relative;
+  }
+  .step-cell.on { background: #aaa; border-color: #aaa; }
+  .step-cell.on.accent { background: #eee; border-color: #eee; }
+  .step-cell.beat-start { border-left: 2px solid #3a3a3a; }
+
+  /* tooltip shown on step tap (read-only signal) */
+  .readonly-tip {
+    display: none;
+    position: fixed;
+    background: #333;
+    color: #ccc;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    border: 1px solid #555;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .readonly-tip.visible { display: block; }
+
+  /* coherence warning banner */
+  .coherence-warning {
+    display: none;
+    background: #2a1e00;
+    border-bottom: 1px solid #6a4000;
+    padding: 5px 10px;
+    font-size: 11px;
+    color: #c08030;
+    gap: 6px;
+    align-items: center;
+  }
+  .coherence-warning.visible { display: flex; }
+  .coherence-warning strong { color: #e0a030; }
+
+  /* ── action bar ── */
+  .action-bar {
+    background: #1e1e1e;
+    border-top: 1px solid #333;
+    padding: 8px 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .back-btn {
+    border: 1px solid #555;
+    background: #2c2c2c;
+    color: #ccc;
+    font-size: 12px;
+    padding: 5px 12px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .back-btn:hover { background: #3a3a3a; }
+  .action-bar-right {
+    display: flex;
+    gap: 6px;
+  }
+  .mute-group-btn {
+    border: 1px dashed #444;
+    background: transparent;
+    color: #555;
+    font-size: 11px;
+    padding: 4px 8px;
+    cursor: default;
+    border-radius: 2px;
+  }
+
+  /* bottom stub */
+  .bottom-bar-stub {
+    border-top: 1px dashed #333;
+    background: #1e1e1e;
+    color: #555;
+    font-size: 10px;
+    text-align: center;
+    padding: 5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="meta-bar">
+  <strong>[PROTOTYPE]</strong> Drum Parts — Kit Step Matrix · Stories 3 &amp; 4
+  <span>State:</span>
+  <button class="state-btn active" onclick="setState('default')">default (coherent)</button>
+  <button class="state-btn" onclick="setState('mixed-patterns')">mixed-patterns</button>
+  <button class="state-btn" onclick="setState('solo-kick')">solo-kick</button>
+  <button class="state-btn" onclick="setState('generator-hat')">generator-hat</button>
+</div>
+
+<div class="device-frame" id="frame">
+
+  <div class="transport-stub">→ [transport / scene selector — stub]</div>
+
+  <!-- kit matrix header -->
+  <div class="kit-matrix-header">
+    <div class="kit-matrix-header-left">
+      <div class="kit-matrix-title">
+        <span class="kit-colour-dot"></span>808 Bones
+      </div>
+      <div class="kit-matrix-subtitle">6 parts &nbsp;·&nbsp; 16 steps</div>
+    </div>
+    <div class="kit-matrix-header-right">
+      <div class="step-count-toggle">
+        <button class="step-count-opt active" onclick="setStepWidth(16, this)">16</button>
+        <button class="step-count-opt" onclick="setStepWidth(32, this)">32</button>
+      </div>
+      <button class="edit-routing-btn" onclick="stubAction('→ Edit Routing / Destinations')">Edit Routing…</button>
+    </div>
+  </div>
+
+  <!-- kit pattern stub -->
+  <div class="kit-pattern-stub">
+    → [Kit Pattern selector — concept stub: sets of per-part pattern indices]
+    <span>(deferred)</span>
+  </div>
+
+  <!-- coherence warning -->
+  <div class="coherence-warning" id="coherence-warning">
+    <strong>Pattern mismatch</strong> — not all parts are on the same pattern slot. Active parts shown for each slot.
+  </div>
+
+  <!-- column headers -->
+  <div class="matrix-col-header" id="col-header">
+    <div class="col-label-cell"></div>
+    <div class="col-slot-cell">Pat</div>
+    <div class="col-steps-cell" id="step-col-nums"></div>
+  </div>
+
+  <!-- matrix rows -->
+  <div id="matrix-rows"></div>
+
+  <!-- action bar -->
+  <div class="action-bar">
+    <button class="back-btn" onclick="stubAction('← Back to previous part view')">← Back</button>
+    <div class="action-bar-right">
+      <button class="mute-group-btn" title="Stub — mute is group-level only today">Mute Kit →</button>
+    </div>
+  </div>
+
+  <div class="bottom-bar-stub">→ [app nav tabs — stub]</div>
+</div>
+
+<div class="readonly-tip" id="readonly-tip">Tap row to edit this part</div>
+
+<script>
+  const PARTS = [
+    { name: "Kick",        defaultSlot: 1, altSlot: 1,  steps: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0], generator: false },
+    { name: "Snare",       defaultSlot: 1, altSlot: 1,  steps: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0], generator: false },
+    { name: "Clap",        defaultSlot: 1, altSlot: 2,  steps: [0,0,0,0, 1,0,0,1, 0,0,0,0, 1,0,0,0], generator: false },
+    { name: "Closed Hat",  defaultSlot: 1, altSlot: 1,  steps: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0], generator: false },
+    { name: "Open Hat",    defaultSlot: 1, altSlot: 1,  steps: [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,1,0], generator: true  },
+    { name: "Rim Shot",    defaultSlot: 1, altSlot: 3,  steps: [0,0,1,0, 0,0,0,0, 0,0,1,0, 0,0,0,0], generator: false },
+  ];
+
+  let currentState = 'default';
+  let stepCount = 16;
+  let selectedRow = -1;
+
+  function getSlot(part, state) {
+    if (state === 'mixed-patterns') return part.altSlot;
+    return part.defaultSlot;
+  }
+
+  function isMismatch(parts, state) {
+    const slots = parts.map(p => getSlot(p, state));
+    const first = slots[0];
+    return slots.some(s => s !== first);
+  }
+
+  function buildColHeaders(count) {
+    const container = document.getElementById('step-col-nums');
+    container.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'col-step-num' + ((i % 4 === 0) ? ' beat' : '');
+      el.textContent = i % 4 === 0 ? (Math.floor(i / 4) + 1) : '';
+      container.appendChild(el);
+    }
+  }
+
+  function buildMatrix(state, count) {
+    const container = document.getElementById('matrix-rows');
+    container.innerHTML = '';
+    const mismatch = isMismatch(PARTS, state);
+
+    document.getElementById('coherence-warning').classList.toggle('visible', mismatch);
+
+    PARTS.forEach((part, idx) => {
+      const slot = getSlot(part, state);
+      const allSlots = PARTS.map(p => getSlot(p, state));
+      const slotMismatch = mismatch && slot !== allSlots[0];
+
+      const row = document.createElement('div');
+      row.className = 'part-row' +
+        (part.generator && state === 'generator-hat' ? ' generator' : '') +
+        (selectedRow === idx ? ' selected' : '');
+      row.dataset.idx = idx;
+
+      // Part name cell
+      const nameCell = document.createElement('div');
+      nameCell.className = 'part-name-cell';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'part-row-name';
+      nameEl.textContent = part.name;
+      const genBadge = document.createElement('div');
+      genBadge.className = 'gen-badge';
+      genBadge.textContent = '[generator — read only]';
+      nameCell.appendChild(nameEl);
+      nameCell.appendChild(genBadge);
+
+      // Pattern slot badge
+      const slotCell = document.createElement('div');
+      slotCell.className = 'pattern-slot-cell';
+      const badge = document.createElement('div');
+      badge.className = 'slot-badge' + (slotMismatch ? ' mismatch' : '');
+      badge.textContent = 'P' + slot;
+      badge.title = slotMismatch ? 'Pattern mismatch — this part may not play with the others' : 'Active pattern slot';
+      slotCell.appendChild(badge);
+
+      // Steps cell
+      const stepsCell = document.createElement('div');
+      stepsCell.className = 'steps-cell';
+
+      const displaySteps = count === 32
+        ? [...part.steps, ...part.steps]  // repeat 16-step pattern for 32-step preview
+        : part.steps;
+
+      displaySteps.forEach((on, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'step-cell' +
+          (on ? ' on' : '') +
+          (on && i === 0 ? ' accent' : '') +
+          (i % 4 === 0 ? ' beat-start' : '');
+        cell.title = 'Step ' + (i + 1);
+        cell.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showReadonlyTip(e, part.name);
+        });
+        stepsCell.appendChild(cell);
+      });
+
+      row.appendChild(nameCell);
+      row.appendChild(slotCell);
+      row.appendChild(stepsCell);
+
+      row.addEventListener('click', () => {
+        selectedRow = idx;
+        buildMatrix(currentState, stepCount);
+        setTimeout(() => stubAction('→ Opens ' + part.name + ' part workspace'), 200);
+      });
+
+      container.appendChild(row);
+    });
+
+    // solo-kick: dim non-selected rows
+    if (state === 'solo-kick') {
+      container.querySelectorAll('.part-row').forEach((row, idx) => {
+        row.style.opacity = idx === 0 ? '1' : '0.3';
+      });
+    } else {
+      container.querySelectorAll('.part-row').forEach(row => {
+        row.style.opacity = '';
+      });
+    }
+  }
+
+  function setStepWidth(count, btn) {
+    stepCount = count;
+    document.querySelectorAll('.step-count-opt').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildColHeaders(count);
+    buildMatrix(currentState, count);
+  }
+
+  let tipTimer = null;
+  function showReadonlyTip(e, partName) {
+    const tip = document.getElementById('readonly-tip');
+    tip.textContent = 'Tap row to edit ' + partName + ' in part view';
+    tip.style.left = (e.clientX + 10) + 'px';
+    tip.style.top = (e.clientY - 30) + 'px';
+    tip.classList.add('visible');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => tip.classList.remove('visible'), 1800);
+  }
+
+  function setState(state) {
+    currentState = state;
+    if (state === 'solo-kick') selectedRow = 0;
+    else selectedRow = -1;
+    buildMatrix(state, stepCount);
+    updateStateBtns();
+  }
+
+  function updateStateBtns() {
+    document.querySelectorAll('.state-btn').forEach(btn => btn.classList.remove('active'));
+    const idx = ['default','mixed-patterns','solo-kick','generator-hat'].indexOf(currentState);
+    document.querySelectorAll('.state-btn')[idx]?.classList.add('active');
+  }
+
+  function stubAction(msg) {
+    alert('[STUB] ' + msg);
+  }
+
+  // Init
+  buildColHeaders(stepCount);
+  buildMatrix(currentState, stepCount);
+</script>
+</body>
+</html>
