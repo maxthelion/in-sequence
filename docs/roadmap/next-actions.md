@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T09:53:29Z
-Repo HEAD: d41b720
+Generated: 2026-04-30T09:58:15Z
+Repo HEAD: e57a551
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -46,10 +46,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Feature:** Autoslice Algorithm
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `draft-user-stories`
+- **Action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Why:** `notes.md` exists, but `user-stories.md` is missing.
-- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Why:** User stories exist, but `existing-state.md` is missing.
+- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ## Feature Actions
 
@@ -191,10 +191,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `draft-user-stories`
+- **Next action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
-- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Reason:** User stories exist, but `existing-state.md` is missing.
+- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ### 14. Audio Looping
 
