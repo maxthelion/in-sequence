@@ -4,7 +4,7 @@ title: Input Audio
 status: inventory
 priority: unset
 blocked_by: []
-stage: inspect-existing-state
+stage: write-spec
 owner: pm
 updated: 2026-04-29
 ---
