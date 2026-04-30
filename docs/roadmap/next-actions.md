@@ -1,32 +1,33 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T09:03:45Z
-Repo HEAD: 303ff86
+Generated: 2026-04-30T09:08:43Z
+Repo HEAD: 317d026
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
 
 Each roadmap item has front matter in its feature `README.md`: `id`, `title`, `status`, `priority`, `blocked_by`, `stage`, `owner`, and `updated`.
 
-Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-prototypes` and `review-architecture`, which require user judgment. `clarify-feature`, `blocked`, `review-prototypes`, and `review-architecture` require user input.
+Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-prototypes` and `review-architecture`, which require user judgment. `clarify-feature`, `blocked`, `review-prototypes`, and `review-architecture` require user input. `address-feedback` is a PM-assistant action.
 
 ## Selector
 
-For each feature, deferred status wins first, then blocked metadata or open questions; otherwise the first missing artifact wins:
+For each feature, deferred status wins first, then unresolved feedback, then blocked metadata or open questions; otherwise the first missing artifact wins:
 
 1. `status: deferred` -> deferred
-2. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
-3. `notes.md` -> clarify-feature
-4. `user-stories.md` -> draft-user-stories
-5. `existing-state.md` -> inspect-existing-state
-6. `prototypes/*` -> build-prototypes
-7. `ux-review.md` -> review-prototypes
-8. `architecture.md` -> write-architecture
-9. `architecture-review.md` -> review-architecture
-10. `spec.md` -> write-spec
-11. `plan.md` -> write-plan
-12. `implementation-handoff.md` -> write-implementation-handoff
-13. all present -> ready-for-build-queue
+2. unresolved `feedback/*.md` -> address-feedback
+3. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+4. `notes.md` -> clarify-feature
+5. `user-stories.md` -> draft-user-stories
+6. `existing-state.md` -> inspect-existing-state
+7. `prototypes/*` -> build-prototypes
+8. `ux-review.md` -> review-prototypes
+9. `architecture.md` -> write-architecture
+10. `architecture-review.md` -> review-architecture
+11. `spec.md` -> write-spec
+12. `plan.md` -> write-plan
+13. `implementation-handoff.md` -> write-implementation-handoff
+14. all present -> ready-for-build-queue
 
 ## Next User Item
 
@@ -41,14 +42,14 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 
 ## Next Agent Item
 
-- **Item:** 9
-- **Feature:** Modifier Chain Placement
+- **Item:** 10
+- **Feature:** Phrase Features
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `build-prototypes`
+- **Action:** `draft-user-stories`
 - **Role:** `pm-assistant`
-- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
+- **Why:** `notes.md` exists, but `user-stories.md` is missing.
+- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ## Feature Actions
 
@@ -146,10 +147,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `build-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Suggested output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
+- **Next action:** `review-prototypes`
+- **Role:** `user`
+- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
 ### 10. Phrase Features
 
