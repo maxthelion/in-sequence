@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T11:12:37Z
-Repo HEAD: 9970d64
+Generated: 2026-04-30T11:16:45Z
+Repo HEAD: e87f74a
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -31,8 +31,8 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 
 ## Next User Item
 
-- **Item:** 2
-- **Feature:** Scene Perform
+- **Item:** 3
+- **Feature:** Step Sequencer
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `review-architecture`
@@ -42,14 +42,14 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 
 ## Next Agent Item
 
-- **Item:** 18
-- **Feature:** Toggle Fill On A Track To Hear It
+- **Item:** 2
+- **Feature:** Scene Perform
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `draft-user-stories`
+- **Action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Why:** `notes.md` exists, but `user-stories.md` is missing.
-- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Why:** Architecture review exists, but `spec.md` is missing.
+- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ## Feature Actions
 
@@ -70,10 +70,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
-- **Role:** `user`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Next action:** `write-spec`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture review exists, but `spec.md` is missing.
+- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ### 3. Step Sequencer
 
@@ -246,10 +246,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `draft-user-stories`
+- **Next action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
-- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Reason:** User stories exist, but `existing-state.md` is missing.
+- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ### 19. Drum Kit Group View
 
