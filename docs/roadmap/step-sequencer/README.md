@@ -7,7 +7,7 @@ blocked_by: []
 stage: review-prototypes
 owner: pm
 updated: 2026-04-30
-ux_review: docs/roadmap/step-sequencer/ux-review.md
+ux_review_archived: docs/roadmap/step-sequencer/ux-reviews/ux-review-2026-04-29.md
 ---
 
 # Step Sequencer
