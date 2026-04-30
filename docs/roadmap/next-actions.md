@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T15:31:12Z
-Repo HEAD: a225af5
+Generated: 2026-04-30T15:35:58Z
+Repo HEAD: 6a5da79
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -45,8 +45,8 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 15
-- **Feature:** Note Repeat
+- **Item:** 16
+- **Feature:** Step Order
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `review-prototypes`
@@ -216,10 +216,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
+- **Next action:** `write-architecture`
 - **Role:** `pm-assistant`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Reason:** UX review exists, but `architecture.md` is missing.
+- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ### 16. Step Order
 
