@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Navigation &amp; Layer Selector — Wireframe (Stories 5–6)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: #f2f2f2;
+    color: #111;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── Semantic colors ──
+     #111      primary text
+     #555      secondary text
+     #0060df   interactive / accent
+     #cc3300   error / destructive
+     #2a7a2a   success / active state
+     #888      disabled
+     #ffd700   loop badge
+  */
+
+  .wf-label  { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: .06em; }
+  .wf-note   { font-size: 11px; color: #555; font-style: italic; margin-top: 4px; }
+  .wf-stub   { border: 2px dashed #bbb; color: #aaa; background: repeating-linear-gradient(45deg, transparent, transparent 4px, #eee 4px, #eee 8px); text-align: center; padding: 6px 10px; font-size: 11px; cursor: default; }
+  .wf-badge  { display: inline-block; font-size: 10px; background: #ddd; border: 1px solid #bbb; border-radius: 2px; padding: 1px 5px; vertical-align: middle; }
+
+  .page-header { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #ccc; }
+  .page-header h1 { font-size: 15px; font-weight: 600; }
+  .page-header p  { color: #555; font-size: 11px; margin-top: 4px; }
+
+  .section {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #444;
+    margin-bottom: 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  hr.section-sep { border: none; border-top: 2px solid #ccc; margin: 28px 0; }
+
+  .budget-box {
+    font-size: 11px;
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .budget-box ol { margin-left: 18px; margin-top: 4px; }
+  .budget-box li { margin-bottom: 2px; color: #333; }
+
+  /* ═══════════════════════════════
+     MATRIX CHROME
+  ═══════════════════════════════ */
+
+  /*
+    Full workspace layout:
+      [phrase list] | [track matrix]
+    Inside track matrix:
+      [header row: nav-arrow | track names | nav-arrow]
+      [grid rows ...]
+      [layer selector below grid — or above, TBD]
+  */
+
+  .workspace {
+    display: flex;
+    gap: 0;
+    border: 1px solid #bbb;
+    background: #fafafa;
+    width: 100%;
+    max-width: 820px;
+  }
+
+  /* Left sidebar — phrase list (stub) */
+  .phrase-sidebar {
+    width: 90px;
+    min-width: 90px;
+    border-right: 1px solid #bbb;
+    display: flex;
+    flex-direction: column;
+  }
+  .phrase-sidebar-header {
+    font-size: 10px;
+    color: #888;
+    padding: 5px 8px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+  }
+  .phrase-sidebar-item {
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+  }
+  .phrase-sidebar-item.active { background: #0060df; color: #fff; }
+
+  /* Right side — track matrix */
+  .matrix-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header row: nav-arrow | track-name cells | nav-arrow ── */
+  .matrix-header {
+    display: grid;
+    grid-template-columns: 32px 1fr 32px;
+    border-bottom: 2px solid #bbb;
+    background: #f0f0f0;
+    min-height: 32px;
+  }
+
+  /* Corner nav arrow cell */
+  .nav-arrow-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    border-right: 1px solid #ccc;
+    user-select: none;
+    position: relative;
+    transition: background .1s;
+  }
+  .nav-arrow-cell:last-child { border-right: none; border-left: 1px solid #ccc; }
+  .nav-arrow-cell.has-content {
+    color: #0060df;
+    font-weight: 700;
+  }
+  .nav-arrow-cell.has-content:hover { background: #e4f0ff; }
+  .nav-arrow-cell.no-content {
+    color: #ccc;
+    cursor: default;
+  }
+
+  /* Occupancy badge — small dot or count on the arrow */
+  .nav-occ-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #0060df;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .nav-arrow-cell.no-content .nav-occ-badge { display: none; }
+
+  /* Track name cells container */
+  .track-names-row {
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .track-name-cell {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 2px;
+    border-right: 1px solid #ddd;
+    min-width: 50px;
+    text-align: center;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .track-name-cell:last-child { border-right: none; }
+
+  /* ── Grid rows ── */
+  .matrix-body { display: flex; flex-direction: column; }
+
+  .grid-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 32px;
+    border-bottom: 1px solid #eee;
+    min-height: 36px;
+  }
+  .grid-row-spacer {
+    background: #f5f5f5;
+    border-right: 1px solid #e0e0e0;
+  }
+  .grid-row-spacer:last-child { border-right: none; border-left: 1px solid #e0e0e0; }
+
+  .grid-cells {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 4px;
+  }
+  .grid-cell {
+    flex: 1;
+    min-width: 20px;
+    height: 28px;
+    background: #e4e4e4;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: #bbb;
+    cursor: pointer;
+  }
+  .grid-cell.on { background: #0060df; border-color: #004aad; color: #fff; }
+  .grid-cell:hover:not(.on) { background: #d5d5d5; }
+
+  /* ── Layer selector bar ── */
+  /*
+    Story 6: must be
+      - horizontally centred above / below grid column area (not spanning nav-arrow columns)
+      - fixed width regardless of layer name
+      - grid-template-columns: 32px [layer-selector-area] 32px
+  */
+  .layer-bar {
+    display: grid;
+    grid-template-columns: 32px 1fr 32px;
+    border-top: 2px solid #bbb;
+    background: #f0f0f0;
+    min-height: 36px;
+    align-items: center;
+  }
+  .layer-bar-spacer {
+    /* aligns with nav-arrow columns so layer selector sits over grid columns only */
+  }
+  .layer-selector-region {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+  }
+
+  /* The actual selector control — FIXED WIDTH */
+  .layer-selector {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #fff;
+    width: 220px; /* FIXED — does not change when layer changes */
+  }
+  .layer-prev-btn, .layer-next-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    background: #eee;
+    border: none;
+    color: #444;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .layer-prev-btn { border-right: 1px solid #bbb; }
+  .layer-next-btn { border-left: 1px solid #bbb; }
+  .layer-prev-btn:hover, .layer-next-btn:hover { background: #ddd; }
+  .layer-prev-btn:active, .layer-next-btn:active { background: #ccc; }
+  .layer-name-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 4px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .layer-name {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+  }
+  .layer-subtitle {
+    font-size: 9px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+  }
+
+  /* ── Annotation box ── */
+  .annotation-box {
+    border: 2px dashed #aaa;
+    background: #fffbe6;
+    border-radius: 2px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #555;
+  }
+  .annotation-box strong { color: #111; }
+
+  /* ── Comparison layout ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .compare-label {
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    padding: 3px 8px;
+    border-left: 3px solid #bbb;
+    background: #f4f4f4;
+  }
+  .compare-label.current { border-color: #cc3300; }
+  .compare-label.proposed { border-color: #2a7a2a; }
+
+  /* ── Old-style layer bar (current state) ── */
+  .old-layer-bar {
+    display: flex;
+    align-items: center;
+    background: #f0f0f0;
+    border-top: 2px solid #bbb;
+    padding: 4px 8px;
+    gap: 8px;
+    min-height: 36px;
+  }
+  .old-layer-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #fff;
+    /* NO fixed width — shrinks/grows with content */
+  }
+  .old-layer-arrows {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+  .old-arrow-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    background: #eee;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    color: #444;
+    user-select: none;
+  }
+  .old-arrow-btn.disabled { color: #ccc; cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Matrix Navigation &amp; Layer Selector — Wireframe</h1>
+  <p>Story 5 (page-switch arrows at matrix corners with occupancy hints) &nbsp;&bull;&nbsp; Story 6 (fixed-width, grid-aligned layer selector) &nbsp;&bull;&nbsp; Balsamiq-style</p>
+</div>
+
+<div class="budget-box">
+  <strong>Interaction budget:</strong> Navigate pages and switch layers in &le;1 interaction each.<br>
+  <ol>
+    <li>Tap a corner arrow to advance to the next track page — occupancy hint previews whether there is anything there</li>
+    <li>Tap chevron in layer selector to change layer — selector width does not shift</li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     STORY 5 — Page navigation arrows at matrix corners
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Story 5 — Page navigation arrows at matrix corners</div>
+  <p class="wf-note" style="margin-bottom:14px;">
+    Arrows are positioned in the two corner cells of the matrix header row — 32 px wide each — flanking the track-name cells. An occupancy badge shows how many tracks are on the adjacent page (or the arrow is greyed/hidden when no adjacent page exists).
+  </p>
+
+  <!-- INTERACTIVE DEMO -->
+  <div class="workspace" id="main-workspace">
+
+    <!-- Phrase sidebar (stub) -->
+    <div class="phrase-sidebar">
+      <div class="phrase-sidebar-header">Phrases</div>
+      <div class="phrase-sidebar-item active">Phrase A</div>
+      <div class="phrase-sidebar-item">Phrase B</div>
+      <div class="phrase-sidebar-item">Phrase C</div>
+      <div class="phrase-sidebar-item">Phrase D (Outro)</div>
+    </div>
+
+    <!-- Track matrix -->
+    <div class="matrix-pane">
+
+      <!-- Header row -->
+      <div class="matrix-header">
+        <!-- LEFT nav arrow -->
+        <div class="nav-arrow-cell no-content" id="nav-left" onclick="navPage(-1)" title="Previous page">
+          &#9664;
+          <span class="nav-occ-badge" id="left-badge">0</span>
+        </div>
+
+        <!-- Track name cells -->
+        <div class="track-names-row" id="track-names-row">
+          <!-- populated by JS -->
+        </div>
+
+        <!-- RIGHT nav arrow -->
+        <div class="nav-arrow-cell has-content" id="nav-right" onclick="navPage(+1)" title="Next page">
+          &#9654;
+          <span class="nav-occ-badge" id="right-badge">4</span>
+        </div>
+      </div>
+
+      <!-- Grid body rows -->
+      <div class="matrix-body" id="matrix-body">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Layer bar -->
+      <div class="layer-bar">
+        <div class="layer-bar-spacer"></div>
+        <div class="layer-selector-region">
+          <div class="layer-selector">
+            <button class="layer-prev-btn" onclick="cycleLayer(-1)">&#8249;</button>
+            <div class="layer-name-area">
+              <div class="layer-name" id="layer-name-main">Pattern</div>
+              <div class="layer-subtitle" id="layer-subtitle-main">pattern slot</div>
+            </div>
+            <button class="layer-next-btn" onclick="cycleLayer(+1)">&#8250;</button>
+          </div>
+        </div>
+        <div class="layer-bar-spacer"></div>
+      </div>
+
+    </div><!-- /matrix-pane -->
+  </div><!-- /workspace -->
+
+  <p class="wf-note" style="margin-top:10px;">
+    Click the right/left arrows to navigate track pages. Badge number = tracks on the adjacent page.
+    Left arrow is grey/inactive on page 1; right arrow is grey on the last page.
+  </p>
+
+  <!-- Occupancy hint variants -->
+  <div style="margin-top:20px;">
+    <div class="wf-label" style="margin-bottom:8px;">Occupancy hint variants (static reference)</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+
+      <!-- Has content -->
+      <div style="text-align:center;">
+        <div class="wf-label" style="margin-bottom:4px;">Has content</div>
+        <div style="width:32px;height:32px;border:1px solid #ccc;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#0060df;font-size:16px;font-weight:700;cursor:pointer;position:relative;">
+          &#9654;
+          <span style="position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#0060df;color:#fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;">4</span>
+        </div>
+        <p class="wf-note">Blue arrow + count badge</p>
+      </div>
+
+      <!-- Single track on next page -->
+      <div style="text-align:center;">
+        <div class="wf-label" style="margin-bottom:4px;">1 track next</div>
+        <div style="width:32px;height:32px;border:1px solid #ccc;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#0060df;font-size:16px;font-weight:700;cursor:pointer;position:relative;">
+          &#9654;
+          <span style="position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#0060df;color:#fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;">1</span>
+        </div>
+        <p class="wf-note">Same style, count = 1</p>
+      </div>
+
+      <!-- No content -->
+      <div style="text-align:center;">
+        <div class="wf-label" style="margin-bottom:4px;">No content</div>
+        <div style="width:32px;height:32px;border:1px solid #ccc;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:16px;cursor:default;">
+          &#9654;
+        </div>
+        <p class="wf-note">Greyed, no badge, not clickable</p>
+      </div>
+
+      <!-- Alternative: hidden entirely -->
+      <div style="text-align:center;">
+        <div class="wf-label" style="margin-bottom:4px;">Alt: hidden</div>
+        <div style="width:32px;height:32px;border:1px solid #ccc;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#e0e0e0;font-size:16px;cursor:default;">
+          &mdash;
+        </div>
+        <p class="wf-note">Corner cell blank when no adjacent page exists. Open question: hidden vs greyed.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="annotation-box" style="margin-top:16px;">
+    <strong>Open question — occupancy hint level of detail:</strong><br>
+    Option A: show numeric count in badge (current prototype). Option B: show just a filled dot (presence/absence). Option C: hide the arrow entirely when no adjacent content. The notes say "some indication" — leaving this as a UX decision for review.
+  </div>
+
+</div><!-- /section Story 5 -->
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     STORY 6 — Fixed-width, grid-aligned layer selector
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Story 6 — Fixed-width, grid-aligned layer selector</div>
+  <p class="wf-note" style="margin-bottom:14px;">
+    Compare current (variable-width, right-aligned) vs proposed (fixed-width 220 px, centred over grid columns). Switch layers using the chevrons — proposed width does not shift.
+  </p>
+
+  <div class="compare-grid">
+
+    <!-- CURRENT (broken) state -->
+    <div>
+      <div class="compare-label current">CURRENT — shifts width on layer change</div>
+      <div style="border:1px solid #ccc;background:#fafafa;overflow:hidden;">
+        <!-- Stub header row -->
+        <div style="background:#f0f0f0;border-bottom:1px solid #ccc;padding:6px 8px;font-size:10px;color:#888;text-align:center;">
+          [track name cells]
+        </div>
+        <!-- Stub grid rows -->
+        <div class="wf-stub" style="height:60px;">
+          [track step cells]
+        </div>
+        <!-- OLD layer bar: variable-width selector + track-page arrows at far right -->
+        <div class="old-layer-bar">
+          <div class="old-layer-selector" id="old-layer-selector">
+            <button style="width:24px;height:26px;background:#eee;border:none;border-right:1px solid #bbb;cursor:pointer;font-size:12px;">&#8249;</button>
+            <div style="padding:2px 8px;font-size:11px;font-weight:600;white-space:nowrap;" id="old-layer-name">Pattern</div>
+            <button style="width:24px;height:26px;background:#eee;border:none;border-left:1px solid #bbb;cursor:pointer;font-size:12px;">&#8250;</button>
+          </div>
+          <!-- Track page arrows at right (current placement — wrong position per story 5) -->
+          <div class="old-layer-arrows">
+            <div class="old-arrow-btn disabled" title="No previous page">&#9664;</div>
+            <div class="old-arrow-btn" title="Next page">&#9654;</div>
+          </div>
+        </div>
+        <p class="wf-note" style="padding:6px 8px;background:#fff8f8;border-top:1px solid #eee;">
+          Width changes as layer name changes. "Transpose" is wider than "FX". Track-page arrows are in this bar (wrong).
+        </p>
+      </div>
+      <!-- Layer switcher for old -->
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="wf-label" style="align-self:center;">Try:</span>
+        <button onclick="setOldLayer('Pattern', 'pattern slot')" style="font-size:11px;padding:3px 8px;cursor:pointer;">Pattern</button>
+        <button onclick="setOldLayer('Transpose', 'transpose amount per track')" style="font-size:11px;padding:3px 8px;cursor:pointer;">Transpose</button>
+        <button onclick="setOldLayer('Variance %', 'timing/velocity variance')" style="font-size:11px;padding:3px 8px;cursor:pointer;">Variance %</button>
+        <button onclick="setOldLayer('FX', 'send fx routing')" style="font-size:11px;padding:3px 8px;cursor:pointer;">FX</button>
+      </div>
+    </div>
+
+    <!-- PROPOSED state -->
+    <div>
+      <div class="compare-label proposed">PROPOSED — fixed 220 px, centred over grid</div>
+      <div style="border:1px solid #ccc;background:#fafafa;overflow:hidden;">
+        <!-- Stub header row with corner arrows already in place (story 5) -->
+        <div style="display:grid;grid-template-columns:32px 1fr 32px;background:#f0f0f0;border-bottom:1px solid #ccc;min-height:28px;align-items:center;">
+          <div style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:13px;border-right:1px solid #ddd;">&#9664;</div>
+          <div style="text-align:center;font-size:10px;color:#888;">[track name cells]</div>
+          <div style="display:flex;align-items:center;justify-content:center;color:#0060df;font-size:13px;font-weight:700;border-left:1px solid #ddd;position:relative;">
+            &#9654;
+            <span style="position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:50%;background:#0060df;color:#fff;font-size:7px;font-weight:700;display:flex;align-items:center;justify-content:center;">4</span>
+          </div>
+        </div>
+        <!-- Stub grid rows -->
+        <div class="wf-stub" style="height:60px;">
+          [track step cells]
+        </div>
+        <!-- NEW layer bar: fixed-width selector centred over grid column area -->
+        <div class="layer-bar">
+          <div class="layer-bar-spacer"></div>
+          <div class="layer-selector-region">
+            <div class="layer-selector">
+              <button class="layer-prev-btn" onclick="cycleNewLayer(-1)">&#8249;</button>
+              <div class="layer-name-area">
+                <div class="layer-name" id="new-layer-name">Pattern</div>
+                <div class="layer-subtitle" id="new-layer-subtitle">pattern slot</div>
+              </div>
+              <button class="layer-next-btn" onclick="cycleNewLayer(+1)">&#8250;</button>
+            </div>
+          </div>
+          <div class="layer-bar-spacer"></div>
+        </div>
+        <p class="wf-note" style="padding:6px 8px;background:#f0fff0;border-top:1px solid #eee;">
+          Width stays at 220 px regardless of layer name. Selector is centred over the grid column area, not the full bar.
+        </p>
+      </div>
+      <!-- Layer switcher for new -->
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="wf-label" style="align-self:center;">Try:</span>
+        <button onclick="setNewLayer(0)" style="font-size:11px;padding:3px 8px;cursor:pointer;">Pattern</button>
+        <button onclick="setNewLayer(1)" style="font-size:11px;padding:3px 8px;cursor:pointer;">Transpose</button>
+        <button onclick="setNewLayer(2)" style="font-size:11px;padding:3px 8px;cursor:pointer;">Variance %</button>
+        <button onclick="setNewLayer(3)" style="font-size:11px;padding:3px 8px;cursor:pointer;">FX</button>
+      </div>
+    </div>
+
+  </div><!-- /compare-grid -->
+
+  <div class="annotation-box" style="margin-top:16px;">
+    <strong>Layout constraint:</strong> The 32 px nav-arrow corner cells are shared between stories 5 and 6. The layer bar uses the same 3-column grid (<code>32px 1fr 32px</code>) so the selector naturally aligns with the track-name and step-cell columns. The 220 px fixed width should be validated against the smallest device width — on narrow layouts the selector text will truncate (ellipsis) rather than expand the container.
+  </div>
+
+</div><!-- /section Story 6 -->
+
+<script>
+  // ── Fixture data ──
+  const ALL_TRACKS = [
+    { name: 'Kick',        cells: [1,0,0,0,1,0,0,0] },
+    { name: 'Snare',       cells: [0,0,1,0,0,0,1,0] },
+    { name: 'Hi-hat',      cells: [1,1,0,1,1,0,1,0] },
+    { name: 'Bass Synth',  cells: [1,0,1,0,0,1,0,0] },
+    { name: 'Pad (long)',  cells: [1,0,0,0,0,0,0,0] },
+    { name: 'Lead Mélodie',cells: [0,1,0,1,0,0,1,1] },
+    { name: 'Arpegg.',     cells: [1,0,1,1,0,0,0,1] },
+    { name: 'FX Noise',   cells: [0,0,0,0,1,0,0,1] },
+  ];
+
+  const PAGE_SIZE = 4; // tracks per page
+  let currentPage = 0;
+  const totalPages = Math.ceil(ALL_TRACKS.length / PAGE_SIZE);
+
+  function tracksForPage(page) {
+    const start = page * PAGE_SIZE;
+    return ALL_TRACKS.slice(start, start + PAGE_SIZE);
+  }
+
+  function countTracksOnPage(page) {
+    if (page < 0 || page >= totalPages) return 0;
+    return tracksForPage(page).length;
+  }
+
+  function renderMatrix() {
+    const tracks = tracksForPage(currentPage);
+
+    // Track name row
+    const nameRow = document.getElementById('track-names-row');
+    nameRow.innerHTML = '';
+    tracks.forEach(t => {
+      const cell = document.createElement('div');
+      cell.className = 'track-name-cell';
+      cell.textContent = t.name;
+      nameRow.appendChild(cell);
+    });
+
+    // Grid rows — one row per phrase bar (we show 4 stub bars)
+    const body = document.getElementById('matrix-body');
+    body.innerHTML = '';
+    for (let bar = 0; bar < 4; bar++) {
+      const row = document.createElement('div');
+      row.className = 'grid-row';
+
+      const leftSpacer = document.createElement('div');
+      leftSpacer.className = 'grid-row-spacer';
+      row.appendChild(leftSpacer);
+
+      const cellsDiv = document.createElement('div');
+      cellsDiv.className = 'grid-cells';
+      tracks.forEach(t => {
+        const val = t.cells[bar % t.cells.length];
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell' + (val ? ' on' : '');
+        cellsDiv.appendChild(cell);
+      });
+      row.appendChild(cellsDiv);
+
+      const rightSpacer = document.createElement('div');
+      rightSpacer.className = 'grid-row-spacer';
+      row.appendChild(rightSpacer);
+
+      body.appendChild(row);
+    }
+
+    // Update nav arrows
+    const leftCount  = countTracksOnPage(currentPage - 1);
+    const rightCount = countTracksOnPage(currentPage + 1);
+
+    const navLeft  = document.getElementById('nav-left');
+    const navRight = document.getElementById('nav-right');
+    const leftBadge  = document.getElementById('left-badge');
+    const rightBadge = document.getElementById('right-badge');
+
+    if (leftCount > 0) {
+      navLeft.className  = 'nav-arrow-cell has-content';
+      leftBadge.textContent = leftCount;
+      leftBadge.style.display = 'flex';
+    } else {
+      navLeft.className  = 'nav-arrow-cell no-content';
+      leftBadge.style.display = 'none';
+    }
+
+    if (rightCount > 0) {
+      navRight.className = 'nav-arrow-cell has-content';
+      rightBadge.textContent = rightCount;
+      rightBadge.style.display = 'flex';
+    } else {
+      navRight.className = 'nav-arrow-cell no-content';
+      rightBadge.style.display = 'none';
+    }
+  }
+
+  function navPage(delta) {
+    const next = currentPage + delta;
+    if (next < 0 || next >= totalPages) return;
+    currentPage = next;
+    renderMatrix();
+  }
+
+  // ── Layer selector (main workspace, story 5 demo) ──
+  const LAYERS = [
+    { name: 'Pattern',    subtitle: 'pattern slot' },
+    { name: 'Transpose',  subtitle: 'semitone transpose per track' },
+    { name: 'Variance %', subtitle: 'timing and velocity variance' },
+    { name: 'FX Send',    subtitle: 'send fx routing' },
+    { name: 'Mute',       subtitle: 'track mute state' },
+  ];
+  let currentLayerIdx = 0;
+
+  function cycleLayer(delta) {
+    currentLayerIdx = (currentLayerIdx + delta + LAYERS.length) % LAYERS.length;
+    const l = LAYERS[currentLayerIdx];
+    document.getElementById('layer-name-main').textContent    = l.name;
+    document.getElementById('layer-subtitle-main').textContent = l.subtitle;
+  }
+
+  // ── Layer selector (comparison panel new) ──
+  let newLayerIdx = 0;
+  function setNewLayer(idx) {
+    newLayerIdx = idx;
+    const l = LAYERS[idx] || LAYERS[0];
+    document.getElementById('new-layer-name').textContent    = l.name;
+    document.getElementById('new-layer-subtitle').textContent = l.subtitle;
+  }
+  function cycleNewLayer(delta) {
+    newLayerIdx = (newLayerIdx + delta + LAYERS.length) % LAYERS.length;
+    setNewLayer(newLayerIdx);
+  }
+
+  // ── Old layer selector (comparison panel current) ──
+  function setOldLayer(name, subtitle) {
+    document.getElementById('old-layer-name').textContent = name;
+  }
+
+  // ── Init ──
+  renderMatrix();
+</script>
+
+</body>
+</html>

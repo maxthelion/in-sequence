@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phrase Button Controls — Wireframe (Stories 1–3)</title>
+<style>
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Typography / Base ── */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: #f2f2f2;
+    color: #111;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── Annotation tokens ── */
+  .wf-label   { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: .06em; }
+  .wf-note    { font-size: 11px; color: #555; font-style: italic; margin-top: 4px; }
+  .wf-stub    { border: 2px dashed #bbb; color: #aaa; background: repeating-linear-gradient(45deg, transparent, transparent 4px, #eee 4px, #eee 8px); border-radius: 2px; text-align: center; padding: 6px 10px; font-size: 11px; cursor: default; }
+  .wf-badge   { display: inline-block; font-size: 10px; background: #ddd; border: 1px solid #bbb; border-radius: 2px; padding: 1px 5px; vertical-align: middle; }
+
+  /* ── Semantic colors ── */
+  /* #1a1a1a  = primary text          */
+  /* #555     = secondary text        */
+  /* #0060df  = interactive / accent  */
+  /* #cc3300  = error / destructive   */
+  /* #2a7a2a  = success / active      */
+  /* #888     = disabled              */
+  /* #ffd700  = loop-on highlight     */
+
+  /* ── Layout ── */
+  .page-header {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ccc;
+  }
+  .page-header h1 { font-size: 15px; font-weight: 600; }
+  .page-header p  { color: #555; font-size: 11px; margin-top: 4px; }
+
+  .section {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #444;
+    margin-bottom: 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  /* ── Phrase list scaffold ── */
+  .phrase-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .phrase-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid #bbb;
+    background: #fafafa;
+  }
+
+  /* Left cell: phrase button */
+  .phrase-btn {
+    width: 90px;
+    min-width: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    border-right: 1px solid #bbb;
+    padding: 6px 8px;
+    background: #f0f0f0;
+    cursor: pointer;
+    user-select: none;
+    color: #111;
+    position: relative;
+  }
+  .phrase-btn:hover { background: #e4e4e4; }
+  .phrase-btn.active { background: #0060df; color: #fff; border-color: #0060df; }
+
+  /* Expand indicator */
+  .phrase-btn .expand-caret {
+    position: absolute;
+    right: 5px;
+    font-size: 8px;
+    color: inherit;
+    opacity: .6;
+  }
+
+  /* Right cell: phrase step cells (stub) */
+  .phrase-cells {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 8px;
+    overflow: hidden;
+  }
+  .step-cell {
+    width: 18px;
+    height: 18px;
+    background: #ddd;
+    border: 1px solid #bbb;
+    flex-shrink: 0;
+  }
+  .step-cell.on { background: #0060df; border-color: #004aad; }
+  .step-cell.dim { background: #e8e8e8; }
+
+  /* ── Control panel (expanded state) ── */
+  .controls-panel {
+    border: 1px solid #bbb;
+    border-top: none;
+    background: #f7f7f7;
+    padding: 12px 16px;
+    display: none;
+  }
+  .controls-panel.open { display: block; }
+  .controls-panel.open { border-top: 2px solid #0060df; }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .control-row:last-child { margin-bottom: 0; }
+
+  /* Stepper */
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .stepper-btn {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    background: #eee;
+    border: none;
+    border-right: 1px solid #bbb;
+    color: #333;
+    line-height: 1;
+    user-select: none;
+  }
+  .stepper-btn:last-child { border-right: none; border-left: 1px solid #bbb; border-right: none; }
+  .stepper-btn:hover { background: #ddd; }
+  .stepper-btn:active { background: #ccc; }
+  .stepper-value {
+    width: 36px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 4px;
+    height: 26px;
+    line-height: 26px;
+  }
+
+  /* Loop toggle */
+  .loop-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    cursor: pointer;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    user-select: none;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .loop-toggle .icon { font-size: 14px; }
+  .loop-toggle:hover { background: #eee; }
+  .loop-toggle.active {
+    background: #ffd700;
+    border-color: #b8970a;
+    color: #222;
+  }
+  .loop-toggle.active .loop-indicator {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #2a7a2a;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .loop-toggle:not(.active) .loop-indicator { display: none; }
+
+  /* Repeat count: 0 = infinity */
+  .repeat-label {
+    font-size: 11px;
+    color: #555;
+  }
+  .repeat-inf-note {
+    font-size: 10px;
+    color: #888;
+    margin-left: 4px;
+  }
+
+  .control-group { display: flex; flex-direction: column; gap: 3px; }
+  .control-group > .wf-label { margin-bottom: 2px; }
+
+  /* ── Story-4 annotation box ── */
+  .annotation-box {
+    border: 2px dashed #aaa;
+    background: #fffbe6;
+    border-radius: 2px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #555;
+  }
+  .annotation-box strong { color: #111; }
+
+  /* ── State variant labels ── */
+  .variant-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0060df;
+    margin-bottom: 8px;
+  }
+
+  /* ── Path budget ── */
+  .budget-box {
+    font-size: 11px;
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .budget-box ol { margin-left: 18px; margin-top: 4px; }
+  .budget-box li { margin-bottom: 2px; color: #333; }
+
+  /* ── Divider ── */
+  .divider { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
+  hr.section-sep { border: none; border-top: 2px solid #ccc; margin: 28px 0; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Phrase Button Controls — Wireframe</h1>
+  <p>Stories 1 (bar count), 2 (repeat count), 3 (loop toggle) &nbsp;&bull;&nbsp; Balsamiq-style, not a production proposal</p>
+</div>
+
+<div class="budget-box">
+  <strong>Interaction budget:</strong> Primary goal (change bar count, set repeat, toggle loop) in &le;2 interactions.<br>
+  <ol>
+    <li>Tap phrase button label to expand its controls panel</li>
+    <li>Adjust bar count, repeat count, or loop toggle — immediate effect</li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     VARIANT A — Collapsed state (default)
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Variant A — Default collapsed state</div>
+  <p class="wf-note" style="margin-bottom:12px;">All phrase buttons show name + bar-count badge only. No controls exposed until tapped.</p>
+
+  <div class="phrase-list">
+
+    <!-- Phrase A — not active -->
+    <div>
+      <div class="phrase-row" id="phraseA-row">
+        <div class="phrase-btn" onclick="togglePanel('phraseA')">
+          Phrase A
+          <span class="wf-badge" style="margin-left:6px;font-size:9px;">8 bars</span>
+          <span class="expand-caret">&#9660;</span>
+        </div>
+        <div class="phrase-cells">
+          <div class="step-cell on"></div><div class="step-cell on"></div><div class="step-cell"></div><div class="step-cell on"></div>
+          <div class="step-cell"></div><div class="step-cell on"></div><div class="step-cell"></div><div class="step-cell"></div>
+          <span style="color:#aaa;font-size:10px;margin-left:4px;">... (8 bars)</span>
+        </div>
+      </div>
+      <div class="controls-panel" id="phraseA-panel">
+        <!-- filled in Variant B below -->
+        <div class="variant-header">Controls — Phrase A</div>
+        <div class="control-row">
+          <div class="control-group">
+            <span class="wf-label">Bar count</span>
+            <div class="stepper">
+              <button class="stepper-btn" onclick="stepValue('bars-a', -1, 1, 64)">&#8722;</button>
+              <span class="stepper-value" id="bars-a">8</span>
+              <button class="stepper-btn" onclick="stepValue('bars-a', +1, 1, 64)">+</button>
+            </div>
+            <span class="wf-note">Range 1–64. Resizes phrase boundary immediately.</span>
+          </div>
+
+          <div class="control-group">
+            <span class="wf-label">Repeat count <span class="repeat-inf-note">(0 = infinite)</span></span>
+            <div class="stepper">
+              <button class="stepper-btn" onclick="stepValue('rpt-a', -1, 0, 99)">&#8722;</button>
+              <span class="stepper-value" id="rpt-a">&#8734;</span>
+              <button class="stepper-btn" onclick="stepValue('rpt-a', +1, 0, 99)">+</button>
+            </div>
+            <span class="wf-note" id="rpt-a-note">Currently: infinite repeats (free loop mode)</span>
+          </div>
+
+          <div class="control-group">
+            <span class="wf-label">Loop forever</span>
+            <div class="loop-toggle" id="loop-a" onclick="toggleLoop('loop-a')">
+              <span class="icon">&#8635;</span>
+              <span class="loop-label">Loop off</span>
+              <span class="loop-indicator"></span>
+            </div>
+            <span class="wf-note">On = ignore repeat count, loop indefinitely.</span>
+          </div>
+        </div>
+
+        <div class="annotation-box">
+          <strong>Story 4 — Perform save-back (annotation, not yet designed):</strong><br>
+          When in Track-matrix perform mode, edits currently write directly into the phrase model with no staging layer. The desired UX would show a "Save to Phrase" / "Discard" action bar when in perform mode — analogous to the existing Scenes perform overlay. This requires a new per-phrase staging architecture (see existing-state.md §4). Deferred from this prototype; a separate wireframe is warranted once the architecture gap is resolved.
+        </div>
+      </div>
+    </div>
+
+    <!-- Phrase B — active/playing -->
+    <div>
+      <div class="phrase-row">
+        <div class="phrase-btn active" onclick="alert('stubbed — Phrase B not expanded in this variant')">
+          Phrase B
+          <span class="wf-badge" style="margin-left:6px;font-size:9px;background:#448;color:#fff;border-color:#226;">4 bars</span>
+          <span class="expand-caret">&#9660;</span>
+        </div>
+        <div class="phrase-cells">
+          <div class="step-cell on"></div><div class="step-cell"></div><div class="step-cell on"></div><div class="step-cell on"></div>
+          <span style="color:#aaa;font-size:10px;margin-left:4px;">... (4 bars)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phrase C — loop on -->
+    <div>
+      <div class="phrase-row">
+        <div class="phrase-btn" style="position:relative;" onclick="alert('stubbed — Phrase C not expanded in this variant')">
+          Phrase C
+          <span class="wf-badge" style="margin-left:6px;font-size:9px;background:#ffd700;color:#555;border-color:#b8970a;">&#8635; loop</span>
+          <span class="expand-caret">&#9660;</span>
+        </div>
+        <div class="phrase-cells">
+          <div class="step-cell"></div><div class="step-cell on"></div><div class="step-cell"></div><div class="step-cell on"></div>
+          <span style="color:#aaa;font-size:10px;margin-left:4px;">... (16 bars)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phrase D — extreme name to test layout -->
+    <div>
+      <div class="phrase-row">
+        <div class="phrase-btn" style="font-size:10px;" onclick="alert('stubbed')">
+          Phrase D (Outro Bridge)
+          <span class="expand-caret">&#9660;</span>
+        </div>
+        <div class="phrase-cells">
+          <div class="step-cell dim"></div><div class="step-cell dim"></div>
+          <span style="color:#aaa;font-size:10px;margin-left:4px;">... (2 bars)</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /phrase-list -->
+
+  <p class="wf-note" style="margin-top:12px;">
+    Click "Phrase A" button above to expand the controls panel (Variant B detail).
+    Phrase B, C, D expand are stubbed.
+  </p>
+</div><!-- /section -->
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     VARIANT B — Controls panel detail (open)
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Variant B — Controls panel detail (always-open reference)</div>
+  <p class="wf-note" style="margin-bottom:12px;">Shows the three controls in isolation. This is the same panel that appears under Phrase A above when expanded.</p>
+
+  <div style="border:1px solid #bbb; background:#f7f7f7; border-top:2px solid #0060df; padding:14px 18px;">
+    <div class="variant-header" style="margin-bottom:14px;">Controls — Phrase A &nbsp;<span class="wf-badge">expanded</span></div>
+
+    <div class="control-row" style="gap:28px; align-items:flex-start;">
+
+      <!-- Bar count -->
+      <div class="control-group">
+        <span class="wf-label">Bar count</span>
+        <div class="stepper">
+          <button class="stepper-btn" onclick="stepValue('bars-b', -1, 1, 64)">&#8722;</button>
+          <span class="stepper-value" id="bars-b">8</span>
+          <button class="stepper-btn" onclick="stepValue('bars-b', +1, 1, 64)">+</button>
+        </div>
+        <div class="wf-note">Tap &#8722;/+ to change.<br>Range 1–64 bars.<br>Change takes effect immediately;<br>no confirm needed.</div>
+        <div style="margin-top:8px;font-size:10px;color:#888;">
+          Step count = bars &times; <em>steps/bar</em> (e.g. 8 &times; 16 = 128 steps)
+        </div>
+      </div>
+
+      <!-- Repeat count -->
+      <div class="control-group">
+        <span class="wf-label">Repeat count <span class="repeat-inf-note">(0 = &infin;)</span></span>
+        <div class="stepper">
+          <button class="stepper-btn" onclick="stepValue('rpt-b', -1, 0, 99)">&#8722;</button>
+          <span class="stepper-value" id="rpt-b">&#8734;</span>
+          <button class="stepper-btn" onclick="stepValue('rpt-b', +1, 0, 99)">+</button>
+        </div>
+        <div class="wf-note" id="rpt-b-note">
+          0 = repeat forever (same as loop-on).<br>
+          1 = play once then advance.<br>
+          N = play N times then advance.
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:#cc3300;" id="rpt-b-conflict" style="display:none;"></div>
+      </div>
+
+      <!-- Loop toggle -->
+      <div class="control-group">
+        <span class="wf-label">Loop forever</span>
+        <div class="loop-toggle" id="loop-b" onclick="toggleLoop('loop-b')">
+          <span class="icon">&#8635;</span>
+          <span class="loop-label">Loop off</span>
+          <span class="loop-indicator"></span>
+        </div>
+        <div class="wf-note" id="loop-b-note">
+          Off: sequencer advances per repeat count.<br>
+          On: phrase loops indefinitely regardless of repeat count.<br>
+          <span style="color:#2a7a2a;">Overrides repeat count when on.</span>
+        </div>
+      </div>
+
+    </div><!-- /control-row -->
+
+    <hr class="divider">
+
+    <!-- State summary -->
+    <div style="font-size:11px;color:#444;background:#fff;border:1px solid #ddd;padding:8px 12px;border-radius:2px;">
+      <strong>Effective playback behaviour:</strong>
+      <span id="behaviour-summary">Loop forever (repeat count is overridden by loop toggle)</span>
+    </div>
+  </div>
+
+</div><!-- /section -->
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     VARIANT C — Loop-on state highlighted
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Variant C — Phrase button badge when loop is on</div>
+  <p class="wf-note" style="margin-bottom:12px;">The phrase row header shows a visual signal that loop is active, even when the controls panel is collapsed.</p>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+
+    <!-- Loop off badge -->
+    <div>
+      <div class="wf-label" style="margin-bottom:4px;">Loop off (normal)</div>
+      <div style="display:flex;align-items:center;gap:0;border:1px solid #bbb;background:#f0f0f0;width:200px;padding:7px 10px;cursor:pointer;">
+        <span style="font-size:12px;font-weight:600;">Phrase A</span>
+        <span class="wf-badge" style="margin-left:8px;font-size:9px;">8 bars</span>
+        <span class="wf-badge" style="margin-left:4px;font-size:9px;">x2</span>
+        <span style="flex:1"></span>
+        <span style="font-size:8px;color:#aaa;">&#9660;</span>
+      </div>
+      <p class="wf-note">Badges: bar count, repeat count shown inline.</p>
+    </div>
+
+    <!-- Loop on badge -->
+    <div>
+      <div class="wf-label" style="margin-bottom:4px;">Loop on</div>
+      <div style="display:flex;align-items:center;gap:0;border:1px solid #b8970a;background:#fffbe0;width:200px;padding:7px 10px;cursor:pointer;">
+        <span style="font-size:12px;font-weight:600;">Phrase A</span>
+        <span class="wf-badge" style="margin-left:8px;font-size:9px;">8 bars</span>
+        <span class="wf-badge" style="margin-left:4px;font-size:9px;background:#ffd700;border-color:#b8970a;">&#8635; loop</span>
+        <span style="flex:1"></span>
+        <span style="font-size:8px;color:#aaa;">&#9660;</span>
+      </div>
+      <p class="wf-note">Loop badge replaces repeat-count badge. Background tint = active loop signal.</p>
+    </div>
+
+    <!-- Active + loop on -->
+    <div>
+      <div class="wf-label" style="margin-bottom:4px;">Currently playing + loop on</div>
+      <div style="display:flex;align-items:center;gap:0;border:2px solid #0060df;background:#0060df;color:#fff;width:200px;padding:7px 10px;cursor:pointer;">
+        <span style="font-size:12px;font-weight:600;">Phrase B</span>
+        <span class="wf-badge" style="margin-left:8px;font-size:9px;background:#448;color:#fff;border-color:#226;">4 bars</span>
+        <span class="wf-badge" style="margin-left:4px;font-size:9px;background:#ffd700;color:#555;border-color:#b8970a;">&#8635;</span>
+        <span style="flex:1"></span>
+        <span style="font-size:8px;color:#ddd;">&#9660;</span>
+      </div>
+      <p class="wf-note">Playing-phrase highlight (blue) + loop badge coexist. Loop badge stays gold on any background.</p>
+    </div>
+
+  </div>
+</div><!-- /section -->
+
+<!-- ═══════════════════════════════════════════════
+     STORY 4 ANNOTATION (no wireframe)
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Story 4 — Perform-mode save-back (annotation only)</div>
+  <div class="annotation-box" style="background:#fff8e1;border-color:#cca000;">
+    <strong>Why no wireframe:</strong> The existing-state report (§4a) shows that track-matrix perform mode writes edits immediately into the canonical phrase model — there is no staging layer. The desired UX (seed from phrase, save-back or discard) requires a new per-phrase overlay architecture analogous to <code>MasterBusPerformanceOverlayState</code> in the scenes layer. Until that architecture is designed, a perform save-back wireframe would depict a flow with no backing mechanism and could mislead the build loop.<br><br>
+    <strong>Recommended next step:</strong> Define the staging architecture in <code>spec.md</code> before prototyping the save-back UI. At that point the wireframe can show: (a) perform-mode action bar with "Save to Phrase" and "Discard" buttons; (b) visual diff between staged edits and phrase baseline; (c) conflict behaviour if the original phrase was modified during the session.
+  </div>
+  <div class="wf-stub" style="margin-top:12px;padding:20px;">
+    [Perform-mode save-back UI — stubbed, pending staging-architecture spec]
+  </div>
+</div>
+
+<script>
+  // ── Stepper logic ──
+  const stepRaw = {}; // raw numeric value per id
+
+  function getStepRaw(id) {
+    if (stepRaw[id] === undefined) stepRaw[id] = 0;
+    return stepRaw[id];
+  }
+
+  function stepValue(id, delta, min, max) {
+    let current = getStepRaw(id);
+    let next = current + delta;
+    if (next < min) next = min;
+    if (next > max) next = max;
+    stepRaw[id] = next;
+
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    // Repeat-count display: 0 → infinity symbol
+    if (id.startsWith('rpt-')) {
+      el.textContent = next === 0 ? '∞' : next;
+      updateRepeatNote(id, next);
+    } else {
+      el.textContent = next;
+    }
+    updateBehaviourSummary();
+  }
+
+  function updateRepeatNote(id, val) {
+    const noteId = id + '-note';
+    const noteEl = document.getElementById(noteId);
+    if (!noteEl) return;
+    if (id === 'rpt-b') {
+      if (val === 0) {
+        noteEl.innerHTML = '0 = repeat forever (same as loop-on).<br>1 = play once then advance.<br>N = play N times then advance.';
+      } else if (val === 1) {
+        noteEl.innerHTML = 'Play once then advance to next phrase.';
+      } else {
+        noteEl.innerHTML = 'Play ' + val + ' times then advance to next phrase.';
+      }
+    }
+  }
+
+  // ── Loop toggle ──
+  function toggleLoop(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const on = el.classList.toggle('active');
+    const labelEl = el.querySelector('.loop-label');
+    if (labelEl) labelEl.textContent = on ? 'Loop on' : 'Loop off';
+
+    if (id === 'loop-b') {
+      const noteEl = document.getElementById('loop-b-note');
+      if (noteEl) {
+        noteEl.innerHTML = on
+          ? 'On: phrase loops indefinitely. <span style="color:#2a7a2a;font-weight:600;">Repeat count is overridden.</span>'
+          : 'Off: sequencer advances per repeat count.<br>On: phrase loops indefinitely regardless of repeat count.<br><span style="color:#2a7a2a;">Overrides repeat count when on.</span>';
+      }
+    }
+    if (id === 'loop-a') {
+      const labelEl = el.querySelector('.loop-label');
+      if (labelEl) labelEl.textContent = on ? 'Loop on' : 'Loop off';
+    }
+    updateBehaviourSummary();
+  }
+
+  function updateBehaviourSummary() {
+    const summaryEl = document.getElementById('behaviour-summary');
+    if (!summaryEl) return;
+    const loopOn = document.getElementById('loop-b') && document.getElementById('loop-b').classList.contains('active');
+    const rptVal = getStepRaw('rpt-b');
+    const bars = getStepRaw('bars-b') || 8;
+
+    let summary;
+    if (loopOn) {
+      summary = 'Loop forever — phrase plays indefinitely regardless of repeat count.';
+    } else if (rptVal === 0) {
+      summary = 'Infinite repeats (repeat count = 0) — phrase loops until manually stopped.';
+    } else if (rptVal === 1) {
+      summary = 'Play once (' + bars + ' bars), then advance to next phrase.';
+    } else {
+      summary = 'Play ' + rptVal + ' times (' + (bars * rptVal) + ' bars total), then advance to next phrase.';
+    }
+    summaryEl.textContent = summary;
+  }
+
+  // ── Toggle panel (Variant A interaction) ──
+  function togglePanel(id) {
+    const panel = document.getElementById(id + '-panel');
+    if (!panel) return;
+    panel.classList.toggle('open');
+    // Sync stepper initial display
+    const barsEl = document.getElementById('bars-a');
+    if (barsEl && barsEl.textContent === '') barsEl.textContent = '8';
+    const rptEl = document.getElementById('rpt-a');
+    if (rptEl && rptEl.textContent === '') rptEl.textContent = '∞';
+  }
+
+  // Initialise raw values
+  stepRaw['bars-a'] = 8;
+  stepRaw['bars-b'] = 8;
+  stepRaw['rpt-a'] = 0; // 0 = infinite
+  stepRaw['rpt-b'] = 0;
+
+  // Initial summary
+  updateBehaviourSummary();
+</script>
+
+</body>
+</html>

@@ -7,6 +7,9 @@ blocked_by: []
 stage: review-prototypes
 owner: pm
 updated: 2026-04-29
+prototypes:
+  - prototypes/phrase-button-controls.html
+  - prototypes/matrix-navigation-and-layers.html
 ---
 
 # Phrase Features
