@@ -7,7 +7,7 @@
   <style>
     :root {
       --bg: #f6f6f6;
-      --panel: #ffffff;
+      --panel: #fff;
       --text: #1d1d1f;
       --muted: #666a70;
       --border: #cfd2d6;
@@ -16,11 +16,7 @@
       --attention: #9b4a00;
       --ok: #0f6b3d;
     }
-
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       background: var(--bg);
@@ -28,130 +24,50 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.45;
     }
-
-    header,
-    main {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 24px;
+    header, main { max-width: 1220px; margin: 0 auto; padding: 24px; }
+    header { padding-bottom: 8px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 6px; font-size: 28px; }
+    h2 { margin-bottom: 12px; font-size: 18px; }
+    h3 { margin-bottom: 8px; font-size: 15px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover, a:focus { text-decoration: underline; }
+    code {
+      padding: 1px 4px;
+      background: var(--stub);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
     }
-
-    header {
-      padding-bottom: 8px;
-    }
-
-    h1,
-    h2,
-    h3,
-    p {
-      margin-top: 0;
-    }
-
-    h1 {
-      margin-bottom: 6px;
-      font-size: 28px;
-    }
-
-    h2 {
-      margin-bottom: 12px;
-      font-size: 18px;
-    }
-
-    h3 {
-      margin-bottom: 8px;
-      font-size: 15px;
-    }
-
-    a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    a:hover,
-    a:focus {
-      text-decoration: underline;
-    }
-
-    .muted {
-      color: var(--muted);
-    }
-
-    .grid {
+    ul { margin: 0; padding-left: 20px; }
+    li + li { margin-top: 6px; }
+    .muted { color: var(--muted); }
+    .ok { color: var(--ok); }
+    .attention { color: var(--attention); }
+    .summary, .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
       margin-bottom: 18px;
     }
-
-    .panel {
+    .panel, .summary-item {
       border: 1px solid var(--border);
       background: var(--panel);
       padding: 16px;
     }
-
-    .wide {
-      grid-column: 1 / -1;
-    }
-
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .summary-item {
-      border: 1px solid var(--border);
-      background: var(--panel);
-      padding: 12px;
-    }
-
+    .wide { grid-column: 1 / -1; }
     .label {
       color: var(--muted);
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-
-    .value {
-      margin-top: 4px;
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .ok {
-      color: var(--ok);
-    }
-
-    .attention {
-      color: var(--attention);
-    }
-
-    ul {
-      margin: 0;
-      padding-left: 20px;
-    }
-
-    li + li {
-      margin-top: 6px;
-    }
-
-    .prototype-list {
-      display: grid;
-      gap: 12px;
-    }
-
+    .value { margin-top: 4px; font-size: 18px; font-weight: 700; }
+    .prototype-list { display: grid; gap: 12px; }
     .prototype-group {
       border: 1px dashed var(--border);
       padding: 12px;
       background: #fbfbfb;
     }
-
-    .prototype-group.new {
-      border-style: solid;
-      border-color: var(--accent);
-    }
-
     .tag {
       display: inline-block;
       margin-left: 6px;
@@ -161,54 +77,43 @@
       font-size: 12px;
       font-weight: 700;
     }
-
-    .stage-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    .stage-table th,
-    .stage-table td {
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td {
       border-bottom: 1px solid var(--border);
       padding: 8px 6px;
       text-align: left;
       vertical-align: top;
     }
-
-    .stage-table th {
+    th {
       color: var(--muted);
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-    }
-
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 13px;
-      background: var(--stub);
-      padding: 1px 4px;
     }
   </style>
 </head>
 <body>
   <header>
     <h1>Roadmap Dashboard</h1>
-    <p class="muted">Refreshed 2026-04-30 09:26 BST from <code>docs/roadmap/next-actions.md</code> and <code>.claude/state/next-action.md</code>.</p>
+    <p class="muted">Generated 2026-04-30 09:42 BST by <code>scripts/roadmap/build-dashboard.sh</code>. Selectors are refreshed before rendering.</p>
   </header>
 
   <main>
     <section class="summary">
       <div class="summary-item">
         <div class="label">Prototype Files</div>
-        <div class="value">12</div>
+        <div class="value">14</div>
       </div>
       <div class="summary-item">
-        <div class="label">New Since Last List</div>
-        <div class="value">3 Send Effects</div>
+        <div class="label">New Prototype Files</div>
+        <div class="value">14</div>
       </div>
       <div class="summary-item">
-        <div class="label">Inbox Messages</div>
+        <div class="label">Inbox Across Worktrees</div>
+        <div class="value attention">1</div>
+      </div>
+      <div class="summary-item">
+        <div class="label">Main Inbox</div>
         <div class="value ok">0</div>
       </div>
       <div class="summary-item">
@@ -216,8 +121,8 @@
         <div class="value ok">0</div>
       </div>
       <div class="summary-item">
-        <div class="label">Review Queue</div>
-        <div class="value attention">6</div>
+        <div class="label">Review Files Across Worktrees</div>
+        <div class="value attention">55</div>
       </div>
     </section>
 
@@ -226,23 +131,129 @@
         <h2>Next For You</h2>
         <p><strong>Item 2: Scene Perform</strong></p>
         <p><code>review-prototypes</code></p>
-        <p class="muted">Prototype artifacts exist, but <code>ux-review.md</code> is missing. Review variants against the UX checklist and choose or reject a direction.</p>
-        <p><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scene-perform/">Open feature folder</a></p>
+        <p class="muted">Prototype artifacts exist, but `ux-review.md` is missing.</p>
       </div>
-
       <div class="panel">
         <h2>Next PM Agent Item</h2>
-        <p><strong>Item 7: Input Audio</strong></p>
+        <p><strong>Item 8: MIDI Interfaces</strong></p>
         <p><code>inspect-existing-state</code></p>
-        <p class="muted">User stories exist, but <code>existing-state.md</code> is missing. The PM assistant should inspect code, docs, tests, screenshots, and prototypes.</p>
-        <p><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/input-audio/">Open feature folder</a></p>
+        <p class="muted">User stories exist, but `existing-state.md` is missing.</p>
       </div>
-
       <div class="panel">
-        <h2>Build Loop</h2>
-        <p><strong>Current BT action: <code>verify-tests</code></strong></p>
-        <p class="muted">Tests have not been verified at <code>7881330</code>. The next code-loop action is to run the macOS test command and update <code>.claude/state/last-tests-sha</code> on pass.</p>
+        <h2>Inbox Messages</h2>
+        <ul>
+          <li><a href="file:///Users/maxwilliams/dev/in-sequence/.worktrees/overnight-simplification-2026-04-29/.claude/state/inbox/20260429-1650-xcodebuild-sandbox-block.md">20260429-1650-xcodebuild-sandbox-block.md</a> <span class="muted">.worktrees/overnight-simplification-2026-04-29/.claude/state/inbox/20260429-1650-xcodebuild-sandbox-block.md</span></li>
+        </ul>
       </div>
+    </section>
+
+    <section class="panel wide">
+      <h2>Worktree Loop State</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Worktree</th>
+            <th>HEAD</th>
+            <th>BT Action</th>
+            <th>Inbox</th>
+            <th>Reviews</th>
+            <th>Dirty</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>.</strong><br><span class="muted">refs/heads/codex/tracks-perform-scenes-workspace</span></td>
+            <td><code>1590065</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:05Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>6</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/live-perform-fill-overlay</strong><br><span class="muted">refs/heads/codex/live-perform-fill-overlay</span></td>
+            <td><code>a08bc09</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:05Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>0</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/live-perform-performance-mechanics-plan</strong><br><span class="muted">refs/heads/codex/live-perform-performance-mechanics-plan</span></td>
+            <td><code>4757fbe</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:05Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>0</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/macro-lane-grid-ui</strong><br><span class="muted">refs/heads/main</span></td>
+            <td><code>affa5d0</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:06Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>2</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/master-bus-scenes</strong><br><span class="muted">refs/heads/codex/master-bus-scenes</span></td>
+            <td><code>8b367b2</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:06Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>0</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/master-bus-scenes-plan</strong><br><span class="muted">refs/heads/codex/master-bus-scenes-plan</span></td>
+            <td><code>03f71df</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:06Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>0</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/progression-chord-generator</strong><br><span class="muted">refs/heads/codex/progression-chord-generator</span></td>
+            <td><code>059c174</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:06Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>0</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/slicer-findings-fix</strong><br><span class="muted">refs/heads/codex/slicer-findings-fix</span></td>
+            <td><code>f56104a</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:06Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>0</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.claude/worktrees/slicer-track-mvp</strong><br><span class="muted">refs/heads/codex/slicer-track-mvp</span></td>
+            <td><code>c6a373e</code></td>
+            <td><span class="attention"><code>verify-tests</code></span><br><span class="muted">2026-04-30T08:42:06Z</span></td>
+            <td>0</td>
+            <td>6</td>
+            <td>0</td>
+            <td>Tests need verification before critique or implementation work.</td>
+          </tr>
+          <tr>
+            <td><strong>.worktrees/overnight-simplification-2026-04-29</strong><br><span class="muted">refs/heads/auto/overnight-simplification-2026-04-29</span></td>
+            <td><code>9257dd0</code></td>
+            <td><span class="attention"><code>handle-inbox</code></span><br><span class="muted">2026-04-30T08:42:06Z</span></td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>Inbox: <a href="file:///Users/maxwilliams/dev/in-sequence/.worktrees/overnight-simplification-2026-04-29/.claude/state/inbox/20260429-1650-xcodebuild-sandbox-block.md">20260429-1650-xcodebuild-sandbox-block.md</a> </td>
+          </tr>
+        </tbody>
+      </table>
     </section>
 
     <section class="panel wide">
@@ -251,48 +262,50 @@
         <div class="prototype-group">
           <h3>Clip History</h3>
           <ul>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/clip-history/prototypes/clip-history-modal-v1.html">clip-history-modal-v1.html</a></li>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/clip-history/prototypes/clip-history-inline-v2.html">clip-history-inline-v2.html</a></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/clip-history/prototypes/clip-history-inline-v2.html">clip-history-inline-v2.html</a> <span class="tag">new</span></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/clip-history/prototypes/clip-history-modal-v1.html">clip-history-modal-v1.html</a> <span class="tag">new</span></li>
           </ul>
         </div>
-
         <div class="prototype-group">
-          <h3>Scene Perform</h3>
+          <h3>Input Audio</h3>
           <ul>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scene-perform/prototypes/scene-perform-primary.html">scene-perform-primary.html</a></li>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scene-perform/prototypes/scene-perform-compact.html">scene-perform-compact.html</a></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/input-audio/prototypes/01-audio-preferences.html">01-audio-preferences.html</a> <span class="tag">new</span></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/input-audio/prototypes/02-audio-input-track-page.html">02-audio-input-track-page.html</a> <span class="tag">new</span></li>
           </ul>
         </div>
-
-        <div class="prototype-group">
-          <h3>Step Sequencer</h3>
-          <ul>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-sequencer/prototypes/variant-a-inline-column.html">variant-a-inline-column.html</a></li>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-sequencer/prototypes/variant-b-floating-popover.html">variant-b-floating-popover.html</a></li>
-          </ul>
-        </div>
-
-        <div class="prototype-group">
-          <h3>Mixer Main Out</h3>
-          <ul>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-main-out/prototypes/mixer-main-out-variant-a.html">mixer-main-out-variant-a.html</a></li>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-main-out/prototypes/mixer-main-out-variant-b.html">mixer-main-out-variant-b.html</a></li>
-          </ul>
-        </div>
-
         <div class="prototype-group">
           <h3>Mixer Busses</h3>
           <ul>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-busses/prototypes/mixer-busses-variant-a.html">mixer-busses-variant-a.html</a></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-busses/prototypes/mixer-busses-variant-a.html">mixer-busses-variant-a.html</a> <span class="tag">new</span></li>
           </ul>
         </div>
-
-        <div class="prototype-group new">
-          <h3>Send Effects <span class="tag">new</span></h3>
+        <div class="prototype-group">
+          <h3>Mixer Main Out</h3>
           <ul>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects/prototypes/01-mixer-send-knobs.html">01-mixer-send-knobs.html</a></li>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects/prototypes/02-send-bus-insert-chain.html">02-send-bus-insert-chain.html</a></li>
-            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects/prototypes/03-signal-flow-overview.html">03-signal-flow-overview.html</a></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-main-out/prototypes/mixer-main-out-variant-a.html">mixer-main-out-variant-a.html</a> <span class="tag">new</span></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-main-out/prototypes/mixer-main-out-variant-b.html">mixer-main-out-variant-b.html</a> <span class="tag">new</span></li>
+          </ul>
+        </div>
+        <div class="prototype-group">
+          <h3>Scene Perform</h3>
+          <ul>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scene-perform/prototypes/scene-perform-compact.html">scene-perform-compact.html</a> <span class="tag">new</span></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scene-perform/prototypes/scene-perform-primary.html">scene-perform-primary.html</a> <span class="tag">new</span></li>
+          </ul>
+        </div>
+        <div class="prototype-group">
+          <h3>Send Effects</h3>
+          <ul>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects/prototypes/01-mixer-send-knobs.html">01-mixer-send-knobs.html</a> <span class="tag">new</span></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects/prototypes/02-send-bus-insert-chain.html">02-send-bus-insert-chain.html</a> <span class="tag">new</span></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects/prototypes/03-signal-flow-overview.html">03-signal-flow-overview.html</a> <span class="tag">new</span></li>
+          </ul>
+        </div>
+        <div class="prototype-group">
+          <h3>Step Sequencer</h3>
+          <ul>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-sequencer/prototypes/variant-a-inline-column.html">variant-a-inline-column.html</a> <span class="tag">new</span></li>
+            <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-sequencer/prototypes/variant-b-floating-popover.html">variant-b-floating-popover.html</a> <span class="tag">new</span></li>
           </ul>
         </div>
       </div>
@@ -300,58 +313,113 @@
 
     <section class="grid">
       <div class="panel">
-        <h2>Attention</h2>
+        <h2>Recent Commits</h2>
         <ul>
-          <li><span class="ok">Roadmap attention:</span> no blocked items or open questions.</li>
-          <li><span class="ok">Inbox:</span> no files in <code>.claude/state/inbox</code>.</li>
-          <li><span class="attention">Review queue:</span> 6 outstanding code-loop review files. They are gated behind the current <code>verify-tests</code> action.</li>
+          <li><code>1590065</code> <span class="muted">2026-04-30</span> docs(roadmap): advance midi-interfaces</li>
+          <li><code>39ff763</code> <span class="muted">2026-04-30</span> docs(roadmap): advance input-audio</li>
+          <li><code>4af0a31</code> <span class="muted">2026-04-30</span> docs(roadmap): advance pm artifacts</li>
+          <li><code>7881330</code> <span class="muted">2026-04-30</span> docs(roadmap): advance input-audio</li>
+          <li><code>b81dd5c</code> <span class="muted">2026-04-30</span> docs(roadmap): advance send-effects</li>
+          <li><code>39aafb1</code> <span class="muted">2026-04-29</span> docs(roadmap): advance send-effects</li>
+          <li><code>7b36ab6</code> <span class="muted">2026-04-29</span> docs(roadmap): advance send-effects</li>
         </ul>
       </div>
-
       <div class="panel">
-        <h2>Recent Automation Commits</h2>
+        <h2>Source Files</h2>
         <ul>
-          <li><code>7881330</code> docs(roadmap): advance input-audio</li>
-          <li><code>b81dd5c</code> docs(roadmap): advance send-effects</li>
-          <li><code>39aafb1</code> docs(roadmap): advance send-effects</li>
-          <li><code>7b36ab6</code> docs(roadmap): advance send-effects</li>
-          <li><code>c5a07f1</code> docs(roadmap): advance mixer-busses</li>
+          <li><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/next-actions.md">Roadmap next actions</a></li>
+          <li><a href="file:///Users/maxwilliams/dev/in-sequence/.claude/state/next-action.md">Main BT next action</a></li>
+          <li><a href="file:///Users/maxwilliams/dev/in-sequence/.worktrees/overnight-simplification-2026-04-29/.claude/state/next-action.md">Overnight BT next action</a></li>
         </ul>
       </div>
     </section>
 
     <section class="panel wide">
       <h2>Roadmap Stages</h2>
-      <table class="stage-table">
+      <table>
         <thead>
           <tr>
             <th>Item</th>
             <th>Feature</th>
             <th>Stage</th>
+            <th>Status</th>
+            <th>Owner</th>
             <th>Folder</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td>1</td><td>Clip History</td><td>ready-for-build-queue</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/clip-history/">open</a></td></tr>
-          <tr><td>2</td><td>Scene Perform</td><td>review-prototypes</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scene-perform/">open</a></td></tr>
-          <tr><td>3</td><td>Step Sequencer</td><td>review-prototypes</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-sequencer/">open</a></td></tr>
-          <tr><td>4</td><td>Mixer Main Out</td><td>review-prototypes</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-main-out/">open</a></td></tr>
-          <tr><td>5</td><td>Mixer Busses</td><td>review-prototypes</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-busses/">open</a></td></tr>
-          <tr><td>6</td><td>Send Effects</td><td>review-prototypes</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects/">open</a></td></tr>
-          <tr><td>7</td><td>Input Audio</td><td>inspect-existing-state</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/input-audio/">open</a></td></tr>
-          <tr><td>8</td><td>MIDI Interfaces</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/midi-interfaces/">open</a></td></tr>
-          <tr><td>9</td><td>Modifier Chain Placement</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/modifier-chain-placement/">open</a></td></tr>
-          <tr><td>10</td><td>Phrase Features</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/phrase-features/">open</a></td></tr>
-          <tr><td>11</td><td>Song Mode And Phrase Looping</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/song-mode-phrase-looping/">open</a></td></tr>
-          <tr><td>12</td><td>Drum Parts As A Group</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/drum-parts-as-group/">open</a></td></tr>
-          <tr><td>13</td><td>Autoslice Algorithm</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/autoslice-algorithm/">open</a></td></tr>
-          <tr><td>14</td><td>Audio Looping</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/audio-looping/">open</a></td></tr>
-          <tr><td>15</td><td>Note Repeat</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/note-repeat/">open</a></td></tr>
-          <tr><td>16</td><td>Step Order</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-order/">open</a></td></tr>
-          <tr><td>18</td><td>Toggle Fill On A Track To Hear It</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/track-fill-toggle/">open</a></td></tr>
-          <tr><td>21</td><td>Observability From Application Logs</td><td>inspect-existing-state</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/observability-log-issues/">open</a></td></tr>
-          <tr><td>22</td><td>Scenes In Phrases</td><td>draft-user-stories</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scenes-in-phrases/">open</a></td></tr>
-          <tr><td>24</td><td>Track Perform Multi-Select And Latch</td><td>clarify-feature</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/track-perform-multiselect-latch/">open</a></td></tr>
+          <tr>
+            <td>1</td><td>Clip History</td><td><code>ready-for-build-queue</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/clip-history">open</a></td>
+          </tr>
+          <tr>
+            <td>2</td><td>Scene Perform</td><td><code>review-prototypes</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scene-perform">open</a></td>
+          </tr>
+          <tr>
+            <td>3</td><td>Step Sequencer</td><td><code>review-prototypes</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-sequencer">open</a></td>
+          </tr>
+          <tr>
+            <td>4</td><td>Mixer Main Out</td><td><code>review-prototypes</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-main-out">open</a></td>
+          </tr>
+          <tr>
+            <td>5</td><td>Mixer Busses</td><td><code>review-prototypes</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/mixer-busses">open</a></td>
+          </tr>
+          <tr>
+            <td>6</td><td>Send Effects</td><td><code>review-prototypes</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/send-effects">open</a></td>
+          </tr>
+          <tr>
+            <td>7</td><td>Input Audio</td><td><code>review-prototypes</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/input-audio">open</a></td>
+          </tr>
+          <tr>
+            <td>8</td><td>MIDI Interfaces</td><td><code>inspect-existing-state</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/midi-interfaces">open</a></td>
+          </tr>
+          <tr>
+            <td>9</td><td>Modifier Chain Placement</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/modifier-chain-placement">open</a></td>
+          </tr>
+          <tr>
+            <td>10</td><td>Phrase Features</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/phrase-features">open</a></td>
+          </tr>
+          <tr>
+            <td>11</td><td>Song Mode And Phrase Looping</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/song-mode-phrase-looping">open</a></td>
+          </tr>
+          <tr>
+            <td>12</td><td>Drum Parts As A Group</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/drum-parts-as-group">open</a></td>
+          </tr>
+          <tr>
+            <td>13</td><td>Autoslice Algorithm</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/autoslice-algorithm">open</a></td>
+          </tr>
+          <tr>
+            <td>14</td><td>Audio Looping</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/audio-looping">open</a></td>
+          </tr>
+          <tr>
+            <td>15</td><td>Note Repeat</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/note-repeat">open</a></td>
+          </tr>
+          <tr>
+            <td>16</td><td>Step Order</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/step-order">open</a></td>
+          </tr>
+          <tr>
+            <td>17</td><td>Fill A Clip From Current Generator</td><td><code>deferred</code></td><td>deferred</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/fill-clip-from-generator">open</a></td>
+          </tr>
+          <tr>
+            <td>18</td><td>Toggle Fill On A Track To Hear It</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/track-fill-toggle">open</a></td>
+          </tr>
+          <tr>
+            <td>19</td><td>Drum Kit Group View</td><td><code>deferred</code></td><td>deferred</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/drum-kit-group-view">open</a></td>
+          </tr>
+          <tr>
+            <td>20</td><td>Fill Applied To Whole Kit</td><td><code>deferred</code></td><td>deferred</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/whole-kit-fill">open</a></td>
+          </tr>
+          <tr>
+            <td>21</td><td>Observability From Application Logs</td><td><code>inspect-existing-state</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/observability-log-issues">open</a></td>
+          </tr>
+          <tr>
+            <td>22</td><td>Scenes In Phrases</td><td><code>draft-user-stories</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/scenes-in-phrases">open</a></td>
+          </tr>
+          <tr>
+            <td>23</td><td>Phrase Cells</td><td><code>deferred</code></td><td>deferred</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/phrase-cells">open</a></td>
+          </tr>
+          <tr>
+            <td>24</td><td>Track Perform Multi-Select And Latch</td><td><code>clarify-feature</code></td><td>inventory</td><td>pm</td><td><a href="file:///Users/maxwilliams/dev/in-sequence/docs/roadmap/track-perform-multiselect-latch">open</a></td>
+          </tr>
         </tbody>
       </table>
     </section>
