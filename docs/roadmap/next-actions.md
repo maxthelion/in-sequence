@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T09:18:03Z
-Repo HEAD: 1f2bac9
+Generated: 2026-04-30T09:23:23Z
+Repo HEAD: e7d3f82
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -42,14 +42,14 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 
 ## Next Agent Item
 
-- **Item:** 10
-- **Feature:** Phrase Features
+- **Item:** 11
+- **Feature:** Song Mode And Phrase Looping
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `build-prototypes`
+- **Action:** `draft-user-stories`
 - **Role:** `pm-assistant`
-- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
+- **Why:** `notes.md` exists, but `user-stories.md` is missing.
+- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ## Feature Actions
 
@@ -158,10 +158,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `build-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Suggested output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
+- **Next action:** `review-prototypes`
+- **Role:** `user`
+- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
 ### 11. Song Mode And Phrase Looping
 
