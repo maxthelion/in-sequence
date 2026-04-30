@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Modifier Chain Placement — Slot Well Variant</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Modifier Chain Placement: Source & Modifier slot-well redesign.
+
+  DESIGN INTENT
+  -------------
+  The existing "Switch To Generator Source" label plus separate segmented
+  Source/Modifiers picker is replaced by a tab-bar of visually contained
+  slot wells. Each slot well can be:
+    - occupied   : shows item name + type badge + remove [x] button
+    - empty      : shows a [+] plus button
+    - loading    : stubbed
+
+  STATES RENDERED (use the VIEW buttons at the top to switch):
+    clip-occupied   — Source slot has a clip loaded, modifier slot empty
+    gen-occupied    — Source slot has a generator loaded, modifier slot has
+                      a modifier generator
+    empty-slot      — Source slot is empty (post-remove), four-option picker
+                      is shown inline; modifier slot is empty
+    picker-open     — Four-option picker is the focus, with clip-pool sub-panel
+                      visible (simulates "select clip from pool" expansion)
+    swap-step2      — After "New Blank Generator" chosen: generator placed,
+                      source slot occupied with generator, modifier empty
+    modifier-empty  — Source has clip, modifier slot is empty with plus button
+
+  INTERACTION BUDGET
+  ------------------
+  Story 2 (four-option picker): target <= 2 taps (open picker → select option).
+  Story 3 (at-a-glance legibility): always visible without interaction.
+  Story 5 (clip-to-generator swap): target <= 3 taps.
+    Click-path A (fastest): [x] on clip → picker appears → "New Blank Generator" → done.
+    Click-path B: [x] on clip → picker appears → "Select Generator" → generator picker → done.
+
+  GAPS FROM EXISTING-STATE.MD
+  ---------------------------
+  1. remove-clip affordance: shown as [x] on clip source chip (model mutation
+     "removeClipSource" does not yet exist — see existing-state.md).
+  2. in-context clip pool picker: shown as a scrollable panel that expands
+     when "Select Clip From Pool" is chosen. No such component exists in
+     Sources/UI/. Shown here as a stub panel with fixture data.
+
+  STUBS (dashed border): track-level settings, pattern slot palette (1–8),
+  clip content editor preview, generator parameter surface.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f0f0f0;
+    color: #111;
+    padding: 24px;
+    min-height: 100vh;
+  }
+
+  /* ---- Prototype Banner ---- */
+  .proto-banner {
+    background: #222;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  /* ---- State Controls ---- */
+  .state-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .state-controls label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-right: 4px;
+  }
+  .state-btn {
+    padding: 4px 10px;
+    border: 1px solid #999;
+    background: #e8e8e8;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .state-btn:hover { background: #d0d0d0; }
+  .state-btn.active {
+    background: #1a6edc;
+    color: #fff;
+    border-color: #1a6edc;
+  }
+
+  /* ---- Annotation ---- */
+  .annotation {
+    background: #fffde7;
+    border: 1px dashed #bbb;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 16px;
+    line-height: 1.5;
+    max-width: 700px;
+  }
+  .annotation strong { color: #111; }
+
+  /* ---- Outer app chrome stub ---- */
+  .app-chrome {
+    border: 1px dashed #aaa;
+    background: #e8e8e8;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 2px;
+    display: flex;
+    gap: 16px;
+  }
+
+  /* ---- Track workspace ---- */
+  .track-workspace {
+    display: flex;
+    gap: 0;
+    border: 1px solid #bbb;
+    background: #fff;
+    max-width: 820px;
+    min-height: 440px;
+  }
+
+  /* ---- Left column: source/modifier editor ---- */
+  .source-editor {
+    flex: 1;
+    border-right: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- Track header ---- */
+  .track-header {
+    background: #222;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .track-header .track-name { color: #fff; }
+  .track-header .stub-btn {
+    font-size: 10px;
+    color: #888;
+    border: 1px dashed #555;
+    padding: 2px 6px;
+    cursor: default;
+  }
+
+  /* ---- Pattern slot palette (stub) ---- */
+  .pattern-palette-stub {
+    border-bottom: 1px solid #ccc;
+    padding: 8px 12px;
+    background: #f7f7f7;
+    border: 1px dashed #bbb;
+    margin: 8px;
+    color: #999;
+    font-size: 11px;
+  }
+  .pattern-slots {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .pattern-slot {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ccc;
+    background: #e8e8e8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #888;
+    position: relative;
+  }
+  .pattern-slot.active {
+    border-color: #1a6edc;
+    background: #dceeff;
+    color: #1a6edc;
+    font-weight: 600;
+  }
+  .slot-badge {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    font-size: 8px;
+    background: #444;
+    color: #fff;
+    width: 10px;
+    height: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .slot-badge.clip { background: #1a6edc; }
+  .slot-badge.gen  { background: #2a9d5c; }
+
+  /* ---- Slot tab bar ---- */
+  .slot-tab-bar {
+    display: flex;
+    border-bottom: 2px solid #ccc;
+    margin: 0 8px;
+  }
+  .slot-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    background: #eee;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+  }
+  .slot-tab:first-child { margin-right: 2px; }
+  .slot-tab.active {
+    background: #fff;
+    border-color: #bbb;
+    border-bottom-color: #fff;
+    margin-bottom: -2px;
+    z-index: 1;
+  }
+  .slot-tab-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+  }
+  .slot-tab.active .slot-tab-label { color: #555; }
+  .slot-tab-type {
+    font-size: 12px;
+    color: #111;
+  }
+  .type-badge {
+    display: inline-block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 5px;
+    border: 1px solid #bbb;
+    background: #eee;
+    color: #555;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  .type-badge.clip-badge   { background: #dceeff; border-color: #1a6edc; color: #1a6edc; }
+  .type-badge.gen-badge    { background: #d4f0e4; border-color: #2a9d5c; color: #1c7a47; }
+  .type-badge.empty-badge  { background: #f5f5f5; border-color: #bbb; color: #999; }
+  .type-badge.mod-badge    { background: #f3ebff; border-color: #7c3aed; color: #5b21b6; }
+
+  /* ---- Tab body ---- */
+  .tab-body {
+    padding: 12px;
+    flex: 1;
+  }
+
+  /* ---- Slot well ---- */
+  .slot-well {
+    border: 2px solid #bbb;
+    background: #fafafa;
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .slot-well.occupied { background: #f0f8ff; border-color: #1a6edc; }
+  .slot-well.gen-occupied { background: #f0fff5; border-color: #2a9d5c; }
+  .slot-well.mod-occupied { background: #f7f0ff; border-color: #7c3aed; }
+  .slot-well.empty {
+    border-style: dashed;
+    border-color: #bbb;
+    background: #f9f9f9;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .slot-well-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .slot-well-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111;
+  }
+  .slot-well-meta {
+    font-size: 11px;
+    color: #666;
+  }
+
+  /* ---- Remove button ---- */
+  .remove-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid #cc4444;
+    background: #fff5f5;
+    color: #cc4444;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .remove-btn:hover { background: #ffdada; }
+
+  /* ---- Plus button ---- */
+  .plus-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #1a6edc;
+    background: #fff;
+    color: #1a6edc;
+    font-size: 22px;
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .plus-btn:hover { background: #dceeff; }
+  .plus-hint {
+    font-size: 10px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ---- Content area below slot well (stub) ---- */
+  .slot-content-stub {
+    border: 1px dashed #bbb;
+    background: #f5f5f5;
+    padding: 12px;
+    color: #aaa;
+    font-size: 11px;
+    text-align: center;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ---- Four-option picker ---- */
+  .option-picker {
+    border: 2px solid #1a6edc;
+    background: #fff;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .option-picker-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-bottom: 10px;
+  }
+  .option-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .option-btn {
+    padding: 10px 12px;
+    border: 1px solid #bbb;
+    background: #f7f7f7;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .option-btn:hover { background: #e8e8e8; }
+  .option-btn.primary {
+    border-color: #2a9d5c;
+    background: #f0fff5;
+  }
+  .option-btn.primary:hover { background: #d4f0e4; }
+  .option-btn .opt-label { font-size: 12px; font-weight: 600; }
+  .option-btn .opt-hint  { font-size: 10px; color: #888; font-weight: 400; }
+  .option-btn.primary .opt-label { color: #1c7a47; }
+  .option-cancel {
+    margin-top: 8px;
+    padding: 6px;
+    width: 100%;
+    border: 1px solid #bbb;
+    background: #eee;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .option-cancel:hover { background: #ddd; }
+
+  /* ---- Clip pool sub-panel ---- */
+  .clip-pool-panel {
+    border: 1px solid #bbb;
+    background: #fff;
+    margin-top: 10px;
+  }
+  .clip-pool-header {
+    background: #f0f0f0;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .clip-pool-list {
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  .clip-pool-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .clip-pool-item:hover { background: #dceeff; }
+  .clip-pool-item .clip-meta { font-size: 10px; color: #888; }
+  .clip-pool-empty {
+    padding: 16px;
+    text-align: center;
+    color: #aaa;
+    font-size: 11px;
+  }
+
+  /* ---- Right column stub ---- */
+  .destination-stub {
+    width: 300px;
+    border-left: 1px solid #ccc;
+    padding: 10px;
+    background: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dest-stub-block {
+    border: 1px dashed #bbb;
+    background: #f0f0f0;
+    padding: 20px 10px;
+    text-align: center;
+    color: #aaa;
+    font-size: 11px;
+  }
+
+  /* ---- Bypass pill ---- */
+  .bypass-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #bbb;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    background: #f0f0f0;
+    color: #555;
+  }
+  .bypass-pill.active { background: #fff3cd; border-color: #e6a817; color: #7a4f00; }
+  .bypass-pill .pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #bbb;
+  }
+  .bypass-pill.active .pill-dot { background: #e6a817; }
+
+  /* ---- Divider ---- */
+  .section-divider {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 10px 0;
+  }
+
+  /* ---- Interaction tap counter ---- */
+  .tap-counter {
+    font-size: 11px;
+    color: #555;
+    border: 1px solid #ccc;
+    background: #f7f7f7;
+    padding: 5px 10px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .tap-count-label { text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; color: #888; }
+  .tap-count-num { font-weight: 700; font-size: 14px; }
+  .tap-count-num.over-budget { color: #cc4444; }
+  .tap-count-num.in-budget   { color: #2a9d5c; }
+  .tap-reset { margin-left: auto; cursor: pointer; font-size: 11px; color: #1a6edc; text-decoration: underline; border: none; background: none; }
+
+  /* ---- Success flash ---- */
+  .success-msg {
+    background: #d4f0e4;
+    border: 1px solid #2a9d5c;
+    color: #1c7a47;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: none;
+  }
+
+  /* Visibility utilities */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">Prototype — Not Production UI | Modifier Chain Placement — Slot Well Variant</div>
+
+<div class="state-controls">
+  <label>View:</label>
+  <button class="state-btn active" onclick="setState('clip-occupied')">Clip Loaded</button>
+  <button class="state-btn" onclick="setState('gen-occupied')">Generator Loaded</button>
+  <button class="state-btn" onclick="setState('empty-slot')">Empty Slot (post-remove)</button>
+  <button class="state-btn" onclick="setState('picker-open')">Clip Pool Expanded</button>
+  <button class="state-btn" onclick="setState('swap-done')">After Swap (gen placed)</button>
+  <button class="state-btn" onclick="setState('modifier-empty')">Modifier Empty</button>
+</div>
+
+<div class="annotation" id="annotation-clip-occupied">
+  <strong>Story 3 — At-a-glance legibility.</strong>
+  The slot tab bar shows SOURCE and MODIFIER as always-visible tabs. Each tab carries a type badge
+  (CLIP, GEN, MOD, or EMPTY) so the user can tell the source type without opening the tab.
+  The source well shows the current clip name with a [x] remove button — the <em>new remove-clip affordance</em>
+  (no model mutation exists yet; noted in existing-state.md).
+</div>
+<div class="annotation hidden" id="annotation-gen-occupied">
+  <strong>Story 3 — Generator source loaded, modifier generator attached.</strong>
+  Both slot tabs show occupied badges (GEN, MOD). Source well shows generator name + remove.
+  Modifier well shows modifier name + bypass toggle + remove.
+</div>
+<div class="annotation hidden" id="annotation-empty-slot">
+  <strong>Story 2 + Story 5 — Four-option picker.</strong>
+  After removing the clip source the slot well shows a [+] button and is empty.
+  Tapping [+] reveals the four-option grid inline (no screen navigation).
+  <strong>New Blank Generator</strong> is the primary (green) option — the fastest path for story 5.
+  Interaction budget: remove tap + picker tap = 2 taps before you pick. Pick = tap 3. Total: 3 taps.
+</div>
+<div class="annotation hidden" id="annotation-picker-open">
+  <strong>Story 2 — "Select Clip From Pool" expanded.</strong>
+  Choosing "Select Clip From Pool" expands an in-context scrollable clip list beneath the option grid
+  (no new screen). This is a <em>new component</em> — confirmed absent in existing-state.md.
+  Fixture data: long names, mix of note and drum clips, one empty-pool state.
+  Cancel dismisses the whole picker.
+</div>
+<div class="annotation hidden" id="annotation-swap-done">
+  <strong>Story 5 — Swap complete.</strong>
+  Source slot now shows a generator (GEN badge). Modifier slot is still empty.
+  Total taps from clip-loaded state: [x] → picker → "New Blank Generator" = 3 taps. In budget.
+</div>
+<div class="annotation hidden" id="annotation-modifier-empty">
+  <strong>Story 4 — Symmetrical modifier slot.</strong>
+  Modifier tab is active. Slot well shows [+] plus button when empty — matching the source slot pattern.
+  Tapping [+] opens a modifier-specific option picker (stubbed here; same interaction shape as source picker).
+</div>
+
+<!-- Interaction tap counter (visible in live-interaction mode) -->
+<div class="tap-counter" id="tap-counter" style="display:none">
+  <span class="tap-count-label">Taps used</span>
+  <span class="tap-count-num in-budget" id="tap-num">0</span>
+  <span style="color:#888;font-size:11px">/ budget: 3 (story 5)</span>
+  <button class="tap-reset" onclick="resetTaps()">Reset</button>
+</div>
+
+<!-- Success flash -->
+<div class="success-msg" id="success-msg">Generator placed. Swap complete in <span id="swap-tap-count">0</span> taps.</div>
+
+<!-- App chrome stub -->
+<div class="app-chrome">
+  [nav: tracks] &nbsp;|&nbsp; [nav: scenes] &nbsp;|&nbsp; [nav: mixer] &nbsp;|&nbsp; [nav: library]
+  &nbsp;&nbsp; -> current track: <strong>Melodic Lead &#47; Slot 3</strong>
+</div>
+
+<!-- Track workspace -->
+<div class="track-workspace">
+
+  <!-- Source / modifier editor (left column) -->
+  <div class="source-editor">
+
+    <!-- Track header -->
+    <div class="track-header">
+      <span class="track-name">Melodic Lead</span>
+      <span class="stub-btn">-> [track settings]</span>
+    </div>
+
+    <!-- Pattern palette stub -->
+    <div class="pattern-palette-stub">
+      -> [pattern slots 1–8] (stub)
+      <div class="pattern-slots">
+        <div class="pattern-slot">1<span class="slot-badge clip">C</span></div>
+        <div class="pattern-slot">2<span class="slot-badge clip">C</span></div>
+        <div class="pattern-slot active">3<span class="slot-badge clip" id="slot3-badge">C</span></div>
+        <div class="pattern-slot">4<span class="slot-badge gen">G</span></div>
+        <div class="pattern-slot">5<span class="slot-badge clip">C</span></div>
+        <div class="pattern-slot">6</div>
+        <div class="pattern-slot">7</div>
+        <div class="pattern-slot">8</div>
+      </div>
+    </div>
+
+    <!-- Slot tab bar (Story 3: always-visible type legibility) -->
+    <div class="slot-tab-bar" id="slot-tab-bar">
+      <div class="slot-tab active" id="source-tab" onclick="switchTab('source')">
+        <span class="slot-tab-label">Source</span>
+        <span class="slot-tab-type" id="source-tab-type">
+          Vélodrôme Melody Long Title Clip
+          <span class="type-badge clip-badge" id="source-type-badge">CLIP</span>
+        </span>
+      </div>
+      <div class="slot-tab" id="modifier-tab" onclick="switchTab('modifier')">
+        <span class="slot-tab-label">Modifier</span>
+        <span class="slot-tab-type" id="modifier-tab-type">
+          —
+          <span class="type-badge empty-badge" id="modifier-type-badge">EMPTY</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Tab body -->
+    <div class="tab-body" id="tab-body">
+
+      <!-- === SOURCE TAB CONTENT === -->
+      <div id="source-tab-body">
+
+        <!-- State: clip occupied -->
+        <div id="state-clip-well">
+          <div class="slot-well occupied" id="clip-well">
+            <div class="slot-well-info">
+              <div class="slot-well-name">Vélodrôme Melody Long Title Clip</div>
+              <div class="slot-well-meta">Clip &nbsp;·&nbsp; 8 bars &nbsp;·&nbsp; 120 bpm</div>
+            </div>
+            <button class="remove-btn" title="Remove clip source" onclick="handleRemoveClip()">&#x2715;</button>
+          </div>
+          <div class="slot-content-stub">-> [clip content preview / editor] (stub)</div>
+        </div>
+
+        <!-- State: generator occupied -->
+        <div id="state-gen-well" class="hidden">
+          <div class="slot-well gen-occupied">
+            <div class="slot-well-info">
+              <div class="slot-well-name">Poly Synth Arp — Wide Spread</div>
+              <div class="slot-well-meta">Generator &nbsp;·&nbsp; Poly &nbsp;·&nbsp; 8 voices</div>
+            </div>
+            <button class="remove-btn" title="Remove generator source" onclick="alert('stubbed: removeGeneratorSource')">&#x2715;</button>
+          </div>
+          <div class="slot-content-stub">-> [generator parameter surface] (stub)</div>
+        </div>
+
+        <!-- State: empty slot + picker closed -->
+        <div id="state-empty-well" class="hidden">
+          <div class="slot-well empty" id="empty-source-well">
+            <button class="plus-btn" onclick="handleOpenPicker()" id="source-plus-btn" title="Add source">+</button>
+            <span class="plus-hint">No source — tap + to add</span>
+          </div>
+        </div>
+
+        <!-- Four-option picker -->
+        <div id="option-picker" class="hidden">
+          <div class="option-picker">
+            <div class="option-picker-title">Add Source</div>
+            <div class="option-grid">
+              <button class="option-btn primary" onclick="handlePickOption('new-gen')">
+                <span class="opt-label">New Blank Generator</span>
+                <span class="opt-hint">Fastest — creates default poly generator</span>
+              </button>
+              <button class="option-btn" onclick="handlePickOption('select-gen')">
+                <span class="opt-label">Select Generator</span>
+                <span class="opt-hint">Pick from project pool</span>
+              </button>
+              <button class="option-btn" onclick="handlePickOption('new-clip')">
+                <span class="opt-label">New Blank Clip</span>
+                <span class="opt-hint">Empty note clip for this slot</span>
+              </button>
+              <button class="option-btn" onclick="handlePickOption('select-clip')">
+                <span class="opt-label">Select Clip From Pool</span>
+                <span class="opt-hint">Browse project clips</span>
+              </button>
+            </div>
+            <!-- Clip pool sub-panel (expands on "Select Clip From Pool") -->
+            <div id="clip-pool-panel" class="clip-pool-panel hidden">
+              <div class="clip-pool-header">
+                Project Clips (compatible)
+                <span style="font-size:10px;color:#aaa;font-weight:400">-> [search stub]</span>
+              </div>
+              <div class="clip-pool-list" id="clip-pool-list">
+                <!-- populated by JS -->
+              </div>
+            </div>
+            <!-- Generator pool sub-panel (expands on "Select Generator") -->
+            <div id="gen-pool-panel" class="clip-pool-panel hidden">
+              <div class="clip-pool-header">
+                Project Generators (compatible)
+                <span style="font-size:10px;color:#aaa;font-weight:400">-> [search stub]</span>
+              </div>
+              <div class="clip-pool-list" id="gen-pool-list">
+                <!-- populated by JS -->
+              </div>
+            </div>
+            <button class="option-cancel" onclick="handleCancelPicker()">Cancel</button>
+          </div>
+        </div>
+
+      </div><!-- /source-tab-body -->
+
+      <!-- === MODIFIER TAB CONTENT === -->
+      <div id="modifier-tab-body" class="hidden">
+
+        <!-- Modifier empty state -->
+        <div id="state-mod-empty">
+          <div class="slot-well empty">
+            <button class="plus-btn" onclick="handleOpenModifierPicker()" title="Add modifier">+</button>
+            <span class="plus-hint">No modifier — tap + to add</span>
+          </div>
+          <div class="slot-content-stub">-> [modifier picker would open inline, same shape as source picker]</div>
+        </div>
+
+        <!-- Modifier occupied state -->
+        <div id="state-mod-occupied" class="hidden">
+          <div class="slot-well mod-occupied">
+            <div class="slot-well-info">
+              <div class="slot-well-name">Arpeggiator — Up/Down Cycle</div>
+              <div class="slot-well-meta">Modifier &nbsp;·&nbsp; Mono generator &nbsp;·&nbsp; Poly In</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+              <span class="bypass-pill" id="bypass-pill" onclick="toggleBypass()">
+                <span class="pill-dot"></span>
+                <span id="bypass-label">Bypass</span>
+              </span>
+              <button class="remove-btn" title="Remove modifier" onclick="alert('stubbed: removeModifier')">&#x2715;</button>
+            </div>
+          </div>
+          <div class="slot-content-stub">-> [modifier parameter surface] (stub)</div>
+        </div>
+
+      </div><!-- /modifier-tab-body -->
+
+    </div><!-- /tab-body -->
+
+  </div><!-- /source-editor -->
+
+  <!-- Right column stubs -->
+  <div class="destination-stub">
+    <div class="dest-stub-block">-> [track routing / destination] (stub)</div>
+    <div class="dest-stub-block" style="flex:1">-> [mix send controls] (stub)</div>
+  </div>
+
+</div><!-- /track-workspace -->
+
+<script>
+  // ---- Fixture data ----
+  const CLIP_POOL = [
+    { name: "Vélodrôme Melody Long Title Clip",  meta: "8 bars · C maj · note" },
+    { name: "Intro Lead Riff v3 Final FINAL",     meta: "4 bars · A min · note" },
+    { name: "Chords Sustained Wide",              meta: "2 bars · D maj · note" },
+    { name: "Motif — Rising Arpeggio Slow Tempo", meta: "16 bars · G min · note" },
+    { name: "Bürolandschaft Countermelody",       meta: "8 bars · E♭ maj · note" },
+    { name: "(empty clip)",                        meta: "0 bars · note" },
+  ];
+  const GEN_POOL = [
+    { name: "Poly Synth Arp — Wide Spread",  meta: "Poly · 8 voices" },
+    { name: "Mono Bass Pulse",               meta: "Mono · 1 voice" },
+    { name: "Choir Pad Long Release",        meta: "Poly · 4 voices" },
+  ];
+
+  // ---- App state ----
+  let currentState = 'clip-occupied';
+  let activeTab    = 'source';
+  let tapCount     = 0;
+  let swapStarted  = false;
+  let bypassed     = false;
+
+  function el(id) { return document.getElementById(id); }
+
+  // ---- Populate pool lists ----
+  function populateClipPool() {
+    const list = el('clip-pool-list');
+    if (CLIP_POOL.length === 0) {
+      list.innerHTML = '<div class="clip-pool-empty">No compatible clips in project pool.</div>';
+      return;
+    }
+    list.innerHTML = CLIP_POOL.map(c =>
+      `<div class="clip-pool-item" onclick="handleSelectClip('${c.name}')">
+        <span>${c.name}</span>
+        <span class="clip-meta">${c.meta}</span>
+      </div>`
+    ).join('');
+  }
+  function populateGenPool() {
+    const list = el('gen-pool-list');
+    list.innerHTML = GEN_POOL.map(g =>
+      `<div class="clip-pool-item" onclick="handleSelectGen('${g.name}')">
+        <span>${g.name}</span>
+        <span class="clip-meta">${g.meta}</span>
+      </div>`
+    ).join('');
+  }
+  populateClipPool();
+  populateGenPool();
+
+  // ---- State machine ----
+  function setState(s) {
+    currentState = s;
+    tapCount = 0;
+    swapStarted = false;
+
+    // Update active state button
+    document.querySelectorAll('.state-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent.toLowerCase().replace(/\s+/g,'-').includes(
+        s.replace('clip-occupied','clip').replace('gen-occupied','generator')
+         .replace('empty-slot','empty').replace('picker-open','clip')
+         .replace('swap-done','after').replace('modifier-empty','modifier')
+      ));
+    });
+    // Re-sync active button more reliably
+    const labels = {
+      'clip-occupied':  'Clip Loaded',
+      'gen-occupied':   'Generator Loaded',
+      'empty-slot':     'Empty Slot (post-remove)',
+      'picker-open':    'Clip Pool Expanded',
+      'swap-done':      'After Swap (gen placed)',
+      'modifier-empty': 'Modifier Empty',
+    };
+    document.querySelectorAll('.state-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent.trim() === labels[s]);
+    });
+
+    // Annotation
+    ['clip-occupied','gen-occupied','empty-slot','picker-open','swap-done','modifier-empty'].forEach(k => {
+      el('annotation-' + k).classList.toggle('hidden', k !== s);
+    });
+
+    // Tap counter
+    el('tap-counter').style.display = (s === 'empty-slot') ? 'flex' : 'none';
+    el('success-msg').style.display = 'none';
+
+    // Tab reset
+    if (s === 'modifier-empty') {
+      switchTab('modifier');
+    } else {
+      switchTab('source');
+    }
+
+    renderSlotState(s);
+  }
+
+  function renderSlotState(s) {
+    // Source tab type badge
+    const srcBadge = el('source-type-badge');
+    const srcType  = el('source-tab-type');
+    const slot3    = el('slot3-badge');
+
+    // Hide all source sub-states
+    el('state-clip-well').classList.add('hidden');
+    el('state-gen-well').classList.add('hidden');
+    el('state-empty-well').classList.add('hidden');
+    el('option-picker').classList.add('hidden');
+    el('clip-pool-panel').classList.add('hidden');
+    el('gen-pool-panel').classList.add('hidden');
+
+    // Modifier sub-states
+    el('state-mod-empty').classList.remove('hidden');
+    el('state-mod-occupied').classList.add('hidden');
+
+    switch(s) {
+      case 'clip-occupied':
+        el('state-clip-well').classList.remove('hidden');
+        srcBadge.className = 'type-badge clip-badge'; srcBadge.textContent = 'CLIP';
+        srcType.childNodes[0].textContent = 'Vélodrôme Melody Long Title Clip ';
+        slot3.className = 'slot-badge clip'; slot3.textContent = 'C';
+        el('modifier-tab-type').childNodes[0].textContent = '— ';
+        el('modifier-type-badge').className = 'type-badge empty-badge'; el('modifier-type-badge').textContent = 'EMPTY';
+        break;
+
+      case 'gen-occupied':
+        el('state-gen-well').classList.remove('hidden');
+        srcBadge.className = 'type-badge gen-badge'; srcBadge.textContent = 'GEN';
+        srcType.childNodes[0].textContent = 'Poly Synth Arp — Wide Spread ';
+        slot3.className = 'slot-badge gen'; slot3.textContent = 'G';
+        // Modifier also occupied in gen-occupied state
+        el('state-mod-empty').classList.add('hidden');
+        el('state-mod-occupied').classList.remove('hidden');
+        el('modifier-tab-type').childNodes[0].textContent = 'Arpeggiator — Up/Down Cycle ';
+        el('modifier-type-badge').className = 'type-badge mod-badge'; el('modifier-type-badge').textContent = 'MOD';
+        break;
+
+      case 'empty-slot':
+        el('state-empty-well').classList.remove('hidden');
+        srcBadge.className = 'type-badge empty-badge'; srcBadge.textContent = 'EMPTY';
+        srcType.childNodes[0].textContent = '— ';
+        slot3.className = 'slot-badge'; slot3.textContent = '';
+        el('modifier-tab-type').childNodes[0].textContent = '— ';
+        el('modifier-type-badge').className = 'type-badge empty-badge'; el('modifier-type-badge').textContent = 'EMPTY';
+        break;
+
+      case 'picker-open':
+        el('state-empty-well').classList.remove('hidden');
+        el('option-picker').classList.remove('hidden');
+        el('clip-pool-panel').classList.remove('hidden');
+        srcBadge.className = 'type-badge empty-badge'; srcBadge.textContent = 'EMPTY';
+        srcType.childNodes[0].textContent = '— ';
+        slot3.className = 'slot-badge'; slot3.textContent = '';
+        // Highlight the clip-from-pool option visually
+        break;
+
+      case 'swap-done':
+        el('state-gen-well').classList.remove('hidden');
+        srcBadge.className = 'type-badge gen-badge'; srcBadge.textContent = 'GEN';
+        srcType.childNodes[0].textContent = 'New Generator (untitled) ';
+        slot3.className = 'slot-badge gen'; slot3.textContent = 'G';
+        el('modifier-tab-type').childNodes[0].textContent = '— ';
+        el('modifier-type-badge').className = 'type-badge empty-badge'; el('modifier-type-badge').textContent = 'EMPTY';
+        break;
+
+      case 'modifier-empty':
+        el('state-clip-well').classList.remove('hidden');
+        srcBadge.className = 'type-badge clip-badge'; srcBadge.textContent = 'CLIP';
+        srcType.childNodes[0].textContent = 'Vélodrôme Melody Long Title Clip ';
+        slot3.className = 'slot-badge clip'; slot3.textContent = 'C';
+        el('modifier-tab-type').childNodes[0].textContent = '— ';
+        el('modifier-type-badge').className = 'type-badge empty-badge'; el('modifier-type-badge').textContent = 'EMPTY';
+        break;
+    }
+  }
+
+  // ---- Tab switching ----
+  function switchTab(tab) {
+    activeTab = tab;
+    el('source-tab').classList.toggle('active', tab === 'source');
+    el('modifier-tab').classList.toggle('active', tab === 'modifier');
+    el('source-tab-body').classList.toggle('hidden', tab !== 'source');
+    el('modifier-tab-body').classList.toggle('hidden', tab !== 'modifier');
+  }
+
+  // ---- Interaction handlers ----
+  function incrementTap() {
+    tapCount++;
+    el('tap-num').textContent = tapCount;
+    el('tap-num').className = 'tap-count-num ' + (tapCount > 3 ? 'over-budget' : 'in-budget');
+  }
+
+  function resetTaps() {
+    tapCount = 0;
+    el('tap-num').textContent = 0;
+    el('tap-num').className = 'tap-count-num in-budget';
+    el('success-msg').style.display = 'none';
+    swapStarted = false;
+  }
+
+  function handleRemoveClip() {
+    // This is tap 1 of the clip-to-generator swap path
+    swapStarted = true;
+    el('tap-counter').style.display = 'flex';
+    incrementTap();
+
+    // Model note: removeClipSource mutation needed (see existing-state.md)
+    el('state-clip-well').classList.add('hidden');
+    el('state-empty-well').classList.remove('hidden');
+    el('option-picker').classList.remove('hidden');
+    el('clip-pool-panel').classList.add('hidden');
+    el('gen-pool-panel').classList.add('hidden');
+
+    // Update badge
+    el('source-type-badge').className = 'type-badge empty-badge';
+    el('source-type-badge').textContent = 'EMPTY';
+    el('source-tab-type').childNodes[0].textContent = '— ';
+    el('slot3-badge').className = 'slot-badge';
+    el('slot3-badge').textContent = '';
+
+    currentState = 'empty-slot';
+    // Show annotation
+    ['clip-occupied','gen-occupied','empty-slot','picker-open','swap-done','modifier-empty'].forEach(k => {
+      el('annotation-' + k).classList.toggle('hidden', k !== 'empty-slot');
+    });
+  }
+
+  function handleOpenPicker() {
+    incrementTap();
+    el('option-picker').classList.remove('hidden');
+    el('source-plus-btn').style.display = 'none';
+  }
+
+  function handlePickOption(opt) {
+    incrementTap();
+
+    if (opt === 'new-gen') {
+      // Primary path (Story 5) — completes the swap
+      finishSwapWithGen('New Generator (untitled)');
+    } else if (opt === 'select-gen') {
+      // Show generator pool sub-panel
+      el('gen-pool-panel').classList.remove('hidden');
+      el('clip-pool-panel').classList.add('hidden');
+    } else if (opt === 'new-clip') {
+      // Creates a blank clip and closes picker
+      finishWithClip('New Blank Clip');
+    } else if (opt === 'select-clip') {
+      // Expand clip pool panel inline
+      el('clip-pool-panel').classList.remove('hidden');
+      el('gen-pool-panel').classList.add('hidden');
+    }
+  }
+
+  function handleSelectClip(name) {
+    incrementTap();
+    finishWithClip(name);
+  }
+
+  function handleSelectGen(name) {
+    incrementTap();
+    finishSwapWithGen(name);
+  }
+
+  function finishSwapWithGen(name) {
+    el('state-gen-well').querySelector('.slot-well-name').textContent = name;
+    el('state-gen-well').querySelector('.slot-well-meta').textContent = 'Generator · Poly · new';
+
+    el('option-picker').classList.add('hidden');
+    el('state-empty-well').classList.add('hidden');
+    el('state-gen-well').classList.remove('hidden');
+
+    el('source-type-badge').className = 'type-badge gen-badge';
+    el('source-type-badge').textContent = 'GEN';
+    el('source-tab-type').childNodes[0].textContent = name.length > 22 ? name.slice(0,20) + '… ' : name + ' ';
+    el('slot3-badge').className = 'slot-badge gen';
+    el('slot3-badge').textContent = 'G';
+
+    el('swap-tap-count').textContent = tapCount;
+    el('success-msg').style.display = 'block';
+    currentState = 'swap-done';
+
+    ['clip-occupied','gen-occupied','empty-slot','picker-open','swap-done','modifier-empty'].forEach(k => {
+      el('annotation-' + k).classList.toggle('hidden', k !== 'swap-done');
+    });
+  }
+
+  function finishWithClip(name) {
+    el('state-clip-well').querySelector('.slot-well-name').textContent = name;
+    el('state-clip-well').querySelector('.slot-well-meta').textContent = 'Clip · new';
+
+    el('option-picker').classList.add('hidden');
+    el('state-empty-well').classList.add('hidden');
+    el('state-clip-well').classList.remove('hidden');
+
+    el('source-type-badge').className = 'type-badge clip-badge';
+    el('source-type-badge').textContent = 'CLIP';
+    el('source-tab-type').childNodes[0].textContent = name.length > 22 ? name.slice(0,20) + '… ' : name + ' ';
+    el('slot3-badge').className = 'slot-badge clip';
+    el('slot3-badge').textContent = 'C';
+
+    el('tap-counter').style.display = 'none';
+    currentState = 'clip-occupied';
+  }
+
+  function handleCancelPicker() {
+    el('option-picker').classList.add('hidden');
+    el('clip-pool-panel').classList.add('hidden');
+    el('gen-pool-panel').classList.add('hidden');
+    el('source-plus-btn').style.display = '';
+    if (swapStarted) {
+      el('tap-counter').style.display = 'flex';
+    }
+  }
+
+  function handleOpenModifierPicker() {
+    alert('Modifier picker: stubbed.\nSame interaction shape as source picker.\nOptions: Add Arpeggiator / Add Transposer / Add Rhythm Gate / Select Modifier.\nSee story 4.');
+  }
+
+  function toggleBypass() {
+    bypassed = !bypassed;
+    el('bypass-pill').classList.toggle('active', bypassed);
+    el('bypass-label').textContent = bypassed ? 'Bypassed' : 'Bypass';
+  }
+
+  // Initialise
+  setState('clip-occupied');
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T08:59:02Z
-Repo HEAD: b031c0e
+Generated: 2026-04-30T09:03:45Z
+Repo HEAD: 303ff86
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -45,10 +45,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Feature:** Modifier Chain Placement
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `inspect-existing-state`
+- **Action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Why:** User stories exist, but `existing-state.md` is missing.
-- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
+- **Output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
 
 ## Feature Actions
 
@@ -146,10 +146,10 @@ For each feature, deferred status wins first, then blocked metadata or open ques
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `inspect-existing-state`
+- **Next action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Reason:** User stories exist, but `existing-state.md` is missing.
-- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Reason:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
+- **Suggested output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
 
 ### 10. Phrase Features
 

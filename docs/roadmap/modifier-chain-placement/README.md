@@ -7,6 +7,8 @@ blocked_by: []
 stage: review-prototypes
 owner: pm
 updated: 2026-04-29
+prototypes:
+  - prototypes/modifier-chain-placement-slot-well.html
 ---
 
 # Modifier Chain Placement
