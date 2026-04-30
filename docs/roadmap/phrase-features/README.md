@@ -4,7 +4,7 @@ title: Phrase Features
 status: inventory
 priority: unset
 blocked_by: []
-stage: inspect-existing-state
+stage: review-prototypes
 owner: pm
 updated: 2026-04-29
 ---
