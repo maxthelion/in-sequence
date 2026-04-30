@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — NOT A PRODUCTION PROPOSAL
+  Autoslice Algorithm / Sandbox 1 of 3: BPM Hypothesis from Sample Duration
+  Stories covered: 1 (BPM hypothesis), 4 (ranked candidates)
+  Self-contained. No external dependencies.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[PROTOTYPE] Autoslice — BPM Hypothesis Sandbox</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: #f5f5f5;
+    color: #222;
+    padding: 24px;
+  }
+
+  /* PROTOTYPE BADGE */
+  .proto-badge {
+    display: inline-block;
+    border: 2px dashed #aaa;
+    padding: 4px 10px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  h1 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #444; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+
+  .description {
+    color: #555;
+    margin-bottom: 20px;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 16px;
+    margin-bottom: 16px;
+    max-width: 700px;
+  }
+
+  label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555; }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+
+  input[type=number], select {
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #bbb;
+    padding: 5px 8px;
+    width: 120px;
+    background: #fff;
+    color: #222;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #555;
+    padding: 5px 14px;
+    background: #333;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: #555; }
+
+  /* FIXTURE CHIPS */
+  .fixtures {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .fixture-chip {
+    border: 1px solid #aaa;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #555;
+    background: #f0f0f0;
+  }
+  .fixture-chip:hover { background: #ddd; }
+  .fixture-chip.active { border-color: #333; background: #e8e8e8; color: #222; font-weight: 600; }
+
+  /* RESULTS TABLE */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th {
+    text-align: left;
+    border-bottom: 2px solid #ccc;
+    padding: 5px 8px;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+  }
+  td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+  }
+
+  .rank-1 { background: #f0f0f0; }
+
+  .score-bar-container {
+    width: 100px;
+    height: 10px;
+    background: #e8e8e8;
+    border: 1px solid #ccc;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .score-bar { height: 100%; background: #555; }
+
+  .badge-primary { background: #333; color: #fff; padding: 1px 6px; font-size: 10px; font-weight: 600; }
+  .badge-secondary { background: #bbb; color: #fff; padding: 1px 6px; font-size: 10px; }
+
+  .explanation {
+    font-size: 11px;
+    color: #888;
+    margin-top: 12px;
+    line-height: 1.6;
+    max-width: 640px;
+    border-top: 1px dashed #ccc;
+    padding-top: 10px;
+  }
+
+  .warning { color: #a04000; font-size: 11px; margin-top: 6px; }
+  .empty-state { color: #aaa; font-style: italic; padding: 12px 0; }
+
+  /* STUB */
+  .stub-block {
+    border: 2px dashed #ccc;
+    padding: 10px 14px;
+    color: #bbb;
+    font-size: 11px;
+    margin-top: 16px;
+  }
+
+  .section-gap { margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<div class="proto-badge">PROTOTYPE — ALGORITHM SANDBOX — NOT A PRODUCTION PROPOSAL</div>
+
+<h1>Autoslice — Sandbox 1: BPM Hypothesis from Sample Duration</h1>
+<p class="description">
+  Given a sample duration in seconds, this sandbox computes ranked BPM + bar-count candidates by inverting the loop-duration formula.
+  For each (bars, BPM) pair, it shows how close the predicted duration is to the actual duration and a fit score.
+  This covers User Story 1 (BPM hypothesis) and Story 4 (multiple ranked suggestions).
+</p>
+
+<!-- FIXTURE SELECTOR -->
+<div class="panel">
+  <h2>Adversarial Fixtures</h2>
+  <p style="color:#888; font-size:11px; margin-bottom:10px;">
+    These are synthetic durations designed to stress-test the heuristic. Pick one or type your own below.
+  </p>
+  <div class="fixtures" id="fixtureChips"></div>
+</div>
+
+<!-- INPUT -->
+<div class="panel">
+  <h2>Input</h2>
+  <div class="input-row">
+    <div class="field">
+      <label for="duration">Sample duration (seconds)</label>
+      <input type="number" id="duration" min="0.1" max="120" step="0.001" value="3.692">
+    </div>
+    <div class="field">
+      <label for="bpmMin">BPM min</label>
+      <input type="number" id="bpmMin" min="40" max="200" step="1" value="60">
+    </div>
+    <div class="field">
+      <label for="bpmMax">BPM max</label>
+      <input type="number" id="bpmMax" min="40" max="250" step="1" value="200">
+    </div>
+    <div class="field">
+      <label for="bpmStep">BPM resolution</label>
+      <input type="number" id="bpmStep" min="0.1" max="5" step="0.1" value="0.5">
+    </div>
+  </div>
+  <button onclick="run()">Compute Hypotheses</button>
+</div>
+
+<!-- RESULTS -->
+<div class="panel">
+  <h2>Ranked Hypotheses</h2>
+  <div id="resultsContainer"><p class="empty-state">No results yet — press Compute Hypotheses.</p></div>
+  <div class="explanation" id="explanation" style="display:none"></div>
+</div>
+
+<!-- STUB: downstream consumers -->
+<div class="stub-block">
+  Stubbed: → [Transient Grid Alignment Sandbox] — pass the top hypothesis BPM into sandbox 2 to score transient fit.
+  <br>Stubbed: → [Loop Boundary Heuristic Sandbox] — pass BPM candidate list into sandbox 3.
+</div>
+
+<script>
+// ============================================================
+// FIXTURES
+// Adversarial: clean loops, slightly-too-long, ambiguous durations.
+// ============================================================
+const FIXTURES = [
+  { label: "Clean 2-bar @ 120 BPM", seconds: 4.000, groundTruth: { bpm: 120, bars: 2 } },
+  { label: "Clean 1-bar @ 140 BPM", seconds: 1.714, groundTruth: { bpm: 140, bars: 1 } },
+  { label: "Clean 4-bar @ 90 BPM", seconds: 10.667, groundTruth: { bpm: 90, bars: 4 } },
+  { label: "2-bar @ 120 BPM + 80ms bleed", seconds: 4.080, groundTruth: { bpm: 120, bars: 2 } },
+  { label: "2-bar @ 120 BPM + 200ms bleed", seconds: 4.200, groundTruth: { bpm: 120, bars: 2 } },
+  { label: "Ambiguous: 2-bar@127 or 1-bar@63.5", seconds: 3.780, groundTruth: null },
+  { label: "Ambiguous: 4-bar@170 or 8-bar@85", seconds: 5.647, groundTruth: null },
+  { label: "Really short (fills 1 bar @ 180 BPM)", seconds: 1.333, groundTruth: { bpm: 180, bars: 1 } },
+  { label: "Weird non-loop recording (7.3s)", seconds: 7.300, groundTruth: null },
+];
+
+// ============================================================
+// ALGORITHM
+// Hypothesis: duration = bars * (60 / BPM) * 4
+//   => BPM = bars * 4 * 60 / duration
+// We sweep candidate bar counts and BPM values, score by
+// how close the predicted duration is.
+// ============================================================
+
+const BAR_COUNTS = [1, 2, 4, 8];
+
+function predictedDuration(bpm, bars) {
+  // bars * beats_per_bar * seconds_per_beat
+  // 4/4 time assumed: 4 beats per bar
+  return bars * 4 * (60 / bpm);
+}
+
+function computeHypotheses(duration, bpmMin, bpmMax, bpmStep) {
+  const candidates = [];
+
+  for (const bars of BAR_COUNTS) {
+    // Exact BPM for this bar count
+    const exactBpm = (bars * 4 * 60) / duration;
+
+    if (exactBpm < bpmMin || exactBpm > bpmMax) continue;
+
+    // Score = how close we are to an integer BPM (plus proximity to common BPMs)
+    const roundedBpm = Math.round(exactBpm * 2) / 2; // round to nearest 0.5
+    const durAtRounded = predictedDuration(roundedBpm, bars);
+    const durError = Math.abs(duration - durAtRounded); // seconds
+    const durErrorMs = durError * 1000;
+
+    // Fit score: 1.0 = perfect, decays as error grows past 20ms, 0 at 500ms
+    const fitScore = Math.max(0, 1 - durError / 0.5);
+
+    // Penalty for non-integer BPM (humans prefer whole numbers)
+    const bpmIntPenalty = Math.abs(exactBpm - Math.round(exactBpm));
+    const humanScore = fitScore * (1 - bpmIntPenalty * 0.2);
+
+    candidates.push({
+      bars,
+      exactBpm,
+      roundedBpm,
+      durAtRounded,
+      durError,
+      durErrorMs,
+      fitScore,
+      humanScore,
+    });
+  }
+
+  // Sort by humanScore descending
+  candidates.sort((a, b) => b.humanScore - a.humanScore);
+  return candidates;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function run() {
+  const duration = parseFloat(document.getElementById('duration').value);
+  const bpmMin = parseFloat(document.getElementById('bpmMin').value);
+  const bpmMax = parseFloat(document.getElementById('bpmMax').value);
+  const bpmStep = parseFloat(document.getElementById('bpmStep').value);
+
+  if (isNaN(duration) || duration <= 0) {
+    document.getElementById('resultsContainer').innerHTML =
+      '<p class="warning">Please enter a valid positive duration.</p>';
+    return;
+  }
+
+  const hypotheses = computeHypotheses(duration, bpmMin, bpmMax, bpmStep);
+  renderResults(hypotheses, duration);
+}
+
+function renderResults(hypotheses, duration) {
+  const container = document.getElementById('resultsContainer');
+  const explanation = document.getElementById('explanation');
+
+  if (hypotheses.length === 0) {
+    container.innerHTML = '<p class="empty-state">No candidates in the given BPM range. Try widening the range.</p>';
+    explanation.style.display = 'none';
+    return;
+  }
+
+  let html = '<table><thead><tr>';
+  html += '<th>Rank</th>';
+  html += '<th>Bars</th>';
+  html += '<th>Exact BPM</th>';
+  html += '<th>Rounded BPM</th>';
+  html += '<th>Predicted dur (s)</th>';
+  html += '<th>Duration error</th>';
+  html += '<th>Fit score</th>';
+  html += '<th></th>';
+  html += '</tr></thead><tbody>';
+
+  hypotheses.forEach((h, i) => {
+    const isTop = i === 0;
+    const rowClass = isTop ? 'rank-1' : '';
+    const scoreWidth = Math.round(h.fitScore * 100);
+    const errorClass = h.durErrorMs > 100 ? ' style="color:#a04000"' : '';
+
+    html += `<tr class="${rowClass}">`;
+    html += `<td>${i + 1}</td>`;
+    html += `<td>${h.bars}</td>`;
+    html += `<td>${h.exactBpm.toFixed(3)}</td>`;
+    html += `<td><strong>${h.roundedBpm.toFixed(1)}</strong></td>`;
+    html += `<td>${h.durAtRounded.toFixed(4)}</td>`;
+    html += `<td${errorClass}>${h.durErrorMs.toFixed(1)} ms</td>`;
+    html += `<td>
+      <span class="score-bar-container"><span class="score-bar" style="width:${scoreWidth}%"></span></span>
+      <span style="margin-left:6px">${(h.humanScore * 100).toFixed(0)}%</span>
+    </td>`;
+    html += `<td>${isTop ? '<span class="badge-primary">TOP</span>' : '<span class="badge-secondary">alt</span>'}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+
+  // Explanation
+  const top = hypotheses[0];
+  let expl = `<strong>Reading the table:</strong> The algorithm derives the exact BPM that would produce a perfect loop for each bar count,
+  then rounds to the nearest 0.5 BPM and scores how far the predicted duration deviates from the actual ${duration.toFixed(3)} s.
+  A fit score of 100% means zero deviation; 0% means 500 ms or more of error.
+  The "human score" penalises fractional BPM values slightly (producers work with whole numbers).`;
+  if (top.durErrorMs > 100) {
+    expl += ` <span style="color:#a04000">Warning: the top candidate has a ${top.durErrorMs.toFixed(0)} ms error,
+    suggesting this sample may not be a clean loop at any of the tested bar counts.</span>`;
+  }
+  explanation.innerHTML = expl;
+  explanation.style.display = 'block';
+}
+
+// ============================================================
+// FIXTURE CHIPS
+// ============================================================
+function buildFixtureChips() {
+  const container = document.getElementById('fixtureChips');
+  FIXTURES.forEach((f, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'fixture-chip';
+    chip.textContent = f.label;
+    chip.onclick = () => {
+      document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      document.getElementById('duration').value = f.seconds.toFixed(3);
+      run();
+    };
+    container.appendChild(chip);
+  });
+}
+
+// Init
+buildFixtureChips();
+// Auto-run on the default value
+run();
+</script>
+</body>
+</html>

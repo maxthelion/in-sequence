@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — NOT A PRODUCTION PROPOSAL
+  Autoslice Algorithm / Sandbox 3 of 3: Ranked Loop Start/End Heuristic + Optional Role Classification
+  Stories covered: 3 (slightly-too-long), 4 (ranked start/end suggestions), 5 (transient role classification)
+  Self-contained. No external dependencies.
+
+  Demonstrates the full pipeline:
+    1. Accept a synthetic transient list with optional role hints
+    2. Score each loop-start candidate against the grid
+    3. Weight musically significant transients (snare on 2&4, kick on 1&3) more heavily
+    4. Surface ranked start/end pairs with scores
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[PROTOTYPE] Autoslice — Loop Boundary Heuristic Sandbox</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: #f5f5f5;
+    color: #222;
+    padding: 24px;
+  }
+
+  .proto-badge {
+    display: inline-block;
+    border: 2px dashed #aaa;
+    padding: 4px 10px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  h1 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #444;
+       border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+
+  .description { color: #555; margin-bottom: 20px; max-width: 700px; line-height: 1.5; }
+  .panel { background: #fff; border: 1px solid #ccc; padding: 16px; margin-bottom: 16px; max-width: 860px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .input-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label { display: block; font-weight: 600; font-size: 12px; color: #555; }
+
+  input[type=number], select {
+    font-family: inherit; font-size: 13px;
+    border: 1px solid #bbb; padding: 5px 8px;
+    background: #fff; color: #222; width: 110px;
+  }
+  select { width: auto; min-width: 110px; }
+
+  button {
+    font-family: inherit; font-size: 13px;
+    border: 1px solid #555; padding: 5px 14px;
+    background: #333; color: #fff; cursor: pointer;
+  }
+  button:hover { background: #555; }
+  button.secondary {
+    background: #fff; color: #333; border: 1px solid #aaa;
+  }
+  button.secondary:hover { background: #f0f0f0; }
+
+  .fixtures { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .fixture-chip {
+    border: 1px solid #aaa; padding: 3px 10px; cursor: pointer;
+    font-size: 11px; color: #555; background: #f0f0f0;
+  }
+  .fixture-chip:hover { background: #ddd; }
+  .fixture-chip.active { border-color: #333; background: #e8e8e8; color: #222; font-weight: 600; }
+
+  /* TRANSIENT TABLE EDITOR */
+  .transient-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+  .transient-table th {
+    text-align: left; border-bottom: 2px solid #ccc; padding: 5px 8px;
+    font-weight: 600; color: #555;
+  }
+  .transient-table td { padding: 4px 6px; border-bottom: 1px solid #eee; }
+  .transient-table input[type=number] { width: 80px; padding: 2px 4px; font-size: 12px; }
+  .transient-table select { width: 100px; padding: 2px 4px; font-size: 12px; }
+  .transient-table .del-btn {
+    background: none; border: 1px solid #ccc; color: #888; padding: 1px 7px;
+    font-size: 11px; cursor: pointer;
+  }
+  .transient-table .del-btn:hover { border-color: #c44; color: #c44; background: none; }
+
+  /* RESULTS */
+  .results-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+  .results-table th {
+    text-align: left; border-bottom: 2px solid #ccc; padding: 5px 8px;
+    font-weight: 600; color: #555;
+  }
+  .results-table td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
+
+  .rank-1 { background: #f0f0f0; }
+
+  .score-bar-container { width: 90px; height: 10px; background: #e8e8e8;
+    border: 1px solid #ccc; display: inline-block; vertical-align: middle; }
+  .score-bar-fill { height: 100%; }
+
+  .badge-primary { background: #333; color: #fff; padding: 1px 6px; font-size: 10px; font-weight: 600; }
+  .badge-secondary { background: #bbb; color: #fff; padding: 1px 6px; font-size: 10px; }
+
+  /* CANVAS */
+  .canvas-wrapper { overflow-x: auto; border: 1px solid #ccc; background: #1a1a1a; margin-bottom: 8px; }
+  canvas { display: block; }
+
+  .legend { display: flex; gap: 14px; font-size: 11px; color: #555; flex-wrap: wrap; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .swatch { width: 12px; height: 12px; display: inline-block; border: 1px solid #ccc; }
+
+  /* ROLE CLASSIFICATION TOGGLE */
+  .toggle-row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .toggle-row input[type=checkbox] { width: auto; }
+  .toggle-label { font-size: 12px; color: #555; }
+
+  .explanation { font-size: 11px; color: #777; line-height: 1.6; max-width: 700px;
+    border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 10px; }
+
+  .stub-block {
+    border: 2px dashed #ccc; padding: 10px 14px; color: #bbb; font-size: 11px; margin-top: 16px;
+    max-width: 860px;
+  }
+
+  .hint { font-size: 11px; color: #888; margin-top: 4px; }
+  .warning { color: #a04000; font-size: 11px; }
+  .empty-state { color: #aaa; font-style: italic; padding: 12px 0; }
+
+  /* role color coding */
+  .role-kick { color: #c44; font-weight: 600; }
+  .role-snare { color: #44c; font-weight: 600; }
+  .role-hat { color: #4a9; font-weight: 600; }
+  .role-? { color: #aaa; }
+</style>
+</head>
+<body>
+
+<div class="proto-badge">PROTOTYPE — ALGORITHM SANDBOX — NOT A PRODUCTION PROPOSAL</div>
+
+<h1>Autoslice — Sandbox 3: Ranked Loop Boundary Heuristic + Role Classification</h1>
+<p class="description">
+  This sandbox explores the full loop-start/end suggestion pipeline. Given a transient list (optionally with
+  role hints: kick, snare, hi-hat), it generates ranked loop-start candidates by scoring grid alignment — first
+  without role weighting, then with it. Demonstrates Story 3 (slightly-too-long), Story 4 (ranked candidates),
+  and Story 5 (role classification as a weighting factor).
+</p>
+
+<!-- FIXTURES -->
+<div class="panel">
+  <h2>Adversarial Fixtures</h2>
+  <div class="fixtures" id="fixtureChips"></div>
+</div>
+
+<!-- PARAMETERS -->
+<div class="panel">
+  <h2>Parameters</h2>
+  <div class="input-row">
+    <div class="field">
+      <label>BPM</label>
+      <input type="number" id="bpm" min="40" max="250" step="0.5" value="120">
+    </div>
+    <div class="field">
+      <label>Bars</label>
+      <select id="bars">
+        <option value="1">1</option>
+        <option value="2" selected>2</option>
+        <option value="4">4</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Snap tolerance (ms)</label>
+      <input type="number" id="tolerance" value="30" min="5" max="80" step="1">
+    </div>
+    <div class="field">
+      <label>Start search range (ms)</label>
+      <input type="number" id="searchRange" value="400" min="20" max="1000" step="10">
+    </div>
+    <div class="field">
+      <label>Candidates to show</label>
+      <input type="number" id="topN" value="6" min="2" max="15" step="1">
+    </div>
+  </div>
+
+  <!-- Role weighting toggle -->
+  <div class="toggle-row">
+    <input type="checkbox" id="useRoleWeighting" checked>
+    <span class="toggle-label">
+      Enable role weighting (kicks on beats 1&amp;3 and snares on 2&amp;4 count double in the alignment score)
+    </span>
+  </div>
+
+  <button onclick="run()">Generate Loop Candidates</button>
+</div>
+
+<!-- TRANSIENT EDITOR -->
+<div class="panel">
+  <h2>Transient List (editable)</h2>
+  <div id="transientTableContainer"></div>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <button class="secondary" onclick="addRow()">+ Add transient</button>
+    <button class="secondary" onclick="autoClassify()">Auto-classify roles (heuristic)</button>
+  </div>
+  <p class="hint">
+    Roles: <span class="role-kick">kick</span> = low-frequency hit (beat 1&amp;3 typically),
+    <span class="role-snare">snare</span> = mid-frequency hit (beat 2&amp;4 typically),
+    <span class="role-hat">hat</span> = high-frequency short hit, <span class="role-?">?</span> = unknown.
+    Role classification here is purely heuristic (by grid position), not spectral analysis.
+  </p>
+</div>
+
+<!-- VISUALISATION -->
+<div class="panel">
+  <h2>Visualisation — Best Candidate Loop Region</h2>
+  <div class="legend">
+    <span class="legend-item"><span class="swatch" style="background:#555;border-color:#555"></span> Grid line</span>
+    <span class="legend-item"><span class="swatch" style="background:#c44;border-color:#c44"></span> Kick</span>
+    <span class="legend-item"><span class="swatch" style="background:#44c;border-color:#44c"></span> Snare</span>
+    <span class="legend-item"><span class="swatch" style="background:#4a9;border-color:#4a9"></span> Hat / unclassified (on-grid)</span>
+    <span class="legend-item"><span class="swatch" style="background:#888;border-color:#888"></span> Off-grid transient</span>
+    <span class="legend-item"><span class="swatch" style="background:#88a;border-color:#88a;border-style:dashed"></span> Loop boundary</span>
+  </div>
+  <div class="canvas-wrapper">
+    <canvas id="vizCanvas" width="800" height="160"></canvas>
+  </div>
+  <div id="vizAnnotation" style="font-size:11px; color:#888; margin-top:6px;"></div>
+</div>
+
+<!-- RANKED CANDIDATES -->
+<div class="panel">
+  <h2>Ranked Loop Start/End Candidates</h2>
+  <div id="candidatesContainer"><p class="empty-state">No results yet.</p></div>
+</div>
+
+<div class="stub-block">
+  Stubbed: → audition button per candidate (would play the proposed loop region in the app)
+  <br>Stubbed: → [BPM Hypothesis Sandbox] — iterate over top BPM hypotheses automatically
+  <br>Stubbed: → "Apply to slicer" action (out of scope for prototype)
+</div>
+
+<script>
+// ============================================================
+// FIXTURES
+// Transients have: time (seconds), role ('kick'|'snare'|'hat'|'?')
+// ============================================================
+const FIXTURES = [
+  {
+    label: "Perfect 2-bar @ 120 BPM (kick/snare/hat)",
+    bpm: 120, bars: 2,
+    transients: [
+      { t: 0.000, role: 'kick' },  { t: 0.125, role: 'hat' },
+      { t: 0.250, role: 'hat' },   { t: 0.375, role: 'hat' },
+      { t: 0.500, role: 'snare' }, { t: 0.625, role: 'hat' },
+      { t: 0.750, role: 'hat' },   { t: 0.875, role: 'hat' },
+      { t: 1.000, role: 'kick' },  { t: 1.125, role: 'hat' },
+      { t: 1.250, role: 'hat' },
+      { t: 1.500, role: 'snare' }, { t: 1.625, role: 'hat' },
+      { t: 1.875, role: 'hat' },
+      { t: 2.000, role: 'kick' },  { t: 2.125, role: 'hat' },
+      { t: 2.500, role: 'snare' },
+      { t: 3.000, role: 'kick' },  { t: 3.125, role: 'hat' },
+      { t: 3.500, role: 'snare' }, { t: 3.750, role: 'hat' },
+    ],
+  },
+  {
+    label: "2-bar @ 120 BPM + 180ms bleed (extra kick)",
+    bpm: 120, bars: 2,
+    transients: [
+      { t: 0.000, role: 'kick' },
+      { t: 0.500, role: 'snare' },
+      { t: 1.000, role: 'kick' },
+      { t: 1.250, role: 'hat' },
+      { t: 1.500, role: 'snare' },
+      { t: 2.000, role: 'kick' },
+      { t: 2.500, role: 'snare' },
+      { t: 3.000, role: 'kick' },
+      { t: 3.500, role: 'snare' },
+      { t: 4.060, role: 'kick' },   // bleed transient
+    ],
+  },
+  {
+    label: "No roles set — classification only from position",
+    bpm: 120, bars: 2,
+    transients: [
+      { t: 0.000, role: '?' },
+      { t: 0.500, role: '?' },
+      { t: 1.000, role: '?' },
+      { t: 1.500, role: '?' },
+      { t: 2.000, role: '?' },
+      { t: 2.375, role: '?' },
+      { t: 2.500, role: '?' },
+      { t: 3.000, role: '?' },
+      { t: 3.500, role: '?' },
+      { t: 4.090, role: '?' },
+    ],
+  },
+  {
+    label: "Ambiguous: double-time feel (could be 1- or 2-bar)",
+    bpm: 120, bars: 2,
+    transients: [
+      { t: 0.000, role: 'kick' },
+      { t: 0.250, role: 'snare' },
+      { t: 0.500, role: 'kick' },
+      { t: 0.750, role: 'snare' },
+      { t: 1.000, role: 'kick' },
+      { t: 1.250, role: 'snare' },
+      { t: 1.500, role: 'kick' },
+      { t: 1.750, role: 'snare' },
+      { t: 2.000, role: 'kick' },
+      { t: 2.250, role: 'snare' },
+      { t: 2.500, role: 'kick' },
+      { t: 2.750, role: 'snare' },
+      { t: 3.000, role: 'kick' },
+      { t: 3.250, role: 'snare' },
+      { t: 3.500, role: 'kick' },
+      { t: 3.750, role: 'snare' },
+    ],
+  },
+  {
+    label: "4-bar @ 90 BPM — sparse (step=0.1667s)",
+    bpm: 90, bars: 4,
+    transients: [
+      { t: 0.000, role: 'kick' },
+      { t: 0.667, role: 'hat' },
+      { t: 1.333, role: 'snare' },
+      { t: 2.000, role: 'kick' },
+      { t: 2.667, role: 'hat' },
+      { t: 4.000, role: 'snare' },
+      { t: 5.333, role: 'kick' },
+      { t: 6.000, role: 'hat' },
+      { t: 6.667, role: 'snare' },
+      { t: 8.000, role: 'kick' },
+      { t: 8.667, role: 'hat' },
+      { t: 10.000, role: 'snare' },
+      { t: 10.750, role: 'kick' },   // bleed
+    ],
+  },
+];
+
+// ============================================================
+// STATE — managed as an array of {t, role} objects
+// ============================================================
+let rows = [];
+
+// ============================================================
+// ALGORITHM
+// ============================================================
+
+const ROLE_WEIGHTS = { kick: 2.0, snare: 2.0, hat: 1.0, '?': 1.0 };
+
+function stepDur(bpm) { return 60 / bpm / 4; }
+function loopDur(bpm, bars) { return bars * 4 * (60 / bpm); }
+
+function nearestGridDist(time, step) {
+  const idx = Math.round(time / step);
+  return Math.abs(time - idx * step);
+}
+
+function scoreCandidate(transients, bpm, bars, toleranceSec, startOffset, useRoles) {
+  const step = stepDur(bpm);
+  const dur = loopDur(bpm, bars);
+  const end = startOffset + dur;
+
+  let weightedSum = 0;
+  let weightedTotal = 0;
+  let onGridCount = 0;
+  let relevantCount = 0;
+  const detail = [];
+
+  for (const tr of transients) {
+    const adj = tr.t - startOffset;
+    if (adj < -toleranceSec || adj > dur + toleranceSec) {
+      detail.push({ ...tr, adj, onGrid: false, outOfRange: true, dist: null });
+      continue;
+    }
+    const dist = nearestGridDist(adj, step);
+    const onGrid = dist <= toleranceSec;
+    const weight = useRoles ? (ROLE_WEIGHTS[tr.role] || 1.0) : 1.0;
+    weightedTotal += weight;
+    if (onGrid) { weightedSum += weight; onGridCount++; }
+    relevantCount++;
+    detail.push({ ...tr, adj, onGrid, outOfRange: false, dist });
+  }
+
+  const alignScore = weightedTotal > 0 ? weightedSum / weightedTotal : 0;
+  const meanDist = detail.filter(d => !d.outOfRange && d.dist !== null)
+    .reduce((s, d) => s + d.dist, 0) / Math.max(1, relevantCount);
+
+  return { startOffset, endOffset: end, alignScore, meanDist, onGridCount, relevantCount, detail };
+}
+
+function generateCandidates(transients, bpm, bars, toleranceSec, searchRangeSec, topN, useRoles) {
+  const step = stepDur(bpm);
+  const results = [];
+  // Search at sub-step resolution over the search range
+  const searchSteps = Math.round(searchRangeSec / 0.005); // 5ms increments
+  for (let i = 0; i <= searchSteps; i++) {
+    const offset = i * (searchRangeSec / searchSteps);
+    results.push(scoreCandidate(transients, bpm, bars, toleranceSec, offset, useRoles));
+  }
+  // Sort: best align score first, tie-break by mean dist
+  results.sort((a, b) => b.alignScore - a.alignScore || a.meanDist - b.meanDist);
+
+  // De-duplicate: only keep candidates separated by at least 20ms in start offset
+  const deduped = [];
+  for (const c of results) {
+    if (deduped.every(d => Math.abs(d.startOffset - c.startOffset) > 0.020)) {
+      deduped.push(c);
+      if (deduped.length >= topN) break;
+    }
+  }
+  return deduped;
+}
+
+// Heuristic auto-classify: assign roles based on position in the loop
+// (purely positional — not spectral)
+function autoClassifyRoles(transients, bpm, bars) {
+  const step = stepDur(bpm);
+  const dur = loopDur(bpm, bars);
+  return transients.map(tr => {
+    const adj = tr.t % dur;
+    const stepIdx = Math.round(adj / step);
+    const beatIdx = Math.floor(stepIdx / 4); // beat within bar
+    const beatInBar = beatIdx % 4;
+    let role = '?';
+    if (Math.abs(adj - Math.round(adj / step) * step) < 0.020) {
+      // on or near grid
+      if (beatInBar === 0 || beatInBar === 2) role = 'kick';
+      else if (beatInBar === 1 || beatInBar === 3) role = 'snare';
+      else role = 'hat';
+    } else {
+      role = 'hat'; // off-beat = likely hat/ghost
+    }
+    return { ...tr, role };
+  });
+}
+
+// ============================================================
+// VISUALISATION
+// ============================================================
+
+function drawViz(ctx, transients, bpm, bars, toleranceSec, startOffset, useRoles) {
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+  const step = stepDur(bpm);
+  const dur = loopDur(bpm, bars);
+
+  // Compute total visible range
+  const totalDur = Math.max(dur + startOffset + 0.2,
+    transients.length > 0 ? transients[transients.length - 1].t + 0.2 : dur + 0.2);
+
+  const PAD = 24;
+  const drawW = W - PAD * 2;
+  function xOf(t) { return PAD + (t / totalDur) * drawW; }
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Loop region background
+  const lx = xOf(startOffset);
+  const rx = xOf(startOffset + dur);
+  ctx.fillStyle = '#232323';
+  ctx.fillRect(lx, 0, rx - lx, H);
+
+  // Loop boundary dashes
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#88a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(lx, 0); ctx.lineTo(lx, H);
+  ctx.moveTo(rx, 0); ctx.lineTo(rx, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Grid lines
+  const totalSteps = Math.ceil(totalDur / step) + 1;
+  for (let i = 0; i <= totalSteps; i++) {
+    const t = startOffset + i * step;
+    if (t > totalDur + 0.05) break;
+    const x = xOf(t);
+    const isBeat = i % 4 === 0;
+    const isBar = i % 16 === 0;
+    ctx.lineWidth = isBar ? 1.5 : (isBeat ? 1 : 0.5);
+    ctx.strokeStyle = isBar ? '#888' : (isBeat ? '#444' : '#2c2c2c');
+    ctx.beginPath();
+    ctx.moveTo(x, isBar ? 0 : (isBeat ? 8 : 16));
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+
+  // Tolerance shading
+  ctx.fillStyle = 'rgba(100,100,100,0.07)';
+  for (let i = 0; i <= totalSteps; i++) {
+    const t = startOffset + i * step;
+    const x = xOf(t);
+    const tolW = (toleranceSec / totalDur) * drawW;
+    ctx.fillRect(x - tolW, 0, tolW * 2, H);
+  }
+
+  // Transients
+  const midY = H * 0.5;
+  const hH = H * 0.6;
+  const result = scoreCandidate(transients, bpm, bars, toleranceSec, startOffset, useRoles);
+
+  for (const d of result.detail) {
+    const x = xOf(d.t);
+    let color;
+    if (d.outOfRange) {
+      color = '#555';
+    } else if (d.role === 'kick') {
+      color = d.onGrid ? '#c44' : '#844';
+    } else if (d.role === 'snare') {
+      color = d.onGrid ? '#44c' : '#448';
+    } else {
+      color = d.onGrid ? '#4a9' : '#666';
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = d.outOfRange ? 1 : 2;
+    ctx.setLineDash(d.outOfRange ? [2, 3] : []);
+    ctx.beginPath();
+    ctx.moveTo(x, midY - hH / 2);
+    ctx.lineTo(x, midY + hH / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(x, midY, d.outOfRange ? 2 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#777';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillText(startOffset.toFixed(3) + 's', lx + 2, H - 4);
+  ctx.fillText((startOffset + dur).toFixed(3) + 's', rx - 38, H - 4);
+}
+
+// ============================================================
+// TRANSIENT TABLE EDITOR
+// ============================================================
+
+function renderTransientTable() {
+  const container = document.getElementById('transientTableContainer');
+  let html = `<table class="transient-table">
+    <thead><tr>
+      <th>#</th>
+      <th>Time (s)</th>
+      <th>Role</th>
+      <th></th>
+    </tr></thead><tbody>`;
+
+  rows.forEach((r, i) => {
+    const roleClass = `role-${r.role}`;
+    html += `<tr>
+      <td style="color:#aaa">${i + 1}</td>
+      <td><input type="number" step="0.001" min="0" value="${r.t.toFixed(4)}"
+        onchange="rows[${i}].t = parseFloat(this.value)" style="width:80px"></td>
+      <td>
+        <select onchange="rows[${i}].role = this.value">
+          <option value="kick"${r.role==='kick'?' selected':''}>kick</option>
+          <option value="snare"${r.role==='snare'?' selected':''}>snare</option>
+          <option value="hat"${r.role==='hat'?' selected':''}>hat</option>
+          <option value="?"${r.role==='?'?' selected':''}>?</option>
+        </select>
+      </td>
+      <td><button class="del-btn" onclick="deleteRow(${i})">x</button></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function addRow() {
+  const lastT = rows.length > 0 ? rows[rows.length - 1].t + 0.125 : 0;
+  rows.push({ t: parseFloat(lastT.toFixed(4)), role: '?' });
+  renderTransientTable();
+}
+
+function deleteRow(i) {
+  rows.splice(i, 1);
+  renderTransientTable();
+}
+
+function autoClassify() {
+  const bpm = parseFloat(document.getElementById('bpm').value);
+  const bars = parseInt(document.getElementById('bars').value);
+  rows = autoClassifyRoles(rows, bpm, bars);
+  renderTransientTable();
+}
+
+// ============================================================
+// MAIN RUN
+// ============================================================
+
+function run() {
+  const bpm = parseFloat(document.getElementById('bpm').value);
+  const bars = parseInt(document.getElementById('bars').value);
+  const tol = parseFloat(document.getElementById('tolerance').value) / 1000;
+  const searchRange = parseFloat(document.getElementById('searchRange').value) / 1000;
+  const topN = parseInt(document.getElementById('topN').value);
+  const useRoles = document.getElementById('useRoleWeighting').checked;
+
+  // Collect current rows (re-read values in case user edited inline)
+  const transients = readRows();
+  if (transients.length === 0) {
+    document.getElementById('candidatesContainer').innerHTML =
+      '<p class="warning">No transients defined. Add rows or pick a fixture.</p>';
+    return;
+  }
+
+  const candidates = generateCandidates(transients, bpm, bars, tol, searchRange, topN, useRoles);
+
+  // Draw best candidate
+  const canvas = document.getElementById('vizCanvas');
+  const ctx = canvas.getContext('2d');
+  if (candidates.length > 0) {
+    drawViz(ctx, transients, bpm, bars, tol, candidates[0].startOffset, useRoles);
+    document.getElementById('vizAnnotation').textContent =
+      `Best candidate: start ${(candidates[0].startOffset * 1000).toFixed(0)}ms, ` +
+      `end ${(candidates[0].endOffset * 1000).toFixed(0)}ms. ` +
+      `Align score ${(candidates[0].alignScore * 100).toFixed(0)}%. ` +
+      (useRoles ? 'Role weighting ON.' : 'Role weighting OFF.');
+  }
+
+  renderCandidates(candidates, bpm, bars, tol, transients, useRoles);
+}
+
+function readRows() {
+  // Re-read from DOM inputs in case user typed directly
+  const inputs = document.querySelectorAll('.transient-table tbody tr');
+  return rows.map((r, i) => {
+    const tInput = inputs[i] ? inputs[i].querySelector('input[type=number]') : null;
+    const rSelect = inputs[i] ? inputs[i].querySelector('select') : null;
+    return {
+      t: tInput ? parseFloat(tInput.value) : r.t,
+      role: rSelect ? rSelect.value : r.role,
+    };
+  }).filter(r => !isNaN(r.t) && r.t >= 0).sort((a, b) => a.t - b.t);
+}
+
+function renderCandidates(candidates, bpm, bars, tol, transients, useRoles) {
+  const container = document.getElementById('candidatesContainer');
+  if (candidates.length === 0) {
+    container.innerHTML = '<p class="empty-state">No candidates found.</p>';
+    return;
+  }
+
+  let html = '<table class="results-table"><thead><tr>';
+  html += '<th>Rank</th><th>Start offset</th><th>Loop start</th><th>Loop end</th>';
+  html += '<th>On-grid / relevant</th><th>Align score</th><th>Mean dist</th><th></th>';
+  html += '</tr></thead><tbody>';
+
+  candidates.forEach((c, i) => {
+    const isTop = i === 0;
+    const pct = (c.alignScore * 100).toFixed(0);
+    const barW = Math.round(c.alignScore * 100);
+    html += `<tr class="${isTop ? 'rank-1' : ''}">
+      <td>${i + 1}</td>
+      <td>${(c.startOffset * 1000).toFixed(0)}ms</td>
+      <td>${c.startOffset.toFixed(4)}s</td>
+      <td>${c.endOffset.toFixed(4)}s</td>
+      <td>${c.onGridCount} / ${c.relevantCount}</td>
+      <td>
+        <span class="score-bar-container">
+          <span class="score-bar-fill" style="width:${barW}%;background:#555;height:100%;display:block"></span>
+        </span>
+        <span style="margin-left:6px">${pct}%</span>
+      </td>
+      <td>${(c.meanDist * 1000).toFixed(1)}ms</td>
+      <td>${isTop ? '<span class="badge-primary">BEST</span>' : '<span class="badge-secondary">alt</span>'}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+
+  html += `<div class="explanation">
+    <strong>How role weighting works:</strong> Kicks and snares are weighted 2× relative to hats and
+    unclassified transients. This means a kick that falls on beat 1 contributes twice as much to the
+    alignment score as a hi-hat ghost note. The hypothesis is that getting the musically "heavy" hits
+    on-grid matters more than grid-aligning every 16th-note hat.
+    ${useRoles ? '' : '<br><em>(Role weighting is currently OFF — all transients weighted equally.)</em>'}
+    <br><br>
+    <strong>Slightly-too-long handling:</strong> The search sweeps start offsets up to the configured
+    search range. If the best candidate has a non-zero start offset, it means trimming the sample head
+    by that amount produces a cleaner loop. A start offset of 0ms means the sample head is already
+    the best loop start.
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+// ============================================================
+// FIXTURES
+// ============================================================
+
+function loadFixture(f) {
+  document.getElementById('bpm').value = f.bpm;
+  document.getElementById('bars').value = f.bars;
+  rows = f.transients.map(r => ({ ...r }));
+  renderTransientTable();
+  run();
+}
+
+function buildFixtureChips() {
+  const container = document.getElementById('fixtureChips');
+  FIXTURES.forEach(f => {
+    const chip = document.createElement('span');
+    chip.className = 'fixture-chip';
+    chip.textContent = f.label;
+    chip.onclick = () => {
+      document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      loadFixture(f);
+    };
+    container.appendChild(chip);
+  });
+}
+
+// Init
+buildFixtureChips();
+loadFixture(FIXTURES[0]);
+</script>
+</body>
+</html>

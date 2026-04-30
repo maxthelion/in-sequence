@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — NOT A PRODUCTION PROPOSAL
+  Autoslice Algorithm / Sandbox 2 of 3: Transient Onset vs 16-step Grid Alignment
+  Stories covered: 2 (alignment check), 3 (slightly-too-long handling), 4 (ranked start/end suggestions)
+  Self-contained. No external dependencies.
+
+  The "transients" here are synthetic fixture data representing frame positions.
+  Sample rate assumed: 44100 Hz throughout.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[PROTOTYPE] Autoslice — Transient Grid Alignment Sandbox</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: #f5f5f5;
+    color: #222;
+    padding: 24px;
+  }
+
+  .proto-badge {
+    display: inline-block;
+    border: 2px dashed #aaa;
+    padding: 4px 10px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  h1 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #444;
+       border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+
+  .description { color: #555; margin-bottom: 20px; max-width: 680px; line-height: 1.5; }
+
+  .panel { background: #fff; border: 1px solid #ccc; padding: 16px; margin-bottom: 16px; max-width: 820px; }
+
+  .input-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label { display: block; font-weight: 600; font-size: 12px; color: #555; }
+
+  input[type=number], input[type=range], select {
+    font-family: inherit; font-size: 13px;
+    border: 1px solid #bbb; padding: 5px 8px;
+    background: #fff; color: #222;
+  }
+  input[type=number] { width: 110px; }
+  input[type=range] { width: 160px; }
+
+  button {
+    font-family: inherit; font-size: 13px;
+    border: 1px solid #555; padding: 5px 14px;
+    background: #333; color: #fff; cursor: pointer;
+  }
+  button:hover { background: #555; }
+
+  .fixtures { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .fixture-chip {
+    border: 1px solid #aaa; padding: 3px 10px; cursor: pointer;
+    font-size: 11px; color: #555; background: #f0f0f0;
+  }
+  .fixture-chip:hover { background: #ddd; }
+  .fixture-chip.active { border-color: #333; background: #e8e8e8; color: #222; font-weight: 600; }
+
+  /* CANVAS AREA */
+  .canvas-wrapper {
+    overflow-x: auto;
+    border: 1px solid #ccc;
+    background: #1a1a1a;
+    margin-bottom: 12px;
+  }
+
+  canvas { display: block; }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .swatch { width: 14px; height: 14px; display: inline-block; border: 1px solid #ccc; }
+
+  /* SCORES TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; border-bottom: 2px solid #ccc; padding: 5px 8px;
+       font-weight: 600; color: #555; white-space: nowrap; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+
+  .score-bar-container { width: 100px; height: 10px; background: #e8e8e8;
+    border: 1px solid #ccc; display: inline-block; vertical-align: middle; }
+  .score-bar { height: 100%; background: #555; }
+
+  .rank-1 { background: #f0f0f0; }
+  .badge-primary { background: #333; color: #fff; padding: 1px 6px; font-size: 10px; font-weight: 600; }
+  .badge-secondary { background: #bbb; color: #fff; padding: 1px 6px; font-size: 10px; }
+
+  .explanation { font-size: 11px; color: #777; line-height: 1.6; max-width: 680px;
+    border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 10px; }
+
+  .stub-block {
+    border: 2px dashed #ccc; padding: 10px 14px; color: #bbb; font-size: 11px; margin-top: 16px;
+    max-width: 820px;
+  }
+
+  .transient-edit-area {
+    font-family: monospace; font-size: 12px;
+    border: 1px solid #bbb; padding: 6px 8px; width: 100%;
+    min-height: 60px; color: #333; background: #fafafa;
+    resize: vertical;
+  }
+  .hint { font-size: 11px; color: #888; margin-top: 4px; }
+
+  .warning { color: #a04000; font-size: 11px; }
+  .empty-state { color: #aaa; font-style: italic; padding: 12px 0; }
+</style>
+</head>
+<body>
+
+<div class="proto-badge">PROTOTYPE — ALGORITHM SANDBOX — NOT A PRODUCTION PROPOSAL</div>
+
+<h1>Autoslice — Sandbox 2: Transient Onset vs 16-Step Grid Alignment</h1>
+<p class="description">
+  Given detected transient positions (in seconds) and a BPM hypothesis, this sandbox scores how well transients
+  snap to 16th-note grid positions. It visualises onset positions against the proposed grid, and for
+  slightly-too-long samples, shows trimmed start/end candidates ranked by alignment improvement.
+  Covers Stories 2, 3, and 4.
+</p>
+
+<!-- FIXTURES -->
+<div class="panel">
+  <h2>Adversarial Fixtures</h2>
+  <p style="color:#888; font-size:11px; margin-bottom:10px;">
+    Synthetic transient lists. "Bleed" fixtures simulate recordings that ran slightly long.
+  </p>
+  <div class="fixtures" id="fixtureChips"></div>
+</div>
+
+<!-- INPUT -->
+<div class="panel">
+  <h2>Parameters</h2>
+  <div class="input-row">
+    <div class="field">
+      <label>BPM</label>
+      <input type="number" id="bpm" min="40" max="250" step="0.5" value="120">
+    </div>
+    <div class="field">
+      <label>Bar count</label>
+      <select id="bars">
+        <option value="1">1 bar</option>
+        <option value="2" selected>2 bars</option>
+        <option value="4">4 bars</option>
+        <option value="8">8 bars</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Snap tolerance (ms)</label>
+      <input type="number" id="tolerance" min="1" max="100" step="1" value="30">
+    </div>
+  </div>
+
+  <label style="margin-bottom:6px">Transient onsets (seconds from sample start, comma or newline separated)</label>
+  <textarea class="transient-edit-area" id="transientsInput"></textarea>
+  <p class="hint">Edit these directly or pick a fixture above.</p>
+
+  <div style="margin-top: 12px;">
+    <button onclick="run()">Score Alignment</button>
+  </div>
+</div>
+
+<!-- VISUALISATION -->
+<div class="panel">
+  <h2>Visualisation — Transients vs 16-Step Grid</h2>
+  <div class="legend">
+    <span class="legend-item"><span class="swatch" style="background:#555;border-color:#555"></span> 16th-note grid</span>
+    <span class="legend-item"><span class="swatch" style="background:#eee;border-color:#aaa"></span> Beat (quarter note)</span>
+    <span class="legend-item"><span class="swatch" style="background:#4a9;border-color:#4a9"></span> Transient (on-grid)</span>
+    <span class="legend-item"><span class="swatch" style="background:#c44;border-color:#c44"></span> Transient (off-grid)</span>
+    <span class="legend-item"><span class="swatch" style="background:#88a;border-color:#88a;border-style:dashed"></span> Suggested loop region</span>
+  </div>
+  <div class="canvas-wrapper">
+    <canvas id="gridCanvas" width="760" height="140"></canvas>
+  </div>
+  <div id="canvasAnnotation" style="font-size:11px; color:#888; margin-top:6px;"></div>
+</div>
+
+<!-- SCORES -->
+<div class="panel">
+  <h2>Alignment Score + Trim Candidates</h2>
+  <div id="scoresContainer"><p class="empty-state">No results yet — press Score Alignment.</p></div>
+</div>
+
+<div class="stub-block">
+  Stubbed: → [Loop Boundary Heuristic Sandbox] — pass the best trim candidate into sandbox 3 for role-weighted rescoring.
+  <br>Stubbed: → [BPM Hypothesis Sandbox] — retrieve the BPM hypothesis list and iterate over top candidates automatically.
+</div>
+
+<script>
+// ============================================================
+// FIXTURES
+// All times in seconds from sample start.
+// "groundTruth" is the intended clean loop region for adversarial cases.
+// ============================================================
+const SR = 44100; // sample rate for annotation only
+
+const FIXTURES = [
+  {
+    label: "Clean 2-bar @ 120 BPM — perfect grid",
+    bpm: 120, bars: 2,
+    // 16 steps, step dur = 0.125s
+    onsets: [0.000, 0.125, 0.250, 0.375, 0.500, 0.625, 0.750, 0.875,
+              1.000, 1.125, 1.250, 1.375, 1.500, 1.625, 1.750, 1.875],
+    groundTruth: { start: 0, end: 4.000 },
+  },
+  {
+    label: "Clean 2-bar @ 120 BPM — sparse kicks/snares only",
+    bpm: 120, bars: 2,
+    onsets: [0.000, 0.500, 1.000, 1.500, 2.000, 2.500, 3.000, 3.500],
+    groundTruth: { start: 0, end: 4.000 },
+  },
+  {
+    label: "2-bar @ 120 BPM + 80ms bleed at end",
+    bpm: 120, bars: 2,
+    onsets: [0.000, 0.500, 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 3.990],
+    groundTruth: { start: 0, end: 4.000 },
+  },
+  {
+    label: "2-bar @ 120 BPM + 200ms bleed (bleed transient)",
+    bpm: 120, bars: 2,
+    onsets: [0.000, 0.250, 0.500, 1.000, 1.500, 2.000, 2.250, 2.500, 3.000, 3.500, 4.050],
+    groundTruth: { start: 0, end: 4.000 },
+  },
+  {
+    label: "Jittered loop — transients up to ±20ms off grid",
+    bpm: 120, bars: 2,
+    // Deliberately jittered: real recordings aren't exactly on grid
+    onsets: [0.002, 0.127, 0.248, 0.503, 0.623, 0.749, 1.012, 1.496, 1.999, 2.501, 2.997, 3.503],
+    groundTruth: { start: 0, end: 4.000 },
+  },
+  {
+    label: "Wrong BPM hypothesis (140 BPM applied to 120 BPM loop)",
+    bpm: 140, bars: 2,
+    onsets: [0.000, 0.125, 0.500, 1.000, 1.500, 2.000, 2.500, 3.000, 3.500],
+    groundTruth: null,
+  },
+  {
+    label: "4-bar @ 90 BPM — dense transients",
+    bpm: 90, bars: 4,
+    // Step duration at 90BPM = 60/(90*4) = 0.1667s
+    onsets: [0.000, 0.167, 0.333, 0.667, 1.000, 1.333, 1.667, 2.000,
+              2.333, 2.667, 3.000, 3.333, 4.000, 4.333, 5.000, 5.667,
+              6.000, 6.333, 7.000, 7.667, 8.000, 8.333, 9.000, 9.667,
+              10.000, 10.333, 10.500],
+    groundTruth: { start: 0, end: 10.667 },
+  },
+];
+
+// ============================================================
+// ALGORITHM
+// ============================================================
+
+function stepDuration(bpm) {
+  // Duration of one 16th-note in seconds
+  return 60 / bpm / 4;
+}
+
+function loopDuration(bpm, bars) {
+  return bars * 4 * (60 / bpm);
+}
+
+function nearestGridOffset(time, stepDur) {
+  // Returns distance to nearest 16th-note grid line, signed
+  const gridIndex = Math.round(time / stepDur);
+  return time - gridIndex * stepDur;
+}
+
+function scoreAlignment(onsets, bpm, bars, toleranceSec, startOffset) {
+  // For each onset, compute distance to nearest grid position.
+  // Score = fraction of onsets within tolerance.
+  const stepDur = stepDuration(bpm);
+  const loopEnd = loopDuration(bpm, bars);
+  let inTol = 0;
+  let totalError = 0;
+  const onsetData = [];
+
+  for (const t of onsets) {
+    const adjusted = t - (startOffset || 0);
+    if (adjusted < -toleranceSec || adjusted > loopEnd + toleranceSec) {
+      onsetData.push({ t, adjusted, offset: null, onGrid: false, outOfRange: true });
+      continue;
+    }
+    const offset = nearestGridOffset(adjusted, stepDur);
+    const absOffset = Math.abs(offset);
+    const onGrid = absOffset <= toleranceSec;
+    if (onGrid) inTol++;
+    totalError += absOffset;
+    onsetData.push({ t, adjusted, offset, absOffset, onGrid, outOfRange: false });
+  }
+
+  const relevantOnsets = onsetData.filter(d => !d.outOfRange);
+  const alignScore = relevantOnsets.length > 0 ? inTol / relevantOnsets.length : 0;
+  const meanError = relevantOnsets.length > 0 ? totalError / relevantOnsets.length : 0;
+  return { alignScore, meanError, onsetData, inTol, relevant: relevantOnsets.length };
+}
+
+// Trim candidate search: try different start offsets to improve alignment score
+function findTrimCandidates(onsets, bpm, bars, toleranceSec) {
+  const loopDur = loopDuration(bpm, bars);
+  const stepDur = stepDuration(bpm);
+  const candidates = [];
+
+  // Try start offsets from 0 to half a step in small increments
+  const maxTrim = Math.min(stepDur, 0.5); // don't trim more than one step or 500ms
+  const steps = 40;
+  for (let i = 0; i <= steps; i++) {
+    const startOffset = (i / steps) * maxTrim;
+    const endOffset = startOffset + loopDur;
+    const result = scoreAlignment(onsets, bpm, bars, toleranceSec, startOffset);
+    candidates.push({ startOffset, endOffset, ...result });
+  }
+
+  candidates.sort((a, b) => b.alignScore - a.alignScore || a.meanError - b.meanError);
+  return candidates.slice(0, 5);
+}
+
+// ============================================================
+// VISUALISATION
+// ============================================================
+
+const CANVAS_H = 140;
+const CANVAS_PADDING = 20;
+
+function drawGrid(ctx, onsets, bpm, bars, toleranceSec, startOffset) {
+  const canvas = ctx.canvas;
+  const W = canvas.width;
+  const H = canvas.height;
+  const stepDur = stepDuration(bpm);
+  const loopDur = loopDuration(bpm, bars);
+  const totalDur = Math.max(loopDur, onsets.length > 0 ? onsets[onsets.length - 1] * 1.05 : loopDur);
+
+  const pad = CANVAS_PADDING;
+  const drawW = W - pad * 2;
+
+  function xOf(t) { return pad + (t / totalDur) * drawW; }
+  function xOfAdj(t) { return xOf(t - startOffset); }
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw loop region background
+  const loopStartX = xOf(startOffset);
+  const loopEndX = xOf(startOffset + loopDur);
+  ctx.fillStyle = '#242424';
+  ctx.fillRect(loopStartX, 0, loopEndX - loopStartX, H);
+
+  // Draw loop boundary lines (dashed)
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#88a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(loopStartX, 0); ctx.lineTo(loopStartX, H);
+  ctx.moveTo(loopEndX, 0); ctx.lineTo(loopEndX, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw 16th-note grid lines (from startOffset)
+  const totalSteps = Math.ceil(totalDur / stepDur) + 1;
+  for (let i = 0; i <= totalSteps; i++) {
+    const t = startOffset + i * stepDur;
+    if (t > totalDur + 0.1) break;
+    const x = xOf(t);
+    const isBeat = i % 4 === 0;
+    const isBar = i % 16 === 0;
+
+    ctx.lineWidth = isBar ? 1.5 : (isBeat ? 1 : 0.5);
+    ctx.strokeStyle = isBar ? '#888' : (isBeat ? '#555' : '#333');
+    ctx.beginPath();
+    ctx.moveTo(x, isBar ? 0 : (isBeat ? 10 : 20));
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+
+  // Tolerance bands at each grid line
+  ctx.fillStyle = 'rgba(100,100,100,0.08)';
+  for (let i = 0; i <= totalSteps; i++) {
+    const t = startOffset + i * stepDur;
+    const x = xOf(t);
+    const tolW = (toleranceSec / totalDur) * drawW;
+    ctx.fillRect(x - tolW, 0, tolW * 2, H);
+  }
+
+  // Draw transients
+  const { onsetData } = scoreAlignment(onsets, bpm, bars, toleranceSec, startOffset);
+  const midY = H / 2;
+  const transH = H * 0.65;
+
+  for (const d of onsetData) {
+    const x = xOf(d.t);
+    if (d.outOfRange) {
+      // Out of loop range — dim
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 3]);
+    } else if (d.onGrid) {
+      ctx.strokeStyle = '#4a9';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = '#c44';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    ctx.moveTo(x, midY - transH / 2);
+    ctx.lineTo(x, midY + transH / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Dot at midpoint
+    ctx.beginPath();
+    ctx.arc(x, midY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = d.outOfRange ? '#555' : (d.onGrid ? '#4a9' : '#c44');
+    ctx.fill();
+  }
+
+  // Labels
+  ctx.fillStyle = '#888';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillText(`0`, loopStartX + 2, H - 4);
+  ctx.fillText(loopDur.toFixed(3) + 's', loopEndX - 36, H - 4);
+  ctx.fillText(`← loop region (${bars}bar @ ${bpm}BPM) →`, loopStartX + (loopEndX - loopStartX) / 2 - 60, 10);
+}
+
+// ============================================================
+// MAIN RUN
+// ============================================================
+
+let currentOnsets = [];
+let currentBpm = 120;
+let currentBars = 2;
+let currentTolerance = 0.030;
+
+function run() {
+  currentBpm = parseFloat(document.getElementById('bpm').value);
+  currentBars = parseInt(document.getElementById('bars').value);
+  currentTolerance = parseFloat(document.getElementById('tolerance').value) / 1000;
+
+  const raw = document.getElementById('transientsInput').value;
+  const onsets = raw.split(/[\s,;]+/).map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n >= 0);
+  onsets.sort((a, b) => a - b);
+  currentOnsets = onsets;
+
+  if (onsets.length === 0) {
+    document.getElementById('scoresContainer').innerHTML =
+      '<p style="color:#a04000; font-size:12px">No valid onset times found. Enter at least one time value.</p>';
+    return;
+  }
+
+  // Initial alignment (no trim)
+  const baseline = scoreAlignment(onsets, currentBpm, currentBars, currentTolerance, 0);
+
+  // Trim candidates
+  const trimCandidates = findTrimCandidates(onsets, currentBpm, currentBars, currentTolerance);
+
+  // Draw canvas with best trim
+  const bestTrim = trimCandidates[0];
+  const canvas = document.getElementById('gridCanvas');
+  const ctx = canvas.getContext('2d');
+  drawGrid(ctx, onsets, currentBpm, currentBars, currentTolerance, bestTrim.startOffset);
+
+  document.getElementById('canvasAnnotation').textContent =
+    `Showing best trim: start at ${(bestTrim.startOffset * 1000).toFixed(0)}ms from sample head. ` +
+    `Loop region: ${bestTrim.startOffset.toFixed(4)}s – ${bestTrim.endOffset.toFixed(4)}s. ` +
+    `${baseline.inTol}/${baseline.relevant} transients on-grid without trim; ` +
+    `${bestTrim.inTol}/${bestTrim.relevant} with best trim.`;
+
+  renderScores(baseline, trimCandidates, onsets.length);
+}
+
+function renderScores(baseline, trimCandidates, totalOnsets) {
+  const container = document.getElementById('scoresContainer');
+
+  let html = `<div style="margin-bottom:12px">
+    <strong>Baseline (no trim):</strong>
+    ${baseline.inTol} / ${baseline.relevant} transients on-grid
+    (${(baseline.alignScore * 100).toFixed(0)}% align, mean error ${(baseline.meanError * 1000).toFixed(1)}ms)
+    ${baseline.alignScore < 0.5 ? '<span class="warning"> — poor fit</span>' : ''}
+  </div>`;
+
+  html += '<h2 style="margin-bottom:8px">Trim Candidates (ranked by alignment score)</h2>';
+  html += '<table><thead><tr>';
+  html += '<th>Rank</th><th>Start trim (ms)</th><th>Loop start</th><th>Loop end</th>';
+  html += '<th>On-grid</th><th>Alignment</th><th>Mean error</th><th></th>';
+  html += '</tr></thead><tbody>';
+
+  trimCandidates.forEach((c, i) => {
+    const isTop = i === 0;
+    const rowClass = isTop ? 'rank-1' : '';
+    const pct = (c.alignScore * 100).toFixed(0);
+    const barW = Math.round(c.alignScore * 100);
+    html += `<tr class="${rowClass}">
+      <td>${i + 1}</td>
+      <td>${(c.startOffset * 1000).toFixed(0)}</td>
+      <td>${c.startOffset.toFixed(4)}s</td>
+      <td>${c.endOffset.toFixed(4)}s</td>
+      <td>${c.inTol} / ${c.relevant}</td>
+      <td>
+        <span class="score-bar-container"><span class="score-bar" style="width:${barW}%"></span></span>
+        <span style="margin-left:6px">${pct}%</span>
+      </td>
+      <td>${(c.meanError * 1000).toFixed(1)}ms</td>
+      <td>${isTop ? '<span class="badge-primary">BEST</span>' : '<span class="badge-secondary">alt</span>'}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+
+  html += `<div class="explanation">
+    <strong>How to read this:</strong> The trim search slides the loop start point forward in small increments (up to one 16th-note step).
+    For each start position, it counts how many transients land within the snap tolerance of a grid line.
+    The "baseline" row uses the sample head as-is. If the best trim has a significantly higher alignment score,
+    the sample is likely slightly too long and a trim at that offset will produce a cleaner loop.
+    ${trimCandidates[0].startOffset > 0.005 ?
+      `<br><strong>Suggestion:</strong> A trim of ${(trimCandidates[0].startOffset * 1000).toFixed(0)}ms may improve grid fit.` : ''}
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+// ============================================================
+// FIXTURES
+// ============================================================
+
+function loadFixture(f) {
+  document.getElementById('bpm').value = f.bpm;
+  document.getElementById('bars').value = f.bars;
+  document.getElementById('transientsInput').value = f.onsets.map(t => t.toFixed(4)).join(', ');
+  // Resize canvas to fit
+  const loopDur = loopDuration(f.bpm, f.bars);
+  const extraDur = Math.max(0, f.onsets[f.onsets.length - 1] - loopDur);
+  const canvasW = Math.max(760, Math.min(1400, Math.round(760 * (1 + extraDur / loopDur * 0.3))));
+  document.getElementById('gridCanvas').width = canvasW;
+  run();
+}
+
+function buildFixtureChips() {
+  const container = document.getElementById('fixtureChips');
+  FIXTURES.forEach((f, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'fixture-chip';
+    chip.textContent = f.label;
+    chip.onclick = () => {
+      document.querySelectorAll('.fixture-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      loadFixture(f);
+    };
+    container.appendChild(chip);
+  });
+}
+
+buildFixtureChips();
+loadFixture(FIXTURES[0]);
+</script>
+</body>
+</html>
