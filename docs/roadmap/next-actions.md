@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T16:12:16Z
-Repo HEAD: e41fa3a
+Generated: 2026-04-30T16:17:04Z
+Repo HEAD: e7fbabd
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -45,8 +45,8 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 5
-- **Feature:** Mixer Busses
+- **Item:** 6
+- **Feature:** Send Effects
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `write-architecture`
@@ -106,10 +106,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `blocked`
+- **Role:** `user`
+- **Reason:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ### 6. Send Effects
 

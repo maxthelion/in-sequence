@@ -3,14 +3,20 @@ id: 6
 title: Send Effects
 status: inventory
 priority: unset
-blocked_by: []
-stage: write-architecture
+blocked_by:
+  - mixer-busses:open-question-2
+stage: review-architecture
 owner: pm
 updated: 2026-04-30
 ---
 
 # Send Effects
 
-Status: Inventory only.
+Status: Inventory — architecture written, pending architecture review.
 
-Use this directory for Send effects notes, user stories, existing-state reports, prototypes, UX reviews, specs, and build plans.
+Three open questions require user input before spec can be written:
+1. Send bus insert scope (global vs. scene-scoped) — blocked on Mixer Busses Q2.
+2. Return path (`finalOutputMixer` vs. `preMasterMixer`).
+3. Muted-track send behavior (mute cuts send tap vs. pre-mute tap).
+
+See `open-questions.md` and `architecture.md` Section 9.
