@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T13:51:39Z
-Repo HEAD: ecedae7
+Generated: 2026-04-30T13:56:25Z
+Repo HEAD: e3451f6
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -49,10 +49,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** Step Sequencer
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `build-prototypes`
+- **Action:** `review-prototypes`
 - **Role:** `pm-assistant`
-- **Why:** `ux-review.md` verdict is `needs-rework` or `rejected`; redirect_to=`build-prototypes`.
-- **Output:** Address the verdict in `ux-review.md`. Read notes, user stories, existing-state, feedback, and the review critique; produce a fresh artifact at the redirect target.
+- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Output:** Review variants against the UX checklist and choose or reject a direction.
 
 ## Feature Actions
 
@@ -84,10 +84,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `build-prototypes`
+- **Next action:** `review-prototypes`
 - **Role:** `pm-assistant`
-- **Reason:** `ux-review.md` verdict is `needs-rework` or `rejected`; redirect_to=`build-prototypes`.
-- **Suggested output:** Address the verdict in `ux-review.md`. Read notes, user stories, existing-state, feedback, and the review critique; produce a fresh artifact at the redirect target.
+- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
 ### 4. Mixer Main Out
 
