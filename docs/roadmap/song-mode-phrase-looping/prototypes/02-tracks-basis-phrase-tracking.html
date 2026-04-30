@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracks UI Basis-Phrase Tracking — Wireframe (Story 5)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: #f2f2f2;
+    color: #111;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── Annotation tokens ── */
+  .wf-label  { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: .06em; }
+  .wf-note   { font-size: 11px; color: #555; font-style: italic; margin-top: 4px; }
+  .wf-stub   { border: 2px dashed #bbb; color: #aaa; background: repeating-linear-gradient(45deg, transparent, transparent 4px, #eee 4px, #eee 8px); border-radius: 2px; text-align: center; padding: 6px 10px; font-size: 11px; cursor: default; }
+
+  /* ── Semantic colors ──
+     #0060df  = interactive / accent / currently playing phrase
+     #e8a000  = queued-next phrase
+     #2a7a2a  = success / on-step
+     #cc3300  = immediate-switch / destructive
+     #888     = disabled / stub
+     #ffd700  = basis-phrase update flash
+  ── */
+
+  .page-header {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ccc;
+  }
+  .page-header h1 { font-size: 15px; font-weight: 600; }
+  .page-header p  { color: #555; font-size: 11px; margin-top: 4px; }
+
+  .section {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #444;
+    margin-bottom: 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .budget-box {
+    font-size: 11px;
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .budget-box ol { margin-left: 18px; margin-top: 4px; }
+  .budget-box li { margin-bottom: 2px; color: #333; }
+
+  hr.section-sep { border: none; border-top: 2px solid #ccc; margin: 28px 0; }
+
+  .annotation-box {
+    border: 2px dashed #aaa;
+    background: #fffbe6;
+    border-radius: 2px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #555;
+  }
+  .annotation-box strong { color: #111; }
+
+  /* ── Compact transport bar (stub) ── */
+  .transport-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: #1a1a1a;
+    color: #ddd;
+    padding: 0 8px;
+    height: 36px;
+    border: 1px solid #000;
+    border-radius: 2px;
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+  .transport-segment {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    height: 100%;
+    border-right: 1px solid #333;
+    flex-shrink: 0;
+    gap: 5px;
+  }
+  .transport-segment:last-child { border-right: none; }
+  .play-btn-sm {
+    width: 22px; height: 22px;
+    background: #2a7a2a; border: 1px solid #1c5c1c;
+    border-radius: 2px; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; cursor: pointer; user-select: none;
+  }
+  .phrase-indicator {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 10px; height: 100%; border-right: 1px solid #333;
+  }
+  .phrase-label { font-size: 8px; color: #666; text-transform: uppercase; letter-spacing: .05em; }
+  .phrase-name  { font-size: 11px; font-weight: 600; color: #0060df; }
+  .phrase-name.queued { color: #e8a000; }
+  .cycle-bar-wrap { width: 50px; height: 3px; background: #333; border-radius: 1px; overflow: hidden; }
+  .cycle-bar-fill { height: 100%; background: #0060df; border-radius: 1px; }
+  .queue-seg {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 8px; height: 100%; border-right: 1px solid #333;
+  }
+  .queue-pill {
+    font-size: 9px; padding: 1px 6px;
+    border: 1px solid #e8a000; border-radius: 2px;
+    color: #e8a000; background: #2a1e00; white-space: nowrap;
+  }
+  .mode-stub {
+    font-size: 9px; color: #777; border: 1px solid #444;
+    border-radius: 2px; padding: 1px 5px; white-space: nowrap;
+  }
+  .pos-stub { font-family: "SF Mono", "Menlo", monospace; font-size: 10px; color: #888; }
+
+  /* ── Tracks matrix ── */
+  .workspace {
+    display: flex;
+    gap: 0;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  /* Left column: track labels */
+  .track-labels {
+    width: 130px;
+    flex-shrink: 0;
+    border-right: 1px solid #ccc;
+    background: #f7f7f7;
+  }
+  .track-labels-header {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid #ddd;
+    font-size: 10px;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: #efefef;
+  }
+
+  /* Basis-phrase banner — prominent when updated */
+  .basis-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-bottom: 1px solid #ddd;
+    font-size: 10px;
+    background: #f0f0f0;
+    color: #555;
+    transition: background 0.4s, color 0.4s;
+  }
+  .basis-banner.updated {
+    background: #fffbcc;
+    color: #6a5000;
+    border-bottom-color: #e8a000;
+  }
+  .basis-banner.flash {
+    background: #fff3cd;
+    border-bottom-color: #ffd700;
+  }
+  .basis-phrase-name {
+    font-weight: 700;
+    color: #0060df;
+  }
+  .basis-phrase-name.queued-preview {
+    color: #e8a000;
+  }
+
+  .track-row {
+    height: 38px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .track-row:last-child { border-bottom: none; }
+  .track-color-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Right side: step grid */
+  .grid-area {
+    flex: 1;
+    overflow-x: auto;
+    background: #fff;
+  }
+  .grid-header {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid #ddd;
+    gap: 8px;
+    background: #efefef;
+    font-size: 10px;
+    color: #555;
+  }
+  .bar-label {
+    font-size: 9px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .grid-row {
+    height: 38px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 2px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .grid-row:last-child { border-bottom: none; }
+
+  .step-cell {
+    width: 16px; height: 24px;
+    background: #eee;
+    border: 1px solid #ddd;
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+  .step-cell.on    { background: #0060df; border-color: #004ab8; }
+  .step-cell.on-alt{ background: #2a7a2a; border-color: #1c5c1c; }
+  .step-cell.dim   { background: #f5f5f5; border-color: #e5e5e5; }
+  .step-cell.play-head { background: #fff; border: 2px solid #0060df; }
+
+  /* Transition flash overlay on grid rows */
+  .grid-row.phrase-changed {
+    background: #fffde0;
+    transition: background 0.6s ease-out;
+  }
+
+  /* ── State log ── */
+  .state-log {
+    font-size: 10px;
+    font-family: "SF Mono", "Menlo", monospace;
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    margin-top: 10px;
+    max-height: 80px;
+    overflow-y: auto;
+    color: #444;
+    border-radius: 2px;
+  }
+  .state-log p { margin-bottom: 2px; }
+  .log-accent { color: #0060df; }
+  .log-warn   { color: #e8a000; }
+  .log-imm    { color: #cc3300; }
+
+  /* ── Control panel (for driving the demo) ── */
+  .demo-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  .demo-btn {
+    padding: 5px 12px;
+    background: #f0f0f0;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+    color: #222;
+  }
+  .demo-btn:hover { background: #e0e0e0; }
+  .demo-btn.accent { background: #0060df; color: #fff; border-color: #004ab8; }
+  .demo-btn.accent:hover { background: #0050c0; }
+  .demo-btn.amber { background: #e8a000; color: #1a1a1a; border-color: #b87d00; }
+  .demo-btn.amber:hover { background: #d09000; }
+  .demo-btn.red   { background: #cc3300; color: #fff; border-color: #991f00; }
+  .demo-btn.red:hover { background: #b82d00; }
+
+  /* ── Three-state side-by-side reference ── */
+  .state-trio {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .state-card {
+    flex: 1;
+    min-width: 200px;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .state-card-header {
+    background: #efefef;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-bottom: 1px solid #ccc;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #444;
+  }
+  .state-card-body {
+    padding: 10px;
+    font-size: 11px;
+    color: #333;
+    line-height: 1.6;
+  }
+  .pill {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-weight: 600;
+    margin: 0 2px;
+  }
+  .pill-blue   { background: #0060df; color: #fff; }
+  .pill-amber  { background: #e8a000; color: #1a1a1a; }
+  .pill-grey   { background: #ddd; color: #555; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Tracks UI Basis-Phrase Tracking — Wireframe</h1>
+  <p>Story 5: Tracks UI basis phrase follows free-play phrase navigation &bull; Balsamiq-style, not a production proposal</p>
+</div>
+
+<div class="budget-box">
+  <strong>Interaction budget:</strong> The Tracks UI basis phrase updates automatically &mdash; zero extra interactions required from the performer.
+  <ol>
+    <li>When a phrase is <em>queued</em> (transport story 2), the Tracks UI immediately previews the queued phrase</li>
+    <li>When a phrase switches (story 3 end-of-cycle or story 4 immediate), the Tracks UI confirms the new active phrase</li>
+  </ol>
+  Use the demo controls below to drive the state machine and observe basis-phrase updates.
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     INTERACTIVE DEMO
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Interactive demo — drive phrase navigation, observe Tracks UI basis-phrase updates</div>
+
+  <!-- Transport bar (stub, shows current state) -->
+  <div class="transport-bar" id="demo-transport">
+    <div class="transport-segment">
+      <div class="play-btn-sm">&#9646;&#9646;</div>
+    </div>
+    <div class="transport-segment">
+      <span class="mode-stub">Free</span>
+    </div>
+    <div class="phrase-indicator">
+      <span class="phrase-label">Now</span>
+      <span class="phrase-name" id="demo-now-name">Phrase A (Intro)</span>
+      <div class="cycle-bar-wrap"><div class="cycle-bar-fill" id="demo-cycle" style="width:30%;"></div></div>
+    </div>
+    <div class="queue-seg" id="demo-queue-seg" style="display:none;">
+      <span class="phrase-label">Next</span>
+      <span class="queue-pill" id="demo-queue-pill"></span>
+    </div>
+    <div class="transport-segment" style="flex:1; justify-content:flex-end;">
+      <span class="pos-stub" id="demo-pos">2:1:3</span>
+    </div>
+  </div>
+
+  <!-- Demo controls -->
+  <div class="wf-label" style="margin-bottom:6px;">Simulate phrase navigation events (use these instead of the actual transport in prototype 01)</div>
+  <div class="demo-controls">
+    <button class="demo-btn amber" onclick="demoQueuePhrase('Phrase B (Verse Drop)')">Queue: Phrase B</button>
+    <button class="demo-btn amber" onclick="demoQueuePhrase('Phrase C (Chorus)')">Queue: Phrase C</button>
+    <button class="demo-btn amber" onclick="demoQueuePhrase('Phrase D (Outro / Bridge Reprise)')">Queue: Phrase D</button>
+    <button class="demo-btn red"   onclick="demoSwitchNow('Phrase B (Verse Drop)')">Switch now: Phrase B</button>
+    <button class="demo-btn red"   onclick="demoSwitchNow('Phrase C (Chorus)')">Switch now: Phrase C</button>
+    <button class="demo-btn accent" onclick="demoEndOfCycle()">Simulate end-of-cycle</button>
+    <button class="demo-btn"      onclick="demoReset()">Reset to Phrase A</button>
+  </div>
+
+  <!-- Workspace -->
+  <div class="workspace" id="demo-workspace">
+
+    <!-- Track labels column -->
+    <div class="track-labels">
+      <div class="track-labels-header">Tracks</div>
+
+      <!-- Basis-phrase banner (story 5 key element) -->
+      <div class="basis-banner" id="basis-banner">
+        <span class="wf-label" style="white-space:nowrap;">Basis:</span>
+        <span class="basis-phrase-name" id="basis-phrase-name">Phrase A (Intro)</span>
+      </div>
+
+      <div class="track-row"><span class="track-color-dot" style="background:#c62828;"></span>Kick 909</div>
+      <div class="track-row"><span class="track-color-dot" style="background:#1565c0;"></span>Snare Rim</div>
+      <div class="track-row"><span class="track-color-dot" style="background:#2e7d32;"></span>Hi-Hat Closed</div>
+      <div class="track-row"><span class="track-color-dot" style="background:#6a1e85;"></span>Bass Synth — Moog</div>
+      <div class="track-row"><span class="track-color-dot" style="background:#e65100;"></span>Chord Stab Arp (Long Name)</div>
+    </div>
+
+    <!-- Step grid -->
+    <div class="grid-area">
+      <div class="grid-header">
+        <span class="bar-label">Bars 1–8</span>
+        <span style="color:#aaa;font-size:9px;margin-left:6px;">editing: <strong id="grid-editing-label">Phrase A (Intro)</strong></span>
+      </div>
+
+      <!-- Track 1: Kick — Phrase A pattern -->
+      <div class="grid-row" id="grid-row-0">
+        <div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div>
+        <div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell on"></div><div class="step-cell dim"></div>
+        <div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div>
+        <div class="step-cell dim"></div><div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell dim"></div>
+        <span style="color:#bbb;font-size:10px;margin-left:6px;">... (8 bars)</span>
+      </div>
+
+      <!-- Track 2: Snare -->
+      <div class="grid-row" id="grid-row-1">
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div>
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div>
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div>
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div>
+        <span style="color:#bbb;font-size:10px;margin-left:6px;">... (8 bars)</span>
+      </div>
+
+      <!-- Track 3: Hi-Hat -->
+      <div class="grid-row" id="grid-row-2">
+        <div class="step-cell on"></div><div class="step-cell on"></div><div class="step-cell on"></div><div class="step-cell on"></div>
+        <div class="step-cell on"></div><div class="step-cell on"></div><div class="step-cell on"></div><div class="step-cell on"></div>
+        <div class="step-cell on"></div><div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell on"></div>
+        <div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell on"></div><div class="step-cell on"></div>
+        <span style="color:#bbb;font-size:10px;margin-left:6px;">... (8 bars)</span>
+      </div>
+
+      <!-- Track 4: Bass Synth -->
+      <div class="grid-row" id="grid-row-3">
+        <div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div>
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div>
+        <div class="step-cell on-alt"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div>
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div><div class="step-cell dim"></div>
+        <span style="color:#bbb;font-size:10px;margin-left:6px;">... (8 bars)</span>
+      </div>
+
+      <!-- Track 5: Chord Stab -->
+      <div class="grid-row" id="grid-row-4">
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div><div class="step-cell dim"></div>
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell on"></div><div class="step-cell dim"></div>
+        <div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div>
+        <div class="step-cell on"></div><div class="step-cell dim"></div><div class="step-cell dim"></div><div class="step-cell dim"></div>
+        <span style="color:#bbb;font-size:10px;margin-left:6px;">... (8 bars)</span>
+      </div>
+    </div><!-- /grid-area -->
+  </div><!-- /workspace -->
+
+  <div class="state-log" id="demo-log">
+    <p class="log-accent">&#9654; Playing: Phrase A (Intro) &mdash; Tracks UI basis phrase: Phrase A (Intro)</p>
+  </div>
+
+  <p class="wf-note" style="margin-top:6px;">
+    The <strong>"Basis:"</strong> banner and the <strong>"editing:"</strong> label in the grid header both update when a phrase is queued or switched. This reflects Story 5: edits always land in the phrase the performer is hearing (or about to hear).
+  </p>
+</div>
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     THREE-STATE REFERENCE
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Static three-state reference — what the basis-phrase banner shows in each state</div>
+  <p class="wf-note" style="margin-bottom:12px;">These are snapshot views. The interactive demo above shows transitions.</p>
+
+  <div class="state-trio">
+
+    <!-- State 1: Playing, nothing queued -->
+    <div class="state-card">
+      <div class="state-card-header">State 1 — Playing, nothing queued</div>
+      <div class="state-card-body">
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid #ccc;padding:5px 8px;background:#f7f7f7;border-radius:2px;margin-bottom:8px;">
+          <span class="wf-label" style="white-space:nowrap;">Basis:</span>
+          <span style="font-weight:700;color:#0060df;font-size:11px;">Phrase A (Intro)</span>
+        </div>
+        <ul style="margin-left:14px;font-size:10px;color:#444;line-height:1.7;">
+          <li>Basis phrase = currently playing phrase</li>
+          <li>Grid shows Pattern A data for all tracks</li>
+          <li>Edits write to Phrase A</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- State 2: Playing Phrase A, Phrase C queued -->
+    <div class="state-card">
+      <div class="state-card-header">State 2 — Playing A, queued C (preview)</div>
+      <div class="state-card-body">
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid #e8a000;padding:5px 8px;background:#fffbcc;border-radius:2px;margin-bottom:8px;">
+          <span class="wf-label" style="white-space:nowrap;">Basis:</span>
+          <span style="font-weight:700;color:#e8a000;font-size:11px;">Phrase C (Chorus)</span>
+          <span class="pill pill-amber">queued preview</span>
+        </div>
+        <ul style="margin-left:14px;font-size:10px;color:#444;line-height:1.7;">
+          <li>Basis phrase switches to queued phrase immediately on queue</li>
+          <li>Grid shows Pattern C data — performer previews what they're queuing into</li>
+          <li>Edits made now write to Phrase C</li>
+          <li>Transport bar still shows "Now: Phrase A" — audio has not changed yet</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- State 3: After switch -->
+    <div class="state-card">
+      <div class="state-card-header">State 3 — After switch to C (playing)</div>
+      <div class="state-card-body">
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid #ccc;padding:5px 8px;background:#f7f7f7;border-radius:2px;margin-bottom:8px;">
+          <span class="wf-label" style="white-space:nowrap;">Basis:</span>
+          <span style="font-weight:700;color:#0060df;font-size:11px;">Phrase C (Chorus)</span>
+        </div>
+        <ul style="margin-left:14px;font-size:10px;color:#444;line-height:1.7;">
+          <li>Basis phrase = Phrase C (now playing)</li>
+          <li>Banner returns to blue (active-playing) from amber (queued-preview)</li>
+          <li>Grid shows Pattern C — same data as state 2, but confirmed as active</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="annotation-box" style="margin-top:20px;">
+    <strong>Architecture note (from existing-state.md):</strong> Today the Tracks UI basis phrase reads <code>session.store.selectedPhraseID</code> in free mode. Story 5 requires the basis phrase to follow the <em>queued</em> phrase as well as the <em>playing</em> phrase. This means either: (a) a new published property on <code>EngineController</code> (e.g. <code>basisPhraseID</code>) that views prefer over <code>selectedPhraseID</code> when in free mode, or (b) a mutation to <code>SequencerDocumentSession</code> that persists the queued-phrase selection back to <code>selectedPhraseID</code>. Option (a) keeps live-performance state separate from document state and is the safer choice. The implementation loop should decide before writing code.
+  </div>
+</div>
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     OPEN QUESTIONS
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Open questions surfaced by this wireframe</div>
+  <ol style="margin-left:18px;font-size:11px;color:#333;line-height:1.8;">
+    <li><strong>Queue triggers basis-phrase preview immediately?</strong> The wireframe answers "yes" — the performer wants to see and potentially edit the upcoming phrase the moment they queue it. Confirm this is correct with user.</li>
+    <li><strong>What happens to un-saved edits on basis-phrase switch?</strong> If the performer has edited Phrase C (the queued basis) and then cancels the queue, those edits are already written to the canonical phrase model (no staging layer today). The UX should warn or prevent this. This interacts with the Phrase Features story-4 staging gap.</li>
+    <li><strong>Basis-phrase banner visibility when not in free-play mode?</strong> In song mode (auto-cycle), the basis phrase would follow the engine's auto-derived phrase index. The banner design should remain consistent; confirm the same banner appears in both modes.</li>
+    <li><strong>Does cuing reset the grid scroll position?</strong> If Phrase C has more bars than Phrase A, the grid would need to resize or scroll. The prototype does not address this; it assumes all phrases have the same bar count for simplicity.</li>
+  </ol>
+</div>
+
+<script>
+  var state = {
+    playing: 'Phrase A (Intro)',
+    queued: null,
+    basis: 'Phrase A (Intro)'
+  };
+
+  // Phrase patterns: different step fingerprints per phrase so the grid visibly changes
+  var patterns = {
+    'Phrase A (Intro)': [
+      [1,0,0,0,1,0,1,0,1,0,0,1,0,1,0,0],
+      [0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1],
+      [1,0,0,0,0,0,0,0,2,0,0,0,0,0,1,0],
+      [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0]
+    ],
+    'Phrase B (Verse Drop)': [
+      [1,0,0,1,0,0,1,0,0,0,1,0,1,0,0,1],
+      [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+      [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0]
+    ],
+    'Phrase C (Chorus)': [
+      [1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0],
+      [0,0,0,1,0,0,0,1,0,0,1,1,0,0,0,1],
+      [1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1],
+      [1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0]
+    ],
+    'Phrase D (Outro / Bridge Reprise)': [
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+      [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0],
+      [1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+      [0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0]
+    ]
+  };
+
+  function renderGrid(phraseName) {
+    var p = patterns[phraseName] || patterns['Phrase A (Intro)'];
+    for (var row = 0; row < 5; row++) {
+      var rowEl = document.getElementById('grid-row-' + row);
+      if (!rowEl) continue;
+      var cells = rowEl.querySelectorAll('.step-cell');
+      var pattern = p[row];
+      for (var i = 0; i < cells.length && i < pattern.length; i++) {
+        cells[i].className = 'step-cell';
+        if (pattern[i] === 1) cells[i].classList.add('on');
+        else if (pattern[i] === 2) cells[i].classList.add('on-alt');
+        else cells[i].classList.add('dim');
+      }
+      // Flash the row
+      rowEl.classList.add('phrase-changed');
+      setTimeout((function(r){ return function(){ r.classList.remove('phrase-changed'); }; })(rowEl), 600);
+    }
+  }
+
+  function setBasis(phraseName, isQueued) {
+    state.basis = phraseName;
+    var nameEl = document.getElementById('basis-phrase-name');
+    var banner = document.getElementById('basis-banner');
+    var editingLabel = document.getElementById('grid-editing-label');
+
+    if (nameEl) {
+      nameEl.textContent = phraseName;
+      nameEl.className = 'basis-phrase-name' + (isQueued ? ' queued-preview' : '');
+    }
+    if (banner) {
+      banner.classList.add('updated');
+      setTimeout(function(){ banner.classList.remove('updated'); }, 800);
+      if (isQueued) {
+        banner.style.borderBottomColor = '#e8a000';
+      } else {
+        banner.style.borderBottomColor = '';
+      }
+    }
+    if (editingLabel) editingLabel.textContent = phraseName;
+
+    renderGrid(phraseName);
+  }
+
+  function setNow(phraseName) {
+    state.playing = phraseName;
+    var nameEl = document.getElementById('demo-now-name');
+    if (nameEl) nameEl.textContent = phraseName;
+    // Reset cycle bar
+    var fill = document.getElementById('demo-cycle');
+    if (fill) fill.style.width = '8%';
+  }
+
+  function setQueued(phraseName) {
+    state.queued = phraseName;
+    var seg = document.getElementById('demo-queue-seg');
+    var pill = document.getElementById('demo-queue-pill');
+    if (phraseName) {
+      if (seg) seg.style.display = 'flex';
+      var truncated = phraseName.length > 24 ? phraseName.slice(0,22) + '…' : phraseName;
+      if (pill) pill.textContent = truncated;
+    } else {
+      if (seg) seg.style.display = 'none';
+      if (pill) pill.textContent = '';
+    }
+  }
+
+  function log(msg, cls) {
+    var logEl = document.getElementById('demo-log');
+    if (!logEl) return;
+    var p = document.createElement('p');
+    if (cls) p.className = cls;
+    p.textContent = msg;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function demoQueuePhrase(name) {
+    if (name === state.playing) {
+      log('Already playing ' + name + ' — queue ignored', '');
+      return;
+    }
+    setQueued(name);
+    setBasis(name, true); // story 5: basis switches to queued phrase immediately
+    log('⚠ Queued: ' + name + ' → Tracks UI basis-phrase preview: ' + name, 'log-warn');
+  }
+
+  function demoSwitchNow(name) {
+    var prev = state.playing;
+    setQueued(null);
+    setNow(name);
+    setBasis(name, false);
+    log('⚡ Immediate switch: ' + prev + ' → ' + name + ' | Tracks UI basis: ' + name, 'log-imm');
+  }
+
+  function demoEndOfCycle() {
+    if (!state.queued) {
+      log('↺ End of cycle: no phrase queued — looping ' + state.playing, '');
+      return;
+    }
+    var next = state.queued;
+    var prev = state.playing;
+    setQueued(null);
+    setNow(next);
+    setBasis(next, false);
+    log('↺ End-of-cycle switch: ' + prev + ' → ' + next + ' | Tracks UI basis confirmed: ' + next, 'log-accent');
+  }
+
+  function demoReset() {
+    state = { playing: 'Phrase A (Intro)', queued: null, basis: 'Phrase A (Intro)' };
+    setQueued(null);
+    setNow('Phrase A (Intro)');
+    setBasis('Phrase A (Intro)', false);
+    var fill = document.getElementById('demo-cycle');
+    if (fill) fill.style.width = '30%';
+    log('↩ Reset → playing: Phrase A (Intro), basis: Phrase A (Intro)', '');
+  }
+</script>
+
+</body>
+</html>

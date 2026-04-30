@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transport Phrase Indicator — Wireframe (Stories 1–4)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: #f2f2f2;
+    color: #111;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── Annotation tokens ── */
+  .wf-label   { font-size: 10px; color: #777; text-transform: uppercase; letter-spacing: .06em; }
+  .wf-note    { font-size: 11px; color: #555; font-style: italic; margin-top: 4px; }
+  .wf-stub    { border: 2px dashed #bbb; color: #aaa; background: repeating-linear-gradient(45deg, transparent, transparent 4px, #eee 4px, #eee 8px); border-radius: 2px; text-align: center; padding: 6px 10px; font-size: 11px; cursor: default; }
+
+  /* ── Semantic colors ──
+     #1a1a1a  = primary text
+     #555     = secondary text
+     #0060df  = interactive / accent / currently playing
+     #cc3300  = error / destructive / immediate switch
+     #2a7a2a  = success / active
+     #e8a000  = queued next (warm amber)
+     #888     = disabled
+  ── */
+
+  .page-header {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ccc;
+  }
+  .page-header h1 { font-size: 15px; font-weight: 600; }
+  .page-header p  { color: #555; font-size: 11px; margin-top: 4px; }
+
+  .section {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #444;
+    margin-bottom: 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  /* ── Budget box ── */
+  .budget-box {
+    font-size: 11px;
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .budget-box ol { margin-left: 18px; margin-top: 4px; }
+  .budget-box li { margin-bottom: 2px; color: #333; }
+
+  hr.section-sep { border: none; border-top: 2px solid #ccc; margin: 28px 0; }
+  .divider { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
+
+  /* ── Transport bar ── */
+  .transport-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: #1a1a1a;
+    color: #ddd;
+    padding: 0 8px;
+    height: 40px;
+    border: 1px solid #000;
+    border-radius: 2px;
+    font-size: 12px;
+    overflow: visible;
+    position: relative;
+  }
+
+  .transport-segment {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    height: 100%;
+    border-right: 1px solid #333;
+    flex-shrink: 0;
+    gap: 6px;
+    position: relative;
+  }
+  .transport-segment:last-child { border-right: none; }
+
+  /* Play/Stop */
+  .play-btn {
+    width: 26px;
+    height: 26px;
+    background: #333;
+    border: 1px solid #555;
+    border-radius: 2px;
+    color: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    user-select: none;
+  }
+  .play-btn.playing { background: #2a7a2a; border-color: #1c5c1c; }
+  .play-btn:hover { background: #444; }
+  .play-btn.playing:hover { background: #226622; }
+
+  /* BPM stub */
+  .bpm-stub {
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+  }
+
+  /* Transport position */
+  .transport-pos {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 11px;
+    color: #aaa;
+    white-space: nowrap;
+  }
+
+  /* Mode toggle stub */
+  .mode-stub {
+    font-size: 10px;
+    color: #777;
+    border: 1px solid #444;
+    border-radius: 2px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+
+  /* ── Phrase indicator (story 1) ── */
+  .phrase-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    height: 100%;
+    border-right: 1px solid #333;
+    flex-shrink: 0;
+  }
+  .phrase-indicator-label {
+    font-size: 9px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .phrase-indicator-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0060df;
+    white-space: nowrap;
+  }
+  .phrase-indicator-name.no-phrase {
+    color: #555;
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  /* Cycle progress bar */
+  .cycle-bar-wrap {
+    width: 60px;
+    height: 4px;
+    background: #333;
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .cycle-bar-fill {
+    height: 100%;
+    background: #0060df;
+    border-radius: 1px;
+    transition: width 0.3s linear;
+  }
+
+  /* ── Queue button and dropdown (stories 2 + 4) ── */
+  .queue-segment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    height: 100%;
+    border-right: 1px solid #333;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .queue-label {
+    font-size: 9px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .queue-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: #2a2a2a;
+    border: 1px solid #555;
+    border-radius: 2px;
+    color: #ccc;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .queue-btn:hover { background: #383838; }
+  .queue-btn.has-queued { border-color: #e8a000; color: #e8a000; }
+  .queue-btn.open { background: #383838; border-color: #0060df; }
+
+  .queue-caret { font-size: 8px; opacity: .7; }
+
+  /* Dropdown */
+  .queue-dropdown {
+    display: none;
+    position: absolute;
+    top: 42px;
+    left: 0;
+    min-width: 260px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 2px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,.5);
+  }
+  .queue-dropdown.open { display: block; }
+
+  .dropdown-header {
+    font-size: 9px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 8px 12px 4px;
+    border-bottom: 1px solid #333;
+  }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 7px 10px;
+    border-bottom: 1px solid #282828;
+    gap: 8px;
+  }
+  .dropdown-item:last-child { border-bottom: none; }
+
+  .dropdown-phrase-name {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dropdown-phrase-name.current-playing {
+    color: #0060df;
+  }
+  .dropdown-phrase-name.queued-next {
+    color: #e8a000;
+  }
+
+  .dropdown-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-playing { background: #0060df; color: #fff; }
+  .badge-queued  { background: #e8a000; color: #1a1a1a; }
+
+  /* Queue-next button (story 2) */
+  .btn-queue-next {
+    padding: 3px 8px;
+    background: #2a2a2a;
+    border: 1px solid #555;
+    border-radius: 2px;
+    color: #ccc;
+    font-size: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .btn-queue-next:hover { background: #444; border-color: #e8a000; color: #e8a000; }
+  .btn-queue-next.selected { background: #3a2e00; border-color: #e8a000; color: #e8a000; }
+
+  /* Immediate switch button (story 4) */
+  .btn-switch-now {
+    padding: 3px 8px;
+    background: #2a2a2a;
+    border: 1px solid #555;
+    border-radius: 2px;
+    color: #cc3300;
+    font-size: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .btn-switch-now:hover { background: #3a1500; border-color: #cc3300; }
+
+  /* ── End-of-cycle indicator (story 3) ── */
+  .eoc-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #888;
+  }
+  .eoc-arrow { color: #e8a000; font-size: 12px; }
+  .eoc-queued-name { color: #e8a000; font-weight: 600; }
+
+  /* ── State scenario labels ── */
+  .scenario-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0060df;
+    margin-bottom: 8px;
+  }
+
+  .annotation-box {
+    border: 2px dashed #aaa;
+    background: #fffbe6;
+    border-radius: 2px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #555;
+  }
+  .annotation-box strong { color: #111; }
+
+  /* ── State-change log ── */
+  .state-log {
+    font-size: 10px;
+    font-family: "SF Mono", "Menlo", monospace;
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    margin-top: 12px;
+    max-height: 80px;
+    overflow-y: auto;
+    color: #444;
+  }
+  .state-log p { margin-bottom: 2px; }
+  .state-log .log-accent { color: #0060df; }
+  .state-log .log-warn   { color: #e8a000; }
+  .state-log .log-imm    { color: #cc3300; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Transport Phrase Indicator — Wireframe</h1>
+  <p>Stories 1 (current phrase), 2 (queue next), 3 (end-of-cycle switch), 4 (immediate switch) &bull; Balsamiq-style, not a production proposal</p>
+</div>
+
+<div class="budget-box">
+  <strong>Interaction budget:</strong> Queue a next phrase &le;2 interactions. Immediate switch &le;2 interactions.
+  <ol>
+    <li>Tap "Next &gt;" queue button in the transport bar &rarr; dropdown opens</li>
+    <li>Tap "Queue" on a phrase row to schedule end-of-cycle switch (story 2); or tap "Now" on a phrase row to jump immediately (story 4)</li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCENARIO A — No phrase playing (stopped)
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Scenario A — Stopped / no active phrase</div>
+  <p class="wf-note" style="margin-bottom:12px;">Baseline state. Phrase indicator shows placeholder. Queue button disabled.</p>
+
+  <div class="transport-bar">
+    <!-- Play/stop -->
+    <div class="transport-segment">
+      <div class="play-btn" title="Play">&#9654;</div>
+    </div>
+    <!-- BPM stub -->
+    <div class="transport-segment">
+      <span class="bpm-stub">&#9632; REC</span>
+    </div>
+    <div class="transport-segment">
+      <span class="bpm-stub">120 BPM &#9650;&#9660;</span>
+    </div>
+    <!-- Mode stub -->
+    <div class="transport-segment">
+      <span class="mode-stub">Free</span>
+    </div>
+    <!-- Phrase indicator (story 1) — empty state -->
+    <div class="phrase-indicator">
+      <span class="phrase-indicator-label">Now</span>
+      <span class="phrase-indicator-name no-phrase">— none —</span>
+    </div>
+    <!-- Queue segment — disabled -->
+    <div class="queue-segment">
+      <span class="queue-label">Next</span>
+      <div class="queue-btn" style="opacity:.4;cursor:default;" title="Not available when stopped">
+        Queue &darr;
+      </div>
+    </div>
+    <!-- Position + activity stubs -->
+    <div class="transport-segment" style="flex:1; justify-content:flex-end;">
+      <span class="transport-pos">1:1:1</span>
+    </div>
+    <div class="transport-segment">
+      <span class="bpm-stub" style="font-size:10px;">&#9679;</span>
+    </div>
+  </div>
+
+  <p class="wf-note" style="margin-top:10px;">Queue button disabled when not playing — no phrase to queue into.</p>
+</div>
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     SCENARIO B — Playing, no queued phrase (story 1)
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Scenario B — Playing "Phrase B (Verse Drop)" — nothing queued</div>
+  <p class="wf-note" style="margin-bottom:12px;">Story 1: phrase indicator shows active phrase and cycle progress. Story 2: queue button available.</p>
+
+  <div class="transport-bar" id="transport-b">
+    <div class="transport-segment">
+      <div class="play-btn playing" onclick="handleStopB()">&#9646;&#9646;</div>
+    </div>
+    <div class="transport-segment">
+      <span class="bpm-stub" style="color:#666;">&#9632; REC</span>
+    </div>
+    <div class="transport-segment">
+      <span class="bpm-stub">120 BPM</span>
+    </div>
+    <div class="transport-segment">
+      <span class="mode-stub" style="color:#aaa;">Free</span>
+    </div>
+
+    <!-- Phrase indicator — active (story 1) -->
+    <div class="phrase-indicator">
+      <span class="phrase-indicator-label">Now</span>
+      <span class="phrase-indicator-name" id="current-name-b">Phrase B (Verse Drop)</span>
+      <div class="cycle-bar-wrap" title="Cycle progress — animates in production">
+        <div class="cycle-bar-fill" id="cycle-fill-b" style="width:38%;"></div>
+      </div>
+    </div>
+
+    <!-- Queue segment (story 2) -->
+    <div class="queue-segment" id="queue-seg-b">
+      <span class="queue-label">Next</span>
+      <div class="queue-btn" id="queue-btn-b" onclick="toggleDropdown('b')">
+        Queue &darr;
+      </div>
+      <!-- End-of-cycle indicator — hidden when nothing queued -->
+      <div class="eoc-indicator" id="eoc-b" style="display:none;">
+        <span class="eoc-arrow">&#8594;</span>
+        <span class="eoc-queued-name" id="eoc-name-b"></span>
+        <span style="font-size:9px;color:#666;">(at end of cycle)</span>
+      </div>
+
+      <!-- Dropdown (stories 2 + 4) -->
+      <div class="queue-dropdown" id="dropdown-b">
+        <div class="dropdown-header">Choose next phrase &mdash; queue or switch immediately</div>
+
+        <!-- Phrase A — not current, not queued -->
+        <div class="dropdown-item" id="ditem-b-a">
+          <span class="dropdown-phrase-name">Phrase A (Intro)</span>
+          <span class="dropdown-badge badge-queued" id="badge-b-a" style="display:none;">queued</span>
+          <button class="btn-queue-next" id="qbtn-b-a" onclick="queuePhrase('b','a','Phrase A (Intro)')">Queue</button>
+          <button class="btn-switch-now" onclick="switchNow('b','a','Phrase A (Intro)')">Now</button>
+        </div>
+
+        <!-- Phrase B — currently playing -->
+        <div class="dropdown-item">
+          <span class="dropdown-phrase-name current-playing">Phrase B (Verse Drop)</span>
+          <span class="dropdown-badge badge-playing">playing</span>
+          <button class="btn-queue-next" style="opacity:.4;cursor:default;" title="Already playing">Queue</button>
+          <button class="btn-switch-now" style="opacity:.4;cursor:default;" title="Already playing">Now</button>
+        </div>
+
+        <!-- Phrase C — not current, not queued -->
+        <div class="dropdown-item" id="ditem-b-c">
+          <span class="dropdown-phrase-name">Phrase C (Chorus)</span>
+          <span class="dropdown-badge badge-queued" id="badge-b-c" style="display:none;">queued</span>
+          <button class="btn-queue-next" id="qbtn-b-c" onclick="queuePhrase('b','c','Phrase C (Chorus)')">Queue</button>
+          <button class="btn-switch-now" onclick="switchNow('b','c','Phrase C (Chorus)')">Now</button>
+        </div>
+
+        <!-- Phrase D — not current, not queued, long name to stress layout -->
+        <div class="dropdown-item" id="ditem-b-d">
+          <span class="dropdown-phrase-name">Phrase D (Outro / Bridge Reprise)</span>
+          <span class="dropdown-badge badge-queued" id="badge-b-d" style="display:none;">queued</span>
+          <button class="btn-queue-next" id="qbtn-b-d" onclick="queuePhrase('b','d','Phrase D (Outro / Bridge Reprise)')">Queue</button>
+          <button class="btn-switch-now" onclick="switchNow('b','d','Phrase D (Outro / Bridge Reprise)')">Now</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="transport-segment" style="flex:1; justify-content:flex-end;">
+      <span class="transport-pos" id="pos-b">3:2:5</span>
+    </div>
+    <div class="transport-segment">
+      <span style="color:#2a7a2a;font-size:10px;">&#9679;</span>
+    </div>
+  </div>
+
+  <div class="state-log" id="log-b">
+    <p class="log-accent">&#9654; Playing: Phrase B (Verse Drop)</p>
+  </div>
+
+  <p class="wf-note" style="margin-top:6px;">
+    Tap "Queue &darr;" to open the phrase list. Tap "Queue" to schedule end-of-cycle switch (story 2). Tap "Now" to jump immediately (story 4).
+  </p>
+</div>
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     SCENARIO C — Playing with a phrase queued (story 3)
+     Static reference state showing all three zones simultaneously
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Scenario C — Static reference: playing "Phrase B", "Phrase C" queued for end-of-cycle (story 3)</div>
+  <p class="wf-note" style="margin-bottom:12px;">Shows all three concurrent states: current phrase (blue), queued next (amber), cycle-progress bar, and end-of-cycle annotation. Interaction is stubbed here; use Scenario B above for the live interaction.</p>
+
+  <!-- Static transport bar — queued state -->
+  <div class="transport-bar">
+    <div class="transport-segment">
+      <div class="play-btn playing">&#9646;&#9646;</div>
+    </div>
+    <div class="transport-segment">
+      <span class="bpm-stub" style="color:#666;">&#9632; REC</span>
+    </div>
+    <div class="transport-segment">
+      <span class="bpm-stub">120 BPM</span>
+    </div>
+    <div class="transport-segment">
+      <span class="mode-stub" style="color:#aaa;">Free</span>
+    </div>
+
+    <!-- Current phrase -->
+    <div class="phrase-indicator">
+      <span class="phrase-indicator-label">Now</span>
+      <span class="phrase-indicator-name">Phrase B (Verse Drop)</span>
+      <div class="cycle-bar-wrap">
+        <div class="cycle-bar-fill" style="width:72%;"></div>
+      </div>
+    </div>
+
+    <!-- Queue segment — with queued phrase visible -->
+    <div class="queue-segment">
+      <span class="queue-label">Next</span>
+      <div class="queue-btn has-queued">
+        Phrase C (Chorus) &darr;
+      </div>
+      <div class="eoc-indicator">
+        <span class="eoc-arrow">&#8594;</span>
+        <span class="eoc-queued-name">Phrase C (Chorus)</span>
+        <span style="font-size:9px;color:#666;">(at end of cycle)</span>
+      </div>
+    </div>
+
+    <div class="transport-segment" style="flex:1; justify-content:flex-end;">
+      <span class="transport-pos">3:3:11</span>
+    </div>
+    <div class="transport-segment">
+      <span style="color:#2a7a2a;font-size:10px;">&#9679;</span>
+    </div>
+  </div>
+
+  <div class="annotation-box">
+    <strong>Story 3 — End-of-cycle switch:</strong> When the cycle-progress bar fills to 100%, playback seamlessly begins Phrase C (Chorus). The "Now" label updates to "Phrase C (Chorus)" and the "Next" button resets to "Queue &darr;" (no queued phrase). The Tracks UI basis phrase also switches at this moment (see prototype 02).
+  </div>
+
+  <!-- Static dropdown reference -->
+  <div style="margin-top:16px;">
+    <div class="wf-label" style="margin-bottom:6px;">Dropdown state when a phrase is already queued</div>
+    <div style="background:#1a1a1a;border:1px solid #444;border-radius:2px;max-width:320px;">
+      <div class="dropdown-header">Choose next phrase &mdash; queue or switch immediately</div>
+
+      <div class="dropdown-item">
+        <span class="dropdown-phrase-name">Phrase A (Intro)</span>
+        <button class="btn-queue-next">Queue</button>
+        <button class="btn-switch-now">Now</button>
+      </div>
+
+      <div class="dropdown-item">
+        <span class="dropdown-phrase-name current-playing">Phrase B (Verse Drop)</span>
+        <span class="dropdown-badge badge-playing">playing</span>
+        <button class="btn-queue-next" style="opacity:.4;cursor:default;">Queue</button>
+        <button class="btn-switch-now" style="opacity:.4;cursor:default;">Now</button>
+      </div>
+
+      <div class="dropdown-item">
+        <span class="dropdown-phrase-name queued-next">Phrase C (Chorus)</span>
+        <span class="dropdown-badge badge-queued">queued</span>
+        <button class="btn-queue-next selected">Queued &#10003;</button>
+        <button class="btn-switch-now">Now</button>
+      </div>
+
+      <div class="dropdown-item">
+        <span class="dropdown-phrase-name">Phrase D (Outro / Bridge Reprise)</span>
+        <button class="btn-queue-next">Queue</button>
+        <button class="btn-switch-now">Now</button>
+      </div>
+    </div>
+    <p class="wf-note" style="margin-top:6px;">
+      Queued phrase row: name in amber, "Queued &#10003;" replaces "Queue" button. Selecting a different phrase cancels the prior queue. "Now" remains available on the queued row — pressing it switches immediately and clears the queue.
+    </p>
+  </div>
+</div>
+
+<hr class="section-sep">
+
+<!-- ═══════════════════════════════════════════════
+     OPEN QUESTIONS
+═══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Open questions surfaced by this wireframe</div>
+  <ol style="margin-left:18px;font-size:11px;color:#333;line-height:1.8;">
+    <li><strong>Dropdown dismiss on "Now":</strong> Does pressing the immediate-switch button dismiss the dropdown automatically, or does it stay open so the performer can see the updated state? The wireframe above dismisses it (simpler) — confirm with user.</li>
+    <li><strong>Cancel queue:</strong> Should tapping the "Queued &#10003;" button on the already-queued phrase cancel the queue (return to no-queue state)? The wireframe does not implement cancel; re-queueing a different phrase is the only cancel path.</li>
+    <li><strong>Dropdown backdrop:</strong> Does tapping outside the dropdown dismiss it? The prototype uses a simple outside-click listener; real implementation should confirm gesture conflicts with the Tracks UI below.</li>
+    <li><strong>Cycle-progress granularity:</strong> The cycle-progress bar animates in real time. Is per-bar granularity sufficient, or should it be per-step? Affects perceived latency of the "at end of cycle" label.</li>
+    <li><strong>Queue button label width:</strong> Long phrase names (e.g. "Phrase D (Outro / Bridge Reprise)") overflow the queue button when shown inline. Should the button truncate with ellipsis, or show only a count/icon when a phrase is queued?</li>
+  </ol>
+</div>
+
+<script>
+  // ── Dropdown toggle ──
+  let openDropdown = null;
+
+  function toggleDropdown(id) {
+    const dd = document.getElementById('dropdown-' + id);
+    const btn = document.getElementById('queue-btn-' + id);
+    if (!dd || !btn) return;
+
+    const isOpen = dd.classList.contains('open');
+    closeAllDropdowns();
+    if (!isOpen) {
+      dd.classList.add('open');
+      btn.classList.add('open');
+      openDropdown = id;
+    }
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.queue-dropdown.open').forEach(function(el) {
+      el.classList.remove('open');
+    });
+    document.querySelectorAll('.queue-btn.open').forEach(function(el) {
+      el.classList.remove('open');
+    });
+    openDropdown = null;
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.queue-segment')) {
+      closeAllDropdowns();
+    }
+  });
+
+  // Track queued state for scenario B
+  var queuedB = null;
+
+  function queuePhrase(transport, phraseKey, phraseName) {
+    if (transport !== 'b') { logMsg('b', 'stubbed: queue on transport ' + transport); return; }
+
+    // Clear previous queue
+    ['a','c','d'].forEach(function(k) {
+      var badge = document.getElementById('badge-b-' + k);
+      var qbtn  = document.getElementById('qbtn-b-' + k);
+      if (badge) badge.style.display = 'none';
+      if (qbtn)  { qbtn.textContent = 'Queue'; qbtn.classList.remove('selected'); }
+    });
+
+    // Set new queue
+    queuedB = phraseKey;
+    var badge = document.getElementById('badge-b-' + phraseKey);
+    var qbtn  = document.getElementById('qbtn-b-' + phraseKey);
+    if (badge) badge.style.display = 'inline-block';
+    if (qbtn)  { qbtn.textContent = 'Queued ✓'; qbtn.classList.add('selected'); }
+
+    // Update queue button in transport bar
+    var qbtnTransport = document.getElementById('queue-btn-b');
+    if (qbtnTransport) {
+      var truncated = phraseName.length > 22 ? phraseName.slice(0,20) + '…' : phraseName;
+      qbtnTransport.textContent = truncated + ' ↓';
+      qbtnTransport.classList.add('has-queued');
+    }
+
+    // Show EOC indicator
+    var eoc = document.getElementById('eoc-b');
+    var eocName = document.getElementById('eoc-name-b');
+    if (eoc) eoc.style.display = 'flex';
+    if (eocName) eocName.textContent = phraseName;
+
+    logMsg('b', '⚠ Queued: ' + phraseName + ' (will switch at end of current cycle)', 'log-warn');
+    closeAllDropdowns();
+  }
+
+  function switchNow(transport, phraseKey, phraseName) {
+    if (transport !== 'b') { logMsg('b', 'stubbed: switch on transport ' + transport); return; }
+
+    // Immediately switch current phrase
+    var nameEl = document.getElementById('current-name-b');
+    if (nameEl) nameEl.textContent = phraseName;
+
+    // Reset cycle bar
+    var fill = document.getElementById('cycle-fill-b');
+    if (fill) fill.style.width = '5%';
+
+    // Clear any queue
+    queuedB = null;
+    ['a','c','d'].forEach(function(k) {
+      var badge = document.getElementById('badge-b-' + k);
+      var qbtn  = document.getElementById('qbtn-b-' + k);
+      if (badge) badge.style.display = 'none';
+      if (qbtn)  { qbtn.textContent = 'Queue'; qbtn.classList.remove('selected'); }
+    });
+
+    // Reset queue button
+    var qbtnTransport = document.getElementById('queue-btn-b');
+    if (qbtnTransport) {
+      qbtnTransport.textContent = 'Queue ↓';
+      qbtnTransport.classList.remove('has-queued');
+      qbtnTransport.classList.remove('open');
+    }
+
+    // Hide EOC indicator
+    var eoc = document.getElementById('eoc-b');
+    if (eoc) eoc.style.display = 'none';
+
+    // Disable the now-playing row's buttons (re-render happens in a real app)
+    logMsg('b', '⚡ Immediate switch → now playing: ' + phraseName, 'log-imm');
+    closeAllDropdowns();
+
+    // Animate cycle bar slowly to simulate playback
+    animateCycle('b');
+  }
+
+  function handleStopB() {
+    logMsg('b', '■ Playback stopped', '');
+    var fill = document.getElementById('cycle-fill-b');
+    if (fill) fill.style.width = '0%';
+    if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
+  }
+
+  // ── Log helper ──
+  function logMsg(transport, msg, cls) {
+    var log = document.getElementById('log-' + transport);
+    if (!log) return;
+    var p = document.createElement('p');
+    if (cls) p.className = cls;
+    p.textContent = msg;
+    log.appendChild(p);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // ── Cycle animation (illustrative) ──
+  var cycleTimer = null;
+  var cyclePct = 38;
+
+  function animateCycle(id) {
+    if (cycleTimer) clearInterval(cycleTimer);
+    var fill = document.getElementById('cycle-fill-' + id);
+    if (!fill) return;
+    cyclePct = 5;
+    cycleTimer = setInterval(function() {
+      cyclePct += 1;
+      if (cyclePct > 100) {
+        cyclePct = 0;
+        // End-of-cycle: if queued, switch
+        if (queuedB) {
+          var names = {
+            a: 'Phrase A (Intro)',
+            c: 'Phrase C (Chorus)',
+            d: 'Phrase D (Outro / Bridge Reprise)'
+          };
+          var nextName = names[queuedB] || 'Unknown';
+          var nameEl = document.getElementById('current-name-b');
+          if (nameEl) nameEl.textContent = nextName;
+          logMsg('b', '↺ End-of-cycle: auto-switched → ' + nextName, 'log-warn');
+
+          // Clear queue
+          ['a','c','d'].forEach(function(k) {
+            var badge = document.getElementById('badge-b-' + k);
+            var qbtn  = document.getElementById('qbtn-b-' + k);
+            if (badge) badge.style.display = 'none';
+            if (qbtn)  { qbtn.textContent = 'Queue'; qbtn.classList.remove('selected'); }
+          });
+          queuedB = null;
+          var qbtnTransport = document.getElementById('queue-btn-b');
+          if (qbtnTransport) {
+            qbtnTransport.textContent = 'Queue ↓';
+            qbtnTransport.classList.remove('has-queued');
+          }
+          var eoc = document.getElementById('eoc-b');
+          if (eoc) eoc.style.display = 'none';
+        }
+      }
+      if (fill) fill.style.width = cyclePct + '%';
+    }, 80);
+  }
+
+  // Start cycle animation for scenario B
+  animateCycle('b');
+</script>
+
+</body>
+</html>

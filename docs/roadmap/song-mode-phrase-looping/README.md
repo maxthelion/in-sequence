@@ -4,7 +4,7 @@ title: Song Mode And Phrase Looping
 status: inventory
 priority: unset
 blocked_by: []
-stage: prototype
+stage: review-prototypes
 owner: pm
 updated: 2026-04-29
 ---
