@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] MIDI Interfaces — Prototype 1: Control Surfaces Settings (Stories 1, 7)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f4f4f4;
+    color: #111;
+    padding: 24px;
+  }
+
+  h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #666; margin-bottom: 8px; font-size: 12px; }
+  .budget { font-size: 11px; color: #444; background: #e8e8e8; border: 1px solid #ccc; padding: 6px 10px; margin-bottom: 20px; }
+  .annotation { font-size: 11px; color: #555; font-style: italic; margin-top: 4px; }
+
+  /* --- App chrome --- */
+  .app-shell {
+    border: 1px solid #bbb;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    width: 760px;
+    min-height: 520px;
+  }
+
+  .title-bar {
+    background: #d8d8d8;
+    border-bottom: 1px solid #bbb;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .traffic-lights {
+    display: flex;
+    gap: 5px;
+  }
+  .traffic-lights span {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #bbb;
+    border: 1px solid #999;
+  }
+
+  /* --- Preferences layout --- */
+  .prefs-body {
+    display: flex;
+    flex: 1;
+    min-height: 460px;
+  }
+
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid #bbb;
+    background: #ececec;
+    padding: 0 12px;
+    gap: 0;
+  }
+
+  .tab {
+    padding: 7px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: #666;
+    user-select: none;
+  }
+  .tab.active {
+    border-bottom: 2px solid #1a73e8;
+    color: #111;
+    font-weight: 600;
+  }
+  .tab.stub {
+    color: #aaa;
+    border: 1px dashed transparent;
+  }
+
+  .pane {
+    display: none;
+    flex: 1;
+    padding: 20px 24px;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .pane.active {
+    display: flex;
+  }
+
+  /* --- Sections --- */
+  .section {
+    border: 1px solid #ccc;
+    border-radius: 2px;
+  }
+
+  .section-header {
+    background: #ebebeb;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .section-body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stub-section {
+    border: 1px dashed #ccc;
+    border-radius: 2px;
+    padding: 8px 12px;
+    color: #aaa;
+    font-size: 11px;
+    font-style: italic;
+  }
+
+  /* --- Form rows --- */
+  .form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 26px;
+  }
+  .form-label {
+    width: 150px;
+    font-size: 12px;
+    color: #444;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .form-control {
+    flex: 1;
+  }
+
+  select, input[type="text"] {
+    font-family: inherit;
+    font-size: 12px;
+    border: 1px solid #aaa;
+    padding: 3px 6px;
+    background: #fff;
+    color: #111;
+    width: 100%;
+    border-radius: 2px;
+  }
+  select:focus, input:focus { outline: 1px solid #1a73e8; }
+
+  /* Toggle switch */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .toggle-label {
+    width: 150px;
+    font-size: 12px;
+    color: #444;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #1a73e8;
+  }
+  .toggle-text {
+    font-size: 12px;
+    color: #333;
+  }
+
+  /* Status badge */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    border: 1px solid #ccc;
+    background: #f0f0f0;
+    color: #555;
+  }
+  .status-badge.connected {
+    background: #e8f5e9;
+    border-color: #a5d6a7;
+    color: #2e7d32;
+  }
+  .status-badge.error {
+    background: #ffebee;
+    border-color: #ef9a9a;
+    color: #c62828;
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #bbb;
+    flex-shrink: 0;
+  }
+  .status-badge.connected .status-dot { background: #4caf50; }
+  .status-badge.error .status-dot { background: #f44336; }
+
+  /* Buttons */
+  .btn {
+    font-family: inherit;
+    font-size: 12px;
+    padding: 4px 12px;
+    border: 1px solid #aaa;
+    background: #ececec;
+    color: #222;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .btn:hover { background: #ddd; }
+  .btn.primary {
+    background: #1a73e8;
+    color: #fff;
+    border-color: #1558c0;
+  }
+  .btn.primary:hover { background: #1558c0; }
+  .btn:disabled {
+    color: #aaa;
+    border-color: #ddd;
+    background: #f5f5f5;
+    cursor: default;
+  }
+
+  /* LED test feedback */
+  .led-flash-feedback {
+    display: none;
+    font-size: 11px;
+    color: #2e7d32;
+    font-style: italic;
+    margin-left: 8px;
+  }
+  .led-flash-feedback.visible { display: inline; }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 4px 0;
+  }
+
+  /* Endpoint picker note */
+  .picker-note {
+    font-size: 11px;
+    color: #888;
+    font-style: italic;
+    margin-top: 2px;
+    margin-left: 160px;
+  }
+
+  /* Stub list items */
+  .stub-list {
+    font-size: 11px;
+    color: #aaa;
+    font-style: italic;
+    padding: 6px 0;
+  }
+  .stub-list li { list-style: none; padding: 2px 0; }
+
+  /* State panels */
+  .state-variants {
+    margin-top: 28px;
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+  }
+  .state-card {
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    flex: 1;
+    min-width: 220px;
+  }
+  .state-card-header {
+    background: #e0e0e0;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #555;
+    border-bottom: 1px solid #ccc;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .state-card-body {
+    padding: 8px 10px;
+    font-size: 11px;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+</style>
+</head>
+<body>
+
+<h1>[WIP] MIDI Interfaces — Prototype 1: Control Surfaces Settings</h1>
+<p class="meta">Stories 1 (configure control surface) and 7 (Test LEDs). Stage: build-prototypes.</p>
+<div class="budget">
+  <strong>Interaction budget:</strong> Primary goal (toggle surface on, pick endpoints, verify connected) in &lt;=3 interactions.
+  Click-path: (1) enable toggle → (2) pick MIDI input → (3) pick MIDI output. Status row updates automatically.
+  "Test LEDs" is a one-click secondary action after endpoints are set.
+</div>
+
+<!-- Main prototype: MIDI Preferences pane -->
+<div class="app-shell">
+  <div class="title-bar">
+    <div class="traffic-lights"><span></span><span></span><span></span></div>
+    Preferences
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab stub" onclick="stub(this)">General</div>
+    <div class="tab active" id="tab-midi" onclick="showTab('midi')">MIDI</div>
+    <div class="tab stub" onclick="stub(this)">Audio</div>
+  </div>
+
+  <div class="pane active" id="pane-midi">
+
+    <!-- === Control Surfaces (the focus of this prototype) === -->
+    <div class="section">
+      <div class="section-header">Control Surfaces</div>
+      <div class="section-body">
+
+        <!-- Enable toggle -->
+        <div class="toggle-row">
+          <div class="toggle-label">Launchpad Mini MK3</div>
+          <div class="toggle">
+            <input type="checkbox" id="enable-surface" onchange="onToggleSurface(this.checked)">
+            <span class="toggle-text" id="toggle-text">Disabled</span>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Endpoint pickers (disabled until enabled) -->
+        <div class="form-row" id="row-input">
+          <div class="form-label">MIDI Input</div>
+          <div class="form-control">
+            <select id="pick-input" disabled onchange="onPickEndpoint()">
+              <option value="">— Select input —</option>
+              <option value="lp-in">Launchpad Mini MK3 LPMiniMK3 MIDI In</option>
+              <option value="lp-daw">Launchpad Mini MK3 LPMiniMK3 DAW In</option>
+              <option value="iac">IAC Driver Bus 1</option>
+              <option value="seq-in">SequencerAI In (virtual)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row" id="row-output">
+          <div class="form-label">MIDI Output</div>
+          <div class="form-control">
+            <select id="pick-output" disabled onchange="onPickEndpoint()">
+              <option value="">— Select output —</option>
+              <option value="lp-out">Launchpad Mini MK3 LPMiniMK3 MIDI Out</option>
+              <option value="lp-daw-out">Launchpad Mini MK3 LPMiniMK3 DAW Out</option>
+              <option value="iac-out">IAC Driver Bus 1</option>
+              <option value="seq-out">SequencerAI Out (virtual)</option>
+            </select>
+          </div>
+        </div>
+        <p class="picker-note">Selecting the regular MIDI (not DAW) endpoints is required for Programmer mode.</p>
+
+        <hr class="divider">
+
+        <!-- Status row -->
+        <div class="form-row">
+          <div class="form-label">Status</div>
+          <div class="form-control" style="display:flex; align-items:center; gap:10px;">
+            <span class="status-badge" id="status-badge">
+              <span class="status-dot" id="status-dot"></span>
+              <span id="status-text">Not enabled</span>
+            </span>
+            <!-- Test LEDs -->
+            <button class="btn" id="btn-test-leds" disabled onclick="onTestLEDs()">Test LEDs</button>
+            <span class="led-flash-feedback" id="led-feedback">Pattern sent — check hardware surface.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- === Stubs for existing MIDI sections === -->
+    <div class="stub-section">
+      [stub] Inputs — lists available MIDI sources (read-only)
+    </div>
+    <div class="stub-section">
+      [stub] Outputs — lists available MIDI destinations (read-only)
+    </div>
+    <div class="stub-section">
+      [stub] Virtual — shows SequencerAI In / SequencerAI Out
+    </div>
+
+  </div><!-- /pane-midi -->
+</div><!-- /app-shell -->
+
+<p class="annotation">App prefs are app-scoped, not per-document. Endpoint selections persist across relaunches via UserDefaults / @AppStorage.</p>
+
+<!-- State variant cards -->
+<div class="state-variants">
+
+  <div class="state-card">
+    <div class="state-card-header">State A — Disabled (initial)</div>
+    <div class="state-card-body">
+      <div>Toggle: OFF</div>
+      <div>Pickers: greyed out</div>
+      <div>Status: "Not enabled"</div>
+      <div>Test LEDs: disabled</div>
+      <div style="color:#888; font-style:italic; margin-top:4px;">Hardware: untouched (Live mode)</div>
+    </div>
+  </div>
+
+  <div class="state-card">
+    <div class="state-card-header">State B — Enabled, no endpoints</div>
+    <div class="state-card-body">
+      <div>Toggle: ON</div>
+      <div>Pickers: active, both at "— Select —"</div>
+      <div>Status: "Endpoints not configured" (warning)</div>
+      <div>Test LEDs: disabled</div>
+      <div style="color:#888; font-style:italic; margin-top:4px;">Hardware: still untouched</div>
+    </div>
+  </div>
+
+  <div class="state-card">
+    <div class="state-card-header">State C — Enabled, input only</div>
+    <div class="state-card-body">
+      <div>Toggle: ON</div>
+      <div>Input: selected</div>
+      <div>Output: not set</div>
+      <div>Status: "Output required for LED feedback" (warning)</div>
+      <div>Test LEDs: disabled (output needed)</div>
+    </div>
+  </div>
+
+  <div class="state-card">
+    <div class="state-card-header">State D — Connected</div>
+    <div class="state-card-body">
+      <div>Toggle: ON</div>
+      <div>Both endpoints: selected</div>
+      <div>Status: <span style="color:#2e7d32; font-weight:600;">Connected</span></div>
+      <div>Test LEDs: enabled</div>
+      <div style="color:#888; font-style:italic; margin-top:4px;">Hardware: Programmer mode active, surface rendering workspace state</div>
+    </div>
+  </div>
+
+  <div class="state-card">
+    <div class="state-card-header">State E — Device missing</div>
+    <div class="state-card-body">
+      <div>Toggle: ON, endpoints saved</div>
+      <div>Saved endpoint not in current list</div>
+      <div>Status: <span style="color:#c62828; font-weight:600;">Device not found</span></div>
+      <div>Test LEDs: disabled</div>
+      <div style="color:#888; font-style:italic; margin-top:4px;">Picker shows saved name in italic + "(not found)"</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="annotation" style="margin-top:16px;">
+  Open question (see open-questions.md): Should the status row poll CoreMIDI on a timer, or react to
+  MIDINotifyAdd/Remove notifications? The existing MIDIClientCreateWithBlock notification closure is a no-op.
+</p>
+
+<script>
+  var surfaceEnabled = false;
+  var inputChosen = false;
+  var outputChosen = false;
+
+  function stub(el) {
+    alert('[stub] Tab not prototyped: ' + el.textContent.trim());
+  }
+
+  function showTab(name) {
+    // Only MIDI tab is active in this prototype
+  }
+
+  function onToggleSurface(checked) {
+    surfaceEnabled = checked;
+    var t = document.getElementById('toggle-text');
+    var pi = document.getElementById('pick-input');
+    var po = document.getElementById('pick-output');
+    t.textContent = checked ? 'Enabled — enter Programmer mode on connect' : 'Disabled';
+    pi.disabled = !checked;
+    po.disabled = !checked;
+    if (!checked) {
+      inputChosen = false;
+      outputChosen = false;
+      pi.value = '';
+      po.value = '';
+      setStatus('not-enabled', 'Not enabled');
+      document.getElementById('btn-test-leds').disabled = true;
+    } else {
+      setStatus('warning', 'Endpoints not configured');
+    }
+    hideLEDFeedback();
+  }
+
+  function onPickEndpoint() {
+    var pi = document.getElementById('pick-input');
+    var po = document.getElementById('pick-output');
+    inputChosen = pi.value !== '';
+    outputChosen = po.value !== '';
+
+    if (!inputChosen && !outputChosen) {
+      setStatus('warning', 'Endpoints not configured');
+      document.getElementById('btn-test-leds').disabled = true;
+    } else if (inputChosen && !outputChosen) {
+      setStatus('warning', 'Output required for LED feedback');
+      document.getElementById('btn-test-leds').disabled = true;
+    } else if (!inputChosen && outputChosen) {
+      setStatus('warning', 'Input required to receive pad events');
+      document.getElementById('btn-test-leds').disabled = true;
+    } else {
+      setStatus('connected', 'Connected — Programmer mode active');
+      document.getElementById('btn-test-leds').disabled = false;
+    }
+    hideLEDFeedback();
+  }
+
+  function setStatus(state, text) {
+    var badge = document.getElementById('status-badge');
+    var dot = document.getElementById('status-dot');
+    var label = document.getElementById('status-text');
+    badge.className = 'status-badge';
+    if (state === 'connected') badge.classList.add('connected');
+    if (state === 'error') badge.classList.add('error');
+    dot.style.background = state === 'connected' ? '#4caf50' : state === 'error' ? '#f44336' : '#bbb';
+    label.textContent = text;
+  }
+
+  function onTestLEDs() {
+    var fb = document.getElementById('led-feedback');
+    fb.classList.add('visible');
+    document.getElementById('btn-test-leds').disabled = true;
+    setTimeout(function() {
+      document.getElementById('btn-test-leds').disabled = false;
+      hideLEDFeedback();
+    }, 2500);
+  }
+
+  function hideLEDFeedback() {
+    document.getElementById('led-feedback').classList.remove('visible');
+  }
+</script>
+</body>
+</html>

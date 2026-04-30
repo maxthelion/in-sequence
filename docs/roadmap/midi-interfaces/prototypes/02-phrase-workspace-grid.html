@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] MIDI Interfaces — Prototype 2: Phrase Workspace Launchpad Grid (Story 4)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f4f4f4;
+    color: #111;
+    padding: 24px;
+  }
+
+  h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #666; margin-bottom: 8px; font-size: 12px; }
+  .budget { font-size: 11px; color: #444; background: #e8e8e8; border: 1px solid #ccc; padding: 6px 10px; margin-bottom: 20px; }
+  .annotation { font-size: 11px; color: #555; font-style: italic; margin-top: 8px; }
+
+  /* --- Layout: side-by-side screen + hardware --- */
+  .layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  /* === App screen === */
+  .app-shell {
+    border: 1px solid #bbb;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    width: 520px;
+    min-height: 460px;
+    flex-shrink: 0;
+  }
+
+  .title-bar {
+    background: #d8d8d8;
+    border-bottom: 1px solid #bbb;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .traffic-lights { display: flex; gap: 5px; }
+  .traffic-lights span { display:inline-block; width:10px; height:10px; border-radius:50%; background:#bbb; border:1px solid #999; }
+
+  .toolbar {
+    background: #e8e8e8;
+    border-bottom: 1px solid #bbb;
+    padding: 4px 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .ws-tab {
+    font-size: 11px;
+    padding: 3px 8px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    cursor: pointer;
+    border-radius: 2px;
+    color: #555;
+  }
+  .ws-tab.active { background: #fff; border-color: #888; color: #111; font-weight: 600; }
+  .ws-tab.stub { color: #aaa; border-style: dashed; }
+
+  .workspace-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Phrase row-select sidebar */
+  .row-select-sidebar {
+    width: 70px;
+    border-right: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    background: #fafafa;
+  }
+  .sidebar-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 6px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .phrase-row-btn {
+    font-size: 10px;
+    padding: 5px 6px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    color: #444;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .phrase-row-btn:hover { background: #efefef; }
+  .phrase-row-btn.selected { background: #1a73e8; color: #fff; }
+  .phrase-row-btn.playing { background: #e8f5e9; border-left: 3px solid #4caf50; }
+
+  /* Phrase matrix area */
+  .phrase-matrix-area {
+    flex: 1;
+    overflow: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .track-header-row {
+    display: flex;
+    gap: 2px;
+    margin-left: 0;
+  }
+  .track-header-cell {
+    width: 44px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #555;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 2px 0;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .phrase-row {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+
+  .phrase-cell {
+    width: 44px;
+    height: 28px;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    user-select: none;
+    background: #f5f5f5;
+    color: #999;
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .phrase-cell:hover { border-color: #888; }
+  .phrase-cell.filled { background: #bdbdbd; color: #333; font-weight: 600; }
+  .phrase-cell.selected { background: #1a73e8; color: #fff; border-color: #1558c0; }
+  .phrase-cell.playing { background: #4caf50; color: #fff; border-color: #388e3c; }
+  .phrase-cell.pattern { background: #7c4dff; color: #fff; border-color: #5e35b1; }
+  .phrase-cell.scalar { background: #ff8f00; color: #fff; border-color: #e65100; }
+
+  .layer-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    border-top: 1px solid #ddd;
+    background: #f8f8f8;
+  }
+  .layer-tab {
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    cursor: pointer;
+    border-radius: 2px;
+    color: #444;
+  }
+  .layer-tab.active { background: #fff; font-weight: 700; color: #111; }
+
+  /* Page controls */
+  .page-controls {
+    display: flex;
+    gap: 6px;
+    padding: 4px 8px;
+    border-top: 1px solid #ddd;
+    background: #f8f8f8;
+    align-items: center;
+    font-size: 11px;
+    color: #555;
+  }
+  .page-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #aaa;
+    background: #e8e8e8;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .page-btn:hover { background: #ddd; }
+  .page-btn:disabled { color: #bbb; border-color: #ddd; cursor: default; }
+
+  /* === Hardware panel === */
+  .hardware-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .hw-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .launchpad {
+    background: #2a2a2a;
+    border: 2px solid #1a1a1a;
+    border-radius: 6px;
+    padding: 8px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 3px;
+    user-select: none;
+  }
+
+  .lp-row {
+    display: flex;
+    gap: 3px;
+  }
+
+  /* Each pad is 28x28 */
+  .lp-pad {
+    width: 28px;
+    height: 28px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    transition: filter 0.08s;
+    border: 1px solid rgba(0,0,0,0.4);
+    line-height: 1;
+    text-align: center;
+  }
+  .lp-pad:hover { filter: brightness(1.3); }
+  .lp-pad:active { filter: brightness(1.6); }
+
+  /* Pad LED states — colour-coded per spec */
+  .lp-off    { background: #333; }
+  .lp-empty  { background: #555; }          /* empty cell */
+  .lp-filled { background: #9e9e9e; }       /* filled, not selected */
+  .lp-selected { background: #1a73e8; }     /* selected row */
+  .lp-playing { background: #4caf50; }      /* playing cell */
+  .lp-pattern { background: #7c4dff; }      /* pattern-slot */
+  .lp-scalar  { background: #ff8f00; }      /* scalar */
+  .lp-edge-layer { background: #546e7a; }   /* layer switch (right col) */
+  .lp-edge-phrase { background: #37474f; }  /* phrase page (right col) */
+  .lp-edge-track  { background: #4e342e; }  /* track page (top row) */
+  .lp-edge-active { background: #ffd740; color: #111; }  /* active layer/page */
+  .lp-edge-rowsel { background: #1565c0; }  /* row-select (right col) */
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 10px;
+    color: #444;
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    border: 1px solid rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }
+
+  /* Callout arrows / annotations */
+  .hw-annotations {
+    font-size: 10px;
+    color: #555;
+    font-style: italic;
+    line-height: 1.6;
+    max-width: 190px;
+  }
+  .hw-annotations strong { font-style: normal; color: #333; }
+
+  /* Track page indicator */
+  .page-indicator { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>[WIP] MIDI Interfaces — Prototype 2: Phrase Workspace Launchpad Grid</h1>
+<p class="meta">Story 4 — hardware pad presses edit phrase cells; LED colours mirror phrase matrix state.</p>
+<div class="budget">
+  <strong>Interaction budget:</strong> Hardware press → cell edit in 1 interaction. Click a pad to toggle fill. Use layer tabs and page arrows to change view; hardware edge buttons mirror same navigation.
+  Click pads on the hardware to see screen update. Click phrase cells on screen to see hardware update.
+</div>
+
+<div class="layout">
+
+  <!-- === On-screen Phrase workspace === -->
+  <div>
+    <div style="font-size:11px; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">On-screen app</div>
+    <div class="app-shell">
+      <div class="title-bar">
+        <div class="traffic-lights"><span></span><span></span><span></span></div>
+        Sequence — My Live Set.seq
+      </div>
+      <div class="toolbar">
+        <div class="ws-tab stub">Live [tracks]</div>
+        <div class="ws-tab active">Phrase</div>
+        <div class="ws-tab stub">Mixer</div>
+        <div class="ws-tab stub">Library</div>
+      </div>
+
+      <div class="workspace-area">
+        <!-- Row-select sidebar (maps to right-col row-select buttons on hardware) -->
+        <div class="row-select-sidebar">
+          <div class="sidebar-header">Phrase</div>
+          <!-- 8 rows visible -->
+          <div class="phrase-row-btn selected" id="sr-0" onclick="selectPhraseRow(0)"><span>&#9654;</span> Ph 1</div>
+          <div class="phrase-row-btn" id="sr-1" onclick="selectPhraseRow(1)"><span></span> Ph 2</div>
+          <div class="phrase-row-btn playing" id="sr-2" onclick="selectPhraseRow(2)"><span>&#9654;</span> Ph 3</div>
+          <div class="phrase-row-btn" id="sr-3" onclick="selectPhraseRow(3)"><span></span> Ph 4</div>
+          <div class="phrase-row-btn" id="sr-4" onclick="selectPhraseRow(4)"><span></span> Ph 5</div>
+          <div class="phrase-row-btn" id="sr-5" onclick="selectPhraseRow(5)"><span></span> Ph 6</div>
+          <div class="phrase-row-btn" id="sr-6" onclick="selectPhraseRow(6)"><span></span> Ph 7</div>
+          <div class="phrase-row-btn" id="sr-7" onclick="selectPhraseRow(7)"><span></span> Ph 8</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+          <!-- Track headers (8 visible tracks, 1 page) -->
+          <div style="padding: 4px 8px 0; display:flex; flex-direction:column; flex:1; overflow:auto;" id="matrix-container">
+            <div class="track-header-row" id="track-headers">
+              <!-- filled by JS -->
+            </div>
+            <div id="phrase-rows">
+              <!-- filled by JS -->
+            </div>
+          </div>
+
+          <!-- Layer tabs -->
+          <div class="layer-tabs" id="layer-tabs">
+            <div class="layer-tab active" data-layer="0" onclick="selectLayer(0)">Pattern</div>
+            <div class="layer-tab" data-layer="1" onclick="selectLayer(1)">Boolean</div>
+            <div class="layer-tab" data-layer="2" onclick="selectLayer(2)">Velocity</div>
+            <div class="layer-tab" data-layer="3" onclick="selectLayer(3)">Pitch</div>
+          </div>
+
+          <!-- Track page controls -->
+          <div class="page-controls">
+            <span>Tracks</span>
+            <button class="page-btn" id="track-prev" onclick="pageTrack(-1)" disabled>&#9664; Prev</button>
+            <span id="track-page-label" class="page-indicator">1 – 8</span>
+            <button class="page-btn" id="track-next" onclick="pageTrack(1)">Next &#9654;</button>
+            <span style="margin-left:12px;">Phrases</span>
+            <button class="page-btn" id="phrase-prev" onclick="pagePhrase(-1)" disabled>&#9664; Prev</button>
+            <span id="phrase-page-label" class="page-indicator">1 – 8</span>
+            <button class="page-btn" id="phrase-next" onclick="pagePhrase(1)">Next &#9654;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === Hardware panel === -->
+  <div class="hardware-panel">
+    <div style="font-size:11px; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px;">Launchpad Mini MK3 LEDs</div>
+    <div class="hw-annotations" style="margin-bottom:6px;">
+      <strong>Top row</strong> (CC row): track-page arrows (left 2 pads), phrase-page arrows (next 2), then layer select (next 4).<br>
+      <strong>Right col</strong>: row-select buttons (select which phrase row is active).<br>
+      <strong>8x8 grid</strong>: phrase-row × track-column cells.
+    </div>
+
+    <!-- Launchpad grid (9x9 including edges) -->
+    <div class="launchpad" id="launchpad">
+      <!-- Top row (CC edge): track-page L, track-page R, phrase-page L, phrase-page R, layer0, layer1, layer2, layer3, [unused] -->
+      <!-- Rows 0..7 = phrase rows; cols 0..7 = track cols; col 8 = row-select -->
+      <!-- Built by JS -->
+    </div>
+
+    <!-- Legend -->
+    <div class="hw-label" style="margin-top:10px;">LED colour key</div>
+    <div class="legend">
+      <div class="legend-row"><div class="legend-swatch" style="background:#555"></div> Empty cell</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#9e9e9e"></div> Filled (not selected row)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#1a73e8"></div> Selected row + filled</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#4caf50"></div> Playing cell</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#7c4dff"></div> Pattern-slot</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#ff8f00"></div> Scalar value</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#1565c0"></div> Row-select (right col)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#ffd740; border:1px solid #bbb;"></div> Active layer / page</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#546e7a"></div> Layer edge</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#4e342e"></div> Track-page edge</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#37474f"></div> Phrase-page edge</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="annotation">
+  Architecture note: <code>trackPage</code> and a new <code>phrasePage</code> must be lifted out of private <code>@State</code>
+  in <code>PhraseWorkspaceView</code> into <code>WorkspaceControlSurfaceContext</code> so the hardware adapter can read and write them.
+  The adapter derives the <code>ControlSurfaceFrame</code> from (visiblePhrases × visibleTracks × activeLayer).
+</p>
+
+<script>
+  // ---- Fixture data ----
+  var TRACK_NAMES = [
+    'Kick', 'Snare', 'Hi-hat', 'Clap', 'Bass Gtr', 'Lead Synth w/longer name', 'Pad 1', 'Melody',
+    'Arp Seq', 'FX Layer', 'Strings', 'Brass Ens', 'Sax Solo', 'Perc 1', 'Sub Osc', 'Ambience'
+  ];
+  var NUM_PHRASES = 16;
+  var NUM_TRACKS = TRACK_NAMES.length; // 16
+
+  // Phrase × Track × Layer matrix
+  // Layers: 0=pattern, 1=boolean, 2=velocity(scalar), 3=pitch(scalar)
+  // States: 0=empty, 1=filled, 2=playing, 3=pattern, 4=scalar
+  function makeMatrix() {
+    var m = [];
+    for (var p = 0; p < NUM_PHRASES; p++) {
+      var row = [];
+      for (var t = 0; t < NUM_TRACKS; t++) {
+        var layers = [];
+        for (var l = 0; l < 4; l++) {
+          // Sparse populate
+          var s = 0;
+          if (p === 2 && t < 4) s = 2; // playing row
+          else if (l === 0 && (p + t) % 3 === 0) s = 3; // pattern
+          else if (l >= 2 && t % 4 === 0) s = 4; // scalar
+          else if ((p * t + p + t) % 5 === 0) s = 1; // filled
+          layers.push(s);
+        }
+        row.push(layers);
+      }
+      m.push(row);
+    }
+    return m;
+  }
+  var matrix = makeMatrix();
+
+  var selectedPhraseRow = 0;
+  var activeLayer = 0;
+  var trackPage = 0; // 0 = tracks 0-7, 1 = tracks 8-15
+  var phrasePage = 0;
+
+  function visibleTracks() {
+    var start = trackPage * 8;
+    return TRACK_NAMES.slice(start, start + 8);
+  }
+  function visiblePhraseRows() {
+    var start = phrasePage * 8;
+    var rows = [];
+    for (var i = start; i < start + 8 && i < NUM_PHRASES; i++) rows.push(i);
+    return rows;
+  }
+
+  // ---- Render screen matrix ----
+  function renderScreen() {
+    var headers = document.getElementById('track-headers');
+    var phrases = document.getElementById('phrase-rows');
+    var vt = visibleTracks();
+    var vp = visiblePhraseRows();
+
+    // Track headers
+    var hh = '';
+    vt.forEach(function(name) {
+      hh += '<div class="track-header-cell" title="' + name + '">' + name.substring(0,6) + '</div>';
+    });
+    headers.innerHTML = hh;
+
+    // Phrase rows
+    var ph = '';
+    vp.forEach(function(pi, ri) {
+      ph += '<div class="phrase-row">';
+      vt.forEach(function(_, ti) {
+        var realTrack = trackPage * 8 + ti;
+        var state = matrix[pi][realTrack][activeLayer];
+        var cls = cellClass(state, pi === selectedPhraseRow);
+        var label = cellLabel(state);
+        ph += '<div class="phrase-cell ' + cls + '" onclick="toggleCell(' + pi + ',' + realTrack + ')" title="Ph' + (pi+1) + ' / ' + TRACK_NAMES[realTrack] + '">' + label + '</div>';
+      });
+      ph += '</div>';
+    });
+    phrases.innerHTML = ph;
+
+    // Row-select sidebar
+    for (var r = 0; r < 8; r++) {
+      var si = document.getElementById('sr-' + r);
+      if (!si) continue;
+      var phraseIdx = phrasePage * 8 + r;
+      si.className = 'phrase-row-btn';
+      if (phraseIdx === selectedPhraseRow) si.classList.add('selected');
+      else if (phraseIdx === 2) si.classList.add('playing'); // fixture: ph3 is playing
+      si.innerHTML = (phraseIdx === 2 ? '<span>&#9654;</span> ' : '<span></span> ') + 'Ph ' + (phraseIdx + 1);
+    }
+
+    // Track page label
+    var ts = trackPage * 8 + 1;
+    document.getElementById('track-page-label').textContent = ts + '–' + (ts + 7);
+    document.getElementById('track-prev').disabled = trackPage === 0;
+    document.getElementById('track-next').disabled = (trackPage + 1) * 8 >= NUM_TRACKS;
+
+    var ps = phrasePage * 8 + 1;
+    document.getElementById('phrase-page-label').textContent = ps + '–' + (ps + 7);
+    document.getElementById('phrase-prev').disabled = phrasePage === 0;
+    document.getElementById('phrase-next').disabled = (phrasePage + 1) * 8 >= NUM_PHRASES;
+
+    // Layer tabs
+    document.querySelectorAll('.layer-tab').forEach(function(el) {
+      el.classList.toggle('active', parseInt(el.dataset.layer) === activeLayer);
+    });
+
+    renderHardware();
+  }
+
+  function cellClass(state, isSelectedRow) {
+    if (state === 2) return 'playing';
+    if (state === 3) return 'pattern';
+    if (state === 4) return 'scalar';
+    if (state === 1) return isSelectedRow ? 'selected' : 'filled';
+    return isSelectedRow ? 'selected' : '';
+  }
+  function cellLabel(state) {
+    if (state === 3) return 'pat';
+    if (state === 4) return '##';
+    if (state === 1) return 'on';
+    return '';
+  }
+
+  function toggleCell(pi, ti) {
+    var cur = matrix[pi][ti][activeLayer];
+    matrix[pi][ti][activeLayer] = cur === 0 ? 1 : 0;
+    renderScreen();
+  }
+
+  function selectPhraseRow(ri) {
+    selectedPhraseRow = phrasePage * 8 + ri;
+    renderScreen();
+  }
+
+  function selectLayer(l) {
+    activeLayer = l;
+    renderScreen();
+  }
+
+  function pageTrack(dir) {
+    trackPage = Math.max(0, Math.min(1, trackPage + dir));
+    renderScreen();
+  }
+
+  function pagePhrase(dir) {
+    phrasePage = Math.max(0, Math.min(1, phrasePage + dir));
+    renderScreen();
+  }
+
+  // ---- Render hardware grid ----
+  function renderHardware() {
+    var lp = document.getElementById('launchpad');
+    lp.innerHTML = '';
+
+    var vp = visiblePhraseRows();
+    var tStart = trackPage * 8;
+
+    // Top CC row: [track-prev][track-next][phrase-prev][phrase-next][layer0..3][unused]
+    var topRow = document.createElement('div');
+    topRow.className = 'lp-row';
+    var topDefs = [
+      { cls: trackPage > 0 ? 'lp-edge-active' : 'lp-edge-track', label: '◀Trk', action: function(){ pageTrack(-1); } },
+      { cls: (trackPage+1)*8 < NUM_TRACKS ? 'lp-edge-active' : 'lp-edge-track', label: 'Trk▶', action: function(){ pageTrack(1); } },
+      { cls: phrasePage > 0 ? 'lp-edge-active' : 'lp-edge-phrase', label: '◀Ph', action: function(){ pagePhrase(-1); } },
+      { cls: (phrasePage+1)*8 < NUM_PHRASES ? 'lp-edge-active' : 'lp-edge-phrase', label: 'Ph▶', action: function(){ pagePhrase(1); } },
+      { cls: activeLayer === 0 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay0', action: function(){ selectLayer(0); } },
+      { cls: activeLayer === 1 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay1', action: function(){ selectLayer(1); } },
+      { cls: activeLayer === 2 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay2', action: function(){ selectLayer(2); } },
+      { cls: activeLayer === 3 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay3', action: function(){ selectLayer(3); } },
+      { cls: 'lp-off', label: '', action: null }
+    ];
+    topDefs.forEach(function(def) {
+      var pad = makePad(def.cls, def.label, def.action);
+      topRow.appendChild(pad);
+    });
+    lp.appendChild(topRow);
+
+    // Grid rows (8): phrase row × [8 track cols + 1 row-select col]
+    for (var ri = 0; ri < 8; ri++) {
+      var row = document.createElement('div');
+      row.className = 'lp-row';
+      var pi = vp[ri];
+
+      // 8 track pads
+      for (var ti = 0; ti < 8; ti++) {
+        var realTrack = tStart + ti;
+        var state = (pi !== undefined) ? matrix[pi][realTrack][activeLayer] : 0;
+        var isSelectedRow = (pi === selectedPhraseRow);
+        var padCls = hardwarePadClass(state, isSelectedRow, pi);
+        var padLabel = hardwarePadLabel(state);
+        var closure = (function(pii, rti) {
+          return function() { if (pii !== undefined) toggleCell(pii, rti); };
+        })(pi, realTrack);
+        row.appendChild(makePad(padCls, padLabel, closure));
+      }
+
+      // Right col: row-select button
+      var rowSelCls = (pi === selectedPhraseRow) ? 'lp-edge-active' : 'lp-edge-rowsel';
+      var rowSelLabel = pi !== undefined ? 'R' + (pi + 1) : '';
+      var rowSelAction = (function(rii) {
+        return function() { if (rii < 8) selectPhraseRow(rii); };
+      })(ri);
+      row.appendChild(makePad(rowSelCls, rowSelLabel, rowSelAction));
+
+      lp.appendChild(row);
+    }
+  }
+
+  function hardwarePadClass(state, isSelectedRow, pi) {
+    if (state === 2) return 'lp-playing';
+    if (state === 3) return 'lp-pattern';
+    if (state === 4) return 'lp-scalar';
+    if (state === 1) return isSelectedRow ? 'lp-selected' : 'lp-filled';
+    return isSelectedRow ? 'lp-selected' : 'lp-empty';
+  }
+  function hardwarePadLabel(state) {
+    return '';
+  }
+
+  function makePad(cls, label, action) {
+    var pad = document.createElement('div');
+    pad.className = 'lp-pad ' + cls;
+    pad.textContent = label;
+    if (action) pad.addEventListener('click', function() { action(); });
+    return pad;
+  }
+
+  // Init
+  renderScreen();
+</script>
+</body>
+</html>

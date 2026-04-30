@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] MIDI Interfaces — Prototype 3: Live Workspace Launchpad Grid (Story 5)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f4f4f4;
+    color: #111;
+    padding: 24px;
+  }
+
+  h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #666; margin-bottom: 8px; font-size: 12px; }
+  .budget { font-size: 11px; color: #444; background: #e8e8e8; border: 1px solid #ccc; padding: 6px 10px; margin-bottom: 20px; }
+  .annotation { font-size: 11px; color: #555; font-style: italic; margin-top: 8px; }
+
+  .layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  /* === App screen === */
+  .app-shell {
+    border: 1px solid #bbb;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    width: 560px;
+    min-height: 480px;
+    flex-shrink: 0;
+  }
+
+  .title-bar {
+    background: #d8d8d8;
+    border-bottom: 1px solid #bbb;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .traffic-lights { display: flex; gap: 5px; }
+  .traffic-lights span { display:inline-block; width:10px; height:10px; border-radius:50%; background:#bbb; border:1px solid #999; }
+
+  .toolbar {
+    background: #e8e8e8;
+    border-bottom: 1px solid #bbb;
+    padding: 4px 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .ws-tab {
+    font-size: 11px;
+    padding: 3px 8px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    cursor: pointer;
+    border-radius: 2px;
+    color: #555;
+  }
+  .ws-tab.active { background: #fff; border-color: #888; color: #111; font-weight: 600; }
+  .ws-tab.stub { color: #aaa; border-style: dashed; }
+
+  /* Transport stub */
+  .transport-bar {
+    background: #1c1c1c;
+    padding: 4px 10px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid #111;
+    font-size: 11px;
+    color: #aaa;
+  }
+  .transport-btn {
+    font-size: 11px;
+    padding: 2px 10px;
+    border: 1px solid #555;
+    background: #333;
+    color: #ddd;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .transport-btn.playing { background: #4caf50; color: #fff; border-color: #388e3c; }
+  .transport-counter {
+    font-family: "SF Mono", "Fira Code", monospace;
+    color: #7ec8e3;
+    font-size: 12px;
+    min-width: 70px;
+  }
+  .transport-stub { color: #555; font-style: italic; font-size: 10px; }
+
+  .workspace-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Scope / track-group sidebar */
+  .scope-sidebar {
+    width: 90px;
+    border-right: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    background: #fafafa;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 6px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .scope-row {
+    font-size: 10px;
+    padding: 5px 6px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .scope-row:hover { background: #efefef; }
+  .scope-row.active { background: #e3f2fd; border-left: 3px solid #1a73e8; color: #111; font-weight: 600; }
+  .scope-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #bbb;
+  }
+
+  /* Main step/bar grid */
+  .grid-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .column-header-row {
+    display: flex;
+    padding: 2px 8px;
+    gap: 2px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f5f5f5;
+  }
+  .col-header {
+    width: 38px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #777;
+    flex-shrink: 0;
+  }
+  .col-header.playhead { color: #4caf50; }
+
+  .grid-rows-area {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .grid-row {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+
+  .step-cell {
+    width: 38px;
+    height: 28px;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    cursor: pointer;
+    user-select: none;
+    background: #f5f5f5;
+    color: #999;
+    flex-shrink: 0;
+    transition: background 0.08s;
+  }
+  .step-cell:hover { border-color: #888; }
+  .step-cell.on { background: #bdbdbd; color: #333; font-weight: 600; }
+  .step-cell.playhead-col { border-color: #4caf50; }
+  .step-cell.on.playhead-col { background: #4caf50; color: #fff; }
+  .step-cell.pattern { background: #7c4dff; color: #fff; border-color: #5e35b1; }
+  .step-cell.scalar { background: #ff8f00; color: #fff; border-color: #e65100; }
+
+  /* Mode toggle */
+  .mode-bar {
+    padding: 4px 8px;
+    border-top: 1px solid #ddd;
+    background: #f8f8f8;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 11px;
+    color: #555;
+  }
+  .mode-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #aaa;
+    background: #e8e8e8;
+    cursor: pointer;
+    border-radius: 2px;
+    color: #444;
+  }
+  .mode-btn.active { background: #fff; font-weight: 700; color: #111; }
+
+  /* Layer tabs */
+  .layer-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    border-top: 1px solid #ddd;
+    background: #f8f8f8;
+  }
+  .layer-tab {
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid #aaa;
+    background: #e0e0e0;
+    cursor: pointer;
+    border-radius: 2px;
+    color: #444;
+  }
+  .layer-tab.active { background: #fff; font-weight: 700; color: #111; }
+
+  /* Page controls */
+  .page-controls {
+    display: flex;
+    gap: 6px;
+    padding: 4px 8px;
+    border-top: 1px solid #ddd;
+    background: #f8f8f8;
+    align-items: center;
+    font-size: 11px;
+    color: #555;
+  }
+  .page-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid #aaa;
+    background: #e8e8e8;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .page-btn:hover { background: #ddd; }
+  .page-btn:disabled { color: #bbb; border-color: #ddd; cursor: default; }
+
+  /* === Hardware === */
+  .hardware-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .hw-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .launchpad {
+    background: #2a2a2a;
+    border: 2px solid #1a1a1a;
+    border-radius: 6px;
+    padding: 8px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 3px;
+    user-select: none;
+  }
+  .lp-row { display: flex; gap: 3px; }
+  .lp-pad {
+    width: 28px;
+    height: 28px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.6);
+    transition: filter 0.08s;
+    border: 1px solid rgba(0,0,0,0.4);
+    line-height: 1;
+    text-align: center;
+  }
+  .lp-pad:hover { filter: brightness(1.3); }
+  .lp-pad:active { filter: brightness(1.6); }
+
+  /* States */
+  .lp-off      { background: #333; }
+  .lp-empty    { background: #444; }
+  .lp-on       { background: #9e9e9e; }
+  .lp-playhead { background: #4caf50; }
+  .lp-pattern  { background: #7c4dff; }
+  .lp-scalar   { background: #ff8f00; }
+  .lp-edge-scope    { background: #37474f; }
+  .lp-edge-step     { background: #4e342e; }
+  .lp-edge-layer    { background: #546e7a; }
+  .lp-edge-ws       { background: #1b5e20; }
+  .lp-edge-transport { background: #b71c1c; }
+  .lp-edge-active   { background: #ffd740; color: #111; }
+
+  /* Legend */
+  .legend { display:flex; flex-direction:column; gap:5px; font-size:10px; color:#444; }
+  .legend-row { display:flex; align-items:center; gap:6px; }
+  .legend-swatch { width:14px; height:14px; border-radius:2px; border:1px solid rgba(0,0,0,.15); flex-shrink:0; }
+
+  .hw-annotations {
+    font-size: 10px;
+    color: #555;
+    font-style: italic;
+    line-height: 1.6;
+    max-width: 200px;
+  }
+  .hw-annotations strong { font-style: normal; color: #333; }
+
+  /* Scope colour dots */
+  .c0 { background: #e53935; }
+  .c1 { background: #1e88e5; }
+  .c2 { background: #43a047; }
+  .c3 { background: #fb8c00; }
+  .c4 { background: #8e24aa; }
+  .c5 { background: #00acc1; }
+  .c6 { background: #f4511e; }
+  .c7 { background: #6d4c41; }
+  .c8 { background: #546e7a; }
+  .c9 { background: #c0ca33; }
+
+  /* Hardware scope-row edge uses dim version of scope colour */
+  .lp-scope-0 { background: #b71c1c; }
+  .lp-scope-1 { background: #0d47a1; }
+  .lp-scope-2 { background: #1b5e20; }
+  .lp-scope-3 { background: #e65100; }
+  .lp-scope-4 { background: #4a148c; }
+  .lp-scope-5 { background: #006064; }
+  .lp-scope-6 { background: #bf360c; }
+  .lp-scope-7 { background: #3e2723; }
+</style>
+</head>
+<body>
+
+<h1>[WIP] MIDI Interfaces — Prototype 3: Live Workspace Launchpad Grid</h1>
+<p class="meta">Story 5 — Launchpad grid mirrors Live workspace scopes × steps/bars; playhead column highlighted during playback.</p>
+<div class="budget">
+  <strong>Interaction budget:</strong> Hardware press → step edit in 1 interaction. Toggle play/stop via top-right corner pad. Page scope rows or step columns via top-row / right-column edge pads. Switch layers via right-side layer pads. No Settings reconfiguration needed to switch from Phrase to Live.
+</div>
+
+<div class="layout">
+
+  <!-- === On-screen Live workspace === -->
+  <div>
+    <div style="font-size:11px; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">On-screen app — Live [tracks] workspace</div>
+    <div class="app-shell">
+      <div class="title-bar">
+        <div class="traffic-lights"><span></span><span></span><span></span></div>
+        Sequence — My Live Set.seq
+      </div>
+      <div class="toolbar">
+        <div class="ws-tab active">Live [tracks]</div>
+        <div class="ws-tab stub">Phrase</div>
+        <div class="ws-tab stub">Mixer</div>
+        <div class="ws-tab stub">Library</div>
+      </div>
+      <div class="transport-bar">
+        <button class="transport-btn" id="play-btn" onclick="togglePlay()">&#9654; Play</button>
+        <span class="transport-counter" id="position-counter">1.1.1</span>
+        <span class="transport-stub">[stub: BPM, loop, etc.]</span>
+      </div>
+
+      <div class="workspace-area">
+        <!-- Scope sidebar (rows = scopes, up to 8 visible) -->
+        <div class="scope-sidebar">
+          <div class="sidebar-header">Scopes</div>
+          <div id="scope-sidebar-rows">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+        <div class="grid-area">
+          <!-- Layer tabs -->
+          <div class="layer-tabs" id="layer-tabs">
+            <span style="font-size:10px; color:#888; margin-right:4px;">Layer:</span>
+            <!-- filled by JS -->
+          </div>
+
+          <!-- Column headers (step or bar numbers) -->
+          <div class="column-header-row" id="col-headers">
+            <!-- filled by JS -->
+          </div>
+
+          <!-- Step/bar grid rows -->
+          <div class="grid-rows-area" id="grid-rows">
+            <!-- filled by JS -->
+          </div>
+
+          <!-- Mode: steps vs bars -->
+          <div class="mode-bar">
+            <span>View:</span>
+            <button class="mode-btn active" id="mode-steps" onclick="setMode('steps')">Steps</button>
+            <button class="mode-btn" id="mode-bars" onclick="setMode('bars')">Bars</button>
+          </div>
+
+          <!-- Paging -->
+          <div class="page-controls">
+            <span>Scopes</span>
+            <button class="page-btn" id="scope-prev" onclick="pageScope(-1)" disabled>&#9664; Prev</button>
+            <span id="scope-page-label">1–8</span>
+            <button class="page-btn" id="scope-next" onclick="pageScope(1)">Next &#9654;</button>
+            <span style="margin-left:12px;">Columns</span>
+            <button class="page-btn" id="col-prev" onclick="pageCol(-1)" disabled>&#9664; Prev</button>
+            <span id="col-page-label">1–8</span>
+            <button class="page-btn" id="col-next" onclick="pageCol(1)">Next &#9654;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === Hardware === -->
+  <div class="hardware-panel">
+    <div style="font-size:11px; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px;">Launchpad Mini MK3 LEDs</div>
+    <div class="hw-annotations" style="margin-bottom:6px;">
+      <strong>Top row</strong>: scope-page ◀▶, col-page ◀▶, layer select (×4), [switch to Phrase ws], [play/stop].<br>
+      <strong>Right col</strong>: scope-row colour buttons (dim = out-of-page, bright = in-page).<br>
+      <strong>8×8 grid</strong>: scope (row) × step/bar (col). Playhead column = green.
+    </div>
+
+    <div class="launchpad" id="launchpad">
+      <!-- built by JS -->
+    </div>
+
+    <div class="hw-label" style="margin-top:10px;">LED colour key</div>
+    <div class="legend">
+      <div class="legend-row"><div class="legend-swatch" style="background:#444"></div> Empty step</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#9e9e9e"></div> Step on (boolean)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#4caf50"></div> Playhead column</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#7c4dff"></div> Pattern-slot</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#ff8f00"></div> Scalar value</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#ffd740; border:1px solid #bbb;"></div> Active layer / page edge</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#546e7a"></div> Layer edge</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#4e342e"></div> Col-page edge</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#37474f"></div> Scope-page edge</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#1b5e20"></div> Switch-workspace edge</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#b71c1c"></div> Transport edge</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="annotation">
+  Architecture note: the "Live workspace" corresponds to the <code>WorkspaceSection.tracks</code> case in current code.
+  Open question: rename <code>.tracks</code> to <code>.live</code> or add a new <code>.live</code> case?
+  <code>LiveControlSurfaceAdapter</code> needs <code>scopePage</code> and <code>colPage</code> lifted out of
+  <code>LiveWorkspaceView</code> private state into <code>WorkspaceControlSurfaceContext</code>.
+  Playhead column index must come from the engine's transport position, not the hardware.
+</p>
+
+<script>
+  // ---- Fixture data ----
+  var SCOPE_NAMES = [
+    'Drum Kit', 'Bass Groove', 'Lead Melody wth long name', 'Pad Swell', 'Arp Seq 1',
+    'FX Tail', 'Strings Ens', 'Brass Hit', 'Sub Bass', 'Perc Layer'
+  ];
+  var SCOPE_COLORS = ['c0','c1','c2','c3','c4','c5','c6','c7','c8','c9'];
+  var SCOPE_HW_COLORS = ['lp-scope-0','lp-scope-1','lp-scope-2','lp-scope-3','lp-scope-4','lp-scope-5','lp-scope-6','lp-scope-7'];
+
+  var NUM_SCOPES = SCOPE_NAMES.length;
+  var NUM_COLS_STEPS = 16; // 16 steps total
+  var NUM_COLS_BARS = 8;   // 8 bars total
+
+  var LAYERS = ['Pattern', 'Boolean', 'Velocity', 'Pitch'];
+
+  // Scope × Col × Layer matrix
+  function makeMatrix() {
+    var m = [];
+    for (var s = 0; s < NUM_SCOPES; s++) {
+      var scopeData = [];
+      for (var c = 0; c < 16; c++) {
+        var layers = [];
+        for (var l = 0; l < 4; l++) {
+          var v = 0;
+          if (l === 0 && (s + c) % 3 === 0) v = 3; // pattern
+          else if (l >= 2 && c % 4 === 1) v = 4;   // scalar
+          else if ((s * 3 + c * 2 + l) % 4 === 0) v = 1; // on
+          layers.push(v);
+        }
+        scopeData.push(layers);
+      }
+      m.push(scopeData);
+    }
+    return m;
+  }
+  var matrix = makeMatrix();
+
+  var scopePage = 0;
+  var colPage = 0;
+  var activeLayer = 0;
+  var cellMode = 'steps'; // 'steps' | 'bars'
+  var isPlaying = false;
+  var playheadCol = 2; // current playhead column (0-based within visible page)
+  var playheadTimer = null;
+
+  function numCols() { return cellMode === 'steps' ? NUM_COLS_STEPS : NUM_COLS_BARS; }
+  function visibleScopes() {
+    var start = scopePage * 8;
+    var r = [];
+    for (var i = start; i < start + 8 && i < NUM_SCOPES; i++) r.push(i);
+    return r;
+  }
+  function visibleCols() {
+    var start = colPage * 8;
+    var nc = numCols();
+    var r = [];
+    for (var c = start; c < start + 8 && c < nc; c++) r.push(c);
+    return r;
+  }
+
+  // ---- Transport ----
+  function togglePlay() {
+    isPlaying = !isPlaying;
+    var btn = document.getElementById('play-btn');
+    btn.textContent = isPlaying ? '⏹ Stop' : '▶ Play';
+    btn.className = isPlaying ? 'transport-btn playing' : 'transport-btn';
+    if (isPlaying) {
+      playheadTimer = setInterval(advancePlayhead, 350);
+    } else {
+      clearInterval(playheadTimer);
+    }
+    render();
+  }
+
+  function advancePlayhead() {
+    var nc = numCols();
+    playheadCol = (playheadCol + 1) % nc;
+    var bars = Math.floor(playheadCol / 4) + 1;
+    var beat = (playheadCol % 4) + 1;
+    document.getElementById('position-counter').textContent = bars + '.' + beat + '.1';
+    render();
+  }
+
+  // ---- Interactions ----
+  function toggleCell(si, ci) {
+    var cur = matrix[si][ci][activeLayer];
+    matrix[si][ci][activeLayer] = cur === 0 ? 1 : 0;
+    render();
+  }
+  function selectLayer(l) { activeLayer = l; render(); }
+  function setMode(m) { cellMode = m; colPage = 0; render(); }
+  function pageScope(d) { scopePage = Math.max(0, Math.min(Math.ceil(NUM_SCOPES/8)-1, scopePage + d)); render(); }
+  function pageCol(d) { colPage = Math.max(0, Math.min(Math.ceil(numCols()/8)-1, colPage + d)); render(); }
+
+  // ---- Render ----
+  function render() {
+    renderScreen();
+    renderHardware();
+  }
+
+  function renderScreen() {
+    var vs = visibleScopes();
+    var vc = visibleCols();
+
+    // Layer tabs
+    var lt = document.getElementById('layer-tabs');
+    var layerHtml = '<span style="font-size:10px; color:#888; margin-right:4px;">Layer:</span>';
+    LAYERS.forEach(function(name, i) {
+      layerHtml += '<div class="layer-tab' + (i === activeLayer ? ' active' : '') + '" onclick="selectLayer(' + i + ')">' + name + '</div>';
+    });
+    lt.innerHTML = layerHtml;
+
+    // Mode buttons
+    document.getElementById('mode-steps').className = 'mode-btn' + (cellMode === 'steps' ? ' active' : '');
+    document.getElementById('mode-bars').className = 'mode-btn' + (cellMode === 'bars' ? ' active' : '');
+
+    // Column headers
+    var colH = '<div class="col-header" style="width:70px;"></div>';
+    vc.forEach(function(ci) {
+      var isPlayhead = isPlaying && ci === playheadCol;
+      colH += '<div class="col-header' + (isPlayhead ? ' playhead' : '') + '">' + (cellMode === 'steps' ? 'S' : 'B') + (ci + 1) + '</div>';
+    });
+    document.getElementById('col-headers').innerHTML = colH;
+
+    // Scope sidebar
+    var sbHtml = '';
+    vs.forEach(function(si) {
+      sbHtml += '<div class="scope-row" onclick="void(0)"><span class="scope-dot ' + SCOPE_COLORS[si % SCOPE_COLORS.length] + '"></span>' + SCOPE_NAMES[si].substring(0, 10) + '</div>';
+    });
+    document.getElementById('scope-sidebar-rows').innerHTML = sbHtml;
+
+    // Grid rows
+    var gridHtml = '';
+    vs.forEach(function(si) {
+      gridHtml += '<div class="grid-row">';
+      gridHtml += '<div style="width:70px; font-size:10px; color:#555; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:4px;" title="' + SCOPE_NAMES[si] + '">' + SCOPE_NAMES[si].substring(0, 9) + '</div>';
+      vc.forEach(function(ci) {
+        var state = matrix[si][ci][activeLayer];
+        var isPlayhead = isPlaying && ci === playheadCol;
+        var cls = stepCellClass(state, isPlayhead);
+        var label = state === 3 ? 'pat' : state === 4 ? '##' : state === 1 ? 'on' : '';
+        gridHtml += '<div class="step-cell ' + cls + '" onclick="toggleCell(' + si + ',' + ci + ')">' + label + '</div>';
+      });
+      gridHtml += '</div>';
+    });
+    document.getElementById('grid-rows').innerHTML = gridHtml;
+
+    // Paging labels and button states
+    var ss = scopePage * 8 + 1;
+    document.getElementById('scope-page-label').textContent = ss + '–' + (ss + 7);
+    document.getElementById('scope-prev').disabled = scopePage === 0;
+    document.getElementById('scope-next').disabled = (scopePage + 1) * 8 >= NUM_SCOPES;
+
+    var cs = colPage * 8 + 1;
+    document.getElementById('col-page-label').textContent = cs + '–' + (cs + 7);
+    document.getElementById('col-prev').disabled = colPage === 0;
+    document.getElementById('col-next').disabled = (colPage + 1) * 8 >= numCols();
+  }
+
+  function stepCellClass(state, isPlayhead) {
+    if (state === 3) return 'pattern' + (isPlayhead ? ' playhead-col' : '');
+    if (state === 4) return 'scalar' + (isPlayhead ? ' playhead-col' : '');
+    if (state === 1) return 'on' + (isPlayhead ? ' playhead-col' : '');
+    return isPlayhead ? 'playhead-col' : '';
+  }
+
+  function renderHardware() {
+    var lp = document.getElementById('launchpad');
+    lp.innerHTML = '';
+
+    var vs = visibleScopes();
+    var vc = visibleCols();
+
+    // Top CC row: scope-prev, scope-next, col-prev, col-next, layer0..3, ws-switch, play/stop
+    var topDefs = [
+      { cls: scopePage > 0 ? 'lp-edge-active' : 'lp-edge-scope', label: '◀Scp', action: function(){ pageScope(-1); } },
+      { cls: (scopePage+1)*8 < NUM_SCOPES ? 'lp-edge-active' : 'lp-edge-scope', label: 'Scp▶', action: function(){ pageScope(1); } },
+      { cls: colPage > 0 ? 'lp-edge-active' : 'lp-edge-step', label: '◀Col', action: function(){ pageCol(-1); } },
+      { cls: (colPage+1)*8 < numCols() ? 'lp-edge-active' : 'lp-edge-step', label: 'Col▶', action: function(){ pageCol(1); } },
+      { cls: activeLayer === 0 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay0', action: function(){ selectLayer(0); } },
+      { cls: activeLayer === 1 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay1', action: function(){ selectLayer(1); } },
+      { cls: activeLayer === 2 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay2', action: function(){ selectLayer(2); } },
+      { cls: activeLayer === 3 ? 'lp-edge-active' : 'lp-edge-layer', label: 'Lay3', action: function(){ selectLayer(3); } },
+      // Note: story 5 mentions ws-switch and play/stop on top row edge pads
+      // Launchpad Mini MK3 top CC row has 8 pads. We use all 8 for the above.
+      // Play/stop goes in the session button position (top-right corner pad on full Launchpad)
+      // On Mini MK3 we overload the 9th position (not real hardware, annotated as design decision)
+    ];
+    var topRow = document.createElement('div');
+    topRow.className = 'lp-row';
+    topDefs.forEach(function(def) {
+      topRow.appendChild(makePad(def.cls, def.label, def.action));
+    });
+    // 9th pad in top row = play/stop
+    topRow.appendChild(makePad(isPlaying ? 'lp-edge-transport' : 'lp-edge-transport', isPlaying ? '⏹' : '▶', togglePlay));
+    lp.appendChild(topRow);
+
+    // 8 grid rows: scope × col, plus right-col scope-colour edge pad
+    for (var ri = 0; ri < 8; ri++) {
+      var row = document.createElement('div');
+      row.className = 'lp-row';
+      var si = vs[ri];
+
+      for (var ci = 0; ci < 8; ci++) {
+        var colIdx = vc[ci];
+        var state = (si !== undefined && colIdx !== undefined) ? matrix[si][colIdx][activeLayer] : 0;
+        var isPlayhead = isPlaying && colIdx === playheadCol;
+        var padCls = hwStepClass(state, isPlayhead);
+        var closure = (function(sii, cii) {
+          return function() { if (sii !== undefined && cii !== undefined) toggleCell(sii, cii); };
+        })(si, colIdx);
+        row.appendChild(makePad(padCls, '', closure));
+      }
+
+      // Right col: scope colour edge pad
+      var edgeCls = si !== undefined ? SCOPE_HW_COLORS[ri % SCOPE_HW_COLORS.length] : 'lp-off';
+      row.appendChild(makePad(edgeCls, si !== undefined ? '' : '', null));
+
+      lp.appendChild(row);
+    }
+  }
+
+  function hwStepClass(state, isPlayhead) {
+    if (isPlayhead) return 'lp-playhead';
+    if (state === 3) return 'lp-pattern';
+    if (state === 4) return 'lp-scalar';
+    if (state === 1) return 'lp-on';
+    return 'lp-empty';
+  }
+
+  function makePad(cls, label, action) {
+    var pad = document.createElement('div');
+    pad.className = 'lp-pad ' + cls;
+    pad.textContent = label;
+    if (action) pad.addEventListener('click', function() { action(); });
+    return pad;
+  }
+
+  render();
+</script>
+</body>
+</html>

@@ -11,6 +11,4 @@ updated: 2026-04-29
 
 # MIDI Interfaces
 
-Status: Inventory only.
-
-Use this directory for MIDI interfaces notes, user stories, existing-state reports, prototypes, UX reviews, specs, and build plans.
+Prototypes ready for UX review. Three HTML wireframes cover: Settings Control Surfaces UI (stories 1, 7), Phrase workspace hardware grid (story 4), and Live workspace hardware grid (story 5).
