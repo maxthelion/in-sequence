@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] Send Effects — Prototype 2: Send bus insert chain editor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f4f4f4;
+    color: #111;
+    padding: 24px;
+  }
+
+  h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #666; margin-bottom: 20px; font-size: 12px; }
+
+  /* --- App shell --- */
+  .app-shell {
+    border: 1px solid #bbb;
+    background: #fff;
+    width: 900px;
+    min-height: 640px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .toolbar {
+    border-bottom: 1px solid #bbb;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #e8e8e8;
+    font-size: 11px;
+    color: #888;
+  }
+
+  .toolbar-stub {
+    border: 1px dashed #aaa;
+    padding: 2px 8px;
+    color: #aaa;
+    border-radius: 2px;
+  }
+
+  .workspace {
+    display: flex;
+    flex: 1;
+  }
+
+  /* --- Left: bus selector sidebar --- */
+  .sidebar {
+    width: 140px;
+    border-right: 1px solid #bbb;
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .sidebar-heading {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 4px;
+  }
+
+  .bus-item {
+    padding: 5px 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bus-item:hover { background: #e8e8e8; }
+
+  .bus-item.selected {
+    border-color: #2255cc;
+    background: #eaf0ff;
+    font-weight: 600;
+  }
+
+  .bus-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: #aaa;
+    color: #fff;
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+
+  .bus-badge.send { background: #2255cc; }
+
+  .sidebar-divider {
+    border-top: 1px dashed #ccc;
+    margin: 4px 0;
+  }
+
+  .sidebar-stub {
+    font-size: 10px;
+    color: #aaa;
+    font-style: italic;
+    padding: 3px 8px;
+    border: 1px dashed #ddd;
+  }
+
+  /* --- Right: insert chain editor --- */
+  .chain-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .chain-title {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chain-subtitle {
+    font-size: 11px;
+    color: #666;
+  }
+
+  .return-indicator {
+    font-size: 11px;
+    border: 1px solid #aaa;
+    padding: 3px 8px;
+    background: #f5f5f5;
+    color: #555;
+  }
+
+  /* --- Insert slots --- */
+  .insert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 100px;
+  }
+
+  .insert-slot {
+    border: 1px solid #bbb;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    gap: 10px;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .insert-slot:hover { background: #f0f0f0; }
+
+  .insert-slot.bypassed {
+    background: repeating-linear-gradient(
+      45deg, transparent, transparent 6px, #f5f5f5 6px, #f5f5f5 7px
+    );
+    color: #aaa;
+  }
+
+  .insert-slot.bypassed .insert-name { color: #aaa; text-decoration: line-through; }
+
+  .insert-drag-handle {
+    color: #bbb;
+    cursor: grab;
+    font-size: 14px;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .insert-index {
+    font-size: 10px;
+    color: #aaa;
+    width: 14px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .insert-name {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .insert-type-tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid #ccc;
+    color: #888;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .insert-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .insert-btn {
+    font-size: 10px;
+    padding: 2px 7px;
+    border: 1px solid #bbb;
+    background: #eee;
+    cursor: pointer;
+  }
+
+  .insert-btn:hover { background: #ddd; }
+
+  .insert-btn.bypass-on {
+    background: #ffcc00;
+    border-color: #cc9900;
+    color: #5a3a00;
+    font-weight: 700;
+  }
+
+  .insert-btn.remove {
+    color: #cc2222;
+    border-color: #cc2222;
+    background: #fff0f0;
+  }
+
+  .insert-btn.remove:hover { background: #ffd0d0; }
+
+  /* Add effect button */
+  .add-effect-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .add-effect-btn {
+    border: 1px dashed #888;
+    background: #fff;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #555;
+  }
+
+  .add-effect-btn:hover { background: #f0f0f0; border-color: #2255cc; color: #2255cc; }
+
+  .add-effect-hint { font-size: 10px; color: #aaa; }
+
+  /* Empty state */
+  .insert-empty {
+    border: 1px dashed #ccc;
+    padding: 20px;
+    text-align: center;
+    color: #aaa;
+    font-size: 12px;
+    background: repeating-linear-gradient(
+      45deg, transparent, transparent 6px, #f9f9f9 6px, #f9f9f9 7px
+    );
+  }
+
+  /* Effect picker panel */
+  .effect-picker {
+    display: none;
+    border: 1px solid #555;
+    background: #fff;
+    padding: 10px;
+    gap: 6px;
+    flex-direction: column;
+  }
+
+  .effect-picker.visible { display: flex; }
+
+  .effect-picker-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-bottom: 4px;
+  }
+
+  .effect-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .effect-choice {
+    border: 1px solid #bbb;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    background: #fafafa;
+  }
+
+  .effect-choice:hover { border-color: #2255cc; background: #eaf0ff; }
+
+  .picker-cancel {
+    font-size: 10px;
+    color: #aaa;
+    cursor: pointer;
+    margin-top: 4px;
+    text-decoration: underline;
+    width: fit-content;
+  }
+
+  /* Status bar */
+  .status-bar {
+    border-top: 1px solid #bbb;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: #666;
+    background: #e8e8e8;
+  }
+
+  /* Notes */
+  .notes {
+    margin-top: 20px;
+    max-width: 900px;
+    border: 1px solid #ccc;
+    padding: 14px;
+    background: #fff;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .notes h2 { font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  .notes ul { margin-left: 18px; }
+  .notes li { margin-bottom: 4px; }
+  code { background: #eee; padding: 1px 4px; font-size: 11px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>[WIP PROTOTYPE] Send Effects — 02: Send bus insert chain editor</h1>
+<p class="meta">
+  Interaction budget: add an effect to a send bus in &lt;= 3 interactions (select bus, open picker, choose effect).<br>
+  Scope: Story 2 — place insert effects on Send A or Send B; add, reorder, bypass, remove.
+</p>
+
+<div class="app-shell">
+  <div class="toolbar">
+    <span class="toolbar-stub">-> [scene selector]</span>
+    <span class="toolbar-stub">-> [transport]</span>
+    <span style="flex:1"></span>
+    <span class="toolbar-stub">-> [settings]</span>
+  </div>
+
+  <div class="workspace">
+
+    <!-- Bus selector sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-heading">Buses</div>
+
+      <!-- Track busses stub -->
+      <div class="sidebar-stub">[tracks — stub]</div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Send A / B — always present -->
+      <div class="bus-item selected" id="nav-sendA" onclick="selectBus('sendA')">
+        <span class="bus-badge send">A</span>
+        Send A
+      </div>
+      <div class="bus-item" id="nav-sendB" onclick="selectBus('sendB')">
+        <span class="bus-badge send">B</span>
+        Send B
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Master stub -->
+      <div class="sidebar-stub">[master — stub]</div>
+    </div>
+
+    <!-- Insert chain editor panel -->
+    <div class="chain-editor">
+
+      <div>
+        <div class="chain-title" id="chain-title">
+          <span class="bus-badge send">A</span>
+          Send A — Insert Chain
+        </div>
+        <div class="chain-subtitle">
+          Signal flows: track sends → <strong>insert chain</strong> → <span class="return-indicator">→ Master output (auto)</span>
+        </div>
+      </div>
+
+      <!-- Insert list — Send A starts with 2 effects, Send B is empty -->
+      <div class="insert-list" id="insert-list">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Add effect controls -->
+      <div class="add-effect-row">
+        <button class="add-effect-btn" onclick="showPicker()">+ Add Effect</button>
+        <span class="add-effect-hint">Effects process all tracks routed to this bus in series.</span>
+      </div>
+
+      <!-- Effect picker -->
+      <div class="effect-picker" id="effect-picker">
+        <div class="effect-picker-title">Choose effect</div>
+        <div class="effect-row">
+          <div class="effect-choice" onclick="addEffect('Reverb (Native)')">Reverb (Native)</div>
+          <div class="effect-choice" onclick="addEffect('Delay (Native)')">Delay (Native)</div>
+          <div class="effect-choice" onclick="addEffect('Bitcrusher (Native)')">Bitcrusher (Native)</div>
+          <div class="effect-choice" onclick="addEffect('Low-Pass Filter (Native)')">Low-Pass Filter (Native)</div>
+          <div class="effect-choice" onclick="addEffect('[AU Plugin…]')">[AU Plugin…]</div>
+        </div>
+        <div class="picker-cancel" onclick="hidePicker()">Cancel</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-bar">
+    Showing Send A insert chain. Select a bus in the left panel to switch.
+  </div>
+</div>
+
+<div class="notes">
+  <h2>Prototype notes</h2>
+  <ul>
+    <li>Primary question: does placing the send bus editor in the same surface as the master bus editor (left sidebar + chain area) feel natural, or does it belong inside the mixer channel strip panel?</li>
+    <li>Send A starts populated (Reverb + Delay) to test reorder/bypass/remove affordances. Send B starts empty to test the empty-state path.</li>
+    <li>The <code>→ Master output (auto)</code> label beside the chain title communicates Story 3 (return is always active) without requiring a separate control.</li>
+    <li>Drag handles (≡) are shown but dragging is not implemented — this tests whether the affordance is legible before implementing it.</li>
+    <li>Open question: should bypass toggle per insert be a checkbox, a button, or a colored LED? Currently it is a text button that turns yellow when active.</li>
+    <li>Open question: should the effect picker be inline (as shown) or a modal sheet? Inline keeps context but may crowd the chain editor.</li>
+    <li>Architecture note from existing-state: <code>MasterBusInsert</code> types exist but are named master-specific. The insert chain UI would need to be extracted into a generic component to reuse here.</li>
+  </ul>
+</div>
+
+<script>
+  // --- State ---
+  const state = {
+    activeBus: 'sendA',
+    buses: {
+      sendA: {
+        label: 'Send A',
+        badge: 'A',
+        inserts: [
+          { id: 1, name: 'Reverb (Native)', type: 'native', bypassed: false },
+          { id: 2, name: 'Delay (Native)', type: 'native', bypassed: true },
+        ]
+      },
+      sendB: {
+        label: 'Send B',
+        badge: 'B',
+        inserts: []
+      }
+    },
+    nextId: 3
+  };
+
+  function selectBus(busKey) {
+    state.activeBus = busKey;
+    document.querySelectorAll('.bus-item').forEach(el => el.classList.remove('selected'));
+    document.getElementById('nav-' + busKey).classList.add('selected');
+
+    const bus = state.buses[busKey];
+    document.getElementById('chain-title').innerHTML =
+      `<span class="bus-badge send">${bus.badge}</span> ${bus.label} — Insert Chain`;
+
+    hidePicker();
+    renderInserts();
+    document.getElementById('status-bar').textContent =
+      `Showing ${bus.label} insert chain.`;
+  }
+
+  function renderInserts() {
+    const bus = state.buses[state.activeBus];
+    const list = document.getElementById('insert-list');
+    list.innerHTML = '';
+
+    if (bus.inserts.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'insert-empty';
+      empty.textContent = 'No effects. Add one below — all tracks routed here will be processed.';
+      list.appendChild(empty);
+      return;
+    }
+
+    bus.inserts.forEach((ins, idx) => {
+      const slot = document.createElement('div');
+      slot.className = 'insert-slot' + (ins.bypassed ? ' bypassed' : '');
+      slot.innerHTML = `
+        <span class="insert-drag-handle" title="Drag to reorder">&#8801;</span>
+        <span class="insert-index">${idx + 1}</span>
+        <span class="insert-name">${ins.name}</span>
+        <span class="insert-type-tag">${ins.type}</span>
+        <span class="insert-actions">
+          <button class="insert-btn ${ins.bypassed ? 'bypass-on' : ''}"
+            onclick="toggleBypass(${ins.id})">${ins.bypassed ? 'Bypassed' : 'Bypass'}</button>
+          <button class="insert-btn remove" onclick="removeInsert(${ins.id})">Remove</button>
+        </span>
+      `;
+      list.appendChild(slot);
+    });
+  }
+
+  function toggleBypass(id) {
+    const bus = state.buses[state.activeBus];
+    const ins = bus.inserts.find(i => i.id === id);
+    if (!ins) return;
+    ins.bypassed = !ins.bypassed;
+    renderInserts();
+    document.getElementById('status-bar').textContent =
+      `${ins.name} ${ins.bypassed ? 'bypassed' : 'active'}.`;
+  }
+
+  function removeInsert(id) {
+    const bus = state.buses[state.activeBus];
+    const ins = bus.inserts.find(i => i.id === id);
+    bus.inserts = bus.inserts.filter(i => i.id !== id);
+    renderInserts();
+    document.getElementById('status-bar').textContent =
+      ins ? `Removed "${ins.name}" from ${bus.label}.` : 'Removed effect.';
+  }
+
+  function showPicker() {
+    document.getElementById('effect-picker').classList.add('visible');
+  }
+
+  function hidePicker() {
+    document.getElementById('effect-picker').classList.remove('visible');
+  }
+
+  function addEffect(name) {
+    const bus = state.buses[state.activeBus];
+    const type = name.startsWith('[AU') ? 'AU' : 'native';
+    bus.inserts.push({ id: state.nextId++, name, type, bypassed: false });
+    hidePicker();
+    renderInserts();
+    document.getElementById('status-bar').textContent =
+      `Added "${name}" to ${bus.label} — ${bus.inserts.length} effect(s) active.`;
+  }
+
+  // Initial render
+  renderInserts();
+</script>
+</body>
+</html>

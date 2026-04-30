@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] Send Effects — Prototype 3: Signal flow overview in mixer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f4f4f4;
+    color: #111;
+    padding: 24px;
+  }
+
+  h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #666; margin-bottom: 20px; font-size: 12px; }
+
+  /* --- App shell --- */
+  .app-shell {
+    border: 1px solid #bbb;
+    background: #fff;
+    width: 960px;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .toolbar {
+    border-bottom: 1px solid #bbb;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #e8e8e8;
+    font-size: 11px;
+    color: #888;
+  }
+
+  .toolbar-stub {
+    border: 1px dashed #aaa;
+    padding: 2px 8px;
+    color: #aaa;
+    border-radius: 2px;
+  }
+
+  /* Main area: flow diagram */
+  .flow-area {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .flow-heading {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 16px;
+  }
+
+  /* ---- Flow diagram grid ---- */
+  /*
+    Rows (top to bottom):
+      R1 — track boxes
+      R2 — dry arrow row
+      R3 — send tap nodes
+      R4 — send bus boxes (send A, send B) + preMaster
+      R5 — return arrows
+      R6 — master chain + finalOutputMixer
+  */
+
+  .flow-grid {
+    display: grid;
+    /* 6 track cols + 1 spacer + 2 send bus cols + 1 master col */
+    grid-template-columns: repeat(6, 100px) 40px 120px 120px 120px;
+    grid-template-rows:
+      auto   /* R1: track boxes */
+      28px   /* R2: dry arrows */
+      auto   /* R3: tap row */
+      28px   /* R4: vertical arrows to send buses */
+      auto   /* R5: send bus boxes */
+      28px   /* R6: return arrows */
+      auto;  /* R7: final output */
+    gap: 0;
+    width: 100%;
+    position: relative;
+  }
+
+  /* ---- Node boxes ---- */
+  .node {
+    border: 1px solid #888;
+    background: #fff;
+    padding: 6px 8px;
+    font-size: 11px;
+    text-align: center;
+    position: relative;
+  }
+
+  .node.track { background: #f8f8f8; }
+  .node.send { background: #eaf0ff; border-color: #2255cc; }
+  .node.master { background: #f0f8f0; border-color: #226622; }
+  .node.output { background: #e8e8e8; border-color: #555; }
+
+  .node.stub {
+    background: repeating-linear-gradient(
+      45deg, transparent, transparent 4px, #f5f5f5 4px, #f5f5f5 5px
+    );
+    border: 1px dashed #aaa;
+    color: #aaa;
+  }
+
+  .node-label { font-weight: 600; }
+  .node-sub { font-size: 10px; color: #888; margin-top: 2px; }
+  .node-sub.active { color: #2255cc; }
+
+  /* ---- Arrows ---- */
+  .arrow-down {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    color: #888;
+    height: 100%;
+  }
+
+  .arrow-down.send-color { color: #2255cc; }
+  .arrow-down.return-color { color: #226622; }
+
+  /* ---- Level pills on arrows ---- */
+  .level-pill {
+    font-size: 9px;
+    background: #2255cc;
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: 8px;
+    position: absolute;
+    right: -2px;
+    top: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .level-pill.zero {
+    background: #ccc;
+    color: #888;
+  }
+
+  /* ---- Horizontal connector line ---- */
+  .h-connector {
+    grid-column: 1 / 7;
+    height: 2px;
+    background: #bbb;
+    align-self: center;
+    margin: 0 8px;
+    position: relative;
+  }
+
+  .h-connector.send-line {
+    background: #2255cc;
+    opacity: 0.4;
+    height: 1px;
+  }
+
+  /* ---- Labels ---- */
+  .zone-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #aaa;
+    padding: 2px 4px;
+    white-space: nowrap;
+  }
+
+  /* ---- Summary row ---- */
+  .summary-row {
+    margin-top: 24px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    padding: 10px 14px;
+    display: flex;
+    gap: 24px;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .summary-col { flex: 1; }
+  .summary-col h3 { font-size: 11px; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 20px; height: 8px; border: 1px solid; display: inline-block; }
+  .legend-swatch.track-col { background: #f8f8f8; border-color: #888; }
+  .legend-swatch.send-col { background: #eaf0ff; border-color: #2255cc; }
+  .legend-swatch.master-col { background: #f0f8f0; border-color: #226622; }
+
+  /* Annotation bubbles */
+  .note-bubble {
+    background: #fffbe6;
+    border: 1px dashed #cc9900;
+    padding: 5px 8px;
+    font-size: 11px;
+    color: #5a3a00;
+    margin-top: 8px;
+    max-width: 460px;
+    line-height: 1.5;
+  }
+
+  /* Status bar */
+  .status-bar {
+    border-top: 1px solid #bbb;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: #666;
+    background: #e8e8e8;
+  }
+
+  /* Notes */
+  .notes {
+    margin-top: 20px;
+    max-width: 960px;
+    border: 1px solid #ccc;
+    padding: 14px;
+    background: #fff;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .notes h2 { font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  .notes ul { margin-left: 18px; }
+  .notes li { margin-bottom: 4px; }
+  code { background: #eee; padding: 1px 4px; font-size: 11px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>[WIP PROTOTYPE] Send Effects — 03: Signal flow overview in mixer</h1>
+<p class="meta">
+  Interaction budget: understand send routing and return path at a glance (&lt;= 1 scan; no interaction required).<br>
+  Scope: Story 3 — send bus output reaches master automatically; Story 4 — independent per-track send amounts visible.
+</p>
+
+<div class="app-shell">
+
+  <div class="toolbar">
+    <span class="toolbar-stub">-> [scene selector]</span>
+    <span class="toolbar-stub">-> [transport]</span>
+    <span style="flex:1"></span>
+    <span class="toolbar-stub">-> [settings]</span>
+  </div>
+
+  <div class="flow-area">
+    <div class="flow-heading">Mixer — Signal Flow View</div>
+
+    <!-- ============================================================
+         FLOW DIAGRAM
+         Implemented as a structured flex layout rather than canvas,
+         so it stays forkable and text-selectable.
+    ============================================================= -->
+
+    <!-- ROW 1: Track source boxes -->
+    <div style="display:flex; gap:6px; align-items:stretch; margin-bottom:0;">
+
+      <div style="display:flex; flex-direction:column; gap:4px; width:80px; align-items:center;">
+        <div class="zone-label">Tracks</div>
+      </div>
+
+      <div style="display:flex; gap:6px; flex:1;">
+        <!-- 4 track nodes -->
+        <div class="node track" style="flex:1;">
+          <div class="node-label">Kick 909</div>
+          <div class="node-sub">Fader: 80%</div>
+        </div>
+        <div class="node track" style="flex:1;">
+          <div class="node-label">Snare Rim</div>
+          <div class="node-sub">Fader: 65%</div>
+        </div>
+        <div class="node track" style="flex:1;">
+          <div class="node-label">Hi-Hat Closed</div>
+          <div class="node-sub">Fader: 55%</div>
+        </div>
+        <div class="node track" style="flex:1;">
+          <div class="node-label">Ağır Bass Synth</div>
+          <div class="node-sub" style="color:#cc2222;">MUTED</div>
+        </div>
+      </div>
+
+      <div style="width:250px;"></div>
+    </div>
+
+    <!-- ROW 2: Fan-out arrows (dry down + send taps right) -->
+    <div style="display:flex; gap:6px; align-items:stretch; height:28px;">
+      <div style="width:80px;"></div>
+      <div style="display:flex; gap:6px; flex:1;">
+        <div class="arrow-down" style="flex:1;">↓
+          <span style="font-size:9px; color:#2255cc; margin-left:2px;" title="send taps branch here">&amp; →</span>
+        </div>
+        <div class="arrow-down" style="flex:1;">↓ &amp; →</div>
+        <div class="arrow-down" style="flex:1;">↓ &amp; →</div>
+        <div class="arrow-down" style="flex:1; color:#ccc;">↓</div>
+      </div>
+      <div style="width:250px;"></div>
+    </div>
+
+    <!-- ROW 3: Send-tap gain nodes + dry to preMaster -->
+    <div style="display:flex; gap:6px; align-items:stretch; margin-bottom:0;">
+
+      <div style="display:flex; flex-direction:column; gap:4px; width:80px; align-items:center; justify-content:center;">
+        <div class="zone-label" style="text-align:right;">Send taps</div>
+      </div>
+
+      <div style="display:flex; gap:6px; flex:1; flex-direction:column;">
+
+        <!-- Send A taps row -->
+        <div style="display:flex; gap:6px;">
+          <!-- Kick → Send A -->
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;">
+            <div class="node send" style="font-size:10px; padding:3px 6px; width:100%; text-align:center; cursor:pointer;" onclick="setLevel('kick','A',event)">
+              <span>A: </span><span id="kick-A-pct">75%</span>
+            </div>
+          </div>
+          <!-- Snare → Send A -->
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;">
+            <div class="node send" style="font-size:10px; padding:3px 6px; width:100%; text-align:center; cursor:pointer;" onclick="setLevel('snare','A',event)">
+              <span>A: </span><span id="snare-A-pct">25%</span>
+            </div>
+          </div>
+          <!-- HiHat → Send A -->
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;">
+            <div class="node stub" style="font-size:10px; padding:3px 6px; width:100%; text-align:center;">
+              A: 0%
+            </div>
+          </div>
+          <!-- Muted track → no send -->
+          <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+            <div style="font-size:10px; color:#ccc;">(muted)</div>
+          </div>
+        </div>
+
+        <!-- Send B taps row -->
+        <div style="display:flex; gap:6px;">
+          <!-- Kick → Send B -->
+          <div style="flex:1;">
+            <div class="node stub" style="font-size:10px; padding:3px 6px; width:100%; text-align:center;">
+              B: 0%
+            </div>
+          </div>
+          <!-- Snare → Send B -->
+          <div style="flex:1;">
+            <div class="node stub" style="font-size:10px; padding:3px 6px; width:100%; text-align:center;">
+              B: 0%
+            </div>
+          </div>
+          <!-- HiHat → Send B -->
+          <div style="flex:1;">
+            <div class="node send" style="font-size:10px; padding:3px 6px; width:100%; text-align:center; cursor:pointer;" onclick="setLevel('hihat','B',event)">
+              <span>B: </span><span id="hihat-B-pct">50%</span>
+            </div>
+          </div>
+          <!-- Muted -->
+          <div style="flex:1;"></div>
+        </div>
+
+      </div>
+
+      <!-- Right: preMasterMixer node -->
+      <div style="width:250px; display:flex; align-items:center; gap:8px; padding-left:12px;">
+        <div style="font-size:18px; color:#888;">←</div>
+        <div class="node output" style="flex:1; padding: 8px;">
+          <div class="node-label" style="font-size:11px;">preMasterMixer</div>
+          <div class="node-sub">Dry tracks summed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 4: Arrows down to send bus boxes + down to master chain -->
+    <div style="display:flex; gap:6px; height:28px; align-items:center;">
+      <div style="width:80px;"></div>
+      <div style="display:flex; flex:1; gap:6px;">
+        <!-- Merge arrows for A and B sends into two buses -->
+        <div class="arrow-down send-color" style="flex:1; font-size:12px;">↘ Send A</div>
+        <div class="arrow-down" style="flex:1; font-size:10px; color:#bbb;">—</div>
+        <div class="arrow-down send-color" style="flex:1; font-size:12px;">↘ Send B</div>
+        <div class="arrow-down" style="flex:1;"></div>
+      </div>
+      <div style="width:250px; display:flex; justify-content:center;">
+        <div class="arrow-down" style="font-size:16px;">↓</div>
+      </div>
+    </div>
+
+    <!-- ROW 5: Send bus nodes + master chain node -->
+    <div style="display:flex; gap:6px; align-items:stretch;">
+
+      <div style="width:80px; display:flex; align-items:center; justify-content:flex-end;">
+        <div class="zone-label" style="text-align:right;">Send buses</div>
+      </div>
+
+      <div style="display:flex; flex:1; gap:6px;">
+        <div class="node send" style="flex:1; cursor:pointer;" onclick="alert('See prototype 02 for insert chain editor')">
+          <div class="node-label">Send A</div>
+          <div class="node-sub active">Reverb (Native)</div>
+          <div class="node-sub active">Delay (Native) [bypassed]</div>
+          <div class="node-sub" style="margin-top:4px; font-size:9px;">click → edit inserts</div>
+        </div>
+        <div style="flex:1;"></div>
+        <div class="node send" style="flex:1; cursor:pointer;" onclick="alert('See prototype 02 for insert chain editor')">
+          <div class="node-label">Send B</div>
+          <div class="node-sub" style="color:#aaa;">(no effects)</div>
+          <div class="node-sub" style="margin-top:4px; font-size:9px;">click → edit inserts</div>
+        </div>
+        <div style="flex:1;"></div>
+      </div>
+
+      <!-- Master chain node -->
+      <div style="width:250px; padding-left:12px; display:flex; align-items:stretch;">
+        <div class="node master" style="flex:1;">
+          <div class="node-label">Master Insert Chain</div>
+          <div class="node-sub">[stub — master bus]</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 6: Return arrows -->
+    <div style="display:flex; gap:6px; height:28px; align-items:center;">
+      <div style="width:80px;"></div>
+      <div style="display:flex; flex:1; gap:6px;">
+        <div class="arrow-down return-color" style="flex:1;">↓ auto-return →</div>
+        <div style="flex:1;"></div>
+        <div class="arrow-down return-color" style="flex:1;">↓ auto-return →</div>
+        <div style="flex:1;"></div>
+      </div>
+      <div style="width:250px; display:flex; justify-content:center;">
+        <div class="arrow-down" style="font-size:16px;">↓</div>
+      </div>
+    </div>
+
+    <!-- ROW 7: Final output mixer -->
+    <div style="display:flex; gap:6px; align-items:stretch;">
+      <div style="width:80px; display:flex; align-items:center; justify-content:flex-end;">
+        <div class="zone-label" style="text-align:right;">Output</div>
+      </div>
+      <div style="flex:1; display:flex; align-items:center; gap:8px;">
+        <div style="font-size:12px; color:#226622;">↗ return</div>
+      </div>
+      <div style="width:250px; padding-left:12px;">
+        <div class="node output">
+          <div class="node-label">finalOutputMixer → mainMixerNode</div>
+          <div class="node-sub">Dry + send returns + master inserts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Architecture annotation -->
+    <div class="note-bubble" style="margin-top:20px;">
+      <strong>Architecture decision needed:</strong> send return connects to
+      <code>finalOutputMixer</code> (bypasses master insert chain — typical DAW)
+      or to <code>preMasterMixer</code> (wet signal passes through master inserts).
+      This diagram shows the <em>finalOutputMixer</em> option.
+      See <code>existing-state.md</code> §3 for tradeoffs.
+    </div>
+
+    <!-- Summary legend -->
+    <div class="summary-row" style="margin-top:16px;">
+      <div class="summary-col">
+        <h3>Legend</h3>
+        <div class="legend-item"><span class="legend-swatch track-col"></span> Track / dry signal node</div>
+        <div class="legend-item"><span class="legend-swatch send-col"></span> Send bus / send gain node (new)</div>
+        <div class="legend-item"><span class="legend-swatch master-col"></span> Master chain (existing, stub)</div>
+      </div>
+      <div class="summary-col">
+        <h3>Key rules</h3>
+        <ul style="margin-left:14px; font-size:11px;">
+          <li>Each track fans out: dry → preMaster AND parallel send tap(s)</li>
+          <li>Send amount (0–100%) is per-track, per-bus — independent</li>
+          <li>Send A and Send B are always present; no user creation needed</li>
+          <li>Send return reaches output automatically — no user routing</li>
+          <li>Pre/post-fader toggle deferred (stretch goal)</li>
+        </ul>
+      </div>
+      <div class="summary-col">
+        <h3>Interactions</h3>
+        <ul style="margin-left:14px; font-size:11px;">
+          <li>Click a send-tap node to adjust level (inline slider)</li>
+          <li>Click a send bus node to open insert chain (prototype 02)</li>
+          <li>This view is read-mostly — editing is in the mixer strip</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Inline level editor popover -->
+  <div id="level-pop" style="display:none; position:fixed; z-index:200;
+    border:1px solid #555; background:#fff; padding:10px; width:180px; font-size:11px;">
+    <strong id="level-pop-label"></strong><br>
+    <input type="range" id="level-pop-slider" min="0" max="100" value="0"
+      style="width:100%; margin:6px 0;" oninput="onLevelSlider(this.value)">
+    <div id="level-pop-val" style="text-align:center; color:#2255cc; font-weight:600;"></div>
+    <div style="margin-top:6px; font-size:10px; color:#888; text-align:right; cursor:pointer;"
+      onclick="closeLevelPop()">Done</div>
+  </div>
+
+  <div class="status-bar" id="status-bar">
+    Signal flow overview. Click any send-tap node to adjust level. Click a send bus to view inserts.
+  </div>
+
+</div>
+
+<div class="notes">
+  <h2>Prototype notes</h2>
+  <ul>
+    <li>This diagram answers Story 3's core question: <em>where does the send return enter the master output?</em> The open architecture decision (return to <code>finalOutputMixer</code> vs <code>preMasterMixer</code>) is surfaced as an annotation bubble.</li>
+    <li>The "↓ &amp; →" notation on track arrows is shorthand for the fan-out: the signal splits to both the dry path and the send tap simultaneously. Is this legible? An alternative is to show the fan-out as a T-junction graphic.</li>
+    <li>Muted track is greyed out throughout the flow — confirming that mute does not send to the send buses (or does it? This is an open question).</li>
+    <li>Send bus nodes are clickable stubs that reference Prototype 02 for the insert chain editor — keeping this diagram focused on topology.</li>
+    <li>Open question: does this "flow view" belong in the app as a real screen, or is it only a planning artifact? The per-track send knobs in prototype 01 may be sufficient and this overview only useful during design review.</li>
+    <li>Adversarial fixture: a muted track with full sends — should a muted track still route signal to send buses?</li>
+  </ul>
+</div>
+
+<script>
+  let activeLevelTarget = null;
+
+  function setLevel(track, bus, evt) {
+    const labelEl = document.getElementById('level-pop-label');
+    const slider = document.getElementById('level-pop-slider');
+    const valEl = document.getElementById('level-pop-val');
+    const pop = document.getElementById('level-pop');
+    const pctEl = document.getElementById(`${track}-${bus}-pct`);
+    const currentVal = pctEl ? parseInt(pctEl.textContent, 10) : 0;
+
+    activeLevelTarget = { track, bus, pctEl };
+    labelEl.textContent = `${track} → Send ${bus}`;
+    slider.value = currentVal;
+    valEl.textContent = `${currentVal}%`;
+
+    pop.style.left = (evt.clientX + 12) + 'px';
+    pop.style.top = (evt.clientY - 20) + 'px';
+    pop.style.display = 'block';
+    evt.stopPropagation();
+  }
+
+  function onLevelSlider(val) {
+    if (!activeLevelTarget) return;
+    const v = parseInt(val, 10);
+    if (activeLevelTarget.pctEl) {
+      activeLevelTarget.pctEl.textContent = `${v}%`;
+    }
+    document.getElementById('level-pop-val').textContent = `${v}%`;
+    document.getElementById('status-bar').textContent =
+      `${activeLevelTarget.track} → Send ${activeLevelTarget.bus}: ${v}%`;
+  }
+
+  function closeLevelPop() {
+    document.getElementById('level-pop').style.display = 'none';
+    activeLevelTarget = null;
+  }
+
+  document.addEventListener('click', function(e) {
+    const pop = document.getElementById('level-pop');
+    if (pop.style.display !== 'none' && !pop.contains(e.target)) {
+      closeLevelPop();
+    }
+  });
+</script>
+</body>
+</html>

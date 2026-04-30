@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] Send Effects — Prototype 1: Per-track send knobs in mixer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f4f4f4;
+    color: #111;
+    padding: 24px;
+  }
+
+  h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #666; margin-bottom: 20px; font-size: 12px; }
+  .annotation { font-size: 11px; color: #555; font-style: italic; margin-top: 4px; }
+
+  /* --- App chrome stub --- */
+  .app-shell {
+    border: 1px solid #bbb;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    height: 680px;
+    width: 900px;
+  }
+
+  .toolbar {
+    border-bottom: 1px solid #bbb;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #e8e8e8;
+    font-size: 11px;
+    color: #888;
+  }
+
+  .toolbar-stub {
+    border: 1px dashed #aaa;
+    padding: 2px 8px;
+    color: #aaa;
+    border-radius: 2px;
+  }
+
+  .main-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* --- Mixer view --- */
+  .mixer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .mixer-header {
+    background: #e0e0e0;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #bbb;
+    text-transform: uppercase;
+    color: #555;
+  }
+
+  .mixer-strips-row {
+    flex: 1;
+    display: flex;
+    overflow-x: auto;
+    padding: 10px;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  /* --- Channel strip --- */
+  .strip {
+    width: 88px;
+    border: 1px solid #bbb;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 4px 8px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .strip.selected {
+    border-color: #2255cc;
+    background: #f0f4ff;
+  }
+
+  .strip-name {
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    color: #111;
+  }
+
+  .strip-dest {
+    font-size: 10px;
+    color: #888;
+    text-align: center;
+  }
+
+  .fader-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+  }
+
+  .fader-label { font-size: 10px; color: #888; }
+
+  .fader-track {
+    position: relative;
+    width: 16px;
+    height: 80px;
+    background: #ddd;
+    border: 1px solid #bbb;
+  }
+
+  .fader-thumb {
+    position: absolute;
+    left: -3px;
+    width: 22px;
+    height: 10px;
+    background: #888;
+    border: 1px solid #555;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .fader-thumb:hover { background: #555; }
+
+  /* ---- SEND SECTION (the new part) ---- */
+  .send-section {
+    width: 100%;
+    border-top: 1px solid #ccc;
+    padding-top: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .send-section-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #666;
+  }
+
+  .send-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .send-bus-label {
+    font-size: 10px;
+    font-weight: 600;
+    width: 12px;
+    text-align: right;
+    color: #333;
+  }
+
+  /* Rotary knob drawn with CSS */
+  .knob-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .knob {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #888;
+    background: #e8e8e8;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.1s;
+  }
+
+  .knob:hover { border-color: #2255cc; }
+
+  .knob.active { border-color: #2255cc; background: #ddeaff; }
+
+  /* Pointer line on knob */
+  .knob::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 9px;
+    background: #555;
+    left: 50%;
+    transform: translateX(-50%) translateY(1px);
+    top: 2px;
+    border-radius: 1px;
+    transform-origin: bottom center;
+  }
+
+  .knob.active::after { background: #2255cc; }
+
+  .knob[data-val="0"]::after { transform: translateX(-50%) rotate(-135deg); }
+  .knob[data-val="25"]::after { transform: translateX(-50%) rotate(-90deg); }
+  .knob[data-val="50"]::after { transform: translateX(-50%) rotate(-45deg); }
+  .knob[data-val="75"]::after { transform: translateX(-50%) rotate(0deg); }
+  .knob[data-val="100"]::after { transform: translateX(-50%) rotate(90deg); }
+
+  .knob-val {
+    font-size: 9px;
+    color: #777;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .knob-val.nonzero { color: #2255cc; font-weight: 600; }
+
+  /* --- Mute button --- */
+  .mute-btn {
+    font-size: 10px;
+    border: 1px solid #bbb;
+    background: #eee;
+    padding: 2px 6px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  .mute-btn.muted {
+    background: #ffcc00;
+    border-color: #cc9900;
+    font-weight: 700;
+    color: #5a3a00;
+  }
+
+  /* --- Send bus columns (rightmost area) --- */
+  .send-bus-strips {
+    display: flex;
+    gap: 6px;
+    padding: 10px 10px 10px 0;
+    border-left: 2px dashed #bbb;
+    align-items: stretch;
+  }
+
+  .send-strip {
+    width: 88px;
+    border: 1px dashed #aaa;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 4px 8px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .send-strip-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: #555;
+  }
+
+  .send-strip-sub {
+    font-size: 9px;
+    color: #aaa;
+    text-align: center;
+  }
+
+  .insert-chain-stub {
+    width: 100%;
+    border: 1px dashed #bbb;
+    padding: 4px;
+    font-size: 10px;
+    color: #999;
+    text-align: center;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: repeating-linear-gradient(
+      45deg, transparent, transparent 4px, #f0f0f0 4px, #f0f0f0 5px
+    );
+  }
+
+  /* --- Tooltip / popover --- */
+  .popover {
+    display: none;
+    position: absolute;
+    background: #fff;
+    border: 1px solid #555;
+    padding: 8px 10px;
+    font-size: 11px;
+    z-index: 100;
+    width: 180px;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+
+  .popover.visible { display: block; }
+
+  /* --- Status bar --- */
+  .status-bar {
+    border-top: 1px solid #bbb;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: #666;
+    background: #e8e8e8;
+    display: flex;
+    gap: 20px;
+  }
+
+  /* --- Notes panel --- */
+  .notes {
+    margin-top: 20px;
+    max-width: 900px;
+    border: 1px solid #ccc;
+    padding: 14px;
+    background: #fff;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .notes h2 { font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  .notes ul { margin-left: 18px; }
+  .notes li { margin-bottom: 4px; }
+  code { background: #eee; padding: 1px 4px; font-size: 11px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>[WIP PROTOTYPE] Send Effects — 01: Per-track send knobs in mixer</h1>
+<p class="meta">
+  Interaction budget: see send level change in &lt;= 2 interactions (click knob, drag to set value).<br>
+  Scope: Stories 1 and 4 — route a track to Send A / B, values independent per track, persist across session.
+</p>
+
+<div class="app-shell">
+  <!-- Toolbar stub -->
+  <div class="toolbar">
+    <span class="toolbar-stub">-> [scene selector]</span>
+    <span class="toolbar-stub">-> [transport controls]</span>
+    <span style="flex:1"></span>
+    <span class="toolbar-stub">-> [settings]</span>
+  </div>
+
+  <div class="main-area">
+    <div class="mixer">
+      <div class="mixer-header">Mixer</div>
+
+      <div class="mixer-strips-row" id="strips-row">
+
+        <!-- Track 1 -->
+        <div class="strip" id="strip-kick">
+          <div class="strip-name" title="Kick 909 (long name test)">Kick 909</div>
+          <div class="strip-dest">→ Master</div>
+          <div class="fader-area">
+            <div class="fader-label">Vol</div>
+            <div class="fader-track">
+              <div class="fader-thumb" style="bottom: 60%;"></div>
+            </div>
+          </div>
+          <button class="mute-btn" onclick="toggleMute(this)">M</button>
+          <div class="send-section">
+            <div class="send-section-label">Sends</div>
+            <div class="send-row">
+              <span class="send-bus-label">A</span>
+              <div class="knob-wrap">
+                <div class="knob" data-val="75" data-track="kick" data-bus="A" onclick="openKnob(this)"></div>
+                <div class="knob-val nonzero" id="kick-A-val">75%</div>
+              </div>
+            </div>
+            <div class="send-row">
+              <span class="send-bus-label">B</span>
+              <div class="knob-wrap">
+                <div class="knob" data-val="0" data-track="kick" data-bus="B" onclick="openKnob(this)"></div>
+                <div class="knob-val" id="kick-B-val">0%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track 2 -->
+        <div class="strip" id="strip-snare">
+          <div class="strip-name">Snare Rim</div>
+          <div class="strip-dest">→ Master</div>
+          <div class="fader-area">
+            <div class="fader-label">Vol</div>
+            <div class="fader-track">
+              <div class="fader-thumb" style="bottom: 72%;"></div>
+            </div>
+          </div>
+          <button class="mute-btn" onclick="toggleMute(this)">M</button>
+          <div class="send-section">
+            <div class="send-section-label">Sends</div>
+            <div class="send-row">
+              <span class="send-bus-label">A</span>
+              <div class="knob-wrap">
+                <div class="knob" data-val="25" data-track="snare" data-bus="A" onclick="openKnob(this)"></div>
+                <div class="knob-val nonzero" id="snare-A-val">25%</div>
+              </div>
+            </div>
+            <div class="send-row">
+              <span class="send-bus-label">B</span>
+              <div class="knob-wrap">
+                <div class="knob" data-val="0" data-track="snare" data-bus="B" onclick="openKnob(this)"></div>
+                <div class="knob-val" id="snare-B-val">0%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track 3 -->
+        <div class="strip" id="strip-hihat">
+          <div class="strip-name">Hi-Hat Closed</div>
+          <div class="strip-dest">→ Master</div>
+          <div class="fader-area">
+            <div class="fader-label">Vol</div>
+            <div class="fader-track">
+              <div class="fader-thumb" style="bottom: 55%;"></div>
+            </div>
+          </div>
+          <button class="mute-btn" onclick="toggleMute(this)">M</button>
+          <div class="send-section">
+            <div class="send-section-label">Sends</div>
+            <div class="send-row">
+              <span class="send-bus-label">A</span>
+              <div class="knob-wrap">
+                <div class="knob" data-val="0" data-track="hihat" data-bus="A" onclick="openKnob(this)"></div>
+                <div class="knob-val" id="hihat-A-val">0%</div>
+              </div>
+            </div>
+            <div class="send-row">
+              <span class="send-bus-label">B</span>
+              <div class="knob-wrap">
+                <div class="knob active" data-val="50" data-track="hihat" data-bus="B" onclick="openKnob(this)"></div>
+                <div class="knob-val nonzero" id="hihat-B-val">50%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track 4 — long name adversarial fixture -->
+        <div class="strip" id="strip-long">
+          <div class="strip-name" title="Ağır Bass Synth (Pad)">Ağır Bass Synth (Pad)</div>
+          <div class="strip-dest">→ Master</div>
+          <div class="fader-area">
+            <div class="fader-label">Vol</div>
+            <div class="fader-track">
+              <div class="fader-thumb" style="bottom: 40%;"></div>
+            </div>
+          </div>
+          <button class="mute-btn muted" onclick="toggleMute(this)">M</button>
+          <div class="send-section">
+            <div class="send-section-label">Sends</div>
+            <div class="send-row">
+              <span class="send-bus-label">A</span>
+              <div class="knob-wrap">
+                <div class="knob active" data-val="100" data-track="long" data-bus="A" onclick="openKnob(this)"></div>
+                <div class="knob-val nonzero" id="long-A-val">100%</div>
+              </div>
+            </div>
+            <div class="send-row">
+              <span class="send-bus-label">B</span>
+              <div class="knob-wrap">
+                <div class="knob active" data-val="100" data-track="long" data-bus="B" onclick="openKnob(this)"></div>
+                <div class="knob-val nonzero" id="long-B-val">100%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spacer -->
+        <div style="flex:1"></div>
+
+        <!-- Send bus columns — stub, detail in prototype 02 -->
+        <div class="send-bus-strips">
+
+          <div class="send-strip">
+            <div class="send-strip-name">Send A</div>
+            <div class="send-strip-sub">→ [insert chain — see prototype 02]</div>
+            <div class="insert-chain-stub">[stub]</div>
+            <div class="fader-area">
+              <div class="fader-label">Return</div>
+              <div class="fader-track" style="height:50px">
+                <div class="fader-thumb" style="bottom: 70%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="send-strip">
+            <div class="send-strip-name">Send B</div>
+            <div class="send-strip-sub">→ [insert chain — see prototype 02]</div>
+            <div class="insert-chain-stub">[stub]</div>
+            <div class="fader-area">
+              <div class="fader-label">Return</div>
+              <div class="fader-track" style="height:50px">
+                <div class="fader-thumb" style="bottom: 70%;"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="status-bar" id="status-bar">
+        Click a send knob to adjust level. Values are independent per track.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Knob editor popover -->
+<div class="popover" id="knob-popover">
+  Adjusting <strong id="pop-label"></strong><br>
+  <input type="range" id="pop-slider" min="0" max="100" value="0"
+    style="width:100%; margin: 6px 0;"
+    oninput="onSliderInput(this.value)">
+  <div id="pop-val-display" style="font-size:11px; color:#333; text-align:center;"></div>
+</div>
+
+<div class="notes">
+  <h2>Prototype notes</h2>
+  <ul>
+    <li>Primary question: does a per-track <strong>A / B knob pair</strong> in the channel strip read clearly without crowding the strip?</li>
+    <li>The knobs are placed below the mute button and separated from the fader by a horizontal rule — does this grouping feel right?</li>
+    <li>Send bus columns (far right, dashed border) are stubs — see Prototype 02 for the insert chain editor.</li>
+    <li>Adversarial fixtures used: long Unicode track name, a muted track with full sends, tracks with mixed zero/non-zero send states.</li>
+    <li>Non-zero send values shown in <code style="color:#2255cc">blue</code> to distinguish active routing from zero (off). Consider whether a zero-value knob should look visually inert.</li>
+    <li>Interaction budget: set a send level in &lt;= 2 interactions — click knob, drag slider.</li>
+    <li>Open question: should the send knob be a compact rotary (shown) or a mini horizontal fader? A fader might be more touch-friendly on iPad.</li>
+    <li>Open question: should a "0%" send knob be greyed out or identical to an active one? Currently both look the same except the value label color.</li>
+  </ul>
+</div>
+
+<script>
+  let activeKnob = null;
+
+  function openKnob(el) {
+    const track = el.dataset.track;
+    const bus = el.dataset.bus;
+    const val = parseInt(el.dataset.val, 10);
+    const label = document.getElementById('pop-label');
+    const slider = document.getElementById('pop-slider');
+    const popover = document.getElementById('knob-popover');
+    const valDisplay = document.getElementById('pop-val-display');
+
+    label.textContent = `${track} → Send ${bus}`;
+    slider.value = val;
+    valDisplay.textContent = `${val}%`;
+    activeKnob = el;
+
+    // Position near the knob
+    const rect = el.getBoundingClientRect();
+    popover.style.left = (rect.right + 8) + 'px';
+    popover.style.top = (rect.top - 10) + 'px';
+    popover.style.position = 'fixed';
+    popover.style.display = 'block';
+    popover.classList.add('visible');
+  }
+
+  function onSliderInput(val) {
+    const v = parseInt(val, 10);
+    if (!activeKnob) return;
+    const track = activeKnob.dataset.track;
+    const bus = activeKnob.dataset.bus;
+    activeKnob.dataset.val = v;
+
+    // Update value display
+    const valEl = document.getElementById(`${track}-${bus}-val`);
+    if (valEl) {
+      valEl.textContent = `${v}%`;
+      valEl.classList.toggle('nonzero', v > 0);
+    }
+
+    document.getElementById('pop-val-display').textContent = `${v}%`;
+    document.getElementById('status-bar').textContent =
+      `Send ${bus} on "${track}": ${v}% — changes are per-track and do not affect other tracks.`;
+
+    // Update knob active state
+    activeKnob.classList.toggle('active', v > 0);
+  }
+
+  document.addEventListener('click', function(e) {
+    const pop = document.getElementById('knob-popover');
+    if (!e.target.classList.contains('knob') && !pop.contains(e.target)) {
+      pop.style.display = 'none';
+      activeKnob = null;
+    }
+  });
+
+  function toggleMute(btn) {
+    btn.classList.toggle('muted');
+  }
+</script>
+</body>
+</html>
