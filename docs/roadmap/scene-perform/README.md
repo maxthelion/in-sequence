@@ -4,7 +4,7 @@ title: Scene Perform
 status: inventory
 priority: unset
 blocked_by: []
-stage: review-prototypes
+stage: write-spec
 owner: pm
 updated: 2026-04-29
 ---

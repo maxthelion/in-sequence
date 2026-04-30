@@ -1,9 +1,9 @@
 ---
-status: new
+status: handled
 applies_to: prototypes
 created: 2026-04-30T10:22:06Z
-handled_by: null
-handled_in: []
+handled_by: pm-assistant
+handled_in: [docs/roadmap/scene-perform/ux-review.md]
 ---
 
 # Scene Perform Feedback
