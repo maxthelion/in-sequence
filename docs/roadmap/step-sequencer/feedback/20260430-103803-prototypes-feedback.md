@@ -1,9 +1,9 @@
 ---
-status: new
+status: handled
 applies_to: prototypes
 created: 2026-04-30T10:38:03Z
-handled_by: null
-handled_in: []
+handled_by: pm-assistant
+handled_in: [docs/roadmap/step-sequencer/ux-review.md]
 ---
 
 # Step Sequencer Feedback
