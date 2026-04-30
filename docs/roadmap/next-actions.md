@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T16:26:33Z
-Repo HEAD: 227d4da
+Generated: 2026-04-30T16:31:19Z
+Repo HEAD: fbdf8d9
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -49,10 +49,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** MIDI Interfaces
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-architecture`
+- **Action:** `review-architecture`
 - **Role:** `pm-assistant`
-- **Why:** UX review exists, but `architecture.md` is missing.
-- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ## Feature Actions
 
@@ -139,10 +139,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
+- **Next action:** `review-architecture`
 - **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 9. Modifier Chain Placement
 
