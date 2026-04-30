@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Wireframe] Note Repeat — Layer Interval Selector &amp; Sub-step Firing</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f5f5f5;
+    color: #222;
+    padding: 24px;
+  }
+
+  .prototype-banner {
+    background: #222;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .prototype-banner strong { font-size: 12px; }
+  .prototype-banner span { opacity: 0.6; }
+
+  /* ── tabs ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .tabs button {
+    padding: 6px 14px;
+    border: 1px solid #888;
+    background: #e8e8e8;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .tabs button.active {
+    background: #222;
+    color: #fff;
+    border-color: #222;
+  }
+
+  /* ── device shell ── */
+  .device {
+    width: 420px;
+    border: 2px solid #333;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .status-bar {
+    background: #1a1a1a;
+    color: #ccc;
+    font-size: 10px;
+    padding: 4px 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .transport {
+    background: #2a2a2a;
+    color: #ddd;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    border-bottom: 1px solid #444;
+  }
+  .transport .bpm { color: #aaa; }
+  .transport .pos { font-variant-numeric: tabular-nums; color: #fff; font-weight: 600; }
+  .transport .stub { opacity: 0.35; font-size: 10px; font-style: italic; }
+
+  .workspace-header {
+    padding: 6px 10px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    font-size: 11px;
+    color: #555;
+    display: flex;
+    gap: 12px;
+  }
+  .workspace-header .mode-label { font-weight: 700; color: #111; }
+  .workspace-header .stub { opacity: 0.35; font-style: italic; }
+
+  /* ── layer view shell ── */
+  .layer-view {
+    padding: 10px;
+    flex: 1;
+  }
+
+  /* ── section header ── */
+  .section-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #888;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4px;
+  }
+
+  /* ── track selector (stub) ── */
+  .track-selector {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .track-selector .track-btn {
+    padding: 4px 10px;
+    border: 1px solid #bbb;
+    background: #e8e8e8;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .track-selector .track-btn.active {
+    background: #333;
+    color: #fff;
+    border-color: #111;
+  }
+
+  /* ── layer config block ── */
+  .layer-config-block {
+    border: 1px solid #ccc;
+    background: #fafafa;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .layer-config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .layer-config-row:last-child { margin-bottom: 0; }
+  .layer-config-label { color: #444; }
+  .layer-config-value { color: #111; font-weight: 600; }
+
+  /* ── INTERVAL SELECTOR (new UI — story 3) ── */
+  /*
+    Proposed location: in the track layer settings panel (the layer detail view
+    accessible from TracksMatrixView edit mode, or a dedicated track-settings sheet).
+    This is a segmented control with three choices: 1/16  1/32  1/64
+    The design is intentionally coarse — one tap, no text entry.
+  */
+  .interval-selector {
+    display: flex;
+    border: 1px solid #888;
+    margin-bottom: 12px;
+  }
+  .interval-option {
+    flex: 1;
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border-right: 1px solid #888;
+    background: #eee;
+    color: #444;
+    user-select: none;
+    position: relative;
+  }
+  .interval-option:last-child { border-right: none; }
+  .interval-option.selected {
+    background: #1a6bb5;
+    color: #fff;
+  }
+  .interval-option .sub-label {
+    display: block;
+    font-size: 9px;
+    font-weight: 400;
+    margin-top: 2px;
+    opacity: 0.75;
+  }
+  /* Sub-step warning badge */
+  .interval-option .substep-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    font-size: 8px;
+    background: #c89000;
+    color: #fff;
+    padding: 1px 3px;
+    line-height: 1.2;
+    display: none;
+  }
+  .interval-option.substep .substep-badge { display: block; }
+  .interval-option.selected .substep-badge { background: #fff; color: #7a5a00; }
+
+  /* ── sub-step visualisation (story 4) ── */
+  /*
+    This diagram illustrates intra-step scheduling: one 1/16 step contains
+    N sub-step firings depending on interval choice.
+    The ruler represents the wall-clock duration of one sequencer step (one 1/16 tick).
+  */
+  .substep-diagram {
+    border: 1px solid #ccc;
+    background: #f4f4f4;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .substep-diagram .diagram-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #666;
+    margin-bottom: 8px;
+  }
+  .substep-diagram .diagram-note {
+    font-size: 9px;
+    color: #888;
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  /* Step ruler */
+  .step-ruler {
+    position: relative;
+    height: 24px;
+    background: #ddd;
+    border: 1px solid #bbb;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: stretch;
+  }
+  .step-ruler .ruler-label {
+    position: absolute;
+    top: -16px;
+    left: 0;
+    font-size: 9px;
+    color: #666;
+  }
+  .step-ruler .ruler-label-end {
+    position: absolute;
+    top: -16px;
+    right: 0;
+    font-size: 9px;
+    color: #666;
+  }
+
+  /* Firing markers within the ruler */
+  .fire-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #1a6bb5;
+    opacity: 0.85;
+  }
+  .fire-marker.active {
+    background: #e07000;
+    width: 4px;
+  }
+  .fire-marker .marker-label {
+    position: absolute;
+    bottom: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    color: #555;
+    white-space: nowrap;
+  }
+
+  /* Subdivision ticks (visual grid) */
+  .subdivision-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #bbb;
+    opacity: 0.5;
+  }
+
+  /* ── firing count callout ── */
+  .firing-callout {
+    font-size: 11px;
+    color: #444;
+    margin-bottom: 8px;
+  }
+  .firing-callout strong { color: #1a6bb5; }
+  .firing-callout .substep-warning {
+    color: #b55a00;
+    font-weight: 700;
+  }
+
+  /* ── stub content ── */
+  .stub-section {
+    border: 1px dashed #bbb;
+    background: #f0f0f0;
+    padding: 8px;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: #888;
+    font-style: italic;
+  }
+
+  /* ── annotation panel ── */
+  .annotation {
+    width: 310px;
+    margin-left: 20px;
+    font-size: 11px;
+  }
+  .annotation h3 {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+  .annotation h4 {
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    margin-top: 10px;
+  }
+  .annotation p { margin-bottom: 8px; color: #444; line-height: 1.5; }
+  .annotation .story-ref {
+    display: inline-block;
+    border: 1px solid #888;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: #555;
+    margin-bottom: 6px;
+  }
+  .annotation ul { padding-left: 16px; margin-bottom: 8px; }
+  .annotation li { margin-bottom: 4px; color: #444; line-height: 1.5; }
+  .annotation .gap-note {
+    background: #fff3cd;
+    border-left: 3px solid #c89000;
+    padding: 4px 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    color: #444;
+  }
+  .annotation .new-component {
+    background: #d6eaff;
+    border-left: 3px solid #1a6bb5;
+    padding: 4px 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    color: #333;
+  }
+
+  .prototype-body {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .budget {
+    background: #222;
+    color: #ccc;
+    font-size: 10px;
+    padding: 6px 12px;
+    margin-top: 16px;
+    max-width: 760px;
+  }
+  .budget strong { color: #fff; }
+
+  .scenario { display: none; }
+  .scenario.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="prototype-banner">
+  <strong>[WIREFRAME] Note Repeat — Layer Interval Selector &amp; Sub-step Firing</strong>
+  <span>Stories 3 &amp; 4 &bull; Layer settings + sub-step visualisation &bull; not production UI</span>
+</div>
+
+<div class="tabs">
+  <button class="active" onclick="showTab('t16')">1/16 interval (coarse)</button>
+  <button onclick="showTab('t32')">1/32 interval (sub-step)</button>
+  <button onclick="showTab('t64')">1/64 interval (sub-step)</button>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     TAB: 1/16 interval
+═══════════════════════════════════════════ -->
+<div id="t-t16" class="scenario active">
+<div class="prototype-body">
+<div class="device">
+  <div class="status-bar"><span>in-sequence</span><span>9:41 AM</span></div>
+  <div class="transport">
+    <span style="color:#0d0;font-size:12px;">&#9654;</span>
+    <span class="pos">03:02:11</span>
+    <span class="bpm">128 bpm</span>
+    <span class="stub">-> [scene] [tempo]</span>
+  </div>
+  <div class="workspace-header">
+    <span class="mode-label">TRACK LAYER SETTINGS</span>
+    <span class="stub">[&lt; back to Tracks]</span>
+  </div>
+
+  <div class="layer-view">
+    <p class="section-header">Track</p>
+    <div class="track-selector">
+      <div class="track-btn active">Kick</div>
+      <div class="track-btn" onclick="alert('Stubbed: Snare layer settings.')">Snare</div>
+      <div class="track-btn" onclick="alert('Stubbed: HH-Op. layer settings.')">HH-Op.</div>
+      <div class="track-btn" onclick="alert('Stubbed: Bass-Seq layer settings.')">Bass-Seq</div>
+    </div>
+
+    <p class="section-header">General (stubbed)</p>
+    <div class="stub-section">-> [pitch] [velocity] [gate length] [step count] ...</div>
+
+    <!-- NEW: Note Repeat Interval — story 3 -->
+    <p class="section-header">Note Repeat Interval</p>
+    <!--
+      Proposed model: enum stored on StepSequenceTrack as `repeatInterval`
+      Values: .off | .sixteenth | .thirtySecond | .sixtyFourth
+      Persisted via Codable with decodeIfPresent migration.
+      Default: .sixteenth (coarsest, no sub-step engine change required for initial cut).
+    -->
+    <div class="interval-selector" id="sel-t16">
+      <div class="interval-option selected" data-tab="t16" data-val="16"
+           onclick="selectInterval('t16','16')">
+        1/16
+        <span class="sub-label">once/step</span>
+      </div>
+      <div class="interval-option substep" data-tab="t16" data-val="32"
+           onclick="selectInterval('t16','32')">
+        1/32
+        <span class="sub-label">2x/step</span>
+        <span class="substep-badge">sub</span>
+      </div>
+      <div class="interval-option substep" data-tab="t16" data-val="64"
+           onclick="selectInterval('t16','64')">
+        1/64
+        <span class="sub-label">4x/step</span>
+        <span class="substep-badge">sub</span>
+      </div>
+    </div>
+
+    <!-- Sub-step firing diagram — story 4 -->
+    <div class="substep-diagram">
+      <div class="diagram-title">One sequencer step (1/16 note @ 128 bpm = ~117 ms)</div>
+
+      <div class="firing-callout">
+        Interval: <strong>1/16</strong> &mdash; 1 firing per step (= normal step advance)
+      </div>
+
+      <div style="position:relative;margin-top:20px;margin-bottom:20px;">
+        <div class="step-ruler" id="ruler-t16">
+          <span class="ruler-label">step start</span>
+          <span class="ruler-label-end">step end</span>
+          <!-- 1/16: 1 firing at 0% -->
+          <div class="fire-marker active" style="left:0%;" title="Firing 1 of 1">
+            <span class="marker-label">fire</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="diagram-note">
+        At 1/16, Note Repeat fires once per tick. No sub-step scheduling required.
+        This interval can be implemented with the existing TickClock resolution.
+      </div>
+    </div>
+
+    <div class="stub-section">-> [fill settings] [generator params] (stubbed)</div>
+  </div>
+</div><!-- /device -->
+
+<div class="annotation">
+  <h3>1/16 interval &mdash; Layer Settings</h3>
+  <span class="story-ref">Story 3</span> <span class="story-ref">Story 4</span>
+
+  <p>The repeat interval is stored per track layer and persists when the performer navigates away. The segmented control surfaces all three named intervals in a single tap.</p>
+
+  <div class="new-component">
+    <strong>New model field: <code>repeatInterval</code></strong><br>
+    Added to <code>StepSequenceTrack</code>. Enum: <code>.off | .sixteenth | .thirtySecond | .sixtyFourth</code>. Persisted via <code>decodeIfPresent</code> (defaults to <code>.sixteenth</code>). No phrase-layer grid needed — this is a scalar setting, not a per-step value.
+  </div>
+
+  <h4>Location proposal</h4>
+  <p>The interval selector appears in the track layer settings panel &mdash; the same sheet reached from TracksMatrixView edit mode when the performer drills into a track. This is consistent with other per-track scalar settings (velocity, gate length).</p>
+
+  <div class="gap-note">
+    <strong>Gap (existing-state report):</strong> <code>StepSequenceTrack</code> has no <code>repeatInterval</code> field today. The phrase-layer system (<code>PhraseLayerDefinition.defaultSet</code>) also has no repeat-interval entry. Both must be added.
+  </div>
+
+  <h4>1/16 interval (this tab)</h4>
+  <p>One firing per step. No sub-step scheduling needed. The existing TickClock (1 tick = 1/16 step) is sufficient. This is the safe default and the lowest-risk implementation milestone.</p>
+
+  <h3>Interaction budget</h3>
+  <p>1 tap to change interval in layer settings. Setting takes effect immediately on next Note Repeat engage.</p>
+</div>
+</div><!-- /prototype-body -->
+</div><!-- /t16 -->
+
+
+<!-- ═══════════════════════════════════════════
+     TAB: 1/32 interval (sub-step)
+═══════════════════════════════════════════ -->
+<div id="t-t32" class="scenario">
+<div class="prototype-body">
+<div class="device">
+  <div class="status-bar"><span>in-sequence</span><span>9:41 AM</span></div>
+  <div class="transport">
+    <span style="color:#0d0;font-size:12px;">&#9654;</span>
+    <span class="pos">03:02:11</span>
+    <span class="bpm">128 bpm</span>
+    <span class="stub">-> [scene] [tempo]</span>
+  </div>
+  <div class="workspace-header">
+    <span class="mode-label">TRACK LAYER SETTINGS</span>
+    <span class="stub">[&lt; back to Tracks]</span>
+  </div>
+
+  <div class="layer-view">
+    <p class="section-header">Track</p>
+    <div class="track-selector">
+      <div class="track-btn active">Kick</div>
+      <div class="track-btn" onclick="alert('Stubbed.')">Snare</div>
+      <div class="track-btn" onclick="alert('Stubbed.')">HH-Op.</div>
+      <div class="track-btn" onclick="alert('Stubbed.')">Bass-Seq</div>
+    </div>
+
+    <p class="section-header">General (stubbed)</p>
+    <div class="stub-section">-> [pitch] [velocity] [gate length] [step count] ...</div>
+
+    <p class="section-header">Note Repeat Interval</p>
+    <div class="interval-selector" id="sel-t32">
+      <div class="interval-option" data-tab="t32" data-val="16"
+           onclick="selectInterval('t32','16')">
+        1/16
+        <span class="sub-label">once/step</span>
+      </div>
+      <div class="interval-option substep selected" data-tab="t32" data-val="32"
+           onclick="selectInterval('t32','32')">
+        1/32
+        <span class="sub-label">2x/step</span>
+        <span class="substep-badge">sub</span>
+      </div>
+      <div class="interval-option substep" data-tab="t32" data-val="64"
+           onclick="selectInterval('t32','64')">
+        1/64
+        <span class="sub-label">4x/step</span>
+        <span class="substep-badge">sub</span>
+      </div>
+    </div>
+
+    <!-- Sub-step warning pill -->
+    <div style="background:#fff3cd;border:1px solid #c89000;padding:6px 8px;font-size:10px;color:#7a5a00;margin-bottom:10px;">
+      Sub-step interval &mdash; requires intra-step scheduling (engine change). See open questions.
+    </div>
+
+    <div class="substep-diagram">
+      <div class="diagram-title">One sequencer step (1/16 note @ 128 bpm = ~117 ms)</div>
+
+      <div class="firing-callout">
+        Interval: <strong>1/32</strong> &mdash;
+        <span class="substep-warning">2 firings per step</span>
+        (at 0% and 50% through the step)
+      </div>
+
+      <div style="position:relative;margin-top:20px;margin-bottom:24px;">
+        <div class="step-ruler" id="ruler-t32">
+          <span class="ruler-label">step start</span>
+          <span class="ruler-label-end">step end</span>
+          <!-- subdivision tick at 50% -->
+          <div class="subdivision-tick" style="left:50%;" title="1/2 step boundary"></div>
+          <!-- 2 firings: 0% and 50% -->
+          <div class="fire-marker active" style="left:0%;">
+            <span class="marker-label">fire 1</span>
+          </div>
+          <div class="fire-marker active" style="left:50%;">
+            <span class="marker-label">fire 2</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="diagram-note">
+        At 1/32, two retriggers occur within a single 1/16 tick. The second firing
+        (at the 50% mark) must be scheduled by a sub-step mechanism: either a
+        secondary timer, a higher-resolution TickClock, or a subdivision queue
+        dispatched from within <code>Executor.tick</code>.
+      </div>
+    </div>
+
+    <div class="stub-section">-> [fill settings] [generator params] (stubbed)</div>
+  </div>
+</div><!-- /device -->
+
+<div class="annotation">
+  <h3>1/32 interval &mdash; Sub-step (2x per step)</h3>
+  <span class="story-ref">Story 3</span> <span class="story-ref">Story 4</span>
+
+  <p>At 1/32 the captured step fires twice inside the 1/16 tick window. The diagram shows the intended musical behaviour: two equally-spaced retriggers, each at half-step offset.</p>
+
+  <div class="gap-note">
+    <strong>Architecture risk (existing-state report):</strong> <code>TickClock</code> fires once per 1/16 step. There is no intra-step scheduling mechanism. One of three approaches is required:
+    <ul style="margin-top:4px;padding-left:14px;">
+      <li>Run TickClock at 64 steps/bar with the main sequencer advancing every N ticks (lowest friction)</li>
+      <li>Add a secondary intra-step timer fired only when sub-step repeat is active</li>
+      <li>Dispatch multiple note events from within a single <code>Executor.tick</code> call with sample-accurate offsets</li>
+    </ul>
+    This is the key open architecture question to resolve before spec can be finalized.
+  </div>
+
+  <h4>Thread-safety requirement</h4>
+  <p>Live interval changes from the UI (main thread) must reach the engine (clock callback queue) via <code>CommandQueue</code> or <code>withStateLock</code>. The existing pattern for live macro overrides is the right analogy.</p>
+
+  <h4>Visual affordance for sub-step options</h4>
+  <p>The "sub" badge on 1/32 and 1/64 options signals to the designer/implementer that these values require extra engine work. The badge disappears once sub-step scheduling exists &mdash; it is a prototype-only annotation, not a production UI element.</p>
+
+  <h3>Interaction budget</h3>
+  <p>1 tap in the interval selector. No additional confirmation needed. Budget: 1 tap.</p>
+</div>
+</div><!-- /prototype-body -->
+</div><!-- /t32 -->
+
+
+<!-- ═══════════════════════════════════════════
+     TAB: 1/64 interval (sub-step)
+═══════════════════════════════════════════ -->
+<div id="t-t64" class="scenario">
+<div class="prototype-body">
+<div class="device">
+  <div class="status-bar"><span>in-sequence</span><span>9:41 AM</span></div>
+  <div class="transport">
+    <span style="color:#0d0;font-size:12px;">&#9654;</span>
+    <span class="pos">03:02:11</span>
+    <span class="bpm">128 bpm</span>
+    <span class="stub">-> [scene] [tempo]</span>
+  </div>
+  <div class="workspace-header">
+    <span class="mode-label">TRACK LAYER SETTINGS</span>
+    <span class="stub">[&lt; back to Tracks]</span>
+  </div>
+
+  <div class="layer-view">
+    <p class="section-header">Track</p>
+    <div class="track-selector">
+      <div class="track-btn active">Kick</div>
+      <div class="track-btn" onclick="alert('Stubbed.')">Snare</div>
+      <div class="track-btn" onclick="alert('Stubbed.')">HH-Op.</div>
+      <div class="track-btn" onclick="alert('Stubbed.')">Bass-Seq</div>
+    </div>
+
+    <p class="section-header">General (stubbed)</p>
+    <div class="stub-section">-> [pitch] [velocity] [gate length] [step count] ...</div>
+
+    <p class="section-header">Note Repeat Interval</p>
+    <div class="interval-selector" id="sel-t64">
+      <div class="interval-option" data-tab="t64" data-val="16"
+           onclick="selectInterval('t64','16')">
+        1/16
+        <span class="sub-label">once/step</span>
+      </div>
+      <div class="interval-option substep" data-tab="t64" data-val="32"
+           onclick="selectInterval('t64','32')">
+        1/32
+        <span class="sub-label">2x/step</span>
+        <span class="substep-badge">sub</span>
+      </div>
+      <div class="interval-option substep selected" data-tab="t64" data-val="64"
+           onclick="selectInterval('t64','64')">
+        1/64
+        <span class="sub-label">4x/step</span>
+        <span class="substep-badge">sub</span>
+      </div>
+    </div>
+
+    <div style="background:#fff3cd;border:1px solid #c89000;padding:6px 8px;font-size:10px;color:#7a5a00;margin-bottom:10px;">
+      Sub-step interval &mdash; requires intra-step scheduling (engine change). See open questions.
+    </div>
+
+    <div class="substep-diagram">
+      <div class="diagram-title">One sequencer step (1/16 note @ 128 bpm = ~117 ms)</div>
+
+      <div class="firing-callout">
+        Interval: <strong>1/64</strong> &mdash;
+        <span class="substep-warning">4 firings per step</span>
+        (at 0%, 25%, 50%, 75% through the step)
+      </div>
+
+      <div style="position:relative;margin-top:20px;margin-bottom:24px;">
+        <div class="step-ruler" id="ruler-t64">
+          <span class="ruler-label">step start</span>
+          <span class="ruler-label-end">step end</span>
+          <!-- subdivision ticks at 25%, 50%, 75% -->
+          <div class="subdivision-tick" style="left:25%;"></div>
+          <div class="subdivision-tick" style="left:50%;"></div>
+          <div class="subdivision-tick" style="left:75%;"></div>
+          <!-- 4 firings -->
+          <div class="fire-marker active" style="left:0%;">
+            <span class="marker-label">1</span>
+          </div>
+          <div class="fire-marker active" style="left:25%;">
+            <span class="marker-label">2</span>
+          </div>
+          <div class="fire-marker active" style="left:50%;">
+            <span class="marker-label">3</span>
+          </div>
+          <div class="fire-marker active" style="left:75%;">
+            <span class="marker-label">4</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="diagram-note">
+        At 1/64, four retriggers occur within a single 1/16 tick (~29 ms apart at 128 bpm).
+        All four require sub-step scheduling. Note-off for each retrigger must be issued
+        before the next retrigger fires to avoid overlapping sustain. Gate length on the
+        captured step must be clamped to the sub-step interval.
+      </div>
+    </div>
+
+    <!-- Additional edge-case callout for 1/64 -->
+    <div style="border:1px solid #ccc;background:#fff;padding:8px;font-size:10px;color:#444;margin-bottom:10px;">
+      <strong>Gate-length constraint:</strong> If the captured step has a gate length longer than 1/64 (~29 ms at 128 bpm),
+      it must be clamped to avoid note overlap between firings. The engine must issue a
+      note-off before each retrigger when the step's natural gate would bleed into the next sub-step window.
+    </div>
+
+    <div class="stub-section">-> [fill settings] [generator params] (stubbed)</div>
+  </div>
+</div><!-- /device -->
+
+<div class="annotation">
+  <h3>1/64 interval &mdash; Sub-step (4x per step)</h3>
+  <span class="story-ref">Story 3</span> <span class="story-ref">Story 4</span>
+
+  <p>At 1/64 the captured step fires four times inside a single 1/16 tick. At 128 bpm, that is approximately one retrigger every 29 ms &mdash; well within audible range and the fastest option exposed to the performer.</p>
+
+  <div class="gap-note">
+    <strong>Architecture risk (existing-state report):</strong> Four firings per tick compounds the sub-step scheduling problem from the 1/32 case. Additionally:
+    <ul style="margin-top:4px;padding-left:14px;">
+      <li>Gate-length clamping is required: if the step's gate is longer than 29 ms the engine must truncate each firing to avoid overlap</li>
+      <li>MIDI note-off timing at 29 ms granularity may expose latency in <code>MidiOut</code>'s pending-noteoff queue</li>
+      <li>At very high BPM (&gt;180) the 1/64 window drops below 15 ms, potentially within audio buffer latency; this edge case should be noted in the spec</li>
+    </ul>
+  </div>
+
+  <h4>Why show all three in one control</h4>
+  <p>Placing 1/16, 1/32, and 1/64 as a segmented choice (not a numeric input) keeps the performer's decision cognitive-load-free. Three options is the right upper bound for a live control.</p>
+
+  <h4>Persistence note</h4>
+  <p>The selected interval for each track is stored in <code>StepSequenceTrack.repeatInterval</code> and survives document save/load. The interval is not per-scene or per-phrase-bar &mdash; it is a track-level default. If per-scene variation is needed later, it can be added as a phrase-layer target (analogous to fill-flag), but that is out of scope for the first implementation.</p>
+
+  <h3>Interaction budget</h3>
+  <p>1 tap in the interval selector. No confirmation. Budget: 1 tap.</p>
+</div>
+</div><!-- /prototype-body -->
+</div><!-- /t64 -->
+
+
+<div class="budget">
+  <strong>Interaction budget (both prototypes combined):</strong>
+  Engage Note Repeat: 1 tap &bull;
+  Release Note Repeat: 1 tap &bull;
+  Change interval: 1 tap in layer settings &bull;
+  All primary paths: &lt;= 2 taps each.
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.scenario').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(el => el.classList.remove('active'));
+  document.getElementById('t-' + id).classList.add('active');
+  var tabs = document.querySelectorAll('.tabs button');
+  var map = { t16: 0, t32: 1, t64: 2 };
+  tabs[map[id]].classList.add('active');
+}
+
+function selectInterval(tabId, val) {
+  // Sync visual selection within this tab's selector
+  var sel = document.getElementById('sel-' + tabId);
+  if (!sel) return;
+  sel.querySelectorAll('.interval-option').forEach(function(opt) {
+    opt.classList.remove('selected');
+  });
+  var chosen = sel.querySelector('[data-val="' + val + '"]');
+  if (chosen) chosen.classList.add('selected');
+
+  // Switch to the matching tab so the diagram updates
+  var tabMap = { '16': 't16', '32': 't32', '64': 't64' };
+  showTab(tabMap[val]);
+}
+</script>
+</body>
+</html>

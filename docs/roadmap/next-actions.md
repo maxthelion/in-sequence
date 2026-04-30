@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T10:47:03Z
-Repo HEAD: 5f2378d
+Generated: 2026-04-30T10:51:49Z
+Repo HEAD: fae691f
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -42,14 +42,14 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 
 ## Next Agent Item
 
-- **Item:** 3
-- **Feature:** Step Sequencer
+- **Item:** 15
+- **Feature:** Note Repeat
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-architecture`
+- **Action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Why:** UX review exists, but `architecture.md` is missing.
-- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
+- **Output:** Create focused Balsamiq-style HTML prototypes under this feature directory.
 
 ## Feature Actions
 
@@ -81,10 +81,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `review-architecture`
+- **Role:** `user`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 4. Mixer Main Out
 

@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Wireframe] Note Repeat — Perform Page Toggle &amp; Capture Visualisation</title>
+<style>
+  /* ── reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── base ── */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #f5f5f5;
+    color: #222;
+    padding: 24px;
+  }
+
+  /* ── annotation strip ── */
+  .prototype-banner {
+    background: #222;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .prototype-banner strong { font-size: 12px; }
+  .prototype-banner span { opacity: 0.6; }
+
+  /* ── scenario switcher ── */
+  .scenario-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .scenario-tabs button {
+    padding: 6px 14px;
+    border: 1px solid #888;
+    background: #e8e8e8;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .scenario-tabs button.active {
+    background: #222;
+    color: #fff;
+    border-color: #222;
+  }
+
+  /* ── device shell ── */
+  .device {
+    width: 420px;
+    min-height: 640px;
+    border: 2px solid #333;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ── status bar ── */
+  .status-bar {
+    background: #1a1a1a;
+    color: #ccc;
+    font-size: 10px;
+    padding: 4px 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── transport bar ── */
+  .transport {
+    background: #2a2a2a;
+    color: #ddd;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    border-bottom: 1px solid #444;
+  }
+  .transport .bpm { color: #aaa; }
+  .transport .pos { font-variant-numeric: tabular-nums; color: #fff; font-weight: 600; }
+  .transport .play-btn {
+    width: 20px; height: 20px;
+    border: 1px solid #888;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: #0d0; cursor: pointer;
+  }
+  .transport .stub { opacity: 0.35; font-size: 10px; font-style: italic; }
+
+  /* ── workspace header ── */
+  .workspace-header {
+    padding: 6px 10px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    font-size: 11px;
+    color: #555;
+    display: flex;
+    gap: 12px;
+  }
+  .workspace-header .mode-label {
+    font-weight: 700;
+    color: #111;
+  }
+  .workspace-header .stub {
+    opacity: 0.35;
+    font-style: italic;
+  }
+
+  /* ── tracks matrix ── */
+  .tracks-matrix {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── PERFORM ACTION ROW (new component) ── */
+  /*
+    Proposal: a persistent 32px strip above the track card grid when
+    TracksWorkspaceMode == .perform.
+    Each column aligns with its TrackMatrixCard column.
+    Contains: [Fill] [Repeat] buttons per track.
+    This strip does NOT appear in .edit mode.
+  */
+  .perform-action-row {
+    display: flex;
+    border-bottom: 1px solid #999;
+    background: #e0e0e0;
+  }
+  .perform-action-row .row-label {
+    width: 52px;
+    min-width: 52px;
+    background: #ccc;
+    border-right: 1px solid #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #444;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .perform-action-row .track-actions {
+    flex: 1;
+    display: flex;
+  }
+  .track-action-cell {
+    flex: 1;
+    border-right: 1px solid #bbb;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 4px;
+  }
+  .track-action-cell:last-child { border-right: none; }
+
+  /* Fill btn — today this maps to phrase layer toggling; in future same model as repeat */
+  .btn-fill {
+    font-size: 9px;
+    padding: 2px 4px;
+    border: 1px solid #888;
+    background: #d8d8d8;
+    cursor: pointer;
+    text-align: center;
+    color: #333;
+    user-select: none;
+  }
+  .btn-fill.active {
+    background: #555;
+    color: #fff;
+    border-color: #333;
+  }
+
+  /* Repeat btn — new control */
+  .btn-repeat {
+    font-size: 9px;
+    padding: 2px 4px;
+    border: 1px dashed #888; /* dashed = proposed new UI */
+    background: #f0f0f0;
+    cursor: pointer;
+    text-align: center;
+    color: #333;
+    user-select: none;
+    position: relative;
+  }
+  .btn-repeat.active {
+    background: #1a6bb5;
+    color: #fff;
+    border: 1px solid #0d4a8a;
+  }
+  .btn-repeat.capturing {
+    background: #b55a00;
+    color: #fff;
+    border: 1px solid #7a3d00;
+    animation: pulse-border 0.4s infinite alternate;
+  }
+  @keyframes pulse-border {
+    from { opacity: 1; }
+    to   { opacity: 0.75; }
+  }
+
+  /* ── track card grid ── */
+  .track-card-grid {
+    display: flex;
+    flex: 1;
+  }
+  .track-index-col {
+    width: 52px;
+    min-width: 52px;
+    border-right: 1px solid #ccc;
+    background: #eee;
+    display: flex;
+    flex-direction: column;
+  }
+  .track-index-cell {
+    flex: 1;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #666;
+  }
+  .track-index-cell.repeat-active {
+    background: #dce8f7;
+    color: #1a6bb5;
+    font-weight: 700;
+  }
+  .track-cards-col {
+    flex: 1;
+    display: flex;
+  }
+  .track-card {
+    flex: 1;
+    border-right: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+    position: relative;
+  }
+  .track-card:last-child { border-right: none; }
+  .track-card .track-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 3px;
+  }
+  .track-card .step-preview {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+  .step-dot {
+    width: 8px; height: 8px;
+    background: #ccc;
+    border: 1px solid #aaa;
+  }
+  .step-dot.on { background: #555; border-color: #333; }
+  .step-dot.current { background: #1a6bb5; border-color: #0d4a8a; }
+  .step-dot.captured { background: #b55a00; border-color: #7a3d00; }
+  .step-dot.repeat-firing {
+    background: #e07000;
+    border-color: #b55a00;
+    animation: flash-step 0.18s infinite alternate;
+  }
+  @keyframes flash-step {
+    from { opacity: 1; }
+    to   { opacity: 0.5; }
+  }
+
+  /* ── capture status overlay (story 2) ── */
+  .capture-overlay {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    right: 4px;
+    background: rgba(181,90,0,0.9);
+    color: #fff;
+    font-size: 8px;
+    padding: 2px 4px;
+    display: none;
+    flex-direction: column;
+    gap: 1px;
+    border: 1px solid #7a3d00;
+  }
+  .capture-overlay.visible { display: flex; }
+  .capture-overlay .cap-label { font-weight: 700; letter-spacing: 0.04em; }
+  .capture-overlay .cap-interval { opacity: 0.8; }
+
+  /* ── layer strip (stub) ── */
+  .layer-strip {
+    border-top: 1px solid #ccc;
+    background: #e8e8e8;
+    padding: 4px 8px;
+    font-size: 10px;
+    color: #888;
+    font-style: italic;
+  }
+
+  /* ── annotation panel ── */
+  .annotation {
+    width: 300px;
+    margin-left: 20px;
+    font-size: 11px;
+  }
+  .annotation h3 {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+  .annotation p { margin-bottom: 8px; color: #444; line-height: 1.5; }
+  .annotation .story-ref {
+    display: inline-block;
+    border: 1px solid #888;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  .annotation ul { padding-left: 16px; margin-bottom: 8px; }
+  .annotation li { margin-bottom: 4px; color: #444; line-height: 1.5; }
+  .annotation .gap-note {
+    background: #fff3cd;
+    border-left: 3px solid #c89000;
+    padding: 4px 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    color: #444;
+  }
+  .annotation .new-component {
+    background: #d6eaff;
+    border-left: 3px solid #1a6bb5;
+    padding: 4px 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    color: #333;
+  }
+
+  /* ── layout wrapper ── */
+  .prototype-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  /* ── interaction budget ── */
+  .budget {
+    background: #222;
+    color: #ccc;
+    font-size: 10px;
+    padding: 6px 12px;
+    margin-top: 16px;
+    max-width: 740px;
+  }
+  .budget strong { color: #fff; }
+
+  /* ── scenario display ── */
+  .scenario { display: none; }
+  .scenario.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="prototype-banner">
+  <strong>[WIREFRAME] Note Repeat — Perform Page Toggle &amp; Capture</strong>
+  <span>Stories 1 &amp; 2 &bull; TracksMatrixView perform mode &bull; not production UI</span>
+</div>
+
+<div class="scenario-tabs">
+  <button class="active" onclick="showScenario('idle')">A: Idle (no repeat)</button>
+  <button onclick="showScenario('engaged')">B: Repeat engaged (capturing)</button>
+  <button onclick="showScenario('released')">C: Released (resuming)</button>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCENARIO A — Normal perform mode, no repeat active
+═══════════════════════════════════════════ -->
+<div id="s-idle" class="scenario active">
+<div class="prototype-body">
+<div class="device">
+  <div class="status-bar">
+    <span>in-sequence</span>
+    <span>9:41 AM</span>
+  </div>
+  <div class="transport">
+    <div class="play-btn">&#9654;</div>
+    <div class="pos">03:02:11</div>
+    <div class="bpm">128 bpm</div>
+    <div class="stub">-> [scene selector] [tempo] [settings]</div>
+  </div>
+  <div class="workspace-header">
+    <span class="mode-label">TRACKS &mdash; PERFORM</span>
+    <span class="stub">[EDIT]</span>
+  </div>
+
+  <div class="tracks-matrix">
+
+    <!-- NEW: Perform Action Row — proposed new UI component -->
+    <div class="perform-action-row">
+      <div class="row-label">Actions</div>
+      <div class="track-actions">
+
+        <!-- Track 1: Kick -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="a-fill-1" onclick="toggleFill('a',1)">Fill</div>
+          <div class="btn-repeat" id="a-rep-1" onclick="alert('Stubbed: engage repeat on Kick in scenario A. Switch to scenario B.')">Repeat</div>
+        </div>
+
+        <!-- Track 2: Snare -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="a-fill-2" onclick="toggleFill('a',2)">Fill</div>
+          <div class="btn-repeat" id="a-rep-2" onclick="alert('Stubbed: engage repeat on Snare.')">Repeat</div>
+        </div>
+
+        <!-- Track 3: HH -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="a-fill-3" onclick="toggleFill('a',3)">Fill</div>
+          <div class="btn-repeat" id="a-rep-3" onclick="alert('Stubbed: engage repeat on HH.')">Repeat</div>
+        </div>
+
+        <!-- Track 4: Bass -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="a-fill-4" onclick="toggleFill('a',4)">Fill</div>
+          <div class="btn-repeat" id="a-rep-4" onclick="alert('Stubbed: engage repeat on Bass.')">Repeat</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Track cards -->
+    <div class="track-card-grid">
+      <div class="track-index-col">
+        <div class="track-index-cell">Kick</div>
+        <div class="track-index-cell">Snare</div>
+        <div class="track-index-cell">HH-Op.</div>
+        <div class="track-index-cell">Bass-Seq</div>
+      </div>
+      <div class="track-cards-col" style="flex-direction:column;">
+
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Kick</div>
+            <div class="step-preview">
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot on current"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Snare</div>
+            <div class="step-preview">
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">HH-Op.</div>
+            <div class="step-preview">
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on current"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Bass-Seq (Dm &mdash; long names ok)</div>
+            <div class="step-preview">
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+              <div class="step-dot on current"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /track-card-grid -->
+
+  </div><!-- /tracks-matrix -->
+
+  <div class="layer-strip">-> [layer picker: Beat / Fill / Melody / ...] (stubbed)</div>
+</div><!-- /device -->
+
+<div class="annotation">
+  <h3>Scenario A &mdash; Idle</h3>
+  <span class="story-ref">Story 1</span>
+  <p>Normal perform mode. All tracks are playing their sequenced content. The Note Repeat toggle is visible per-track in the action row but inactive (dashed border = proposed new UI).</p>
+
+  <div class="new-component">
+    <strong>New component: Perform Action Row</strong><br>
+    A 32px strip pinned above the track-card grid, visible only in perform mode. Each column aligns with its track card. Hosts [Fill] and [Repeat] per track. Does not affect which layer is selected.
+  </div>
+
+  <div class="gap-note">
+    <strong>Gap (existing-state report):</strong> Fill today is a phrase-layer boolean toggled by layer selection, not a runtime button. The [Fill] button shown here is the target behaviour, not what currently exists. Both Fill and Repeat need a live runtime override path.
+  </div>
+
+  <h3>Interaction budget</h3>
+  <p>1 tap to engage Note Repeat on any track. Switch to Scenario B to see engaged state.</p>
+
+  <h3>Click path</h3>
+  <ul>
+    <li>Tap [Repeat] on any track column &rarr; Scenario B (capture begins)</li>
+    <li>Tap [Fill] on any track column &rarr; fill activates for that track (stub)</li>
+  </ul>
+</div>
+</div><!-- /prototype-body -->
+</div><!-- /scenario idle -->
+
+
+<!-- ═══════════════════════════════════════════
+     SCENARIO B — Note Repeat engaged on Kick (capturing and looping)
+═══════════════════════════════════════════ -->
+<div id="s-engaged" class="scenario">
+<div class="prototype-body">
+<div class="device">
+  <div class="status-bar">
+    <span>in-sequence</span>
+    <span>9:41 AM</span>
+  </div>
+  <div class="transport">
+    <div class="play-btn">&#9654;</div>
+    <div class="pos">03:02:14</div>
+    <div class="bpm">128 bpm</div>
+    <div class="stub">-> [scene selector] [tempo] [settings]</div>
+  </div>
+  <div class="workspace-header">
+    <span class="mode-label">TRACKS &mdash; PERFORM</span>
+    <span class="stub">[EDIT]</span>
+  </div>
+
+  <div class="tracks-matrix">
+
+    <div class="perform-action-row">
+      <div class="row-label">Actions</div>
+      <div class="track-actions">
+
+        <!-- Track 1: Kick — REPEAT ACTIVE (capturing) -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="b-fill-1" onclick="toggleFill('b',1)">Fill</div>
+          <div class="btn-repeat capturing" id="b-rep-1"
+               title="Note Repeat active on Kick. Captured step 9 at 1/16 interval."
+               onclick="showScenario('released')">Repeat</div>
+        </div>
+
+        <!-- Track 2: Snare — idle -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="b-fill-2" onclick="toggleFill('b',2)">Fill</div>
+          <div class="btn-repeat" id="b-rep-2" onclick="alert('Stubbed: engage repeat on Snare while Kick is repeating. Each track independent.')">Repeat</div>
+        </div>
+
+        <!-- Track 3: HH -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="b-fill-3" onclick="toggleFill('b',3)">Fill</div>
+          <div class="btn-repeat" id="b-rep-3" onclick="alert('Stubbed: engage repeat on HH.')">Repeat</div>
+        </div>
+
+        <!-- Track 4: Bass -->
+        <div class="track-action-cell">
+          <div class="btn-fill" id="b-fill-4" onclick="toggleFill('b',4)">Fill</div>
+          <div class="btn-repeat" id="b-rep-4" onclick="alert('Stubbed: engage repeat on Bass.')">Repeat</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="track-card-grid">
+      <div class="track-index-col">
+        <div class="track-index-cell repeat-active">Kick</div>
+        <div class="track-index-cell">Snare</div>
+        <div class="track-index-cell">HH-Op.</div>
+        <div class="track-index-cell">Bass-Seq</div>
+      </div>
+      <div class="track-cards-col" style="flex-direction:column;">
+
+        <!-- Kick: captured step 9 (0-indexed step 8), repeat firing -->
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;border-left:2px solid #b55a00;">
+            <div class="track-name" style="color:#b55a00;">Kick &mdash; REPEAT (1/16)</div>
+            <div class="step-preview">
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <!-- step 9 = captured, also current, also repeat-firing -->
+              <div class="step-dot captured repeat-firing" title="Captured step — looping here"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+            </div>
+            <!-- Capture status overlay -->
+            <div class="capture-overlay visible">
+              <div class="cap-label">CAPTURED: step 9</div>
+              <div class="cap-interval">Firing at 1/16 interval &bull; hold to sustain</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Snare: normal playback, advancing past step 9 -->
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Snare</div>
+            <div class="step-preview">
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot current" title="Transport at step 9 on Snare track — no note here, but position is tracked"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">HH-Op.</div>
+            <div class="step-preview">
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on current"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Bass-Seq (Dm &mdash; long names ok)</div>
+            <div class="step-preview">
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+              <div class="step-dot on current"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /tracks-matrix -->
+
+  <div class="layer-strip">-> [layer picker: Beat / Fill / Melody / ...] (stubbed)</div>
+</div><!-- /device -->
+
+<div class="annotation">
+  <h3>Scenario B &mdash; Repeat Engaged (Kick)</h3>
+  <span class="story-ref">Story 1</span> <span class="story-ref">Story 2</span>
+
+  <p>Performer pressed and held [Repeat] on Kick at transport position step 9. The sequencer snapped to step 9's content and began looping it at the configured interval (1/16 here).</p>
+
+  <p><strong>Visual language used:</strong></p>
+  <ul>
+    <li>Repeat button: amber/orange fill, pulsing &mdash; "hold active"</li>
+    <li>Track-index label: blue background &mdash; track is in repeat state</li>
+    <li>Track card: amber left border, amber step dot, "CAPTURED: step N" overlay</li>
+    <li>Step dot for captured step: amber + flash animation &mdash; this step is firing repeatedly</li>
+    <li>Other tracks: continue advancing normally (transport is not frozen)</li>
+  </ul>
+
+  <div class="gap-note">
+    <strong>Open (existing-state report):</strong> The transport position for non-repeating tracks advances while Kick is frozen on step 9. When Kick is released it must re-join at the current transport step, not at step 9. The engage/disengage API does not yet exist.
+  </div>
+
+  <h3>Click path</h3>
+  <ul>
+    <li>Tap [Repeat] on Kick (amber button) &rarr; releases &rarr; Scenario C</li>
+    <li>Other [Repeat] and [Fill] buttons: stubbed, show console message</li>
+  </ul>
+</div>
+</div><!-- /prototype-body -->
+</div><!-- /scenario engaged -->
+
+
+<!-- ═══════════════════════════════════════════
+     SCENARIO C — Released, track resuming
+═══════════════════════════════════════════ -->
+<div id="s-released" class="scenario">
+<div class="prototype-body">
+<div class="device">
+  <div class="status-bar">
+    <span>in-sequence</span>
+    <span>9:41 AM</span>
+  </div>
+  <div class="transport">
+    <div class="play-btn">&#9654;</div>
+    <div class="pos">03:02:15</div>
+    <div class="bpm">128 bpm</div>
+    <div class="stub">-> [scene selector] [tempo] [settings]</div>
+  </div>
+  <div class="workspace-header">
+    <span class="mode-label">TRACKS &mdash; PERFORM</span>
+    <span class="stub">[EDIT]</span>
+  </div>
+
+  <div class="tracks-matrix">
+
+    <div class="perform-action-row">
+      <div class="row-label">Actions</div>
+      <div class="track-actions">
+        <div class="track-action-cell">
+          <div class="btn-fill" id="c-fill-1" onclick="toggleFill('c',1)">Fill</div>
+          <!-- Repeat released: back to idle style -->
+          <div class="btn-repeat" id="c-rep-1" onclick="showScenario('engaged')">Repeat</div>
+        </div>
+        <div class="track-action-cell">
+          <div class="btn-fill" id="c-fill-2" onclick="toggleFill('c',2)">Fill</div>
+          <div class="btn-repeat" id="c-rep-2" onclick="alert('Stubbed.')">Repeat</div>
+        </div>
+        <div class="track-action-cell">
+          <div class="btn-fill" id="c-fill-3" onclick="toggleFill('c',3)">Fill</div>
+          <div class="btn-repeat" id="c-rep-3" onclick="alert('Stubbed.')">Repeat</div>
+        </div>
+        <div class="track-action-cell">
+          <div class="btn-fill" id="c-fill-4" onclick="toggleFill('c',4)">Fill</div>
+          <div class="btn-repeat" id="c-rep-4" onclick="alert('Stubbed.')">Repeat</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="track-card-grid">
+      <div class="track-index-col">
+        <!-- Kick: back to normal -->
+        <div class="track-index-cell" title="Released: now rejoining normal playback at next step boundary">Kick</div>
+        <div class="track-index-cell">Snare</div>
+        <div class="track-index-cell">HH-Op.</div>
+        <div class="track-index-cell">Bass-Seq</div>
+      </div>
+      <div class="track-cards-col" style="flex-direction:column;">
+
+        <!-- Kick: resuming — current step is now 12 (transport advanced) -->
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Kick</div>
+            <div class="step-preview">
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot on" title="Was captured step — no longer repeating"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on current" title="Rejoined here (next step after release)"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+            </div>
+            <!-- No capture overlay -->
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Snare</div>
+            <div class="step-preview">
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on current"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;border-bottom:1px solid #ccc;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">HH-Op.</div>
+            <div class="step-preview">
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on current"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex:1;">
+          <div class="track-card" style="flex:1;">
+            <div class="track-name">Bass-Seq (Dm &mdash; long names ok)</div>
+            <div class="step-preview">
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+              <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div>
+              <div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot on current"></div>
+              <div class="step-dot"></div><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /tracks-matrix -->
+
+  <div class="layer-strip">-> [layer picker: Beat / Fill / Melody / ...] (stubbed)</div>
+</div><!-- /device -->
+
+<div class="annotation">
+  <h3>Scenario C &mdash; Released (resuming)</h3>
+  <span class="story-ref">Story 2</span>
+
+  <p>Performer released [Repeat] on Kick. The engine flushed pending note-offs for the captured step and re-joined normal sequence playback at the next step boundary (step 12 here &mdash; the transport had advanced to step 12 while Kick was frozen).</p>
+
+  <p><strong>Key behaviour this scenario validates:</strong></p>
+  <ul>
+    <li>Kick's current-step indicator jumps to step 12, not back to step 9</li>
+    <li>No stuck notes: all pending note-offs were flushed on disengage</li>
+    <li>The Repeat button returns to its idle (dashed border) style immediately on release</li>
+    <li>Other tracks were unaffected throughout</li>
+  </ul>
+
+  <div class="gap-note">
+    <strong>Engine requirement (existing-state report):</strong> <code>MidiOut.flushPendingNoteOffs(now:)</code> and the audio-path equivalent must be called on disengage. The re-join step must be determined by the live transport position at the moment of release, not by the captured step index.
+  </div>
+
+  <h3>Click path</h3>
+  <ul>
+    <li>Tap [Repeat] on Kick (idle button) &rarr; Scenario B (re-engage)</li>
+  </ul>
+</div>
+</div><!-- /prototype-body -->
+</div><!-- /scenario released -->
+
+
+<div class="budget">
+  <strong>Interaction budget:</strong> 1 tap to engage Note Repeat &bull; 1 tap to release &bull; Total: 2 taps for full engage/disengage round-trip. Budget met.
+</div>
+
+<script>
+function showScenario(id) {
+  document.querySelectorAll('.scenario').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.scenario-tabs button').forEach(el => el.classList.remove('active'));
+  document.getElementById('s-' + id).classList.add('active');
+  var tabs = document.querySelectorAll('.scenario-tabs button');
+  var map = { idle: 0, engaged: 1, released: 2 };
+  tabs[map[id]].classList.add('active');
+}
+
+function toggleFill(scenario, track) {
+  var el = document.getElementById(scenario + '-fill-' + track);
+  if (!el) return;
+  el.classList.toggle('active');
+}
+</script>
+</body>
+</html>
