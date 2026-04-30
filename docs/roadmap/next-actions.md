@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T16:31:19Z
-Repo HEAD: fbdf8d9
+Generated: 2026-04-30T16:36:06Z
+Repo HEAD: 29267ae
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -49,10 +49,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** MIDI Interfaces
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-architecture`
+- **Action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Why:** Architecture review exists, but `spec.md` is missing.
+- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ## Feature Actions
 
@@ -139,10 +139,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
+- **Next action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Reason:** Architecture review exists, but `spec.md` is missing.
+- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ### 9. Modifier Chain Placement
 

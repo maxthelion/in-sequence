@@ -4,7 +4,7 @@ title: MIDI Interfaces
 status: inventory
 priority: unset
 blocked_by: []
-stage: write-spec
+stage: write-plan
 owner: pm
 updated: 2026-04-30
 ---
