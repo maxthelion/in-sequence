@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T15:50:15Z
-Repo HEAD: 53cef83
+Generated: 2026-04-30T15:57:58Z
+Repo HEAD: 7c208e1
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -49,10 +49,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** Step Sequencer
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-spec`
+- **Action:** `write-plan`
 - **Role:** `pm-assistant`
-- **Why:** Architecture review exists, but `spec.md` is missing.
-- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Why:** Spec exists, but `plan.md` is missing.
+- **Output:** Write the implementation plan without starting production work.
 
 ## Feature Actions
 
@@ -84,10 +84,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-spec`
+- **Next action:** `write-plan`
 - **Role:** `pm-assistant`
-- **Reason:** Architecture review exists, but `spec.md` is missing.
-- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Reason:** Spec exists, but `plan.md` is missing.
+- **Suggested output:** Write the implementation plan without starting production work.
 
 ### 4. Mixer Main Out
 
