@@ -1,55 +1,58 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T11:16:45Z
-Repo HEAD: e87f74a
+Generated: 2026-04-30T13:46:07Z
+Repo HEAD: f423faf
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
 
 Each roadmap item has front matter in its feature `README.md`: `id`, `title`, `status`, `priority`, `blocked_by`, `stage`, `owner`, and `updated`.
 
-Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-prototypes` and `review-architecture`, which require user judgment. `clarify-feature`, `blocked`, `review-prototypes`, and `review-architecture` require user input. `address-feedback` is a PM-assistant action.
+Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-concerns`, which requires user judgment. `clarify-feature`, `blocked`, and `review-concerns` require user input. `review-prototypes`, `review-architecture`, and `address-feedback` are PM-assistant actions. The global "Next Agent Item" prioritises unresolved feedback and review rework before ordinary artifact creation.
 
 ## Selector
 
-For each feature, deferred status wins first, then unresolved feedback, then blocked metadata or open questions; otherwise the first missing artifact wins:
+For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework; otherwise the first missing artifact wins:
 
 1. `status: deferred` -> deferred
 2. unresolved `feedback/*.md` -> address-feedback
-3. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
-4. `notes.md` -> clarify-feature
-5. `user-stories.md` -> draft-user-stories
-6. `existing-state.md` -> inspect-existing-state
-7. `prototypes/*` -> build-prototypes
-8. `ux-review.md` -> review-prototypes
-9. `architecture.md` -> write-architecture
-10. `architecture-review.md` -> review-architecture
-11. `spec.md` -> write-spec
-12. `plan.md` -> write-plan
-13. `implementation-handoff.md` -> write-implementation-handoff
-14. all present -> ready-for-build-queue
+3. open `concerns.md` -> review-concerns
+4. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+5. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
+6. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
+7. `notes.md` -> clarify-feature
+8. `user-stories.md` -> draft-user-stories
+9. `existing-state.md` -> inspect-existing-state
+10. `prototypes/*` -> build-prototypes
+11. `ux-review.md` -> review-prototypes
+12. `architecture.md` -> write-architecture
+13. `architecture-review.md` -> review-architecture
+14. `spec.md` -> write-spec
+15. `plan.md` -> write-plan
+16. `implementation-handoff.md` -> write-implementation-handoff
+17. all present -> ready-for-build-queue
 
 ## Next User Item
+
+- **Item:** 18
+- **Feature:** Toggle Fill On A Track To Hear It
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `review-concerns`
+- **Role:** `user`
+- **Why:** `concerns.md` exists and is not resolved or archived.
+- **Output:** Review the concerns, decide whether they are accepted guardrails, open questions, or non-blocking notes, then update `concerns.md` before PM work continues.
+
+## Next Agent Item
 
 - **Item:** 3
 - **Feature:** Step Sequencer
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-architecture`
-- **Role:** `user`
-- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
-
-## Next Agent Item
-
-- **Item:** 2
-- **Feature:** Scene Perform
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `write-spec`
+- **Action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Why:** Architecture review exists, but `spec.md` is missing.
-- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Why:** `ux-review.md` verdict is `needs-rework` or `rejected`; redirect_to=`build-prototypes`.
+- **Output:** Address the verdict in `ux-review.md`. Read notes, user stories, existing-state, feedback, and the review critique; produce a fresh artifact at the redirect target.
 
 ## Feature Actions
 
@@ -70,10 +73,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-spec`
+- **Next action:** `write-plan`
 - **Role:** `pm-assistant`
-- **Reason:** Architecture review exists, but `spec.md` is missing.
-- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Reason:** Spec exists, but `plan.md` is missing.
+- **Suggested output:** Write the implementation plan without starting production work.
 
 ### 3. Step Sequencer
 
@@ -81,10 +84,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
-- **Role:** `user`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Next action:** `build-prototypes`
+- **Role:** `pm-assistant`
+- **Reason:** `ux-review.md` verdict is `needs-rework` or `rejected`; redirect_to=`build-prototypes`.
+- **Suggested output:** Address the verdict in `ux-review.md`. Read notes, user stories, existing-state, feedback, and the review critique; produce a fresh artifact at the redirect target.
 
 ### 4. Mixer Main Out
 
@@ -93,7 +96,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -104,7 +107,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -115,7 +118,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -126,7 +129,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -137,7 +140,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -148,7 +151,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -159,7 +162,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -170,7 +173,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -181,7 +184,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -192,7 +195,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -203,7 +206,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -214,7 +217,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -225,7 +228,7 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Priority:** `unset`
 - **Blocked by:** `[]`
 - **Next action:** `review-prototypes`
-- **Role:** `user`
+- **Role:** `pm-assistant`
 - **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
 - **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
@@ -246,10 +249,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `inspect-existing-state`
-- **Role:** `pm-assistant`
-- **Reason:** User stories exist, but `existing-state.md` is missing.
-- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Next action:** `review-concerns`
+- **Role:** `user`
+- **Reason:** `concerns.md` exists and is not resolved or archived.
+- **Suggested output:** Review the concerns, decide whether they are accepted guardrails, open questions, or non-blocking notes, then update `concerns.md` before PM work continues.
 
 ### 19. Drum Kit Group View
 

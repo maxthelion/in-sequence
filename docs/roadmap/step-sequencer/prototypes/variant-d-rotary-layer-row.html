@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE: Step Sequencer — Variant D: Rotary Layer Row (selected-steps mode)
+  ==============================================================================
+  This is a Balsamiq-style design prototype. It is NOT a production proposal.
+  Dashed borders and grey fills indicate stubbed areas.
+
+  REWORK BRIEF (from ux-review.md):
+  - Same as Variant C for normal interaction (no secondary panel, cell is the editor).
+  - When one or more steps are selected, the layer-tab row TRANSFORMS: each layer label
+    gains a rotary arc-scrubber control that can be dragged to modify that layer's value
+    for ALL selected steps simultaneously.
+  - The rotary row is visible ONLY while steps are selected. On deselection, the row
+    reverts to plain tabs.
+  - Track-type-aware cell content (note-grid / slicer / chord-generator), same stubs as C.
+
+  ROTARY TYPE ASSUMPTION (ux-review.md §Questions.3):
+  This prototype uses option (a): a small arc-slider inline with the layer label, shown as
+  a circular dial (SVG arc). This is labelled explicitly so the user can react to it.
+
+  MULTI-STEP ROTARY SEMANTICS (ux-review.md §Questions.5):
+  When multiple steps with DIFFERENT values are selected and a rotary is turned, this
+  prototype applies an ABSOLUTE value to all selected steps simultaneously. The rotary
+  initialises to the value of the first selected step. This assumption is labelled in the UI.
+
+  ASSUMPTIONS:
+  - OQ1 (existing-state.md §8.1): Layer edits write to clip-level MacroLane / ClipContent.
+  - Right-click = select (Shift+click in browser mockup).
+  - Trigger layer: left-click to toggle, no rotary (boolean has no continuous value).
+  - Velocity and Chance layers: rotary controls arc 0–100 (mapped to 0–127 / 0–100%).
+  - Slice layer: rotary snaps to integer slice indexes.
+  - Chord layer: rotary cycles through chord options.
+
+  INTERACTION BUDGET: Edit a layer value across selected steps in <=3 interactions.
+  Click-path: 1. Shift+click steps to select → 2. layer-tab row becomes rotary row →
+              3. drag rotary to set value on all selected steps.
+
+  VARIANT D DECISION: Rotary row replaces tab row while steps are selected. This
+  explores "controls above selected steps become editable" from notes.md.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[PROTOTYPE] Step Sequencer — Variant D: Rotary Layer Row</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #e8e8e8;
+    color: #111;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .proto-banner {
+    background: #111;
+    color: #f5f5f5;
+    padding: 6px 14px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .proto-banner .tag { opacity: 0.6; }
+
+  .shell {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #f5f5f5;
+    border: 1px solid #bbb;
+  }
+
+  /* ---- Stub app chrome ---- */
+  .app-chrome {
+    background: #ddd;
+    border-bottom: 1px dashed #aaa;
+    padding: 8px 14px;
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    gap: 16px;
+  }
+  .app-chrome span { border: 1px dashed #bbb; padding: 2px 8px; }
+
+  /* ---- Track header ---- */
+  .track-header {
+    background: #e0e0e0;
+    border-bottom: 1px solid #ccc;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .track-name { font-weight: 600; font-size: 12px; letter-spacing: 0.03em; }
+  .track-type-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: #bbb;
+    color: #fff;
+    padding: 2px 6px;
+  }
+  .track-selector { margin-left: auto; display: flex; gap: 6px; }
+  .track-selector button {
+    font-size: 11px;
+    padding: 3px 10px;
+    border: 1px solid #aaa;
+    background: #d8d8d8;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+  }
+  .track-selector button.active { background: #222; color: #fff; border-color: #222; }
+
+  /* ---- Layer row — two modes ---- */
+  .layer-row-container {
+    border-bottom: 2px solid #333;
+    background: #ebebeb;
+    min-height: 44px;
+    position: relative;
+  }
+
+  /* Tab mode */
+  .layer-tabs-mode {
+    display: flex;
+    padding: 0 14px;
+  }
+  .layer-tab {
+    padding: 6px 14px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: #555;
+    user-select: none;
+  }
+  .layer-tab:hover { background: #ddd; }
+  .layer-tab.active {
+    background: #f5f5f5;
+    border-color: #999;
+    border-bottom: 2px solid #f5f5f5;
+    margin-bottom: -2px;
+    color: #111;
+    font-weight: 600;
+  }
+  .layer-tab.stub { color: #bbb; cursor: default; border: 1px dashed #ccc; border-bottom: none; font-style: italic; }
+
+  /* Rotary mode */
+  .layer-rotary-mode {
+    display: none;
+    padding: 6px 14px;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .rotary-mode-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #c88000;
+    font-weight: 700;
+    white-space: nowrap;
+    margin-right: 4px;
+  }
+  .rotary-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 8px;
+    border: 1px solid #aaa;
+    background: #f0f0f0;
+    cursor: ns-resize;
+    user-select: none;
+    min-width: 56px;
+  }
+  .rotary-control:hover { background: #e4e4e4; }
+  .rotary-control.active-layer-rotary {
+    border-color: #c88000;
+    background: #fff8e8;
+  }
+  .rotary-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #555;
+    text-align: center;
+  }
+  .rotary-val {
+    font-size: 10px;
+    font-weight: 700;
+    color: #111;
+    text-align: center;
+    min-width: 28px;
+  }
+  /* SVG rotary dial */
+  .rotary-svg {
+    display: block;
+  }
+
+  /* When rotary mode is active */
+  .layer-row-container.selection-mode .layer-tabs-mode {
+    display: none;
+  }
+  .layer-row-container.selection-mode .layer-rotary-mode {
+    display: flex;
+  }
+
+  /* ---- Sequencer area ---- */
+  .sequencer-area { padding: 14px; }
+
+  .step-number-row {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 3px;
+  }
+  .step-number {
+    width: 40px;
+    text-align: center;
+    font-size: 9px;
+    color: #aaa;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .step-grid { display: flex; gap: 3px; }
+
+  /* ---- Step cell ---- */
+  .step-cell {
+    width: 40px;
+    height: 52px;
+    border: 1px solid #aaa;
+    background: #ddd;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+    overflow: hidden;
+    user-select: none;
+  }
+  .step-cell.active { background: #555; border-color: #333; }
+  .step-cell.playing { outline: 2px solid #3a9a3a; outline-offset: -1px; z-index: 2; }
+  .step-cell.selected { outline: 2px solid #c88000; outline-offset: -1px; z-index: 3; }
+  .step-cell.playing.selected { outline: 2px solid #c88000; box-shadow: inset 0 0 0 2px #3a9a3a; z-index: 4; }
+
+  /* Cell dot (trigger layer) */
+  .cell-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 1px solid #888;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .step-cell.active .cell-dot { background: #f0f0f0; border-color: #f0f0f0; }
+
+  /* Value bar */
+  .cell-bar-track { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; display: flex; align-items: flex-end; }
+  .cell-bar { width: 100%; background: #888; min-height: 2px; transition: height 0.05s; }
+  .step-cell.active .cell-bar { background: #b8b8b8; }
+  .step-cell.selected .cell-bar { background: #d8960a; }
+
+  /* Drag hint */
+  .drag-hint { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); font-size: 8px; color: #ccc; pointer-events: none; }
+  .step-cell.selected .drag-hint { color: #c88000; }
+
+  /* Option label */
+  .cell-option-label { position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; color: #888; pointer-events: none; }
+  .step-cell.active .cell-option-label { color: #eee; }
+  .step-cell.selected .cell-option-label { color: #c88000; }
+
+  /* Slice strip */
+  .cell-slice-strip { position: absolute; top: 4px; left: 4px; right: 4px; height: 8px; display: flex; gap: 1px; }
+  .slice-seg { flex: 1; background: #bbb; height: 100%; }
+  .slice-seg.highlighted { background: #888; }
+  .step-cell.active .slice-seg { background: #777; }
+  .step-cell.active .slice-seg.highlighted { background: #f0f0f0; }
+
+  /* Chord dots */
+  .cell-chord-dots { position: absolute; top: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 3px; }
+  .chord-dot { width: 5px; height: 5px; border-radius: 50%; background: #aaa; }
+  .chord-dot.active-degree { background: #555; }
+  .step-cell.active .chord-dot { background: #888; }
+  .step-cell.active .chord-dot.active-degree { background: #f0f0f0; }
+
+  /* Value tooltip */
+  .value-tooltip { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; font-size: 9px; padding: 1px 4px; pointer-events: none; white-space: nowrap; z-index: 10; display: none; }
+  .step-cell:hover .value-tooltip { display: block; }
+
+  /* ---- Batch action bar ---- */
+  .batch-bar { margin-top: 10px; padding: 6px 0; display: flex; align-items: center; gap: 8px; min-height: 32px; }
+  .batch-bar.hidden { visibility: hidden; }
+  .batch-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+  .batch-btn { font-size: 11px; padding: 3px 12px; border: 1px solid #888; background: #e4e4e4; cursor: pointer; letter-spacing: 0.03em; }
+  .batch-btn:hover { background: #ccc; }
+  .batch-btn.danger { border-color: #993333; color: #993333; }
+  .selection-count { font-size: 10px; color: #888; margin-left: auto; }
+
+  /* ---- Annotation ---- */
+  .annotation { background: #fffbe6; border: 1px solid #e0c000; padding: 6px 10px; font-size: 11px; margin-top: 10px; line-height: 1.5; }
+  .annotation strong { font-size: 11px; }
+
+  /* ---- Interaction assumption note ---- */
+  .assumption-note {
+    background: #f0f0ff;
+    border: 1px solid #9090cc;
+    padding: 6px 10px;
+    font-size: 10px;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  /* ---- Legend ---- */
+  .legend { margin-top: 16px; border: 1px dashed #bbb; padding: 10px 14px; font-size: 11px; background: #f0f0f0; }
+  .legend h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .legend ul { padding-left: 18px; }
+  .legend li { margin-bottom: 3px; line-height: 1.5; }
+  .legend code { background: #e0e0e0; padding: 0 3px; font-size: 10px; }
+
+  .color-legend { display: flex; gap: 14px; font-size: 10px; margin-top: 8px; flex-wrap: wrap; }
+  .color-swatch { display: flex; align-items: center; gap: 5px; }
+  .swatch-box { width: 14px; height: 14px; border: 1px solid #888; }
+
+  /* Rotary row transition annotation */
+  .transition-arrow {
+    text-align: center;
+    font-size: 11px;
+    color: #c88000;
+    padding: 4px;
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  <span>[PROTOTYPE] Step Sequencer — Variant D: Rotary Layer Row</span>
+  <span class="tag">NOT FOR PRODUCTION — Balsamiq-style wireframe</span>
+</div>
+
+<div class="shell">
+  <!-- Stub app chrome -->
+  <div class="app-chrome">
+    <span>-> [nav]</span>
+    <span>-> [transport / BPM]</span>
+    <span>-> [project]</span>
+  </div>
+
+  <!-- Track type selector -->
+  <div class="track-header">
+    <span class="track-name" id="current-track-name">Kick Drum</span>
+    <span class="track-type-badge" id="current-track-badge">Note Grid</span>
+    <div class="track-selector">
+      <button class="active" onclick="setTrackType('note-grid')">Note Grid</button>
+      <button onclick="setTrackType('slicer')">Slicer</button>
+      <button onclick="setTrackType('chord')">Chord Gen</button>
+    </div>
+  </div>
+
+  <!-- Layer row: tab mode OR rotary mode -->
+  <div class="layer-row-container" id="layer-row-container">
+    <!-- Tab mode (no selection) -->
+    <div class="layer-tabs-mode" id="layer-tabs"></div>
+    <!-- Rotary mode (steps selected) -->
+    <div class="layer-rotary-mode" id="layer-rotaries">
+      <span class="rotary-mode-label">&#9679; Step Edit</span>
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- Sequencer area -->
+  <div class="sequencer-area">
+    <div class="step-number-row" id="step-numbers"></div>
+    <div class="step-grid" id="step-grid"></div>
+
+    <div class="batch-bar hidden" id="batch-bar">
+      <span class="batch-label">Selection:</span>
+      <button class="batch-btn danger" onclick="clearSelected()">Clear</button>
+      <button class="batch-btn" onclick="stubAction('Copy')">Copy</button>
+      <button class="batch-btn" onclick="stubAction('Paste')">Paste</button>
+      <span class="selection-count" id="sel-count"></span>
+    </div>
+
+    <div class="annotation" id="layer-annotation"></div>
+
+    <div class="assumption-note">
+      <strong>Rotary assumption (labelled for user review):</strong>
+      When multiple steps with different values are selected, turning a rotary sets an
+      <em>absolute</em> value on all of them simultaneously. The rotary initialises to the value
+      of the lowest-indexed selected step. Alternative: relative delta mode (all values shift by
+      the same amount). Which semantics feel more natural — absolute or relative?
+    </div>
+
+  </div>
+
+  <!-- Legend -->
+  <div style="padding: 0 14px 14px;">
+    <div class="legend">
+      <h4>Interaction Contract (Variant D)</h4>
+      <ul>
+        <li><code>Left-click</code> inactive cell: toggle ON (trigger layer)</li>
+        <li><code>Left-click</code> active cell: toggle OFF (trigger layer)</li>
+        <li><code>Right-click</code> / <code>Shift+click</code>: select / deselect step — amber border</li>
+        <li>On selection: layer-tab row <strong>transforms into rotary controls</strong> (one per layer)</li>
+        <li><code>Drag up/down on rotary</code>: adjusts that layer's value on ALL selected steps</li>
+        <li>On deselection (all steps cleared or <code>Escape</code>): row reverts to tabs</li>
+        <li><code>Drag up/down on cell bar</code>: still works for single-cell edits (same as Variant C)</li>
+        <li>Option layers (slice / chord): rotary snaps to nearest integer index, cycling through options</li>
+        <li><strong>Interaction budget:</strong> multi-step layer edit in &lt;=3 interactions: (1) Shift+click steps → (2) rotary row appears → (3) drag rotary.</li>
+      </ul>
+    </div>
+    <div class="color-legend">
+      <div class="color-swatch"><div class="swatch-box" style="background:#ddd;"></div> Inactive</div>
+      <div class="color-swatch"><div class="swatch-box" style="background:#555;"></div> Active</div>
+      <div class="color-swatch"><div class="swatch-box" style="outline:2px solid #3a9a3a; outline-offset:-1px;"></div> Playing now</div>
+      <div class="color-swatch"><div class="swatch-box" style="outline:2px solid #c88000; outline-offset:-1px;"></div> Selected</div>
+      <div class="color-swatch"><div class="swatch-box" style="background:#c88000; opacity:0.4;"></div> Rotary row (selection mode)</div>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+// ============================================================
+//  Shared fixture data (same as Variant C for fair comparison)
+// ============================================================
+const STEP_COUNT = 16;
+
+const noteGridSteps = [
+  { active: true,  velocity: 90, chance: 100 },
+  { active: false, velocity: 60, chance: 80  },
+  { active: true,  velocity: 75, chance: 100 },
+  { active: false, velocity: 40, chance: 50  },
+  { active: true,  velocity: 100,chance: 100 },
+  { active: false, velocity: 55, chance: 30  },
+  { active: true,  velocity: 65, chance: 90  },
+  { active: false, velocity: 70, chance: 60  },
+  { active: true,  velocity: 80, chance: 100 },
+  { active: false, velocity: 45, chance: 70  },
+  { active: true,  velocity: 95, chance: 100 },
+  { active: false, velocity: 30, chance: 40  },
+  { active: true,  velocity: 72, chance: 85  },
+  { active: false, velocity: 88, chance: 55  },
+  { active: true,  velocity: 60, chance: 100 },
+  { active: false, velocity: 50, chance: 65  },
+];
+
+const slicerSteps = [
+  { active: true,  sliceIndex: 0, totalSlices: 8 },
+  { active: false, sliceIndex: 2, totalSlices: 8 },
+  { active: true,  sliceIndex: 1, totalSlices: 8 },
+  { active: false, sliceIndex: 5, totalSlices: 8 },
+  { active: true,  sliceIndex: 3, totalSlices: 8 },
+  { active: false, sliceIndex: 0, totalSlices: 8 },
+  { active: true,  sliceIndex: 7, totalSlices: 8 },
+  { active: false, sliceIndex: 4, totalSlices: 8 },
+  { active: true,  sliceIndex: 2, totalSlices: 8 },
+  { active: false, sliceIndex: 6, totalSlices: 8 },
+  { active: true,  sliceIndex: 1, totalSlices: 8 },
+  { active: false, sliceIndex: 3, totalSlices: 8 },
+  { active: true,  sliceIndex: 5, totalSlices: 8 },
+  { active: false, sliceIndex: 0, totalSlices: 8 },
+  { active: true,  sliceIndex: 7, totalSlices: 8 },
+  { active: false, sliceIndex: 4, totalSlices: 8 },
+];
+
+const CHORD_OPTIONS = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', 'I7', 'IV7', 'V7', 'ii7', 'iii7'];
+const CHORD_DEGREES = {
+  'I':   [1,0,1,0,1,0,0], 'ii':  [0,1,0,1,0,1,0], 'iii': [0,0,1,0,1,0,1],
+  'IV':  [1,0,0,1,0,1,0], 'V':   [0,1,0,0,1,0,1], 'vi':  [1,0,1,0,0,1,0],
+  'vii°':[0,1,0,1,0,0,1], 'I7':  [1,0,1,0,1,0,1], 'IV7': [1,0,0,1,0,1,1],
+  'V7':  [0,1,0,0,1,0,1], 'ii7': [0,1,0,1,0,1,1], 'iii7':[0,0,1,0,1,1,0],
+};
+const chordSteps = [
+  { active: true,  chordIdx: 0  }, { active: false, chordIdx: 3  },
+  { active: true,  chordIdx: 4  }, { active: false, chordIdx: 0  },
+  { active: true,  chordIdx: 5  }, { active: false, chordIdx: 2  },
+  { active: true,  chordIdx: 7  }, { active: false, chordIdx: 0  },
+  { active: true,  chordIdx: 3  }, { active: false, chordIdx: 4  },
+  { active: true,  chordIdx: 0  }, { active: false, chordIdx: 5  },
+  { active: true,  chordIdx: 11 }, { active: false, chordIdx: 0  },
+  { active: true,  chordIdx: 4  }, { active: false, chordIdx: 3  },
+];
+
+// ============================================================
+//  State
+// ============================================================
+let trackType = 'note-grid';
+let activeLayer = 'trigger';
+let selected = new Set();
+let playingStep = 3;
+
+const TRACK_CONFIGS = {
+  'note-grid': {
+    name: 'Kick Drum',
+    badge: 'Note Grid',
+    layers: [
+      { id: 'trigger',  label: 'Steps',    valueRange: null },
+      { id: 'velocity', label: 'Velocity', valueRange: [0, 100], valueKey: 'velocity' },
+      { id: 'chance',   label: 'Chance',   valueRange: [0, 100], valueKey: 'chance' },
+      { id: 'macro1',   label: 'Macro 1',  stub: true },
+    ],
+    defaultLayer: 'trigger',
+    steps: noteGridSteps,
+  },
+  'slicer': {
+    name: 'Break Loop',
+    badge: 'Slicer',
+    layers: [
+      { id: 'slice',    label: 'Slice',    valueRange: [0, 7],   valueKey: 'sliceIndex', isInt: true },
+      { id: 'velocity', label: 'Velocity', stub: true },
+      { id: 'chance',   label: 'Chance',   stub: true },
+    ],
+    defaultLayer: 'slice',
+    steps: slicerSteps,
+  },
+  'chord': {
+    name: 'Pad Chords — Cmaj "Nü-Jazz Stretch"',
+    badge: 'Chord Gen',
+    layers: [
+      { id: 'chord',    label: 'Chord',    valueRange: [0, CHORD_OPTIONS.length - 1], valueKey: 'chordIdx', isInt: true },
+      { id: 'velocity', label: 'Velocity', stub: true },
+      { id: 'chance',   label: 'Chance',   stub: true },
+    ],
+    defaultLayer: 'chord',
+    steps: chordSteps,
+  },
+};
+
+// ============================================================
+//  SVG Rotary Dial
+// ============================================================
+function makeRotarySVG(value, min, max, size) {
+  size = size || 32;
+  const pct = (value - min) / (max - min);
+  const startAngle = -225; // degrees from 12 o'clock, CCW
+  const totalArc = 270;
+  const angle = startAngle + pct * totalArc;
+  const r = (size / 2) - 4;
+  const cx = size / 2, cy = size / 2;
+
+  // Track arc (background)
+  function polarToXY(angleDeg, radius) {
+    const rad = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
+  }
+
+  const startPt = polarToXY(startAngle, r);
+  const currentPt = polarToXY(angle, r);
+  const largeArc = (pct * totalArc) > 180 ? 1 : 0;
+
+  const trackStart = polarToXY(startAngle, r);
+  const trackEnd = polarToXY(startAngle + totalArc, r);
+
+  // Indicator line
+  const indPt = polarToXY(angle, r - 3);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svg.classList.add('rotary-svg');
+
+  // BG track
+  const bgPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const sweep = startAngle + totalArc;
+  const bgPt = polarToXY(sweep, r);
+  bgPath.setAttribute('d', `M ${trackStart.x} ${trackStart.y} A ${r} ${r} 0 1 1 ${bgPt.x} ${bgPt.y}`);
+  bgPath.setAttribute('stroke', '#ccc');
+  bgPath.setAttribute('stroke-width', '3');
+  bgPath.setAttribute('fill', 'none');
+  bgPath.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(bgPath);
+
+  // Value arc
+  if (pct > 0) {
+    const valPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    valPath.setAttribute('d', `M ${startPt.x} ${startPt.y} A ${r} ${r} 0 ${largeArc} 1 ${currentPt.x} ${currentPt.y}`);
+    valPath.setAttribute('stroke', '#c88000');
+    valPath.setAttribute('stroke-width', '3');
+    valPath.setAttribute('fill', 'none');
+    valPath.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(valPath);
+  }
+
+  // Centre dot
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('cx', cx);
+  dot.setAttribute('cy', cy);
+  dot.setAttribute('r', 3);
+  dot.setAttribute('fill', '#555');
+  svg.appendChild(dot);
+
+  return svg;
+}
+
+// ============================================================
+//  Rendering
+// ============================================================
+function setTrackType(type) {
+  trackType = type;
+  selected.clear();
+  const cfg = TRACK_CONFIGS[type];
+  activeLayer = cfg.defaultLayer;
+  document.getElementById('current-track-name').textContent = cfg.name;
+  document.getElementById('current-track-badge').textContent = cfg.badge;
+  document.querySelectorAll('.track-selector button').forEach((b, i) => {
+    b.classList.toggle('active', ['note-grid','slicer','chord'][i] === type);
+  });
+  renderLayerRow();
+  renderGrid();
+  renderBatchBar();
+}
+
+function setLayer(layerId) {
+  const cfg = TRACK_CONFIGS[trackType];
+  const layerDef = cfg.layers.find(l => l.id === layerId);
+  if (layerDef && layerDef.stub) {
+    alert('[STUB] Layer "' + layerDef.label + '" not prototyped in this variant.');
+    return;
+  }
+  activeLayer = layerId;
+  renderLayerRow();
+  renderGrid();
+}
+
+function renderLayerRow() {
+  const cfg = TRACK_CONFIGS[trackType];
+  const hasSelection = selected.size > 0;
+  const container = document.getElementById('layer-row-container');
+  container.classList.toggle('selection-mode', hasSelection);
+
+  // Render tabs
+  const tabsEl = document.getElementById('layer-tabs');
+  tabsEl.innerHTML = '';
+  cfg.layers.forEach(layer => {
+    const tab = document.createElement('div');
+    tab.className = 'layer-tab' + (layer.stub ? ' stub' : '') + (layer.id === activeLayer ? ' active' : '');
+    tab.textContent = layer.label;
+    if (!layer.stub) tab.onclick = () => setLayer(layer.id);
+    tabsEl.appendChild(tab);
+  });
+
+  // Render rotaries (only non-stub, non-trigger layers)
+  const rotariesEl = document.getElementById('layer-rotaries');
+  // Preserve the label; clear only rotary controls
+  Array.from(rotariesEl.querySelectorAll('.rotary-control')).forEach(r => r.remove());
+
+  const editableLayers = cfg.layers.filter(l => !l.stub && l.valueRange && l.id !== 'trigger');
+  editableLayers.forEach(layer => {
+    const ctrl = document.createElement('div');
+    ctrl.className = 'rotary-control' + (layer.id === activeLayer ? ' active-layer-rotary' : '');
+    ctrl.dataset.layerId = layer.id;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'rotary-label';
+    lbl.textContent = layer.label;
+
+    // Compute current value from first selected step
+    const firstIdx = [...selected][0];
+    const firstStep = cfg.steps[firstIdx];
+    let currentVal = 50;
+    if (firstStep && layer.valueKey) {
+      currentVal = firstStep[layer.valueKey];
+      if (layer.valueRange) {
+        // Normalise to 0–100
+        currentVal = Math.round((currentVal - layer.valueRange[0]) / (layer.valueRange[1] - layer.valueRange[0]) * 100);
+      }
+    }
+
+    const valLbl = document.createElement('div');
+    valLbl.className = 'rotary-val';
+    valLbl.textContent = getRotaryDisplayVal(layer, firstStep);
+
+    const dialSVG = makeRotarySVG(currentVal, 0, 100, 32);
+
+    ctrl.appendChild(lbl);
+    ctrl.appendChild(dialSVG);
+    ctrl.appendChild(valLbl);
+
+    makeRotaryDraggable(ctrl, layer, valLbl, dialSVG);
+
+    rotariesEl.appendChild(ctrl);
+  });
+
+  if (editableLayers.length === 0 && hasSelection) {
+    // Trigger-only track type (shouldn't happen in current config, but guard)
+    const note = document.createElement('span');
+    note.style.fontSize = '10px';
+    note.style.color = '#888';
+    note.textContent = 'No value layers — toggle only.';
+    rotariesEl.appendChild(note);
+  }
+}
+
+function getRotaryDisplayVal(layer, step) {
+  if (!step || !layer.valueKey) return '—';
+  const raw = step[layer.valueKey];
+  if (layer.id === 'chord') return CHORD_OPTIONS[raw] || '?';
+  if (layer.id === 'slice') return 'S' + (raw + 1);
+  if (layer.id === 'velocity') return raw;
+  if (layer.id === 'chance') return raw + '%';
+  return raw;
+}
+
+function makeRotaryDraggable(ctrl, layer, valLbl, dialSVGEl) {
+  let startY = null;
+  let startNorm = null; // 0–1
+
+  ctrl.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startY = e.clientY;
+    const cfg = TRACK_CONFIGS[trackType];
+    const firstIdx = [...selected][0];
+    const firstStep = cfg.steps[firstIdx];
+    if (!firstStep || !layer.valueKey) return;
+
+    const raw = firstStep[layer.valueKey];
+    const [rMin, rMax] = layer.valueRange;
+    startNorm = (raw - rMin) / (rMax - rMin);
+
+    function onMove(ev) {
+      const delta = -(ev.clientY - startY) / 80; // 80px = full range
+      const newNorm = Math.max(0, Math.min(1, startNorm + delta));
+      const cfg2 = TRACK_CONFIGS[trackType];
+      const [rMin2, rMax2] = layer.valueRange;
+      let newRaw = newNorm * (rMax2 - rMin2) + rMin2;
+      if (layer.isInt) newRaw = Math.round(newRaw);
+      else newRaw = Math.round(newRaw);
+
+      // Apply to all selected steps (ABSOLUTE)
+      selected.forEach(idx => {
+        cfg2.steps[idx][layer.valueKey] = newRaw;
+      });
+
+      // Update dial display
+      const displayNorm = (newRaw - rMin2) / (rMax2 - rMin2);
+      const newSVG = makeRotarySVG(displayNorm * 100, 0, 100, 32);
+      dialSVGEl.replaceWith(newSVG);
+      dialSVGEl = newSVG;
+      makeRotaryDraggable(ctrl, layer, valLbl, dialSVGEl);
+
+      // Update value label
+      const firstStep2 = cfg2.steps[[...selected][0]];
+      valLbl.textContent = getRotaryDisplayVal(layer, firstStep2);
+
+      // Re-render grid to show updated values
+      renderGrid();
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function renderGrid() {
+  const cfg = TRACK_CONFIGS[trackType];
+  const steps = cfg.steps;
+
+  const numRow = document.getElementById('step-numbers');
+  numRow.innerHTML = '';
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const n = document.createElement('div');
+    n.className = 'step-number';
+    n.textContent = i + 1;
+    numRow.appendChild(n);
+  }
+
+  const grid = document.getElementById('step-grid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const step = steps[i];
+    const cell = document.createElement('div');
+    cell.className = 'step-cell';
+    cell.dataset.index = i;
+    if (step.active) cell.classList.add('active');
+    if (i === playingStep) cell.classList.add('playing');
+    if (selected.has(i)) cell.classList.add('selected');
+
+    const tt = document.createElement('div');
+    tt.className = 'value-tooltip';
+    tt.textContent = getTooltipText(cfg, step);
+    cell.appendChild(tt);
+
+    renderCellInterior(cell, step);
+
+    cell.addEventListener('click', (e) => {
+      if (e.shiftKey) {
+        toggleSelect(i);
+      } else {
+        if (activeLayer === 'trigger') toggleActive(cfg, i);
+        else if (activeLayer === 'slice') { cycleSlice(i); }
+        else if (activeLayer === 'chord') { cycleChord(i); }
+      }
+    });
+    cell.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleSelect(i); });
+
+    if (activeLayer === 'velocity' || activeLayer === 'chance') {
+      makeCellDraggable(cell, cfg, i);
+    }
+
+    grid.appendChild(cell);
+  }
+
+  renderAnnotation();
+}
+
+function getTooltipText(cfg, step) {
+  if (activeLayer === 'velocity') return 'vel: ' + step.velocity;
+  if (activeLayer === 'chance') return 'chance: ' + step.chance + '%';
+  if (activeLayer === 'slice') return 'slice: ' + (step.sliceIndex + 1);
+  if (activeLayer === 'chord') return CHORD_OPTIONS[step.chordIdx] || '?';
+  return step.active ? 'on' : 'off';
+}
+
+function renderCellInterior(cell, step) {
+  Array.from(cell.children).forEach(c => { if (!c.classList.contains('value-tooltip')) c.remove(); });
+
+  if (activeLayer === 'trigger') {
+    const dot = document.createElement('div');
+    dot.className = 'cell-dot';
+    cell.appendChild(dot);
+
+  } else if (activeLayer === 'velocity' || activeLayer === 'chance') {
+    const barTrack = document.createElement('div');
+    barTrack.className = 'cell-bar-track';
+    const bar = document.createElement('div');
+    bar.className = 'cell-bar';
+    const val = activeLayer === 'velocity' ? step.velocity : step.chance;
+    bar.style.height = val + '%';
+    barTrack.appendChild(bar);
+    cell.appendChild(barTrack);
+    const hint = document.createElement('div');
+    hint.className = 'drag-hint';
+    hint.textContent = '↕';
+    cell.appendChild(hint);
+
+  } else if (activeLayer === 'slice') {
+    const strip = document.createElement('div');
+    strip.className = 'cell-slice-strip';
+    const total = step.totalSlices || 8;
+    for (let s = 0; s < total; s++) {
+      const seg = document.createElement('div');
+      seg.className = 'slice-seg' + (s === step.sliceIndex ? ' highlighted' : '');
+      strip.appendChild(seg);
+    }
+    cell.appendChild(strip);
+    const label = document.createElement('div');
+    label.className = 'cell-option-label';
+    label.textContent = 'S' + (step.sliceIndex + 1);
+    cell.appendChild(label);
+
+  } else if (activeLayer === 'chord') {
+    const chordName = CHORD_OPTIONS[step.chordIdx] || '?';
+    const degrees = CHORD_DEGREES[chordName] || [0,0,0,0,0,0,0];
+    const dotsRow = document.createElement('div');
+    dotsRow.className = 'cell-chord-dots';
+    degrees.forEach((lit) => {
+      const dot = document.createElement('div');
+      dot.className = 'chord-dot' + (lit ? ' active-degree' : '');
+      dotsRow.appendChild(dot);
+    });
+    cell.appendChild(dotsRow);
+    const label = document.createElement('div');
+    label.className = 'cell-option-label';
+    label.textContent = chordName;
+    cell.appendChild(label);
+  }
+}
+
+function renderAnnotation() {
+  const el = document.getElementById('layer-annotation');
+  const selCount = selected.size;
+  const annotations = {
+    'trigger':  '<strong>Layer: Steps (trigger)</strong> — Left-click toggles. Shift+click (or right-click) selects. When steps are selected, the layer row above transforms into rotary controls for value layers.',
+    'velocity': '<strong>Layer: Velocity</strong> — Drag bar inside cell for single-step edits. Or: Shift+click multiple steps, then drag the Velocity rotary above to set all selected steps at once.',
+    'chance':   '<strong>Layer: Chance</strong> — Same as velocity. Drag bar = chance %. Rotary row sets all selected steps simultaneously.',
+    'slice':    '<strong>Layer: Slice</strong> — Left-click cycles through 8 slices. Or: select steps, drag Slice rotary (snaps to integer 1–8). Strip highlights assigned slice.',
+    'chord':    '<strong>Layer: Chord</strong> — Left-click cycles chord options. Or: select steps, drag Chord rotary (snaps to chord index). Dots show scale degrees.',
+  };
+  const selNote = selCount > 0
+    ? '<br><em>' + selCount + ' step(s) selected — rotary row is active above the grid. Press Escape to deselect.</em>'
+    : '';
+  el.innerHTML = (annotations[activeLayer] || '') + selNote;
+}
+
+// ============================================================
+//  Interactions
+// ============================================================
+function toggleActive(cfg, idx) {
+  cfg.steps[idx].active = !cfg.steps[idx].active;
+  renderGrid();
+}
+
+function toggleSelect(idx) {
+  if (selected.has(idx)) selected.delete(idx);
+  else selected.add(idx);
+  renderLayerRow();
+  renderGrid();
+  renderBatchBar();
+}
+
+function clearSelected() {
+  const cfg = TRACK_CONFIGS[trackType];
+  selected.forEach(idx => { cfg.steps[idx].active = false; });
+  selected.clear();
+  renderLayerRow();
+  renderGrid();
+  renderBatchBar();
+}
+
+function stubAction(name) {
+  alert('[STUB] ' + name + ' not prototyped.');
+}
+
+function cycleSlice(idx) {
+  const step = slicerSteps[idx];
+  step.sliceIndex = (step.sliceIndex + 1) % step.totalSlices;
+  if (!step.active) step.active = true;
+  renderGrid();
+}
+
+function cycleChord(idx) {
+  const step = chordSteps[idx];
+  step.chordIdx = (step.chordIdx + 1) % CHORD_OPTIONS.length;
+  if (!step.active) step.active = true;
+  renderGrid();
+}
+
+function makeCellDraggable(cell, cfg, idx) {
+  let startY = null;
+  let startVal = null;
+  cell.addEventListener('mousedown', (e) => {
+    if (e.shiftKey) return;
+    startY = e.clientY;
+    startVal = activeLayer === 'velocity' ? cfg.steps[idx].velocity : cfg.steps[idx].chance;
+    e.preventDefault();
+    function onMove(e) {
+      const delta = startY - e.clientY;
+      const newVal = Math.max(0, Math.min(100, startVal + delta));
+      const targets = selected.has(idx) ? [...selected] : [idx];
+      targets.forEach(ti => {
+        if (activeLayer === 'velocity') cfg.steps[ti].velocity = Math.round(newVal);
+        else cfg.steps[ti].chance = Math.round(newVal);
+      });
+      renderGrid();
+      if (selected.size > 0) renderLayerRow();
+    }
+    function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function renderBatchBar() {
+  const bar = document.getElementById('batch-bar');
+  const count = document.getElementById('sel-count');
+  if (selected.size === 0) {
+    bar.classList.add('hidden');
+  } else {
+    bar.classList.remove('hidden');
+    count.textContent = selected.size + ' step' + (selected.size > 1 ? 's' : '') + ' selected';
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    selected.clear();
+    renderLayerRow();
+    renderGrid();
+    renderBatchBar();
+  }
+});
+
+// ============================================================
+//  Init
+// ============================================================
+setTrackType('note-grid');
+</script>
+</body>
+</html>

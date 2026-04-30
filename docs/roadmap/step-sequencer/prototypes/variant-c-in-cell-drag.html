@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE: Step Sequencer — Variant C: In-Cell Drag Editing (no panel)
+  =======================================================================
+  This is a Balsamiq-style design prototype. It is NOT a production proposal.
+  Dashed borders and grey fills indicate stubbed areas.
+
+  REWORK BRIEF (from ux-review.md):
+  - No popup or panel when a step is selected. The cell IS the editing surface.
+  - Cell content is track-type-aware: note-grid / slicer / chord-generator each differ.
+  - Value layers (velocity, chance) show a vertical bar that is directly draggable.
+  - Option layers (slicer slice, chord name) cycle on tap.
+  - Layer tabs above the grid remain tabs (not rotaries) — see Variant D for the rotary row.
+
+  ASSUMPTIONS:
+  - OQ1 (existing-state.md §8.1): Layer edits write to clip-level MacroLane / ClipContent.
+  - OQ2 (ux-review.md §Questions.2): On touch, tap selects the step and expands a drag zone
+    to full cell width. This prototype uses a keyboard modifier (Shift+click) to simulate
+    "tap-to-select then drag-to-value" because the browser cannot simultaneously receive a
+    tap-to-select and a drag on the same element in a mockup. The expanded drag zone on
+    selection is annotated visually.
+  - Multi-step semantics: when multiple steps with different velocities are selected,
+    dragging sets an ABSOLUTE value on all selected steps.
+
+  TRACK TYPES SHOWN:
+  1. Note Grid — trigger layer (dot), velocity layer (bar), chance layer (bar)
+  2. Slicer Track — on/off + slice label cycles on tap
+  3. Chord Generator — on/off + chord name cycles on tap
+
+  INTERACTION BUDGET: Edit a step value in <=2 interactions.
+  Click-path: 1. click layer tab to show value layer → 2. drag bar up/down inside cell.
+  Toggle path: 1. left-click cell to toggle (1 interaction).
+
+  VARIANT C DECISION: No secondary panel. Layer tabs stay tabs. Cell is the only editor.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[PROTOTYPE] Step Sequencer — Variant C: In-Cell Drag</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #e8e8e8;
+    color: #111;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .proto-banner {
+    background: #111;
+    color: #f5f5f5;
+    padding: 6px 14px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .proto-banner .tag { opacity: 0.6; }
+
+  .shell {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #f5f5f5;
+    border: 1px solid #bbb;
+  }
+
+  /* ---- Stub app chrome ---- */
+  .app-chrome {
+    background: #ddd;
+    border-bottom: 1px dashed #aaa;
+    padding: 8px 14px;
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    gap: 16px;
+  }
+  .app-chrome span { border: 1px dashed #bbb; padding: 2px 8px; }
+
+  /* ---- Track header ---- */
+  .track-header {
+    background: #e0e0e0;
+    border-bottom: 1px solid #ccc;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .track-name {
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+  }
+  .track-type-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: #bbb;
+    color: #fff;
+    padding: 2px 6px;
+  }
+  .track-selector {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+  .track-selector button {
+    font-size: 11px;
+    padding: 3px 10px;
+    border: 1px solid #aaa;
+    background: #d8d8d8;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+  }
+  .track-selector button.active {
+    background: #222;
+    color: #fff;
+    border-color: #222;
+  }
+
+  /* ---- Layer tabs ---- */
+  .layer-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #333;
+    padding: 0 14px;
+    background: #ebebeb;
+  }
+  .layer-tab {
+    padding: 6px 14px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: #555;
+    user-select: none;
+  }
+  .layer-tab:hover { background: #ddd; }
+  .layer-tab.active {
+    background: #f5f5f5;
+    border-color: #999;
+    border-bottom: 2px solid #f5f5f5;
+    margin-bottom: -2px;
+    color: #111;
+    font-weight: 600;
+  }
+  .layer-tab.stub {
+    color: #bbb;
+    cursor: default;
+    border: 1px dashed #ccc;
+    border-bottom: none;
+    font-style: italic;
+  }
+
+  /* ---- Step grid area ---- */
+  .sequencer-area {
+    padding: 14px;
+  }
+
+  .step-number-row {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 3px;
+    padding-left: 0;
+  }
+  .step-number {
+    width: 40px;
+    text-align: center;
+    font-size: 9px;
+    color: #aaa;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .step-grid {
+    display: flex;
+    gap: 3px;
+  }
+
+  /* ---- Step cell ---- */
+  .step-cell {
+    width: 40px;
+    height: 52px;
+    border: 1px solid #aaa;
+    background: #ddd;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+    overflow: hidden;
+    user-select: none;
+  }
+  /* active state */
+  .step-cell.active {
+    background: #555;
+    border-color: #333;
+  }
+  /* playing state */
+  .step-cell.playing {
+    outline: 2px solid #3a9a3a;
+    outline-offset: -1px;
+    z-index: 2;
+  }
+  /* selected state */
+  .step-cell.selected {
+    outline: 2px solid #c88000;
+    outline-offset: -1px;
+    z-index: 3;
+  }
+  /* playing AND selected */
+  .step-cell.playing.selected {
+    outline: 2px solid #c88000;
+    box-shadow: inset 0 0 0 2px #3a9a3a;
+    z-index: 4;
+  }
+
+  /* ---- Layer: trigger (dot) ---- */
+  .cell-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid #888;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .step-cell.active .cell-dot {
+    background: #f0f0f0;
+    border-color: #f0f0f0;
+  }
+  .step-cell:not(.active) .cell-dot {
+    background: transparent;
+  }
+
+  /* ---- Layer: value bar (velocity / chance) ---- */
+  .cell-bar-track {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+  }
+  .cell-bar {
+    width: 100%;
+    background: #888;
+    transition: height 0.05s;
+    cursor: ns-resize;
+    min-height: 2px;
+  }
+  .step-cell.active .cell-bar { background: #b8b8b8; }
+  .step-cell.selected .cell-bar { background: #d8960a; }
+
+  /* drag affordance annotation */
+  .drag-hint {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    color: #ccc;
+    letter-spacing: 0;
+    pointer-events: none;
+  }
+  .step-cell.selected .drag-hint { color: #c88000; }
+
+  /* ---- Layer: option (slicer / chord) ---- */
+  .cell-option-label {
+    position: absolute;
+    bottom: 5px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #888;
+    pointer-events: none;
+  }
+  .step-cell.active .cell-option-label { color: #eee; }
+  .step-cell.selected .cell-option-label { color: #c88000; }
+
+  /* slicer segment strip */
+  .cell-slice-strip {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    height: 8px;
+    display: flex;
+    gap: 1px;
+  }
+  .slice-seg {
+    flex: 1;
+    background: #bbb;
+    height: 100%;
+  }
+  .slice-seg.highlighted {
+    background: #888;
+  }
+  .step-cell.active .slice-seg { background: #777; }
+  .step-cell.active .slice-seg.highlighted { background: #f0f0f0; }
+
+  /* chord degree dots */
+  .cell-chord-dots {
+    position: absolute;
+    top: 6px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+  }
+  .chord-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #aaa;
+  }
+  .chord-dot.active-degree { background: #555; }
+  .step-cell.active .chord-dot { background: #888; }
+  .step-cell.active .chord-dot.active-degree { background: #f0f0f0; }
+
+  /* ---- Batch action bar ---- */
+  .batch-bar {
+    margin-top: 10px;
+    padding: 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+  }
+  .batch-bar.hidden { visibility: hidden; }
+  .batch-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 4px;
+  }
+  .batch-btn {
+    font-size: 11px;
+    padding: 3px 12px;
+    border: 1px solid #888;
+    background: #e4e4e4;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+  }
+  .batch-btn:hover { background: #ccc; }
+  .batch-btn.danger { border-color: #993333; color: #993333; }
+  .selection-count {
+    font-size: 10px;
+    color: #888;
+    margin-left: auto;
+  }
+
+  /* ---- Annotation callouts ---- */
+  .annotation {
+    background: #fffbe6;
+    border: 1px solid #e0c000;
+    padding: 6px 10px;
+    font-size: 11px;
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .annotation strong { font-size: 11px; }
+
+  /* ---- Track section divider ---- */
+  .track-section {
+    border-top: 2px solid #ccc;
+    padding-top: 14px;
+    margin-top: 18px;
+  }
+  .track-section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #888;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .track-section-label::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed #ccc;
+  }
+
+  /* ---- Interaction legend ---- */
+  .legend {
+    margin-top: 16px;
+    border: 1px dashed #bbb;
+    padding: 10px 14px;
+    font-size: 11px;
+    background: #f0f0f0;
+  }
+  .legend h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .legend ul { padding-left: 18px; }
+  .legend li { margin-bottom: 3px; line-height: 1.5; }
+  .legend code { background: #e0e0e0; padding: 0 3px; font-size: 10px; }
+
+  /* ---- State color legend ---- */
+  .color-legend {
+    display: flex;
+    gap: 14px;
+    font-size: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .color-swatch {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .swatch-box {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #888;
+  }
+
+  /* ---- Value tooltip ---- */
+  .value-tooltip {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #fff;
+    font-size: 9px;
+    padding: 1px 4px;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+    display: none;
+  }
+  .step-cell:hover .value-tooltip { display: block; }
+
+  /* selected step shows expanded drag zone annotation */
+  .expand-hint {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px dashed #c88000;
+    pointer-events: none;
+    display: none;
+  }
+  .step-cell.selected .expand-hint { display: block; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  <span>[PROTOTYPE] Step Sequencer — Variant C: In-Cell Drag (no panel)</span>
+  <span class="tag">NOT FOR PRODUCTION — Balsamiq-style wireframe</span>
+</div>
+
+<div class="shell">
+  <!-- Stub app chrome -->
+  <div class="app-chrome">
+    <span>-> [nav]</span>
+    <span>-> [transport / BPM]</span>
+    <span>-> [project]</span>
+  </div>
+
+  <!-- Track type selector (top-level for this prototype) -->
+  <div class="track-header">
+    <span class="track-name" id="current-track-name">Kick Drum</span>
+    <span class="track-type-badge" id="current-track-badge">Note Grid</span>
+    <div class="track-selector">
+      <button class="active" onclick="setTrackType('note-grid')">Note Grid</button>
+      <button onclick="setTrackType('slicer')">Slicer</button>
+      <button onclick="setTrackType('chord')">Chord Gen</button>
+    </div>
+  </div>
+
+  <!-- Layer tabs -->
+  <div class="layer-tabs" id="layer-tabs">
+    <!-- rendered by JS per track type -->
+  </div>
+
+  <!-- Sequencer area -->
+  <div class="sequencer-area">
+    <!-- Step number row -->
+    <div class="step-number-row" id="step-numbers"></div>
+    <!-- Step grid -->
+    <div class="step-grid" id="step-grid"></div>
+
+    <!-- Batch action bar -->
+    <div class="batch-bar hidden" id="batch-bar">
+      <span class="batch-label">Selection:</span>
+      <button class="batch-btn danger" onclick="clearSelected()">Clear</button>
+      <button class="batch-btn" onclick="stubAction('Copy')">Copy</button>
+      <button class="batch-btn" onclick="stubAction('Paste')">Paste</button>
+      <span class="selection-count" id="sel-count"></span>
+    </div>
+
+    <!-- Annotations -->
+    <div class="annotation" id="layer-annotation"></div>
+
+    <!-- Track-type sections: slicer and chord generator static cell examples -->
+    <div class="track-section" id="alt-track-section" style="display:none">
+      <div class="track-section-label">Track-type cell examples (static stubs)</div>
+      <div id="alt-track-grid" style="display:flex; gap:3px; flex-wrap:wrap;"></div>
+      <div class="annotation" id="alt-annotation"></div>
+    </div>
+
+  </div><!-- /sequencer-area -->
+
+  <!-- Interaction legend -->
+  <div style="padding: 0 14px 14px;">
+    <div class="legend">
+      <h4>Interaction Contract (Variant C)</h4>
+      <ul>
+        <li><code>Left-click</code> on inactive cell: toggle ON</li>
+        <li><code>Left-click</code> on active cell: toggle OFF</li>
+        <li><code>Right-click</code> (or <code>Shift+click</code> in this mockup): select / deselect step — amber border appears, batch bar shown</li>
+        <li><code>Drag up/down</code> on a value-layer cell: change bar height (velocity / chance) — no panel opens</li>
+        <li><code>Left-click</code> on an option-layer cell (slicer / chord): cycles through options</li>
+        <li><code>Escape</code>: deselect all</li>
+        <li><strong>Interaction budget:</strong> Edit a step value in &lt;=2 interactions: (1) click layer tab → (2) drag bar inside cell.</li>
+      </ul>
+    </div>
+    <div class="color-legend">
+      <div class="color-swatch"><div class="swatch-box" style="background:#ddd;"></div> Inactive</div>
+      <div class="color-swatch"><div class="swatch-box" style="background:#555;"></div> Active</div>
+      <div class="color-swatch"><div class="swatch-box" style="outline: 2px solid #3a9a3a; outline-offset:-1px;"></div> Playing now</div>
+      <div class="color-swatch"><div class="swatch-box" style="outline: 2px solid #c88000; outline-offset:-1px;"></div> Selected</div>
+      <div class="color-swatch"><div class="swatch-box" style="background:#888;"></div> Value bar (inactive step)</div>
+      <div class="color-swatch"><div class="swatch-box" style="background:#b8b8b8;"></div> Value bar (active step)</div>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+// ============================================================
+//  Data model (fixture)
+// ============================================================
+const STEP_COUNT = 16;
+
+// Note grid fixture: active pattern + velocity + chance
+const noteGridSteps = [
+  { active: true,  velocity: 90, chance: 100 },
+  { active: false, velocity: 60, chance: 80  },
+  { active: true,  velocity: 75, chance: 100 },
+  { active: false, velocity: 40, chance: 50  },
+  { active: true,  velocity: 100,chance: 100 },
+  { active: false, velocity: 55, chance: 30  },
+  { active: true,  velocity: 65, chance: 90  },
+  { active: false, velocity: 70, chance: 60  },
+  { active: true,  velocity: 80, chance: 100 },
+  { active: false, velocity: 45, chance: 70  },
+  { active: true,  velocity: 95, chance: 100 },
+  { active: false, velocity: 30, chance: 40  },
+  { active: true,  velocity: 72, chance: 85  },
+  { active: false, velocity: 88, chance: 55  },
+  { active: true,  velocity: 60, chance: 100 },
+  { active: false, velocity: 50, chance: 65  },
+];
+
+// Slicer fixture: 8-slice sampler (adversarial: 8 slices, step cycles through them)
+const slicerSteps = [
+  { active: true,  sliceIndex: 0, totalSlices: 8 },
+  { active: false, sliceIndex: 2, totalSlices: 8 },
+  { active: true,  sliceIndex: 1, totalSlices: 8 },
+  { active: false, sliceIndex: 5, totalSlices: 8 },
+  { active: true,  sliceIndex: 3, totalSlices: 8 },
+  { active: false, sliceIndex: 0, totalSlices: 8 },
+  { active: true,  sliceIndex: 7, totalSlices: 8 },
+  { active: false, sliceIndex: 4, totalSlices: 8 },
+  { active: true,  sliceIndex: 2, totalSlices: 8 },
+  { active: false, sliceIndex: 6, totalSlices: 8 },
+  { active: true,  sliceIndex: 1, totalSlices: 8 },
+  { active: false, sliceIndex: 3, totalSlices: 8 },
+  { active: true,  sliceIndex: 5, totalSlices: 8 },
+  { active: false, sliceIndex: 0, totalSlices: 8 },
+  { active: true,  sliceIndex: 7, totalSlices: 8 },
+  { active: false, sliceIndex: 4, totalSlices: 8 },
+];
+
+// Chord generator fixture: adversarial chord names including 7ths, suspensions
+const CHORD_OPTIONS = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', 'I7', 'IV7', 'V7', 'ii7', 'iii7'];
+// Chord degree dots: which scale degrees are lit for each chord option
+const CHORD_DEGREES = {
+  'I':   [1,0,1,0,1,0,0],
+  'ii':  [0,1,0,1,0,1,0],
+  'iii': [0,0,1,0,1,0,1],
+  'IV':  [1,0,0,1,0,1,0],
+  'V':   [0,1,0,0,1,0,1],
+  'vi':  [1,0,1,0,0,1,0],
+  'vii°':[0,1,0,1,0,0,1],
+  'I7':  [1,0,1,0,1,0,1],
+  'IV7': [1,0,0,1,0,1,1],
+  'V7':  [0,1,0,0,1,0,1],
+  'ii7': [0,1,0,1,0,1,1],
+  'iii7':[0,0,1,0,1,1,0],
+};
+const chordSteps = [
+  { active: true,  chordIdx: 0  },
+  { active: false, chordIdx: 3  },
+  { active: true,  chordIdx: 4  },
+  { active: false, chordIdx: 0  },
+  { active: true,  chordIdx: 5  },
+  { active: false, chordIdx: 2  },
+  { active: true,  chordIdx: 7  },
+  { active: false, chordIdx: 0  },
+  { active: true,  chordIdx: 3  },
+  { active: false, chordIdx: 4  },
+  { active: true,  chordIdx: 0  },
+  { active: false, chordIdx: 5  },
+  { active: true,  chordIdx: 11 },
+  { active: false, chordIdx: 0  },
+  { active: true,  chordIdx: 4  },
+  { active: false, chordIdx: 3  },
+];
+
+// ============================================================
+//  State
+// ============================================================
+let trackType = 'note-grid'; // 'note-grid' | 'slicer' | 'chord'
+let activeLayer = 'trigger';  // 'trigger' | 'velocity' | 'chance' | 'slice' | 'chord'
+let selected = new Set();
+let playingStep = 3; // mock the current playing step
+
+// ============================================================
+//  Track type config
+// ============================================================
+const TRACK_CONFIGS = {
+  'note-grid': {
+    name: 'Kick Drum',
+    badge: 'Note Grid',
+    layers: [
+      { id: 'trigger',  label: 'Steps' },
+      { id: 'velocity', label: 'Velocity' },
+      { id: 'chance',   label: 'Chance' },
+      { id: 'macro1',   label: 'Macro 1', stub: true },
+    ],
+    defaultLayer: 'trigger',
+    steps: noteGridSteps,
+  },
+  'slicer': {
+    name: 'Break Loop',
+    badge: 'Slicer',
+    layers: [
+      { id: 'slice', label: 'Slice' },
+      { id: 'velocity', label: 'Velocity', stub: true },
+      { id: 'chance',   label: 'Chance', stub: true },
+    ],
+    defaultLayer: 'slice',
+    steps: slicerSteps,
+  },
+  'chord': {
+    name: 'Pad Chords — Cmaj "Nü-Jazz Stretch"',
+    badge: 'Chord Gen',
+    layers: [
+      { id: 'chord',   label: 'Chord' },
+      { id: 'velocity', label: 'Velocity', stub: true },
+      { id: 'chance',   label: 'Chance', stub: true },
+    ],
+    defaultLayer: 'chord',
+    steps: chordSteps,
+  },
+};
+
+// ============================================================
+//  Rendering
+// ============================================================
+function setTrackType(type) {
+  trackType = type;
+  selected.clear();
+  const cfg = TRACK_CONFIGS[type];
+  activeLayer = cfg.defaultLayer;
+  document.getElementById('current-track-name').textContent = cfg.name;
+  document.getElementById('current-track-badge').textContent = cfg.badge;
+  // update track selector buttons
+  document.querySelectorAll('.track-selector button').forEach((b, i) => {
+    b.classList.toggle('active', ['note-grid','slicer','chord'][i] === type);
+  });
+  renderLayerTabs();
+  renderGrid();
+  renderBatchBar();
+}
+
+function setLayer(layerId) {
+  const cfg = TRACK_CONFIGS[trackType];
+  const layerDef = cfg.layers.find(l => l.id === layerId);
+  if (layerDef && layerDef.stub) {
+    alert('[STUB] Layer "' + layerDef.label + '" editing not prototyped in this variant.');
+    return;
+  }
+  activeLayer = layerId;
+  renderLayerTabs();
+  renderGrid();
+}
+
+function renderLayerTabs() {
+  const cfg = TRACK_CONFIGS[trackType];
+  const container = document.getElementById('layer-tabs');
+  container.innerHTML = '';
+  cfg.layers.forEach(layer => {
+    const tab = document.createElement('div');
+    tab.className = 'layer-tab' + (layer.stub ? ' stub' : '') + (layer.id === activeLayer ? ' active' : '');
+    tab.textContent = layer.label;
+    if (!layer.stub) tab.onclick = () => setLayer(layer.id);
+    container.appendChild(tab);
+  });
+}
+
+function renderGrid() {
+  const cfg = TRACK_CONFIGS[trackType];
+  const steps = cfg.steps;
+
+  // Step numbers
+  const numRow = document.getElementById('step-numbers');
+  numRow.innerHTML = '';
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const n = document.createElement('div');
+    n.className = 'step-number';
+    n.textContent = i + 1;
+    numRow.appendChild(n);
+  }
+
+  // Step grid
+  const grid = document.getElementById('step-grid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const step = steps[i];
+    const cell = document.createElement('div');
+    cell.className = 'step-cell';
+    cell.dataset.index = i;
+    if (step.active) cell.classList.add('active');
+    if (i === playingStep) cell.classList.add('playing');
+    if (selected.has(i)) cell.classList.add('selected');
+
+    // Value tooltip
+    const tt = document.createElement('div');
+    tt.className = 'value-tooltip';
+    tt.textContent = getTooltipText(step);
+    cell.appendChild(tt);
+
+    // Cell interior content by layer + track type
+    renderCellInterior(cell, step, i);
+
+    // Interactions
+    cell.addEventListener('click', (e) => {
+      if (e.shiftKey) {
+        toggleSelect(i);
+      } else {
+        toggleActive(i);
+      }
+    });
+    cell.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      toggleSelect(i);
+    });
+
+    // Drag for value layers
+    if (activeLayer === 'velocity' || activeLayer === 'chance') {
+      makeDraggable(cell, i);
+    }
+
+    // Click cycle for option layers
+    if (activeLayer === 'slice' && trackType === 'slicer') {
+      cell.addEventListener('click', (e) => {
+        if (!e.shiftKey) {
+          cycleSlice(i);
+        }
+      });
+    }
+    if (activeLayer === 'chord' && trackType === 'chord') {
+      cell.addEventListener('click', (e) => {
+        if (!e.shiftKey) {
+          cycleChord(i);
+        }
+      });
+    }
+
+    grid.appendChild(cell);
+  }
+
+  renderAnnotation();
+}
+
+function getTooltipText(step) {
+  if (activeLayer === 'velocity') return 'vel: ' + step.velocity;
+  if (activeLayer === 'chance') return 'chance: ' + step.chance + '%';
+  if (activeLayer === 'slice') return 'slice: ' + (step.sliceIndex + 1);
+  if (activeLayer === 'chord') return CHORD_OPTIONS[step.chordIdx] || '?';
+  return step.active ? 'on' : 'off';
+}
+
+function renderCellInterior(cell, step, idx) {
+  // Clear interior (keep tooltip)
+  Array.from(cell.children).forEach(c => {
+    if (!c.classList.contains('value-tooltip')) c.remove();
+  });
+
+  if (activeLayer === 'trigger') {
+    // Dot
+    const dot = document.createElement('div');
+    dot.className = 'cell-dot';
+    cell.appendChild(dot);
+
+  } else if (activeLayer === 'velocity' || activeLayer === 'chance') {
+    // Bar
+    const barTrack = document.createElement('div');
+    barTrack.className = 'cell-bar-track';
+    const bar = document.createElement('div');
+    bar.className = 'cell-bar';
+    const val = activeLayer === 'velocity' ? step.velocity : step.chance;
+    bar.style.height = val + '%';
+    barTrack.appendChild(bar);
+    cell.appendChild(barTrack);
+
+    const hint = document.createElement('div');
+    hint.className = 'drag-hint';
+    hint.textContent = '↕';
+    cell.appendChild(hint);
+
+    // Expand hint when selected
+    const exp = document.createElement('div');
+    exp.className = 'expand-hint';
+    cell.appendChild(exp);
+
+  } else if (activeLayer === 'slice') {
+    // Slice strip
+    const strip = document.createElement('div');
+    strip.className = 'cell-slice-strip';
+    const total = step.totalSlices || 8;
+    for (let s = 0; s < total; s++) {
+      const seg = document.createElement('div');
+      seg.className = 'slice-seg' + (s === step.sliceIndex ? ' highlighted' : '');
+      strip.appendChild(seg);
+    }
+    cell.appendChild(strip);
+
+    const label = document.createElement('div');
+    label.className = 'cell-option-label';
+    label.textContent = 'S' + (step.sliceIndex + 1);
+    cell.appendChild(label);
+
+  } else if (activeLayer === 'chord') {
+    // Chord degree dots
+    const chordName = CHORD_OPTIONS[step.chordIdx] || '?';
+    const degrees = CHORD_DEGREES[chordName] || [0,0,0,0,0,0,0];
+    const dotsRow = document.createElement('div');
+    dotsRow.className = 'cell-chord-dots';
+    degrees.forEach((lit, di) => {
+      const dot = document.createElement('div');
+      dot.className = 'chord-dot' + (lit ? ' active-degree' : '');
+      dotsRow.appendChild(dot);
+    });
+    cell.appendChild(dotsRow);
+
+    const label = document.createElement('div');
+    label.className = 'cell-option-label';
+    label.textContent = chordName;
+    cell.appendChild(label);
+  }
+}
+
+function renderAnnotation() {
+  const el = document.getElementById('layer-annotation');
+  const annotations = {
+    'trigger':  '<strong>Layer: Steps (trigger)</strong> — Left-click toggles. Right-click (or Shift+click) selects. Dot = active; empty = inactive.',
+    'velocity': '<strong>Layer: Velocity</strong> — Drag bar up/down to set value (0–127 mapped to 0–100%). Right-click to select step, then drag for multi-step edit. Selection shows amber outline; drag zone expands to full cell width (dashed border). No panel opens.',
+    'chance':   '<strong>Layer: Chance</strong> — Same as velocity. Drag bar = chance % (0–100). Adversarial fixture: step 6 has 30% chance, step 12 has 40%.',
+    'slice':    '<strong>Layer: Slice</strong> — Click cycles through 8 slices. Strip at top highlights the assigned slice. Label shows "S1"–"S8". Right-click selects.',
+    'chord':    '<strong>Layer: Chord</strong> — Click cycles through scale-degree chord options. Dots show scale degrees; label shows Roman numeral. Adversarial: chord names include 7ths ("I7", "ii7") and diminished ("vii°").',
+  };
+  el.innerHTML = annotations[activeLayer] || '';
+}
+
+// ============================================================
+//  Interactions
+// ============================================================
+function toggleActive(idx) {
+  const cfg = TRACK_CONFIGS[trackType];
+  const step = cfg.steps[idx];
+  // Only toggle on trigger layer; other layers handle their own click
+  if (activeLayer === 'trigger') {
+    step.active = !step.active;
+    renderGrid();
+  }
+  // velocity/chance: drag handles value; click on bar cell just selects
+  // slice/chord: cycleSlice/cycleChord handles it
+}
+
+function toggleSelect(idx) {
+  if (selected.has(idx)) {
+    selected.delete(idx);
+  } else {
+    selected.add(idx);
+  }
+  renderGrid();
+  renderBatchBar();
+}
+
+function clearSelected() {
+  const cfg = TRACK_CONFIGS[trackType];
+  selected.forEach(idx => {
+    cfg.steps[idx].active = false;
+  });
+  selected.clear();
+  renderGrid();
+  renderBatchBar();
+}
+
+function stubAction(name) {
+  alert('[STUB] ' + name + ' — not prototyped in this variant.');
+}
+
+function cycleSlice(idx) {
+  const step = slicerSteps[idx];
+  step.sliceIndex = (step.sliceIndex + 1) % step.totalSlices;
+  if (!step.active) step.active = true;
+  renderGrid();
+}
+
+function cycleChord(idx) {
+  const step = chordSteps[idx];
+  step.chordIdx = (step.chordIdx + 1) % CHORD_OPTIONS.length;
+  if (!step.active) step.active = true;
+  renderGrid();
+}
+
+function makeDraggable(cell, idx) {
+  let startY = null;
+  let startVal = null;
+
+  cell.addEventListener('mousedown', (e) => {
+    if (e.shiftKey) return; // selection, not drag
+    startY = e.clientY;
+    const cfg = TRACK_CONFIGS[trackType];
+    const step = cfg.steps[idx];
+    startVal = activeLayer === 'velocity' ? step.velocity : step.chance;
+    e.preventDefault();
+
+    function onMove(e) {
+      const delta = startY - e.clientY; // drag up = increase
+      const newVal = Math.max(0, Math.min(100, startVal + delta));
+      const cfg2 = TRACK_CONFIGS[trackType];
+
+      // If step is selected, apply to ALL selected steps
+      const targets = selected.has(idx) ? [...selected] : [idx];
+      targets.forEach(ti => {
+        if (activeLayer === 'velocity') cfg2.steps[ti].velocity = Math.round(newVal);
+        else cfg2.steps[ti].chance = Math.round(newVal);
+      });
+      renderGrid();
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function renderBatchBar() {
+  const bar = document.getElementById('batch-bar');
+  const count = document.getElementById('sel-count');
+  if (selected.size === 0) {
+    bar.classList.add('hidden');
+  } else {
+    bar.classList.remove('hidden');
+    count.textContent = selected.size + ' step' + (selected.size > 1 ? 's' : '') + ' selected';
+  }
+}
+
+// Escape to deselect
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    selected.clear();
+    renderGrid();
+    renderBatchBar();
+  }
+});
+
+// ============================================================
+//  Init
+// ============================================================
+setTrackType('note-grid');
+</script>
+</body>
+</html>

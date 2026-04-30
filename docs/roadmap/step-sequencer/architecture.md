@@ -7,6 +7,10 @@ Based on: `user-stories.md`, `existing-state.md`, `ux-review.md`
 
 ## Status
 
+Superseded as an advancement gate: `ux-review.md` now has `verdict: needs-rework`
+and `redirect_to: build-prototypes`, so this architecture should be treated as
+advisory input until Variant C and Variant D prototypes are built and reviewed.
+
 Architecture is written before Variant C and Variant D prototypes are reviewed.
 The model-layer design described here is stable regardless of which UX variant wins, because both
 variants share the same underlying data requirements. The one section that may need revision after

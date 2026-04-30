@@ -1,8 +1,15 @@
-# Step Sequencer UX Review
+---
+verdict: needs-rework
+redirect_to: build-prototypes
+reviewed: 2026-04-29
+feedback_applied: feedback/20260430-103803-prototypes-feedback.md
+prototypes_reviewed:
+  - prototypes/variant-a-inline-column.html
+  - prototypes/variant-b-floating-popover.html
+reason: "User feedback rejected both existing variants and requested more prototyping before architecture/spec should advance."
+---
 
-Reviewed: 2026-04-29
-Prototypes reviewed: `prototypes/variant-a-inline-column.html`, `prototypes/variant-b-floating-popover.html`
-Feedback applied: `feedback/20260430-103803-prototypes-feedback.md`
+# Step Sequencer UX Review
 
 ---
 
