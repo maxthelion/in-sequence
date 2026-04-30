@@ -4,11 +4,13 @@ title: Modifier Chain Placement
 status: inventory
 priority: unset
 blocked_by: []
-stage: review-prototypes
+stage: write-architecture
 owner: pm
-updated: 2026-04-29
+updated: 2026-04-30
 prototypes:
   - prototypes/modifier-chain-placement-slot-well.html
+ux_review: ux-review.md
+selected_prototype: prototypes/modifier-chain-placement-slot-well.html
 ---
 
 # Modifier Chain Placement
