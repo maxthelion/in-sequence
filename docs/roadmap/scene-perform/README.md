@@ -1,10 +1,10 @@
 ---
 id: 2
 title: Scene Perform
-status: inventory
+status: ready-for-build
 priority: unset
 blocked_by: []
-stage: write-implementation-handoff
+stage: ready-for-build
 owner: pm
 updated: 2026-04-30
 ---
