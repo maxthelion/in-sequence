@@ -4,9 +4,9 @@ title: Input Audio
 status: inventory
 priority: unset
 blocked_by: []
-stage: review-prototypes
+stage: write-architecture
 owner: pm
-updated: 2026-04-29
+updated: 2026-04-30
 ---
 
 # Input Audio
