@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T16:07:29Z
-Repo HEAD: 95a36a7
+Generated: 2026-04-30T16:12:16Z
+Repo HEAD: e41fa3a
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -34,19 +34,19 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next User Item
 
-- **Item:** 18
-- **Feature:** Toggle Fill On A Track To Hear It
+- **Item:** 4
+- **Feature:** Mixer Main Out
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-concerns`
+- **Action:** `blocked`
 - **Role:** `user`
-- **Why:** `concerns.md` exists and is not resolved or archived.
-- **Output:** Review the concerns, decide whether they are accepted guardrails, open questions, or non-blocking notes, then update `concerns.md` before PM work continues.
+- **Why:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ## Next Agent Item
 
-- **Item:** 4
-- **Feature:** Mixer Main Out
+- **Item:** 5
+- **Feature:** Mixer Busses
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `write-architecture`
@@ -95,10 +95,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `blocked`
+- **Role:** `user`
+- **Reason:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ### 5. Mixer Busses
 
