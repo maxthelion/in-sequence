@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[WIREFRAME] Step Order — In Sequence</title>
+<style>
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Palette (semantic only) ── */
+  :root {
+    --bg:          #f5f5f5;
+    --surface:     #ffffff;
+    --border:      #999;
+    --border-faint:#ccc;
+    --text:        #111;
+    --text-dim:    #666;
+    --text-stub:   #aaa;
+    --accent:      #1a5cff;       /* interactive / primary action */
+    --active:      #0a3ab8;       /* currently active / on state */
+    --highlight:   #d0e0ff;       /* selected cell / remapped step */
+    --repeat-bg:   #ffe0e0;       /* repeated source step (warn-ish) */
+    --disabled:    #e0e0e0;
+    --stub-border: #bbb;
+    --stub-fill:   #f0f0f0;
+    --error:       #c0392b;
+    --success:     #27ae60;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  /* ── Layout ── */
+  .header {
+    background: #222;
+    color: #eee;
+    padding: 8px 16px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .header strong { color: #fff; font-size: 12px; }
+  .header .badge {
+    background: #555;
+    color: #ddd;
+    border-radius: 2px;
+    padding: 1px 6px;
+    font-size: 10px;
+  }
+  .header .budget {
+    margin-left: auto;
+    font-size: 10px;
+    color: #aaa;
+  }
+
+  .nav-bar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px;
+    background: #e8e8e8;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .nav-bar button {
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .nav-bar button.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .nav-bar .nav-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-right: 6px;
+  }
+
+  .screens { position: relative; }
+
+  .screen {
+    display: none;
+    padding: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .screen.visible { display: block; }
+
+  /* ── Structural ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .panel-head {
+    padding: 6px 10px;
+    background: #e0e0e0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-body { padding: 12px 10px; }
+
+  .row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+  .col { flex: 1; }
+
+  /* ── Stub ── */
+  .stub {
+    border: 1.5px dashed var(--stub-border);
+    background: var(--stub-fill);
+    color: var(--text-stub);
+    padding: 8px 10px;
+    font-size: 11px;
+    font-style: italic;
+    text-align: center;
+    border-radius: 2px;
+  }
+  .stub-inline {
+    display: inline-block;
+    border: 1px dashed var(--stub-border);
+    background: var(--stub-fill);
+    color: var(--text-stub);
+    font-size: 10px;
+    font-style: italic;
+    padding: 1px 6px;
+    border-radius: 2px;
+  }
+
+  /* ── Annotation ── */
+  .ann {
+    font-size: 10px;
+    color: var(--text-dim);
+    border-left: 2px solid var(--accent);
+    padding-left: 6px;
+    margin: 6px 0;
+    line-height: 1.5;
+  }
+  .ann code {
+    font-size: 10px;
+    background: #eee;
+    padding: 0 3px;
+    border-radius: 1px;
+    font-family: "SF Mono", "Fira Mono", monospace;
+  }
+  .ann.warn { border-left-color: var(--error); }
+  .ann.good { border-left-color: var(--success); }
+
+  /* ── Step grid ── */
+  .step-grid {
+    display: grid;
+    gap: 2px;
+    margin: 8px 0;
+  }
+  .step-grid.cols-16 { grid-template-columns: repeat(16, 1fr); }
+  .step-grid.cols-8  { grid-template-columns: repeat(8, 1fr); }
+
+  .step-cell {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    text-align: center;
+    font-size: 10px;
+    padding: 4px 2px 3px;
+    cursor: pointer;
+    user-select: none;
+    min-width: 0;
+    position: relative;
+  }
+  .step-cell .idx { font-size: 8px; color: var(--text-dim); display: block; }
+  .step-cell .val { font-weight: 600; font-size: 11px; }
+  .step-cell.remapped { background: var(--highlight); }
+  .step-cell.repeated { background: var(--repeat-bg); }
+  .step-cell.playhead { outline: 2px solid var(--accent); z-index: 1; }
+  .step-cell.selected-for-edit { outline: 2px solid var(--active); }
+  .step-cell.has-note::after {
+    content: '';
+    display: block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--text);
+    margin: 2px auto 0;
+  }
+
+  /* ── Source row ── */
+  .source-row { display: flex; gap: 2px; margin: 4px 0; }
+  .source-cell {
+    flex: 1;
+    border: 1px solid var(--border);
+    text-align: center;
+    font-size: 9px;
+    padding: 2px 0;
+    background: #f0f0f0;
+    color: var(--text-dim);
+  }
+
+  /* ── Toggle pill ── */
+  .toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+  }
+  .toggle-pill {
+    position: relative;
+    width: 36px;
+    height: 18px;
+    background: var(--disabled);
+    border-radius: 9px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .toggle-pill::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #888;
+    transition: left 0.1s, background 0.1s;
+  }
+  .toggle-pill.on { background: var(--accent); }
+  .toggle-pill.on::after { left: 20px; background: #fff; }
+  .toggle-label { font-size: 12px; font-weight: 600; }
+  .toggle-label.on-text { color: var(--active); }
+  .toggle-label.off-text { color: var(--text-dim); }
+
+  /* ── Controls ── */
+  button.btn {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 2px;
+  }
+  button.btn:hover { background: var(--highlight); }
+  button.btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  button.btn.primary:hover { background: var(--active); }
+  button.btn.danger { color: var(--error); border-color: var(--error); }
+
+  input[type="number"], input[type="text"], select {
+    border: 1px solid var(--border);
+    padding: 4px 6px;
+    font-size: 12px;
+    background: var(--surface);
+    width: 100%;
+    border-radius: 2px;
+  }
+
+  /* ── Map list ── */
+  .map-list { border: 1px solid var(--border); }
+  .map-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-faint);
+    gap: 8px;
+    cursor: pointer;
+  }
+  .map-item:last-child { border-bottom: none; }
+  .map-item:hover { background: var(--highlight); }
+  .map-item.active-map { background: var(--highlight); border-left: 3px solid var(--accent); }
+  .map-item .map-name { font-weight: 600; flex: 1; }
+  .map-item .map-meta { font-size: 10px; color: var(--text-dim); }
+  .map-item .map-scope { font-size: 10px; color: var(--text-dim); border: 1px solid var(--border-faint); padding: 1px 4px; border-radius: 2px; }
+
+  /* ── Scope selector ── */
+  .scope-tabs { display: flex; gap: 0; margin-bottom: 10px; }
+  .scope-tab {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-right: none;
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .scope-tab:last-child { border-right: 1px solid var(--border); }
+  .scope-tab.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .scope-tab.disabled-tab { background: var(--disabled); color: var(--text-stub); cursor: not-allowed; }
+
+  /* ── Divider label ── */
+  .divider-label {
+    font-size: 10px;
+    color: var(--text-stub);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 0 2px;
+    border-top: 1px solid var(--border-faint);
+    margin-top: 8px;
+  }
+
+  /* ── Status bar ── */
+  .status-bar {
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 5px 10px;
+    border-top: 1px solid var(--border-faint);
+    background: #f0f0f0;
+    display: flex;
+    gap: 16px;
+  }
+  .status-bar .ok { color: var(--success); font-weight: 600; }
+  .status-bar .warn { color: var(--error); font-weight: 600; }
+
+  /* ── Arrow connector ── */
+  .arrow-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin: 2px 0;
+  }
+  .arrow-row .arrow { color: var(--accent); font-weight: 700; }
+
+  /* ── Dialog overlay ── */
+  .dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .dialog-overlay.open { display: flex; }
+  .dialog {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    width: 400px;
+    max-width: 95vw;
+  }
+  .dialog h3 { font-size: 13px; margin-bottom: 10px; border-bottom: 1px solid var(--border-faint); padding-bottom: 6px; }
+  .dialog .field { margin-bottom: 10px; }
+  .dialog .field label { font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 3px; }
+  .dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+  /* ── Section heading ── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    margin-top: 12px;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin: 6px 0 10px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-swatch {
+    width: 12px; height: 12px;
+    border: 1px solid var(--border);
+    display: inline-block;
+  }
+  .legend-swatch.remapped { background: var(--highlight); }
+  .legend-swatch.repeated { background: var(--repeat-bg); }
+  .legend-swatch.playhead { outline: 2px solid var(--accent); }
+
+  /* ── Playback transport stub ── */
+  .transport { display: flex; gap: 6px; align-items: center; padding: 6px 0; }
+  .transport .play-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    background: var(--disabled);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; border-radius: 2px;
+  }
+  .transport .play-btn.playing { background: var(--success); color: #fff; border-color: var(--success); }
+  .transport .bpm-label { font-size: 10px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     HEADER
+     ================================================================ -->
+<div class="header">
+  <strong>[WIREFRAME] Step Order</strong>
+  <span class="badge">In Sequence — roadmap prototype</span>
+  <span class="badge">Balsamiq-style · not production</span>
+  <span class="budget">Interaction budget: Story 1 &amp; 2 ≤ 2 taps · Story 3 ≤ 3 taps · Story 4 ≤ 4 taps</span>
+</div>
+
+<!-- ================================================================
+     SCREEN NAV
+     ================================================================ -->
+<div class="nav-bar">
+  <span class="nav-label">Screen:</span>
+  <button class="active" onclick="showScreen('s1')">1 · Remap editor (Story 1)</button>
+  <button onclick="showScreen('s2')">2 · Live toggle (Story 2)</button>
+  <button onclick="showScreen('s3')">3 · Scope selection (Story 3)</button>
+  <button onclick="showScreen('s4')">4 · Map persistence (Story 4)</button>
+</div>
+
+<!-- ================================================================
+     SCREEN 1 — Core remap behaviour (Story 1)
+     "As a producer I want to define a step-order map so the playhead
+      resolves each output step to a source step."
+     Interaction budget: ≤ 2 taps to change a single step mapping.
+     Click path: (1) click output step cell → (2) click source step cell
+     ================================================================ -->
+<div id="s1" class="screen visible">
+
+  <div class="ann">
+    <strong>Story 1 — Remap step playback with a step-order lookup.</strong><br>
+    Click an <em>output step</em> cell (top row) to select it. Then click a <em>source step</em> (bottom row) to assign which source step the playhead reads at that position.<br>
+    Insertion point in engine: <code>PlaybackSnapshot.resolvedStep(phraseID:trackID:stepInPhrase:)</code> — the <code>normalizedIndex</code> at line 67 becomes <code>stepOrderMap?[stepInPhrase] ?? stepInPhrase</code> when a map is active.<br>
+    New model field: <code>PhraseLayerTarget.stepOrder</code> case on <code>TrackPhrasePlaybackBuffer</code>.
+  </div>
+
+  <!-- Phrase / track context stub -->
+  <div class="row">
+    <div class="col" style="max-width:220px;">
+      <div class="stub">→ [Phrase workspace context]<br>Phrase: "Main groove"<br>Track: "Drums (kick)"</div>
+    </div>
+    <div class="col">
+      <div class="toggle-group" id="s1-toggle-group">
+        <div class="toggle-pill on" id="s1-pill" onclick="s1ToggleMap()"></div>
+        <span class="toggle-label on-text" id="s1-toggle-label">Step Order: ON</span>
+        <span class="stub-inline">→ [map name: "Kick repeat x3"]</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map editor -->
+  <div class="panel">
+    <div class="panel-head">
+      Step-Order Map Editor
+      <span style="font-weight:400;font-size:10px;color:var(--text-dim)">— "Kick repeat x3"</span>
+      <span class="stub-inline" style="margin-left:auto">→ [rename map]</span>
+    </div>
+    <div class="panel-body">
+
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch remapped"></span> Remapped (reads different source)</span>
+        <span class="legend-item"><span class="legend-swatch repeated"></span> Repeated source step</span>
+        <span class="legend-item" style="outline:2px solid var(--accent);padding:1px 3px;">Playhead (current output step)</span>
+        <span class="legend-item" style="outline:2px solid #000;padding:1px 3px;">Selected for editing</span>
+      </div>
+
+      <!-- OUTPUT row label -->
+      <div class="section-title">Output step (playhead position 0–15)</div>
+      <div class="ann">
+        Each cell = one output step index. Value inside = the source step it reads.<br>
+        Fixture map: <code>[0,1,2,3,3,3,3,3,7,8,9,0,1,2,3,3]</code> (from notes.md example, extended to 16)
+      </div>
+
+      <!-- Output step grid — interactive -->
+      <div class="step-grid cols-16" id="output-grid"></div>
+
+      <!-- Arrow connector -->
+      <div class="arrow-row">
+        <span>Output step <span id="selected-out-label">—</span></span>
+        <span class="arrow">↓ reads source step ↓</span>
+        <span id="reads-label" style="font-weight:600;color:var(--accent)">—</span>
+      </div>
+
+      <!-- SOURCE row label -->
+      <div class="section-title">Source step (actual clip content, never modified)</div>
+      <div class="ann good">
+        The source clip data is <strong>never written</strong>. The map only redirects the playhead index.<br>
+        <code>PlaybackSnapshot.resolvedStep</code> is the only consumer that sees the remapped index.
+      </div>
+
+      <!-- Source selection grid -->
+      <div class="step-grid cols-16" id="source-grid"></div>
+
+      <!-- Source clip note presence row -->
+      <div class="section-title" style="margin-top:8px;">Source clip — note presence (read-only stub)</div>
+      <div class="step-grid cols-16" id="clip-row"></div>
+      <div class="ann">Dots = steps with notes in the underlying clip. This is the data the map reads from. It is never altered by step-order.</div>
+
+    </div>
+    <div class="status-bar">
+      <span id="s1-status-valid" class="ok">Map valid — 16 entries</span>
+      <span>Phrase: "Main groove"</span>
+      <span>Track: "Drums (kick)"</span>
+      <span>Scope: phrase / track</span>
+    </div>
+  </div>
+
+  <!-- Playback preview stub -->
+  <div class="panel">
+    <div class="panel-head">Playback preview (simulated, stubbed transport)</div>
+    <div class="panel-body">
+      <div class="row">
+        <div class="col" style="max-width:160px;">
+          <div class="transport">
+            <div class="play-btn" id="s1-play" onclick="s1TogglePlay()">▶</div>
+            <span class="bpm-label">→ [120 BPM]</span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="ann">
+            Simulated playhead advances through output steps. Output step reads the mapped source step.<br>
+            <code>stepInPhrase</code> → <code>stepOrderMap[stepInPhrase]</code> → <code>resolvedStep(…)</code> → note output.
+          </div>
+        </div>
+      </div>
+      <div class="step-grid cols-16" id="playback-grid"></div>
+      <div class="arrow-row" id="playback-readout" style="margin-top:6px;">
+        <span>Output step <span id="pb-out">—</span></span>
+        <span class="arrow">→ reads source</span>
+        <span id="pb-src" style="font-weight:600;color:var(--accent)">—</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /s1 -->
+
+
+<!-- ================================================================
+     SCREEN 2 — Live toggle (Story 2)
+     "As a performer I want to toggle the step-order map on and off
+      while a track is running."
+     Interaction budget: ≤ 2 taps (1 = find toggle, 2 = tap it).
+     Click path: toggle button in phrase workspace tool strip.
+     ================================================================ -->
+<div id="s2" class="screen">
+
+  <div class="ann">
+    <strong>Story 2 — Toggle the step-order map on and off.</strong><br>
+    The toggle must be reachable in ≤ 1 tap from the phrase workspace. Effect takes hold at the next phrase cycle boundary.<br>
+    <code>TrackPhrasePlaybackBuffer.stepOrderMap: [UInt8]?</code> — <code>nil</code> = disabled (sequential), non-nil = map active.<br>
+    The toggle writes a flag; the snapshot compiler propagates it into <code>PlaybackSnapshot</code> before the next phrase downbeat.
+  </div>
+
+  <!-- Phrase workspace stub with toggle affordance -->
+  <div class="panel">
+    <div class="panel-head">Phrase Workspace — "Main groove" <span style="font-weight:400;font-size:10px;color:var(--text-dim)">Track: "Drums (kick)"</span></div>
+    <div class="panel-body">
+
+      <!-- Tool strip with step-order toggle -->
+      <div class="row" style="align-items:center;">
+        <div class="col" style="max-width:200px;">
+          <div class="stub">→ [clip / step editor]</div>
+        </div>
+        <div class="col" style="max-width:300px;">
+          <!-- THIS IS THE PRIMARY ACTION ON THIS SCREEN -->
+          <div style="border:2px solid var(--accent);padding:10px;border-radius:2px;">
+            <div class="section-title" style="margin-top:0;">Step Order — live toggle</div>
+            <div class="toggle-group" id="s2-toggle-group">
+              <div class="toggle-pill on" id="s2-pill" onclick="s2Toggle()"></div>
+              <span class="toggle-label on-text" id="s2-label">ON</span>
+              <span id="s2-map-name" style="font-size:11px;color:var(--accent);font-weight:600;">Kick repeat x3</span>
+            </div>
+            <div style="font-size:10px;color:var(--text-dim);margin-top:4px;" id="s2-effect-label">
+              Next phrase cycle: remapped playback active.
+            </div>
+            <div style="margin-top:6px;">
+              <button class="btn" onclick="showScreen('s4');showScreen('s4')" style="font-size:10px;">→ edit maps…</button>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="stub">→ [other track controls]</div>
+        </div>
+      </div>
+
+      <div class="divider-label">Phrase step grid — live playhead</div>
+
+      <div class="ann">
+        Blue outline = current output step. When ON, the playhead reads the source step from the map instead of sequential index.<br>
+        When toggled OFF, the next phrase cycle reverts to <code>stepInPhrase</code> direct pass-through.
+      </div>
+
+      <div class="step-grid cols-16" id="s2-output-grid" style="margin-bottom:4px;"></div>
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">
+        Output steps (0–15). Value = source step read when map is ON.
+      </div>
+
+      <!-- Toggle state history -->
+      <div class="divider-label">Toggle event log (this session)</div>
+      <div id="s2-log" style="font-size:10px;color:var(--text-dim);font-family:monospace;max-height:80px;overflow-y:auto;border:1px solid var(--border-faint);padding:4px 6px;">
+        <div>[phrase 1, bar 1] → Step Order ON (map: "Kick repeat x3")</div>
+      </div>
+
+    </div>
+    <div class="status-bar">
+      <span id="s2-status" class="ok">Step Order ACTIVE — next cycle takes remapped values</span>
+      <span>Clip data: unchanged</span>
+      <span id="s2-play-status">→ [Transport: playing]</span>
+    </div>
+  </div>
+
+  <!-- Edge case: toggling mid-phrase -->
+  <div class="panel">
+    <div class="panel-head">Edge case: toggling mid-phrase</div>
+    <div class="panel-body">
+      <div class="ann warn">
+        Toggle mid-phrase does NOT cut immediately. The new state takes effect at the next phrase downbeat (step 0).<br>
+        This prevents a click or abrupt pitch-step jump mid-loop.<br>
+        Pending toggle state is shown as a blinking indicator on the toggle control (see above when toggled mid-cycle).
+      </div>
+      <div class="row">
+        <div class="col">
+          <div class="stub">→ [pending indicator: "will change at bar boundary"]</div>
+        </div>
+        <div class="col">
+          <div class="stub">→ [transport position / bar indicator]</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /s2 -->
+
+
+<!-- ================================================================
+     SCREEN 3 — Scope selection (Story 3)
+     "As a producer I want to know and control whether the step-order
+      map applies at project / phrase / track level."
+     Existing-state resolution: phrase-level per-track is the recommended
+     first-pass scope (see existing-state.md).
+     Interaction budget: ≤ 3 taps (1 = open scope panel, 2 = select scope, 3 = confirm).
+     ================================================================ -->
+<div id="s3" class="screen">
+
+  <div class="ann">
+    <strong>Story 3 — Scope selection.</strong><br>
+    Existing-state resolved to <strong>phrase-level per-track</strong> as the first-pass scope.<br>
+    Rationale: <code>stepInPhrase</code> is the single integer all per-track note resolution reads. A phrase-level map replaces it once and every track in the phrase uses the remapped index. Track-level would require a per-track remap call inside the per-track loop in <code>prepareTick</code>.<br>
+    This screen shows the scope selector UI and what each scope means operationally.
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">Step Order — Scope Selector</div>
+    <div class="panel-body">
+
+      <div class="section-title" style="margin-top:0;">Apply this map to:</div>
+
+      <div class="scope-tabs" id="scope-tabs">
+        <button class="scope-tab disabled-tab" title="Not in first pass — one shared map cannot be per-phrase without extra indirection">Project <span style="font-size:9px;">(future)</span></button>
+        <button class="scope-tab selected" onclick="selectScope(this,'phrase')">Phrase</button>
+        <button class="scope-tab" onclick="selectScope(this,'phrase-track')">Phrase / Track</button>
+        <button class="scope-tab disabled-tab" title="Layer-level scope deferred — no PhraseLayerTarget.stepOrder UI yet">Layer <span style="font-size:9px;">(future)</span></button>
+      </div>
+
+      <div id="scope-description" style="margin-bottom:10px;">
+        <div id="desc-phrase" class="ann">
+          <strong>Phrase scope:</strong> The step-order map is applied to <em>all tracks</em> inside the selected phrase simultaneously. One map covers the whole phrase. <code>stepInPhrase → stepOrderMap[stepInPhrase]</code> before any per-track resolution.
+        </div>
+        <div id="desc-phrase-track" class="ann" style="display:none;">
+          <strong>Phrase / Track scope:</strong> Each track in the phrase has its own independent toggle and map. The remap is applied inside the per-track loop in <code>resolvedStepNotes(…stepIndex:…)</code> before calling <code>resolvedStep(phraseID:trackID:stepInPhrase:)</code>. More flexible but requires a second lookup per track per tick.
+        </div>
+      </div>
+
+      <!-- Visual: which tracks are affected -->
+      <div class="section-title">Affected tracks — "Main groove"</div>
+      <div id="scope-track-list" style="border:1px solid var(--border);margin-bottom:10px;">
+        <!-- populated by JS -->
+      </div>
+
+      <div class="ann">
+        <code>PhraseLayerTarget.stepOrder</code> — new case on the layer target enum. The compiler reads this layer and populates <code>TrackPhrasePlaybackBuffer.stepOrderMap: [UInt8]?</code>.<br>
+        Scope is stored alongside the map definition, not per-track (phrase scope) or per-track flag (phrase/track scope).
+      </div>
+
+      <!-- Scope change confirmation -->
+      <div style="border:1px solid var(--border-faint);padding:8px 10px;background:#f8f8f8;margin-top:8px;">
+        <div style="font-size:11px;margin-bottom:6px;">Change scope to: <strong id="pending-scope-label">Phrase</strong></div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px;" id="scope-change-warning">
+          Changing scope does not alter clip data. Existing map values are preserved. Toggle state resets to OFF.
+        </div>
+        <div class="row" style="margin-bottom:0;">
+          <button class="btn primary" onclick="confirmScope()">Apply scope change</button>
+          <button class="btn" onclick="cancelScope()">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <span id="s3-status">Current scope: Phrase</span>
+      <span>Map: "Kick repeat x3"</span>
+      <span class="stub-inline">→ [active tracks: 4]</span>
+    </div>
+  </div>
+
+  <!-- Architecture note panel -->
+  <div class="panel">
+    <div class="panel-head">Architecture note — why not project-scope first?</div>
+    <div class="panel-body">
+      <div class="ann warn">
+        Project-scope (one shared map) is the simplest data model but cannot be per-phrase without extra indirection. Phrase-level is the sweet spot: one map per phrase, stored in <code>PhrasePlaybackBuffer</code> alongside <code>patternSlotIndex</code>. Project-scope is deferred to a future iteration.
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <div class="col">
+          <div class="stub">→ [project-scope map pool — future UI]</div>
+        </div>
+        <div class="col">
+          <div class="stub">→ [per-phrase map assignment — future UI]</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /s3 -->
+
+
+<!-- ================================================================
+     SCREEN 4 — Map persistence (Story 4)
+     "As a producer I want to see and edit the step-index array as a
+      named, saveable structure."
+     Interaction budget: ≤ 4 taps (1 = open map list, 2 = select map,
+       3 = edit name or cell, 4 = save).
+     ================================================================ -->
+<div id="s4" class="screen">
+
+  <div class="ann">
+    <strong>Story 4 — Edit the step-order lookup in place.</strong><br>
+    Maps are named, saved, and recalled. Persistence flows through <code>Project+Codable.swift</code> — a new top-level pool (similar to <code>patternBanks</code>) keyed by map UUID.<br>
+    The compiler reads the pool during <code>SequencerSnapshotCompiler.compilePhraseBuffer</code> and writes <code>TrackPhrasePlaybackBuffer.stepOrderMap: [UInt8]?</code>.
+  </div>
+
+  <div class="row" style="align-items:flex-start;">
+
+    <!-- Map list column -->
+    <div class="col" style="max-width:220px;">
+      <div class="panel">
+        <div class="panel-head">
+          Step Order Maps
+          <button class="btn" onclick="openNewMapDialog()" style="margin-left:auto;font-size:10px;padding:2px 7px;">+ New</button>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div class="map-list" id="map-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map editor column -->
+    <div class="col">
+      <div class="panel" id="map-editor-panel">
+        <div class="panel-head">
+          Edit Map: <span id="edit-map-name">—</span>
+          <button class="btn" onclick="openRenameDialog()" style="margin-left:8px;font-size:10px;padding:2px 7px;">Rename</button>
+          <button class="btn danger" onclick="deleteCurrentMap()" style="margin-left:auto;font-size:10px;padding:2px 7px;">Delete</button>
+        </div>
+        <div class="panel-body">
+
+          <div class="ann">
+            Click an output step cell (top row) to select it. Then click a source step (bottom row) to set the mapping. Changes are auto-saved to the project document.<br>
+            Persistence: <code>Codable</code> home in <code>PhraseModel</code> or a new top-level pool in <code>Project</code>. Must survive <code>exportToProject()</code> / <code>importFromProject()</code>.
+          </div>
+
+          <div class="section-title">Output steps (0–15) — click to select</div>
+          <div class="step-grid cols-16" id="s4-output-grid"></div>
+
+          <div class="arrow-row" style="margin:4px 0;">
+            <span>Selected output step: <strong id="s4-sel-out">—</strong></span>
+            <span class="arrow">→ maps to source:</span>
+            <strong id="s4-sel-src" style="color:var(--accent);">—</strong>
+          </div>
+
+          <div class="section-title">Source steps (0–15) — click to assign</div>
+          <div class="step-grid cols-16" id="s4-source-grid"></div>
+
+          <!-- Raw array view -->
+          <div class="divider-label">Raw array (read-only view — auto-updated)</div>
+          <div style="font-family:monospace;font-size:11px;padding:6px 8px;background:#f0f0f0;border:1px solid var(--border-faint);border-radius:2px;margin:4px 0 8px;" id="s4-raw-array">
+            —
+          </div>
+
+          <!-- Usage -->
+          <div class="divider-label">Map usage</div>
+          <div id="s4-usage" style="font-size:10px;color:var(--text-dim);margin:4px 0 0;"></div>
+
+          <!-- Actions -->
+          <div class="row" style="margin-top:10px;margin-bottom:0;">
+            <button class="btn primary" onclick="saveCurrentMap()">Save map</button>
+            <button class="btn" onclick="duplicateCurrentMap()">Duplicate</button>
+            <button class="btn" onclick="resetCurrentMap()">Reset to sequential</button>
+          </div>
+
+          <div id="s4-save-feedback" style="font-size:11px;color:var(--success);margin-top:6px;display:none;">Map saved to project.</div>
+
+        </div>
+        <div class="status-bar">
+          <span id="s4-dirty" style="color:var(--text-dim);">No unsaved changes.</span>
+          <span class="stub-inline">→ [undo / redo]</span>
+          <span class="stub-inline">→ [export map as JSON]</span>
+        </div>
+      </div>
+    </div><!-- /map editor col -->
+
+  </div><!-- /row -->
+
+</div><!-- /s4 -->
+
+
+<!-- ================================================================
+     NEW MAP DIALOG
+     ================================================================ -->
+<div class="dialog-overlay" id="new-map-dialog">
+  <div class="dialog">
+    <h3>New Step Order Map</h3>
+    <div class="field">
+      <label>Map name</label>
+      <input type="text" id="new-map-name-input" placeholder="e.g. Kick repeat x3" value="Untitled map">
+    </div>
+    <div class="field">
+      <label>Starting values</label>
+      <div class="scope-tabs" style="margin-bottom:0;">
+        <button class="scope-tab selected" id="init-seq" onclick="selectInit('seq',this)">Sequential (0–15)</button>
+        <button class="scope-tab" id="init-rev" onclick="selectInit('rev',this)">Reversed (15–0)</button>
+        <button class="scope-tab" id="init-blank" onclick="selectInit('blank',this)">All zero</button>
+      </div>
+    </div>
+    <div class="ann" style="margin-top:6px;">
+      The map will be saved to the project document (<code>Project+Codable.swift</code>) and available for assignment to any phrase / track combination.
+    </div>
+    <div class="actions">
+      <button class="btn primary" onclick="createNewMap()">Create</button>
+      <button class="btn" onclick="closeNewMapDialog()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENAME DIALOG -->
+<div class="dialog-overlay" id="rename-dialog">
+  <div class="dialog">
+    <h3>Rename Map</h3>
+    <div class="field">
+      <label>New name</label>
+      <input type="text" id="rename-input" value="">
+    </div>
+    <div class="actions">
+      <button class="btn primary" onclick="doRename()">Rename</button>
+      <button class="btn" onclick="document.getElementById('rename-dialog').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ================================================================
+     JAVASCRIPT
+     ================================================================ -->
+<script>
+'use strict';
+
+// ── Shared fixture data ──
+const FIXTURE_MAP = [0,1,2,3,3,3,3,3,7,8,9,0,1,2,3,3]; // from notes.md
+const FIXTURE_NOTES = [1,0,1,0,0,1,0,1, 1,0,0,1,0,1,0,0]; // stub note presence
+
+// Mutable maps pool (Story 4)
+let maps = [
+  { id: 'm1', name: 'Kick repeat x3', map: [...FIXTURE_MAP], usedBy: ['Main groove / Drums (kick)', 'Bridge / Drums (kick)'] },
+  { id: 'm2', name: 'Shuffle swing',  map: [1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14], usedBy: ['Main groove / Bass'] },
+  { id: 'm3', name: 'Reversed intro', map: [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0], usedBy: [] },
+];
+let activeMapId = 'm1';
+let newMapInitMode = 'seq';
+
+// ── Screen navigation ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+  document.querySelectorAll('.nav-bar button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('visible');
+  const idx = ['s1','s2','s3','s4'].indexOf(id);
+  document.querySelectorAll('.nav-bar button')[idx].classList.add('active');
+}
+
+// ── SCREEN 1 ──
+let s1SelectedOut = null;
+let s1Map = [...FIXTURE_MAP];
+let s1MapOn = true;
+let s1Playing = false;
+let s1PlayInterval = null;
+let s1PlayStep = 0;
+
+function s1Build() {
+  buildOutputGrid('output-grid', s1Map, s1MapOn, s1SelectedOut, 'out', s1OnSelectOut);
+  buildSourceGrid('source-grid', s1Map, s1SelectedOut, 'src', s1OnSelectSrc);
+  buildClipRow('clip-row', FIXTURE_NOTES);
+  buildPlaybackGrid('playback-grid', s1Map, s1MapOn, s1Playing ? s1PlayStep : null);
+  updateReadout();
+}
+
+function s1OnSelectOut(i) {
+  s1SelectedOut = i;
+  s1Build();
+}
+
+function s1OnSelectSrc(i) {
+  if (s1SelectedOut === null) return;
+  s1Map[s1SelectedOut] = i;
+  s1SelectedOut = (s1SelectedOut + 1) % 16; // advance selection
+  s1Build();
+}
+
+function s1ToggleMap() {
+  s1MapOn = !s1MapOn;
+  document.getElementById('s1-pill').className = 'toggle-pill' + (s1MapOn ? ' on' : '');
+  document.getElementById('s1-toggle-label').textContent = 'Step Order: ' + (s1MapOn ? 'ON' : 'OFF');
+  document.getElementById('s1-toggle-label').className = 'toggle-label ' + (s1MapOn ? 'on-text' : 'off-text');
+  s1Build();
+}
+
+function s1TogglePlay() {
+  s1Playing = !s1Playing;
+  const btn = document.getElementById('s1-play');
+  if (s1Playing) {
+    btn.textContent = '■';
+    btn.className = 'play-btn playing';
+    s1PlayInterval = setInterval(() => {
+      s1PlayStep = (s1PlayStep + 1) % 16;
+      buildPlaybackGrid('playback-grid', s1Map, s1MapOn, s1PlayStep);
+      const src = s1MapOn ? s1Map[s1PlayStep] : s1PlayStep;
+      document.getElementById('pb-out').textContent = s1PlayStep;
+      document.getElementById('pb-src').textContent = src;
+    }, 300);
+  } else {
+    btn.textContent = '▶';
+    btn.className = 'play-btn';
+    clearInterval(s1PlayInterval);
+    buildPlaybackGrid('playback-grid', s1Map, s1MapOn, null);
+    document.getElementById('pb-out').textContent = '—';
+    document.getElementById('pb-src').textContent = '—';
+  }
+}
+
+function updateReadout() {
+  const ol = document.getElementById('selected-out-label');
+  const rl = document.getElementById('reads-label');
+  if (s1SelectedOut === null) {
+    ol.textContent = '—'; rl.textContent = '—';
+  } else {
+    ol.textContent = s1SelectedOut;
+    rl.textContent = s1MapOn ? s1Map[s1SelectedOut] : s1SelectedOut + ' (map OFF — sequential)';
+  }
+}
+
+// ── SCREEN 2 ──
+let s2MapOn = true;
+let s2Step = 0;
+let s2PlayInterval = null;
+
+function s2Build() {
+  buildOutputGrid('s2-output-grid', FIXTURE_MAP, s2MapOn, null, 's2out', null);
+  // highlight playhead
+  const cells = document.querySelectorAll('#s2-output-grid .step-cell');
+  cells.forEach((c,i) => { if(i===s2Step) c.classList.add('playhead'); });
+}
+
+function s2Toggle() {
+  s2MapOn = !s2MapOn;
+  const pill = document.getElementById('s2-pill');
+  const lbl  = document.getElementById('s2-label');
+  const eff  = document.getElementById('s2-effect-label');
+  const stat = document.getElementById('s2-status');
+  pill.className = 'toggle-pill' + (s2MapOn ? ' on' : '');
+  lbl.textContent = s2MapOn ? 'ON' : 'OFF';
+  lbl.className   = 'toggle-label ' + (s2MapOn ? 'on-text' : 'off-text');
+  eff.textContent = s2MapOn
+    ? 'Next phrase cycle: remapped playback active.'
+    : 'Next phrase cycle: sequential (direct stepInPhrase pass-through).';
+  stat.textContent = s2MapOn
+    ? 'Step Order ACTIVE — next cycle takes remapped values'
+    : 'Step Order OFF — sequential playback restoring at next phrase boundary';
+  stat.className = s2MapOn ? 'ok' : 'warn';
+
+  // log
+  const log = document.getElementById('s2-log');
+  const entry = document.createElement('div');
+  entry.textContent = '[now] → Step Order ' + (s2MapOn ? 'ON' : 'OFF') + ' (pending next phrase boundary)';
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+
+  s2Build();
+}
+
+// ── SCREEN 3 ──
+let currentScope = 'phrase';
+let pendingScope = 'phrase';
+const TRACKS = ['Drums (kick)', 'Drums (snare)', 'Bass', 'Chords'];
+
+function s3Build() {
+  const list = document.getElementById('scope-track-list');
+  list.innerHTML = '';
+  TRACKS.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'map-item';
+    const affected = currentScope === 'phrase' || currentScope === 'phrase-track';
+    row.innerHTML = `<span class="map-name">${t}</span>
+      <span class="map-scope">${affected ? 'affected' : 'not affected'}</span>
+      ${currentScope === 'phrase-track'
+        ? '<span class="stub-inline">→ [per-track toggle]</span>'
+        : ''}`;
+    list.appendChild(row);
+  });
+  document.getElementById('s3-status').textContent = 'Current scope: ' + currentScope;
+}
+
+function selectScope(el, scope) {
+  if (el.classList.contains('disabled-tab')) return;
+  document.querySelectorAll('#scope-tabs .scope-tab:not(.disabled-tab)').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  pendingScope = scope;
+  document.getElementById('pending-scope-label').textContent = scope;
+  document.getElementById('desc-phrase').style.display       = scope === 'phrase' ? '' : 'none';
+  document.getElementById('desc-phrase-track').style.display = scope === 'phrase-track' ? '' : 'none';
+}
+
+function confirmScope() {
+  currentScope = pendingScope;
+  s3Build();
+}
+
+function cancelScope() {
+  pendingScope = currentScope;
+  document.querySelectorAll('#scope-tabs .scope-tab:not(.disabled-tab)').forEach(t => t.classList.remove('selected'));
+  const idx = ['phrase','phrase-track'].indexOf(currentScope);
+  document.querySelectorAll('#scope-tabs .scope-tab:not(.disabled-tab)')[idx].classList.add('selected');
+  document.getElementById('pending-scope-label').textContent = currentScope;
+  document.getElementById('desc-phrase').style.display       = currentScope === 'phrase' ? '' : 'none';
+  document.getElementById('desc-phrase-track').style.display = currentScope === 'phrase-track' ? '' : 'none';
+}
+
+// ── SCREEN 4 ──
+let s4SelectedOut = null;
+
+function s4Init() {
+  renderMapList();
+  selectMap(activeMapId);
+}
+
+function renderMapList() {
+  const list = document.getElementById('map-list');
+  list.innerHTML = '';
+  maps.forEach(m => {
+    const item = document.createElement('div');
+    item.className = 'map-item' + (m.id === activeMapId ? ' active-map' : '');
+    item.innerHTML = `<span class="map-name">${m.name}</span>
+      <span class="map-meta">${m.usedBy.length ? m.usedBy.length + ' use(s)' : 'unused'}</span>`;
+    item.onclick = () => selectMap(m.id);
+    list.appendChild(item);
+  });
+}
+
+function selectMap(id) {
+  activeMapId = id;
+  s4SelectedOut = null;
+  renderMapList();
+  buildS4Editor();
+}
+
+function buildS4Editor() {
+  const m = maps.find(x => x.id === activeMapId);
+  if (!m) return;
+  document.getElementById('edit-map-name').textContent = m.name;
+  buildOutputGrid('s4-output-grid', m.map, true, s4SelectedOut, 's4out', (i) => {
+    s4SelectedOut = i;
+    buildS4Editor();
+  });
+  buildSourceGrid('s4-source-grid', m.map, s4SelectedOut, 's4src', (i) => {
+    if (s4SelectedOut === null) return;
+    m.map[s4SelectedOut] = i;
+    markDirty();
+    s4SelectedOut = (s4SelectedOut + 1) % 16;
+    buildS4Editor();
+  });
+  document.getElementById('s4-sel-out').textContent = s4SelectedOut !== null ? s4SelectedOut : '—';
+  document.getElementById('s4-sel-src').textContent = s4SelectedOut !== null ? m.map[s4SelectedOut] : '—';
+  document.getElementById('s4-raw-array').textContent = JSON.stringify(m.map);
+  const usage = document.getElementById('s4-usage');
+  if (m.usedBy.length) {
+    usage.innerHTML = 'Used by: ' + m.usedBy.map(u => `<strong>${u}</strong>`).join(', ');
+  } else {
+    usage.textContent = 'Not currently assigned to any phrase / track.';
+  }
+}
+
+function markDirty() {
+  document.getElementById('s4-dirty').textContent = 'Unsaved changes.';
+  document.getElementById('s4-dirty').style.color = 'var(--error)';
+  document.getElementById('s4-save-feedback').style.display = 'none';
+}
+
+function saveCurrentMap() {
+  document.getElementById('s4-dirty').textContent = 'Saved.';
+  document.getElementById('s4-dirty').style.color = 'var(--success)';
+  const fb = document.getElementById('s4-save-feedback');
+  fb.style.display = 'block';
+  setTimeout(() => { fb.style.display = 'none'; }, 1800);
+}
+
+function resetCurrentMap() {
+  const m = maps.find(x => x.id === activeMapId);
+  if (!m) return;
+  m.map = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+  s4SelectedOut = null;
+  markDirty();
+  buildS4Editor();
+}
+
+function duplicateCurrentMap() {
+  const m = maps.find(x => x.id === activeMapId);
+  if (!m) return;
+  const newId = 'm' + Date.now();
+  maps.push({ id: newId, name: m.name + ' (copy)', map: [...m.map], usedBy: [] });
+  activeMapId = newId;
+  s4SelectedOut = null;
+  renderMapList();
+  buildS4Editor();
+}
+
+function deleteCurrentMap() {
+  const m = maps.find(x => x.id === activeMapId);
+  if (!m) return;
+  if (m.usedBy.length) {
+    alert('[WIREFRAME STUB] Cannot delete a map that is currently in use. Unassign it first.');
+    return;
+  }
+  maps = maps.filter(x => x.id !== activeMapId);
+  activeMapId = maps.length ? maps[0].id : null;
+  renderMapList();
+  if (activeMapId) { s4SelectedOut = null; buildS4Editor(); }
+  else { document.getElementById('edit-map-name').textContent = '—'; }
+}
+
+// New map dialog
+function openNewMapDialog() {
+  document.getElementById('new-map-dialog').classList.add('open');
+  document.getElementById('new-map-name-input').value = 'Untitled map';
+  newMapInitMode = 'seq';
+  document.querySelectorAll('[id^="init-"]').forEach(b => b.classList.remove('selected'));
+  document.getElementById('init-seq').classList.add('selected');
+}
+
+function closeNewMapDialog() {
+  document.getElementById('new-map-dialog').classList.remove('open');
+}
+
+function selectInit(mode, el) {
+  newMapInitMode = mode;
+  document.querySelectorAll('[id^="init-"]').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function createNewMap() {
+  const name = document.getElementById('new-map-name-input').value.trim() || 'Untitled map';
+  let m;
+  if (newMapInitMode === 'seq')   m = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+  else if (newMapInitMode === 'rev') m = [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0];
+  else                             m = new Array(16).fill(0);
+  const newId = 'm' + Date.now();
+  maps.push({ id: newId, name, map: m, usedBy: [] });
+  activeMapId = newId;
+  s4SelectedOut = null;
+  closeNewMapDialog();
+  renderMapList();
+  buildS4Editor();
+}
+
+function openRenameDialog() {
+  const m = maps.find(x => x.id === activeMapId);
+  if (!m) return;
+  document.getElementById('rename-input').value = m.name;
+  document.getElementById('rename-dialog').classList.add('open');
+}
+
+function doRename() {
+  const m = maps.find(x => x.id === activeMapId);
+  if (!m) return;
+  const v = document.getElementById('rename-input').value.trim();
+  if (v) { m.name = v; markDirty(); }
+  document.getElementById('rename-dialog').classList.remove('open');
+  renderMapList();
+  buildS4Editor();
+}
+
+// ── Grid builders (shared) ──
+
+function buildOutputGrid(containerId, map, mapOn, selectedOut, prefix, onSelect) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const src = map[i];
+    const isRemapped = mapOn && src !== i;
+    const isRepeated = mapOn && map.filter((v,idx) => v === src && idx !== i).length > 0;
+    const cell = document.createElement('div');
+    cell.className = 'step-cell'
+      + (isRemapped ? ' remapped' : '')
+      + (isRepeated && isRemapped ? ' repeated' : '')
+      + (selectedOut === i ? ' selected-for-edit' : '');
+    cell.innerHTML = `<span class="idx">${i}</span><span class="val">${mapOn ? src : i}</span>`;
+    cell.title = `Output step ${i} → source step ${mapOn ? src : i}`;
+    if (onSelect) cell.onclick = () => onSelect(i);
+    el.appendChild(cell);
+  }
+}
+
+function buildSourceGrid(containerId, map, selectedOut, prefix, onSelect) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const isMappedTarget = selectedOut !== null && map[selectedOut] === i;
+    const cell = document.createElement('div');
+    cell.className = 'step-cell' + (isMappedTarget ? ' selected-for-edit' : '');
+    cell.innerHTML = `<span class="idx">${i}</span><span class="val">↑</span>`;
+    cell.title = `Source step ${i}${FIXTURE_NOTES[i] ? ' — has note' : ''}`;
+    if (FIXTURE_NOTES[i]) cell.classList.add('has-note');
+    if (onSelect) cell.onclick = () => onSelect(i);
+    el.appendChild(cell);
+  }
+}
+
+function buildClipRow(containerId, notes) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'step-cell' + (notes[i] ? ' has-note' : '');
+    cell.style.background = '#f0f0f0';
+    cell.innerHTML = `<span class="idx">${i}</span><span class="val">${notes[i] ? '●' : '·'}</span>`;
+    cell.title = `Clip step ${i}: ${notes[i] ? 'note present' : 'rest'}`;
+    el.appendChild(cell);
+  }
+}
+
+function buildPlaybackGrid(containerId, map, mapOn, playhead) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const src = mapOn ? map[i] : i;
+    const cell = document.createElement('div');
+    cell.className = 'step-cell'
+      + (mapOn && src !== i ? ' remapped' : '')
+      + (i === playhead ? ' playhead' : '');
+    cell.innerHTML = `<span class="idx">${i}</span><span class="val">${src}</span>`;
+    cell.title = `Output ${i} → src ${src}`;
+    el.appendChild(cell);
+  }
+}
+
+// ── Bootstrap ──
+window.addEventListener('DOMContentLoaded', () => {
+  s1Build();
+  s2Build();
+  s3Build();
+  s4Init();
+});
+</script>
+</body>
+</html>
