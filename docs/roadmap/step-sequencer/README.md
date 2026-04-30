@@ -4,7 +4,7 @@ title: Step Sequencer
 status: inventory
 priority: unset
 blocked_by: []
-stage: write-architecture
+stage: write-spec
 owner: pm
 updated: 2026-04-30
 ux_review_archived: docs/roadmap/step-sequencer/ux-reviews/ux-review-2026-04-29.md

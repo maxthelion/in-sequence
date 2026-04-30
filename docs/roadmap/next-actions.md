@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T13:56:25Z
-Repo HEAD: e3451f6
+Generated: 2026-04-30T14:01:11Z
+Repo HEAD: 193c44d
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -49,10 +49,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** Step Sequencer
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-prototypes`
+- **Action:** `review-architecture`
 - **Role:** `pm-assistant`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
+- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ## Feature Actions
 
@@ -84,10 +84,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
+- **Next action:** `review-architecture`
 - **Role:** `pm-assistant`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 4. Mixer Main Out
 
