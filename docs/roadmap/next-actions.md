@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T10:42:18Z
-Repo HEAD: 7105a66
+Generated: 2026-04-30T10:47:03Z
+Repo HEAD: 5f2378d
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -46,10 +46,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Feature:** Step Sequencer
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `address-feedback`
+- **Action:** `write-architecture`
 - **Role:** `pm-assistant`
-- **Why:** Unresolved feedback exists in `feedback/*.md`.
-- **Output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
+- **Why:** UX review exists, but `architecture.md` is missing.
+- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ## Feature Actions
 
@@ -81,10 +81,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `address-feedback`
+- **Next action:** `write-architecture`
 - **Role:** `pm-assistant`
-- **Reason:** Unresolved feedback exists in `feedback/*.md`.
-- **Suggested output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
+- **Reason:** UX review exists, but `architecture.md` is missing.
+- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ### 4. Mixer Main Out
 
