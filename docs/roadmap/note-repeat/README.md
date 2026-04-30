@@ -4,7 +4,7 @@ title: Note Repeat
 status: inventory
 priority: unset
 blocked_by: []
-stage: draft-user-stories
+stage: inspect-existing-state
 owner: pm
 updated: 2026-04-29
 ---

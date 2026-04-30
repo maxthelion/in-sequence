@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T10:28:01Z
-Repo HEAD: 3984d7b
+Generated: 2026-04-30T10:32:46Z
+Repo HEAD: 91664c2
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -31,25 +31,25 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 
 ## Next User Item
 
-- **Item:** 3
-- **Feature:** Step Sequencer
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `review-prototypes`
-- **Role:** `user`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
-
-## Next Agent Item
-
 - **Item:** 2
 - **Feature:** Scene Perform
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-architecture`
+- **Action:** `review-architecture`
+- **Role:** `user`
+- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+
+## Next Agent Item
+
+- **Item:** 15
+- **Feature:** Note Repeat
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `draft-user-stories`
 - **Role:** `pm-assistant`
-- **Why:** UX review exists, but `architecture.md` is missing.
-- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Why:** `notes.md` exists, but `user-stories.md` is missing.
+- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ## Feature Actions
 
@@ -70,10 +70,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `review-architecture`
+- **Role:** `user`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 3. Step Sequencer
 
