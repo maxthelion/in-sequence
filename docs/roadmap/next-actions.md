@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T10:13:44Z
-Repo HEAD: 49d6e3c
+Generated: 2026-04-30T10:22:06Z
+Repo HEAD: 85fcfc1
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -31,8 +31,8 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 
 ## Next User Item
 
-- **Item:** 2
-- **Feature:** Scene Perform
+- **Item:** 3
+- **Feature:** Step Sequencer
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `review-prototypes`
@@ -42,14 +42,14 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 
 ## Next Agent Item
 
-- **Item:** 14
-- **Feature:** Audio Looping
+- **Item:** 2
+- **Feature:** Scene Perform
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `inspect-existing-state`
+- **Action:** `address-feedback`
 - **Role:** `pm-assistant`
-- **Why:** User stories exist, but `existing-state.md` is missing.
-- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Why:** Unresolved feedback exists in `feedback/*.md`.
+- **Output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
 
 ## Feature Actions
 
@@ -70,10 +70,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
-- **Role:** `user`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Next action:** `address-feedback`
+- **Role:** `pm-assistant`
+- **Reason:** Unresolved feedback exists in `feedback/*.md`.
+- **Suggested output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
 
 ### 3. Step Sequencer
 
@@ -202,10 +202,10 @@ For each feature, deferred status wins first, then unresolved feedback, then blo
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `inspect-existing-state`
-- **Role:** `pm-assistant`
-- **Reason:** User stories exist, but `existing-state.md` is missing.
-- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Next action:** `review-prototypes`
+- **Role:** `user`
+- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
 ### 15. Note Repeat
 

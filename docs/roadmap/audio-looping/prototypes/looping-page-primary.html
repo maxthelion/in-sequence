@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Audio Looping — Live Looping Page</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Audio Looping: Macro live-looping performance page.
+
+  SCOPE: Covers all 5 stories from user-stories.md:
+    Story 1 — Open the live-looping page (sidebar navigation)
+    Story 2 — Arm a track for recording (per-track arm toggle)
+    Story 3 — Global record trigger with quantized-arm countdown
+    Story 4 — Per-track playback toggle (uses existing mute primitive)
+    Story 5 — Clear a loop from a track
+
+  STATES RENDERED (use the state buttons at the top to switch):
+    empty         — page loaded, no tracks armed or recorded
+    armed         — one or more tracks armed, awaiting global trigger
+    counting-in   — global record triggered, counting to next bar
+    recording     — tracks actively recording
+    has-loops     — recording complete, loops ready for playback
+    playing       — loops playing, playback toggles active
+
+  INTERACTION BUDGET:
+    Story 1 (navigate to page): ≤1 click (sidebar tap)
+    Story 2 (arm a track): ≤1 tap per track
+    Story 3 (trigger record): ≤1 tap (global button) + auto-quantize
+    Story 4 (toggle playback): ≤1 tap per track
+    Story 5 (clear a loop): ≤2 taps (clear icon + confirm)
+
+  ANNOTATION VOCABULARY (from existing-state.md):
+    - "Looping page" = new WorkspaceSection.looping case (not yet in codebase)
+    - "Arm state" = session-only transient state, no track-model equivalent exists
+    - "Global record trigger" = TransportBar record button is a disabled stub today
+    - "Bar countdown" = TickClock bar-boundary hook (tickIndex % stepsPerBar == 0) is
+      available but unused for this purpose
+    - "Playback toggle" = candidate reuse of toggleTrackMute / LayerSnapshot.mute path
+    - "Loop-capable tracks" = requires new TrackType or Destination variant (Input Audio)
+    - "Clear loop" = no model, engine, or buffer-reset path exists today
+
+  STUBS (dashed border): Settings, Library, Phrases, Mixer sidebar entries;
+    track detail / edit navigation; waveform thumbnail region.
+
+  FIXTURE TRACKS (adversarial: long name, unicode, short name):
+    - "Kick & Sub Layér" (has loop)
+    - "Melodic Lead (long legato)" (armed, recording)
+    - "FX" (empty)
+    - "Ambient Texture Drone Pad" (has loop, playing)
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #e8e8e8;
+    color: #111;
+    padding: 24px;
+  }
+
+  /* ---- Prototype Banner ---- */
+  .proto-banner {
+    background: #222;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  /* ---- State Controls ---- */
+  .state-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 10px 12px;
+  }
+  .state-controls label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+    margin-right: 4px;
+  }
+  .state-btn {
+    padding: 4px 10px;
+    border: 1px solid #999;
+    background: #e8e8e8;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .state-btn:hover { background: #d0d0d0; }
+  .state-btn.active { background: #222; color: #fff; border-color: #222; }
+
+  /* ---- App Shell ---- */
+  .app-shell {
+    display: flex;
+    height: 620px;
+    border: 1px solid #aaa;
+    background: #fff;
+  }
+
+  /* ---- Sidebar ---- */
+  .sidebar {
+    width: 140px;
+    flex-shrink: 0;
+    border-right: 1px solid #bbb;
+    background: #f4f4f4;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0;
+  }
+  .sidebar-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    padding: 0 12px 8px;
+  }
+  .sidebar-item {
+    padding: 7px 12px;
+    font-size: 12px;
+    color: #444;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border: none;
+    background: none;
+    text-align: left;
+    width: 100%;
+  }
+  .sidebar-item:hover { background: #e8e8e8; }
+  .sidebar-item.active {
+    background: #222;
+    color: #fff;
+    font-weight: 600;
+  }
+  /* stubs for non-active sidebar items */
+  .sidebar-item.stub {
+    border: 1.5px dashed #ccc;
+    margin: 1px 6px;
+    padding: 6px 8px;
+    width: calc(100% - 12px);
+    color: #aaa;
+    font-style: italic;
+    font-size: 11px;
+  }
+  .sidebar-item.stub:hover { background: #f0f0f0; }
+  .sidebar-icon {
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0.75;
+  }
+  .sidebar-spacer { flex: 1; }
+
+  /* ---- Main Content ---- */
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---- Page Header ---- */
+  .page-header {
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .page-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .page-subtitle {
+    font-size: 11px;
+    color: #777;
+    flex: 1;
+  }
+  .new-section-note {
+    font-size: 10px;
+    color: #b06000;
+    border: 1px solid #e09030;
+    padding: 2px 6px;
+    background: #fff8ee;
+  }
+
+  /* ---- Global Record Bar ---- */
+  .global-record-bar {
+    padding: 10px 16px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    background: #fafafa;
+  }
+  .record-trigger-btn {
+    padding: 8px 18px;
+    border: 2px solid #cc0000;
+    background: #fff;
+    color: #cc0000;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .record-trigger-btn:hover { background: #fff0f0; }
+  .record-trigger-btn.recording {
+    background: #cc0000;
+    color: #fff;
+  }
+  .record-trigger-btn.disabled-stub {
+    border: 2px dashed #cc9999;
+    color: #cc9999;
+    cursor: default;
+  }
+  .countdown-display {
+    font-size: 11px;
+    color: #555;
+    display: none;
+  }
+  .countdown-display.visible {
+    display: block;
+  }
+  .countdown-bar {
+    display: none;
+    flex: 1;
+    height: 8px;
+    border: 1px solid #ccc;
+    background: #eee;
+    overflow: hidden;
+  }
+  .countdown-bar.visible { display: block; }
+  .countdown-fill {
+    height: 100%;
+    background: #cc0000;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+  .record-status-note {
+    font-size: 10px;
+    color: #888;
+    flex: 1;
+    font-style: italic;
+  }
+  .transport-stub-note {
+    font-size: 10px;
+    color: #b06000;
+    border: 1px dashed #e09030;
+    padding: 2px 6px;
+    background: #fff8ee;
+  }
+
+  /* ---- Track List ---- */
+  .track-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .track-list-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    color: #999;
+    font-size: 12px;
+    font-style: italic;
+    text-align: center;
+    padding: 40px;
+  }
+  .empty-note {
+    font-size: 10px;
+    color: #b06000;
+    border: 1px dashed #e09030;
+    padding: 4px 8px;
+    background: #fff8ee;
+    max-width: 320px;
+    font-style: normal;
+    line-height: 1.5;
+  }
+
+  /* ---- Track Card ---- */
+  .track-card {
+    border: 1px solid #ccc;
+    background: #fafafa;
+    display: flex;
+    align-items: stretch;
+    min-height: 64px;
+    position: relative;
+  }
+  .track-card.armed {
+    border-color: #cc0000;
+    background: #fff8f8;
+  }
+  .track-card.recording {
+    border-color: #cc0000;
+    background: #fff0f0;
+    animation: recording-pulse 1s infinite alternate;
+  }
+  @keyframes recording-pulse {
+    from { border-color: #cc0000; }
+    to   { border-color: #ff6666; }
+  }
+  .track-card.has-loop {
+    border-color: #888;
+    background: #f8f8f8;
+  }
+  .track-card.playing {
+    border-color: #0066cc;
+    background: #f4f8ff;
+  }
+
+  /* Track Name Column */
+  .track-name-col {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 180px;
+    flex-shrink: 0;
+    border-right: 1px solid #e0e0e0;
+    overflow: hidden;
+  }
+  .track-name {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .track-state-label {
+    font-size: 10px;
+    color: #888;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .track-state-label.armed { color: #cc0000; }
+  .track-state-label.recording { color: #cc0000; font-weight: 700; }
+  .track-state-label.has-loop { color: #555; }
+  .track-state-label.playing { color: #0066cc; font-weight: 700; }
+
+  /* Loop Waveform Stub */
+  .loop-waveform-stub {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-right: 1px solid #e0e0e0;
+    position: relative;
+  }
+  .waveform-placeholder {
+    width: 100%;
+    height: 32px;
+    border: 1.5px dashed #ccc;
+    background: repeating-linear-gradient(
+      90deg,
+      #e8e8e8 0px,
+      #e8e8e8 4px,
+      #f4f4f4 4px,
+      #f4f4f4 8px
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #aaa;
+    font-style: italic;
+  }
+  .waveform-placeholder.empty-slot {
+    background: #f8f8f8;
+    border-style: dashed;
+    color: #ccc;
+  }
+  .waveform-placeholder.recording-active {
+    background: repeating-linear-gradient(
+      90deg,
+      #ffe0e0 0px,
+      #ffe0e0 4px,
+      #fff0f0 4px,
+      #fff0f0 8px
+    );
+    border-color: #cc0000;
+    color: #cc0000;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .waveform-loop-svg {
+    width: 100%;
+    height: 32px;
+  }
+
+  /* Controls Column */
+  .track-controls {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  /* Individual Track Buttons */
+  .ctrl-btn {
+    width: 40px;
+    height: 40px;
+    border: 1.5px solid #bbb;
+    background: #fff;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.1;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #333;
+    position: relative;
+  }
+  .ctrl-btn:hover { background: #eee; }
+  .ctrl-btn .btn-label {
+    font-size: 9px;
+    color: #888;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+  }
+
+  /* Arm Button */
+  .arm-btn { border-color: #cc0000; }
+  .arm-btn:hover { background: #fff0f0; }
+  .arm-btn.armed {
+    background: #cc0000;
+    color: #fff;
+    border-color: #cc0000;
+  }
+  .arm-btn.armed .btn-label { color: #ffaaaa; }
+
+  /* Play/Mute Button */
+  .play-btn { border-color: #0066cc; }
+  .play-btn:hover { background: #f0f4ff; }
+  .play-btn.playing {
+    background: #0066cc;
+    color: #fff;
+    border-color: #0066cc;
+  }
+  .play-btn.playing .btn-label { color: #aaccff; }
+  .play-btn.no-loop {
+    border-color: #ddd;
+    color: #ccc;
+    cursor: default;
+  }
+  .play-btn.no-loop:hover { background: #fff; }
+  .play-btn.mute-primitive-note {
+    /* annotation: this reuses toggleTrackMute / LayerSnapshot.mute */
+  }
+
+  /* Clear Button */
+  .clear-btn { border-color: #aaa; }
+  .clear-btn:hover { background: #f0f0f0; }
+  .clear-btn.no-loop {
+    border-color: #ddd;
+    color: #ccc;
+    cursor: default;
+  }
+  .clear-btn.no-loop:hover { background: #fff; }
+
+  /* Clear Confirm overlay */
+  .clear-confirm-overlay {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #fff;
+    border: 1px solid #cc0000;
+    padding: 6px 10px;
+    z-index: 10;
+    font-size: 11px;
+    white-space: nowrap;
+    gap: 6px;
+    align-items: center;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.12);
+  }
+  .clear-confirm-overlay.visible { display: flex; }
+  .confirm-yes {
+    padding: 3px 10px;
+    background: #cc0000;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .confirm-cancel {
+    padding: 3px 10px;
+    background: #eee;
+    color: #444;
+    border: 1px solid #bbb;
+    cursor: pointer;
+    font-size: 11px;
+  }
+
+  /* ---- Annotations Panel ---- */
+  .annotations {
+    border-top: 1px solid #ddd;
+    background: #f7f7f7;
+    padding: 10px 16px;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #555;
+    line-height: 1.6;
+  }
+  .annotations strong { color: #222; }
+  .annotations .anno-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .anno-tag {
+    border: 1px solid #ddd;
+    padding: 1px 6px;
+    background: #efefef;
+    color: #444;
+    font-style: normal;
+  }
+  .anno-tag.gap {
+    border-color: #e09030;
+    background: #fff8ee;
+    color: #b06000;
+  }
+  .anno-tag.primitive {
+    border-color: #999;
+    background: #eee;
+    color: #333;
+  }
+  .anno-tag.stub {
+    border: 1.5px dashed #ccc;
+    background: #f8f8f8;
+    color: #aaa;
+  }
+
+  /* ---- Legend ---- */
+  .legend {
+    display: flex;
+    gap: 16px;
+    padding: 8px 16px;
+    border-top: 1px solid #e0e0e0;
+    background: #fafafa;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    font-size: 10px;
+    color: #666;
+    align-items: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid #ccc;
+    display: inline-block;
+  }
+  .legend-dot.red { border-color: #cc0000; background: #cc0000; }
+  .legend-dot.red-outline { border-color: #cc0000; background: #fff8f8; }
+  .legend-dot.blue { border-color: #0066cc; background: #0066cc; }
+  .legend-dot.grey { border-color: #888; background: #f0f0f0; }
+  .legend-dot.stub-dot { border-style: dashed; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">PROTOTYPE — NOT PRODUCTION UI &nbsp;|&nbsp; Audio Looping — Live Looping Page &nbsp;|&nbsp; Stories 1–5</div>
+
+<!-- State Controls -->
+<div class="state-controls">
+  <label>State:</label>
+  <button class="state-btn active" onclick="setState('empty')">Empty</button>
+  <button class="state-btn" onclick="setState('armed')">Armed</button>
+  <button class="state-btn" onclick="setState('counting-in')">Counting In</button>
+  <button class="state-btn" onclick="setState('recording')">Recording</button>
+  <button class="state-btn" onclick="setState('has-loops')">Has Loops</button>
+  <button class="state-btn" onclick="setState('playing')">Playing</button>
+</div>
+
+<!-- App Shell -->
+<div class="app-shell">
+
+  <!-- Sidebar (Story 1: navigation slot) -->
+  <nav class="sidebar" aria-label="Workspace sections">
+    <div class="sidebar-title">Workspace</div>
+
+    <button class="sidebar-item stub" onclick="stubClick(this, 'Tracks')">
+      <span class="sidebar-icon">&#9776;</span> Tracks
+    </button>
+    <button class="sidebar-item stub" onclick="stubClick(this, 'Phrases')">
+      <span class="sidebar-icon">&#9634;</span> Phrases
+    </button>
+    <button class="sidebar-item stub" onclick="stubClick(this, 'Scenes')">
+      <span class="sidebar-icon">&#9632;</span> Scenes
+    </button>
+
+    <!-- Story 1: New sidebar entry — WorkspaceSection.looping (does not exist yet) -->
+    <button class="sidebar-item active" id="sidebar-looping">
+      <span class="sidebar-icon">&#9711;</span> Looping
+    </button>
+
+    <button class="sidebar-item stub" onclick="stubClick(this, 'Library')">
+      <span class="sidebar-icon">&#9776;</span> Library
+    </button>
+    <div class="sidebar-spacer"></div>
+    <button class="sidebar-item stub" onclick="stubClick(this, 'Settings')">
+      <span class="sidebar-icon">&#9881;</span> Settings
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-title">Live Looping</div>
+      <div class="page-subtitle" id="page-subtitle">Loop-capable tracks only &mdash; performance control surface</div>
+      <span class="new-section-note" title="WorkspaceSection.looping case does not exist in codebase">NEW: WorkspaceSection.looping</span>
+    </div>
+
+    <!-- Global Record Bar (Story 3) -->
+    <div class="global-record-bar">
+      <button class="record-trigger-btn" id="global-record-btn" onclick="globalRecordTap()">
+        &#9210; Record All Armed
+      </button>
+      <div class="countdown-display" id="countdown-text">Waiting for next bar&hellip;</div>
+      <div class="countdown-bar" id="countdown-bar">
+        <div class="countdown-fill" id="countdown-fill"></div>
+      </div>
+      <div class="record-status-note" id="record-status-note">Arm tracks below, then tap to start recording at next bar</div>
+      <span class="transport-stub-note" id="transport-stub-note" title="TransportBar record button is a disabled stub today">STUB: TransportBar record btn disabled</span>
+    </div>
+
+    <!-- Track List -->
+    <div class="track-list" id="track-list">
+
+      <!-- Track 1: Kick & Sub Layér -->
+      <div class="track-card" id="card-kick" data-track="kick">
+        <div class="track-name-col">
+          <div class="track-name">Kick &amp; Sub Lay&#233;r</div>
+          <div class="track-state-label has-loop" id="kick-state-label">Has Loop</div>
+        </div>
+        <div class="loop-waveform-stub">
+          <!-- Waveform thumbnail is a stub -->
+          <svg class="waveform-loop-svg" id="kick-waveform" viewBox="0 0 200 32" preserveAspectRatio="none">
+            <rect width="200" height="32" fill="#f0f0f0" stroke="#ccc" stroke-dasharray="4,3"/>
+            <!-- simple fake waveform bars -->
+            <g fill="#bbb" id="kick-waveform-bars">
+              <rect x="4"  y="8"  width="5" height="16"/>
+              <rect x="12" y="4"  width="5" height="24"/>
+              <rect x="20" y="10" width="5" height="12"/>
+              <rect x="28" y="6"  width="5" height="20"/>
+              <rect x="36" y="12" width="5" height="8"/>
+              <rect x="44" y="4"  width="5" height="24"/>
+              <rect x="52" y="9"  width="5" height="14"/>
+              <rect x="60" y="5"  width="5" height="22"/>
+              <rect x="68" y="11" width="5" height="10"/>
+              <rect x="76" y="7"  width="5" height="18"/>
+              <rect x="84" y="3"  width="5" height="26"/>
+              <rect x="92" y="10" width="5" height="12"/>
+              <rect x="100" y="6" width="5" height="20"/>
+              <rect x="108" y="13" width="5" height="6"/>
+              <rect x="116" y="4" width="5" height="24"/>
+              <rect x="124" y="9" width="5" height="14"/>
+              <rect x="132" y="7" width="5" height="18"/>
+              <rect x="140" y="5" width="5" height="22"/>
+              <rect x="148" y="11" width="5" height="10"/>
+              <rect x="156" y="8" width="5" height="16"/>
+              <rect x="164" y="4" width="5" height="24"/>
+              <rect x="172" y="10" width="5" height="12"/>
+              <rect x="180" y="6" width="5" height="20"/>
+              <rect x="188" y="9" width="5" height="14"/>
+            </g>
+            <text x="100" y="28" text-anchor="middle" font-size="8" fill="#aaa" font-style="italic">[waveform thumbnail — stub]</text>
+          </svg>
+        </div>
+        <div class="track-controls">
+          <!-- Story 2: Arm button -->
+          <button class="ctrl-btn arm-btn" id="kick-arm" onclick="toggleArm('kick')" title="Arm / disarm this track for recording">
+            &#9679;
+            <span class="btn-label">Arm</span>
+          </button>
+          <!-- Story 4: Playback toggle — candidate: reuse toggleTrackMute -->
+          <button class="ctrl-btn play-btn has-loop mute-primitive-note" id="kick-play" onclick="togglePlay('kick')" title="Toggle loop playback (maps to toggleTrackMute)">
+            &#9654;
+            <span class="btn-label">Play</span>
+          </button>
+          <!-- Story 5: Clear loop -->
+          <div style="position:relative;">
+            <button class="ctrl-btn clear-btn" id="kick-clear" onclick="showClearConfirm('kick')" title="Discard recorded loop">
+              &#215;
+              <span class="btn-label">Clear</span>
+            </button>
+            <div class="clear-confirm-overlay" id="kick-clear-confirm">
+              Clear loop?
+              <button class="confirm-yes" onclick="confirmClear('kick')">Clear</button>
+              <button class="confirm-cancel" onclick="cancelClear('kick')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Track 2: Melodic Lead (long legato) -->
+      <div class="track-card" id="card-lead" data-track="lead">
+        <div class="track-name-col">
+          <div class="track-name">Melodic Lead (long legato)</div>
+          <div class="track-state-label" id="lead-state-label">Empty</div>
+        </div>
+        <div class="loop-waveform-stub">
+          <div class="waveform-placeholder empty-slot" id="lead-waveform-placeholder">
+            No loop recorded
+          </div>
+        </div>
+        <div class="track-controls">
+          <button class="ctrl-btn arm-btn" id="lead-arm" onclick="toggleArm('lead')" title="Arm / disarm this track">
+            &#9679;
+            <span class="btn-label">Arm</span>
+          </button>
+          <button class="ctrl-btn play-btn no-loop" id="lead-play" title="No loop recorded — unavailable">
+            &#9654;
+            <span class="btn-label">Play</span>
+          </button>
+          <div style="position:relative;">
+            <button class="ctrl-btn clear-btn no-loop" id="lead-clear" title="No loop to clear">
+              &#215;
+              <span class="btn-label">Clear</span>
+            </button>
+            <div class="clear-confirm-overlay" id="lead-clear-confirm">
+              Clear loop?
+              <button class="confirm-yes" onclick="confirmClear('lead')">Clear</button>
+              <button class="confirm-cancel" onclick="cancelClear('lead')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Track 3: FX (short name adversarial fixture) -->
+      <div class="track-card" id="card-fx" data-track="fx">
+        <div class="track-name-col">
+          <div class="track-name">FX</div>
+          <div class="track-state-label" id="fx-state-label">Empty</div>
+        </div>
+        <div class="loop-waveform-stub">
+          <div class="waveform-placeholder empty-slot" id="fx-waveform-placeholder">
+            No loop recorded
+          </div>
+        </div>
+        <div class="track-controls">
+          <button class="ctrl-btn arm-btn" id="fx-arm" onclick="toggleArm('fx')" title="Arm / disarm this track">
+            &#9679;
+            <span class="btn-label">Arm</span>
+          </button>
+          <button class="ctrl-btn play-btn no-loop" id="fx-play" title="No loop recorded — unavailable">
+            &#9654;
+            <span class="btn-label">Play</span>
+          </button>
+          <div style="position:relative;">
+            <button class="ctrl-btn clear-btn no-loop" id="fx-clear" title="No loop to clear">
+              &#215;
+              <span class="btn-label">Clear</span>
+            </button>
+            <div class="clear-confirm-overlay" id="fx-clear-confirm">
+              Clear loop?
+              <button class="confirm-yes" onclick="confirmClear('fx')">Clear</button>
+              <button class="confirm-cancel" onclick="cancelClear('fx')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Track 4: Ambient Texture Drone Pad (long name adversarial fixture) -->
+      <div class="track-card" id="card-drone" data-track="drone">
+        <div class="track-name-col">
+          <div class="track-name">Ambient Texture Drone Pad</div>
+          <div class="track-state-label has-loop" id="drone-state-label">Has Loop</div>
+        </div>
+        <div class="loop-waveform-stub">
+          <svg class="waveform-loop-svg" id="drone-waveform" viewBox="0 0 200 32" preserveAspectRatio="none">
+            <rect width="200" height="32" fill="#f0f0f0" stroke="#ccc" stroke-dasharray="4,3"/>
+            <g fill="#bbb" id="drone-waveform-bars">
+              <rect x="4"  y="13" width="5" height="6"/>
+              <rect x="12" y="11" width="5" height="10"/>
+              <rect x="20" y="9"  width="5" height="14"/>
+              <rect x="28" y="8"  width="5" height="16"/>
+              <rect x="36" y="7"  width="5" height="18"/>
+              <rect x="44" y="8"  width="5" height="16"/>
+              <rect x="52" y="9"  width="5" height="14"/>
+              <rect x="60" y="10" width="5" height="12"/>
+              <rect x="68" y="11" width="5" height="10"/>
+              <rect x="76" y="10" width="5" height="12"/>
+              <rect x="84" y="9"  width="5" height="14"/>
+              <rect x="92" y="8"  width="5" height="16"/>
+              <rect x="100" y="7" width="5" height="18"/>
+              <rect x="108" y="8" width="5" height="16"/>
+              <rect x="116" y="9" width="5" height="14"/>
+              <rect x="124" y="10" width="5" height="12"/>
+              <rect x="132" y="11" width="5" height="10"/>
+              <rect x="140" y="10" width="5" height="12"/>
+              <rect x="148" y="9" width="5" height="14"/>
+              <rect x="156" y="8" width="5" height="16"/>
+              <rect x="164" y="7" width="5" height="18"/>
+              <rect x="172" y="8" width="5" height="16"/>
+              <rect x="180" y="9" width="5" height="14"/>
+              <rect x="188" y="10" width="5" height="12"/>
+            </g>
+            <text x="100" y="28" text-anchor="middle" font-size="8" fill="#aaa" font-style="italic">[waveform thumbnail — stub]</text>
+          </svg>
+        </div>
+        <div class="track-controls">
+          <button class="ctrl-btn arm-btn" id="drone-arm" onclick="toggleArm('drone')" title="Arm / disarm this track">
+            &#9679;
+            <span class="btn-label">Arm</span>
+          </button>
+          <button class="ctrl-btn play-btn" id="drone-play" onclick="togglePlay('drone')" title="Toggle loop playback (maps to toggleTrackMute)">
+            &#9654;
+            <span class="btn-label">Play</span>
+          </button>
+          <div style="position:relative;">
+            <button class="ctrl-btn clear-btn" id="drone-clear" onclick="showClearConfirm('drone')" title="Discard recorded loop">
+              &#215;
+              <span class="btn-label">Clear</span>
+            </button>
+            <div class="clear-confirm-overlay" id="drone-clear-confirm">
+              Clear loop?
+              <button class="confirm-yes" onclick="confirmClear('drone')">Clear</button>
+              <button class="confirm-cancel" onclick="cancelClear('drone')">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /track-list -->
+
+    <!-- Annotations Panel -->
+    <div class="annotations">
+      <div class="anno-row">
+        <span class="anno-tag gap">NEW: WorkspaceSection.looping</span>
+        <span class="anno-tag gap">NEW: arm state (session-only, not on StepSequenceTrack)</span>
+        <span class="anno-tag gap">STUB: TransportBar record btn disabled today</span>
+        <span class="anno-tag gap">GAP: no loop-capable TrackType (Input Audio prerequisite)</span>
+        <span class="anno-tag primitive">PRIMITIVE: play toggle reuses toggleTrackMute</span>
+        <span class="anno-tag gap">GAP: no clearLoop() — no buffer, no mutation, no engine path</span>
+        <span class="anno-tag gap">QUANTIZE: bar countdown via TickClock.tickIndex % stepsPerBar (hook exists, unused)</span>
+        <span class="anno-tag stub">STUB: waveform thumbnail region (dashed border)</span>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <strong style="font-size:10px;color:#444;">Card border color:</strong>
+      <div class="legend-item"><span class="legend-dot red-outline"></span> Armed / Recording</div>
+      <div class="legend-item"><span class="legend-dot red"></span> Recording (active)</div>
+      <div class="legend-item"><span class="legend-dot blue"></span> Playing</div>
+      <div class="legend-item"><span class="legend-dot grey"></span> Has loop, silent</div>
+      <div class="legend-item"><span class="legend-dot stub-dot"></span> Stub region</div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<script>
+// ---- Track state machine ----
+// States per track: 'empty' | 'armed' | 'recording' | 'has-loop' | 'playing'
+const trackStates = {
+  kick:  'has-loop',
+  lead:  'empty',
+  fx:    'empty',
+  drone: 'has-loop',
+};
+
+let globalRecordState = 'idle'; // 'idle' | 'counting-in' | 'recording'
+let countdownTimer = null;
+
+// ---- Render helpers ----
+
+function renderTrack(id) {
+  const state = trackStates[id];
+  const card = document.getElementById('card-' + id);
+  const stateLabel = document.getElementById(id + '-state-label');
+  const armBtn = document.getElementById(id + '-arm');
+  const playBtn = document.getElementById(id + '-play');
+  const clearBtn = document.getElementById(id + '-clear');
+
+  // Reset card classes
+  card.className = 'track-card';
+  stateLabel.className = 'track-state-label';
+
+  // Arm button
+  armBtn.className = 'ctrl-btn arm-btn';
+
+  // Waveform / placeholder
+  const waveformEl = document.getElementById(id + '-waveform') || document.getElementById(id + '-waveform-placeholder');
+
+  if (state === 'empty') {
+    stateLabel.textContent = 'Empty';
+    playBtn.className = 'ctrl-btn play-btn no-loop';
+    playBtn.title = 'No loop recorded — unavailable';
+    clearBtn.className = 'ctrl-btn clear-btn no-loop';
+    clearBtn.onclick = null;
+    if (document.getElementById(id + '-waveform-placeholder')) {
+      document.getElementById(id + '-waveform-placeholder').className = 'waveform-placeholder empty-slot';
+      document.getElementById(id + '-waveform-placeholder').textContent = 'No loop recorded';
+    }
+  } else if (state === 'armed') {
+    card.classList.add('armed');
+    stateLabel.classList.add('armed');
+    stateLabel.textContent = 'Armed';
+    armBtn.classList.add('armed');
+    armBtn.title = 'Disarm this track';
+    playBtn.className = 'ctrl-btn play-btn no-loop';
+    playBtn.title = 'No loop yet — arm and record first';
+    clearBtn.className = 'ctrl-btn clear-btn no-loop';
+    clearBtn.onclick = null;
+    if (document.getElementById(id + '-waveform-placeholder')) {
+      document.getElementById(id + '-waveform-placeholder').className = 'waveform-placeholder empty-slot';
+      document.getElementById(id + '-waveform-placeholder').textContent = 'Armed — waiting for record trigger';
+    }
+  } else if (state === 'recording') {
+    card.classList.add('recording');
+    stateLabel.classList.add('recording');
+    stateLabel.textContent = 'Recording…';
+    playBtn.className = 'ctrl-btn play-btn no-loop';
+    clearBtn.className = 'ctrl-btn clear-btn no-loop';
+    clearBtn.onclick = null;
+    if (document.getElementById(id + '-waveform-placeholder')) {
+      document.getElementById(id + '-waveform-placeholder').className = 'waveform-placeholder recording-active';
+      document.getElementById(id + '-waveform-placeholder').textContent = '● REC';
+    }
+  } else if (state === 'has-loop') {
+    card.classList.add('has-loop');
+    stateLabel.classList.add('has-loop');
+    stateLabel.textContent = 'Has Loop';
+    playBtn.className = 'ctrl-btn play-btn';
+    playBtn.title = 'Play loop (maps to toggleTrackMute)';
+    playBtn.innerHTML = '&#9654;<span class="btn-label">Play</span>';
+    clearBtn.className = 'ctrl-btn clear-btn';
+    clearBtn.onclick = function() { showClearConfirm(id); };
+    clearBtn.title = 'Discard recorded loop';
+  } else if (state === 'playing') {
+    card.classList.add('playing');
+    stateLabel.classList.add('playing');
+    stateLabel.textContent = 'Playing';
+    playBtn.className = 'ctrl-btn play-btn playing mute-primitive-note';
+    playBtn.title = 'Mute loop (maps to toggleTrackMute — mute path in LayerSnapshot)';
+    playBtn.innerHTML = '&#9646;&#9646;<span class="btn-label">Mute</span>';
+    clearBtn.className = 'ctrl-btn clear-btn';
+    clearBtn.onclick = function() { showClearConfirm(id); };
+    clearBtn.title = 'Discard recorded loop';
+  }
+}
+
+function renderAll() {
+  ['kick', 'lead', 'fx', 'drone'].forEach(renderTrack);
+}
+
+// ---- Story 2: Arm toggle ----
+function toggleArm(id) {
+  const state = trackStates[id];
+  if (state === 'empty') {
+    trackStates[id] = 'armed';
+  } else if (state === 'armed') {
+    trackStates[id] = 'empty';
+  }
+  // If recording/has-loop/playing — arm has no effect from this prototype
+  renderTrack(id);
+  updateRecordBar();
+}
+
+// ---- Story 4: Playback toggle ----
+function togglePlay(id) {
+  const state = trackStates[id];
+  if (state === 'has-loop') {
+    trackStates[id] = 'playing';
+  } else if (state === 'playing') {
+    trackStates[id] = 'has-loop';
+  }
+  renderTrack(id);
+}
+
+// ---- Story 5: Clear loop ----
+function showClearConfirm(id) {
+  const state = trackStates[id];
+  if (state !== 'has-loop' && state !== 'playing') return;
+  document.getElementById(id + '-clear-confirm').classList.add('visible');
+}
+function cancelClear(id) {
+  document.getElementById(id + '-clear-confirm').classList.remove('visible');
+}
+function confirmClear(id) {
+  document.getElementById(id + '-clear-confirm').classList.remove('visible');
+  trackStates[id] = 'empty';
+  // Also make sure waveform placeholder re-appears (only needed for tracks
+  // that started with an SVG waveform — swap to placeholder)
+  const waveParent = document.getElementById('card-' + id).querySelector('.loop-waveform-stub');
+  if (!document.getElementById(id + '-waveform-placeholder')) {
+    const existingSvg = document.getElementById(id + '-waveform');
+    if (existingSvg) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'waveform-placeholder empty-slot';
+      placeholder.id = id + '-waveform-placeholder';
+      placeholder.textContent = 'No loop recorded';
+      waveParent.replaceChild(placeholder, existingSvg);
+    }
+  }
+  renderTrack(id);
+  updateRecordBar();
+}
+
+// ---- Story 3: Global record trigger ----
+function armedTracks() {
+  return Object.entries(trackStates).filter(([, s]) => s === 'armed').map(([id]) => id);
+}
+
+function updateRecordBar() {
+  const armed = armedTracks();
+  const recordBtn = document.getElementById('global-record-btn');
+  const statusNote = document.getElementById('record-status-note');
+  const stubNote = document.getElementById('transport-stub-note');
+
+  if (globalRecordState === 'idle') {
+    recordBtn.className = 'record-trigger-btn';
+    recordBtn.textContent = 'ⓧ Record All Armed';
+    if (armed.length === 0) {
+      statusNote.textContent = 'Arm tracks below, then tap to start recording at next bar';
+      recordBtn.style.opacity = '0.5';
+    } else {
+      statusNote.textContent = armed.length + ' track' + (armed.length > 1 ? 's' : '') + ' armed — tap to record at next bar';
+      recordBtn.style.opacity = '1';
+    }
+  } else if (globalRecordState === 'counting-in') {
+    recordBtn.className = 'record-trigger-btn';
+    recordBtn.textContent = 'ⓧ Waiting for bar…';
+    statusNote.textContent = 'Quantizing to next bar boundary (TickClock.tickIndex % stepsPerBar)';
+    recordBtn.style.opacity = '1';
+  } else if (globalRecordState === 'recording') {
+    recordBtn.className = 'record-trigger-btn recording';
+    recordBtn.textContent = '&#9632; Stop Recording';
+    statusNote.textContent = 'Recording on ' + Object.entries(trackStates).filter(([,s]) => s === 'recording').length + ' track(s)';
+    recordBtn.style.opacity = '1';
+  }
+}
+
+function globalRecordTap() {
+  if (globalRecordState === 'idle') {
+    const armed = armedTracks();
+    if (armed.length === 0) return; // nothing to do
+
+    globalRecordState = 'counting-in';
+    document.getElementById('countdown-text').classList.add('visible');
+    document.getElementById('countdown-bar').classList.add('visible');
+    document.getElementById('transport-stub-note').style.display = 'none';
+    updateRecordBar();
+
+    // Animate countdown fill over ~1.2s (simulated bar)
+    let fill = 0;
+    const fillEl = document.getElementById('countdown-fill');
+    fillEl.style.width = '0%';
+    const countdownInterval = setInterval(() => {
+      fill += 5;
+      fillEl.style.width = fill + '%';
+      if (fill >= 100) {
+        clearInterval(countdownInterval);
+        // Transition to recording
+        globalRecordState = 'recording';
+        document.getElementById('countdown-text').classList.remove('visible');
+        document.getElementById('countdown-bar').classList.remove('visible');
+        armed.forEach(id => { trackStates[id] = 'recording'; });
+        renderAll();
+        updateRecordBar();
+
+        // Auto-stop after ~2.5s for prototype demo
+        countdownTimer = setTimeout(() => {
+          globalRecordState = 'idle';
+          Object.entries(trackStates).forEach(([id, s]) => {
+            if (s === 'recording') trackStates[id] = 'has-loop';
+          });
+          // Re-add stub note
+          document.getElementById('transport-stub-note').style.display = '';
+          renderAll();
+          updateRecordBar();
+        }, 2500);
+      }
+    }, 60);
+
+  } else if (globalRecordState === 'recording') {
+    // Manual stop
+    if (countdownTimer) clearTimeout(countdownTimer);
+    globalRecordState = 'idle';
+    Object.entries(trackStates).forEach(([id, s]) => {
+      if (s === 'recording') trackStates[id] = 'has-loop';
+    });
+    document.getElementById('transport-stub-note').style.display = '';
+    renderAll();
+    updateRecordBar();
+  }
+}
+
+// ---- Preset state switcher ----
+function setState(preset) {
+  // Reset countdown timer
+  if (countdownTimer) clearTimeout(countdownTimer);
+  globalRecordState = 'idle';
+  document.getElementById('countdown-text').classList.remove('visible');
+  document.getElementById('countdown-bar').classList.remove('visible');
+  document.getElementById('transport-stub-note').style.display = '';
+  document.getElementById('countdown-fill').style.width = '0%';
+
+  // Restore SVG waveforms that may have been cleared
+  restoreWaveforms();
+
+  // Dismiss any open clear-confirm overlays
+  document.querySelectorAll('.clear-confirm-overlay').forEach(el => el.classList.remove('visible'));
+
+  if (preset === 'empty') {
+    trackStates.kick  = 'empty';
+    trackStates.lead  = 'empty';
+    trackStates.fx    = 'empty';
+    trackStates.drone = 'empty';
+  } else if (preset === 'armed') {
+    trackStates.kick  = 'armed';
+    trackStates.lead  = 'armed';
+    trackStates.fx    = 'empty';
+    trackStates.drone = 'empty';
+  } else if (preset === 'counting-in') {
+    trackStates.kick  = 'armed';
+    trackStates.lead  = 'armed';
+    trackStates.fx    = 'empty';
+    trackStates.drone = 'empty';
+    // trigger counting-in display manually
+    globalRecordState = 'counting-in';
+    document.getElementById('countdown-text').classList.add('visible');
+    document.getElementById('countdown-bar').classList.add('visible');
+    document.getElementById('countdown-fill').style.width = '55%';
+    document.getElementById('transport-stub-note').style.display = 'none';
+  } else if (preset === 'recording') {
+    trackStates.kick  = 'recording';
+    trackStates.lead  = 'recording';
+    trackStates.fx    = 'empty';
+    trackStates.drone = 'has-loop';
+    globalRecordState = 'recording';
+    document.getElementById('transport-stub-note').style.display = 'none';
+  } else if (preset === 'has-loops') {
+    trackStates.kick  = 'has-loop';
+    trackStates.lead  = 'has-loop';
+    trackStates.fx    = 'empty';
+    trackStates.drone = 'has-loop';
+  } else if (preset === 'playing') {
+    trackStates.kick  = 'playing';
+    trackStates.lead  = 'has-loop';
+    trackStates.fx    = 'empty';
+    trackStates.drone = 'playing';
+  }
+
+  document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  renderAll();
+  updateRecordBar();
+}
+
+// Re-inject waveform SVGs for tracks that had them (kick, drone) if they were cleared
+const kickWaveformHTML = `<svg class="waveform-loop-svg" id="kick-waveform" viewBox="0 0 200 32" preserveAspectRatio="none">
+  <rect width="200" height="32" fill="#f0f0f0" stroke="#ccc" stroke-dasharray="4,3"/>
+  <g fill="#bbb">
+    <rect x="4" y="8" width="5" height="16"/><rect x="12" y="4" width="5" height="24"/>
+    <rect x="20" y="10" width="5" height="12"/><rect x="28" y="6" width="5" height="20"/>
+    <rect x="36" y="12" width="5" height="8"/><rect x="44" y="4" width="5" height="24"/>
+    <rect x="52" y="9" width="5" height="14"/><rect x="60" y="5" width="5" height="22"/>
+    <rect x="68" y="11" width="5" height="10"/><rect x="76" y="7" width="5" height="18"/>
+    <rect x="84" y="3" width="5" height="26"/><rect x="92" y="10" width="5" height="12"/>
+    <rect x="100" y="6" width="5" height="20"/><rect x="108" y="13" width="5" height="6"/>
+    <rect x="116" y="4" width="5" height="24"/><rect x="124" y="9" width="5" height="14"/>
+    <rect x="132" y="7" width="5" height="18"/><rect x="140" y="5" width="5" height="22"/>
+    <rect x="148" y="11" width="5" height="10"/><rect x="156" y="8" width="5" height="16"/>
+    <rect x="164" y="4" width="5" height="24"/><rect x="172" y="10" width="5" height="12"/>
+    <rect x="180" y="6" width="5" height="20"/><rect x="188" y="9" width="5" height="14"/>
+  </g>
+  <text x="100" y="28" text-anchor="middle" font-size="8" fill="#aaa" font-style="italic">[waveform thumbnail — stub]</text>
+</svg>`;
+const droneWaveformHTML = `<svg class="waveform-loop-svg" id="drone-waveform" viewBox="0 0 200 32" preserveAspectRatio="none">
+  <rect width="200" height="32" fill="#f0f0f0" stroke="#ccc" stroke-dasharray="4,3"/>
+  <g fill="#bbb">
+    <rect x="4" y="13" width="5" height="6"/><rect x="12" y="11" width="5" height="10"/>
+    <rect x="20" y="9" width="5" height="14"/><rect x="28" y="8" width="5" height="16"/>
+    <rect x="36" y="7" width="5" height="18"/><rect x="44" y="8" width="5" height="16"/>
+    <rect x="52" y="9" width="5" height="14"/><rect x="60" y="10" width="5" height="12"/>
+    <rect x="68" y="11" width="5" height="10"/><rect x="76" y="10" width="5" height="12"/>
+    <rect x="84" y="9" width="5" height="14"/><rect x="92" y="8" width="5" height="16"/>
+    <rect x="100" y="7" width="5" height="18"/><rect x="108" y="8" width="5" height="16"/>
+    <rect x="116" y="9" width="5" height="14"/><rect x="124" y="10" width="5" height="12"/>
+    <rect x="132" y="11" width="5" height="10"/><rect x="140" y="10" width="5" height="12"/>
+    <rect x="148" y="9" width="5" height="14"/><rect x="156" y="8" width="5" height="16"/>
+    <rect x="164" y="7" width="5" height="18"/><rect x="172" y="8" width="5" height="16"/>
+    <rect x="180" y="9" width="5" height="14"/><rect x="188" y="10" width="5" height="12"/>
+  </g>
+  <text x="100" y="28" text-anchor="middle" font-size="8" fill="#aaa" font-style="italic">[waveform thumbnail — stub]</text>
+</svg>`;
+
+function restoreWaveforms() {
+  // Kick
+  const kickStub = document.getElementById('card-kick').querySelector('.loop-waveform-stub');
+  if (!document.getElementById('kick-waveform')) {
+    kickStub.innerHTML = kickWaveformHTML;
+  }
+  // Also restore placeholder for lead / fx (remove recording-active styling)
+  ['lead', 'fx'].forEach(id => {
+    const ph = document.getElementById(id + '-waveform-placeholder');
+    if (ph) {
+      ph.className = 'waveform-placeholder empty-slot';
+      ph.textContent = 'No loop recorded';
+    }
+  });
+  // Drone
+  const droneStub = document.getElementById('card-drone').querySelector('.loop-waveform-stub');
+  if (!document.getElementById('drone-waveform')) {
+    droneStub.innerHTML = droneWaveformHTML;
+  }
+}
+
+// ---- Stub click handler ----
+function stubClick(el, name) {
+  console.log('[stub] sidebar: ' + name);
+  // Brief visual feedback only
+  const orig = el.style.background;
+  el.style.background = '#e0e0e0';
+  setTimeout(() => { el.style.background = orig; }, 200);
+}
+
+// ---- Init ----
+renderAll();
+updateRecordBar();
+</script>
+
+</body>
+</html>
