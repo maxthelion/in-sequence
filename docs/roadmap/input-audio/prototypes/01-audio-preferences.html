@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Input Audio — 01 Audio Preferences: Interface Selection</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Input Audio: Prototype 01 — Audio Preferences: Interface Selection
+  Feature: input-audio, Story 1 (Select An Audio Interface)
+
+  SCREEN: App Preferences window, Audio tab.
+  Today this tab contains a single non-functional placeholder text label.
+  This prototype shows the desired state: a device list with input and
+  output pickers, sample rate selector, and a buffer size selector.
+
+  LAYOUT RATIONALE:
+  The MIDI preferences tab uses a two-column layout: endpoint list on the
+  left, configuration on the right. Audio follows the same shell so the two
+  tabs feel consistent. The input/output pickers are the primary goal;
+  sample rate and buffer size are secondary settings placed below.
+
+  PRIMARY GOAL (Story 1): select an audio interface in <= 2 interactions.
+  Click-path: click tab "Audio" (already on it) → pick device from dropdown → done.
+  The "Apply" step is intentionally absent — selection should apply immediately.
+
+  STATES (use state buttons to switch):
+    default       — app just opened, device list loaded, current device highlighted.
+    no-devices    — no audio hardware found (empty state / error).
+    applying      — device switch in progress (brief spinner, inputs disabled).
+    applied       — device switched successfully (confirmation banner).
+
+  STUBS (dashed border): General, MIDI, Update tabs; audio routing graph diagram;
+  per-channel gain staging; test-tone button; driver/ASIO options (macOS only shows CoreAudio).
+
+  OPEN QUESTIONS FOR SPEC:
+  Q1. Does switching the interface require an engine restart? The existing-state report
+      says CoreAudio property-set can rewire without a full restart on macOS, but this
+      needs validation. The prototype shows a brief "Applying..." disabled state (~500ms).
+  Q2. Should input and output devices be independently selectable, or forced to the same
+      aggregate device? Independent is simpler for the UI; aggregate is safer for routing.
+  Q3. Should sample rate / buffer size live in preferences or be per-session?
+      User stories only mention device selection — these controls are included here but
+      could be deferred to a separate milestone.
+  Q4. When a previously selected device is no longer connected, should the app fall back
+      silently or show an explicit warning at next launch?
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #c8c8c8;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+    gap: 16px;
+  }
+
+  /* ---- prototype banner ---- */
+  .proto-banner {
+    width: 100%;
+    max-width: 680px;
+    background: #fff3cd;
+    border: 1px solid #aaa;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #555;
+  }
+  .proto-banner strong { color: #1a1a1a; }
+
+  /* ---- state switcher ---- */
+  .state-bar {
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 11px;
+    color: #555;
+  }
+  .state-bar span { margin-right: 4px; }
+  .state-btn {
+    padding: 3px 10px;
+    border: 1px solid #888;
+    background: #eee;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+  }
+  .state-btn.active {
+    background: #333;
+    color: #fff;
+    border-color: #333;
+  }
+
+  /* ---- window chrome ---- */
+  .window {
+    width: 100%;
+    max-width: 680px;
+    border: 1px solid #888;
+    background: #f0f0f0;
+  }
+  .window-titlebar {
+    background: #d4d4d4;
+    border-bottom: 1px solid #999;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .titlebar-dots {
+    display: flex;
+    gap: 5px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #bbb;
+    border: 1px solid #999;
+  }
+
+  /* ---- tab bar ---- */
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid #aaa;
+    background: #e2e2e2;
+    padding: 0 12px;
+  }
+  .tab {
+    padding: 7px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #555;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab.active {
+    color: #111;
+    border-bottom: 2px solid #333;
+    background: #f0f0f0;
+  }
+  .tab.stub {
+    color: #aaa;
+    border: 1px dashed #ccc;
+    border-bottom: none;
+    margin: 4px 4px 0;
+    font-style: italic;
+  }
+
+  /* ---- content area ---- */
+  .pref-content {
+    padding: 20px 24px 28px;
+  }
+
+  /* ---- section label ---- */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #777;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #ccc;
+  }
+
+  /* ---- form rows ---- */
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 12px;
+  }
+  .form-row label {
+    width: 130px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #444;
+    text-align: right;
+  }
+  .form-row select, .form-row input {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #999;
+    background: #fff;
+    font-family: inherit;
+    color: #1a1a1a;
+  }
+  .form-row select:disabled, .form-row input:disabled {
+    background: #e8e8e8;
+    color: #aaa;
+    cursor: not-allowed;
+  }
+  .form-row .hint {
+    font-size: 11px;
+    color: #888;
+  }
+
+  /* ---- device list ---- */
+  .device-list {
+    flex: 1;
+    border: 1px solid #aaa;
+    background: #fff;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  .device-item {
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .device-item:last-child { border-bottom: none; }
+  .device-item:hover { background: #eee; }
+  .device-item.selected {
+    background: #333;
+    color: #fff;
+  }
+  .device-item .device-kind {
+    font-size: 10px;
+    color: #999;
+    margin-left: auto;
+  }
+  .device-item.selected .device-kind { color: #bbb; }
+  .device-item .device-channels {
+    font-size: 10px;
+    color: #aaa;
+  }
+  .device-item.selected .device-channels { color: #ccc; }
+
+  /* ---- status bar ---- */
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0 0;
+    font-size: 11px;
+    color: #666;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #888;
+    flex-shrink: 0;
+  }
+  .status-dot.active { background: #4a4; }
+  .status-dot.error  { background: #c44; }
+  .status-dot.busy   { background: #aa4; }
+
+  /* ---- confirmation banner ---- */
+  .confirm-banner {
+    padding: 8px 12px;
+    background: #d4edda;
+    border: 1px solid #8dbb99;
+    font-size: 12px;
+    color: #2d5a38;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ---- empty state ---- */
+  .empty-state {
+    padding: 28px;
+    text-align: center;
+    color: #aaa;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    background: #f8f8f8;
+    margin-bottom: 8px;
+    display: none;
+  }
+
+  /* ---- applying overlay ---- */
+  .applying-overlay {
+    display: none;
+    font-size: 11px;
+    color: #888;
+    margin-top: 6px;
+  }
+
+  /* ---- stub callout ---- */
+  .stub-section {
+    border: 1px dashed #bbb;
+    padding: 10px 14px;
+    color: #aaa;
+    font-size: 11px;
+    font-style: italic;
+    margin-top: 20px;
+  }
+
+  /* ---- secondary controls ---- */
+  .secondary-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #999;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed #ddd;
+  }
+  .secondary-group {
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  <strong>[PROTOTYPE — NOT PRODUCTION UI]</strong> &nbsp;
+  Input Audio / 01-audio-preferences.html &nbsp;|&nbsp;
+  Story 1: Select An Audio Interface &nbsp;|&nbsp;
+  Primary goal: pick an interface in &lt;= 2 interactions
+</div>
+
+<div class="state-bar">
+  <span>State:</span>
+  <button class="state-btn active" onclick="setState('default')">default</button>
+  <button class="state-btn" onclick="setState('no-devices')">no-devices</button>
+  <button class="state-btn" onclick="setState('applying')">applying</button>
+  <button class="state-btn" onclick="setState('applied')">applied</button>
+</div>
+
+<div class="window">
+  <div class="window-titlebar">
+    <div class="titlebar-dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    Preferences
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab stub">General</div>
+    <div class="tab active">Audio</div>
+    <div class="tab stub">MIDI</div>
+    <div class="tab stub">Updates</div>
+  </div>
+
+  <div class="pref-content">
+
+    <!-- Confirmation banner (applied state) -->
+    <div class="confirm-banner" id="confirm-banner">
+      Audio interface switched to <strong id="confirm-name">Focusrite Scarlett 2i2 USB</strong>. Routing updated.
+    </div>
+
+    <!-- Empty / no-devices state -->
+    <div class="empty-state" id="empty-state">
+      No audio devices found.<br>Connect an audio interface and reopen Preferences.
+    </div>
+
+    <!-- Applying overlay -->
+    <div class="applying-overlay" id="applying-overlay">
+      Applying... switching audio device
+    </div>
+
+    <!-- Primary: Interface selection -->
+    <div class="form-group" id="device-section">
+      <div class="section-label">Audio Interface</div>
+
+      <div class="form-row">
+        <label>Input device</label>
+        <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+          <div class="device-list" id="input-device-list">
+            <div class="device-item" data-device="built-in" onclick="selectDevice('input', this)">
+              MacBook Pro Microphone
+              <span class="device-kind">Built-in</span>
+              <span class="device-channels">1 in</span>
+            </div>
+            <div class="device-item selected" data-device="scarlett" onclick="selectDevice('input', this)">
+              Focusrite Scarlett 2i2 USB
+              <span class="device-kind">USB</span>
+              <span class="device-channels">2 in</span>
+            </div>
+            <div class="device-item" data-device="aggregate" onclick="selectDevice('input', this)">
+              Zoom H6 (Handy Recorder)
+              <span class="device-kind">USB</span>
+              <span class="device-channels">6 in</span>
+            </div>
+            <div class="device-item" data-device="black" onclick="selectDevice('input', this)">
+              Universal Audio Arrow (Thunderbolt 3)
+              <span class="device-kind">Thunderbolt</span>
+              <span class="device-channels">2 in / 4 out</span>
+            </div>
+          </div>
+          <div class="status-row">
+            <div class="status-dot active" id="input-status-dot"></div>
+            <span id="input-status-label">Focusrite Scarlett 2i2 USB — active, 44100 Hz, 64 samples</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Output device</label>
+        <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+          <div class="device-list" id="output-device-list">
+            <div class="device-item" onclick="selectDevice('output', this)">
+              MacBook Pro Speakers
+              <span class="device-kind">Built-in</span>
+              <span class="device-channels">2 out</span>
+            </div>
+            <div class="device-item selected" onclick="selectDevice('output', this)">
+              Focusrite Scarlett 2i2 USB
+              <span class="device-kind">USB</span>
+              <span class="device-channels">2 out</span>
+            </div>
+            <div class="device-item" onclick="selectDevice('output', this)">
+              Universal Audio Arrow (Thunderbolt 3)
+              <span class="device-kind">Thunderbolt</span>
+              <span class="device-channels">2 in / 4 out</span>
+            </div>
+          </div>
+          <div class="status-row">
+            <div class="status-dot active"></div>
+            <span>Focusrite Scarlett 2i2 USB — active, 44100 Hz, 64 samples</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secondary: Sample rate and buffer size (secondary, deferred?) -->
+    <div class="form-group secondary-group">
+      <div class="secondary-label">Driver Settings — may be deferred (see open Q3)</div>
+      <div class="form-row">
+        <label>Sample rate</label>
+        <select id="sample-rate-select">
+          <option>44100 Hz</option>
+          <option>48000 Hz</option>
+          <option>88200 Hz</option>
+          <option>96000 Hz</option>
+        </select>
+        <span class="hint">Shared with output device</span>
+      </div>
+      <div class="form-row">
+        <label>Buffer size</label>
+        <select id="buffer-size-select">
+          <option>32 samples (0.7 ms)</option>
+          <option selected>64 samples (1.5 ms)</option>
+          <option>128 samples (2.9 ms)</option>
+          <option>256 samples (5.8 ms)</option>
+          <option>512 samples (11.6 ms)</option>
+        </select>
+        <span class="hint">Lower = less latency, higher CPU</span>
+      </div>
+    </div>
+
+    <!-- Stub: advanced / per-channel routing -->
+    <div class="stub-section">
+      [STUB] Per-channel gain staging, test-tone button, aggregate device creation — out of scope for this milestone.
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let currentState = 'default';
+
+  const DEVICES = {
+    'built-in':  'MacBook Pro Microphone — active, 44100 Hz',
+    'scarlett':  'Focusrite Scarlett 2i2 USB — active, 44100 Hz, 64 samples',
+    'aggregate': 'Zoom H6 (Handy Recorder) — active, 44100 Hz, 64 samples',
+    'black':     'Universal Audio Arrow (Thunderbolt 3) — active, 44100 Hz, 64 samples',
+  };
+
+  function selectDevice(side, el) {
+    if (currentState === 'applying' || currentState === 'no-devices') return;
+    const list = el.closest('.device-list');
+    list.querySelectorAll('.device-item').forEach(d => d.classList.remove('selected'));
+    el.classList.add('selected');
+
+    const deviceKey = el.dataset.device;
+    const label = side === 'input'
+      ? document.getElementById('input-status-label')
+      : null;
+    if (label && DEVICES[deviceKey]) {
+      label.textContent = DEVICES[deviceKey];
+    }
+    if (side === 'input') {
+      const newName = el.childNodes[0].textContent.trim();
+      setState('applying', newName);
+    }
+  }
+
+  function setState(state, deviceName) {
+    currentState = state;
+
+    document.querySelectorAll('.state-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent === state);
+    });
+
+    const deviceSection = document.getElementById('device-section');
+    const emptyState    = document.getElementById('empty-state');
+    const applyingOverlay = document.getElementById('applying-overlay');
+    const confirmBanner = document.getElementById('confirm-banner');
+    const confirmName   = document.getElementById('confirm-name');
+    const inputStatusDot = document.getElementById('input-status-dot');
+
+    // reset
+    emptyState.style.display    = 'none';
+    applyingOverlay.style.display = 'none';
+    confirmBanner.style.display  = 'none';
+    deviceSection.style.opacity  = '1';
+    deviceSection.querySelectorAll('select, .device-item').forEach(el => {
+      el.style.pointerEvents = '';
+    });
+    inputStatusDot.className = 'status-dot active';
+
+    if (state === 'no-devices') {
+      emptyState.style.display = 'block';
+      deviceSection.style.display = 'none';
+      inputStatusDot.className = 'status-dot error';
+    } else {
+      deviceSection.style.display = '';
+      if (state === 'applying') {
+        applyingOverlay.style.display = 'block';
+        deviceSection.style.opacity = '0.5';
+        deviceSection.querySelectorAll('.device-item').forEach(el => {
+          el.style.pointerEvents = 'none';
+        });
+        inputStatusDot.className = 'status-dot busy';
+        // auto-transition to applied
+        const resolvedName = deviceName || 'Selected Device';
+        setTimeout(() => {
+          if (currentState === 'applying') {
+            if (confirmName) confirmName.textContent = resolvedName;
+            setState('applied');
+          }
+        }, 1200);
+      } else if (state === 'applied') {
+        confirmBanner.style.display = 'block';
+      }
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Input Audio — 02 Audio Input Track Page</title>
+<!--
+  PROTOTYPE — NOT PRODUCTION UI
+  ==============================
+  Input Audio: Prototype 02 — Audio Input Track Workspace Page
+  Feature: input-audio, Stories 2, 3, 4, 5, 6, 7
+
+  SCREEN: The per-track workspace detail view for a track of type "audioInput".
+  This is the new track page that does not exist today. It is analogous to
+  SliceTrackWorkspaceView in layout philosophy: waveform panel on the left/top,
+  controls on the right/bottom. Signal flows from hardware in → record buffer →
+  loop playback → mixer.
+
+  LAYOUT REGIONS (top to bottom, left to right):
+    1. Track header  — track name, type badge, input selector (which HW channel),
+                       route-to-mixer channel indicator
+    2. Mode toggle   — "INPUT" vs "LOOP" selector (Story 6)
+    3. Waveform panel — waveform of the recorded loop (Story 7); shows live
+                        level meters when in INPUT mode; shows waveform when LOOP
+    4. Transport/record bar — bar-length selector (1 / 2 / 4 / 8 bars) (Story 4),
+                              ARM button (Story 5), RECORD indicator,
+                              pending-arm countdown indicator
+    5. Mixer send stub — stubbed strip showing routing to mixer
+
+  PRIMARY GOAL (Stories 3–5): arm → record → loop in <= 3 interactions.
+  Click-path: pick bar length → click ARM → (auto-starts at next bar boundary) →
+              recording fills waveform → auto-stops at bar boundary → LOOP plays.
+
+  STATES (use state buttons to switch):
+    idle        — track created, no recording yet. Mode: INPUT. Waveform: empty.
+    monitoring  — input signal active. Level meters visible. No loop yet.
+    armed       — ARM pressed. Pending-trigger indicator shows bar countdown.
+                  Still in INPUT mode and monitoring.
+    recording   — recording in progress. Waveform filling left-to-right.
+    loop        — recording complete. Mode switches to LOOP. Waveform visible.
+    loop-input  — user toggled back to INPUT while loop exists in buffer.
+
+  STUBS (dashed border): mixer strip panel, step pattern controls, gain/pan, FX sends,
+  clip content, record buffer wipe/undo, track delete, rename flow.
+
+  OPEN QUESTIONS FOR SPEC:
+  Q1. Does the track have a step-pattern grid (like other tracks) or is the workspace
+      purely the record/playback view? Slicer has both; input-audio notes do not mention
+      step patterns.
+  Q2. When the user switches to LOOP mode, does the live input signal stay connected to
+      the mixer or is it gated? The toggle should clearly communicate what signal reaches
+      the output.
+  Q3. Can the user record a new loop while the old one is playing (overdub / replace)?
+      This prototype shows destructive replace. Confirm.
+  Q4. Is the waveform drawn in real-time during recording (streamed) or only rendered
+      after the recording stops? Real-time is richer but harder. This prototype simulates
+      real-time fill for UX clarity.
+  Q5. What happens to the loop if the session BPM changes after recording? The loop
+      length in samples is fixed at arm-time; pitch/time shift is out of scope here.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #c0c0c0;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px;
+    gap: 14px;
+  }
+
+  /* ---- banner + state bar ---- */
+  .proto-banner {
+    width: 100%;
+    max-width: 780px;
+    background: #fff3cd;
+    border: 1px solid #aaa;
+    padding: 7px 12px;
+    font-size: 11px;
+    color: #555;
+  }
+  .proto-banner strong { color: #1a1a1a; }
+
+  .state-bar {
+    width: 100%;
+    max-width: 780px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 11px;
+    color: #555;
+    flex-wrap: wrap;
+  }
+  .state-bar > span { margin-right: 4px; }
+  .state-btn {
+    padding: 3px 10px;
+    border: 1px solid #888;
+    background: #eee;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+  }
+  .state-btn.active { background: #333; color: #fff; border-color: #333; }
+
+  /* ---- app chrome (outer shell) ---- */
+  .app-shell {
+    width: 100%;
+    max-width: 780px;
+    border: 1px solid #777;
+    background: #2a2a2a;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- top nav stub ---- */
+  .app-nav {
+    background: #1e1e1e;
+    border-bottom: 1px solid #444;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    color: #777;
+    font-style: italic;
+  }
+  .app-nav .stub-pill {
+    border: 1px dashed #555;
+    padding: 2px 8px;
+    color: #666;
+    font-style: italic;
+    font-size: 10px;
+  }
+
+  /* ---- track list sidebar stub ---- */
+  .workspace {
+    display: flex;
+    min-height: 540px;
+  }
+  .sidebar {
+    width: 120px;
+    flex-shrink: 0;
+    border-right: 1px solid #444;
+    background: #222;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+  }
+  .sidebar-track {
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #666;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    font-style: italic;
+  }
+  .sidebar-track.selected {
+    background: #3a3a3a;
+    color: #ccc;
+    border-left: 3px solid #888;
+    padding-left: 7px;
+    font-style: normal;
+  }
+  .sidebar-track.stub {
+    border: 1px dashed #444;
+    margin: 4px 6px;
+    border-radius: 2px;
+    color: #555;
+  }
+
+  /* ---- main detail panel ---- */
+  .detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #2e2e2e;
+  }
+
+  /* ---- 1. Track header ---- */
+  .track-header {
+    background: #262626;
+    border-bottom: 1px solid #444;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .track-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ddd;
+  }
+  .track-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border: 1px solid #666;
+    color: #888;
+    background: #333;
+  }
+  .track-header-spacer { flex: 1; }
+  .input-channel-label {
+    font-size: 11px;
+    color: #888;
+  }
+  .input-channel-select {
+    font-size: 11px;
+    background: #3a3a3a;
+    color: #ccc;
+    border: 1px solid #555;
+    padding: 2px 6px;
+    font-family: inherit;
+  }
+
+  /* ---- 2. Mode toggle ---- */
+  .mode-strip {
+    background: #252525;
+    border-bottom: 1px solid #3a3a3a;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .mode-btn {
+    padding: 5px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid #555;
+    background: #333;
+    color: #888;
+    font-family: inherit;
+  }
+  .mode-btn:first-child { border-right: none; }
+  .mode-btn.active-input {
+    background: #555;
+    color: #fff;
+    border-color: #888;
+  }
+  .mode-btn.active-loop {
+    background: #444;
+    color: #ddd;
+    border-color: #777;
+  }
+  .mode-strip .mode-hint {
+    font-size: 10px;
+    color: #666;
+    margin-left: 16px;
+    font-style: italic;
+  }
+
+  /* ---- 3. Waveform / level meter panel ---- */
+  .waveform-panel {
+    flex: 1;
+    padding: 14px 16px;
+    background: #1e1e1e;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 200px;
+  }
+  .waveform-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+  }
+
+  /* waveform canvas replacement */
+  .waveform-canvas {
+    border: 1px solid #3a3a3a;
+    background: #111;
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .waveform-empty-msg {
+    font-size: 11px;
+    color: #444;
+    font-style: italic;
+  }
+
+  /* SVG waveform bars */
+  #waveform-svg {
+    width: 100%;
+    height: 100%;
+    display: none;
+  }
+
+  /* Record progress overlay */
+  .record-progress-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(180, 40, 40, 0.15);
+    border-right: 2px solid #c44;
+    display: none;
+    transition: width 0.1s linear;
+  }
+
+  /* level meters (input mode) */
+  .level-meters {
+    display: none;
+    flex-direction: row;
+    gap: 6px;
+    align-items: flex-end;
+    height: 100%;
+    padding: 4px 8px;
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    justify-content: center;
+  }
+  .level-meter-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    height: 100%;
+  }
+  .level-meter-bar-wrap {
+    flex: 1;
+    width: 18px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .level-meter-fill {
+    background: linear-gradient(to top, #4a4, #aa4, #c44);
+    width: 100%;
+    transition: height 0.08s ease;
+  }
+  .level-meter-ch {
+    font-size: 9px;
+    color: #555;
+    text-align: center;
+  }
+
+  /* ---- 4. Transport/record bar ---- */
+  .record-bar {
+    background: #252525;
+    border-top: 1px solid #3a3a3a;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Bar length selector */
+  .bar-len-label {
+    font-size: 11px;
+    color: #888;
+    flex-shrink: 0;
+  }
+  .bar-len-group {
+    display: flex;
+    gap: 0;
+  }
+  .bar-len-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #555;
+    background: #333;
+    color: #888;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .bar-len-btn:not(:last-child) { border-right: none; }
+  .bar-len-btn.selected {
+    background: #555;
+    color: #fff;
+    border-color: #888;
+  }
+
+  /* Divider */
+  .record-bar-divider {
+    width: 1px;
+    height: 28px;
+    background: #444;
+    flex-shrink: 0;
+  }
+
+  /* ARM button */
+  .arm-btn {
+    padding: 6px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 2px solid #777;
+    background: #333;
+    color: #aaa;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .arm-btn.armed {
+    background: #7a1a1a;
+    color: #ffaaaa;
+    border-color: #c44;
+    animation: arm-pulse 0.7s ease-in-out infinite alternate;
+  }
+  .arm-btn.recording {
+    background: #c44;
+    color: #fff;
+    border-color: #f44;
+    cursor: default;
+    animation: none;
+  }
+  .arm-btn.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  @keyframes arm-pulse {
+    from { opacity: 1; }
+    to   { opacity: 0.6; }
+  }
+
+  /* Pending arm indicator */
+  .arm-indicator {
+    font-size: 11px;
+    color: #c88;
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+  .arm-indicator.visible { display: flex; }
+  .arm-countdown {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f88;
+    min-width: 16px;
+    text-align: center;
+  }
+
+  /* Record status */
+  .rec-status {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #f88;
+  }
+  .rec-status.visible { display: flex; }
+  .rec-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f44;
+    animation: rec-blink 0.5s step-start infinite;
+  }
+  @keyframes rec-blink {
+    50% { opacity: 0; }
+  }
+  .rec-time {
+    font-weight: 600;
+    color: #f88;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- 5. Mixer send stub ---- */
+  .mixer-stub {
+    border-top: 1px solid #3a3a3a;
+    background: #222;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .mixer-stub-inner {
+    border: 1px dashed #444;
+    padding: 8px 14px;
+    color: #555;
+    font-size: 11px;
+    font-style: italic;
+    flex: 1;
+  }
+
+  /* ---- annotation layer ---- */
+  .annotation {
+    width: 100%;
+    max-width: 780px;
+    background: #f9f9f0;
+    border: 1px solid #ccc;
+    padding: 12px 16px;
+    font-size: 11px;
+    color: #555;
+    line-height: 1.6;
+  }
+  .annotation strong { color: #333; }
+  .annotation ul { margin: 4px 0 0 16px; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  <strong>[PROTOTYPE — NOT PRODUCTION UI]</strong> &nbsp;
+  Input Audio / 02-audio-input-track-page.html &nbsp;|&nbsp;
+  Stories 2–7 &nbsp;|&nbsp;
+  Primary goal: arm → record → loop in &lt;= 3 interactions
+</div>
+
+<div class="state-bar">
+  <span>State:</span>
+  <button class="state-btn active" onclick="setState('idle')">idle</button>
+  <button class="state-btn" onclick="setState('monitoring')">monitoring</button>
+  <button class="state-btn" onclick="setState('armed')">armed</button>
+  <button class="state-btn" onclick="setState('recording')">recording</button>
+  <button class="state-btn" onclick="setState('loop')">loop</button>
+  <button class="state-btn" onclick="setState('loop-input')">loop-input</button>
+</div>
+
+<div class="app-shell">
+
+  <!-- top nav stub -->
+  <div class="app-nav">
+    <span class="stub-pill">[STUB] session toolbar</span>
+    <span class="stub-pill">[STUB] transport / BPM: 120</span>
+    <span class="stub-pill">[STUB] master vol</span>
+  </div>
+
+  <div class="workspace">
+
+    <!-- sidebar: track list stub -->
+    <div class="sidebar">
+      <div class="sidebar-track stub">[Kick]</div>
+      <div class="sidebar-track stub">[Snare]</div>
+      <div class="sidebar-track stub">[Bass]</div>
+      <div class="sidebar-track selected">Input 1</div>
+      <div class="sidebar-track stub">[+ Add]</div>
+    </div>
+
+    <!-- main detail panel -->
+    <div class="detail">
+
+      <!-- 1. Track header -->
+      <div class="track-header">
+        <span class="track-name">Input 1</span>
+        <span class="track-badge">Audio Input</span>
+        <div class="track-header-spacer"></div>
+        <span class="input-channel-label">HW Input:</span>
+        <select class="input-channel-select">
+          <option>Scarlett 2i2 — Ch 1 (L)</option>
+          <option>Scarlett 2i2 — Ch 2 (R)</option>
+          <option>Scarlett 2i2 — 1+2 (Stereo)</option>
+        </select>
+      </div>
+
+      <!-- 2. Mode toggle -->
+      <div class="mode-strip">
+        <button class="mode-btn active-input" id="mode-input-btn" onclick="setMode('input')">Input</button>
+        <button class="mode-btn" id="mode-loop-btn" onclick="setMode('loop')">Loop</button>
+        <span class="mode-hint" id="mode-hint">Monitoring live hardware input</span>
+      </div>
+
+      <!-- 3. Waveform / level meter panel -->
+      <div class="waveform-panel">
+        <div class="waveform-label" id="waveform-label">Level</div>
+        <div class="waveform-canvas" id="waveform-canvas">
+          <span class="waveform-empty-msg" id="waveform-empty-msg">No recording yet — arm and record to capture a loop</span>
+
+          <!-- Record progress overlay -->
+          <div class="record-progress-overlay" id="record-progress-overlay"></div>
+
+          <!-- SVG waveform (loop mode) -->
+          <svg id="waveform-svg" viewBox="0 0 600 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- bars generated by JS -->
+          </svg>
+
+          <!-- Level meters (input / monitoring mode) -->
+          <div class="level-meters" id="level-meters">
+            <div class="level-meter-col">
+              <div class="level-meter-bar-wrap">
+                <div class="level-meter-fill" id="meter-L" style="height:0%"></div>
+              </div>
+              <div class="level-meter-ch">L</div>
+            </div>
+            <div class="level-meter-col">
+              <div class="level-meter-bar-wrap">
+                <div class="level-meter-fill" id="meter-R" style="height:0%"></div>
+              </div>
+              <div class="level-meter-ch">R</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Playback position indicator (loop mode) -->
+        <div style="font-size:10px; color:#555; display:flex; gap:12px; align-items:center;">
+          <span id="loop-length-display"></span>
+          <span id="loop-time-display"></span>
+        </div>
+      </div>
+
+      <!-- 4. Record / arm bar -->
+      <div class="record-bar">
+        <span class="bar-len-label">Length:</span>
+        <div class="bar-len-group">
+          <button class="bar-len-btn" onclick="setBarLen(1, this)">1 bar</button>
+          <button class="bar-len-btn selected" onclick="setBarLen(2, this)">2 bars</button>
+          <button class="bar-len-btn" onclick="setBarLen(4, this)">4 bars</button>
+          <button class="bar-len-btn" onclick="setBarLen(8, this)">8 bars</button>
+        </div>
+
+        <div class="record-bar-divider"></div>
+
+        <button class="arm-btn" id="arm-btn" onclick="handleArm()">ARM</button>
+
+        <!-- Pending arm countdown -->
+        <div class="arm-indicator" id="arm-indicator">
+          <span>Recording starts in</span>
+          <span class="arm-countdown" id="arm-countdown">1</span>
+          <span>bar</span>
+        </div>
+
+        <!-- Recording live indicator -->
+        <div class="rec-status" id="rec-status">
+          <div class="rec-dot"></div>
+          <span class="rec-time" id="rec-time">0.0 s</span>
+        </div>
+      </div>
+
+      <!-- 5. Mixer routing stub -->
+      <div class="mixer-stub">
+        <div class="mixer-stub-inner">
+          [STUB] Mixer channel strip: fader, pan, mute, solo, send levels — this track routes to mixer channel 4
+        </div>
+      </div>
+
+    </div><!-- /detail -->
+  </div><!-- /workspace -->
+</div><!-- /app-shell -->
+
+<div class="annotation">
+  <strong>Interaction budget:</strong> arm → record → loop in &lt;= 3 interactions.<br>
+  <strong>Click-path:</strong>
+  <ul>
+    <li>Step 1: (optional) select bar length from 1 / 2 / 4 / 8 bar buttons</li>
+    <li>Step 2: click ARM — indicator shows "Recording starts in N bar"</li>
+    <li>Step 3: recording auto-starts at next bar boundary; waveform fills left-to-right; stops automatically at bar-length boundary</li>
+    <li>Result: mode switches to LOOP, waveform visible, loop plays back</li>
+  </ul>
+  <br>
+  <strong>Open Q1:</strong> Does this track have a step-pattern grid? Notes are silent on this.<br>
+  <strong>Open Q2:</strong> INPUT toggle — does live signal stay on mixer output when mode = LOOP?<br>
+  <strong>Open Q3:</strong> Re-arming while loop is playing: destructive replace (shown here) vs. overdub?<br>
+  <strong>Open Q4:</strong> Real-time waveform fill during recording vs. render-after?<br>
+  <strong>Open Q5:</strong> BPM change after recording — loop timing drift handling?
+</div>
+
+<script>
+  /* ---- state ---- */
+  let currentState = 'idle';
+  let currentMode  = 'input';
+  let selectedBarLen = 2;
+  let meterAnimId = null;
+  let recTimerId  = null;
+  let recSeconds  = 0;
+  let countdownVal = 1;
+  let countdownId  = null;
+  let recProgressId = null;
+  let waveformData = [];
+
+  /* ---- waveform fixture ---- */
+  function generateWaveform(bars) {
+    // Produce semi-realistic bar-grouped amplitude data
+    const bars_n = bars;
+    const segsPerBar = 32;
+    const total = bars_n * segsPerBar;
+    const data = [];
+    let phase = 0;
+    for (let i = 0; i < total; i++) {
+      phase += 0.4 + Math.random() * 0.3;
+      const base = Math.abs(Math.sin(phase)) * 0.7 + Math.random() * 0.3;
+      data.push(Math.min(1, base));
+    }
+    return data;
+  }
+
+  function renderWaveform(data, progressFraction) {
+    const svg = document.getElementById('waveform-svg');
+    svg.innerHTML = '';
+    const total = data.length;
+    const barW = 600 / total;
+    const cx = 120 / 2;
+    for (let i = 0; i < total; i++) {
+      const amp = data[i];
+      const h = amp * cx * 1.8;
+      const y = cx - h / 2;
+      const inProgress = progressFraction !== undefined && (i / total) < progressFraction;
+      const color = inProgress ? '#999' : '#555';
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', i * barW + barW * 0.15);
+      rect.setAttribute('y', y);
+      rect.setAttribute('width', barW * 0.7);
+      rect.setAttribute('height', h);
+      rect.setAttribute('fill', color);
+      svg.appendChild(rect);
+    }
+  }
+
+  /* ---- level meter animation ---- */
+  function startMeters() {
+    if (meterAnimId) return;
+    const mL = document.getElementById('meter-L');
+    const mR = document.getElementById('meter-R');
+    let t = 0;
+    function tick() {
+      t += 0.12;
+      const lvlL = (Math.abs(Math.sin(t * 1.3)) * 0.55 + Math.random() * 0.45) * 100;
+      const lvlR = (Math.abs(Math.sin(t * 1.1 + 0.4)) * 0.55 + Math.random() * 0.45) * 100;
+      mL.style.height = Math.min(lvlL, 95) + '%';
+      mR.style.height = Math.min(lvlR, 95) + '%';
+      meterAnimId = requestAnimationFrame(tick);
+    }
+    meterAnimId = requestAnimationFrame(tick);
+  }
+  function stopMeters() {
+    if (meterAnimId) { cancelAnimationFrame(meterAnimId); meterAnimId = null; }
+    document.getElementById('meter-L').style.height = '0%';
+    document.getElementById('meter-R').style.height = '0%';
+  }
+
+  /* ---- recording timer ---- */
+  function startRecTimer() {
+    recSeconds = 0;
+    updateRecTime();
+    recTimerId = setInterval(() => { recSeconds += 0.1; updateRecTime(); }, 100);
+  }
+  function stopRecTimer() {
+    if (recTimerId) { clearInterval(recTimerId); recTimerId = null; }
+  }
+  function updateRecTime() {
+    document.getElementById('rec-time').textContent = recSeconds.toFixed(1) + ' s';
+  }
+
+  /* ---- recording progress simulation ---- */
+  function startRecProgress() {
+    const overlay = document.getElementById('record-progress-overlay');
+    overlay.style.width = '0%';
+    overlay.style.display = 'block';
+    const svg = document.getElementById('waveform-svg');
+    svg.style.display = 'block';
+    // pre-generate waveform data at arm time
+    waveformData = generateWaveform(selectedBarLen);
+    const total = waveformData.length;
+    let frame = 0;
+    const durationMs = selectedBarLen * 2000; // simulate: 1 bar = 2 s at 120 BPM
+    const intervalMs = durationMs / total;
+    recProgressId = setInterval(() => {
+      frame++;
+      const frac = frame / total;
+      overlay.style.width = (frac * 100) + '%';
+      renderWaveform(waveformData, frac);
+      if (frame >= total) {
+        clearInterval(recProgressId);
+        recProgressId = null;
+        setTimeout(() => setState('loop'), 200);
+      }
+    }, intervalMs);
+  }
+  function stopRecProgress() {
+    if (recProgressId) { clearInterval(recProgressId); recProgressId = null; }
+    document.getElementById('record-progress-overlay').style.display = 'none';
+    document.getElementById('record-progress-overlay').style.width = '0%';
+  }
+
+  /* ---- countdown simulation ---- */
+  function startCountdown() {
+    countdownVal = 1; // simplified: always 1 bar countdown
+    document.getElementById('arm-countdown').textContent = countdownVal;
+    countdownId = setTimeout(() => {
+      if (currentState === 'armed') setState('recording');
+    }, 1500); // simulate 1 bar at 120BPM
+  }
+  function stopCountdown() {
+    if (countdownId) { clearTimeout(countdownId); countdownId = null; }
+  }
+
+  /* ---- mode toggle ---- */
+  function setMode(mode) {
+    currentMode = mode;
+    const inBtn = document.getElementById('mode-input-btn');
+    const loBtn = document.getElementById('mode-loop-btn');
+    const hint  = document.getElementById('mode-hint');
+    inBtn.className = 'mode-btn' + (mode === 'input' ? ' active-input' : '');
+    loBtn.className = 'mode-btn' + (mode === 'loop'  ? ' active-loop'  : '');
+    hint.textContent = mode === 'input'
+      ? 'Monitoring live hardware input'
+      : 'Playing recorded loop';
+  }
+
+  /* ---- bar length ---- */
+  function setBarLen(n, el) {
+    if (currentState === 'armed' || currentState === 'recording') return;
+    selectedBarLen = n;
+    document.querySelectorAll('.bar-len-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  /* ---- arm button handler ---- */
+  function handleArm() {
+    if (currentState === 'idle' || currentState === 'monitoring' || currentState === 'loop' || currentState === 'loop-input') {
+      setState('armed');
+    } else if (currentState === 'armed') {
+      // cancel arm
+      setState(waveformData.length > 0 ? 'loop' : 'monitoring');
+    }
+    // ignore clicks during recording
+  }
+
+  /* ---- main state machine ---- */
+  function setState(state) {
+    // cleanup previous
+    stopMeters();
+    stopRecTimer();
+    stopRecProgress();
+    stopCountdown();
+
+    currentState = state;
+
+    document.querySelectorAll('.state-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent === state);
+    });
+
+    const armBtn        = document.getElementById('arm-btn');
+    const armIndicator  = document.getElementById('arm-indicator');
+    const recStatus     = document.getElementById('rec-status');
+    const waveformSvg   = document.getElementById('waveform-svg');
+    const emptyMsg      = document.getElementById('waveform-empty-msg');
+    const levelMeters   = document.getElementById('level-meters');
+    const waveformLabel = document.getElementById('waveform-label');
+    const loopLen       = document.getElementById('loop-length-display');
+    const loopTime      = document.getElementById('loop-time-display');
+    const canvas        = document.getElementById('waveform-canvas');
+    const overlay       = document.getElementById('record-progress-overlay');
+
+    // reset display defaults
+    armIndicator.classList.remove('visible');
+    recStatus.classList.remove('visible');
+    waveformSvg.style.display = 'none';
+    levelMeters.style.display = 'none';
+    emptyMsg.style.display = '';
+    overlay.style.display = 'none';
+    loopLen.textContent = '';
+    loopTime.textContent = '';
+    canvas.style.borderColor = '#3a3a3a';
+    armBtn.className = 'arm-btn';
+    armBtn.textContent = 'ARM';
+
+    if (state === 'idle') {
+      emptyMsg.style.display = '';
+      waveformLabel.textContent = 'Waveform';
+      setMode('input');
+
+    } else if (state === 'monitoring') {
+      emptyMsg.style.display = 'none';
+      levelMeters.style.display = 'flex';
+      waveformLabel.textContent = 'Level';
+      startMeters();
+      setMode('input');
+
+    } else if (state === 'armed') {
+      emptyMsg.style.display = 'none';
+      levelMeters.style.display = 'flex';
+      waveformLabel.textContent = 'Level';
+      armBtn.className = 'arm-btn armed';
+      armBtn.textContent = 'ARMED — tap to cancel';
+      armIndicator.classList.add('visible');
+      canvas.style.borderColor = '#7a3a3a';
+      startMeters();
+      startCountdown();
+      setMode('input');
+
+    } else if (state === 'recording') {
+      waveformLabel.textContent = 'Recording';
+      emptyMsg.style.display = 'none';
+      armBtn.className = 'arm-btn recording';
+      armBtn.textContent = 'RECORDING';
+      recStatus.classList.add('visible');
+      canvas.style.borderColor = '#c44';
+      startRecTimer();
+      startRecProgress();
+      setMode('input');
+
+    } else if (state === 'loop') {
+      waveformLabel.textContent = 'Loop';
+      emptyMsg.style.display = 'none';
+      overlay.style.display = 'none';
+      waveformSvg.style.display = 'block';
+      if (waveformData.length === 0) waveformData = generateWaveform(selectedBarLen);
+      renderWaveform(waveformData, 1);
+      loopLen.textContent = selectedBarLen + (selectedBarLen === 1 ? ' bar' : ' bars') + ' loop';
+      loopTime.textContent = '@ 120 BPM = ' + (selectedBarLen * 2).toFixed(1) + ' s';
+      setMode('loop');
+
+    } else if (state === 'loop-input') {
+      waveformLabel.textContent = 'Loop (buffered)';
+      emptyMsg.style.display = 'none';
+      levelMeters.style.display = 'flex';
+      waveformSvg.style.display = 'none';
+      loopLen.textContent = selectedBarLen + ' bar loop buffered — switch to LOOP to play';
+      startMeters();
+      setMode('input');
+    }
+  }
+
+  /* init */
+  setState('idle');
+</script>
+</body>
+</html>
