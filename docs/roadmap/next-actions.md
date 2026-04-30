@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-04-30T16:02:43Z
-Repo HEAD: a751298
+Generated: 2026-04-30T16:07:29Z
+Repo HEAD: 95a36a7
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -45,14 +45,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 3
-- **Feature:** Step Sequencer
+- **Item:** 4
+- **Feature:** Mixer Main Out
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-implementation-handoff`
+- **Action:** `write-architecture`
 - **Role:** `pm-assistant`
-- **Why:** Plan exists, but `implementation-handoff.md` is missing.
-- **Output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
+- **Why:** UX review exists, but `architecture.md` is missing.
+- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ## Feature Actions
 
@@ -81,13 +81,13 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 3. Step Sequencer
 
 - **Directory:** `docs/roadmap/step-sequencer/`
-- **Status:** `inventory`
+- **Status:** `ready-for-build`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-implementation-handoff`
-- **Role:** `pm-assistant`
-- **Reason:** Plan exists, but `implementation-handoff.md` is missing.
-- **Suggested output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Planning artifacts are present.
+- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
 
 ### 4. Mixer Main Out
 
