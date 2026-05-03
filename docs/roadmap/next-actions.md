@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T16:46:22Z
-Repo HEAD: 54d9321
+Generated: 2026-05-03T16:55:56Z
+Repo HEAD: 7392eb3
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -52,10 +52,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** Modifier Chain Placement
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-plan`
+- **Action:** `write-implementation-handoff`
 - **Role:** `pm-assistant`
-- **Why:** Spec exists, but `plan.md` is missing.
-- **Output:** Write the implementation plan without starting production work.
+- **Why:** Plan exists, but `implementation-handoff.md` is missing.
+- **Output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
 
 ## Feature Actions
 
@@ -153,10 +153,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-plan`
+- **Next action:** `write-implementation-handoff`
 - **Role:** `pm-assistant`
-- **Reason:** Spec exists, but `plan.md` is missing.
-- **Suggested output:** Write the implementation plan without starting production work.
+- **Reason:** Plan exists, but `implementation-handoff.md` is missing.
+- **Suggested output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
 
 ### 10. Phrase Features
 

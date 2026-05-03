@@ -4,7 +4,7 @@ title: Modifier Chain Placement
 status: inventory
 priority: unset
 blocked_by: []
-stage: write-plan
+stage: write-implementation-handoff
 owner: pm
 updated: 2026-05-03
 prototypes:
@@ -16,6 +16,6 @@ spec: spec.md
 
 # Modifier Chain Placement
 
-Status: Spec written; ready for planning.
+Status: Plan written; implementation handoff still required.
 
 Use this directory for Modifier chain placement notes, user stories, existing-state reports, prototypes, UX reviews, specs, and build plans.
