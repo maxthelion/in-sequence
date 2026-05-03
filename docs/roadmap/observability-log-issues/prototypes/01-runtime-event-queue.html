@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Wireframe] Observability Queue</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f3f3f3;
+    color: #1f1f1f;
+    padding: 24px;
+  }
+  .banner, .shell, .card, .queue-item, .action {
+    border: 1px solid #707070;
+    background: #fff;
+  }
+  .banner {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    background: #222;
+    color: #fff;
+    font-size: 12px;
+  }
+  .banner strong { font-size: 13px; }
+  .banner span { opacity: 0.7; }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .tabs button {
+    border: 1px solid #707070;
+    background: #e4e4e4;
+    padding: 8px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .tabs button.active {
+    background: #222;
+    color: #fff;
+  }
+  .shell {
+    display: grid;
+    grid-template-columns: 240px 360px 1fr;
+    min-height: 720px;
+  }
+  .panel {
+    border-right: 1px solid #b8b8b8;
+    padding: 14px;
+  }
+  .panel:last-child { border-right: 0; }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 8px;
+  }
+  .stack {
+    display: grid;
+    gap: 10px;
+  }
+  .card {
+    padding: 10px;
+    background: #fafafa;
+  }
+  .metric {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    padding: 5px 0;
+    border-bottom: 1px dashed #c8c8c8;
+  }
+  .metric:last-child { border-bottom: 0; }
+  .queue-item {
+    padding: 10px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .queue-item.active {
+    border-width: 2px;
+    background: #f0f0f0;
+  }
+  .queue-item h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+  }
+  .meta, .body-copy, .small {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .small { font-size: 11px; color: #666; }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  .chip {
+    border: 1px solid #7a7a7a;
+    padding: 3px 6px;
+    font-size: 11px;
+    background: #ececec;
+  }
+  .chip.alert { background: #101010; color: #fff; }
+  .chip.focus { background: #d9e6f4; }
+  .chip.warn { background: #f6ebcf; }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .detail-grid .card:last-child {
+    grid-column: span 2;
+  }
+  .event-line {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px;
+    font-size: 12px;
+    padding: 4px 0;
+  }
+  pre {
+    margin: 8px 0 0;
+    padding: 10px;
+    border: 1px dashed #999;
+    background: #f7f7f7;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    white-space: pre-wrap;
+  }
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .action {
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+    background: #ededed;
+  }
+  .action.primary {
+    background: #1f1f1f;
+    color: #fff;
+  }
+  .stub {
+    margin-top: 12px;
+    padding: 8px 10px;
+    border: 1px dashed #909090;
+    color: #666;
+    font-size: 11px;
+  }
+  @media (max-width: 1100px) {
+    .shell { grid-template-columns: 1fr; }
+    .panel { border-right: 0; border-bottom: 1px solid #b8b8b8; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .detail-grid .card:last-child { grid-column: span 1; }
+    .actions { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>Observability Queue Wireframe</strong>
+    <span>Primary goal: route a runtime event in <=2 decisions without overclaiming provenance.</span>
+  </div>
+
+  <div class="tabs">
+    <button class="active" data-scenario="crash">Crash in stable build</button>
+    <button data-scenario="worker">Active worker regression</button>
+    <button data-scenario="noise">Noisy warning burst</button>
+  </div>
+
+  <section class="shell">
+    <aside class="panel">
+      <div class="eyebrow">Collector Run</div>
+      <div class="stack">
+        <div class="card">
+          <div class="metric"><strong>Source</strong><span>Unified log + app bundle metadata</span></div>
+          <div class="metric"><strong>Window</strong><span>Last 15 min</span></div>
+          <div class="metric"><strong>New fingerprints</strong><span id="new-count">2</span></div>
+          <div class="metric"><strong>Suppressed</strong><span id="suppressed-count">4</span></div>
+          <div class="metric"><strong>Needs triage</strong><span id="triage-count">1</span></div>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Threshold Rules</div>
+          <div class="small">Crashes, persistence failures, MIDI routing loss, and repeated UI exceptions auto-promote out of observation mode.</div>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Privacy Pass</div>
+          <div class="small">File paths and sample names are redacted before an issue can be persisted.</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <div class="eyebrow">Fingerprint Queue</div>
+      <div class="stack" id="queue"></div>
+      <div class="stub">Stubbed off-path: export CSV, tracker sync, and raw Console browsing.</div>
+    </main>
+
+    <section class="panel">
+      <div class="eyebrow">Issue Draft</div>
+      <h2 id="detail-title" style="margin:0 0 8px;font-size:18px;">Audio engine crash on project close</h2>
+      <div class="chips" id="detail-chips"></div>
+      <div class="body-copy" id="detail-summary"></div>
+
+      <div class="detail-grid">
+        <div class="card">
+          <div class="eyebrow">Provenance</div>
+          <div class="event-line"><strong>Observed in</strong><span id="observed-in"></span></div>
+          <div class="event-line"><strong>Introduced by</strong><span id="introduced-by"></span></div>
+          <div class="event-line"><strong>Owner route</strong><span id="owner-route"></span></div>
+          <div class="event-line"><strong>Confidence</strong><span id="confidence"></span></div>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow">Evidence</div>
+          <div class="event-line"><strong>First seen</strong><span id="first-seen"></span></div>
+          <div class="event-line"><strong>Last seen</strong><span id="last-seen"></span></div>
+          <div class="event-line"><strong>Occurrences</strong><span id="occurrences"></span></div>
+          <div class="event-line"><strong>Recent action</strong><span id="recent-action"></span></div>
+        </div>
+
+        <div class="card">
+          <div class="eyebrow">Redacted Excerpt</div>
+          <pre id="excerpt"></pre>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="action">Keep Observing</div>
+        <div class="action primary" id="primary-action">Send To Sweeper Queue</div>
+        <div class="action">Needs Human Triage</div>
+        <div class="action">Suppress Fingerprint</div>
+        <div class="action">Inspect History</div>
+      </div>
+
+      <div class="stub">Stubbed adjacent screens: issue tracker bridge, suppression-rule editor, and full session timeline.</div>
+    </section>
+  </section>
+
+<script>
+  const scenarios = {
+    crash: {
+      metrics: { newCount: "2", suppressedCount: "4", triageCount: "1" },
+      items: [
+        {
+          title: "Audio engine crash on project close",
+          chips: ["crash", "new", "sweeper"],
+          state: "active",
+          summary: "A deterministic shutdown crash crosses the action threshold immediately because it risks data loss and is already reproducible outside an active feature branch.",
+          observedIn: "main @ 8b913cf / build 142",
+          introducedBy: "Unknown. No absence/presence history yet.",
+          ownerRoute: "Sweeper queue",
+          confidence: "Observed in commit: high. Introduction claim: withheld.",
+          firstSeen: "12:31:08",
+          lastSeen: "12:42:19",
+          occurrences: "3 launches",
+          recentAction: "Closed document after sample import",
+          excerpt: "EngineController shutdown failed\\nproject: [redacted-project]\\nfile: [redacted-path]\\nexception: AVAudioEngineGraph::Stop"
+        },
+        {
+          title: "Preset browser timeout while opening AU window",
+          chips: ["warning", "observe"],
+          summary: "Single warning, below threshold until repeated.",
+          observedIn: "main @ 8b913cf",
+          introducedBy: "Not evaluated",
+          ownerRoute: "Observation pool",
+          confidence: "Low",
+          firstSeen: "12:35:41",
+          lastSeen: "12:35:41",
+          occurrences: "1",
+          recentAction: "Open preset browser",
+          excerpt: "AU window timed out after 2.0s"
+        }
+      ],
+      primaryLabel: "Send To Sweeper Queue"
+    },
+    worker: {
+      metrics: { newCount: "1", suppressedCount: "2", triageCount: "0" },
+      items: [
+        {
+          title: "Virtual MIDI endpoint missing after hot reload",
+          chips: ["regression", "active worker", "route now"],
+          state: "active",
+          summary: "The collector can tie this fingerprint to the currently leased build range, so the issue stays with the active worker instead of spawning generic sweeper work.",
+          observedIn: "auto/roadmap-1-clip-history @ 2464133",
+          introducedBy: "Likely in current lease range (2461..HEAD)",
+          ownerRoute: "Return to active worker",
+          confidence: "Observed in commit: high. Introduced by lease range: medium.",
+          firstSeen: "12:38:03",
+          lastSeen: "12:44:10",
+          occurrences: "9",
+          recentAction: "Relaunch after MIDI settings edit",
+          excerpt: "MIDISession.shared failed to publish endpoint\\nbranch: auto/roadmap-1-clip-history\\ndirty: false"
+        },
+        {
+          title: "UI tap diagnostics in debug build",
+          chips: ["debug", "suppressed"],
+          summary: "Known debug chatter is visible but already suppressed.",
+          observedIn: "auto/roadmap-1-clip-history @ 2464133",
+          introducedBy: "Suppressed event class",
+          ownerRoute: "Ignore",
+          confidence: "High",
+          firstSeen: "12:37:00",
+          lastSeen: "12:44:10",
+          occurrences: "57",
+          recentAction: "Grid taps",
+          excerpt: "singleTapRecognized step=7"
+        }
+      ],
+      primaryLabel: "Return To Active Worker"
+    },
+    noise: {
+      metrics: { newCount: "0", suppressedCount: "12", triageCount: "1" },
+      items: [
+        {
+          title: "Repeated preset scan warning with private path",
+          chips: ["warning burst", "privacy review", "triage"],
+          state: "active",
+          summary: "The queue shows that repetition alone is not enough; redaction uncertainty keeps the item in human triage instead of opening a durable issue automatically.",
+          observedIn: "main @ 8b913cf / build 142",
+          introducedBy: "Not claimed",
+          ownerRoute: "Needs human triage",
+          confidence: "Routing confidence reduced by redaction uncertainty.",
+          firstSeen: "11:52:04",
+          lastSeen: "12:45:02",
+          occurrences: "28",
+          recentAction: "Background sample scan",
+          excerpt: "warning: failed to index [uncertain private path]\\ncollector paused before persistence"
+        },
+        {
+          title: "Expected sandbox denial during startup probe",
+          chips: ["suppressed", "known benign"],
+          summary: "Known noise stays visible for audit but never creates work.",
+          observedIn: "main @ 8b913cf",
+          introducedBy: "Suppression rule",
+          ownerRoute: "Ignore",
+          confidence: "High",
+          firstSeen: "10:01:11",
+          lastSeen: "12:44:58",
+          occurrences: "91",
+          recentAction: "Cold launch",
+          excerpt: "sandbox denial while probing optional folder"
+        }
+      ],
+      primaryLabel: "Pause And Escalate To Triage"
+    }
+  };
+
+  const queueRoot = document.getElementById("queue");
+  const tabs = document.querySelectorAll(".tabs button");
+  let activeScenario = "crash";
+
+  function renderScenario(name) {
+    activeScenario = name;
+    const scenario = scenarios[name];
+    document.getElementById("new-count").textContent = scenario.metrics.newCount;
+    document.getElementById("suppressed-count").textContent = scenario.metrics.suppressedCount;
+    document.getElementById("triage-count").textContent = scenario.metrics.triageCount;
+    document.getElementById("primary-action").textContent = scenario.primaryLabel;
+
+    queueRoot.innerHTML = "";
+    scenario.items.forEach((item, index) => {
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = "queue-item" + (index === 0 ? " active" : "");
+      node.innerHTML = "<h3>" + item.title + "</h3><div class='chips'>" +
+        item.chips.map((chip, chipIndex) => {
+          const classes = ["chip"];
+          if (chipIndex === 0) classes.push("alert");
+          if (chip.includes("active") || chip.includes("triage")) classes.push("focus");
+          if (chip.includes("warning")) classes.push("warn");
+          return "<span class='" + classes.join(" ") + "'>" + chip + "</span>";
+        }).join("") +
+        "</div><div class='small'>" + item.summary + "</div>";
+      node.addEventListener("click", () => {
+        document.querySelectorAll(".queue-item").forEach((entry) => entry.classList.remove("active"));
+        node.classList.add("active");
+        renderDetail(item);
+      });
+      queueRoot.appendChild(node);
+    });
+
+    renderDetail(scenario.items[0]);
+    tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.scenario === name));
+  }
+
+  function renderDetail(item) {
+    document.getElementById("detail-title").textContent = item.title;
+    document.getElementById("detail-summary").textContent = item.summary;
+    document.getElementById("observed-in").textContent = item.observedIn;
+    document.getElementById("introduced-by").textContent = item.introducedBy;
+    document.getElementById("owner-route").textContent = item.ownerRoute;
+    document.getElementById("confidence").textContent = item.confidence;
+    document.getElementById("first-seen").textContent = item.firstSeen;
+    document.getElementById("last-seen").textContent = item.lastSeen;
+    document.getElementById("occurrences").textContent = item.occurrences;
+    document.getElementById("recent-action").textContent = item.recentAction;
+    document.getElementById("excerpt").textContent = item.excerpt;
+    document.getElementById("detail-chips").innerHTML = item.chips
+      .map((chip, index) => "<span class='chip" + (index === 0 ? " alert" : "") + "'>" + chip + "</span>")
+      .join("");
+  }
+
+  tabs.forEach((tab) => tab.addEventListener("click", () => renderScenario(tab.dataset.scenario)));
+  renderScenario(activeScenario);
+</script>
+</body>
+</html>

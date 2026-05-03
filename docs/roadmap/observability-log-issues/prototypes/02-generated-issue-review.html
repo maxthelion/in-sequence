@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Wireframe] Generated Issue Review</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #efefef;
+    color: #202020;
+    padding: 24px;
+  }
+  .banner, .frame, .pane, .step, .decision {
+    border: 1px solid #727272;
+    background: #fff;
+  }
+  .banner {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    background: #1d1d1d;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 12px;
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .tabs button {
+    border: 1px solid #727272;
+    background: #e5e5e5;
+    padding: 8px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .tabs button.active {
+    background: #1d1d1d;
+    color: #fff;
+  }
+  .frame {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 720px;
+  }
+  .pane {
+    border-right: 1px solid #bebebe;
+    padding: 14px;
+  }
+  .pane:last-child { border-right: 0; }
+  .eyebrow {
+    margin-bottom: 8px;
+    color: #666;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .stack {
+    display: grid;
+    gap: 10px;
+  }
+  .step {
+    padding: 10px;
+    background: #fafafa;
+  }
+  .step.active {
+    border-width: 2px;
+    background: #f1f1f1;
+  }
+  .step h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+  }
+  .small, .copy {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .small { color: #666; }
+  .issue-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .issue-head h2 {
+    margin: 0;
+    font-size: 19px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 12px;
+  }
+  .chip {
+    border: 1px solid #727272;
+    padding: 3px 6px;
+    background: #ececec;
+    font-size: 11px;
+  }
+  .chip.dark {
+    background: #1d1d1d;
+    color: #fff;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 12px;
+  }
+  .review-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .review-layout .step:last-child {
+    grid-column: span 2;
+  }
+  pre {
+    margin: 8px 0 0;
+    padding: 10px;
+    border: 1px dashed #989898;
+    background: #f7f7f7;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    white-space: pre-wrap;
+  }
+  .decisions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .decision {
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+    background: #ededed;
+  }
+  .decision.primary {
+    background: #1d1d1d;
+    color: #fff;
+  }
+  .stub {
+    margin-top: 12px;
+    border: 1px dashed #8f8f8f;
+    padding: 8px 10px;
+    color: #666;
+    font-size: 11px;
+  }
+  @media (max-width: 1050px) {
+    .frame { grid-template-columns: 1fr; }
+    .pane { border-right: 0; border-bottom: 1px solid #bebebe; }
+    .review-layout { grid-template-columns: 1fr; }
+    .review-layout .step:last-child { grid-column: span 1; }
+    .decisions { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>Generated Issue Review Wireframe</strong>
+    <span>Primary goal: inspect one fingerprint's history, privacy redaction, and routing before persisting durable work.</span>
+  </div>
+
+  <div class="tabs">
+    <button class="active" data-scenario="firstSeen">First seen on main</button>
+    <button data-scenario="reopened">Regression after fix</button>
+    <button data-scenario="ambiguous">Ambiguous provenance</button>
+  </div>
+
+  <section class="frame">
+    <aside class="pane">
+      <div class="eyebrow">Run History</div>
+      <div class="stack" id="history"></div>
+      <div class="stub">Stubbed off-path: raw log viewer, commit diff browser, and external tracker settings.</div>
+    </aside>
+
+    <main class="pane">
+      <div class="issue-head">
+        <div>
+          <div class="eyebrow">Issue Candidate</div>
+          <h2 id="issue-title">Crash while closing imported project</h2>
+          <div class="chips" id="issue-chips"></div>
+        </div>
+        <div class="small" id="budget">Budget: approve or reroute in <=2 review steps.</div>
+      </div>
+
+      <div class="copy" id="issue-summary"></div>
+
+      <div class="review-layout">
+        <div class="step">
+          <div class="eyebrow">Ledger Facts</div>
+          <div class="row"><strong>Fingerprint</strong><span id="fingerprint"></span></div>
+          <div class="row"><strong>First seen</strong><span id="first-seen"></span></div>
+          <div class="row"><strong>Last seen</strong><span id="last-seen"></span></div>
+          <div class="row"><strong>Occurrences</strong><span id="occurrences"></span></div>
+          <div class="row"><strong>State</strong><span id="state"></span></div>
+        </div>
+
+        <div class="step">
+          <div class="eyebrow">Attribution</div>
+          <div class="row"><strong>Observed in</strong><span id="observed-in"></span></div>
+          <div class="row"><strong>Introduced by</strong><span id="introduced-by"></span></div>
+          <div class="row"><strong>Route</strong><span id="route"></span></div>
+          <div class="row"><strong>Reason</strong><span id="reason"></span></div>
+        </div>
+
+        <div class="step">
+          <div class="eyebrow">Markdown Preview</div>
+          <pre id="preview"></pre>
+        </div>
+      </div>
+
+      <div class="decisions">
+        <div class="decision primary" id="primary-action">Create Sweeper Issue</div>
+        <div class="decision">Reopen Existing Issue</div>
+        <div class="decision">Hold For More Evidence</div>
+        <div class="decision">Mark As Suppressed</div>
+      </div>
+
+      <div class="stub">Stubbed adjacent work: assignment rules, issue tracker sync, and per-feature notification preferences.</div>
+    </main>
+  </section>
+
+<script>
+  const scenarios = {
+    firstSeen: {
+      steps: [
+        ["12:17", "Collector run found a new crash fingerprint", true],
+        ["12:18", "Privacy pass redacted document path", false],
+        ["12:19", "Issue draft promoted above observation threshold", false]
+      ],
+      title: "Crash while closing imported project",
+      chips: ["new", "crash", "sweeper"],
+      budget: "Budget: approve or reroute in <=2 review steps.",
+      summary: "This flow optimizes for a high-confidence first report: show the durable facts, keep the wording conservative, and make the route obvious without requiring a separate git investigation first.",
+      fingerprint: "engine-stop-failure::project-close",
+      firstSeen: "2026-05-03 12:17:08",
+      lastSeen: "2026-05-03 12:19:42",
+      occurrences: "3 sessions",
+      state: "new candidate",
+      observedIn: "main @ 8b913cf / build 142",
+      introducedBy: "Not claimed",
+      route: "Sweeper queue",
+      reason: "Stable-branch crash with redaction already resolved.",
+      preview: "# Crash while closing imported project\\n\\nObserved in commit 8b913cf on build 142.\\n\\n- Severity: crash\\n- Fingerprint: engine-stop-failure::project-close\\n- First seen: 2026-05-03 12:17:08\\n- Last seen: 2026-05-03 12:19:42\\n- Occurrences: 3\\n- Privacy: project name and file path redacted\\n- Routing: sweeper queue\\n\\nExcerpt:\\nEngineController shutdown failed after import workflow"
+    },
+    reopened: {
+      steps: [
+        ["09:04", "Closed issue matched again after 11 clean runs", true],
+        ["09:05", "Ledger marked it as regression, not duplicate", false],
+        ["09:06", "Route suggests reopen with prior history attached", false]
+      ],
+      title: "Preset browser timeout regression",
+      chips: ["regression", "warning", "reopen"],
+      budget: "Budget: confirm reopen without rereading the old thread.",
+      summary: "This variant emphasizes first-seen and last-resolved history so regressions reopen context instead of generating duplicate issues that fragment the evidence trail.",
+      fingerprint: "preset-browser-timeout::au-window",
+      firstSeen: "2026-04-27 16:11:54",
+      lastSeen: "2026-05-03 09:05:11",
+      occurrences: "19 total / 4 after reopen",
+      state: "resolved once, active again",
+      observedIn: "main @ da87d2b / build 155",
+      introducedBy: "Not claimed. Historical absence proves regression only.",
+      route: "Reopen existing issue",
+      reason: "Same fingerprint returned after clean run gap and prior close.",
+      preview: "# Preset browser timeout regression\\n\\nObserved again in commit da87d2b after 11 clean runs.\\n\\n- Fingerprint: preset-browser-timeout::au-window\\n- Previous issue: reopen existing\\n- Historical note: problem absent between 2026-04-30 and 2026-05-03\\n- Claim withheld: no single introducing commit proven\\n\\nExcerpt:\\nAU window preparation timed out after 2.0s"
+    },
+    ambiguous: {
+      steps: [
+        ["14:02", "New warning burst correlated with local dirty build", true],
+        ["14:03", "Collector could not separate app bug from environment", false],
+        ["14:04", "Queue downgraded to human triage instead of auto-issue", false]
+      ],
+      title: "Sample scan warning with uncertain provenance",
+      chips: ["triage", "privacy", "ambiguous"],
+      budget: "Budget: stop auto-routing quickly when the evidence is not trustworthy.",
+      summary: "This path makes uncertainty first-class. The system should refuse to pretend it knows ownership or safe persistence when the log signal mixes private data with an unverified dirty-tree environment.",
+      fingerprint: "sample-scan-warning::path-uncertain",
+      firstSeen: "2026-05-03 14:02:03",
+      lastSeen: "2026-05-03 14:04:12",
+      occurrences: "28 in one scan session",
+      state: "triage hold",
+      observedIn: "local dirty build / branch unknown",
+      introducedBy: "Withheld due to missing build metadata",
+      route: "Human triage",
+      reason: "Privacy redaction confidence and branch ownership are both uncertain.",
+      preview: "# Sample scan warning with uncertain provenance\\n\\nObserved in a local dirty build with incomplete metadata.\\n\\n- Fingerprint: sample-scan-warning::path-uncertain\\n- Routing: human triage\\n- Persistence: blocked until redaction is verified\\n- Commit attribution: withheld\\n\\nExcerpt:\\nwarning during sample scan [redaction uncertain]"
+    }
+  };
+
+  const tabs = document.querySelectorAll(".tabs button");
+  const history = document.getElementById("history");
+
+  function renderScenario(name) {
+    const data = scenarios[name];
+    history.innerHTML = "";
+    data.steps.forEach((step) => {
+      const item = document.createElement("div");
+      item.className = "step" + (step[2] ? " active" : "");
+      item.innerHTML = "<h3>" + step[0] + "</h3><div class='copy'>" + step[1] + "</div>";
+      history.appendChild(item);
+    });
+
+    document.getElementById("issue-title").textContent = data.title;
+    document.getElementById("budget").textContent = data.budget;
+    document.getElementById("issue-summary").textContent = data.summary;
+    document.getElementById("fingerprint").textContent = data.fingerprint;
+    document.getElementById("first-seen").textContent = data.firstSeen;
+    document.getElementById("last-seen").textContent = data.lastSeen;
+    document.getElementById("occurrences").textContent = data.occurrences;
+    document.getElementById("state").textContent = data.state;
+    document.getElementById("observed-in").textContent = data.observedIn;
+    document.getElementById("introduced-by").textContent = data.introducedBy;
+    document.getElementById("route").textContent = data.route;
+    document.getElementById("reason").textContent = data.reason;
+    document.getElementById("preview").textContent = data.preview;
+    document.getElementById("primary-action").textContent =
+      name === "reopened" ? "Reopen Existing Issue" :
+      name === "ambiguous" ? "Hold For Human Triage" :
+      "Create Sweeper Issue";
+    document.getElementById("issue-chips").innerHTML = data.chips
+      .map((chip, index) => "<span class='chip" + (index === 0 ? " dark" : "") + "'>" + chip + "</span>")
+      .join("");
+    tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.scenario === name));
+  }
+
+  tabs.forEach((tab) => tab.addEventListener("click", () => renderScenario(tab.dataset.scenario)));
+  renderScenario("firstSeen");
+</script>
+</body>
+</html>

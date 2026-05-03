@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T13:53:39Z
-Repo HEAD: 13d1afd
+Generated: 2026-05-03T14:17:30Z
+Repo HEAD: ee97260
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -47,14 +47,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 21
-- **Feature:** Observability From Application Logs
+- **Item:** 22
+- **Feature:** Scenes In Phrases
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-prototypes`
+- **Action:** `draft-user-stories`
 - **Role:** `pm-assistant`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
+- **Why:** `notes.md` exists, but `user-stories.md` is missing.
+- **Output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
 
 ## Feature Actions
 
@@ -284,10 +284,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 22. Scenes In Phrases
 
