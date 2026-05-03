@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T15:30:26Z
-Repo HEAD: 0e335a1
+Generated: 2026-05-03T16:07:35Z
+Repo HEAD: 0b09822
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -48,14 +48,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 22
-- **Feature:** Scenes In Phrases
+- **Item:** 24
+- **Feature:** Track Perform Multi-Select And Latch
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `address-feedback`
+- **Action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Why:** Unresolved feedback exists in `feedback/*.md`.
-- **Output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
+- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
+- **Output:** Create focused Balsamiq-style HTML prototypes from notes, user stories, existing-state, feedback, screenshots/artifacts, and prototype guidelines.
 
 ## Feature Actions
 
@@ -296,10 +296,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `address-feedback`
-- **Role:** `pm-assistant`
-- **Reason:** Unresolved feedback exists in `feedback/*.md`.
-- **Suggested output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 23. Phrase Cells
 
@@ -318,10 +318,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `inspect-existing-state`
+- **Next action:** `build-prototypes`
 - **Role:** `pm-assistant`
-- **Reason:** User stories exist, but `existing-state.md` is missing.
-- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Reason:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
+- **Suggested output:** Create focused Balsamiq-style HTML prototypes from notes, user stories, existing-state, feedback, screenshots/artifacts, and prototype guidelines.
 
 ### 25. Selective Scene Inputs
 
