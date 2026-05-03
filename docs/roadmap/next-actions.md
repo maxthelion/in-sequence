@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-02T18:00:50Z
-Repo HEAD: 88d59f3
+Generated: 2026-05-03T10:23:00Z
+Repo HEAD: 4691129
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -249,10 +249,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-concerns`
-- **Role:** `user`
-- **Reason:** `concerns.md` exists and is not resolved or archived.
-- **Suggested output:** Review the concerns, decide whether they are accepted guardrails, open questions, or non-blocking notes, then update `concerns.md` before PM work continues.
+- **Next action:** `inspect-existing-state`
+- **Role:** `pm-assistant`
+- **Reason:** User stories exist, but `existing-state.md` is missing.
+- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ### 19. Drum Kit Group View
 

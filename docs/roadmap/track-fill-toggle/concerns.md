@@ -1,9 +1,12 @@
 ---
-status: open
+status: resolved
 raised_by: pm-assistant
 raised_during: draft-user-stories
 created: 2026-04-30T11:16:45Z
-resolved_in: []
+resolved: 2026-05-03
+resolved_by: user
+resolved_in:
+  - user decision on 2026-05-03
 ---
 
 # Toggle Fill On A Track Concerns
@@ -24,3 +27,12 @@ resolved_in: []
 - Resolve the runtime override versus phrase mutation question in `existing-state.md` and `architecture.md`.
 - Treat generator fill behavior as an explicit non-goal unless architecture review approves support.
 - Prototype the track-editor placement before spec.
+
+## User Decision
+
+Accepted on 2026-05-03:
+
+- Fill preview should be a transient runtime override, not a phrase mutation.
+- The phrase `"fill-flag"` layer must not be mutated by the preview toggle.
+- Generator-backed track support is out of scope for v1; generator-backed tracks should show a disabled/unavailable state or message.
+- Toggle placement should be decided during prototype/UX review rather than in the user stories.
