@@ -414,6 +414,8 @@ If the PM assistant accepts a direction, the selector routes the item to human r
 
 Human prototype review is a user gate. The selector should surface `human-review-prototypes` in the user lane whenever `ux-review.md` exists and `prototype-approval.md` is missing or has an unrecognised status. If `prototype-approval.md` says `changes-requested` or `rejected`, the selector routes the item back to `build-prototypes` for the PM assistant instead.
 
+This gate is forward-looking. If an item is already marked `status: ready-for-build`, `stage: ready-for-build`, or `stage: ready-for-build-queue`, do not reopen it only because the approval artifact was introduced later. New feedback still wins first and can explicitly invalidate the prototype direction, but already-promoted work should stay in the build lane.
+
 Use the PM assistant's `ux-review.md` as the prepared critique: it should tell the user what to inspect, what risks remain, and which prototype the agent thinks is strongest. The user's job is then to approve the direction or give feedback that sends the item back to prototype work.
 
 Record approval in:
@@ -575,27 +577,28 @@ Each worker should return a concise handoff: files inspected or changed, conclus
 
 Use `scripts/roadmap/next-roadmap-actions.sh` to run a deterministic scan of the roadmap backlog.
 
-The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/roadmap/next-actions.md`. It does not build anything or dispatch agents. It emits separate "Next User Item" and "Next Agent Item" sections so user clarification can remain visible without blocking autonomous PM-assistant work. For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then human prototype approval; otherwise it chooses the first missing planning artifact as the likely next project-management action:
+The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/roadmap/next-actions.md`. It does not build anything or dispatch agents. It emits separate "Next User Item" and "Next Agent Item" sections so user clarification can remain visible without blocking autonomous PM-assistant work. For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then ready-for-build state, then human prototype approval; otherwise it chooses the first missing planning artifact as the likely next project-management action:
 
 1. `status: deferred` -> deferred
 2. unresolved `feedback/*.md` -> address-feedback
 3. open `concerns.md` -> review-concerns
 4. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
 5. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
-6. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
-7. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
-8. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
-9. `notes.md` -> clarify-feature
-10. `user-stories.md` -> draft-user-stories
-11. `existing-state.md` -> inspect-existing-state
-12. `prototypes/*` -> build-prototypes
-13. `ux-review.md` -> review-prototypes
-14. `architecture.md` -> write-architecture
-15. `architecture-review.md` -> review-architecture
-16. `spec.md` -> write-spec
-17. `plan.md` -> write-plan
-18. `implementation-handoff.md` -> write-implementation-handoff
-19. all present -> ready-for-build-queue
+6. `status: ready-for-build` or `stage: ready-for-build(-queue)` -> ready-for-build-queue
+7. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
+8. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
+9. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
+10. `notes.md` -> clarify-feature
+11. `user-stories.md` -> draft-user-stories
+12. `existing-state.md` -> inspect-existing-state
+13. `prototypes/*` -> build-prototypes
+14. `ux-review.md` -> review-prototypes
+15. `architecture.md` -> write-architecture
+16. `architecture-review.md` -> review-architecture
+17. `spec.md` -> write-spec
+18. `plan.md` -> write-plan
+19. `implementation-handoff.md` -> write-implementation-handoff
+20. all present -> ready-for-build-queue
 
 This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, feedback, concerns, and prototype review outcomes.
 

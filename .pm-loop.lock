@@ -2,13 +2,13 @@
   "bundle": "pm-loop",
   "version": "0.1.0",
   "source_repo": "/Users/maxwilliams/dev/pm-loop",
-  "source_sha": "966eeaf5a8a8be83d4cccbcd60877caca94f605c",
-  "installed_at": "2026-05-03T11:06:32.300Z",
+  "source_sha": "352a97e7fdab1cfae4ec8b68d7912f2a71acc63c",
+  "installed_at": "2026-05-03T15:20:41.098Z",
   "files": [
     {
       "source": "scripts/next-roadmap-actions.sh",
       "target": "scripts/roadmap/next-roadmap-actions.sh",
-      "hash": "40e8fec57a710cce15ce3ab69e0d8d220903a00dcc4944786f470c1645358704",
+      "hash": "aa7a3590066920d189a5a8da88280365531052c8fea36dd84e6d0d605d11c5b9",
       "mode": "0755"
     },
     {
@@ -54,7 +54,7 @@
     {
       "source": "docs/working-through-a-roadmap.md",
       "target": "docs/working-through-a-roadmap.md",
-      "hash": "4cd41e15ce26a46fcd937bc81df1e68b1e980a0171dd6331b43627d3e148ff5d"
+      "hash": "2c4c4ff4ecca016814311ac7e21dc67d343e89beeb6fb86d7873758666fa3790"
     },
     {
       "source": "docs/html-prototype-guidelines.md",

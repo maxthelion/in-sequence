@@ -184,9 +184,11 @@ classify_feature() {
   local reason=""
   local output_hint=""
   local status
+  local stage
   local blocked_by
 
   status="$(feature_meta "$dir" "status" "unknown")"
+  stage="$(feature_meta "$dir" "stage" "unknown")"
   blocked_by="$(feature_meta "$dir" "blocked_by" "[]")"
 
   if [ "$status" = "deferred" ]; then
@@ -228,6 +230,13 @@ classify_feature() {
     next_action="$redirect"
     reason="\`ux-review.md\` verdict is \`needs-rework\` or \`rejected\`; redirect_to=\`$redirect\`."
     output_hint="Address the verdict in \`ux-review.md\`. Read notes, user stories, existing-state, feedback, and the review critique; produce a fresh artifact at the redirect target."
+    printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+    return
+  fi
+  if [ "$status" = "ready-for-build" ] || [ "$stage" = "ready-for-build" ] || [ "$stage" = "ready-for-build-queue" ]; then
+    next_action="ready-for-build-queue"
+    reason="Feature is already marked \`$stage\`/\`$status\`; PM artifacts have been handed off or are ready to hand off."
+    output_hint="Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item."
     printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
     return
   fi
@@ -371,27 +380,28 @@ tmp="$OUT.tmp.$$"
   echo
   echo "## Selector"
   echo
-  echo "For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then human prototype approval; otherwise the first missing artifact wins:"
+  echo "For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then ready-for-build state, then human prototype approval; otherwise the first missing artifact wins:"
   echo
   echo "1. \`status: deferred\` -> deferred"
   echo "2. unresolved \`feedback/*.md\` -> address-feedback"
   echo "3. open \`concerns.md\` -> review-concerns"
   echo "4. \`status: blocked\`, non-empty \`blocked_by\`, or \`open-questions.md\` -> blocked"
   echo "5. \`ux-review.md\` with \`verdict: needs-rework\`/\`rejected\` -> \`redirect_to\` (default \`build-prototypes\`)"
-  echo "6. accepted \`ux-review.md\` without approved \`prototype-approval.md\` -> human-review-prototypes"
-  echo "7. \`prototype-approval.md\` with \`status: changes-requested\`/\`rejected\` -> build-prototypes"
-  echo "8. \`architecture-review.md\` with \`verdict: needs-rework\`/\`rejected\` -> \`redirect_to\` (default \`write-architecture\`)"
-  echo "9. \`notes.md\` -> clarify-feature"
-  echo "10. \`user-stories.md\` -> draft-user-stories"
-  echo "11. \`existing-state.md\` -> inspect-existing-state"
-  echo "12. \`prototypes/*\` -> build-prototypes"
-  echo "13. \`ux-review.md\` -> review-prototypes"
-  echo "14. \`architecture.md\` -> write-architecture"
-  echo "15. \`architecture-review.md\` -> review-architecture"
-  echo "16. \`spec.md\` -> write-spec"
-  echo "17. \`plan.md\` -> write-plan"
-  echo "18. \`implementation-handoff.md\` -> write-implementation-handoff"
-  echo "19. all present -> ready-for-build-queue"
+  echo "6. \`status: ready-for-build\` or \`stage: ready-for-build(-queue)\` -> ready-for-build-queue"
+  echo "7. accepted \`ux-review.md\` without approved \`prototype-approval.md\` -> human-review-prototypes"
+  echo "8. \`prototype-approval.md\` with \`status: changes-requested\`/\`rejected\` -> build-prototypes"
+  echo "9. \`architecture-review.md\` with \`verdict: needs-rework\`/\`rejected\` -> \`redirect_to\` (default \`write-architecture\`)"
+  echo "10. \`notes.md\` -> clarify-feature"
+  echo "11. \`user-stories.md\` -> draft-user-stories"
+  echo "12. \`existing-state.md\` -> inspect-existing-state"
+  echo "13. \`prototypes/*\` -> build-prototypes"
+  echo "14. \`ux-review.md\` -> review-prototypes"
+  echo "15. \`architecture.md\` -> write-architecture"
+  echo "16. \`architecture-review.md\` -> review-architecture"
+  echo "17. \`spec.md\` -> write-spec"
+  echo "18. \`plan.md\` -> write-plan"
+  echo "19. \`implementation-handoff.md\` -> write-implementation-handoff"
+  echo "20. all present -> ready-for-build-queue"
   echo
   echo "## Next User Item"
   echo
