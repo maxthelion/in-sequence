@@ -1,12 +1,12 @@
 ---
 id: 4
 title: Mixer Main Out
-status: inventory
+status: blocked
 priority: unset
 blocked_by: []
-stage: review-architecture
+stage: clarify-feature
 owner: pm
-updated: 2026-04-30
+updated: 2026-05-03
 ---
 
 # Mixer Main Out
