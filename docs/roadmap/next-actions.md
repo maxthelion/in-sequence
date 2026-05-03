@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T19:56:17Z
-Repo HEAD: 2568724
+Generated: 2026-05-03T20:07:50Z
+Repo HEAD: 22cef9f
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -52,10 +52,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** Send Effects
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-spec`
+- **Action:** `write-plan`
 - **Role:** `pm-assistant`
-- **Why:** Architecture review exists, but `spec.md` is missing.
-- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Why:** Spec exists, but `plan.md` is missing.
+- **Output:** Write the implementation plan without starting production work.
 
 ## Feature Actions
 
@@ -120,10 +120,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-spec`
+- **Next action:** `write-plan`
 - **Role:** `pm-assistant`
-- **Reason:** Architecture review exists, but `spec.md` is missing.
-- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
+- **Reason:** Spec exists, but `plan.md` is missing.
+- **Suggested output:** Write the implementation plan without starting production work.
 
 ### 7. Input Audio
 

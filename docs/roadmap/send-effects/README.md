@@ -5,7 +5,7 @@ status: inventory
 priority: unset
 blocked_by:
   []
-stage: write-plan
+stage: write-implementation-handoff
 owner: pm
 updated: 2026-05-03
 prototype_approval: prototype-approval.md
