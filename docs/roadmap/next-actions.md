@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T17:23:41Z
-Repo HEAD: 37f989c
+Generated: 2026-05-03T17:36:32Z
+Repo HEAD: 64dcc5a
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -48,8 +48,8 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 4
-- **Feature:** Mixer Main Out
+- **Item:** 6
+- **Feature:** Send Effects
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `review-architecture`
@@ -98,10 +98,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
+- **Next action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Reason:** Architecture review exists, but `spec.md` is missing.
+- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ### 5. Mixer Busses
 
@@ -109,10 +109,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
+- **Next action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Reason:** Architecture review exists, but `spec.md` is missing.
+- **Suggested output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ### 6. Send Effects
 

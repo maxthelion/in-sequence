@@ -4,7 +4,7 @@ title: Mixer Busses
 status: inventory
 priority: unset
 blocked_by: []
-stage: review-architecture
+stage: write-spec
 owner: pm
 updated: 2026-05-03
 prototype_approval: prototype-approval.md
