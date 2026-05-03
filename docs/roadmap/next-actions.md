@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T15:24:18Z
-Repo HEAD: cf137e9
+Generated: 2026-05-03T15:30:26Z
+Repo HEAD: 0e335a1
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -48,14 +48,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 24
-- **Feature:** Track Perform Multi-Select And Latch
+- **Item:** 22
+- **Feature:** Scenes In Phrases
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `inspect-existing-state`
+- **Action:** `address-feedback`
 - **Role:** `pm-assistant`
-- **Why:** User stories exist, but `existing-state.md` is missing.
-- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
+- **Why:** Unresolved feedback exists in `feedback/*.md`.
+- **Output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
 
 ## Feature Actions
 
@@ -296,10 +296,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `human-review-prototypes`
-- **Role:** `user`
-- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
-- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Next action:** `address-feedback`
+- **Role:** `pm-assistant`
+- **Reason:** Unresolved feedback exists in `feedback/*.md`.
+- **Suggested output:** Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files.
 
 ### 23. Phrase Cells
 
