@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Scenes In Phrases - Inline Bars Matrix</title>
+<!--
+  PROTOTYPE - NOT PRODUCTION UI
+  Scenes In Phrases, variant 1.
+
+  DIFFERENCE FROM VARIANT 2:
+  - Per-bar crossfader editing stays inside the matrix row.
+  - The row becomes taller, but scanning and editing happen in one place.
+
+  INTERACTION BUDGET:
+  - Scan a phrase's scene intent in <=1 glance.
+  - Change Scene A / blend / Scene B in <=2 clicks per field.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #efefef;
+    color: #161616;
+    padding: 18px;
+  }
+  .banner {
+    background: #222;
+    color: #fff;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+  }
+  .frame {
+    max-width: 1200px;
+    margin: 0 auto;
+    border: 1px solid #bdbdbd;
+    background: #fafafa;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #c8c8c8;
+    background: #f3f3f3;
+    flex-wrap: wrap;
+  }
+  .cluster {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .eyebrow {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+  }
+  .title {
+    font-weight: 650;
+    font-size: 15px;
+  }
+  .tab,
+  .chip,
+  .stub,
+  .tiny {
+    border: 1px solid #8f8f8f;
+    background: #ededed;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .tab.active,
+  .chip.active {
+    background: #1d1d1d;
+    color: #fff;
+    border-color: #1d1d1d;
+  }
+  .stub {
+    border-style: dashed;
+    color: #777;
+  }
+  .tiny {
+    padding: 4px 7px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .budget {
+    padding: 10px 14px;
+    border-bottom: 1px dashed #bdbdbd;
+    font-size: 12px;
+    color: #555;
+    background: #f7f7f7;
+  }
+  .matrix {
+    padding: 14px;
+  }
+  .matrix-header,
+  .phrase-row {
+    display: grid;
+    grid-template-columns: 200px 1fr 260px 1fr 120px;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .matrix-header {
+    padding: 0 0 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+  }
+  .phrase-row {
+    border: 1px solid #c6c6c6;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+  .phrase-row.selected {
+    border-color: #2f6db7;
+    background: #f8fbff;
+  }
+  .cell {
+    padding: 10px;
+    border-right: 1px solid #e2e2e2;
+    min-height: 78px;
+  }
+  .cell:last-child {
+    border-right: 0;
+  }
+  .phrase-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .phrase-name {
+    font-weight: 650;
+  }
+  .phrase-sub {
+    font-size: 12px;
+    color: #666;
+  }
+  .scene-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .scene-button {
+    border: 1px solid #919191;
+    background: #f3f3f3;
+    padding: 9px 10px;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .scene-button strong {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 3px;
+  }
+  .scene-button:hover,
+  .tiny:hover,
+  .mode-select button:hover,
+  .bar:hover {
+    background: #e5e5e5;
+  }
+  .crossfader {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mode-select {
+    display: flex;
+    gap: 6px;
+  }
+  .mode-select button {
+    border: 1px solid #8f8f8f;
+    background: #ededed;
+    padding: 6px 8px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .mode-select button.active {
+    background: #1d1d1d;
+    color: #fff;
+    border-color: #1d1d1d;
+  }
+  .summary {
+    font-size: 12px;
+    color: #4d4d4d;
+  }
+  .static-readout {
+    border: 1px solid #9a9a9a;
+    background: #f8f8f8;
+    padding: 8px 10px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .bar {
+    border: 1px solid #999;
+    background: #f7f7f7;
+    padding: 8px 6px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .bar-label {
+    display: block;
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .bar-value {
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .spark {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    height: 30px;
+  }
+  .spark span {
+    flex: 1;
+    border: 1px solid #a4a4a4;
+    background: #d9d9d9;
+    min-height: 5px;
+  }
+  .status {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    background: #f7f7f7;
+  }
+  .badge {
+    border: 1px dashed #959595;
+    padding: 6px 8px;
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 0 14px 14px;
+  }
+  .panel {
+    border: 1px dashed #b5b5b5;
+    background: #f5f5f5;
+    padding: 12px;
+    font-size: 12px;
+    color: #555;
+  }
+  .panel h2 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #444;
+  }
+  ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+  }
+  li + li {
+    margin-top: 6px;
+  }
+  @media (max-width: 980px) {
+    .matrix-header {
+      display: none;
+    }
+    .phrase-row {
+      grid-template-columns: 1fr;
+    }
+    .cell {
+      border-right: 0;
+      border-bottom: 1px solid #e2e2e2;
+    }
+    .cell:last-child {
+      border-bottom: 0;
+    }
+    .legend {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="banner">Prototype only • Scenes In Phrases • Variant 1: inline per-bar editing</div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="cluster">
+        <div>
+          <div class="eyebrow">Phrase Workspace</div>
+          <div class="title">Phrase Matrix</div>
+        </div>
+        <div class="tab">Tracks</div>
+        <div class="tab active">Scenes</div>
+      </div>
+      <div class="cluster">
+        <span class="chip active" id="fixture-a">Festival Default</span>
+        <span class="chip" id="fixture-b">Long Names Stress</span>
+        <span class="stub">Page 1 of 3 [stub]</span>
+        <span class="stub">Layer picker disabled in Scenes mode [stub]</span>
+      </div>
+    </div>
+    <div class="budget">
+      Path under test: compare scene intent across phrases, switch A/B assignments, and choose static vs per-bar crossfader authoring without leaving the matrix.
+    </div>
+    <div class="matrix">
+      <div class="matrix-header">
+        <div>Phrase</div>
+        <div>Scene A</div>
+        <div>Crossfader</div>
+        <div>Scene B</div>
+        <div>Playback intent</div>
+      </div>
+      <div id="rows"></div>
+    </div>
+    <div class="legend">
+      <div class="panel">
+        <h2>Why this variant exists</h2>
+        <ul>
+          <li>Keeps all authored scene data visible on the phrase row.</li>
+          <li>Makes per-bar movement scannable without opening another editor.</li>
+          <li>Tests whether taller rows are acceptable once multiple phrases are in view.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h2>Known trade-off</h2>
+        <ul>
+          <li>Per-bar phrases consume vertical space fast.</li>
+          <li>Rows with static blends feel lighter than rows with bar automation.</li>
+          <li>The off-path scene library browser remains stubbed on purpose.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+<script>
+const scenes = [
+  "Glass Morning",
+  "Filter Melt 87%",
+  "Vox Duck + Tape Hiss",
+  "KICKSIDECHAIN_ULTRA_LONG",
+  "Bossa Nova d'Estaque",
+  "Drone Bloom / Bars 5-8"
+];
+
+const altScenes = [
+  "Aurum Intro Wash Super Extended",
+  "Muted Choir / Transient Gate",
+  "Niño Delay Cascade",
+  "Low End Emergency Contour",
+  "Scene B With A Name That Barely Fits",
+  "Tape Dust Finale"
+];
+
+let selectedRow = 1;
+let usingAltFixtures = false;
+
+const rows = [
+  { phrase: "P1 Intro", bars: 4, sceneA: 0, sceneB: 2, mode: "static", staticValue: 18, values: [18, 18, 18, 18], note: "leans A" },
+  { phrase: "P2 Verse Lift", bars: 4, sceneA: 1, sceneB: 4, mode: "bars", staticValue: 50, values: [12, 38, 61, 84], note: "four-bar sweep" },
+  { phrase: "P3 Hook - Quiet Then Bright", bars: 4, sceneA: 5, sceneB: 3, mode: "bars", staticValue: 50, values: [5, 5, 72, 96], note: "late jump to B" },
+  { phrase: "P4 Breakdown", bars: 2, sceneA: 2, sceneB: 0, mode: "static", staticValue: 50, values: [50, 50, 50, 50], note: "balanced center" }
+];
+
+function sceneNames() {
+  return usingAltFixtures ? altScenes : scenes;
+}
+
+function cycleScene(rowIndex, side) {
+  const key = side === "A" ? "sceneA" : "sceneB";
+  rows[rowIndex][key] = (rows[rowIndex][key] + 1) % sceneNames().length;
+  render();
+}
+
+function toggleMode(rowIndex, mode) {
+  rows[rowIndex].mode = mode;
+  render();
+}
+
+function cycleStatic(rowIndex) {
+  const options = [0, 18, 35, 50, 68, 84, 100];
+  const current = rows[rowIndex].staticValue;
+  const next = options[(options.indexOf(current) + 1) % options.length];
+  rows[rowIndex].staticValue = next;
+  rows[rowIndex].values = rows[rowIndex].values.map(() => next);
+  render();
+}
+
+function cycleBar(rowIndex, barIndex) {
+  const options = [0, 12, 24, 38, 50, 61, 72, 84, 96, 100];
+  const current = rows[rowIndex].values[barIndex];
+  rows[rowIndex].values[barIndex] = options[(options.indexOf(current) + 1) % options.length];
+  render();
+}
+
+function renderSpark(values) {
+  return values.map((value) => `<span style="height:${Math.max(6, value * 0.26)}px"></span>`).join("");
+}
+
+function renderRows() {
+  const names = sceneNames();
+  return rows.map((row, rowIndex) => `
+    <div class="phrase-row ${selectedRow === rowIndex ? "selected" : ""}" onclick="selectedRow=${rowIndex};render();">
+      <div class="cell phrase-meta">
+        <div class="phrase-name">${row.phrase}</div>
+        <div class="phrase-sub">${row.bars} bars • ${row.mode === "static" ? "one blend for full phrase" : "per-bar scene motion"}</div>
+        <div class="spark">${renderSpark(row.mode === "static" ? Array(4).fill(row.staticValue) : row.values)}</div>
+      </div>
+      <div class="cell scene-slot">
+        <button class="scene-button" onclick="event.stopPropagation();cycleScene(${rowIndex}, 'A');">
+          <strong>Scene A</strong>
+          ${names[row.sceneA]}
+        </button>
+        <div class="summary">Click cycles through saved scenes. Full picker is intentionally stubbed out in this prototype.</div>
+      </div>
+      <div class="cell crossfader">
+        <div class="mode-select">
+          <button class="${row.mode === "static" ? "active" : ""}" onclick="event.stopPropagation();toggleMode(${rowIndex}, 'static');">Static</button>
+          <button class="${row.mode === "bars" ? "active" : ""}" onclick="event.stopPropagation();toggleMode(${rowIndex}, 'bars');">Per bar</button>
+        </div>
+        ${row.mode === "static"
+          ? `<div class="static-readout" onclick="event.stopPropagation();cycleStatic(${rowIndex});">Blend ${row.staticValue}% toward B</div>`
+          : `<div class="bars">${row.values.map((value, barIndex) => `
+              <button class="bar" onclick="event.stopPropagation();cycleBar(${rowIndex}, ${barIndex});">
+                <span class="bar-label">Bar ${barIndex + 1}</span>
+                <span class="bar-value">${value}%</span>
+              </button>`).join("")}</div>`
+        }
+        <div class="summary">${row.note}</div>
+      </div>
+      <div class="cell scene-slot">
+        <button class="scene-button" onclick="event.stopPropagation();cycleScene(${rowIndex}, 'B');">
+          <strong>Scene B</strong>
+          ${names[row.sceneB]}
+        </button>
+        <div class="summary">Long names are kept visible long enough to stress the row width decision.</div>
+      </div>
+      <div class="cell status">
+        <div class="badge">${row.mode === "static" ? "recalls one blend" : "changes every bar"}</div>
+        <button class="tiny" onclick="event.stopPropagation();selectedRow=${rowIndex};render();">focus row</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function render() {
+  document.getElementById("rows").innerHTML = renderRows();
+  document.getElementById("fixture-a").classList.toggle("active", !usingAltFixtures);
+  document.getElementById("fixture-b").classList.toggle("active", usingAltFixtures);
+}
+
+document.getElementById("fixture-a").addEventListener("click", () => {
+  usingAltFixtures = false;
+  render();
+});
+
+document.getElementById("fixture-b").addEventListener("click", () => {
+  usingAltFixtures = true;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[PROTOTYPE] Scenes In Phrases - Summary Row And Detail Drawer</title>
+<!--
+  PROTOTYPE - NOT PRODUCTION UI
+  Scenes In Phrases, variant 2.
+
+  DIFFERENCE FROM VARIANT 1:
+  - Phrase rows stay compact.
+  - Detailed per-bar editing moves into a drawer for the selected phrase.
+
+  INTERACTION BUDGET:
+  - Scan phrase intent in <=1 glance.
+  - Reach detailed bar editing in <=2 clicks.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #eeeeee;
+    color: #181818;
+    padding: 18px;
+  }
+  .banner {
+    background: #252525;
+    color: #fff;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+  }
+  .shell {
+    max-width: 1240px;
+    margin: 0 auto;
+    border: 1px solid #bebebe;
+    background: #fafafa;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #c9c9c9;
+    background: #f4f4f4;
+    flex-wrap: wrap;
+  }
+  .cluster {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .eyebrow {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+  }
+  .title {
+    font-size: 15px;
+    font-weight: 650;
+  }
+  .tab,
+  .stub,
+  .pill,
+  .tiny {
+    border: 1px solid #8f8f8f;
+    background: #ededed;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .tab.active,
+  .pill.active {
+    background: #1d1d1d;
+    color: #fff;
+    border-color: #1d1d1d;
+  }
+  .stub {
+    border-style: dashed;
+    color: #777;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  }
+  .matrix {
+    border-right: 1px solid #d5d5d5;
+  }
+  .matrix-head,
+  .row {
+    display: grid;
+    grid-template-columns: 168px 1fr 170px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+  }
+  .matrix-head {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+    border-bottom: 1px solid #d7d7d7;
+    background: #f8f8f8;
+  }
+  .row {
+    border-bottom: 1px solid #ececec;
+    cursor: pointer;
+    background: #fff;
+  }
+  .row.selected {
+    background: #f8fbff;
+    outline: 1px solid #2f6db7;
+    outline-offset: -1px;
+  }
+  .phrase {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .phrase strong {
+    font-size: 14px;
+  }
+  .phrase small,
+  .mini {
+    font-size: 12px;
+    color: #666;
+  }
+  .scene-box {
+    border: 1px solid #989898;
+    background: #f5f5f5;
+    padding: 8px 10px;
+  }
+  .scene-box em {
+    display: block;
+    font-style: normal;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  .summary-box {
+    border: 1px solid #999;
+    background: #f5f5f5;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .spark {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    height: 26px;
+  }
+  .spark span {
+    flex: 1;
+    border: 1px solid #a5a5a5;
+    background: #d9d9d9;
+    min-height: 6px;
+  }
+  .drawer {
+    background: #f7f7f7;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .drawer-card {
+    border: 1px solid #c0c0c0;
+    background: #fff;
+    padding: 12px;
+  }
+  .drawer h2 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .drawer p {
+    margin: 0;
+    font-size: 12px;
+    color: #555;
+  }
+  .controls {
+    display: grid;
+    gap: 10px;
+  }
+  .row-control {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .row-control button,
+  .mode button,
+  .tiny {
+    border: 1px solid #8f8f8f;
+    background: #ededed;
+    padding: 7px 9px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .mode {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .mode button.active,
+  .tiny.active {
+    background: #1d1d1d;
+    color: #fff;
+    border-color: #1d1d1d;
+  }
+  .bar-track {
+    height: 18px;
+    background: repeating-linear-gradient(
+      90deg,
+      #ececec,
+      #ececec 10px,
+      #e3e3e3 10px,
+      #e3e3e3 20px
+    );
+    border: 1px solid #b3b3b3;
+    position: relative;
+  }
+  .bar-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: #9f9f9f;
+  }
+  .notes {
+    border: 1px dashed #b5b5b5;
+    background: #f4f4f4;
+    padding: 12px;
+    font-size: 12px;
+    color: #575757;
+  }
+  ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+  }
+  li + li {
+    margin-top: 6px;
+  }
+  @media (max-width: 980px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+    .matrix {
+      border-right: 0;
+      border-bottom: 1px solid #d5d5d5;
+    }
+    .matrix-head {
+      display: none;
+    }
+    .row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="banner">Prototype only • Scenes In Phrases • Variant 2: compact row with detail drawer</div>
+  <div class="shell">
+    <div class="header">
+      <div class="cluster">
+        <div>
+          <div class="eyebrow">Phrase Workspace</div>
+          <div class="title">Phrase Matrix</div>
+        </div>
+        <div class="tab">Tracks</div>
+        <div class="tab active">Scenes</div>
+      </div>
+      <div class="cluster">
+        <span class="pill active">Compact scan</span>
+        <span class="stub">Scene library browser [stub]</span>
+        <span class="stub">Phrase inspector tabs [stub]</span>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="matrix">
+        <div class="matrix-head">
+          <div>Phrase</div>
+          <div>Scene A</div>
+          <div>Blend summary</div>
+          <div>Scene B</div>
+        </div>
+        <div id="rows"></div>
+      </div>
+      <div class="drawer">
+        <div class="drawer-card">
+          <h2 id="drawer-title">Phrase detail</h2>
+          <p id="drawer-summary"></p>
+        </div>
+        <div class="drawer-card">
+          <h2>Authoring mode</h2>
+          <div class="mode">
+            <button id="mode-static">Static blend</button>
+            <button id="mode-bars">Per-bar blend</button>
+          </div>
+        </div>
+        <div class="drawer-card">
+          <h2>Scene slots</h2>
+          <div class="controls">
+            <div class="row-control">
+              <strong>Scene A</strong>
+              <div class="bar-track"><div class="bar-fill" id="scene-a-fill" style="width: 35%;"></div></div>
+              <button id="cycle-a">Cycle</button>
+            </div>
+            <div class="row-control">
+              <strong>Scene B</strong>
+              <div class="bar-track"><div class="bar-fill" id="scene-b-fill" style="width: 75%;"></div></div>
+              <button id="cycle-b">Cycle</button>
+            </div>
+          </div>
+          <p class="mini" id="slot-summary"></p>
+        </div>
+        <div class="drawer-card">
+          <h2>Crossfader over phrase</h2>
+          <div class="controls" id="bars"></div>
+        </div>
+        <div class="notes">
+          <strong>Trade-off under test:</strong> this variant keeps row height stable even when the phrase has bar automation, but the user must commit to a selection before they can inspect or edit the detailed motion.
+          <ul>
+            <li>Good for long arrangements where many phrases must stay visible.</li>
+            <li>Risk: phrase differences are less legible when rows compress to a summary sparkline.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+const scenes = [
+  "Glass Morning",
+  "Filter Melt 87%",
+  "Vox Duck + Tape Hiss",
+  "KICKSIDECHAIN_ULTRA_LONG",
+  "Bossa Nova d'Estaque",
+  "Drone Bloom / Bars 5-8"
+];
+
+const phrases = [
+  { phrase: "P1 Intro", bars: 4, sceneA: 0, sceneB: 2, mode: "static", values: [18, 18, 18, 18] },
+  { phrase: "P2 Verse Lift", bars: 4, sceneA: 1, sceneB: 4, mode: "bars", values: [12, 38, 61, 84] },
+  { phrase: "P3 Hook - Quiet Then Bright", bars: 4, sceneA: 5, sceneB: 3, mode: "bars", values: [5, 5, 72, 96] },
+  { phrase: "P4 Breakdown", bars: 2, sceneA: 2, sceneB: 0, mode: "static", values: [50, 50, 50, 50] }
+];
+
+let selected = 1;
+
+function spark(values) {
+  return values.map((value) => `<span style="height:${Math.max(6, value * 0.24)}px"></span>`).join("");
+}
+
+function blendLabel(phrase) {
+  if (phrase.mode === "static") {
+    return `Static ${phrase.values[0]}% toward B`;
+  }
+  return `Bars ${phrase.values.join(" / ")}%`;
+}
+
+function renderRows() {
+  document.getElementById("rows").innerHTML = phrases.map((phrase, index) => `
+    <div class="row ${index === selected ? "selected" : ""}" onclick="selected=${index};render();">
+      <div class="phrase">
+        <strong>${phrase.phrase}</strong>
+        <small>${phrase.bars} bars • ${phrase.mode === "static" ? "single blend" : "bar automation"}</small>
+      </div>
+      <div class="scene-box">
+        <em>Scene A</em>
+        ${scenes[phrase.sceneA]}
+      </div>
+      <div class="summary-box">
+        <div>${blendLabel(phrase)}</div>
+        <div class="spark">${spark(phrase.values)}</div>
+      </div>
+      <div class="scene-box">
+        <em>Scene B</em>
+        ${scenes[phrase.sceneB]}
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderDrawer() {
+  const phrase = phrases[selected];
+  document.getElementById("drawer-title").textContent = `${phrase.phrase} detail`;
+  document.getElementById("drawer-summary").textContent = `${phrase.bars} bars. Variant under test: keep the grid compact, then use the side drawer for detailed scene programming.`;
+  document.getElementById("mode-static").classList.toggle("active", phrase.mode === "static");
+  document.getElementById("mode-bars").classList.toggle("active", phrase.mode === "bars");
+  document.getElementById("slot-summary").textContent = `Scene A: ${scenes[phrase.sceneA]} • Scene B: ${scenes[phrase.sceneB]}`;
+  document.getElementById("scene-a-fill").style.width = `${((phrase.sceneA + 1) / scenes.length) * 100}%`;
+  document.getElementById("scene-b-fill").style.width = `${((phrase.sceneB + 1) / scenes.length) * 100}%`;
+  document.getElementById("bars").innerHTML = phrase.values.map((value, index) => `
+    <div class="row-control">
+      <strong>Bar ${index + 1}</strong>
+      <div class="bar-track"><div class="bar-fill" style="width:${value}%;"></div></div>
+      <button onclick="event.stopPropagation();cycleBar(${index});">${value}%</button>
+    </div>
+  `).join("");
+}
+
+function cycleScene(side) {
+  const phrase = phrases[selected];
+  if (side === "A") {
+    phrase.sceneA = (phrase.sceneA + 1) % scenes.length;
+  } else {
+    phrase.sceneB = (phrase.sceneB + 1) % scenes.length;
+  }
+  render();
+}
+
+function setMode(mode) {
+  phrases[selected].mode = mode;
+  render();
+}
+
+function cycleBar(index) {
+  const options = [0, 12, 24, 38, 50, 61, 72, 84, 96, 100];
+  const phrase = phrases[selected];
+  const current = phrase.values[index];
+  phrase.values[index] = options[(options.indexOf(current) + 1) % options.length];
+  if (phrase.mode === "static") {
+    phrase.values = phrase.values.map(() => phrase.values[index]);
+  }
+  render();
+}
+
+document.getElementById("cycle-a").addEventListener("click", () => cycleScene("A"));
+document.getElementById("cycle-b").addEventListener("click", () => cycleScene("B"));
+document.getElementById("mode-static").addEventListener("click", () => setMode("static"));
+document.getElementById("mode-bars").addEventListener("click", () => setMode("bars"));
+
+function render() {
+  renderRows();
+  renderDrawer();
+}
+
+render();
+</script>
+</body>
+</html>
