@@ -18,6 +18,10 @@ based_on:
 Written: 2026-04-30
 UX direction: Variant A (three-zone layout: tracks | busses | master, accepted in `ux-review.md`).
 
+Decision update: the previously blocking mixer-bus product questions were
+resolved on 2026-05-03 in `decisions.md`. Where Section 5 or Section 9 says
+user input is required, `decisions.md` is now authoritative.
+
 ---
 
 ## 1. Design Constraints Carried Forward
@@ -352,7 +356,7 @@ No audio graph involvement. No engine stop/restart required.
 
 ## 5. Open Questions: Resolved vs. Requiring User Input
 
-### Question 1 — Solo convention: exclusive vs. additive (REQUIRES USER INPUT)
+### Question 1 — Solo convention: exclusive vs. additive (RESOLVED)
 
 **Which solo model should buses and tracks use?**
 
@@ -372,7 +376,7 @@ strips) is visible and must be communicated via strip styling.
 This question must be resolved before the solo state machine is specified. It is recorded in
 `open-questions.md`.
 
-### Question 2 — Bus insert scope: global vs. scene-scoped (REQUIRES USER INPUT)
+### Question 2 — Bus insert scope: global vs. scene-scoped (RESOLVED)
 
 **Should bus inserts be global (a flat list that applies in all scenes) or scene-scoped (each
 scene has its own insert chain, analogous to `MasterBusScene.inserts`)?**
@@ -400,7 +404,7 @@ This question must be resolved before `MixerBus` is modeled in the spec. It is r
 simpler, consistent with the prototype, and bus insert chains being scene-independent is
 consistent with how most hardware mixers and many DAWs handle group buses.
 
-### Question 3 — Delete bus behavior (REQUIRES USER INPUT)
+### Question 3 — Delete bus behavior (RESOLVED)
 
 **When the user deletes a bus that has tracks routed to it, what happens to those tracks?**
 
@@ -507,14 +511,14 @@ their co-existence:
 
 ## 9. Architecture Questions Gating Spec
 
-Questions 1, 2, and 3 from Section 5 require user input before the spec is authoritative.
+Questions 1, 2, and 3 from Section 5 were resolved on 2026-05-03 in `decisions.md`.
 Questions 4–8 are resolvable within the spec without user escalation.
 
 | # | Question | Resolution path |
 |---|---|---|
-| 1 | Solo convention: exclusive vs. additive? | User input required — see `open-questions.md` |
-| 2 | Bus insert scope: global vs. scene-scoped? | User input required — see `open-questions.md` |
-| 3 | Delete bus behavior: silent auto-reroute vs. confirmation? | User input required — see `open-questions.md` |
+| 1 | Solo convention: exclusive vs. additive? | Resolved: additive solo |
+| 2 | Bus insert scope: global vs. scene-scoped? | Resolved: global bus inserts |
+| 3 | Delete bus behavior: silent auto-reroute vs. confirmation? | Resolved: confirmation listing affected routes, then reroute to master |
 | 4 | Bus chaining explicitly deferred | Resolvable in spec (static "→ Master" label, no dropdown) |
 | 5 | Routing-change visual | Resolvable in spec (brief disabled + toast as in prototype) |
 | 6 | Track strip rename scope | Resolvable in spec (recommend defer to separate item) |

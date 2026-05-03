@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T17:13:09Z
-Repo HEAD: cf8b97e
+Generated: 2026-05-03T17:23:41Z
+Repo HEAD: 37f989c
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -37,18 +37,25 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next User Item
 
-- **Item:** 4
-- **Feature:** Mixer Main Out
+- **Item:** 7
+- **Feature:** Input Audio
 - **Priority:** `unset`
-- **Status:** `blocked`
-- **Action:** `blocked`
+- **Status:** `inventory`
+- **Action:** `human-review-prototypes`
 - **Role:** `user`
-- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Why:** `ux-review.md` exists, but human prototype approval is missing.
+- **Output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ## Next Agent Item
 
-- No roadmap items currently have an autonomous PM-assistant action.
+- **Item:** 4
+- **Feature:** Mixer Main Out
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ## Feature Actions
 
@@ -88,24 +95,24 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 4. Mixer Main Out
 
 - **Directory:** `docs/roadmap/mixer-main-out/`
-- **Status:** `blocked`
+- **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `blocked`
-- **Role:** `user`
-- **Reason:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Next action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 5. Mixer Busses
 
 - **Directory:** `docs/roadmap/mixer-busses/`
-- **Status:** `blocked`
+- **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `blocked`
-- **Role:** `user`
-- **Reason:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Next action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 6. Send Effects
 
@@ -113,10 +120,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `human-review-prototypes`
-- **Role:** `user`
-- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
-- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Next action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 7. Input Audio
 

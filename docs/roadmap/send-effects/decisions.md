@@ -1,6 +1,6 @@
 # Send Effects — Decisions
 
-Resolved on 2026-05-03 from the holistic mixer policy:
+Resolved on 2026-05-03 from the holistic mixer policy and approved by the user:
 
 - Send buses should match ordinary bus insert semantics unless there is a
   deliberate performance reason to differ.

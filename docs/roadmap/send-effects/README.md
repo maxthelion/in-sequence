@@ -8,6 +8,7 @@ blocked_by:
 stage: review-architecture
 owner: pm
 updated: 2026-04-30
+prototype_approval: prototype-approval.md
 ---
 
 # Send Effects

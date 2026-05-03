@@ -1,6 +1,6 @@
 # Mixer Main Out — Decisions
 
-Resolved on 2026-05-03 from the holistic mixer policy:
+Resolved on 2026-05-03 from the holistic mixer policy and approved by the user:
 
 - V1 mixer behavior should be conservative and DAW-standard.
 - Scene-specific behavior is scoped to the master/performance layer.

@@ -17,6 +17,10 @@ based_on:
 Written: 2026-04-30
 UX direction: Variant A (right-side fixed master column, accepted in `ux-review.md`).
 
+Decision update: the previously blocking product questions were resolved on
+2026-05-03 in `decisions.md`. Where Section 5 or Section 9 says user input is
+required, `decisions.md` is now authoritative.
+
 ---
 
 ## 1. Design Constraints Carried Forward
@@ -206,7 +210,7 @@ than through a document field.
 
 The six open questions from `ux-review.md` are addressed below.
 
-### Question 1 — Active scene inserts during mid-blend (REQUIRES USER INPUT)
+### Question 1 — Active scene inserts during mid-blend (RESOLVED)
 
 **Which scene's insert chain does the master out panel display when the crossfader is mid-blend?**
 
@@ -223,7 +227,7 @@ resolved before spec. The question is recorded in `open-questions.md`.
 No new model field is required for any option. The only difference is the index computation in
 the view or view model.
 
-### Question 2 — Master fader scope: per-scene vs. global (REQUIRES USER INPUT)
+### Question 2 — Master fader scope: per-scene vs. global (RESOLVED)
 
 **Should the master output fader be per-scene (`MasterBusScene.outputGain`, repaired) or
 global (`MasterBusState.masterOutputGain`, new field)?**
@@ -293,7 +297,7 @@ handles narrow windows. The collapse policy is a spec decision, not a model deci
 
 No model changes required for any collapse policy.
 
-### Question 6 — Clip indicator latch policy (REQUIRES USER INPUT)
+### Question 6 — Clip indicator latch policy (RESOLVED)
 
 **Does the clip latch reset only on user action ("CLR" button), or also after an automatic hold
 period?**
@@ -360,14 +364,14 @@ The `publishToMain` dispatch pattern is the closest analog for the main-thread p
 
 ## 9. Architecture Questions Gating Spec
 
-Questions 1, 2, and 6 from Section 5 require confirmation before the spec is authoritative.
+Questions 1, 2, and 6 from Section 5 were resolved on 2026-05-03 in `decisions.md`.
 Questions 3, 4, and 5 are resolvable within the spec.
 
 | # | Question | Resolution path |
 |---|---|---|
-| 1 | Which scene's inserts show during mid-blend? | User input required — see `open-questions.md` |
-| 2 | Master fader: global `masterOutputGain` or repaired per-scene `outputGain`? | User input required — see `open-questions.md` |
+| 1 | Which scene's inserts show during mid-blend? | Resolved: show the scene with higher crossfader weight |
+| 2 | Master fader: global `masterOutputGain` or repaired per-scene `outputGain`? | Resolved: global post-blend master output gain |
 | 3 | Unity position and default fader value at document creation | Resolvable in spec (default: 0 dB = 1.0, ~75–80 % up the throw) |
 | 4 | Empty insert chain affordance | Resolvable in spec (dashed empty slots matching prototype) |
 | 5 | Minimum workspace width / collapse policy | Resolvable in spec (540 pt minimum, compact strip below) |
-| 6 | Clip indicator: user-action-only vs auto-hold? | Confirm user-action-only per story text — see `open-questions.md` |
+| 6 | Clip indicator: user-action-only vs auto-hold? | Resolved: manual clear only |
