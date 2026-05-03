@@ -4,9 +4,9 @@ title: Modifier Chain Placement
 status: inventory
 priority: unset
 blocked_by: []
-stage: write-architecture
+stage: review-architecture
 owner: pm
-updated: 2026-04-30
+updated: 2026-05-03
 prototypes:
   - prototypes/modifier-chain-placement-slot-well.html
 ux_review: ux-review.md
