@@ -14,18 +14,17 @@
 
 | Artifact | When to open it |
 |---|---|
-| [plan.md](plan.md) | First build document to read. It sequences verification, persisted model work, engine-owned routing, shared UI extraction, and regression coverage. |
+| [plan.md](plan.md) | First build document to read. It sequences verification, persisted model work, graph ownership, shared mixer extraction, and regression coverage. |
 | [spec.md](spec.md) | Primary product contract. Use this when behavior, acceptance criteria, or non-goals are in question. |
-| [architecture.md](architecture.md) | Routing, graph-ownership, migration, and solo-state guardrails. Read before touching the document model or audio graph. |
-| [architecture-review.md](architecture-review.md) | Accepted architecture review. Highlights the final solo-model decision, global bus-insert semantics, and shared insert-shell extraction risk. |
-| [existing-state.md](existing-state.md) | Current code reality: direct-to-master routing, master-only insert host/UI, and missing bus persistence. |
-| [user-stories.md](user-stories.md) | User intent and observable outcomes behind the bus-routing workflow. |
-| [ux-review.md](ux-review.md) | Accepted mixer-lane UX direction for tracks, busses, and master in one surface. |
-| [prototype-approval.md](prototype-approval.md) | User approval of the three-zone mixer lane and the settled mixer behavior decisions. |
-| [decisions.md](decisions.md) | Final product decisions for additive solo, global bus inserts, and delete-bus confirmation. |
-| [prototypes/mixer-busses-variant-a.html](prototypes/mixer-busses-variant-a.html) | Selected prototype for strip order, section treatment, and routing-in-flight states. |
-| [notes.md](notes.md) | Original user request and cross-feature framing with mixer-main-out and send-effects. |
-| [../mixer-main-out/architecture.md](../mixer-main-out/architecture.md) | Shared mixer-surface context. Use this before duplicating strip shells or re-litigating the three-zone layout. |
+| [architecture.md](architecture.md) | Bus-routing, persistence, and graph-ownership guardrails. Read before touching document, engine, or mixer code. |
+| [architecture-review.md](architecture-review.md) | Accepted architecture verdict. Calls out the authoritative solo-model choice and the need to share insert UI instead of forking it. |
+| [existing-state.md](existing-state.md) | Current code reality: all tracks route directly to `preMasterMixer`, bus types do not exist yet, and insert UI is still private to Scenes Perform. |
+| [user-stories.md](user-stories.md) | User intent and acceptance signals for bus creation, routing, strip controls, inserts, and naming. |
+| [ux-review.md](ux-review.md) | Accepted mixer-lane UX review for the three-zone layout and routing-in-flight treatment. |
+| [prototype-approval.md](prototype-approval.md) | User approval and the three locked product decisions for v1. |
+| [prototypes/mixer-busses-variant-a.html](prototypes/mixer-busses-variant-a.html) | Selected prototype for the bus lane, strip anatomy, add-bus affordances, and route-change feedback. |
+| [decisions.md](decisions.md) | Settled product decisions the build must not reopen. |
+| [notes.md](notes.md) | Original product framing and the cross-links to Mixer Main Out and Send Effects. |
 
 The implementation loop should consume this handoff first, then follow the
 links above in the order shown unless a plan phase points somewhere more
@@ -35,78 +34,69 @@ specific.
 
 ## Goal
 
-Add DAW-style mixer busses to the shared mixer workspace so tracks can route to
-user-created intermediate bus strips before master out. Each bus must persist
-its routing identity, mix state, and insert chain; the engine must own bus-host
-lifecycles and rerouting; and the mixer UI must present tracks, busses, and
-master as one coherent three-zone surface without forking the existing mixer
-shell.
+Add ordinary DAW-style mixer busses to the shared mixer surface so a user can
+create a bus, route tracks into it, control the grouped signal with bus-level
+mix controls and inserts, and keep the whole feature composed inside the same
+tracks -> busses -> master workspace. This is a conservative routing extension,
+not a new routing paradigm.
 
 ---
 
 ## Chosen Product Direction
 
-The accepted direction is the three-zone mixer lane: track strips on the left,
-user-created bus strips in the middle, and master out on the right. Busses are
-ordinary mix-routing objects in v1, not scene variants and not a second routing
-paradigm. Tracks route either directly to master or to one bus. Bus inserts are
-global across scenes. Solo is additive across tracks and busses, and deleting a
-routed bus requires confirmation that reroutes affected tracks back to master
-on confirm.
+The approved direction is the three-zone mixer lane from
+`prototypes/mixer-busses-variant-a.html`: track strips on the left,
+user-created busses in the middle, and master out on the right per
+`[[feature:mixer-main-out]]`. Solo is additive across tracks and busses, bus
+inserts are global in v1, and deleting a routed bus requires confirmation that
+lists the affected tracks before rerouting them to master.
 
-The build should stay conservative: add the minimum persisted bus model, route
-ownership through the existing graph/controller layer, extract shared insert and
-strip-shell UI where needed, and avoid broad redesign of unrelated mixer or
-scene systems.
+Do not add bus-to-bus routing, scene-scoped bus insert chains, or a second
+prototype pass unless later feedback explicitly invalidates the approved lane.
 
 ---
 
 ## Guardrails The Implementer Must Preserve
 
-1. The `.seqai` document remains the single persisted truth for authored bus
-   state. Persist `Project.buses`, per-track `outputBusID`, and authored mute /
-   solo flags; do not persist derived solo-exclusion state.
-2. `TrackGroup` is not an audio bus. Do not retrofit MIDI-group concepts into
-   mixer-bus ownership, routing, or UI.
-3. Bus-node lifecycle and track rerouting belong to the engine / graph layer,
-   not SwiftUI. Views may author document state and show in-flight status, but
-   they must not mutate `AVAudioEngine` topology directly.
-4. Topology changes remain coordinated stop / reconnect / restart operations.
-   Bus creation, deletion, rerouting, and insert-topology edits are structural
-   graph changes; parameter-only changes should stay lightweight where the
-   existing architecture already allows it.
-5. `MixerBus.id` is the stable routing identity. Graph rebuilds may recreate
-   `AVAudioNode` instances, but authored bus identity and route references must
-   survive rebuilds.
-6. The shared mixer surface must stay singular. Do not fork a second mixer
-   shell for busses; extract or parameterize common strip anatomy and insert UI
-   instead.
-7. Bus inserts are global in v1 even though master inserts are scene-scoped.
-   The UI must communicate that distinction explicitly rather than implying that
-   bus strips change with the selected scene.
-8. Solo remains additive across tracks and busses, with effective mute derived
-   centrally from authored solo flags. Do not introduce shadow solo-membership
-   state in views.
+1. `Project` remains the single persisted owner of authored bus state:
+   `buses`, track `outputBusID`, and authored mute/solo state live in the
+   document, while effective mute and rewiring-in-flight state stay runtime-only.
+2. Bus-host lifecycle and track rewiring belong to the engine / graph layer,
+   not SwiftUI. Views may author state and trigger canonical mutations, but
+   they must not mutate AVAudioEngine topology directly.
+3. Graph topology changes follow the existing stop / reconnect / restart
+   discipline used by the master chain. Adding or deleting a bus, rerouting a
+   track, and topology-changing insert edits are rebuilds, not parameter-only
+   updates.
+4. Stable `MixerBus.id` routing identity must survive graph rebuilds even if
+   live `AVAudioNode` instances are recreated.
+5. Solo remains one persisted authored truth plus runtime-derived effective
+   mute. Do not persist shadow solo-membership or exclusion state.
+6. Shared mixer and insert UI should be extracted or parameterized instead of
+   forking a second mixer shell or a bus-only insert editor.
+7. Busses output only to master in v1. Do not introduce bus chaining,
+   multi-destination routing, or send-return behavior in this feature.
+8. Bus inserts remain global across scene changes, while master inserts stay
+   scene-scoped. The UI must keep that scope difference legible.
 
 ---
 
 ## Implementation Read Order
 
 1. Read this handoff.
-2. Read [plan.md](plan.md) and execute it in phase order.
+2. Read [plan.md](plan.md) and execute in phase order.
 3. Use [spec.md](spec.md) as the product contract for behavior and acceptance
    criteria.
 4. Use [architecture.md](architecture.md) and
-   [architecture-review.md](architecture-review.md) as hard guardrails around
-   persistence, graph ownership, solo semantics, and UI extraction.
-5. Read [existing-state.md](existing-state.md) before changing the document
-   model, audio graph, or mixer UI.
-6. Read [../mixer-main-out/architecture.md](../mixer-main-out/architecture.md)
-   before touching shared mixer-shell layout or master-column interactions.
+   [architecture-review.md](architecture-review.md) as hard guardrails for
+   persistence, graph ownership, solo semantics, and shared-surface extraction.
+5. Read [existing-state.md](existing-state.md) before changing document model,
+   mixer routing, insert-host code, or mixer UI structure.
 
-Do not reopen product decisions already settled in `decisions.md` or `spec.md`.
-If code reality conflicts with the approved direction, capture that as an
-implementation finding and keep the behavior within the documented guardrails.
+Do not reopen decisions already settled in [decisions.md](decisions.md) or
+[prototype-approval.md](prototype-approval.md). If current code reality
+conflicts with those decisions, capture it as an implementation finding and
+stay within the documented guardrails.
 
 ---
 
@@ -115,21 +105,23 @@ implementation finding and keep the behavior within the documented guardrails.
 Follow the plan's phases in order:
 
 1. **Phase 0 - verification**
-   Confirm the current document/codable landing zones, graph/routing ownership
-   seams, and mixer-shell/insert reuse seams before writing code.
+   Confirm the model/codable landing zones, the graph mutation seams, and the
+   current mixer / insert reuse seams before writing code.
 2. **Phase 1 - persisted bus and solo model**
-   Add the authored bus collection, per-track routing field, authored solo
-   fields, and the focused session/document mutation surface.
+   Add bus collections, track routing state, solo persistence, and focused
+   document/session mutations with legacy-safe decoding.
 3. **Phase 2 - engine-owned bus graph and routing**
-   Introduce bus hosts, reroute tracks through bus or master destinations, and
-   centralize additive solo derivation.
-4. **Phase 3 - shared mixer UI**
-   Extract shared strip and insert-shell components as needed, then compose bus
-   strips, routing selectors, add/delete flows, rename, and in-flight states in
-   the single mixer workspace.
-5. **Phase 4 - regression coverage**
-   Finish with model migration tests, graph/routing regression tests, and the
-   lightest practical UI coverage for bus-strip state and routing controls.
+   Introduce bus hosts, track rerouting, bus insert topology ownership, and
+   runtime-derived additive solo behavior.
+4. **Phase 3 - shared mixer surface extraction**
+   Extract shared strip shell and insert-list surfaces instead of duplicating
+   mixer UI or insert editing behavior.
+5. **Phase 4 - mixer busses UI and UX**
+   Compose the approved bus lane, add-bus flow, routing selectors, bus strips,
+   rename, solo banner, and delete confirmation into the mixer workspace.
+6. **Phase 5 - regression coverage and polish**
+   Add migration, graph, engine, and focused mixer UI coverage for the
+   highest-risk routing and solo behaviors.
 
 ---
 
@@ -137,16 +129,15 @@ Follow the plan's phases in order:
 
 | Area | Expected work |
 |---|---|
-| `Sources/Document/Project.swift` and `Sources/Document/Project+Codable.swift` | Persisted `buses` collection and additive legacy decode defaults |
-| `Sources/Document/StepSequenceTrack.swift` and `Sources/Document/TrackMixSettings.swift` | Per-track `outputBusID` and authored solo persistence |
-| `Sources/Document/` session/mutation helpers | Explicit add/rename/delete/reroute/solo and bus-mix mutation paths |
-| `Sources/Audio/MainAudioGraph.swift`, `Sources/Audio/AudioInstrumentHost.swift`, `Sources/Audio/SamplePlaybackEngine.swift`, `Sources/Audio/MasterBusHost.swift` or extracted peers | Bus-host lifecycle, routing rewires, and insert-topology ownership |
-| `Sources/Engine/EngineController.swift` | Coordinated graph rebuilds, routing-in-flight handling, and derived additive solo state |
-| `Sources/UI/Mixer/**` and any extracted shared strip/insert views | One shared mixer surface with bus strips, routing selectors, bus insert UI, and solo banner treatment |
-| `Tests/**` covering project codable, graph topology, engine routing, and mixer UI | Regression coverage for migration, bus routing, solo semantics, and UI state |
+| `Sources/Document/Project.swift`, `Project+Codable.swift`, `StepSequenceTrack.swift`, `TrackMixSettings.swift` | Add persisted bus, routing, and solo state with additive decode defaults |
+| Document / session mutation surfaces | Add canonical authored mutations for bus creation, routing, rename, mix state, inserts, and delete-with-reroute |
+| `Sources/Audio/MainAudioGraph.swift` plus new or extracted bus-host support | Own bus-host lifecycle, rerouting, insert-topology rebuilds, and parameter updates |
+| `Sources/Engine/EngineController.swift` | Coordinate topology rebuilds and derive additive solo state without view-owned playback truth |
+| `Sources/UI/Mixer/**` and extracted shared insert/strip views | Compose the track/bus/master surface, routing selectors, in-flight labels, and bus strip states |
+| `Tests/SequencerAITests/**` across document, audio, engine, and mixer coverage | Prove migration defaults, rerouting, bus controls, solo derivation, and delete confirmation behavior |
 
-No wiki edits, no `docs/specs/**` or `docs/plans/**` output, no send-effects
-scope expansion, and no broad engine redesign belong in this build.
+No `docs/specs/**`, `docs/plans/**`, wiki updates, or unrelated roadmap items
+belong in this build.
 
 ---
 
@@ -155,34 +146,32 @@ scope expansion, and no broad engine redesign belong in this build.
 The implementation is ready to ship to review only when these outcomes are
 observable:
 
-- Adding a bus creates a persisted bus strip in the mixer and makes it
-  immediately available in every track output selector.
-- Routing a track to a bus changes the audible signal path from
-  `track -> master` to `track -> bus -> master` after a coordinated rebuild.
-- Bus level, pan, mute, and additive solo affect only the intended routed
-  signal path and restore correctly on reload.
-- Bus inserts apply to the summed bus signal, remain global across scenes, and
-  reuse shared insert interaction patterns instead of a divergent editor.
-- The mixer still reads as one tracks | busses | master surface, with explicit
-  copy separating global bus inserts from scene-scoped master inserts.
-- Deleting a routed bus prompts for confirmation and reroutes affected tracks
-  back to master on confirm.
+- Adding a bus immediately inserts a strip in the bus lane and makes the new
+  bus available to all routing selectors.
+- Each track can route to `Master` or any current bus, and the active selector
+  shows `Applying...` during reroute-in-flight rebuilds.
+- Bus strips expose inserts, fader, pan, mute, solo, and inline rename while
+  keeping bus outputs fixed to `-> Master`.
+- Additive solo works coherently for master-routed and bus-routed tracks and
+  surfaces one `SOLO ACTIVE` banner with `Clear Solo`.
+- Empty busses remain operable, and deleting a routed bus requires
+  confirmation before rerouting affected tracks to master.
+- Shared insert and strip UI is reused or extracted rather than duplicated.
 
-See [spec.md](spec.md) Sections 5 and 6 for the full behavioral contract.
+See [spec.md](spec.md) Section 6 for the full acceptance criteria and
+[plan.md](plan.md) for the phase-by-phase verification steps.
 
 ---
 
 ## Non-Goals And Deferred Follow-Ups
 
-- No bus-to-bus routing or bus chaining in v1.
-- No parallel / multi-destination track outputs.
-- No scene-scoped user-created bus insert chains.
-- No second mixer shell or duplicated strip architecture just for bus UI.
-- No new effect model beyond reusing or extracting the existing insert-host
-  concepts.
-- No arrangement-level or clip-level visualization of bus routing.
-- No send-effects implementation; item 6 remains separate even if some UI
-  affordances later resemble bus routing.
+- No bus-to-bus routing or bus chaining.
+- No multi-destination or parallel track outputs.
+- No scene-scoped bus insert chains in v1.
+- No second mixer shell or bus-only insert editor fork.
+- No send-effects routing; that remains roadmap item 6.
+- No new effect model beyond the approved bus-host reuse or extraction work.
+- No arrangement-level or clip-level visualization of busses.
 
 ---
 
@@ -190,14 +179,14 @@ See [spec.md](spec.md) Sections 5 and 6 for the full behavioral contract.
 
 There are no user-blocking product questions left for this item.
 
-Phase 0 in [plan.md](plan.md) intentionally leaves a few implementation checks
-to verify in code before edits begin:
+The remaining checks are implementation findings already called out in
+[plan.md](plan.md):
 
-- the exact codable landing zones and legacy decode defaults for bus and solo
-  persistence
-- the single owner for bus-host lifecycle and track rerouting
-- the cleanest extraction seam for shared insert and strip-shell UI
-- the lightest practical regression-test files for migration, routing, and bus
-  strip behavior
+- confirm the exact model and codable landing zones for bus, routing, and solo
+  additions
+- confirm which graph changes are topology rebuilds versus parameter updates
+- confirm the lightest extraction path for shared strip and insert UI
+- confirm the most practical document, graph, engine, and UI test files to
+  extend
 
 These are implementation checks, not reasons to relitigate the PM direction.
