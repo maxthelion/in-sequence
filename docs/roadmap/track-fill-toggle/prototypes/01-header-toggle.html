@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Fill Toggle - Header Toggle</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ecebe7;
+    --surface: #f8f7f3;
+    --surface-2: #e3e1da;
+    --border: #8f8d86;
+    --border-light: #b8b5ae;
+    --text: #161616;
+    --text-dim: #66635d;
+    --text-stub: #9b9891;
+    --accent: #2e6bd9;
+    --accent-soft: #dbe7ff;
+    --active: #1f4da8;
+    --success: #2f7d32;
+    --warn: #a35a00;
+    --disabled: #c8c5bf;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+
+  .banner {
+    max-width: 1040px;
+    border: 2px dashed var(--border);
+    padding: 10px 14px;
+    color: var(--text-dim);
+    margin: 0 auto 18px;
+    background: rgba(255, 255, 255, 0.45);
+  }
+
+  .banner strong { color: var(--text); }
+
+  .controls {
+    max-width: 1040px;
+    margin: 0 auto 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .controls span {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
+
+  .controls button,
+  .mini-btn,
+  .track-item,
+  .fill-toggle {
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .controls button,
+  .mini-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .controls button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .app {
+    max-width: 1040px;
+    margin: 0 auto;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 660px;
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: #f2f0ea;
+  }
+
+  .sidebar-head,
+  .main-head,
+  .panel-head {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+
+  .track-list { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+
+  .track-item {
+    text-align: left;
+    padding: 10px;
+    background: #fff;
+  }
+
+  .track-item.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .track-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .track-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border: 1px solid var(--border-light);
+    font-size: 10px;
+    background: #fff;
+    color: var(--text-dim);
+  }
+
+  .badge.generator {
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .main-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .main-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .main-title strong {
+    color: var(--text);
+    font-size: 14px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .status-note {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-light);
+    background: #fcfbf8;
+    flex-wrap: wrap;
+  }
+
+  .slot-row,
+  .mode-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .slot {
+    width: 34px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-light);
+    background: #fff;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .slot.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .fill-toggle {
+    min-width: 154px;
+    padding: 7px 12px;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 700;
+  }
+
+  .fill-toggle.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--active);
+  }
+
+  .fill-toggle.disabled {
+    color: var(--text-stub);
+    border-color: var(--disabled);
+    background: #f1f0ec;
+    cursor: not-allowed;
+  }
+
+  .fill-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    background: transparent;
+  }
+
+  .fill-toggle.on .fill-dot {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .editor {
+    display: grid;
+    grid-template-columns: 1fr 250px;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .panel {
+    border: 1px solid var(--border);
+    background: #fff;
+    min-width: 0;
+  }
+
+  .panel-body { padding: 12px; }
+
+  .lane-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .lane-tab {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .lane-tab.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .step-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+  }
+
+  .step {
+    border: 1px solid var(--border-light);
+    background: #fdfdfb;
+    min-height: 60px;
+    padding: 5px 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .step.playing {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .step.fill-heard {
+    background: #eef5ff;
+    border-color: var(--accent);
+  }
+
+  .step-num {
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  .step-label {
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .step-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .annotation {
+    margin-top: 12px;
+    padding-left: 8px;
+    border-left: 2px solid var(--accent);
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .annotation.warn { border-left-color: var(--warn); }
+  .annotation.good { border-left-color: var(--success); }
+
+  .inspector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .summary-list strong {
+    display: block;
+    color: var(--text);
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+
+  .stub {
+    border: 1px dashed var(--border-light);
+    background: #f2f1ed;
+    color: var(--text-stub);
+    padding: 14px 10px;
+    text-align: center;
+    font-size: 11px;
+    font-style: italic;
+  }
+
+  .notice {
+    border: 1px solid var(--border-light);
+    background: #faf9f5;
+    padding: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .notice strong {
+    color: var(--text);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+    .editor { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-state="inactive">
+  <div class="banner">
+    <strong>Prototype variant A:</strong> put the fill preview toggle in the editor header so it reads as a transient playback control, not lane authoring.
+    Interaction budget: activate preview in 1 click; verify reset on track switch in 1 additional click.
+  </div>
+
+  <div class="controls">
+    <span>States</span>
+    <button class="state-btn active" data-state="inactive">Inactive clip track</button>
+    <button class="state-btn" data-state="active">Preview on</button>
+    <button class="state-btn" data-state="switched">Switched track</button>
+    <button class="state-btn" data-state="generator">Generator track</button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-head">Tracks</div>
+      <div class="track-list">
+        <button class="track-item active" data-track="kick">
+          <div class="track-name">Kick and Sub Layer <span class="badge">clip</span></div>
+          <div class="track-meta">Selected track, fill lane authored on steps 5 and 13</div>
+        </button>
+        <button class="track-item" data-track="snare">
+          <div class="track-name">Snare Echo Accent <span class="badge">clip</span></div>
+          <div class="track-meta">Switching here should reset preview to off</div>
+        </button>
+        <button class="track-item" data-track="lead">
+          <div class="track-name">Lead Pulse Wash <span class="badge generator">generator</span></div>
+          <div class="track-meta">Out of scope for v1; disabled affordance only</div>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="main-head">
+        <div class="main-title">
+          <strong id="track-title">Kick and Sub Layer</strong>
+          <span class="badge" id="track-type">clip source</span>
+        </div>
+        <div class="status-note" id="status-note">Preview is off. Hearing the main lane.</div>
+      </div>
+
+      <div class="toolbar">
+        <div class="slot-row">
+          <div class="slot">A</div>
+          <div class="slot active">B</div>
+          <div class="slot">C</div>
+          <div class="slot">D</div>
+        </div>
+        <div class="mode-row">
+          <button class="mini-btn">Source</button>
+          <button class="mini-btn">Modifiers</button>
+          <button class="fill-toggle" id="fill-toggle">
+            <span class="fill-dot"></span>
+            <span id="fill-toggle-label">Fill preview off</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="editor">
+        <section class="panel">
+          <div class="panel-head">Clip editor</div>
+          <div class="panel-body">
+            <div class="lane-tabs">
+              <div class="lane-tab">Normal lane</div>
+              <div class="lane-tab active">Fill lane</div>
+            </div>
+
+            <div class="step-grid" id="step-grid"></div>
+
+            <div class="annotation">
+              The lane tabs remain authoring controls. The header toggle is separate so the user can hear fill without implying a document edit.
+            </div>
+            <div class="annotation good" id="playback-note">
+              Playback note: with preview off, the current step uses the main lane. Turn preview on to hear the authored fill lane on this track only.
+            </div>
+            <div class="annotation warn" id="reset-note">
+              Reset rule: changing the selected track or closing the editor returns the toggle to off.
+            </div>
+          </div>
+        </section>
+
+        <aside class="inspector">
+          <section class="panel">
+            <div class="panel-head">Why this variant</div>
+            <div class="panel-body summary-list">
+              <div>
+                <strong>Transient by placement</strong>
+                The control sits next to Source / Modifiers instead of inside the phrase grid, which keeps it framed as session playback state.
+              </div>
+              <div>
+                <strong>Track scoped</strong>
+                The active track in the left list owns the toggle state; sibling tracks never show as forced on.
+              </div>
+              <div>
+                <strong>Generator-safe</strong>
+                Generator tracks switch to a disabled button with an explanatory message instead of pretending fill works there.
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">Off-path stubs</div>
+            <div class="panel-body">
+              <div class="stub">generator controls stub</div>
+            </div>
+          </section>
+
+          <section class="notice" id="generator-note">
+            <strong>Generator track behavior</strong>
+            When the selected source is generator-backed, the toggle is disabled and the note explains that fill preview currently applies to clip-backed tracks only.
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+<script>
+  const states = {
+    inactive: {
+      track: "kick",
+      previewOn: false,
+      switched: false
+    },
+    active: {
+      track: "kick",
+      previewOn: true,
+      switched: false
+    },
+    switched: {
+      track: "snare",
+      previewOn: false,
+      switched: true
+    },
+    generator: {
+      track: "lead",
+      previewOn: false,
+      switched: false
+    }
+  };
+
+  const tracks = {
+    kick: {
+      title: "Kick and Sub Layer",
+      type: "clip source",
+      statusOff: "Preview is off. Hearing the main lane.",
+      statusOn: "Preview is on for this track only. Hearing the fill lane.",
+      generator: false
+    },
+    snare: {
+      title: "Snare Echo Accent",
+      type: "clip source",
+      statusOff: "Preview reset after track switch. Hearing the main lane.",
+      statusOn: "Preview is on for this track only. Hearing the fill lane.",
+      generator: false
+    },
+    lead: {
+      title: "Lead Pulse Wash",
+      type: "generator source",
+      statusOff: "Fill preview unavailable for generator-backed tracks in v1.",
+      statusOn: "Fill preview unavailable for generator-backed tracks in v1.",
+      generator: true
+    }
+  };
+
+  const mainSteps = [
+    "kick", "-", "-", "-", "kick", "-", "ghost", "-", "kick", "-", "-", "-", "kick", "-", "-", "-"
+  ];
+  const fillSteps = [
+    "kick", "-", "-", "dbl", "kick", "-", "ghost", "drag", "kick", "-", "-", "drag", "kick", "dbl", "-", "tail"
+  ];
+
+  const stateButtons = document.querySelectorAll(".state-btn");
+  const trackButtons = document.querySelectorAll(".track-item");
+  const trackTitle = document.getElementById("track-title");
+  const trackType = document.getElementById("track-type");
+  const statusNote = document.getElementById("status-note");
+  const fillToggle = document.getElementById("fill-toggle");
+  const fillToggleLabel = document.getElementById("fill-toggle-label");
+  const stepGrid = document.getElementById("step-grid");
+  const playbackNote = document.getElementById("playback-note");
+  const resetNote = document.getElementById("reset-note");
+  const generatorNote = document.getElementById("generator-note");
+
+  function renderSteps(previewOn, generator) {
+    stepGrid.innerHTML = "";
+    const labels = generator ? mainSteps : (previewOn ? fillSteps : mainSteps);
+    labels.forEach((label, index) => {
+      const cell = document.createElement("div");
+      cell.className = "step";
+      if (index === 4) cell.classList.add("playing");
+      if (previewOn && !generator && fillSteps[index] !== mainSteps[index]) {
+        cell.classList.add("fill-heard");
+      }
+      cell.innerHTML = `
+        <div class="step-num">${index + 1}</div>
+        <div class="step-label">${label}</div>
+        <div class="step-sub">${previewOn && !generator ? "heard now" : "main path"}</div>
+      `;
+      stepGrid.appendChild(cell);
+    });
+  }
+
+  function applyState(stateName) {
+    const state = states[stateName];
+    const track = tracks[state.track];
+    const previewOn = state.previewOn && !track.generator;
+
+    document.body.dataset.state = stateName;
+    stateButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.state === stateName);
+    });
+    trackButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.track === state.track);
+    });
+
+    trackTitle.textContent = track.title;
+    trackType.textContent = track.type;
+    statusNote.textContent = previewOn ? track.statusOn : track.statusOff;
+    fillToggle.classList.toggle("on", previewOn);
+    fillToggle.classList.toggle("disabled", track.generator);
+    fillToggleLabel.textContent = track.generator ? "Fill preview unavailable" : (previewOn ? "Fill preview on" : "Fill preview off");
+
+    playbackNote.textContent = track.generator
+      ? "Playback note: this source is generator-backed, so fill preview is intentionally disabled rather than faking support."
+      : (previewOn
+        ? "Playback note: the transport is still running normally; only this track is temporarily forced to hear its fill lane."
+        : "Playback note: with preview off, the current step uses the main lane. Turn preview on to hear the authored fill lane on this track only.");
+
+    resetNote.textContent = state.switched
+      ? "Reset rule confirmed: when the user switches to Snare Echo Accent, the fill preview returns to off automatically."
+      : "Reset rule: changing the selected track or closing the editor returns the toggle to off.";
+
+    generatorNote.style.display = track.generator ? "block" : "none";
+    renderSteps(previewOn, track.generator);
+  }
+
+  stateButtons.forEach((button) => {
+    button.addEventListener("click", () => applyState(button.dataset.state));
+  });
+
+  applyState("inactive");
+</script>
+</body>
+</html>

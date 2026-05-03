@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Fill Toggle - Lane Toolbar Toggle</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ecebe7;
+    --surface: #f8f7f3;
+    --surface-2: #e3e1da;
+    --border: #8f8d86;
+    --border-light: #b8b5ae;
+    --text: #161616;
+    --text-dim: #66635d;
+    --text-stub: #9b9891;
+    --accent: #2e6bd9;
+    --accent-soft: #dbe7ff;
+    --active: #1f4da8;
+    --warn: #a35a00;
+    --disabled: #c8c5bf;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+
+  .banner,
+  .controls,
+  .app {
+    max-width: 1040px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .banner {
+    border: 2px dashed var(--border);
+    padding: 10px 14px;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+    background: rgba(255, 255, 255, 0.45);
+  }
+
+  .banner strong { color: var(--text); }
+
+  .controls {
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .controls span {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
+
+  .controls button,
+  .track-item,
+  .pill,
+  .lane-chip {
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .controls button,
+  .lane-chip {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .controls button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .app {
+    border: 2px solid var(--border);
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 660px;
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: #f2f0ea;
+  }
+
+  .sidebar-head,
+  .section-head,
+  .panel-head {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+
+  .track-list { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+
+  .track-item {
+    text-align: left;
+    padding: 10px;
+    background: #fff;
+  }
+
+  .track-item.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .track-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .track-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border: 1px solid var(--border-light);
+    font-size: 10px;
+    background: #fff;
+    color: var(--text-dim);
+  }
+
+  .badge.generator {
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .section-head strong {
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 14px;
+  }
+
+  .shell-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-light);
+    background: #fcfbf8;
+    flex-wrap: wrap;
+  }
+
+  .slot-row,
+  .mode-row,
+  .lane-toolbar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .slot {
+    width: 34px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-light);
+    background: #fff;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .slot.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .lane-chip.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .pill {
+    min-width: 154px;
+    padding: 6px 12px;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 700;
+  }
+
+  .pill.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--active);
+  }
+
+  .pill.disabled {
+    color: var(--text-stub);
+    border-color: var(--disabled);
+    background: #f1f0ec;
+    cursor: not-allowed;
+  }
+
+  .pill-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    background: transparent;
+  }
+
+  .pill.on .pill-dot {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .content {
+    display: grid;
+    grid-template-columns: 1fr 250px;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .panel {
+    border: 1px solid var(--border);
+    background: #fff;
+  }
+
+  .panel-body { padding: 12px; }
+
+  .step-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+    margin-top: 12px;
+  }
+
+  .step {
+    border: 1px solid var(--border-light);
+    background: #fdfdfb;
+    min-height: 60px;
+    padding: 5px 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .step.playing {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .step.fill-heard {
+    background: #eef5ff;
+    border-color: var(--accent);
+  }
+
+  .step-num {
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  .step-label {
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .step-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .annotation {
+    margin-top: 12px;
+    padding-left: 8px;
+    border-left: 2px solid var(--accent);
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .annotation.warn { border-left-color: var(--warn); }
+
+  .summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .summary-list strong {
+    display: block;
+    color: var(--text);
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+
+  .stub {
+    border: 1px dashed var(--border-light);
+    background: #f2f1ed;
+    color: var(--text-stub);
+    padding: 14px 10px;
+    text-align: center;
+    font-size: 11px;
+    font-style: italic;
+  }
+
+  .note {
+    border: 1px solid var(--border-light);
+    background: #faf9f5;
+    padding: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .note strong {
+    color: var(--text);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+    .content { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>Prototype variant B:</strong> place the fill preview toggle beside the lane chips so it sits closer to the clip content being auditioned.
+    Interaction budget: activate preview in 1 click; confirm it resets after selecting another track in 1 additional click.
+  </div>
+
+  <div class="controls">
+    <span>States</span>
+    <button class="state-btn active" data-state="inactive">Inactive clip track</button>
+    <button class="state-btn" data-state="active">Preview on</button>
+    <button class="state-btn" data-state="switched">Switched track</button>
+    <button class="state-btn" data-state="generator">Generator track</button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-head">Tracks</div>
+      <div class="track-list">
+        <button class="track-item active" data-track="kick">
+          <div class="track-name">Kick and Sub Layer <span class="badge">clip</span></div>
+          <div class="track-meta">Primary use case: hear the fill without leaving the editor</div>
+        </button>
+        <button class="track-item" data-track="snare">
+          <div class="track-name">Snare Echo Accent <span class="badge">clip</span></div>
+          <div class="track-meta">Switch target to prove the preview clears</div>
+        </button>
+        <button class="track-item" data-track="lead">
+          <div class="track-name">Lead Pulse Wash <span class="badge generator">generator</span></div>
+          <div class="track-meta">Disabled v1 edge case</div>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="section-head">
+        <strong id="track-title">Kick and Sub Layer</strong>
+        <span class="badge" id="track-type">clip source</span>
+      </div>
+
+      <div class="shell-toolbar">
+        <div class="slot-row">
+          <div class="slot">A</div>
+          <div class="slot active">B</div>
+          <div class="slot">C</div>
+          <div class="slot">D</div>
+        </div>
+        <div class="mode-row">
+          <div class="lane-chip">Source</div>
+          <div class="lane-chip">Modifiers</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <section class="panel">
+          <div class="panel-head">Clip editor with inline preview control</div>
+          <div class="panel-body">
+            <div class="lane-toolbar">
+              <div class="lane-chip">Normal lane</div>
+              <div class="lane-chip active">Fill lane</div>
+              <button class="pill" id="fill-pill">
+                <span class="pill-dot"></span>
+                <span id="fill-pill-label">Preview fill off</span>
+              </button>
+            </div>
+
+            <div class="step-grid" id="step-grid"></div>
+
+            <div class="annotation" id="placement-note">
+              This version keeps the control close to the lane chips, which may help discoverability but risks feeling like an authoring toggle instead of live playback state.
+            </div>
+            <div class="annotation" id="playback-note">
+              With preview off, playback follows the compiled phrase path. Turning it on temporarily forces the selected track to hear its fill lane.
+            </div>
+            <div class="annotation warn" id="reset-note">
+              Switching tracks clears the preview so the editor never carries a hidden forced-fill state across selections.
+            </div>
+          </div>
+        </section>
+
+        <aside>
+          <section class="panel">
+            <div class="panel-head">Tradeoffs</div>
+            <div class="panel-body summary-list">
+              <div>
+                <strong>More discoverable near the lane tabs</strong>
+                Users already look here while editing normal versus fill content, so the toggle is hard to miss.
+              </div>
+              <div>
+                <strong>Higher confusion risk</strong>
+                Because the control sits beside lane authoring tabs, some reviewers may read it as a data edit rather than a transport-affecting preview.
+              </div>
+              <div>
+                <strong>Generator fallback still explicit</strong>
+                The same control can collapse into a disabled pill with a scope note when the track uses a generator source.
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">Off-path stubs</div>
+            <div class="panel-body">
+              <div class="stub">modifiers panel stub</div>
+            </div>
+          </section>
+
+          <section class="note" id="generator-note">
+            <strong>Generator track behavior</strong>
+            The control stays visible for consistency, but becomes disabled with a plain-language message when fill preview cannot apply.
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+<script>
+  const states = {
+    inactive: {
+      track: "kick",
+      previewOn: false,
+      switched: false
+    },
+    active: {
+      track: "kick",
+      previewOn: true,
+      switched: false
+    },
+    switched: {
+      track: "snare",
+      previewOn: false,
+      switched: true
+    },
+    generator: {
+      track: "lead",
+      previewOn: false,
+      switched: false
+    }
+  };
+
+  const tracks = {
+    kick: {
+      title: "Kick and Sub Layer",
+      type: "clip source",
+      generator: false
+    },
+    snare: {
+      title: "Snare Echo Accent",
+      type: "clip source",
+      generator: false
+    },
+    lead: {
+      title: "Lead Pulse Wash",
+      type: "generator source",
+      generator: true
+    }
+  };
+
+  const mainSteps = [
+    "kick", "-", "-", "-", "kick", "-", "ghost", "-", "kick", "-", "-", "-", "kick", "-", "-", "-"
+  ];
+  const fillSteps = [
+    "kick", "-", "-", "dbl", "kick", "-", "ghost", "drag", "kick", "-", "-", "drag", "kick", "dbl", "-", "tail"
+  ];
+
+  const stateButtons = document.querySelectorAll(".state-btn");
+  const trackButtons = document.querySelectorAll(".track-item");
+  const trackTitle = document.getElementById("track-title");
+  const trackType = document.getElementById("track-type");
+  const fillPill = document.getElementById("fill-pill");
+  const fillPillLabel = document.getElementById("fill-pill-label");
+  const stepGrid = document.getElementById("step-grid");
+  const placementNote = document.getElementById("placement-note");
+  const playbackNote = document.getElementById("playback-note");
+  const resetNote = document.getElementById("reset-note");
+  const generatorNote = document.getElementById("generator-note");
+
+  function renderSteps(previewOn, generator) {
+    stepGrid.innerHTML = "";
+    const labels = generator ? mainSteps : (previewOn ? fillSteps : mainSteps);
+    labels.forEach((label, index) => {
+      const cell = document.createElement("div");
+      cell.className = "step";
+      if (index === 4) cell.classList.add("playing");
+      if (previewOn && !generator && fillSteps[index] !== mainSteps[index]) {
+        cell.classList.add("fill-heard");
+      }
+      cell.innerHTML = `
+        <div class="step-num">${index + 1}</div>
+        <div class="step-label">${label}</div>
+        <div class="step-sub">${previewOn && !generator ? "fill heard" : "main path"}</div>
+      `;
+      stepGrid.appendChild(cell);
+    });
+  }
+
+  function applyState(stateName) {
+    const state = states[stateName];
+    const track = tracks[state.track];
+    const previewOn = state.previewOn && !track.generator;
+
+    stateButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.state === stateName);
+    });
+    trackButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.track === state.track);
+    });
+
+    trackTitle.textContent = track.title;
+    trackType.textContent = track.type;
+    fillPill.classList.toggle("on", previewOn);
+    fillPill.classList.toggle("disabled", track.generator);
+    fillPillLabel.textContent = track.generator ? "Preview unavailable" : (previewOn ? "Preview fill on" : "Preview fill off");
+
+    placementNote.textContent = track.generator
+      ? "The inline location keeps the disabled state visible, but it also increases the chance that users mistake the control for lane editing."
+      : "This version keeps the control close to the lane chips, which may help discoverability but risks feeling like an authoring toggle instead of live playback state.";
+
+    playbackNote.textContent = track.generator
+      ? "Playback remains unchanged on generator-backed tracks. The UI explains the limit instead of simulating unsupported behavior."
+      : (previewOn
+        ? "With preview on, the selected track is temporarily forced to hear its fill lane while neighboring tracks continue normal playback."
+        : "With preview off, playback follows the compiled phrase path. Turning it on temporarily forces the selected track to hear its fill lane.");
+
+    resetNote.textContent = state.switched
+      ? "Reset confirmed: selecting Snare Echo Accent clears the preview and reverts the pill to off."
+      : "Switching tracks clears the preview so the editor never carries a hidden forced-fill state across selections.";
+
+    generatorNote.style.display = track.generator ? "block" : "none";
+    renderSteps(previewOn, track.generator);
+  }
+
+  stateButtons.forEach((button) => {
+    button.addEventListener("click", () => applyState(button.dataset.state));
+  });
+
+  applyState("inactive");
+</script>
+</body>
+</html>
