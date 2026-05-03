@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Wireframe] Scenes In Phrases - Drawer Editor</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f1f1f1;
+    color: #222;
+  }
+  .banner {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 14px;
+    background: #222;
+    color: #fff;
+    font-size: 12px;
+  }
+  .page {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    min-height: calc(100vh - 42px);
+  }
+  .canvas {
+    padding: 18px;
+    background: #fff;
+  }
+  .drawer {
+    padding: 16px;
+    border-left: 1px solid #bdbdbd;
+    background: #ececec;
+  }
+  .shell-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #cdcdcd;
+  }
+  .mode-toggle {
+    display: inline-flex;
+    border: 1px solid #7e7e7e;
+  }
+  .mode-toggle button,
+  .mini,
+  .drawer button {
+    border: 0;
+    background: #e2e2e2;
+    padding: 7px 11px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .mode-toggle button.active,
+  .mini.active,
+  .drawer button.active {
+    background: #1d1d1d;
+    color: #fff;
+  }
+  .helper {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: #666;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .helper span {
+    padding: 4px 8px;
+    border: 1px dashed #989898;
+    background: #f4f4f4;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: 1px solid #a7a7a7;
+  }
+  th,
+  td {
+    padding: 10px;
+    border-right: 1px solid #d7d7d7;
+    border-bottom: 1px solid #d0d0d0;
+    vertical-align: top;
+    font-size: 12px;
+  }
+  th {
+    background: #ececec;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 11px;
+    text-align: left;
+  }
+  tr.selected td {
+    background: #f8f8f8;
+  }
+  .phrase-button,
+  .cell-card,
+  .drawer-card {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #8a8a8a;
+    background: #fff;
+    text-align: left;
+  }
+  .drawer-card {
+    margin-bottom: 12px;
+  }
+  .drawer-card h3 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #666;
+  }
+  .small {
+    margin-top: 4px;
+    color: #666;
+    line-height: 1.4;
+  }
+  .bar-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .bar-grid button {
+    min-height: 62px;
+    border: 1px solid #8a8a8a;
+    background: #fff;
+  }
+  .bar-grid button.active {
+    background: #222;
+    color: #fff;
+  }
+  .stub {
+    border: 1px dashed #979797;
+    background: repeating-linear-gradient(-45deg, #efefef, #efefef 8px, #e7e7e7 8px, #e7e7e7 16px);
+    color: #666;
+    padding: 12px;
+    font-size: 12px;
+  }
+  @media (max-width: 1100px) {
+    .page { grid-template-columns: 1fr; }
+    .drawer { border-left: 0; border-top: 1px solid #bdbdbd; }
+  }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>Scenes In Phrases / Variant B / Detail drawer</strong>
+    <span>Interaction budget: scan many phrases first, then tune one phrase in the drawer.</span>
+  </div>
+  <div class="page">
+    <main class="canvas">
+      <div class="shell-head">
+        <div>
+          <div style="color: #666; font-size: 12px;">Phrase Workspace</div>
+          <h1 style="margin: 4px 0 0; font-size: 18px;">Phrase Matrix</h1>
+        </div>
+        <div class="mode-toggle">
+          <button>Tracks</button>
+          <button class="active">Scenes</button>
+        </div>
+      </div>
+      <div class="helper">
+        <span>Matrix stays compact</span>
+        <span>Editor moves to drawer</span>
+        <span>Off-path scene browser stubbed</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 240px;">Phrase</th>
+            <th>Scene A</th>
+            <th style="width: 270px;">Blend summary</th>
+            <th>Scene B</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="stub" style="margin-top: 14px;">
+        Stubbed lower region: track/layer matrix, transport-linked phrase playback, scene library browser.
+      </div>
+    </main>
+    <aside class="drawer">
+      <div class="drawer-card">
+        <h3>What this variant is testing</h3>
+        Compare whether a stable row height makes long arrangements easier to scan than inline expansion, even if detailed editing moves one step away from the matrix row.
+      </div>
+      <div id="drawerContent"></div>
+    </aside>
+  </div>
+<script>
+const phrases = [
+  {
+    id: "intro-odd",
+    name: "01 Intro / Filter opens slowly",
+    sceneA: "Warm Pad Bloom",
+    sceneB: "Drums Ghost Notes",
+    mode: "whole",
+    whole: "36% toward B"
+  },
+  {
+    id: "verse-shift",
+    name: "02 Verse / Vox chop + bass hold",
+    sceneA: "Bass Mono Lock",
+    sceneB: "Lead Grain Burst",
+    mode: "bars",
+    bars: ["A-heavy", "mid", "70% B", "full B"]
+  },
+  {
+    id: "bridge-long",
+    name: "03 Bridge / Long title to test row squeeze",
+    sceneA: "Scene with a deliberately overlong ambient label",
+    sceneB: "none yet",
+    mode: "whole",
+    whole: "0% (hard A)"
+  },
+  {
+    id: "drop-hard",
+    name: "04 Drop / full latch",
+    sceneA: "Kick Slam",
+    sceneB: "Hi Hats Air",
+    mode: "bars",
+    bars: ["20%", "45%", "80%", "95%"]
+  }
+];
+
+let selectedID = "verse-shift";
+
+function renderRows() {
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+  phrases.forEach((phrase) => {
+    const tr = document.createElement("tr");
+    if (phrase.id === selectedID) tr.className = "selected";
+    tr.innerHTML = `
+      <td>
+        <button class="phrase-button" data-open="${phrase.id}">
+          <strong>${phrase.name}</strong>
+          <div class="small">Choose row to edit in drawer</div>
+        </button>
+      </td>
+      <td><div class="cell-card"><strong>${phrase.sceneA}</strong><div class="small">A slot</div></div></td>
+      <td><div class="cell-card"><strong>${phrase.mode === "whole" ? "Whole phrase" : "Bars 1-4"}</strong><div class="small">${phrase.mode === "whole" ? phrase.whole : phrase.bars.join(" / ")}</div></div></td>
+      <td><div class="cell-card"><strong>${phrase.sceneB}</strong><div class="small">B slot</div></div></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.querySelectorAll("[data-open]").forEach((button) => {
+    button.onclick = () => {
+      selectedID = button.dataset.open;
+      render();
+    };
+  });
+}
+
+function renderDrawer() {
+  const phrase = phrases.find((item) => item.id === selectedID);
+  const mount = document.getElementById("drawerContent");
+  mount.innerHTML = `
+    <div class="drawer-card">
+      <h3>Selected phrase</h3>
+      <strong>${phrase.name}</strong>
+      <div class="small">Goal: preserve fast row scanning while still letting the phrase own scene A, scene B, and blend behavior.</div>
+    </div>
+    <div class="drawer-card">
+      <h3>Scene slots</h3>
+      <button>${phrase.sceneA}</button>
+      <div class="small">Scene A chooser stubbed.</div>
+      <button style="margin-top: 8px;">${phrase.sceneB}</button>
+      <div class="small">Scene B chooser stubbed. "none yet" is allowed to test incomplete rows.</div>
+    </div>
+    <div class="drawer-card">
+      <h3>Blend mode</h3>
+      <button class="mini ${phrase.mode === "whole" ? "active" : ""}" data-mode="whole">Whole phrase</button>
+      <button class="mini ${phrase.mode === "bars" ? "active" : ""}" data-mode="bars">Per-bar</button>
+      <div class="small" style="margin-top: 8px;">Mode switch changes only the drawer editor. The matrix summary stays compact.</div>
+    </div>
+    <div class="drawer-card">
+      <h3>Blend editor</h3>
+      ${phrase.mode === "whole" ? `
+        <div style="padding: 10px; border: 1px solid #8a8a8a; background: #fff;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><strong>A</strong><strong>36%</strong><strong>B</strong></div>
+          <div style="height: 18px; border: 1px solid #777; background: linear-gradient(to right, #dadada 0 36%, #fff 36% 100%);"></div>
+          <div class="small">Best when story 2 is common and per-bar editing is secondary.</div>
+        </div>
+      ` : `
+        <div class="bar-grid">
+          ${phrase.bars.map((bar, index) => `
+            <button class="${index === 2 ? "active" : ""}">
+              <strong>Bar ${index + 1}</strong><br>${bar}
+            </button>
+          `).join("")}
+        </div>
+        <div class="small" style="margin-top: 8px;">Per-bar detail lives entirely in the drawer, so the phrase grid never stretches.</div>
+      `}
+    </div>
+    <div class="drawer-card">
+      <h3>PM review focus</h3>
+      <div class="small">This variant trades action locality for denser scanning. If users bounce between adjacent phrases while editing blends, this may feel slower than the inline version.</div>
+    </div>
+  `;
+
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.onclick = () => {
+      phrase.mode = button.dataset.mode;
+      render();
+    };
+  });
+}
+
+function render() {
+  renderRows();
+  renderDrawer();
+}
+
+render();
+</script>
+</body>
+</html>

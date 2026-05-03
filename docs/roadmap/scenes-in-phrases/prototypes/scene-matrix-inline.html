@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Wireframe] Scenes In Phrases - Inline Matrix Editor</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f3f3f3;
+    color: #1f1f1f;
+  }
+  .banner {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 14px;
+    background: #1f1f1f;
+    color: #fff;
+    font-size: 12px;
+  }
+  .banner strong { font-size: 13px; }
+  .shell {
+    display: grid;
+    grid-template-columns: 220px 1fr 240px;
+    min-height: calc(100vh - 42px);
+  }
+  .stub-pane,
+  .notes {
+    padding: 16px;
+    border-right: 1px solid #c8c8c8;
+    background: #ececec;
+  }
+  .notes {
+    border-right: 0;
+    border-left: 1px dashed #999;
+  }
+  .stub-box,
+  .note-box {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px dashed #9a9a9a;
+    background: repeating-linear-gradient(-45deg, #ededed, #ededed 8px, #e5e5e5 8px, #e5e5e5 16px);
+    font-size: 12px;
+    color: #666;
+  }
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid #cfcfcf;
+    background: #fafafa;
+  }
+  .mode-toggle {
+    display: inline-flex;
+    border: 1px solid #7f7f7f;
+  }
+  .mode-toggle button,
+  .toolbar button,
+  .pill {
+    border: 0;
+    background: #e4e4e4;
+    padding: 7px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .mode-toggle button.active,
+  .toolbar button.active,
+  .pill.active {
+    background: #222;
+    color: #fff;
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .toolbar .stubbed {
+    border: 1px dashed #9a9a9a;
+    color: #666;
+    background: #f3f3f3;
+    cursor: default;
+  }
+  .matrix-wrap {
+    padding: 18px;
+  }
+  .legend {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #555;
+    flex-wrap: wrap;
+  }
+  .chip {
+    padding: 2px 8px;
+    border: 1px solid #8e8e8e;
+    background: #f0f0f0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: 1px solid #a8a8a8;
+  }
+  th,
+  td {
+    border-bottom: 1px solid #cfcfcf;
+    border-right: 1px solid #d8d8d8;
+    vertical-align: top;
+    padding: 10px;
+    font-size: 12px;
+  }
+  th {
+    background: #ededed;
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  tr.selected > td {
+    background: #f8f8f8;
+  }
+  tr.inline-editor > td {
+    background: #fcfcfc;
+    border-top: 0;
+  }
+  .phrase-cell button,
+  .selectish,
+  .bar-cell button {
+    width: 100%;
+    padding: 7px 8px;
+    border: 1px solid #8a8a8a;
+    background: #fff;
+    text-align: left;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .phrase-cell small,
+  .summary small,
+  .note-box small {
+    display: block;
+    margin-top: 4px;
+    color: #666;
+    line-height: 1.35;
+  }
+  .summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .summary > div {
+    padding: 8px;
+    border: 1px solid #bababa;
+    background: #fff;
+  }
+  .label {
+    display: block;
+    margin-bottom: 4px;
+    color: #666;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  .mode-pills {
+    display: inline-flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .editor-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr 180px;
+    gap: 12px;
+    align-items: start;
+  }
+  .bar-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .bar-cell button.active {
+    background: #111;
+    color: #fff;
+  }
+  .muted {
+    color: #666;
+  }
+  .selected-row {
+    border-left: 4px solid #111;
+  }
+  .tight {
+    margin: 0;
+    line-height: 1.4;
+  }
+  @media (max-width: 1200px) {
+    .shell {
+      grid-template-columns: 1fr;
+    }
+    .stub-pane,
+    .notes {
+      border: 0;
+      border-bottom: 1px solid #c8c8c8;
+    }
+    .notes {
+      border-top: 1px dashed #999;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>Scenes In Phrases / Variant A / Inline row editor</strong>
+    <span>Interaction budget: switch to Scenes + inspect/edit one phrase in 2 clicks.</span>
+  </div>
+  <div class="shell">
+    <aside class="stub-pane">
+      <div class="stub-box">Stubbed app chrome<br><small>Transport, inspectors, browser/edit scenes, track meters.</small></div>
+      <div class="stub-box">Why this variant<br><small>Keep scene authoring inside the same phrase-matrix scan path. The row expands only when a phrase needs deeper editing.</small></div>
+      <div class="stub-box">Edge fixtures<br><small>Long scene names, a phrase with no B scene, static vs per-bar crossfader summaries.</small></div>
+    </aside>
+    <main class="workspace">
+      <div class="topbar">
+        <div>
+          <div class="muted">Phrase Workspace</div>
+          <h1 style="margin: 4px 0 0; font-size: 18px;">Phrase Matrix</h1>
+        </div>
+        <div class="toolbar">
+          <div class="mode-toggle" aria-label="Phrase mode toggle">
+            <button id="tracksMode">Tracks</button>
+            <button id="scenesMode" class="active">Scenes</button>
+          </div>
+          <button class="stubbed">Layer page -> [stub]</button>
+        </div>
+      </div>
+      <div class="matrix-wrap">
+        <div class="legend">
+          <span class="chip">A/B scene choices are phrase-owned</span>
+          <span class="chip">Crossfader mode: whole phrase or per-bar</span>
+          <span class="chip">Tracks mode is stubbed off-path</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 220px;">Phrase</th>
+              <th>Scene A</th>
+              <th style="width: 260px;">Crossfader</th>
+              <th>Scene B</th>
+            </tr>
+          </thead>
+          <tbody id="phraseRows"></tbody>
+        </table>
+      </div>
+    </main>
+    <aside class="notes">
+      <div class="note-box">
+        <strong>What to inspect</strong>
+        <small>Does the inline expansion preserve matrix scanning, or does it make nearby phrase rows too jumpy during editing?</small>
+      </div>
+      <div class="note-box">
+        <strong>Promising for</strong>
+        <small>Story 5: row summaries remain visible, and the bar editor stays anchored to the phrase it changes.</small>
+      </div>
+      <div class="note-box">
+        <strong>Risk</strong>
+        <small>Dense songs may feel tall if several scene phrases need quick comparison and only one can be expanded at a time.</small>
+      </div>
+    </aside>
+  </div>
+<script>
+const phrases = [
+  {
+    id: "intro-odd",
+    name: "01 Intro / Filter opens slowly",
+    sceneA: "Warm Pad Bloom",
+    sceneB: "Drums Ghost Notes",
+    mode: "whole",
+    whole: "36% toward B"
+  },
+  {
+    id: "verse-shift",
+    name: "02 Verse / Vox chop + bass hold",
+    sceneA: "Bass Mono Lock",
+    sceneB: "Lead Grain Burst",
+    mode: "bars",
+    bars: ["A-heavy", "mid", "70% B", "full B"]
+  },
+  {
+    id: "bridge-long",
+    name: "03 Bridge / Long title to test row squeeze",
+    sceneA: "Scene with a deliberately overlong ambient label",
+    sceneB: "none yet",
+    mode: "whole",
+    whole: "0% (hard A)"
+  },
+  {
+    id: "drop-hard",
+    name: "04 Drop / full latch",
+    sceneA: "Kick Slam",
+    sceneB: "Hi Hats Air",
+    mode: "bars",
+    bars: ["20%", "45%", "80%", "95%"]
+  }
+];
+
+let selectedID = "verse-shift";
+
+function render() {
+  const tbody = document.getElementById("phraseRows");
+  tbody.innerHTML = "";
+
+  phrases.forEach((phrase) => {
+    const selected = phrase.id === selectedID;
+    const row = document.createElement("tr");
+    if (selected) row.className = "selected";
+
+    row.innerHTML = `
+      <td class="phrase-cell ${selected ? "selected-row" : ""}">
+        <button data-open="${phrase.id}">
+          <strong>${phrase.name}</strong>
+          <small>${phrase.mode === "whole" ? "Whole phrase blend" : "Per-bar blend"} · click to inspect</small>
+        </button>
+      </td>
+      <td>
+        <div class="selectish"><span class="label">A slot</span>${phrase.sceneA}</div>
+      </td>
+      <td>
+        <div class="summary">
+          <div>
+            <span class="label">Mode</span>
+            ${phrase.mode === "whole" ? "Whole phrase" : "Bars 1-4"}
+          </div>
+          <div style="grid-column: span 2;">
+            <span class="label">Preview</span>
+            ${phrase.mode === "whole" ? phrase.whole : phrase.bars.join(" / ")}
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="selectish"><span class="label">B slot</span>${phrase.sceneB}</div>
+      </td>
+    `;
+    tbody.appendChild(row);
+
+    if (selected) {
+      const editor = document.createElement("tr");
+      editor.className = "inline-editor";
+      editor.innerHTML = `
+        <td colspan="4">
+          <div class="mode-pills">
+            <button class="pill ${phrase.mode === "whole" ? "active" : ""}" data-mode="whole">Whole phrase</button>
+            <button class="pill ${phrase.mode === "bars" ? "active" : ""}" data-mode="bars">Per-bar</button>
+          </div>
+          <div class="editor-grid">
+            <div>
+              <div class="label">Scene A</div>
+              <button>${phrase.sceneA}</button>
+              <p class="tight muted">Chooser is stubbed. Goal here is locality: the control sits beside the phrase summary, not in a separate inspector.</p>
+            </div>
+            <div>
+              <div class="label">Crossfader editor</div>
+              ${phrase.mode === "whole" ? `
+                <div style="padding: 12px; border: 1px solid #8a8a8a; background: #fff;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <strong>A</strong><strong>36%</strong><strong>B</strong>
+                  </div>
+                  <div style="height: 20px; border: 1px solid #777; background: linear-gradient(to right, #d8d8d8 0 36%, #fff 36% 100%);"></div>
+                  <p class="tight muted" style="margin-top: 8px;">Static blend for the full phrase. Lowest-friction path for story 2.</p>
+                </div>
+              ` : `
+                <div class="bar-strip">
+                  ${phrase.bars.map((bar, index) => `
+                    <div class="bar-cell">
+                      <button class="${index === 2 ? "active" : ""}">
+                        <strong>Bar ${index + 1}</strong><br>${bar}
+                      </button>
+                    </div>
+                  `).join("")}
+                </div>
+              `}
+            </div>
+            <div>
+              <div class="label">Scene B</div>
+              <button>${phrase.sceneB}</button>
+              <p class="tight muted">If B is unset, the summary cell above should show that clearly without needing to open the editor.</p>
+            </div>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(editor);
+    }
+  });
+
+  document.querySelectorAll("[data-open]").forEach((button) => {
+    button.onclick = () => {
+      selectedID = button.dataset.open;
+      render();
+    };
+  });
+
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.onclick = () => {
+      const phrase = phrases.find((item) => item.id === selectedID);
+      phrase.mode = button.dataset.mode;
+      render();
+    };
+  });
+}
+
+document.getElementById("tracksMode").onclick = () => {
+  alert("Tracks mode is stubbed in this prototype. The point under test is the Scenes-mode editing pattern.");
+};
+document.getElementById("scenesMode").onclick = () => render();
+
+render();
+</script>
+</body>
+</html>

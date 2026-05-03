@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T15:18:39Z
-Repo HEAD: 10e2922
+Generated: 2026-05-03T15:20:48Z
+Repo HEAD: 9172cec
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -12,38 +12,39 @@ Planning actions after `clarify-feature` are intended for the `pm-assistant` rol
 
 ## Selector
 
-For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then human prototype approval; otherwise the first missing artifact wins:
+For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then ready-for-build state, then human prototype approval; otherwise the first missing artifact wins:
 
 1. `status: deferred` -> deferred
 2. unresolved `feedback/*.md` -> address-feedback
 3. open `concerns.md` -> review-concerns
 4. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
 5. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
-6. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
-7. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
-8. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
-9. `notes.md` -> clarify-feature
-10. `user-stories.md` -> draft-user-stories
-11. `existing-state.md` -> inspect-existing-state
-12. `prototypes/*` -> build-prototypes
-13. `ux-review.md` -> review-prototypes
-14. `architecture.md` -> write-architecture
-15. `architecture-review.md` -> review-architecture
-16. `spec.md` -> write-spec
-17. `plan.md` -> write-plan
-18. `implementation-handoff.md` -> write-implementation-handoff
-19. all present -> ready-for-build-queue
+6. `status: ready-for-build` or `stage: ready-for-build(-queue)` -> ready-for-build-queue
+7. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
+8. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
+9. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
+10. `notes.md` -> clarify-feature
+11. `user-stories.md` -> draft-user-stories
+12. `existing-state.md` -> inspect-existing-state
+13. `prototypes/*` -> build-prototypes
+14. `ux-review.md` -> review-prototypes
+15. `architecture.md` -> write-architecture
+16. `architecture-review.md` -> review-architecture
+17. `spec.md` -> write-spec
+18. `plan.md` -> write-plan
+19. `implementation-handoff.md` -> write-implementation-handoff
+20. all present -> ready-for-build-queue
 
 ## Next User Item
 
-- **Item:** 1
-- **Feature:** Clip History
+- **Item:** 4
+- **Feature:** Mixer Main Out
 - **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `human-review-prototypes`
+- **Status:** `blocked`
+- **Action:** `blocked`
 - **Role:** `user`
-- **Why:** `ux-review.md` exists, but human prototype approval is missing.
-- **Output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ## Next Agent Item
 
@@ -64,10 +65,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `human-review-prototypes`
-- **Role:** `user`
-- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
-- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Feature is already marked `ready-for-build-queue`/`inventory`; PM artifacts have been handed off or are ready to hand off.
+- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
 
 ### 2. Scene Perform
 
@@ -75,10 +76,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `ready-for-build`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `human-review-prototypes`
-- **Role:** `user`
-- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
-- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Feature is already marked `ready-for-build`/`ready-for-build`; PM artifacts have been handed off or are ready to hand off.
+- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
 
 ### 3. Step Sequencer
 
@@ -86,10 +87,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `ready-for-build`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `human-review-prototypes`
-- **Role:** `user`
-- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
-- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Feature is already marked `ready-for-build`/`ready-for-build`; PM artifacts have been handed off or are ready to hand off.
+- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
 
 ### 4. Mixer Main Out
 
