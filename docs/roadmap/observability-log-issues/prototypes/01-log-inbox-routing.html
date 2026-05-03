@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] Observability From Application Logs - Prototype 1: Log Inbox Routing</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #f3f3f3;
+    color: #111;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  h1, h2, h3, p { margin: 0; }
+  .meta {
+    color: #666;
+    margin: 4px 0 10px;
+    font-size: 12px;
+  }
+  .budget {
+    margin-bottom: 18px;
+    padding: 7px 10px;
+    border: 1px solid #c8c8c8;
+    background: #e8e8e8;
+    font-size: 11px;
+    color: #444;
+  }
+  .shell {
+    width: 1180px;
+    min-height: 760px;
+    border: 1px solid #bcbcbc;
+    background: #fff;
+  }
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #bcbcbc;
+    background: #dedede;
+    font-size: 12px;
+    color: #444;
+  }
+  .lights {
+    display: flex;
+    gap: 4px;
+  }
+  .lights span {
+    width: 10px;
+    height: 10px;
+    border: 1px solid #959595;
+    border-radius: 50%;
+    background: #b9b9b9;
+  }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid #cccccc;
+    background: #efefef;
+  }
+  .toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pill, button, select {
+    font: inherit;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid #bababa;
+    background: #fff;
+    color: #444;
+  }
+  button, select {
+    border: 1px solid #9f9f9f;
+    background: #fff;
+    padding: 5px 8px;
+    color: #111;
+  }
+  button.primary {
+    border-color: #6e99d6;
+    background: #dce9fb;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr 360px;
+    min-height: 685px;
+  }
+  .rail, .detail {
+    border-right: 1px solid #d3d3d3;
+    background: #fafafa;
+  }
+  .detail {
+    border-right: 0;
+    border-left: 1px solid #d3d3d3;
+  }
+  .section-title {
+    padding: 10px 12px;
+    border-bottom: 1px solid #d7d7d7;
+    background: #ececec;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+  }
+  .filters, .detail-body {
+    padding: 12px;
+  }
+  .filter-card, .stub, .summary-card, .route-card, .evidence-card {
+    margin-bottom: 12px;
+    border: 1px solid #cfcfcf;
+    background: #fff;
+  }
+  .filter-card h3, .summary-card h3, .route-card h3, .evidence-card h3 {
+    padding: 7px 9px;
+    border-bottom: 1px solid #d9d9d9;
+    background: #f1f1f1;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+  }
+  .filter-card .body, .summary-card .body, .route-card .body, .evidence-card .body {
+    padding: 9px;
+  }
+  .checklist {
+    display: grid;
+    gap: 7px;
+    color: #444;
+  }
+  .checklist label {
+    display: flex;
+    gap: 8px;
+    align-items: start;
+  }
+  .stub {
+    padding: 10px;
+    border-style: dashed;
+    color: #8d8d8d;
+    font-style: italic;
+  }
+  .queue {
+    background: #fff;
+  }
+  .queue-header {
+    display: grid;
+    grid-template-columns: 1.4fr .9fr .8fr .9fr .8fr;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #d7d7d7;
+    background: #f7f7f7;
+    color: #666;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .event {
+    display: grid;
+    grid-template-columns: 1.4fr .9fr .8fr .9fr .8fr;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid #ececec;
+    cursor: pointer;
+  }
+  .event:hover {
+    background: #f5f8fe;
+  }
+  .event.active {
+    background: #e8f0fd;
+    outline: 1px solid #8fb1e6;
+  }
+  .event-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .event-meta {
+    color: #666;
+    font-size: 11px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border: 1px solid #c3c3c3;
+    background: #f2f2f2;
+    font-size: 11px;
+    color: #555;
+  }
+  .badge.critical {
+    border-color: #c88d8d;
+    background: #f6dddd;
+    color: #8b2d2d;
+  }
+  .badge.high {
+    border-color: #d1af7b;
+    background: #f6ead4;
+    color: #7a5922;
+  }
+  .badge.routed {
+    border-color: #8eb497;
+    background: #dff0e2;
+    color: #295f35;
+  }
+  .badge.triage {
+    border-color: #91a8c8;
+    background: #dce9fb;
+    color: #234f84;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .metric {
+    padding: 8px;
+    border: 1px dashed #c9c9c9;
+    background: #fafafa;
+  }
+  .metric strong {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+  }
+  .path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #444;
+  }
+  .log {
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    padding: 8px;
+    border: 1px dashed #c8c8c8;
+    background: #fbfbfb;
+    color: #333;
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .note {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #666;
+  }
+  .radio-list {
+    display: grid;
+    gap: 8px;
+  }
+  .radio-list label {
+    display: block;
+    padding: 8px;
+    border: 1px dashed #c5c5c5;
+    background: #fafafa;
+  }
+  .radio-list input {
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+<h1>Observability From Application Logs</h1>
+<p class="meta">Prototype 1 of 2. Queue-first review for Stories 3, 4, 5, 6, 7, and 8.</p>
+<div class="budget">Interaction budget: route a newly seen runtime issue in 2 steps. 1. Select fingerprint. 2. Choose route + create issue or suppress.</div>
+
+<div class="shell">
+  <div class="titlebar">
+    <div class="lights"><span></span><span></span><span></span></div>
+    <strong>Observability Inbox</strong>
+    <span>Workspace: auto/2026-05-03</span>
+    <span class="pill">Collector: unified log snapshot</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <select>
+        <option>Last 24 hours</option>
+        <option>Last hour</option>
+        <option>Since current boot</option>
+      </select>
+      <span class="pill">7 actionable</span>
+      <span class="pill">16 suppressed</span>
+      <span class="pill">2 need human triage</span>
+    </div>
+    <div class="toolbar-right">
+      <button>Refresh collector</button>
+      <button class="primary">Review next unseen event</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="rail">
+      <div class="section-title">Filters and queue policy</div>
+      <div class="filters">
+        <div class="filter-card">
+          <h3>Severity</h3>
+          <div class="body checklist">
+            <label><input type="checkbox" checked> Critical crashes and engine failures</label>
+            <label><input type="checkbox" checked> Persistence and data loss risks</label>
+            <label><input type="checkbox" checked> Repeated UI exceptions</label>
+            <label><input type="checkbox"> Benign warnings already on suppression list</label>
+          </div>
+        </div>
+
+        <div class="filter-card">
+          <h3>Ownership bias</h3>
+          <div class="body checklist">
+            <label><input type="radio" name="owner" checked> Prefer active worktree when observed range overlaps unmerged commits</label>
+            <label><input type="radio" name="owner"> Prefer sweeper queue unless confidence is high</label>
+            <label><input type="radio" name="owner"> Always send ambiguous events to human triage</label>
+          </div>
+        </div>
+
+        <div class="stub">Stubbed: collector settings, retention window, export evidence bundle</div>
+      </div>
+    </aside>
+
+    <main class="queue">
+      <div class="section-title">Candidate event fingerprints</div>
+      <div class="queue-header">
+        <div>Fingerprint</div>
+        <div>Severity</div>
+        <div>Occurrences</div>
+        <div>Observed in</div>
+        <div>Suggested route</div>
+      </div>
+
+      <div class="event active" data-event="engine">
+        <div>
+          <div class="event-title">Audio graph restart loop after AU preset restore</div>
+          <div class="event-meta">EngineController / seqai doc "set-b / live jam" / first seen 09:14</div>
+        </div>
+        <div><span class="badge critical">critical</span></div>
+        <div>19 in 6 min</div>
+        <div>2464133 dirty</div>
+        <div><span class="badge routed">active worker</span></div>
+      </div>
+
+      <div class="event" data-event="privacy">
+        <div>
+          <div class="event-title">Unsanitized file path leaked into crash note</div>
+          <div class="event-meta">RecentVoicesStore / sample names visible / first seen 11:02</div>
+        </div>
+        <div><span class="badge high">high</span></div>
+        <div>2 in 1 run</div>
+        <div>13d1afd clean</div>
+        <div><span class="badge triage">needs triage</span></div>
+      </div>
+
+      <div class="event" data-event="noise">
+        <div>
+          <div class="event-title">Unknown MIDI endpoint warning from unplugged controller</div>
+          <div class="event-meta">MIDISession / recovered on rescan / first seen 12:40</div>
+        </div>
+        <div><span class="badge">low</span></div>
+        <div>34 in 1 day</div>
+        <div>13d1afd clean</div>
+        <div><span class="badge">suppress</span></div>
+      </div>
+    </main>
+
+    <aside class="detail">
+      <div class="section-title">Selected fingerprint detail</div>
+      <div class="detail-body">
+        <div class="summary-card">
+          <h3>Issue summary</h3>
+          <div class="body">
+            <div class="summary-grid">
+              <div class="metric"><strong>Observed in</strong> 2464133 on <span class="path">auto/roadmap-1-clip-history</span></div>
+              <div class="metric"><strong>Introduced by</strong> Not claimed yet</div>
+              <div class="metric"><strong>First seen</strong> 2026-05-03 09:14:22</div>
+              <div class="metric"><strong>Last seen</strong> 2026-05-03 09:20:31</div>
+            </div>
+            <p class="note">The prototype separates "observed in" from "introduced by" to prevent false blame on the latest commit.</p>
+          </div>
+        </div>
+
+        <div class="route-card">
+          <h3>Routing decision</h3>
+          <div class="body">
+            <div class="radio-list">
+              <label><input type="radio" name="route" checked> Assign to active worker because first-seen range overlaps the current worktree and the fingerprint is absent on main.</label>
+              <label><input type="radio" name="route"> Send to sweeper queue because the issue is reproduced on clean main builds.</label>
+              <label><input type="radio" name="route"> Keep in human triage because provenance is ambiguous or privacy redaction is incomplete.</label>
+            </div>
+            <div class="actions">
+              <button class="primary">Create issue draft</button>
+              <button>Mark as observation only</button>
+              <button>Suppress fingerprint</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="evidence-card">
+          <h3>Evidence and privacy scrub</h3>
+          <div class="body">
+            <p class="path">Fingerprint: engine.graph.restart.au-preset-timeout</p>
+            <div class="log">09:18:44.821 [EngineController] applyGraph snapshot failed after AU preset restore
+09:18:44.825 [Executor] unknown block target during queued update
+09:18:44.828 document: [redacted seqai title]
+09:18:44.829 sample path: [redacted]</div>
+            <p class="note">Redaction happens before the issue draft is written. Original evidence stays local to the collector, not in the issue body.</p>
+          </div>
+        </div>
+
+        <div class="stub">Stubbed: downstream issue template, bisect helper, external tracker bridge</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  const events = document.querySelectorAll(".event");
+  const detailCards = {
+    engine: {
+      summary: {
+        observed: "2464133 on auto/roadmap-1-clip-history",
+        introduced: "Not claimed yet",
+        firstSeen: "2026-05-03 09:14:22",
+        lastSeen: "2026-05-03 09:20:31"
+      },
+      fingerprint: "engine.graph.restart.au-preset-timeout",
+      log: "09:18:44.821 [EngineController] applyGraph snapshot failed after AU preset restore\n09:18:44.825 [Executor] unknown block target during queued update\n09:18:44.828 document: [redacted seqai title]\n09:18:44.829 sample path: [redacted]"
+    },
+    privacy: {
+      summary: {
+        observed: "13d1afd on main",
+        introduced: "Needs historical comparison",
+        firstSeen: "2026-05-03 11:02:01",
+        lastSeen: "2026-05-03 11:04:55"
+      },
+      fingerprint: "privacy.path-leak.recent-voices-export",
+      log: "11:02:01.110 [RecentVoicesStore] failed to decode voice cache for /Users/max/.../Velvet Kick.wav\n11:02:01.111 export scrubber status: pending\n11:02:01.113 issue body preview still contains a sample filename"
+    },
+    noise: {
+      summary: {
+        observed: "13d1afd on main",
+        introduced: "Not relevant for suppressed event",
+        firstSeen: "2026-05-02 12:40:00",
+        lastSeen: "2026-05-03 12:57:43"
+      },
+      fingerprint: "midi.endpoint.recovered.after-rescan",
+      log: "12:55:43.002 [MIDISession] endpoint disappeared during unplug\n12:55:43.410 [MIDISession] endpoint returned after rescan\n12:55:43.411 severity policy classified event as observation"
+    }
+  };
+
+  const metrics = document.querySelectorAll(".metric");
+  const log = document.querySelector(".log");
+  const fingerprint = document.querySelector(".path");
+
+  events.forEach((eventRow) => {
+    eventRow.addEventListener("click", () => {
+      events.forEach((row) => row.classList.remove("active"));
+      eventRow.classList.add("active");
+      const event = detailCards[eventRow.dataset.event];
+      metrics[0].innerHTML = "<strong>Observed in</strong> " + event.summary.observed;
+      metrics[1].innerHTML = "<strong>Introduced by</strong> " + event.summary.introduced;
+      metrics[2].innerHTML = "<strong>First seen</strong> " + event.summary.firstSeen;
+      metrics[3].innerHTML = "<strong>Last seen</strong> " + event.summary.lastSeen;
+      fingerprint.textContent = "Fingerprint: " + event.fingerprint;
+      log.textContent = event.log;
+    });
+  });
+</script>
+</body>
+</html>

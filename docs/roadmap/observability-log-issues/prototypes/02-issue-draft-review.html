@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[WIP] Observability From Application Logs - Prototype 2: Issue Draft Review</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #f5f5f5;
+    color: #111;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  h1, h2, h3, p { margin: 0; }
+  .meta {
+    margin: 4px 0 10px;
+    font-size: 12px;
+    color: #666;
+  }
+  .budget {
+    margin-bottom: 18px;
+    padding: 7px 10px;
+    border: 1px solid #cacaca;
+    background: #e8e8e8;
+    font-size: 11px;
+    color: #444;
+  }
+  .shell {
+    width: 1160px;
+    min-height: 760px;
+    border: 1px solid #bebebe;
+    background: #fff;
+  }
+  .titlebar {
+    padding: 9px 12px;
+    border-bottom: 1px solid #bdbdbd;
+    background: #dfdfdf;
+    font-size: 12px;
+    color: #444;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #d5d5d5;
+    background: #f0f0f0;
+  }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+  button {
+    border: 1px solid #9d9d9d;
+    background: #fff;
+    padding: 5px 8px;
+    font: inherit;
+  }
+  button.primary {
+    border-color: #729bda;
+    background: #dce9fb;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 1.15fr .85fr;
+    min-height: 660px;
+  }
+  .main {
+    padding: 14px;
+    border-right: 1px solid #d8d8d8;
+  }
+  .side {
+    padding: 14px;
+    background: #fbfbfb;
+  }
+  .card, .stub {
+    margin-bottom: 14px;
+    border: 1px solid #cfcfcf;
+    background: #fff;
+  }
+  .card h3 {
+    padding: 7px 10px;
+    border-bottom: 1px solid #dadada;
+    background: #f2f2f2;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #555;
+  }
+  .card .body {
+    padding: 10px;
+  }
+  .draft-title {
+    margin-bottom: 6px;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .summary {
+    color: #444;
+    margin-bottom: 10px;
+  }
+  .kvs {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 8px 10px;
+    margin-bottom: 12px;
+  }
+  .kvs strong {
+    color: #666;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+  }
+  .log {
+    white-space: pre-wrap;
+    padding: 8px;
+    border: 1px dashed #c8c8c8;
+    background: #fbfbfb;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #333;
+  }
+  .checklist {
+    display: grid;
+    gap: 8px;
+  }
+  .checklist label {
+    display: flex;
+    align-items: start;
+    gap: 8px;
+  }
+  .queue {
+    display: grid;
+    gap: 8px;
+  }
+  .queue-item {
+    padding: 9px;
+    border: 1px dashed #c5c5c5;
+    background: #fafafa;
+  }
+  .badge {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 2px 6px;
+    border: 1px solid #c4c4c4;
+    background: #f2f2f2;
+    font-size: 11px;
+    color: #555;
+  }
+  .badge.blue {
+    border-color: #92add0;
+    background: #dfebfb;
+    color: #245083;
+  }
+  .badge.green {
+    border-color: #8db291;
+    background: #dff0e1;
+    color: #2d6035;
+  }
+  .badge.red {
+    border-color: #c28c8c;
+    background: #f6dddd;
+    color: #8d3030;
+  }
+  .stub {
+    padding: 10px;
+    border-style: dashed;
+    color: #8b8b8b;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<h1>Observability From Application Logs</h1>
+<p class="meta">Prototype 2 of 2. Detail-first review before the system writes a durable issue.</p>
+<div class="budget">Interaction budget: validate an issue draft in 2 steps. 1. Check provenance and privacy gates. 2. Confirm queue destination.</div>
+
+<div class="shell">
+  <div class="titlebar">Issue Draft Review - issue state stays local until a human or automation accepts the draft</div>
+
+  <div class="header">
+    <div>
+      <strong>Current fingerprint:</strong> `privacy.path-leak.recent-voices-export`
+      <div class="meta">This variant treats issue writing as a review screen instead of a queue table.</div>
+    </div>
+    <div class="header-actions">
+      <button>Back to queue</button>
+      <button>Needs triage</button>
+      <button class="primary">Approve draft issue</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="main">
+      <div class="card">
+        <h3>Draft issue body</h3>
+        <div class="body">
+          <div class="draft-title">Privacy leak: sample path appears in generated crash note</div>
+          <p class="summary">Observed twice on clean main builds while recent voice cache recovery was running. The current scrubber removes full paths from the stored excerpt, but the issue preview still contains a sample filename.</p>
+          <div class="kvs">
+            <strong>Severity</strong><span><span class="badge red">high</span> user data risk</span>
+            <strong>Observed in</strong><span class="mono">13d1afd on main</span>
+            <strong>Introduced by</strong><span class="mono">Not claimed. Historical evidence missing.</span>
+            <strong>Suggested queue</strong><span><span class="badge blue">human triage</span> privacy policy decision still needed</span>
+            <strong>Occurrences</strong><span>2 in one clean run, same fingerprint</span>
+            <strong>Sanitized excerpt</strong><span class="mono">/Users/.../Velvet Kick.wav -> [sample name redacted]</span>
+          </div>
+          <div class="log">11:02:01.110 [RecentVoicesStore] failed to decode voice cache for [path redacted]
+11:02:01.111 scrubber preview still includes a sample filename
+11:02:01.113 generated issue draft blocked pending privacy review</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Queue destination policy</h3>
+        <div class="body checklist">
+          <label><input type="radio" name="dest"> Active worker queue. Use only when the fingerprint appears inside an unmerged worktree range.</label>
+          <label><input type="radio" name="dest"> Sweeper queue. Use when the event reproduces on clean main and the privacy scrub is sufficient.</label>
+          <label><input type="radio" name="dest" checked> Human triage. Use when the redaction policy or provenance confidence is incomplete.</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>What the accepted issue would record</h3>
+        <div class="body">
+          <div class="queue">
+            <div class="queue-item"><span class="badge green">kept</span> Fingerprint, severity, occurrence count, first-seen and last-seen timestamps</div>
+            <div class="queue-item"><span class="badge green">kept</span> Observed commit, branch, build cleanliness, and routing decision</div>
+            <div class="queue-item"><span class="badge red">removed</span> Raw file paths, document titles, sample names, and full crash attachments</div>
+            <div class="queue-item"><span class="badge blue">deferred</span> "Introduced by" stays blank until historical evidence or bisect data exists</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Release gate checklist</h3>
+        <div class="body checklist">
+          <label><input type="checkbox" checked> Duplicate collapse confirmed: this is the same fingerprint as the earlier run.</label>
+          <label><input type="checkbox" checked> Log excerpt redacted before persistence.</label>
+          <label><input type="checkbox"> Historical absence/presence evidence available for introduced-by claim.</label>
+          <label><input type="checkbox" checked> Queue destination is explicit, not implied.</label>
+          <label><input type="checkbox"> External tracker push enabled. Off by default for first release.</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Alternative event preview</h3>
+        <div class="body">
+          <p><strong>Audio graph restart loop</strong></p>
+          <p class="meta">Would default to active-worker routing because it was first seen on a dirty feature branch and does not reproduce on clean main.</p>
+          <p><span class="badge blue">observed in</span> 2464133 dirty</p>
+          <p><span class="badge red">severity</span> critical</p>
+        </div>
+      </div>
+
+      <div class="stub">Stubbed: tracker publish, local issue ledger browser, suppression editor, bisect assistant</div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
