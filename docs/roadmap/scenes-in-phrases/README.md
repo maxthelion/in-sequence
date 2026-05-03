@@ -12,6 +12,6 @@ ux_review_archived: docs/roadmap/scenes-in-phrases/ux-reviews/ux-review-2026-05-
 
 # Scenes In Phrases
 
-Status: Inventory only. The current prototype pass re-anchors the feature to the existing Phrase Matrix shell: phrase rows, track columns, layer controls, and track paging remain visible while scene authoring is folded into that workspace. The next PM step should be a fresh `review-prototypes` critique of the replacement variants.
+Status: Inventory only. The replacement prototype pass is now reviewed: `prototypes/03-selected-phrase-scene-rail.html` is the PM-selected direction, with `04-inline-scene-strip-matrix.html` kept as a comparison artifact. The next step is human prototype approval before architecture work starts.
 
 Use this directory for Scenes in phrases notes, user stories, existing-state reports, prototypes, UX reviews, specs, and build plans.
