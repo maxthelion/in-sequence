@@ -30,6 +30,42 @@ has_prototype() {
   find "$dir/prototypes" -maxdepth 1 -type f \( -name '*.html' -o -name '*.md' -o -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) | grep -q .
 }
 
+has_unhandled_feedback() {
+  local dir="$1"
+  local feedback_dir="$dir/feedback"
+  [ -d "$feedback_dir" ] || return 1
+
+  while IFS= read -r file; do
+    local status
+    status="$(frontmatter_value "$file" "status" "new")"
+    case "$status" in
+      handled|archived)
+        ;;
+      *)
+        return 0
+        ;;
+    esac
+  done < <(find "$feedback_dir" -maxdepth 1 -type f -name '*.md' ! -name 'README.md' | sort)
+
+  return 1
+}
+
+has_open_concerns() {
+  local file="$1/concerns.md"
+  [ -s "$file" ] || return 1
+
+  local status
+  status="$(frontmatter_value "$file" "status" "open")"
+  case "$status" in
+    resolved|archived)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
 frontmatter_value() {
   local file="$1"
   local key="$2"
@@ -112,6 +148,36 @@ roadmap_dirs() {
   } | awk 'NF && !seen[$0]++'
 }
 
+review_verdict_redirect() {
+  # If a review document carries `verdict: needs-rework` or `verdict: rejected`,
+  # echo the `redirect_to` target (or the supplied default) and return 0.
+  # Verdicts other than needs-rework/rejected (accepted, empty, missing) leave
+  # the selector free to advance on file-presence as before.
+  local file="$1"
+  local default_redirect="$2"
+  if [ ! -s "$file" ]; then
+    return 1
+  fi
+  local verdict
+  verdict="$(frontmatter_value "$file" "verdict" "")"
+  case "$verdict" in
+    needs-rework|rejected)
+      local redirect_to
+      redirect_to="$(frontmatter_value "$file" "redirect_to" "$default_redirect")"
+      if [ -z "$redirect_to" ]; then
+        redirect_to="$default_redirect"
+      fi
+      printf '%s\n' "$redirect_to"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+prototype_approval_status() {
+  frontmatter_value "$1/prototype-approval.md" "status" ""
+}
+
 classify_feature() {
   local dir="$1"
   local next_action=""
@@ -131,10 +197,66 @@ classify_feature() {
     return
   fi
 
+  if has_unhandled_feedback "$dir"; then
+    next_action="address-feedback"
+    reason="Unresolved feedback exists in \`feedback/*.md\`."
+    output_hint="Read new feedback, update the affected roadmap artifact, then mark the feedback handled with links to changed files."
+    printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+    return
+  fi
+
+  if has_open_concerns "$dir"; then
+    next_action="review-concerns"
+    reason="\`concerns.md\` exists and is not resolved or archived."
+    output_hint="Review the concerns, decide whether they are accepted guardrails, open questions, or non-blocking notes, then update \`concerns.md\` before PM work continues."
+    printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+    return
+  fi
+
   if [ "$status" = "blocked" ] || { [ -n "$blocked_by" ] && [ "$blocked_by" != "[]" ]; } || has_content_file "$dir/open-questions.md"; then
     next_action="blocked"
     reason="Status is \`$status\`, blocked_by is \`$blocked_by\`, or \`open-questions.md\` exists."
     output_hint="Answer the open questions or resolve the blocker before advancing this item."
+    printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+    return
+  fi
+
+  # Review-document verdicts: if a review explicitly says "go back", route to
+  # the redirect target instead of advancing on file presence alone.
+  local redirect
+  if redirect="$(review_verdict_redirect "$dir/ux-review.md" "build-prototypes")"; then
+    next_action="$redirect"
+    reason="\`ux-review.md\` verdict is \`needs-rework\` or \`rejected\`; redirect_to=\`$redirect\`."
+    output_hint="Address the verdict in \`ux-review.md\`. Read notes, user stories, existing-state, feedback, and the review critique; produce a fresh artifact at the redirect target."
+    printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+    return
+  fi
+  if has_content_file "$dir/ux-review.md"; then
+    local approval_status
+    approval_status="$(prototype_approval_status "$dir")"
+    case "$approval_status" in
+      approved|accepted)
+        ;;
+      changes-requested|rejected)
+        next_action="build-prototypes"
+        reason="\`prototype-approval.md\` status is \`$approval_status\`; human prototype review requested changes."
+        output_hint="Use \`prototype-approval.md\`, \`ux-review.md\`, and the existing prototype artifacts as input for a revised prototype pass."
+        printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+        return
+        ;;
+      *)
+        next_action="human-review-prototypes"
+        reason="\`ux-review.md\` exists, but human prototype approval is missing."
+        output_hint="Review the prototypes with \`ux-review.md\` as the PM pre-flight critique. Write \`prototype-approval.md\` with \`status: approved\` or capture feedback for another prototype pass."
+        printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
+        return
+        ;;
+    esac
+  fi
+  if redirect="$(review_verdict_redirect "$dir/architecture-review.md" "write-architecture")"; then
+    next_action="$redirect"
+    reason="\`architecture-review.md\` verdict is \`needs-rework\` or \`rejected\`; redirect_to=\`$redirect\`."
+    output_hint="Address the verdict in \`architecture-review.md\`. The existing review stays as input; produce a fresh artifact at the redirect target."
     printf '%s\t%s\t%s\n' "$next_action" "$reason" "$output_hint"
     return
   fi
@@ -154,7 +276,7 @@ classify_feature() {
   elif ! has_prototype "$dir"; then
     next_action="build-prototypes"
     reason="Existing-state report exists, but no prototype artifact was found in \`prototypes/\`."
-    output_hint="Create focused Balsamiq-style HTML prototypes under this feature directory."
+    output_hint="Create focused Balsamiq-style HTML prototypes from notes, user stories, existing-state, feedback, screenshots/artifacts, and prototype guidelines."
   elif ! has_content_file "$dir/ux-review.md"; then
     next_action="review-prototypes"
     reason="Prototype artifacts exist, but \`ux-review.md\` is missing."
@@ -192,7 +314,7 @@ action_agent() {
   local action="$1"
 
   case "$action" in
-    clarify-feature|blocked|review-prototypes|review-architecture)
+    clarify-feature|blocked|review-concerns|human-review-prototypes)
       printf '%s\n' "user"
       ;;
     deferred)
@@ -203,6 +325,32 @@ action_agent() {
       ;;
     *)
       printf '%s\n' "pm-assistant"
+      ;;
+  esac
+}
+
+agent_action_rank() {
+  local action="$1"
+  local reason="$2"
+
+  case "$action" in
+    address-feedback)
+      printf '%s\n' 10
+      return
+      ;;
+  esac
+
+  if [[ "$reason" == *"verdict is"* ]]; then
+    printf '%s\n' 20
+    return
+  fi
+
+  case "$action" in
+    review-prototypes|review-architecture)
+      printf '%s\n' 30
+      ;;
+    *)
+      printf '%s\n' 50
       ;;
   esac
 }
@@ -219,25 +367,31 @@ tmp="$OUT.tmp.$$"
   echo
   echo "Each roadmap item has front matter in its feature \`README.md\`: \`id\`, \`title\`, \`status\`, \`priority\`, \`blocked_by\`, \`stage\`, \`owner\`, and \`updated\`."
   echo
-  echo "Planning actions after \`clarify-feature\` are intended for the \`pm-assistant\` role, except \`review-prototypes\` and \`review-architecture\`, which require user judgment. \`clarify-feature\`, \`blocked\`, \`review-prototypes\`, and \`review-architecture\` require user input."
+  echo "Planning actions after \`clarify-feature\` are intended for the \`pm-assistant\` role, except \`review-concerns\` and \`human-review-prototypes\`, which require user judgment. \`clarify-feature\`, \`blocked\`, \`review-concerns\`, and \`human-review-prototypes\` require user input. \`review-prototypes\`, \`review-architecture\`, and \`address-feedback\` are PM-assistant actions. The global \"Next Agent Item\" prioritises unresolved feedback and review rework before ordinary artifact creation."
   echo
   echo "## Selector"
   echo
-  echo "For each feature, deferred status wins first, then blocked metadata or open questions; otherwise the first missing artifact wins:"
+  echo "For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then human prototype approval; otherwise the first missing artifact wins:"
   echo
   echo "1. \`status: deferred\` -> deferred"
-  echo "2. \`status: blocked\`, non-empty \`blocked_by\`, or \`open-questions.md\` -> blocked"
-  echo "3. \`notes.md\` -> clarify-feature"
-  echo "4. \`user-stories.md\` -> draft-user-stories"
-  echo "5. \`existing-state.md\` -> inspect-existing-state"
-  echo "6. \`prototypes/*\` -> build-prototypes"
-  echo "7. \`ux-review.md\` -> review-prototypes"
-  echo "8. \`architecture.md\` -> write-architecture"
-  echo "9. \`architecture-review.md\` -> review-architecture"
-  echo "10. \`spec.md\` -> write-spec"
-  echo "11. \`plan.md\` -> write-plan"
-  echo "12. \`implementation-handoff.md\` -> write-implementation-handoff"
-  echo "13. all present -> ready-for-build-queue"
+  echo "2. unresolved \`feedback/*.md\` -> address-feedback"
+  echo "3. open \`concerns.md\` -> review-concerns"
+  echo "4. \`status: blocked\`, non-empty \`blocked_by\`, or \`open-questions.md\` -> blocked"
+  echo "5. \`ux-review.md\` with \`verdict: needs-rework\`/\`rejected\` -> \`redirect_to\` (default \`build-prototypes\`)"
+  echo "6. accepted \`ux-review.md\` without approved \`prototype-approval.md\` -> human-review-prototypes"
+  echo "7. \`prototype-approval.md\` with \`status: changes-requested\`/\`rejected\` -> build-prototypes"
+  echo "8. \`architecture-review.md\` with \`verdict: needs-rework\`/\`rejected\` -> \`redirect_to\` (default \`write-architecture\`)"
+  echo "9. \`notes.md\` -> clarify-feature"
+  echo "10. \`user-stories.md\` -> draft-user-stories"
+  echo "11. \`existing-state.md\` -> inspect-existing-state"
+  echo "12. \`prototypes/*\` -> build-prototypes"
+  echo "13. \`ux-review.md\` -> review-prototypes"
+  echo "14. \`architecture.md\` -> write-architecture"
+  echo "15. \`architecture-review.md\` -> review-architecture"
+  echo "16. \`spec.md\` -> write-spec"
+  echo "17. \`plan.md\` -> write-plan"
+  echo "18. \`implementation-handoff.md\` -> write-implementation-handoff"
+  echo "19. all present -> ready-for-build-queue"
   echo
   echo "## Next User Item"
   echo
@@ -281,19 +435,30 @@ tmp="$OUT.tmp.$$"
   echo "## Next Agent Item"
   echo
 
+  best_agent_line=""
+  best_agent_rank=999
   while IFS=$'\t' read -r action agent id title slug status priority blocked_by reason hint; do
-    if [ "$agent_written" -eq 0 ] && [ "$agent" = "pm-assistant" ]; then
-      echo "- **Item:** $id"
-      echo "- **Feature:** $title"
-      echo "- **Priority:** \`$priority\`"
-      echo "- **Status:** \`$status\`"
-      echo "- **Action:** \`$action\`"
-      echo "- **Role:** \`$agent\`"
-      echo "- **Why:** $reason"
-      echo "- **Output:** $hint"
-      agent_written=1
+    if [ "$agent" = "pm-assistant" ]; then
+      rank="$(agent_action_rank "$action" "$reason")"
+      if [ "$rank" -lt "$best_agent_rank" ]; then
+        best_agent_rank="$rank"
+        best_agent_line="$action"$'\t'"$agent"$'\t'"$id"$'\t'"$title"$'\t'"$slug"$'\t'"$status"$'\t'"$priority"$'\t'"$blocked_by"$'\t'"$reason"$'\t'"$hint"
+      fi
     fi
   done < "$rows_file"
+
+  if [ -n "$best_agent_line" ]; then
+    IFS=$'\t' read -r action agent id title slug status priority blocked_by reason hint <<< "$best_agent_line"
+    echo "- **Item:** $id"
+    echo "- **Feature:** $title"
+    echo "- **Priority:** \`$priority\`"
+    echo "- **Status:** \`$status\`"
+    echo "- **Action:** \`$action\`"
+    echo "- **Role:** \`$agent\`"
+    echo "- **Why:** $reason"
+    echo "- **Output:** $hint"
+    agent_written=1
+  fi
 
   if [ "$agent_written" -eq 0 ]; then
     echo "- No roadmap items currently have an autonomous PM-assistant action."

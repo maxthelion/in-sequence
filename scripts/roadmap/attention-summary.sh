@@ -68,10 +68,21 @@ while IFS= read -r dir; do
   status="$(frontmatter_value "$readme" "status" "unknown")"
   blocked_by="$(frontmatter_value "$readme" "blocked_by" "[]")"
   question_file="$dir/open-questions.md"
+  concerns_file="$dir/concerns.md"
 
   reason=""
   if [ -s "$question_file" ]; then
     reason="open questions"
+  elif [ -s "$concerns_file" ]; then
+    concern_status="$(frontmatter_value "$concerns_file" "status" "open")"
+    case "$concern_status" in
+      resolved|archived)
+        reason=""
+        ;;
+      *)
+        reason="open concerns"
+        ;;
+    esac
   elif [ "$status" = "blocked" ]; then
     reason="blocked"
   elif [ -n "$blocked_by" ] && [ "$blocked_by" != "[]" ]; then
@@ -85,7 +96,7 @@ while IFS= read -r dir; do
 done < <(roadmap_dirs)
 
 if [ "$attention_count" -eq 0 ]; then
-  echo "Roadmap attention: no blocked items or open questions."
+  echo "Roadmap attention: no blocked items, open questions, or open concerns."
 else
   echo "Roadmap attention: $attention_count item(s) need user input."
   printf '%b' "$rows"

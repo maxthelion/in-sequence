@@ -1,0 +1,65 @@
+{
+  "bundle": "pm-loop",
+  "version": "0.1.0",
+  "source_repo": "/Users/maxwilliams/dev/pm-loop",
+  "source_sha": "966eeaf5a8a8be83d4cccbcd60877caca94f605c",
+  "installed_at": "2026-05-03T11:06:32.300Z",
+  "files": [
+    {
+      "source": "scripts/next-roadmap-actions.sh",
+      "target": "scripts/roadmap/next-roadmap-actions.sh",
+      "hash": "40e8fec57a710cce15ce3ab69e0d8d220903a00dcc4944786f470c1645358704",
+      "mode": "0755"
+    },
+    {
+      "source": "scripts/capture-clarification.sh",
+      "target": "scripts/roadmap/capture-clarification.sh",
+      "hash": "d522f715bf0a29c93940670a0e0113d0b27ee011b3043f2a60888bf35e932574",
+      "mode": "0755"
+    },
+    {
+      "source": "scripts/capture-feedback.sh",
+      "target": "scripts/roadmap/capture-feedback.sh",
+      "hash": "b4a987071fec7fd55c2120183d82242eda8d88abd0fa67a8d7599ff9f725e408",
+      "mode": "0755"
+    },
+    {
+      "source": "scripts/attention-summary.sh",
+      "target": "scripts/roadmap/attention-summary.sh",
+      "hash": "c7954e4f9e6567775ced2f969cc4ba546e7e7d7e8806d8b909b07f98f0608f31",
+      "mode": "0755"
+    },
+    {
+      "source": "scripts/commit-roadmap-action.sh",
+      "target": "scripts/roadmap/commit-roadmap-action.sh",
+      "hash": "7c5e143512d5ef6c952128592ea8d0a742b4e159c0391333f0ba957e227eb601",
+      "mode": "0755"
+    },
+    {
+      "source": "scripts/promote-ready-item-to-worktree.sh",
+      "target": "scripts/roadmap/promote-ready-item-to-worktree.sh",
+      "hash": "5df6e516b78f072f06787ecb8cb70de1d8f5feb3595140072d9a68d05e684e2b",
+      "mode": "0755"
+    },
+    {
+      "source": "claude/agents/pm-assistant.md",
+      "target": ".claude/agents/pm-assistant.md",
+      "hash": "55cce1ecfaf1d174244fd10f9148b209eb82b0c9ac5c22a8b59f9d4869f67c30"
+    },
+    {
+      "source": "claude/skills/pm-next-action/SKILL.md",
+      "target": ".claude/skills/pm-next-action/SKILL.md",
+      "hash": "bd797ef9f16157f41d548869c541e929d24c6e31712c50ea8b8f6d55fbbc7f10"
+    },
+    {
+      "source": "docs/working-through-a-roadmap.md",
+      "target": "docs/working-through-a-roadmap.md",
+      "hash": "4cd41e15ce26a46fcd937bc81df1e68b1e980a0171dd6331b43627d3e148ff5d"
+    },
+    {
+      "source": "docs/html-prototype-guidelines.md",
+      "target": "docs/html-prototype-guidelines.md",
+      "hash": "ea5c0696165c0d4195449c5079f37486749df2e27bb94ea45cf66160b936b8f1"
+    }
+  ]
+}

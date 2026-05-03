@@ -37,12 +37,15 @@ Suggested layout:
 docs/roadmap/<feature-slug>/
   README.md
   artifacts.md
+  feedback/
+  concerns.md
   notes.md
   open-questions.md
   user-stories.md
   existing-state.md
   prototypes/
   ux-review.md
+  prototype-approval.md
   architecture.md
   architecture-review.md
   spec.md
@@ -69,6 +72,175 @@ updated: 2026-04-29
 
 Use integer IDs when discussing, blocking, or prioritising items. `blocked_by` should refer to item IDs, for example `[4, 5]`.
 
+### Feedback Queue
+
+Each feature directory should contain a `feedback/` directory. This is the inbox for user review comments, prototype concerns, architecture notes, and other feature-specific corrections that should be addressed by the PM assistant before the item advances.
+
+Use the deterministic helper when capturing feedback:
+
+```bash
+scripts/roadmap/capture-feedback.sh <item-id> <applies-to> "<raw feedback>"
+```
+
+`<applies-to>` should name the artifact or stage being reviewed, for example `prototypes`, `architecture`, `spec`, `plan`, or `general`.
+
+The helper writes a timestamped file:
+
+```text
+docs/roadmap/<feature-slug>/feedback/<timestamp>-<scope>-feedback.md
+```
+
+Feedback files use front matter:
+
+```yaml
+---
+status: new
+applies_to: prototypes
+created: 2026-04-30T09:00:00Z
+handled_by: null
+handled_in: []
+---
+```
+
+The PM assistant should treat any feedback file whose `status` is not `handled` or `archived` as unresolved. It should read the feedback, update the affected roadmap artifact, and then update the feedback front matter:
+
+```yaml
+status: handled
+handled_by: pm-assistant
+handled_in:
+  - docs/roadmap/<feature-slug>/ux-review.md
+```
+
+If the feedback cannot be applied without more user judgment, the PM assistant should create or update `open-questions.md`, mark the feature blocked, and then mark the feedback handled with `handled_in` pointing to the open questions. The point is not to make the PM assistant guess; it is to keep review comments auditable and routable.
+
+### Artefact Item Format
+
+Several artefacts (`concerns.md`, `open-questions.md`, `ux-review.md`,
+`architecture-review.md`, `feedback/*.md`) are read by humans one item at a
+time in the meta hub's triage queue. Write them so each item is **atomic**
+and references other artefacts using **wikilinks**.
+
+**Atomicity.** One item per concern, question, or review point. Each starts
+with a bold one-line title that summarises the decision. The body must
+include the facts a reader needs to decide it without browsing elsewhere.
+End with a *Suggested resolution* line pointing at the artefact where the
+decision will be recorded.
+
+**Wikilinks.** When an item refers to another artefact, use `[[type:id]]`
+syntax. The meta hub renders these as expandable chips that open the
+referenced fragment inline; the agent's job is to point at the right place,
+not to inline the whole referenced text.
+
+| Type | Resolves to | Example |
+|---|---|---|
+| `story:N` | `user-stories.md` story `### N.` | `[[story:3]]` |
+| `concern:N` | `concerns.md` numbered item N | `[[concern:1]]` |
+| `question:N` | `open-questions.md` `### N.` | `[[question:2]]` |
+| `prototype:slug` | `prototypes/slug.html` | `[[prototype:scene-perform-compact]]` |
+| `arch:slug` | `architecture.md` heading slug | `[[arch:data-model]]` |
+| `spec:slug` | `spec.md` heading slug | `[[spec:acceptance]]` |
+| `plan:N` | `plan.md` task N | `[[plan:2]]` |
+| `wiki:slug` | `wiki/pages/slug.md` | `[[wiki:document-model]]` |
+| `code:path:line` | source file pointer | `[[code:Sources/Engine/Fill.swift:42]]` |
+| `feedback:filename` | `feedback/filename.md` | `[[feedback:2026-04-30-prototypes]]` |
+| `feature:slug` | another roadmap feature | `[[feature:scene-perform]]` |
+
+Bare `[[Story 3]]` is sugar for `[[story:3]]`. Heading slugs are lowercase
+with non-word characters replaced by hyphens. Wikilinks are resolved against
+the current feature's directory unless an absolute reference is needed.
+
+The full agent contract for atomicity + wikilinks lives in
+`.claude/agents/pm-assistant.md`. Implementations of artefact templates
+(concerns, open-questions, ux-review, architecture-review) follow that
+format.
+
+If feedback invalidates a previous artifact, make that invalidation structured. Do not only add prose that says "redo this". For prototype feedback, revise `ux-review.md` front matter to:
+
+```yaml
+verdict: needs-rework
+redirect_to: build-prototypes
+```
+
+For architecture feedback, revise `architecture-review.md` front matter to:
+
+```yaml
+verdict: needs-rework
+redirect_to: write-architecture
+```
+
+This is the same contract used by adversarial review: a review artifact can reject or redirect the next stage, and the deterministic selector follows the front matter rather than trying to parse the body text. Downstream artifacts that were written from the invalidated assumption should remain on disk but be treated as advisory until the redirected stage and its review are complete. Add a short "Superseded / advisory" note to the downstream artifact when that will prevent future agents from relying on it as authoritative.
+
+### Concerns
+
+When a PM-assistant action returns `DONE_WITH_CONCERNS`, the concern must be durable, not only text in the loop report. The agent should write or update:
+
+```text
+docs/roadmap/<feature-slug>/concerns.md
+```
+
+Use front matter:
+
+```yaml
+---
+status: open
+raised_by: pm-assistant
+raised_during: draft-user-stories
+created: 2026-04-30T09:00:00Z
+resolved_in: []
+---
+```
+
+Open concerns are different from open questions:
+
+- Use `open-questions.md` and `status: blocked` when user input is required before any useful PM work can continue.
+- Use `concerns.md` when the artifact can be written, but a risk, unresolved implementation choice, or architecture boundary needs review before the item advances further.
+
+The selector treats `concerns.md` with any status other than `resolved` or `archived` as `review-concerns` in the user lane. This prevents the PM loop from silently rolling forward after `DONE_WITH_CONCERNS`.
+
+To clear the gate, update the front matter to:
+
+```yaml
+status: resolved
+resolved_in:
+  - docs/roadmap/<feature-slug>/architecture.md
+```
+
+or convert the concern into `open-questions.md` and mark the feature blocked.
+
+### Review Verdicts
+
+Review documents (`ux-review.md`, `architecture-review.md`) carry a verdict in
+their frontmatter so the deterministic selector knows whether to advance or
+route back to an earlier stage:
+
+```yaml
+---
+verdict: accepted | needs-rework | rejected
+redirect_to: build-prototypes        # only when needs-rework or rejected
+selected_prototype: <filename>        # only on ux-review.md when accepted
+---
+```
+
+How the selector reads it:
+
+- `accepted` (or no `verdict` field, for back-compat) → advance to the next
+  stage as if the review were simply present.
+- `needs-rework` → route back to `redirect_to` (defaults: `build-prototypes`
+  for `ux-review.md`, `write-architecture` for `architecture-review.md`).
+- `rejected` → same as `needs-rework`. The PM-assistant should also consider
+  whether to write `open-questions.md` rather than producing another round
+  in the same shape.
+
+The existing review document stays on disk as input for the next round —
+the rework agent reads it to know what was wrong. Do not delete previous
+reviews; the conversation about a feature is part of the feature directory.
+
+If the user wants to redirect *after* a review has been accepted (e.g. they
+read the spec next week and realise the prototype was wrong), they should
+use `scripts/roadmap/capture-feedback.sh` instead of editing the verdict.
+The selector's "unresolved feedback wins first" rule then routes the next
+agent pass through `address-feedback`.
+
 ### Status Values
 
 Use these `status` values consistently in feature `README.md` front matter:
@@ -93,11 +265,15 @@ The PM process should accumulate artifacts that can be handed to the implementat
 The important PM artifacts are:
 
 - `notes.md` and `intent.md` entries for raw user language.
+- `feedback/*.md` for review comments and corrections that need to be incorporated before the item advances.
+- `concerns.md` for durable `DONE_WITH_CONCERNS` output that needs review before the item advances.
 - `user-stories.md` for goals and acceptance signals.
 - `existing-state.md` for current model/UI/test reality.
-- `prototypes/` and `ux-review.md` for selected UX direction.
+- `prototypes/` for candidate UX directions.
+- `ux-review.md` for the PM assistant's pre-human prototype critique.
+- `prototype-approval.md` for the user's prototype decision before architecture/spec.
 - `architecture.md` for guardrails and invariants, grounded in code plus wiki/project guidelines.
-- `architecture-review.md` for the user's review of those guardrails before spec.
+- `architecture-review.md` for an adversarial review of those guardrails before spec.
 - `spec.md` for the buildable product contract.
 - `plan.md` for execution sequence.
 - `implementation-handoff.md` as the final index and ingestion packet for the build loop.
@@ -200,11 +376,13 @@ Prototype guidance:
 
 The user will provide feature-specific instructions for the prototype phase. HTML prototypes should follow `docs/html-prototype-guidelines.md`.
 
+Prototype work should not use `user-stories.md` alone. A prototype pass must read the feature's `notes.md`, `user-stories.md`, `existing-state.md`, unresolved or recently handled `feedback/*.md`, any `ux-review.md` that redirected to `build-prototypes`, and relevant screenshots or artifacts in the feature directory. If the selector routed to `build-prototypes` because of `verdict: needs-rework`, the new prototypes should explicitly address the review's critique rather than merely adding another visual variant.
+
 ### 5. Review Prototype UX
 
-Prototype review starts with the user. The selector should surface `review-prototypes` in the user lane whenever prototype artifacts exist and `ux-review.md` is missing.
+Prototype review is a PM-assistant behaviour. The selector should surface `review-prototypes` in the agent lane whenever prototype artifacts exist and `ux-review.md` is missing.
 
-The user should inspect the prototypes and give product feedback: what feels promising, what fails, what direction to keep, and what needs another pass. After that, the PM assistant can synthesize the feedback into `ux-review.md` using the checklist below.
+The PM assistant should inspect the prototypes against the user stories and give product feedback: what feels promising, what fails, what direction looks ready for the user, and what needs another pass. This is not the final human approval gate. It is a pre-flight critique intended to make the later user review quicker and more likely to succeed. The review should be adversarial enough to try the stated goals rather than only describing the screens. If the user later disagrees with the review, capture that correction with `scripts/roadmap/capture-feedback.sh <item-id> prototypes "<raw feedback>"`. The next PM-assistant pass will route to `address-feedback`, revise `ux-review.md`, and mark the feedback handled.
 
 Evaluate each prototype against a UX checklist before choosing a direction.
 
@@ -230,7 +408,38 @@ Record the review outcome:
 - Which prototype direction to keep.
 - Which details need another pass.
 
-### 6. Write Architecture Guardrails
+If the PM assistant accepts a direction, the selector routes the item to human review before architecture. The PM assistant should not treat `ux-review.md` as approval to write architecture or spec.
+
+### 6. Human Prototype Review
+
+Human prototype review is a user gate. The selector should surface `human-review-prototypes` in the user lane whenever `ux-review.md` exists and `prototype-approval.md` is missing or has an unrecognised status. If `prototype-approval.md` says `changes-requested` or `rejected`, the selector routes the item back to `build-prototypes` for the PM assistant instead.
+
+Use the PM assistant's `ux-review.md` as the prepared critique: it should tell the user what to inspect, what risks remain, and which prototype the agent thinks is strongest. The user's job is then to approve the direction or give feedback that sends the item back to prototype work.
+
+Record approval in:
+
+```text
+docs/roadmap/<feature-slug>/prototype-approval.md
+```
+
+Use front matter:
+
+```yaml
+---
+status: approved | changes-requested | rejected
+reviewed_by: user
+selected_prototype: <filename>
+created: 2026-04-30T09:00:00Z
+based_on:
+  - ux-review.md
+---
+```
+
+Use `status: approved` only when the selected prototype direction is good enough to inform architecture and spec. Use `changes-requested` or `rejected` when the prototype pass should be redone; include the concrete user feedback in the body, or capture it with `scripts/roadmap/capture-feedback.sh <item-id> prototypes "<raw feedback>"`.
+
+When `prototype-approval.md` has `status: changes-requested` or `status: rejected`, the selector routes back to `build-prototypes`. Existing architecture/spec artifacts should be treated as advisory until the prototype direction is approved again.
+
+### 7. Write Architecture Guardrails
 
 Before writing a build spec, pause to describe how the proposed feature should fit the application architecture.
 
@@ -240,10 +449,15 @@ Write `architecture.md` with:
 
 - The important application invariants the feature must preserve.
 - The lightweight data shape or runtime state model that should support the UX.
+- Small Mermaid diagrams that highlight any proposed data model changes, pipeline/data-flow changes, and component responsibility boundaries.
 - What should remain transient versus what should be persisted in the document.
 - How the feature should avoid broad document rewrites, duplicated code paths, or UI-only state becoming playback truth.
 - Any existing local patterns to follow, such as array-buffer style sequencer data structures, runtime snapshots, or small focused document deltas.
 - Concrete architecture questions that must be answered before spec.
+
+The diagrams should be explanatory, not decorative. Use them to show what is
+new, what changes, and what stays as-is so the user can parse the recommendation
+quickly before reading the detailed guardrails.
 
 The architecture pass must inspect the relevant production code and project guidelines before recommending a course of action. Start with:
 
@@ -260,18 +474,18 @@ Examples:
 - Step-sequencer features should fit the existing array-buffer style data structures instead of introducing unrelated document storage.
 - Large UX changes should identify the smallest document/runtime boundary they need rather than rewriting the project model around a view.
 
-Architecture guardrails are user-reviewable. The selector should surface `review-architecture` in the user lane whenever `architecture.md` exists and `architecture-review.md` is missing.
+Architecture guardrails are reviewable before spec. The selector should surface `review-architecture` in the agent lane whenever `architecture.md` exists and `architecture-review.md` is missing.
 
-The user should review:
+The PM assistant should review:
 
 - the proposed data/runtime shape;
 - what is transient versus persisted;
 - any guardrails that constrain the product direction;
 - unresolved architecture questions.
 
-After the user responds, capture the outcome in `architecture-review.md`. Do not write the spec until this review exists.
+The review should read like a recommendation to the user: what to accept, what to revise, what risks remain, and whether the feature may advance to spec. If the user later disagrees with the recommendation, capture that correction with `scripts/roadmap/capture-feedback.sh <item-id> architecture "<raw feedback>"`. The next PM-assistant pass will route to `address-feedback`, revise `architecture-review.md`, and mark the feedback handled. Do not write the spec until this review exists.
 
-### 7. Specify The Feature
+### 8. Specify The Feature
 
 Once a prototype direction is chosen, write the build specification.
 
@@ -287,7 +501,7 @@ The spec should include:
 
 Place the working spec and implementation plan in the feature directory. When a feature is ready for the main build queue, copy or promote stable versions into `docs/specs/` and `docs/plans/` if the broader automation flow needs them there.
 
-### 8. Promote To Build Loop
+### 9. Promote To Build Loop
 
 After the spec is agreed, promote the feature to the separate implementation loop. Roadmap PM work and product-building work should remain different loops with different permissions and different worktrees.
 
@@ -361,25 +575,33 @@ Each worker should return a concise handoff: files inspected or changed, conclus
 
 Use `scripts/roadmap/next-roadmap-actions.sh` to run a deterministic scan of the roadmap backlog.
 
-The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/roadmap/next-actions.md`. It does not build anything or dispatch agents. It emits separate "Next User Item" and "Next Agent Item" sections so user clarification can remain visible without blocking autonomous PM-assistant work. For each feature, deferred status wins first, then blocked metadata or open questions, otherwise it chooses the first missing planning artifact as the likely next project-management action:
+The script reads each `docs/roadmap/<feature-slug>/` directory and writes `docs/roadmap/next-actions.md`. It does not build anything or dispatch agents. It emits separate "Next User Item" and "Next Agent Item" sections so user clarification can remain visible without blocking autonomous PM-assistant work. For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then human prototype approval; otherwise it chooses the first missing planning artifact as the likely next project-management action:
 
 1. `status: deferred` -> deferred
-2. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
-3. `notes.md` -> clarify-feature
-4. `user-stories.md` -> draft-user-stories
-5. `existing-state.md` -> inspect-existing-state
-6. `prototypes/*` -> build-prototypes
-7. `ux-review.md` -> review-prototypes
-8. `architecture.md` -> write-architecture
-9. `architecture-review.md` -> review-architecture
-10. `spec.md` -> write-spec
-11. `plan.md` -> write-plan
-12. `implementation-handoff.md` -> write-implementation-handoff
-13. all present -> ready-for-build-queue
+2. unresolved `feedback/*.md` -> address-feedback
+3. open `concerns.md` -> review-concerns
+4. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+5. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
+6. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
+7. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
+8. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
+9. `notes.md` -> clarify-feature
+10. `user-stories.md` -> draft-user-stories
+11. `existing-state.md` -> inspect-existing-state
+12. `prototypes/*` -> build-prototypes
+13. `ux-review.md` -> review-prototypes
+14. `architecture.md` -> write-architecture
+15. `architecture-review.md` -> review-architecture
+16. `spec.md` -> write-spec
+17. `plan.md` -> write-plan
+18. `implementation-handoff.md` -> write-implementation-handoff
+19. all present -> ready-for-build-queue
 
-This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, and prototype review outcomes.
+This is intentionally experimental. The selector should become more nuanced as the roadmap directories accumulate real notes, blocked states, user priorities, feedback, concerns, and prototype review outcomes.
 
-Actions after `clarify-feature` are intended for `pm-assistant` unless the next action explicitly needs user input. `clarify-feature`, `blocked`, and `review-prototypes` remain direct conversations with the user.
+The global "Next Agent Item" is not purely backlog order. PM-assistant work is ranked so unresolved user feedback comes first, then review verdict rework (`needs-rework` or `rejected`), then normal review actions, then ordinary artifact creation. This keeps user review corrections from sitting behind unrelated planning work.
+
+Actions after `clarify-feature` are intended for `pm-assistant` unless the next action explicitly needs user input. `clarify-feature`, `blocked`, `review-concerns`, and `human-review-prototypes` remain direct conversations with the user. `review-prototypes`, `review-architecture`, and `address-feedback` are PM-assistant actions.
 
 ### End-Of-Response Attention Check
 
@@ -410,7 +632,7 @@ Its contract:
 - Execute exactly one item from the "Next Agent Item" section per wakeup.
 - Use `pm-assistant` rules for PM work.
 - Edit only `docs/roadmap/**`.
-- Stop instead of guessing when no "Next Agent Item" exists or when the action requires user input, including `review-prototypes`.
+- Stop instead of guessing when no "Next Agent Item" exists or when the action requires user input, including `review-concerns`.
 - Rerun `scripts/roadmap/next-roadmap-actions.sh` and `scripts/roadmap/attention-summary.sh` before reporting.
 - Commit completed roadmap actions with `scripts/roadmap/commit-roadmap-action.sh`.
 - Do not create a commit when the wakeup only refreshed `docs/roadmap/next-actions.md` or only discovered that user input is needed.

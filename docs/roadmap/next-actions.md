@@ -1,58 +1,60 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T11:05:30Z
-Repo HEAD: 5028731
+Generated: 2026-05-03T11:10:29Z
+Repo HEAD: d8fb8c8
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
 
 Each roadmap item has front matter in its feature `README.md`: `id`, `title`, `status`, `priority`, `blocked_by`, `stage`, `owner`, and `updated`.
 
-Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-concerns`, which requires user judgment. `clarify-feature`, `blocked`, and `review-concerns` require user input. `review-prototypes`, `review-architecture`, and `address-feedback` are PM-assistant actions. The global "Next Agent Item" prioritises unresolved feedback and review rework before ordinary artifact creation.
+Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-concerns` and `human-review-prototypes`, which require user judgment. `clarify-feature`, `blocked`, `review-concerns`, and `human-review-prototypes` require user input. `review-prototypes`, `review-architecture`, and `address-feedback` are PM-assistant actions. The global "Next Agent Item" prioritises unresolved feedback and review rework before ordinary artifact creation.
 
 ## Selector
 
-For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework; otherwise the first missing artifact wins:
+For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then human prototype approval; otherwise the first missing artifact wins:
 
 1. `status: deferred` -> deferred
 2. unresolved `feedback/*.md` -> address-feedback
 3. open `concerns.md` -> review-concerns
 4. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
 5. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
-6. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
-7. `notes.md` -> clarify-feature
-8. `user-stories.md` -> draft-user-stories
-9. `existing-state.md` -> inspect-existing-state
-10. `prototypes/*` -> build-prototypes
-11. `ux-review.md` -> review-prototypes
-12. `architecture.md` -> write-architecture
-13. `architecture-review.md` -> review-architecture
-14. `spec.md` -> write-spec
-15. `plan.md` -> write-plan
-16. `implementation-handoff.md` -> write-implementation-handoff
-17. all present -> ready-for-build-queue
+6. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
+7. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
+8. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
+9. `notes.md` -> clarify-feature
+10. `user-stories.md` -> draft-user-stories
+11. `existing-state.md` -> inspect-existing-state
+12. `prototypes/*` -> build-prototypes
+13. `ux-review.md` -> review-prototypes
+14. `architecture.md` -> write-architecture
+15. `architecture-review.md` -> review-architecture
+16. `spec.md` -> write-spec
+17. `plan.md` -> write-plan
+18. `implementation-handoff.md` -> write-implementation-handoff
+19. all present -> ready-for-build-queue
 
 ## Next User Item
 
-- **Item:** 4
-- **Feature:** Mixer Main Out
+- **Item:** 1
+- **Feature:** Clip History
 - **Priority:** `unset`
-- **Status:** `blocked`
-- **Action:** `blocked`
+- **Status:** `inventory`
+- **Action:** `human-review-prototypes`
 - **Role:** `user`
-- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Why:** `ux-review.md` exists, but human prototype approval is missing.
+- **Output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ## Next Agent Item
 
-- **Item:** 6
-- **Feature:** Send Effects
+- **Item:** 18
+- **Feature:** Toggle Fill On A Track To Hear It
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-architecture`
+- **Action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Why:** User stories exist, but `existing-state.md` is missing.
+- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ## Feature Actions
 
@@ -62,10 +64,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Planning artifacts are present.
-- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 2. Scene Perform
 
@@ -73,10 +75,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `ready-for-build`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Planning artifacts are present.
-- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 3. Step Sequencer
 
@@ -84,10 +86,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `ready-for-build`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Planning artifacts are present.
-- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 4. Mixer Main Out
 
@@ -117,10 +119,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 7. Input Audio
 
@@ -128,10 +130,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 8. MIDI Interfaces
 
@@ -139,10 +141,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Planning artifacts are present.
-- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 9. Modifier Chain Placement
 
@@ -150,10 +152,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 10. Phrase Features
 
@@ -161,10 +163,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 11. Song Mode And Phrase Looping
 
@@ -172,10 +174,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 12. Drum Parts As A Group
 
@@ -183,10 +185,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 13. Autoslice Algorithm
 
@@ -194,10 +196,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 14. Audio Looping
 
@@ -205,10 +207,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 15. Note Repeat
 
@@ -216,10 +218,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 16. Step Order
 
@@ -227,10 +229,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** UX review exists, but `architecture.md` is missing.
-- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 17. Fill A Clip From Current Generator
 
