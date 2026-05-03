@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T16:23:14Z
-Repo HEAD: 78e4c79
+Generated: 2026-05-03T16:27:20Z
+Repo HEAD: f7cbd02
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -37,25 +37,25 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next User Item
 
-- **Item:** 4
-- **Feature:** Mixer Main Out
+- **Item:** 3
+- **Feature:** Step Sequencer
 - **Priority:** `unset`
-- **Status:** `blocked`
-- **Action:** `blocked`
+- **Status:** `inventory`
+- **Action:** `human-review-prototypes`
 - **Role:** `user`
-- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Why:** `ux-review.md` exists, but human prototype approval is missing.
+- **Output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ## Next Agent Item
 
-- **Item:** 24
-- **Feature:** Track Perform Multi-Select And Latch
+- **Item:** 9
+- **Feature:** Modifier Chain Placement
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-prototypes`
+- **Action:** `write-architecture`
 - **Role:** `pm-assistant`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
+- **Why:** UX review exists, but `architecture.md` is missing.
+- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ## Feature Actions
 
@@ -84,13 +84,13 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 3. Step Sequencer
 
 - **Directory:** `docs/roadmap/step-sequencer/`
-- **Status:** `ready-for-build`
+- **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Feature is already marked `ready-for-build`/`ready-for-build`; PM artifacts have been handed off or are ready to hand off.
-- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 4. Mixer Main Out
 
@@ -318,10 +318,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 25. Selective Scene Inputs
 
