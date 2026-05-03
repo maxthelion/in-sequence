@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Wireframe] Scenes In Phrases - Inline Scene Strip Matrix</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f3f3f3; color: #202020; }
+  .banner { display: flex; justify-content: space-between; gap: 14px; padding: 10px 14px; background: #202020; color: #fff; font-size: 12px; }
+  .shell { padding: 18px; }
+  .chrome, .matrix-wrap, .phrase-card, .track-chip, .scene-strip, .detail, .stub, button { border: 1px solid #8f8f8f; }
+  .chrome, .matrix-wrap, .phrase-card, .detail { background: #fff; }
+  .chrome { padding: 14px; margin-bottom: 14px; }
+  .row, .toolbar, .scene-strip, .detail-head, .detail-grid, .bar-grid { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row { justify-content: space-between; margin-bottom: 12px; }
+  .toolbar { padding: 10px; background: #ededed; }
+  button, .track-chip { background: #fff; padding: 8px 10px; font-size: 12px; cursor: pointer; }
+  button.active, .chip-active { background: #202020; color: #fff; }
+  .stub { border-style: dashed; background: repeating-linear-gradient(-45deg, #ededed, #ededed 8px, #e5e5e5 8px, #e5e5e5 16px); color: #666; }
+  .matrix-wrap { padding: 10px; overflow: auto; }
+  .matrix { min-width: 1180px; display: grid; gap: 8px; }
+  .header, .phrase-row { display: grid; grid-template-columns: 220px repeat(8, 126px) 94px; gap: 8px; }
+  .header div { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #555; padding: 4px; }
+  .phrase-card { padding: 10px; }
+  .phrase-card.selected, .detail { background: #fafafa; border-color: #202020; }
+  .phrase-title { margin: 0 0 6px; font-size: 13px; }
+  .meta { font-size: 11px; color: #666; line-height: 1.45; }
+  .scene-strip { margin-top: 10px; padding: 8px; background: #f6f6f6; justify-content: space-between; align-items: stretch; }
+  .scene-part { flex: 1 1 0; display: grid; gap: 4px; }
+  .scene-part strong { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+  .track-chip { min-height: 88px; display: grid; align-content: start; gap: 6px; }
+  .track-chip.dimmed { background: #f4f4f4; color: #5f5f5f; }
+  .detail-row { display: none; }
+  .detail-row.active { display: block; }
+  .detail { margin: 0 102px 8px 228px; padding: 12px; }
+  .detail-grid { align-items: stretch; }
+  .detail-panel { flex: 1 1 220px; display: grid; gap: 8px; }
+  .bar-grid { display: grid; grid-template-columns: repeat(4, minmax(56px, 1fr)); gap: 8px; }
+  .bar-grid button { min-height: 56px; }
+  .action-stack { display: grid; gap: 6px; }
+  .footer { margin-top: 14px; padding: 12px; font-size: 12px; color: #555; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <strong>Scenes In Phrases / Variant 04 / Inline scene strip matrix</strong>
+    <span>Interaction budget: compare every phrase's scene intent first, then open one row for deeper automation editing.</span>
+  </div>
+  <div class="shell">
+    <section class="chrome">
+      <div class="row">
+        <div>
+          <div class="meta">Phrase Workspace</div>
+          <h1 style="margin: 4px 0 0; font-size: 20px;">Phrase Matrix</h1>
+        </div>
+        <div class="row">
+          <button class="stub">Layer &lt; Pattern &gt; 1 / 12</button>
+          <button id="tracksMode">Tracks</button>
+          <button id="scenesMode" class="active">Scenes</button>
+          <button id="pageToggle">Tracks 1 / 2</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <span class="track-chip" style="min-height: auto;">Strategic difference: every phrase keeps a compact scene strip visible.</span>
+        <span class="track-chip" style="min-height: auto;">Track cells remain present underneath, not replaced.</span>
+        <span class="track-chip stub" style="min-height: auto;">Scene library browser stays stubbed.</span>
+      </div>
+    </section>
+
+    <section class="matrix-wrap">
+      <div class="matrix">
+        <div class="header" id="headerRow"></div>
+        <div id="rows"></div>
+      </div>
+    </section>
+
+    <div class="footer stub">Stubbed lower region: transport bar, phrase cell editor sheet, and the existing track-layer editor path remain off-path in this prototype.</div>
+  </div>
+
+<script>
+const trackPages = [
+  ["Kick / Main", "Bass Mono", "Chord Gen", "Vox Chop", "Pad Bloom", "Hat Bus", "FX Noise", "Lead Mono"],
+  ["Perc Aux", "Sub Drone", "Arp FM", "Texture Tape", "Scene Cue", "FX Return", "Spare A", "Spare B"]
+];
+
+const phrases = [
+  {
+    id: "intro",
+    name: "01 Intro / Filter opens slowly",
+    bars: 4,
+    sceneA: "Warm Pad Bloom",
+    sceneB: "Drums Ghost Notes",
+    mode: "whole",
+    blend: "36% toward B",
+    barsData: ["18%", "28%", "36%", "36%"],
+    tracks: [["P01 low-pass", "Root hold", "sus2 pulse", "off", "air bed", "tight 8ths", "vinyl wash", "off"], ["ghost rim", "mono sub", "slow arp", "off", "cue only", "off", "stub", "stub"]]
+  },
+  {
+    id: "verse",
+    name: "02 Verse / Vox chop + bass hold",
+    bars: 4,
+    sceneA: "Bass Mono Lock",
+    sceneB: "Lead Grain Burst",
+    mode: "bars",
+    blend: "Per-bar curve",
+    barsData: ["A-heavy", "center", "70% B", "full B"],
+    tracks: [["P04 choke", "oct lock", "7sus stack", "slice 05", "pad gate", "shaker long", "noise duck", "P07 mono"], ["perc mute", "sub mute", "arp skip", "tape drop", "cue only", "fx send", "stub", "stub"]]
+  },
+  {
+    id: "bridge",
+    name: "03 Bridge / long title to test phrase squeeze",
+    bars: 8,
+    sceneA: "Scene with a deliberately overlong ambient label",
+    sceneB: "none yet",
+    mode: "whole",
+    blend: "0% hard A",
+    barsData: ["0%", "0%", "0%", "0%"],
+    tracks: [["P02 open hats", "pedal note", "minor cluster", "off", "long bloom", "triplet hats", "air rise", "counter line"], ["perc sparse", "sub pedal", "arp mute", "tape hiss", "cue only", "fx tail", "stub", "stub"]]
+  }
+];
+
+let state = { scenesMode: true, selectedPhrase: "verse", page: 0 };
+
+function renderHeader() {
+  const header = document.getElementById("headerRow");
+  header.innerHTML = `<div>Phrase</div>${trackPages[state.page].map((track) => `<div>${track}</div>`).join("")}<div>Actions</div>`;
+}
+
+function renderRows() {
+  const host = document.getElementById("rows");
+  host.innerHTML = "";
+
+  phrases.forEach((phrase) => {
+    const selected = phrase.id === state.selectedPhrase;
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      <div class="phrase-row">
+        <div class="phrase-card ${selected ? "selected" : ""}">
+          <button data-phrase="${phrase.id}" style="all: unset; display: block; width: 100%; cursor: pointer;">
+            <h2 class="phrase-title">${phrase.name}</h2>
+            <div class="meta">${phrase.bars} bars • phrase row still anchors selection</div>
+          </button>
+          ${state.scenesMode ? `
+          <div class="scene-strip">
+            <div class="scene-part">
+              <strong>Scene A</strong>
+              <span>${phrase.sceneA}</span>
+            </div>
+            <div class="scene-part">
+              <strong>Blend</strong>
+              <span>${phrase.blend}</span>
+            </div>
+            <div class="scene-part">
+              <strong>Scene B</strong>
+              <span>${phrase.sceneB}</span>
+            </div>
+          </div>` : `<div class="meta" style="margin-top: 10px;">Scene strip is hidden in Tracks mode.</div>`}
+        </div>
+        ${phrase.tracks[state.page].map((value, index) => `
+          <div class="track-chip ${selected && state.scenesMode ? "dimmed" : ""}">
+            <strong style="font-size: 11px; color: #666;">${trackPages[state.page][index]}</strong>
+            <span>${value}</span>
+            <span class="meta">Pattern-layer context remains visible.</span>
+          </div>
+        `).join("")}
+        <div class="action-stack">
+          <div class="track-chip" style="min-height: auto;">+ below</div>
+          <div class="track-chip" style="min-height: auto;">duplicate</div>
+          <div class="track-chip" style="min-height: auto;">delete</div>
+        </div>
+      </div>
+      <div class="detail-row ${selected && state.scenesMode ? "active" : ""}">
+        <div class="detail">
+          <div class="detail-head">
+            <strong style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;">Inline phrase scene detail</strong>
+            <span class="track-chip" style="min-height: auto;">Best for row-to-row comparison before opening detail</span>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-panel">
+              <button class="stub">Scene A -> ${phrase.sceneA} [library stub]</button>
+              <button class="stub">Scene B -> ${phrase.sceneB} [library stub]</button>
+              <div class="meta">This keeps scene choice attached to the phrase row rather than opening a new workspace.</div>
+            </div>
+            <div class="detail-panel">
+              <div class="row" style="justify-content: flex-start; margin: 0;">
+                <button data-mode="whole" class="${phrase.mode === "whole" ? "active" : ""}">Whole phrase</button>
+                <button data-mode="bars" class="${phrase.mode === "bars" ? "active" : ""}">Per bar</button>
+              </div>
+              <div class="bar-grid">
+                ${phrase.barsData.map((value, index) => `<button data-bar="${index}">Bar ${index + 1}<br>${value}</button>`).join("")}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    host.appendChild(wrapper);
+  });
+
+  document.querySelectorAll("[data-phrase]").forEach((button) => {
+    button.onclick = () => { state.selectedPhrase = button.dataset.phrase; render(); };
+  });
+
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.onclick = () => {
+      const phrase = phrases.find((entry) => entry.id === state.selectedPhrase);
+      phrase.mode = button.dataset.mode;
+      phrase.blend = phrase.mode === "whole" ? phrase.barsData[phrase.barsData.length - 1] : "Per-bar curve";
+      render();
+    };
+  });
+
+  document.querySelectorAll("[data-bar]").forEach((button) => {
+    button.onclick = () => {
+      const phrase = phrases.find((entry) => entry.id === state.selectedPhrase);
+      const index = Number(button.dataset.bar);
+      const values = ["0% A", "25%", "center", "70% B", "full B"];
+      const current = phrase.barsData[index];
+      const next = values[(values.indexOf(current) + 1 + values.length) % values.length] || values[0];
+      phrase.barsData[index] = next;
+      phrase.mode = "bars";
+      phrase.blend = "Per-bar curve";
+      render();
+    };
+  });
+}
+
+function render() {
+  document.getElementById("tracksMode").classList.toggle("active", !state.scenesMode);
+  document.getElementById("scenesMode").classList.toggle("active", state.scenesMode);
+  document.getElementById("pageToggle").textContent = `Tracks ${state.page + 1} / 2`;
+  renderHeader();
+  renderRows();
+}
+
+document.getElementById("tracksMode").onclick = () => { state.scenesMode = false; render(); };
+document.getElementById("scenesMode").onclick = () => { state.scenesMode = true; render(); };
+document.getElementById("pageToggle").onclick = () => { state.page = state.page === 0 ? 1 : 0; render(); };
+
+render();
+</script>
+</body>
+</html>

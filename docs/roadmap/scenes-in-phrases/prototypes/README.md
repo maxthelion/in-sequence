@@ -1,19 +1,31 @@
 # Scenes In Phrases Prototypes
 
-> Advisory: Superseded by [[feedback:20260503-153024-prototypes-feedback]]. The next prototype pass must extend the existing track-oriented Phrase Matrix shape: tracks across the top, phrases down the rows, phrase controls plus track paging, and scene authoring folded into that workspace. Do not treat the current files as the accepted direction.
+Current replacement pass:
 
-- `scene-matrix-inline.html`: keeps editing anchored in the phrase row by expanding an inline editor under the selected phrase.
-- `scene-matrix-drawer.html`: keeps the grid compact and moves detailed scene editing into a right-hand drawer.
+- `03-selected-phrase-scene-rail.html`: keeps the current Phrase Matrix shell intact and uses a selected-phrase scene rail beneath the row for detailed scene editing.
+- `04-inline-scene-strip-matrix.html`: keeps track cells visible while every phrase row gets a compact scene strip and the selected phrase expands inline for per-bar authoring.
 
-Both variants use the same adversarial fixture data:
+Archived comparison files:
 
+- `01-inline-bars-matrix.html`
+- `02-summary-row-detail-drawer.html`
+- `scene-matrix-inline.html`
+- `scene-matrix-drawer.html`
+
+Those files are historical context only. They were useful for exploring compact summaries and detail-edit affordances, but the active pass needed to preserve the real track-oriented Phrase Matrix instead of collapsing into a scene-only grid.
+
+Both current variants use the same adversarial fixture data:
+
+- track page `1 / 2`, so the user can see how scene authoring coexists with paging instead of replacing it;
 - long phrase titles;
+- mixed track types across the visible page;
 - long scene names;
 - a phrase with no B scene yet;
 - whole-phrase and per-bar crossfader modes.
 
 Review focus:
 
-- whether `Tracks / Scenes` mode-switching feels understandable inside the existing phrase matrix;
-- whether story 5 benefits more from inline action locality or from a denser, more scannable matrix;
-- whether the crossfader column reads clearly enough before opening deeper controls.
+- whether `Tracks / Scenes` mode-switching now feels like an extension of the current Phrase Matrix rather than a separate page;
+- whether scene detail belongs in a selected-phrase rail or in a per-row inline strip;
+- whether phrase rows expose enough scene intent while preserving track-cell comparison;
+- whether the interaction budget for static vs per-bar editing stays within two or three deliberate clicks.
