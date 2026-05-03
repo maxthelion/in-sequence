@@ -4,6 +4,8 @@ This directory keeps project-management artifacts for roadmap feature areas. Eac
 
 Raw user intent is preserved in [intent.md](intent.md).
 
+The cross-feature grouping and build-order view is [portfolio-plan.md](portfolio-plan.md).
+
 Backlog order:
 
 - **1** [Clip History](clip-history/)

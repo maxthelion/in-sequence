@@ -295,6 +295,37 @@ Use it to preserve the user's original words before translating them into:
 
 Append new dated entries as the roadmap discussion continues. Do not rewrite older raw input except to fix obvious transcription mistakes.
 
+### Portfolio Planning Pass
+
+Per-feature progress is not enough once several roadmap items are partially
+specified. The PM process should periodically run a portfolio-level pass that
+looks across feature directories and asks:
+
+- Which items touch the same UI surface, model boundary, runtime path, or source
+  files?
+- Which items should be built together, and which should be deliberately
+  serialized to avoid conflicting worktrees?
+- Which prototype-review requests are truly strategic, and which can be carried
+  forward as PM-assistant notes until the lane is next?
+- Which open questions block an entire lane rather than a single feature?
+- Which ready-for-build items should be promoted first?
+
+The pass writes or updates `docs/roadmap/portfolio-plan.md`. It does not replace
+per-feature artifacts; it tells the PM and build loops which artifacts should be
+treated as a group.
+
+Use a portfolio pass when:
+
+- there are many `human-review-prototypes` items at once;
+- the deterministic selector has no autonomous PM-assistant action but the
+  roadmap still has obvious movement available;
+- multiple ready-for-build items touch the same app surface;
+- the user asks "what should be built next?" or "what actually needs me?"
+
+Only bring the user decisions that block a lane, invalidate a prior direction,
+or materially change build order. Do not ask the user to review every prototype
+just because a per-feature selector can see it.
+
 ### 1. Clarify The Feature Problem
 
 Start by asking the user to briefly clarify what needs to be addressed for this feature.
