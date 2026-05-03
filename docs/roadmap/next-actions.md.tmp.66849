@@ -1,0 +1,38 @@
+# Roadmap Next Actions
+
+Generated: 2026-05-03T11:36:01Z
+Repo HEAD: a3bd630
+Branch:    codex/tracks-perform-scenes-workspace
+
+This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
+
+Each roadmap item has front matter in its feature `README.md`: `id`, `title`, `status`, `priority`, `blocked_by`, `stage`, `owner`, and `updated`.
+
+Planning actions after `clarify-feature` are intended for the `pm-assistant` role, except `review-concerns` and `human-review-prototypes`, which require user judgment. `clarify-feature`, `blocked`, `review-concerns`, and `human-review-prototypes` require user input. `review-prototypes`, `review-architecture`, and `address-feedback` are PM-assistant actions. The global "Next Agent Item" prioritises unresolved feedback and review rework before ordinary artifact creation.
+
+## Selector
+
+For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then human prototype approval; otherwise the first missing artifact wins:
+
+1. `status: deferred` -> deferred
+2. unresolved `feedback/*.md` -> address-feedback
+3. open `concerns.md` -> review-concerns
+4. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+5. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
+6. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
+7. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
+8. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
+9. `notes.md` -> clarify-feature
+10. `user-stories.md` -> draft-user-stories
+11. `existing-state.md` -> inspect-existing-state
+12. `prototypes/*` -> build-prototypes
+13. `ux-review.md` -> review-prototypes
+14. `architecture.md` -> write-architecture
+15. `architecture-review.md` -> review-architecture
+16. `spec.md` -> write-spec
+17. `plan.md` -> write-plan
+18. `implementation-handoff.md` -> write-implementation-handoff
+19. all present -> ready-for-build-queue
+
+## Next User Item
+

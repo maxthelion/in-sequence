@@ -1,0 +1,1 @@
+human-review-prototypes	user	1	Clip History	clip-history	inventory	unset	[]	`ux-review.md` exists, but human prototype approval is missing.	Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
