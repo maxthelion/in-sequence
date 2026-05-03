@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T10:23:00Z
-Repo HEAD: 4691129
+Generated: 2026-05-03T10:40:50Z
+Repo HEAD: 6056398
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -319,4 +319,15 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Role:** `user`
 - **Reason:** No `notes.md` yet.
 - **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+### 25. Selective Scene Inputs
+
+- **Directory:** `docs/roadmap/selective-scene-inputs/`
+- **Status:** `deferred`
+- **Priority:** `unset`
+- **Blocked by:** `[]`
+- **Next action:** `deferred`
+- **Role:** `pm`
+- **Reason:** Status is `deferred`; this item is intentionally skipped for now.
+- **Suggested output:** No action until the user reactivates this item.
 
