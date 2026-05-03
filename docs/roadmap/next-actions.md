@@ -1,6 +1,6 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T11:33:40Z
+Generated: 2026-05-03T11:36:01Z
 Repo HEAD: a3bd630
 Branch:    codex/tracks-perform-scenes-workspace
 
@@ -47,14 +47,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 18
-- **Feature:** Toggle Fill On A Track To Hear It
+- **Item:** 21
+- **Feature:** Observability From Application Logs
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-prototypes`
+- **Action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
+- **Why:** User stories exist, but `existing-state.md` is missing.
+- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ## Feature Actions
 
@@ -251,10 +251,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 19. Drum Kit Group View
 
