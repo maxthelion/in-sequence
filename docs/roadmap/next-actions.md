@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T16:18:15Z
-Repo HEAD: 712c335
+Generated: 2026-05-03T16:20:02Z
+Repo HEAD: b07523d
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -153,10 +153,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `human-review-prototypes`
-- **Role:** `user`
-- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
-- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Next action:** `write-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** UX review exists, but `architecture.md` is missing.
+- **Suggested output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
 
 ### 10. Phrase Features
 
