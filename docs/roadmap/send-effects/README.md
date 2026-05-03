@@ -5,14 +5,14 @@ status: inventory
 priority: unset
 blocked_by:
   []
-stage: review-architecture
+stage: write-spec
 owner: pm
-updated: 2026-04-30
+updated: 2026-05-03
 prototype_approval: prototype-approval.md
 ---
 
 # Send Effects
 
-Status: Inventory — architecture written, pending architecture review.
+Status: Inventory — architecture reviewed and ready for spec.
 
 The prior open questions are resolved in `decisions.md`.
