@@ -1,14 +1,22 @@
 ---
-verdict: accepted
-selected_prototype: 02-summary-row-detail-drawer.html
+verdict: needs-rework
+selected_prototype: null
+redirect_to: build-prototypes
 reviewed: 2026-05-03
 prototypes_reviewed:
   - prototypes/01-inline-bars-matrix.html
   - prototypes/02-summary-row-detail-drawer.html
-feedback_applied: []
+feedback_applied:
+  - feedback/20260503-153024-prototypes-feedback.md
 ---
 
 # Scenes In Phrases - UX Review
+
+> Superseded on 2026-05-03 by [[feedback:20260503-153024-prototypes-feedback]]. This review captured a coherent direction for the wrong frame: both prototypes treated the feature like a scene-specific page instead of an extension of the current track-oriented Phrase Matrix. Keep this document only as historical context until a replacement prototype pass lands.
+
+## Rework Trigger
+
+The next prototype pass must start from the existing Phrase Matrix shape described in [[wiki:information-architecture-ux]] and [[code:Sources/UI/PhraseWorkspaceView.swift:3]]: tracks across the top, phrases down the rows, existing phrase controls, and track paging preserved. Scenes-in-phrases needs to layer scene A / crossfader / scene B authoring into that matrix rather than moving the feature into a standalone scene workspace.
 
 ## What Works
 
@@ -67,11 +75,11 @@ The prototypes correctly focus on authoring, but they do not show when scene A/B
 
 ## Recommended Direction
 
-Accept `02-summary-row-detail-drawer.html` as the direction for architecture and spec work.
+Do not treat either current prototype as the direction for architecture and spec work.
 
-Keep `01-inline-bars-matrix.html` as a rejected-but-useful comparison. It proves the upper bound of in-row editing density, but it weakens the matrix's main job: scanning and comparing phrase intent quickly.
+The replacement prototype pass should preserve the existing Phrase Matrix shell and explore how scene authoring fits inside that track-oriented workspace. It can still reuse useful local ideas from the current files, especially compact summaries and a detail affordance for per-bar automation, but only after the layout is re-anchored to the real phrase page.
 
-The selected direction preserves the Phrase Matrix as a compact arrangement surface while still giving phrase-scoped scene automation a dedicated place to breathe.
+Keep the current files only as rejected-but-useful comparisons. They may still inform the interaction budget for summaries and detail editing, but they are not authoritative shapes for the feature anymore.
 
 ## Questions or Required Follow-up
 

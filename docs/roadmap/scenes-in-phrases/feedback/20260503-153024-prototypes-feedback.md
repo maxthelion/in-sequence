@@ -1,9 +1,12 @@
 ---
-status: new
+status: handled
 applies_to: prototypes
 created: 2026-05-03T15:30:24Z
-handled_by: null
-handled_in: []
+handled_by: pm-assistant
+handled_in:
+  - docs/roadmap/scenes-in-phrases/README.md
+  - docs/roadmap/scenes-in-phrases/prototypes/README.md
+  - docs/roadmap/scenes-in-phrases/ux-review.md
 ---
 
 # Scenes In Phrases Feedback

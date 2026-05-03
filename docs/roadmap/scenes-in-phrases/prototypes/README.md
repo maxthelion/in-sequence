@@ -1,5 +1,7 @@
 # Scenes In Phrases Prototypes
 
+> Advisory: Superseded by [[feedback:20260503-153024-prototypes-feedback]]. The next prototype pass must extend the existing track-oriented Phrase Matrix shape: tracks across the top, phrases down the rows, phrase controls plus track paging, and scene authoring folded into that workspace. Do not treat the current files as the accepted direction.
+
 - `scene-matrix-inline.html`: keeps editing anchored in the phrase row by expanding an inline editor under the selected phrase.
 - `scene-matrix-drawer.html`: keeps the grid compact and moves detailed scene editing into a right-hand drawer.
 
