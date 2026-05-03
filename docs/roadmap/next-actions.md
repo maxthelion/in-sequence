@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T16:36:48Z
-Repo HEAD: 0ad8bfd
+Generated: 2026-05-03T16:40:15Z
+Repo HEAD: f406e46
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -37,14 +37,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next User Item
 
-- **Item:** 3
-- **Feature:** Step Sequencer
+- **Item:** 4
+- **Feature:** Mixer Main Out
 - **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `human-review-prototypes`
+- **Status:** `blocked`
+- **Action:** `blocked`
 - **Role:** `user`
-- **Why:** `ux-review.md` exists, but human prototype approval is missing.
-- **Output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ## Next Agent Item
 
@@ -84,13 +84,13 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 3. Step Sequencer
 
 - **Directory:** `docs/roadmap/step-sequencer/`
-- **Status:** `inventory`
+- **Status:** `ready-for-build`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `human-review-prototypes`
-- **Role:** `user`
-- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
-- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Feature is already marked `ready-for-build`/`ready-for-build`; PM artifacts have been handed off or are ready to hand off.
+- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
 
 ### 4. Mixer Main Out
 

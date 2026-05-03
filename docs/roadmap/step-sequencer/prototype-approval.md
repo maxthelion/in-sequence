@@ -1,14 +1,15 @@
 ---
-status: pending
+status: approved
 created: 2026-05-03
+approved: 2026-05-03
 prototype: docs/roadmap/step-sequencer/prototypes/variant-d-rotary-layer-row.html
 comparison_prototype: docs/roadmap/step-sequencer/prototypes/variant-c-in-cell-drag.html
-reason: "User has not seen the C/D prototype pass; PM UX review must not stand in for human approval."
+reason: "User approves Variant D as an interesting direction; chord/slicer details can be refined during build."
 ---
 
 # Prototype Approval
 
-Human review is pending for the second Step Sequencer prototype pass.
+Variant D is approved for the second Step Sequencer prototype pass.
 
 ## Review Targets
 
@@ -19,5 +20,12 @@ Human review is pending for the second Step Sequencer prototype pass.
 
 The PM loop built variants C and D after user feedback rejected the original
 panel/popover approaches. The PM UX review accepted variant D, but the user has
-not reviewed C/D directly. This item should not be treated as build-ready until
-the user either approves variant D or requests another prototype pass.
+now reviewed it directly.
+
+## Approval Notes
+
+- Variant D is an interesting direction and is approved as the build direction.
+- The prototype is limited by not fully understanding the chord-generator and slicer UI.
+- Do not reopen the prototype loop just for those details.
+- During implementation, refine chord and slicer cell representations against the real model and UI constraints.
+- Preserve the core direction: the step cell remains the primary editing surface, and selected-step layer controls can appear above the grid.

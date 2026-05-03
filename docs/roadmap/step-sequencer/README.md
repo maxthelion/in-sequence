@@ -1,10 +1,10 @@
 ---
 id: 3
 title: Step Sequencer
-status: inventory
+status: ready-for-build
 priority: unset
 blocked_by: []
-stage: human-review-prototypes
+stage: ready-for-build
 owner: pm
 updated: 2026-05-03
 ux_review_archived: docs/roadmap/step-sequencer/ux-reviews/ux-review-2026-04-29.md
@@ -16,6 +16,6 @@ implementation_handoff: docs/roadmap/step-sequencer/implementation-handoff.md
 
 # Step Sequencer
 
-Status: Human review needed for the C/D prototype pass before this should be treated as ready for build.
+Status: Ready for build. Variant D is approved with a note that chord-generator and slicer details should be refined during implementation.
 
 Use this directory for Step sequencer notes, user stories, existing-state reports, prototypes, UX reviews, specs, and build plans.
