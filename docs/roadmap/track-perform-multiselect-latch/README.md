@@ -4,9 +4,9 @@ title: Track Perform Multi-Select And Latch
 status: inventory
 priority: unset
 blocked_by: []
-stage: clarify-feature
+stage: inspect-existing-state
 owner: pm
-updated: 2026-04-29
+updated: 2026-05-03
 ---
 
 # Track Perform Multi-Select And Latch

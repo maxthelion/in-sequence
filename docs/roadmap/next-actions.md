@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T15:21:43Z
-Repo HEAD: 11e425f
+Generated: 2026-05-03T15:24:18Z
+Repo HEAD: cf137e9
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -48,14 +48,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 22
-- **Feature:** Scenes In Phrases
+- **Item:** 24
+- **Feature:** Track Perform Multi-Select And Latch
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `review-prototypes`
+- **Action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
+- **Why:** User stories exist, but `existing-state.md` is missing.
+- **Output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ## Feature Actions
 
@@ -296,10 +296,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Next action:** `human-review-prototypes`
+- **Role:** `user`
+- **Reason:** `ux-review.md` exists, but human prototype approval is missing.
+- **Suggested output:** Review the prototypes with `ux-review.md` as the PM pre-flight critique. Write `prototype-approval.md` with `status: approved` or capture feedback for another prototype pass.
 
 ### 23. Phrase Cells
 
@@ -318,10 +318,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `draft-user-stories`
+- **Next action:** `inspect-existing-state`
 - **Role:** `pm-assistant`
-- **Reason:** `notes.md` exists, but `user-stories.md` is missing.
-- **Suggested output:** Run a background PM pass. Write `user-stories.md`, or create `open-questions.md` and mark the feature blocked if the notes are too thin.
+- **Reason:** User stories exist, but `existing-state.md` is missing.
+- **Suggested output:** Inspect code, docs, tests, screenshots, and prototypes; report model/UI gaps with file references.
 
 ### 25. Selective Scene Inputs
 
