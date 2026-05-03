@@ -1,190 +1,319 @@
-# Existing State
+# Scenes In Phrases — Existing State
 
-## Summary
+Inspected: 2026-05-03
 
-The codebase already has two strong halves of this feature, but they do not meet in the middle yet.
+---
 
-- The phrase system already supports phrase-owned values with `single`, `bars`, `steps`, and `curve` modes, and it compiles those values into playback-time buffers.
-- The scene system already supports a project-wide A/B scene selection plus a live crossfader in the Scenes workspace.
+## 1. Current Model Split
 
-What is missing is the bridge between them: there is no phrase-owned scene state, no scene-aware phrase matrix mode, no phrase value type for scene references, and no playback/compiler path that can drive master-bus scene selection from phrase progression.
+The codebase already has two strong but separate authored-state systems:
 
-## Existing Support
+- **Phrase-authored track state** lives in `Project.phrases` as `PhraseModel` plus `PhraseLayerDefinition` cells. This is what the Phrase Matrix edits today. See [[code:Sources/Document/Project.swift:4]], [[code:Sources/Document/PhraseModel.swift:3]], and [[wiki:document-model]].
+- **Scene/crossfader state** lives in `Project.masterBus` as `MasterBusState`, `MasterBusScene`, and `MasterBusABSelection`. This is what Scene Perform edits today. See [[code:Sources/Document/MasterBus.swift:3]] and [[wiki:information-architecture-ux]].
 
-### Phrase data model and timing
+Those systems do **not** currently join anywhere. A phrase does not point at scene A/B slots, and the master bus does not carry phrase-scoped automation.
 
-- `Project` already persists both `phrases` and a global `masterBus` side by side, but they are independent top-level domains: `[[code:Sources/Document/Project.swift:16]]`, `[[code:Sources/Document/Project.swift:20]]`.
-- `PhraseModel` already stores phrase-local timing and authored cell data through `lengthBars`, `stepsPerBar`, and `cells`: `[[code:Sources/Document/PhraseModel.swift:6]]`, `[[code:Sources/Document/PhraseModel.swift:8]]`.
-- Phrase cells already support multiple authoring modes:
-  - one value for the whole phrase via `.single`
-  - one value per bar via `.bars`
-  - one value per step via `.steps`
-  - scalar automation via `.curve`
-  References: `[[code:Sources/Document/PhraseModel.swift:365]]`, `[[code:Sources/Document/PhraseModel.swift:387]]`.
-- Phrase resolution already understands per-bar and per-step playback lookup through `resolvedValue(for:trackID:stepIndex:)`: `[[code:Sources/Document/PhraseModel.swift:82]]`.
+### PhraseModel
 
-This is the strongest existing foundation for story 2 and story 3. The app already knows how to store phrase-wide and per-bar authored values; it just only does so for track-layer data today.
+`PhraseModel` stores:
 
-### Phrase matrix UI
+- `id`
+- `name`
+- `lengthBars`
+- `stepsPerBar`
+- `cells: [PhraseCellAssignment]`
 
-- `PhraseWorkspaceView` is the current phrase editor and presents a single `"Phrase Matrix"` surface: `[[code:Sources/UI/PhraseWorkspaceView.swift:68]]`.
-- The workspace is built around a selected phrase layer, not around multiple phrase modes. The top bar cycles through layers and pages tracks, but there is no `Tracks / Scenes` mode switch anywhere in the view state or layout: `[[code:Sources/UI/PhraseWorkspaceView.swift:8]]`, `[[code:Sources/UI/PhraseWorkspaceView.swift:113]]`.
-- The current matrix is track-first:
-  - rows are phrases
-  - visible columns are tracks
-  - the active interpretation comes from `selectedLayer`
-  References: `[[code:Sources/UI/PhraseWorkspaceView.swift:18]]`, `[[code:Sources/UI/PhraseWorkspaceView.swift:24]]`, `[[code:Sources/UI/PhraseWorkspaceView.swift:256]]`.
-- Phrase cell editing already routes through `setPhraseCell` and phrase selection changes, so there is an established mutation path for phrase-owned authored state: `[[code:Sources/UI/PhraseWorkspaceView.swift:225]]`, `[[code:Sources/App/SequencerDocumentSession+Mutations.swift:466]]`.
+Each cell is keyed by `(trackID, layerID)`. The built-in layer set is track-oriented:
 
-### Current phrase-layer types
+- pattern
+- mute
+- volume
+- transpose
+- intensity
+- density
+- tension
+- register
+- variance
+- brightness
+- fill
+- swing
 
-- Built-in phrase layers today are all track-oriented: pattern, mute, and macro-style scalar/boolean values like volume, transpose, fill, and swing: `[[code:Sources/Document/PhraseModel.swift:227]]`.
-- The only built-in indexed choice is the pattern layer (`.patternIndex`): `[[code:Sources/Document/PhraseModel.swift:229]]`, `[[code:Sources/Document/PhraseModel.swift:347]]`.
-- `PhraseLayerTarget` has cases for pattern selection, mute, macro rows, block params, voice-route overrides, and per-track macro params. It has no case for scene A, scene B, or phrase-owned crossfader behavior: `[[code:Sources/Document/PhraseModel.swift:347]]`.
-- `PhraseCellValue` only supports `.bool`, `.scalar`, and `.index`: `[[code:Sources/Document/PhraseModel.swift:419]]`.
+There is no built-in layer for:
 
-This means the phrase engine can already represent a crossfader-like scalar, but it cannot represent a stable scene reference without introducing either a new value type or a new normalization strategy for scene identity.
+- scene A selection
+- scene B selection
+- crossfader mode
+- phrase-level scene summary
 
-### Playback compilation
+See [[code:Sources/Document/PhraseModel.swift:3]] and [[code:Sources/Document/PhraseModel.swift:122]].
 
-- Phrase-authored data is compiled into `PhrasePlaybackBuffer`, which currently carries exactly four track-scoped outputs:
-  - `patternSlotIndex`
-  - `mute`
-  - `fillEnabled`
-  - `macroValues`
-  References: `[[code:Sources/Engine/PhrasePlaybackBuffer.swift:3]]`, `[[code:Sources/Engine/PhrasePlaybackBuffer.swift:10]]`.
-- `SequencerSnapshotCompiler.compilePhraseBuffer` resolves phrase state only into those four outputs: `[[code:Sources/Engine/SequencerSnapshotCompiler.swift:291]]`, `[[code:Sources/Engine/SequencerSnapshotCompiler.swift:317]]`, `[[code:Sources/Engine/SequencerSnapshotCompiler.swift:334]]`, `[[code:Sources/Engine/SequencerSnapshotCompiler.swift:343]]`, `[[code:Sources/Engine/SequencerSnapshotCompiler.swift:352]]`.
-- The live store also treats `masterBus` as a separate resident field from phrases and phrase order: `[[code:Sources/Engine/LiveSequencerStore.swift:107]]`, `[[code:Sources/Engine/LiveSequencerStore.swift:116]]`, `[[code:Sources/Engine/LiveSequencerStore.swift:131]]`.
+### MasterBusState
 
-So phrase changes already trigger a snapshot/compiler path, but that path does not emit any scene-related playback intent.
+`MasterBusState` already models the live scene system:
 
-### Existing scene system
+- `scenes: [MasterBusScene]`
+- `activeSceneID`
+- `abSelection: MasterBusABSelection?`
 
-- `MasterBusState` already persists the project-wide scene library plus a global A/B selection with one persisted crossfader value: `[[code:Sources/Document/MasterBus.swift:3]]`, `[[code:Sources/Document/MasterBus.swift:6]]`, `[[code:Sources/Document/MasterBus.swift:682]]`.
-- `MasterBusPerformanceOverlayState` already adds a non-persisted live `crossfaderOverride` on top of authored state: `[[code:Sources/Document/MasterBus.swift:631]]`.
-- `ScenesWorkspaceView` already has a dedicated scene workspace with `browseEdit` and `perform` modes, completely separate from the phrase workspace: `[[code:Sources/UI/Mixer/ScenesWorkspaceView.swift:32]]`, `[[code:Sources/UI/Mixer/ScenesWorkspaceView.swift:69]]`.
-- The current perform UI already exposes:
-  - slot A / slot B selection
-  - a live crossfader
-  - scene macro overrides
-  References: `[[code:Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift:5]]`, `[[code:Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift:28]]`, `[[code:Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift:74]]`.
+`MasterBusABSelection` stores:
 
-This is important for scope: the product already distinguishes live scene performance from phrase authoring. `Scenes In Phrases` should reuse the same scene concept, but it should not collapse phrase authoring into the existing perform pane.
+- `sceneAID: UUID`
+- `sceneBID: UUID`
+- `crossfader: Double` in `0...1`
 
-## Divergence From Target UX
+This is persisted, normalized, and round-tripped in the document, but it is **global project state**, not phrase-owned state. See [[code:Sources/Document/MasterBus.swift:3]] and [[code:Sources/Document/MasterBus.swift:685]].
 
-### 1. No `Tracks / Scenes` phrase-matrix mode
+### Important data-model consequence
 
-- The current phrase workspace exposes only one matrix concept, driven by selected layer and track paging: `[[code:Sources/UI/PhraseWorkspaceView.swift:113]]`.
-- There is no state for a second phrase-matrix mode and no three-column layout for `A / crossfader / B`.
+The phrase system can already store **scalar values per bar** (`PhraseCell.bars`) and resolve them deterministically across playback steps. That shape fits Story 3's bar-by-bar crossfader curve. But the scene system identifies scenes by **UUID**, and phrase cells currently only encode `bool`, `scalar`, or `index`-style values. There is no existing phrase-layer target that can point at `MasterBusScene.id`.
 
-### 2. No phrase-owned scene A / scene B assignments
+This means:
 
-- Phrase state today is stored per `(trackID, layerID)` cell assignment: `[[code:Sources/Document/PhraseModel.swift:359]]`.
-- There is no phrase-scoped field for `sceneAID` or `sceneBID`, and no `PhraseLayerTarget` that points at master-bus scene slots: `[[code:Sources/Document/PhraseModel.swift:347]]`.
-- The only existing A/B slot assignment lives globally on `MasterBusABSelection`, not on each phrase: `[[code:Sources/Document/MasterBus.swift:682]]`.
+- per-bar crossfader values are structurally close to the existing phrase model;
+- phrase-owned scene A/B selection is **not** close to an existing layer target and would need new modeling.
 
-### 3. No phrase-authored crossfader stream
+---
 
-- A static or per-bar crossfader could conceptually fit the existing scalar phrase-cell machinery, but there is currently no layer target that would make such a scalar mean "master-bus crossfader for this phrase": `[[code:Sources/Document/PhraseModel.swift:319]]`, `[[code:Sources/Document/PhraseModel.swift:347]]`.
-- The only current crossfader write paths are live/global scene APIs in the scene workspace or session master-bus mutations: `[[code:Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift:35]]`, `[[code:Sources/App/SequencerDocumentSession+Mutations.swift:243]]`, `[[code:Sources/App/SequencerDocumentSession+Mutations.swift:354]]`.
+## 2. Playback And Runtime Reality
 
-### 4. No playback path from phrase progression into master-bus scenes
+### PlaybackSnapshot only carries phrase/track playback data
 
-- Phrase compilation produces track playback buffers only; nothing in `PhrasePlaybackBuffer` or `SequencerSnapshotCompiler` describes scene-slot changes or phrase-authored crossfader playback: `[[code:Sources/Engine/PhrasePlaybackBuffer.swift:3]]`, `[[code:Sources/Engine/SequencerSnapshotCompiler.swift:291]]`.
-- `selectedPhraseID` exists, but switching or advancing phrases currently affects phrase buffer lookup, not scene A/B selection on the master bus: `[[code:Sources/Engine/SequencerSnapshotCompiler.swift:25]]`, `[[code:Sources/Engine/LiveSequencerStore.swift:138]]`.
+`PlaybackSnapshot` contains:
 
-### 5. No phrase-row summary for scene intent
+- `selectedPhraseID`
+- track order and programs
+- clip buffers
+- `phraseBuffersByID`
 
-- Current phrase previews and tests focus on pattern, mute, and scalar track-layer renderings: `[[code:Tests/SequencerAITests/PhraseCellPreviewTests.swift:19]]`, `[[code:Tests/SequencerAITests/PhraseCellPreviewTests.swift:28]]`, `[[code:Tests/SequencerAITests/PhraseCellPreviewTests.swift:42]]`, `[[code:Tests/SequencerAITests/PhraseCellPreviewTests.swift:81]]`.
-- There is no existing row preview language for "Scene A / blend / Scene B" in the phrase matrix.
+It does **not** include:
 
-## Model And Architecture Gaps
+- `MasterBusState`
+- scene A/B IDs per phrase
+- crossfader mode per phrase
+- any phrase-triggered master-bus event stream
 
-### Scene identity does not fit the current phrase value model
+See [[code:Sources/Engine/PlaybackSnapshot.swift:10]].
 
-The current phrase value model is numeric/boolean only: `[[code:Sources/Document/PhraseModel.swift:419]]`. That is enough for:
+### SequencerSnapshotCompiler compiles phrase data, not scene data
 
-- crossfader amount as a scalar
-- mode toggles as booleans
-- pattern-slot indexes as small integers
+`SequencerSnapshotCompiler` compiles `PhrasePlaybackBuffer` by resolving track-oriented phrase layers into:
 
-It is not enough for durable scene references, because scenes are identified by `UUID` in `MasterBusState`, not by stable dense indexes: `[[code:Sources/Document/MasterBus.swift:4]]`, `[[code:Sources/Document/MasterBus.swift:36]]`.
+- pattern slot index
+- mute
+- fill
+- macro values
 
-That leaves an architectural choice for later PM/spec work:
+No part of compilation reads `Project.masterBus` or writes master-bus automation into the snapshot. See [[code:Sources/Engine/SequencerSnapshotCompiler.swift:12]] and [[code:Sources/Engine/PhrasePlaybackBuffer.swift:3]].
 
-- add a new phrase value kind for scene references, or
-- introduce a scene-index layer with explicit normalization and migration rules when scenes are added, removed, or reordered.
+### Master bus updates travel on a separate path
 
-### Phrase state is track-scoped, but scene assignment is phrase-scoped
+`SequencerDocumentSession` treats phrase edits and master-bus edits as different mutation families:
 
-`PhraseCellAssignment` is keyed by `(trackID, layerID)`: `[[code:Sources/Document/PhraseModel.swift:359]]`. The requested scene mode is different:
+- `setPhraseCell(...)` mutates a phrase and republishes playback snapshot data.
+- `setMasterABMode(...)` and `setMasterCrossfader(...)` mutate `MasterBusState` and dispatch a scoped runtime master-bus update.
 
-- scene A and scene B belong to the phrase row as a whole
-- they are not track-specific values
+There is no existing mutation that says "when playback enters phrase X, recall these scene slots and this crossfader state." See [[code:Sources/App/SequencerDocumentSession+Mutations.swift:354]] and [[code:Sources/App/SequencerDocumentSession+Mutations.swift:360]].
 
-That mismatch means the current storage shape is awkward for `Scenes In Phrases`. Reusing the existing phrase cell table as-is would force fake track ownership for data that is conceptually phrase-global.
+### Scene Perform overlay is intentionally live and non-persisted
 
-### Phrase playback buffers are track-oriented only
+`EngineController` owns `masterBusPerformanceOverlay`, which carries:
 
-`TrackPhrasePlaybackBuffer` currently models only per-track pattern/mute/fill/macro outputs: `[[code:Sources/Engine/PhrasePlaybackBuffer.swift:3]]`.
+- per-scene macro overrides
+- `crossfaderOverride`
 
-If this feature wants authored scenes to affect playback automatically, the playback layer needs a new phrase-global representation for:
+This overlay is meant for live performance gestures. It shadows the authored document state until the user explicitly saves. See [[code:Sources/Engine/EngineController.swift:476]] and [[code:Sources/Document/MasterBus.swift:631]].
 
-- selected scene A
-- selected scene B
-- authored crossfader behavior
+That is the opposite of this roadmap item's goal. Stories 1 to 3 want phrase-authored, repeatable recall. The current perform overlay is transient and user-driven.
 
-without conflating those with track playback state.
+### Existing phrase playback awareness stops at UI highlighting
 
-### The existing live scene overlay is runtime-only
+`PhraseWorkspaceView` and `LiveWorkspaceView` already derive a `playbackPhraseIndex` by walking phrase bar lengths against `engineController.transportTickIndex`. That logic is used to understand which phrase is currently playing, but it does not trigger any master-bus state transition. See [[code:Sources/UI/PhraseWorkspaceView.swift:36]] and [[code:Sources/UI/LiveWorkspaceView.swift:46]].
 
-`MasterBusPerformanceOverlayState.crossfaderOverride` is explicitly ephemeral live state: `[[code:Sources/Document/MasterBus.swift:631]]`. It is useful for live Scene Perform, but it is the wrong authority for authored phrase data because:
+---
 
-- it is not persisted as part of phrases
-- it is not keyed by phrase
-- it is cleared as a live overlay, not recalled as a phrase program
+## 3. Current UI Structure
 
-So the current live-scene implementation is reusable as UX precedent, not as the data model for phrase-authored scenes.
+### Phrase Matrix is track/layer editing only
 
-## Test Coverage
+`PhraseWorkspaceView` is a single matrix:
 
-## Existing coverage
+- phrase rows
+- track columns
+- one selected layer at a time
+- track pagination
 
-- Phrase-cell preview tests cover boolean, scalar, and pattern-index rendering behavior only: `[[code:Tests/SequencerAITests/PhraseCellPreviewTests.swift:19]]`, `[[code:Tests/SequencerAITests/PhraseCellPreviewTests.swift:56]]`, `[[code:Tests/SequencerAITests/PhraseCellPreviewTests.swift:81]]`.
-- Incremental compiler tests verify that phrase-layer changes round-trip through the current phrase buffer model: `[[code:Tests/SequencerAITests/Engine/IncrementalCompileEquivalenceTests.swift:36]]`.
-- Incremental selection tests verify that changing `selectedPhraseID` can reuse existing phrase buffers, which confirms the current system treats phrase selection as pointer-switching rather than as scene-program recompilation: `[[code:Tests/SequencerAITests/Engine/IncrementalCompileEquivalenceTests.swift:101]]`.
-- Hot-path isolation tests verify that phrase-layer edits publish snapshots without broad engine reapply: `[[code:Tests/SequencerAITests/Engine/EngineHotPathIsolationTests.swift:87]]`.
-- Master-bus tests already cover A/B normalization and crossfader behavior separately from phrase playback: `[[code:Tests/SequencerAITests/Document/MasterBusStateTests.swift:163]]`, `[[code:Tests/SequencerAITests/Audio/MasterBusHostTests.swift:82]]`.
+The top bar lets the user cycle layers and track pages. There is no mode toggle for `Tracks` versus `Scenes`, and no phrase-row summary for scene A / crossfader / scene B. See [[code:Sources/UI/PhraseWorkspaceView.swift:3]] and [[wiki:information-architecture-ux]].
 
-## Missing coverage
+### Scenes are edited in a separate workspace
 
-- No tests cover phrase-owned scene references.
-- No tests cover phrase-authored crossfader playback over bars.
-- No tests cover a phrase workspace mode switch between track editing and scene editing.
-- No tests cover any interaction between phrase progression and master-bus scene state.
-- No tests cover how scene references should behave when scenes are deleted, duplicated, or reordered.
+`ScenesWorkspaceView` has its own segmented mode switch:
 
-## Prototype And Spec Implications
+- `.browseEdit`
+- `.perform`
 
-The next roadmap stages should treat this feature as a join between two existing systems, not as a greenfield invention.
+Scene slot assignment and the crossfader live there, not in the phrase matrix. `ScenesWorkspaceView+Perform.swift` renders:
 
-Prototype work should answer:
+- a global crossfader
+- Slot A scene card
+- Slot B scene card
+- slot-picker sheets that directly rewrite `MasterBusABSelection`
 
-- how the phrase matrix switches between `Tracks` and `Scenes` without confusing the user about which data they are editing
-- how a phrase row shows scene identity compactly when scene names vary in length
-- whether the crossfader column in scene mode should support only whole-phrase and per-bar authoring in v1, even though the core phrase model also supports per-step and curve modes for scalars
+See [[code:Sources/UI/Mixer/ScenesWorkspaceView.swift:26]] and [[code:Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift:3]].
 
-Architecture/spec work should answer:
+### Information architecture already treats these as different homes
 
-- whether phrase-authored scene A/B values are stored as UUID references or normalized scene indexes
-- whether phrase-authored scene data lives in the existing phrase cell system or in a separate phrase-global scene payload
-- how playback applies authored scene changes at phrase boundaries without fighting the live Scene Perform overlay
+The UX guidance in [[wiki:information-architecture-ux]] is explicit:
 
-## Bottom Line
+- Phrase Matrix owns phrase rows, track columns, and phrase-level authoring.
+- Scene Perform owns scene A/B selection and crossfader state.
 
-The codebase is ready for this feature at the UX and planning level, but not yet at the data-contract level.
+This roadmap item is therefore not a small view tweak. It intentionally asks those two homes to meet at a new boundary: phrase-authored scene behavior inside the phrase workspace.
 
-- The phrase editor already knows how to author values over phrase time.
-- The scene system already knows how to store and perform A/B scenes.
-- The missing work is the integration contract that says how a phrase owns scene A, scene B, and crossfader behavior, and how that authored state flows into playback and the matrix UI.
+---
+
+## 4. Story-By-Story Gap Analysis
+
+### Story 1 — Assign scene slots per phrase
+
+**What exists**
+
+- Global A/B slots already exist in `MasterBusABSelection`.
+- Scene library and slot pickers already exist in `ScenesWorkspaceView`.
+
+**What is missing**
+
+- No phrase field stores scene A or scene B.
+- No phrase layer target can reference a scene UUID.
+- No phrase row shows or edits scene assignments.
+
+**Gap type:** model + UI + runtime wiring.
+
+### Story 2 — Set one crossfader value for a full phrase
+
+**What exists**
+
+- A persisted crossfader value already exists as `MasterBusABSelection.crossfader`.
+- Phrase cells already support a single scalar value for an entire phrase.
+
+**What is missing**
+
+- The crossfader value is global, not phrase-owned.
+- No phrase layer targets the master-bus crossfader.
+- Playback does not recall a phrase-authored crossfader on phrase entry.
+
+**Gap type:** mainly model ownership + runtime wiring.
+
+### Story 3 — Author per-bar scene blend changes
+
+**What exists**
+
+- `PhraseModel.resolvedValue(...)` already supports `.bars` values, indexed by `stepsPerBar`.
+- Phrase timing (`lengthBars`, `stepsPerBar`) already gives the right bar-alignment primitive.
+
+**What is missing**
+
+- No scene-crossfader phrase layer exists.
+- No runtime path applies bar-by-bar crossfader changes to the master bus as transport advances.
+- No UI surface in the phrase matrix shows a per-bar scene-automation cell.
+
+**Gap type:** runtime + UI, with partial model reuse available.
+
+### Story 4 — Toggle the phrase view between Tracks and Scenes
+
+**What exists**
+
+- Phrase Matrix already has a strong row/column scaffold.
+- ScenesWorkspace already has scene-specific controls and terminology.
+
+**What is missing**
+
+- No `Tracks | Scenes` toggle in `PhraseWorkspaceView`.
+- No alternate scene-oriented column set.
+- No shared component between the two workspaces for scene slot display or crossfader summaries.
+
+**Gap type:** UI / information architecture.
+
+### Story 5 — Read scene intent quickly from the phrase row
+
+**What exists**
+
+- Scene names are available from `MasterBusScene.name`.
+- Crossfader values are already rendered in Scene Perform as a percentage.
+
+**What is missing**
+
+- Phrase rows have no scene summary at all.
+- Adjacent phrase comparison is only possible for track-layer cells today.
+- There is no compact representation for "static value" versus "per-bar automation" in the phrase matrix.
+
+**Gap type:** UI, plus a small representation/model contract for automation mode.
+
+---
+
+## 5. Architecture Constraints
+
+### 1. Phrase layers currently target track playback, not master-bus state
+
+The phrase compiler writes per-track playback buffers. A scene-in-phrases feature either needs:
+
+- new phrase-layer targets that can drive master-bus state, or
+- a parallel phrase-owned scene structure outside the existing layer system.
+
+Reusing the current phrase layer pipeline for crossfader values is plausible. Reusing it for scene UUID selection is much less straightforward.
+
+### 2. Scene IDs are UUID-based, not stable ordinal slots
+
+`MasterBusScene` identity is `UUID`. That is good for persistence, but it means any phrase-authored scene reference must decide whether it stores:
+
+- the actual scene UUIDs, or
+- a transient positional index into the current scene list
+
+The current codebase strongly favors UUID identity. A position-based shortcut would be fragile when scenes are duplicated, removed, or reordered later.
+
+### 3. Phrase entry has no existing "recall master bus state" hook
+
+The transport loop already knows which phrase is playing, but no engine path converts phrase boundaries into master-bus document updates or performance-overlay changes. This hook would need to be introduced carefully so playback truth stays deterministic and UI state does not fork from audio state.
+
+### 4. Live overlay and authored phrase state must stay distinct
+
+The current scene overlay is intentionally ephemeral. Phrase-authored scene recall should not accidentally be implemented by mutating the live overlay and calling it "saved," or by overwriting the global authored A/B state in a way that destroys the user's live Scene Perform context.
+
+---
+
+## 6. Tests And Coverage
+
+### What is covered today
+
+- `MasterBusStateTests` cover scene normalization, A/B selection normalization, and crossfader persistence. See [[code:Tests/SequencerAITests/Document/MasterBusStateTests.swift:4]].
+- `SequencerDocumentSessionMasterBusTests` cover scoped master-bus mutations and live overlay save-back. See [[code:Tests/SequencerAITests/App/SequencerDocumentSessionMasterBusTests.swift:6]].
+- `MasterBusHostTests` cover equal-power crossfade math and live crossfader override behavior. See [[code:Tests/SequencerAITests/Audio/MasterBusHostTests.swift:5]].
+- `SequencerSnapshotCompilerSemanticsTests` and related engine tests cover phrase-buffer semantics for track playback layers. See [[code:Tests/SequencerAITests/Engine/SequencerSnapshotCompilerSemanticsTests.swift:1]].
+
+### What is missing
+
+- No tests for phrase-owned scene A/B assignment.
+- No tests for phrase-driven crossfader recall at phrase boundaries.
+- No tests for per-bar crossfader automation.
+- No tests for a `Tracks | Scenes` mode switch in the phrase workspace.
+- No tests for any compact phrase-row scene summary.
+
+---
+
+## 7. Bottom Line
+
+The repo already has:
+
+- a solid phrase timing/value system;
+- a solid scene/crossfader model;
+- a dedicated scene-perform UI;
+- tests for both phrase playback layers and master-bus behavior separately.
+
+What it does **not** have is the bridge between them.
+
+The cheapest reuse path appears to be:
+
+- reuse phrase timing and per-bar scalar machinery for crossfader automation;
+- keep scene references UUID-based and add a new phrase-owned scene-assignment model;
+- add a new scene-editing mode to `PhraseWorkspaceView` rather than trying to force Scene Perform itself into phrase authoring.
+
+That makes this feature more than a UI pass but less than a brand-new subsystem: the building blocks exist, yet the phrase/scene boundary is currently unimplemented.
