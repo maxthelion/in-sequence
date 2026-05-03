@@ -487,3 +487,14 @@ Raw input:
 ```text
 I don't want a UI to pop up when a step is selected.  Depending on the layer that is selected, the inside of the toggle step should change. If it a value like velocity, the bar should be draggable. For some tracks, there are more limited options. Eg a slicer step needs to highlight the slice that's selected. A chord step in the chord generator needs to highlight the chord. Try a variant where the layers above it have a rotary control that can be modified to change the selected steps. I think we're slightly struggling with context in this wireframe - the different variations of tracks, and the way that steps are used is the nuance. I think there are some screenshots in this directory.
 ```
+
+## 2026-05-03T15:30:24Z - Scenes In Phrases Feedback
+
+- **Applies to:** prototypes
+- **Feedback file:** `docs/roadmap/scenes-in-phrases/feedback/20260503-153024-prototypes-feedback.md`
+
+Raw input:
+
+```text
+The current item 22 prototypes are the wrong shape because they do not understand the existing track-oriented phrase page they are meant to extend. The scene/phrase concept should be added to the current Phrase Matrix shape: tracks across the top, phrases down the rows, one cell per track/layer, with phrase controls and track paging as already shown in the current app. Do not prototype this as an unrelated standalone scene page.
+```

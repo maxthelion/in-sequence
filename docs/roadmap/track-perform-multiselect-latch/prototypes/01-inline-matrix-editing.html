@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Perform Multi-Select And Latch - Inline Matrix Editing</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13px;
+    background: #ece9e2;
+    color: #1d1d1d;
+    padding: 24px;
+  }
+  .banner,
+  .toolbar,
+  .shell,
+  .notes {
+    max-width: 1180px;
+    margin: 0 auto 16px;
+  }
+  .banner {
+    border: 2px dashed #8a8479;
+    background: rgba(255,255,255,0.55);
+    padding: 12px 14px;
+    line-height: 1.45;
+  }
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    border: 1px solid #8a8479;
+    background: #f7f4ee;
+    padding: 10px 12px;
+  }
+  .toolbar strong { margin-right: 6px; }
+  .chip,
+  .mode,
+  .clear-btn,
+  .cell,
+  .binary-btn,
+  .track-select {
+    border: 1px solid #8a8479;
+    background: #ece7dd;
+    color: inherit;
+    cursor: pointer;
+  }
+  .mode,
+  .clear-btn,
+  .chip {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .mode.active {
+    background: #205ea8;
+    border-color: #205ea8;
+    color: #fff;
+  }
+  .chip {
+    background: #fff;
+  }
+  .shell {
+    border: 2px solid #6d675e;
+    background: #faf7f2;
+  }
+  .header {
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    gap: 0;
+    border-bottom: 1px solid #8a8479;
+    background: #e5e0d6;
+  }
+  .header > div {
+    padding: 10px 12px;
+    border-right: 1px solid #8a8479;
+  }
+  .header > div:last-child { border-right: none; }
+  .header-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #5b584f;
+    margin-bottom: 4px;
+  }
+  .selection-summary {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .matrix {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .matrix th,
+  .matrix td {
+    border-bottom: 1px solid #c4beb2;
+    border-right: 1px solid #d5cfc4;
+    padding: 10px 8px;
+    vertical-align: top;
+  }
+  .matrix th:last-child,
+  .matrix td:last-child { border-right: none; }
+  .matrix th {
+    background: #efebe3;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #5b584f;
+    text-align: left;
+  }
+  .track-meta {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .track-select {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    background: #fff;
+  }
+  .track-select.active {
+    background: #205ea8;
+    border-color: #205ea8;
+    color: #fff;
+  }
+  .track-name { font-weight: 700; }
+  .track-detail {
+    color: #636057;
+    margin-top: 4px;
+    font-size: 12px;
+  }
+  tr.selected-row td {
+    background: #edf4ff;
+  }
+  .cell-stack {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .cell {
+    min-width: 58px;
+    padding: 7px 9px;
+    text-align: center;
+    background: #fff;
+    font-size: 12px;
+  }
+  .cell.active {
+    background: #205ea8;
+    border-color: #205ea8;
+    color: #fff;
+  }
+  .binary-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .binary-btn {
+    min-width: 88px;
+    padding: 8px 10px;
+    background: #fff;
+  }
+  .binary-btn.on {
+    background: #3d7f3a;
+    border-color: #3d7f3a;
+    color: #fff;
+  }
+  .binary-btn.pressed {
+    outline: 2px dashed #3d7f3a;
+    outline-offset: 2px;
+  }
+  .ghost {
+    color: #898375;
+    font-style: italic;
+  }
+  .notes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .panel {
+    border: 1px solid #8a8479;
+    background: #f7f4ee;
+    padding: 12px;
+  }
+  .panel h2 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .panel p,
+  .panel li {
+    line-height: 1.45;
+  }
+  .panel ul {
+    margin: 8px 0 0 18px;
+    padding: 0;
+  }
+  .event-log {
+    min-height: 108px;
+    font-family: ui-monospace, SFMono-Regular, SFMono-Regular, monospace;
+    font-size: 11px;
+    background: #fff;
+    border: 1px dashed #b7b0a3;
+    padding: 8px;
+    white-space: pre-wrap;
+  }
+  @media (max-width: 980px) {
+    .header,
+    .notes {
+      grid-template-columns: 1fr;
+    }
+    .matrix {
+      display: block;
+      overflow-x: auto;
+    }
+  }
+</style>
+</head>
+<body>
+  <section class="banner">
+    <strong>Prototype A: direct inline matrix editing.</strong>
+    Multi-select lives on each track row, and changing one selected cell copies the same value to every selected track.
+    The latch switch is global for binary perform controls so Fill and Repeat share one press model.
+  </section>
+
+  <section class="toolbar">
+    <strong>Scenarios</strong>
+    <button class="chip" data-demo="select">1. Build edit set</button>
+    <button class="chip" data-demo="copy">2. Copy one density edit</button>
+    <button class="chip" data-demo="momentary">3. Momentary Fill</button>
+    <button class="chip" data-demo="latched">4. Latched Repeat</button>
+    <span class="ghost">Primary goal: linked edit in <=2 interactions after selecting tracks.</span>
+  </section>
+
+  <section class="shell">
+    <div class="header">
+      <div>
+        <div class="header-title">Track Perform</div>
+        <div><strong>Phrase 04</strong> · 128 BPM · Layers hidden in perform mode</div>
+      </div>
+      <div>
+        <div class="header-title">Selection</div>
+        <div class="selection-summary" id="selectionSummary"></div>
+      </div>
+      <div>
+        <div class="header-title">Latch Mode</div>
+        <div class="selection-summary">
+          <button class="mode active" data-mode="momentary">Latch Off / Momentary</button>
+          <button class="mode" data-mode="latched">Latch On / Toggle</button>
+          <button class="clear-btn" id="clearSelection">Clear Selection</button>
+        </div>
+      </div>
+    </div>
+
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th style="width: 220px;">Tracks</th>
+          <th>Fill / Repeat</th>
+          <th>Density</th>
+          <th>Swing</th>
+          <th>Variation</th>
+        </tr>
+      </thead>
+      <tbody id="matrixBody"></tbody>
+    </table>
+  </section>
+
+  <section class="notes">
+    <div class="panel">
+      <h2>Why This Direction</h2>
+      <p>
+        This keeps the v1 rule literal: the performer makes an edit on a real cell, and every selected track receives that same value immediately.
+        There is no side inspector or modal on the happy path.
+      </p>
+      <ul>
+        <li>Row-level selection state stays adjacent to the cells it will affect.</li>
+        <li>Fill and Repeat share one latch switch, which avoids per-control drift.</li>
+        <li>Unselected rows remain visible, so the blast radius of a linked edit is legible before the click.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Interaction Log</h2>
+      <div class="event-log" id="eventLog">Waiting for input…</div>
+    </div>
+  </section>
+
+<script>
+  const tracks = [
+    { id: "kick", name: "Kick Anchor", detail: "Drum group / groove floor", density: "Tight", swing: "Straight", variation: "Base", fill: false, repeat: false },
+    { id: "snare", name: "Snare Accent", detail: "Drum group / backbeat", density: "Tight", swing: "Straight", variation: "Ghosts", fill: false, repeat: false },
+    { id: "bass", name: "Bass Pulse", detail: "Mono / root pulses", density: "Mid", swing: "Loose", variation: "Root", fill: false, repeat: false },
+    { id: "arp", name: "Arp Glass", detail: "Poly / upper movement", density: "Airy", swing: "Loose", variation: "Wide", fill: false, repeat: false }
+  ];
+  const options = {
+    density: ["Airy", "Mid", "Tight"],
+    swing: ["Straight", "Loose", "Late"],
+    variation: ["Base", "Ghosts", "Wide"]
+  };
+
+  const state = {
+    latchMode: "momentary",
+    selectedTrackIDs: new Set(["kick"]),
+    tracks: structuredClone(tracks)
+  };
+
+  const matrixBody = document.getElementById("matrixBody");
+  const selectionSummary = document.getElementById("selectionSummary");
+  const eventLog = document.getElementById("eventLog");
+
+  function log(message) {
+    eventLog.textContent = `${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}  ${message}\n${eventLog.textContent}`.trim();
+  }
+
+  function selectedTracks() {
+    return state.tracks.filter(track => state.selectedTrackIDs.has(track.id));
+  }
+
+  function renderSelectionSummary() {
+    const selected = selectedTracks();
+    selectionSummary.innerHTML = "";
+    if (!selected.length) {
+      selectionSummary.innerHTML = "<span class=\"ghost\">No tracks selected. Select one or more rows before editing.</span>";
+      return;
+    }
+
+    const label = document.createElement("span");
+    label.textContent = `${selected.length} selected`;
+    selectionSummary.appendChild(label);
+
+    selected.forEach(track => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = track.name;
+      selectionSummary.appendChild(chip);
+    });
+  }
+
+  function applyCellValue(sourceTrackID, key, value) {
+    const recipients = state.selectedTrackIDs.size > 1 && state.selectedTrackIDs.has(sourceTrackID)
+      ? state.selectedTrackIDs
+      : new Set([sourceTrackID]);
+
+    state.tracks.forEach(track => {
+      if (recipients.has(track.id)) {
+        track[key] = value;
+      }
+    });
+
+    const names = state.tracks.filter(track => recipients.has(track.id)).map(track => track.name).join(", ");
+    log(`${key} → ${value} on ${names}`);
+    render();
+  }
+
+  function toggleTrackSelection(trackID) {
+    if (state.selectedTrackIDs.has(trackID)) {
+      state.selectedTrackIDs.delete(trackID);
+    } else {
+      state.selectedTrackIDs.add(trackID);
+    }
+    log(`selection → ${selectedTracks().map(track => track.name).join(", ") || "none"}`);
+    render();
+  }
+
+  function setBinaryState(trackID, key, nextValue) {
+    const recipients = state.selectedTrackIDs.size > 1 && state.selectedTrackIDs.has(trackID)
+      ? state.selectedTrackIDs
+      : new Set([trackID]);
+    state.tracks.forEach(track => {
+      if (recipients.has(track.id)) {
+        track[key] = nextValue;
+      }
+    });
+    log(`${key} ${nextValue ? "on" : "off"} (${state.latchMode})`);
+    render();
+  }
+
+  function render() {
+    renderSelectionSummary();
+    matrixBody.innerHTML = "";
+    state.tracks.forEach(track => {
+      const row = document.createElement("tr");
+      if (state.selectedTrackIDs.has(track.id)) {
+        row.className = "selected-row";
+      }
+
+      row.innerHTML = `
+        <td>
+          <div class="track-meta">
+            <button class="track-select ${state.selectedTrackIDs.has(track.id) ? "active" : ""}" data-select="${track.id}">
+              ${state.selectedTrackIDs.has(track.id) ? "✓" : "+"}
+            </button>
+            <div>
+              <div class="track-name">${track.name}</div>
+              <div class="track-detail">${track.detail}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="binary-row">
+            <button class="binary-btn ${track.fill ? "on" : ""}" data-binary="fill" data-track="${track.id}">Fill ${track.fill ? "On" : "Off"}</button>
+            <button class="binary-btn ${track.repeat ? "on" : ""}" data-binary="repeat" data-track="${track.id}">Repeat ${track.repeat ? "On" : "Off"}</button>
+          </div>
+        </td>
+        <td><div class="cell-stack">${options.density.map(value => `<button class="cell ${track.density === value ? "active" : ""}" data-key="density" data-track="${track.id}" data-value="${value}">${value}</button>`).join("")}</div></td>
+        <td><div class="cell-stack">${options.swing.map(value => `<button class="cell ${track.swing === value ? "active" : ""}" data-key="swing" data-track="${track.id}" data-value="${value}">${value}</button>`).join("")}</div></td>
+        <td><div class="cell-stack">${options.variation.map(value => `<button class="cell ${track.variation === value ? "active" : ""}" data-key="variation" data-track="${track.id}" data-value="${value}">${value}</button>`).join("")}</div></td>
+      `;
+      matrixBody.appendChild(row);
+    });
+
+    document.querySelectorAll(".mode").forEach(button => {
+      button.classList.toggle("active", button.dataset.mode === state.latchMode);
+    });
+  }
+
+  document.body.addEventListener("click", event => {
+    const modeButton = event.target.closest(".mode");
+    if (modeButton) {
+      state.latchMode = modeButton.dataset.mode;
+      log(`latch mode → ${state.latchMode}`);
+      render();
+      return;
+    }
+
+    const selectButton = event.target.closest("[data-select]");
+    if (selectButton) {
+      toggleTrackSelection(selectButton.dataset.select);
+      return;
+    }
+
+    const cellButton = event.target.closest("[data-key]");
+    if (cellButton) {
+      applyCellValue(cellButton.dataset.track, cellButton.dataset.key, cellButton.dataset.value);
+      return;
+    }
+
+    const binaryButton = event.target.closest("[data-binary]");
+    if (binaryButton && state.latchMode === "latched") {
+      const track = state.tracks.find(item => item.id === binaryButton.dataset.track);
+      const key = binaryButton.dataset.binary;
+      setBinaryState(track.id, key, !track[key]);
+      return;
+    }
+
+    const demoButton = event.target.closest("[data-demo]");
+    if (demoButton) {
+      runDemo(demoButton.dataset.demo);
+    }
+  });
+
+  document.body.addEventListener("mousedown", event => {
+    const binaryButton = event.target.closest("[data-binary]");
+    if (!binaryButton || state.latchMode !== "momentary") {
+      return;
+    }
+    binaryButton.classList.add("pressed");
+    setBinaryState(binaryButton.dataset.track, binaryButton.dataset.binary, true);
+  });
+
+  document.body.addEventListener("mouseup", event => {
+    const binaryButton = event.target.closest("[data-binary]");
+    if (!binaryButton || state.latchMode !== "momentary") {
+      return;
+    }
+    binaryButton.classList.remove("pressed");
+    setBinaryState(binaryButton.dataset.track, binaryButton.dataset.binary, false);
+  });
+
+  document.getElementById("clearSelection").addEventListener("click", () => {
+    state.selectedTrackIDs.clear();
+    log("selection cleared");
+    render();
+  });
+
+  function runDemo(name) {
+    if (name === "select") {
+      state.selectedTrackIDs = new Set(["kick", "snare", "bass"]);
+      log("demo: three-track edit set");
+    } else if (name === "copy") {
+      state.selectedTrackIDs = new Set(["kick", "snare", "bass"]);
+      applyCellValue("kick", "density", "Tight");
+      return;
+    } else if (name === "momentary") {
+      state.latchMode = "momentary";
+      state.selectedTrackIDs = new Set(["kick", "snare"]);
+      setBinaryState("kick", "fill", true);
+      window.setTimeout(() => setBinaryState("kick", "fill", false), 350);
+      return;
+    } else if (name === "latched") {
+      state.latchMode = "latched";
+      state.selectedTrackIDs = new Set(["bass", "arp"]);
+      setBinaryState("bass", "repeat", true);
+      return;
+    }
+    render();
+  }
+
+  render();
+</script>
+</body>
+</html>

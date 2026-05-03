@@ -4,7 +4,7 @@ title: Track Perform Multi-Select And Latch
 status: inventory
 priority: unset
 blocked_by: []
-stage: build-prototypes
+stage: review-prototypes
 owner: pm
 updated: 2026-05-03
 ---

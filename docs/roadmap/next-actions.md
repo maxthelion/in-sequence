@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T16:07:35Z
-Repo HEAD: 0b09822
+Generated: 2026-05-03T16:18:15Z
+Repo HEAD: 712c335
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -52,10 +52,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Feature:** Track Perform Multi-Select And Latch
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `build-prototypes`
+- **Action:** `review-prototypes`
 - **Role:** `pm-assistant`
-- **Why:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Output:** Create focused Balsamiq-style HTML prototypes from notes, user stories, existing-state, feedback, screenshots/artifacts, and prototype guidelines.
+- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Output:** Review variants against the UX checklist and choose or reject a direction.
 
 ## Feature Actions
 
@@ -318,10 +318,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `build-prototypes`
+- **Next action:** `review-prototypes`
 - **Role:** `pm-assistant`
-- **Reason:** Existing-state report exists, but no prototype artifact was found in `prototypes/`.
-- **Suggested output:** Create focused Balsamiq-style HTML prototypes from notes, user stories, existing-state, feedback, screenshots/artifacts, and prototype guidelines.
+- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
+- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
 
 ### 25. Selective Scene Inputs
 
