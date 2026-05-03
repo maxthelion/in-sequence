@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T10:40:50Z
-Repo HEAD: 6056398
+Generated: 2026-05-03T10:46:34Z
+Repo HEAD: 599caf2
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -34,25 +34,25 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next User Item
 
+- **Item:** 24
+- **Feature:** Track Perform Multi-Select And Latch
+- **Priority:** `unset`
+- **Status:** `inventory`
+- **Action:** `clarify-feature`
+- **Role:** `user`
+- **Why:** No `notes.md` yet.
+- **Output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+## Next Agent Item
+
 - **Item:** 4
 - **Feature:** Mixer Main Out
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `blocked`
-- **Role:** `user`
-- **Why:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Output:** Answer the open questions or resolve the blocker before advancing this item.
-
-## Next Agent Item
-
-- **Item:** 9
-- **Feature:** Modifier Chain Placement
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `write-architecture`
+- **Action:** `review-architecture`
 - **Role:** `pm-assistant`
-- **Why:** UX review exists, but `architecture.md` is missing.
-- **Output:** Write architecture guardrails before the feature spec: invariants, lightweight data/runtime shape, persistence boundaries, and risks.
+- **Why:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ## Feature Actions
 
@@ -95,10 +95,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `blocked`
-- **Role:** `user`
-- **Reason:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Next action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 5. Mixer Busses
 
@@ -106,10 +106,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `blocked`
-- **Role:** `user`
-- **Reason:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Next action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 6. Send Effects
 
@@ -117,10 +117,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `blocked`
-- **Role:** `user`
-- **Reason:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Next action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 7. Input Audio
 
@@ -128,10 +128,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `blocked`
-- **Role:** `user`
-- **Reason:** Status is `inventory`, blocked_by is `[]`, or `open-questions.md` exists.
-- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
+- **Next action:** `review-architecture`
+- **Role:** `pm-assistant`
+- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
+- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
 
 ### 8. MIDI Interfaces
 
