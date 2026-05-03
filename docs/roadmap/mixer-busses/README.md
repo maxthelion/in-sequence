@@ -1,12 +1,12 @@
 ---
 id: 5
 title: Mixer Busses
-status: inventory
+status: blocked
 priority: unset
 blocked_by: []
-stage: review-architecture
+stage: clarify-feature
 owner: pm
-updated: 2026-04-30
+updated: 2026-05-03
 ---
 
 # Mixer Busses

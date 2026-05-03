@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T10:56:46Z
-Repo HEAD: c926948
+Generated: 2026-05-03T11:05:30Z
+Repo HEAD: 5028731
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -34,12 +34,19 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next User Item
 
-- No roadmap items currently require user input.
+- **Item:** 4
+- **Feature:** Mixer Main Out
+- **Priority:** `unset`
+- **Status:** `blocked`
+- **Action:** `blocked`
+- **Role:** `user`
+- **Why:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ## Next Agent Item
 
-- **Item:** 4
-- **Feature:** Mixer Main Out
+- **Item:** 6
+- **Feature:** Send Effects
 - **Priority:** `unset`
 - **Status:** `inventory`
 - **Action:** `review-architecture`
@@ -85,24 +92,24 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 4. Mixer Main Out
 
 - **Directory:** `docs/roadmap/mixer-main-out/`
-- **Status:** `inventory`
+- **Status:** `blocked`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Next action:** `blocked`
+- **Role:** `user`
+- **Reason:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ### 5. Mixer Busses
 
 - **Directory:** `docs/roadmap/mixer-busses/`
-- **Status:** `inventory`
+- **Status:** `blocked`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-architecture`
-- **Role:** `pm-assistant`
-- **Reason:** Architecture guardrails exist, but `architecture-review.md` is missing.
-- **Suggested output:** Review the architecture summary before spec: data/runtime shape, transient versus persisted state, guardrails, and open questions.
+- **Next action:** `blocked`
+- **Role:** `user`
+- **Reason:** Status is `blocked`, blocked_by is `[]`, or `open-questions.md` exists.
+- **Suggested output:** Answer the open questions or resolve the blocker before advancing this item.
 
 ### 6. Send Effects
 
