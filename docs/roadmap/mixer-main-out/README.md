@@ -4,15 +4,16 @@ title: Mixer Main Out
 status: inventory
 priority: unset
 blocked_by: []
-stage: write-implementation-handoff
+stage: ready-for-build-queue
 owner: pm
 updated: 2026-05-03
 prototype_approval: prototype-approval.md
 spec: spec.md
+implementation_handoff: implementation-handoff.md
 ---
 
 # Mixer Main Out
 
-Status: Plan written. Ready for implementation handoff.
+Status: Implementation handoff written. Ready for build queue.
 
 Use this directory for Mixer main out notes, user stories, existing-state reports, prototypes, UX reviews, specs, build plans, and implementation handoffs.

@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-03T18:08:28Z
-Repo HEAD: a24fcf7
+Generated: 2026-05-03T18:18:18Z
+Repo HEAD: a63e9d9
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -48,14 +48,14 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 4
-- **Feature:** Mixer Main Out
+- **Item:** 5
+- **Feature:** Mixer Busses
 - **Priority:** `unset`
 - **Status:** `inventory`
-- **Action:** `write-implementation-handoff`
+- **Action:** `write-spec`
 - **Role:** `pm-assistant`
-- **Why:** Plan exists, but `implementation-handoff.md` is missing.
-- **Output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
+- **Why:** Architecture review exists, but `spec.md` is missing.
+- **Output:** Write the feature specification from the selected prototype direction and reviewed architecture guardrails.
 
 ## Feature Actions
 
@@ -98,10 +98,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `write-implementation-handoff`
-- **Role:** `pm-assistant`
-- **Reason:** Plan exists, but `implementation-handoff.md` is missing.
-- **Suggested output:** Bundle the PM artifacts into a build-loop handoff that links authoritative context, guardrails, spec, plan, non-goals, and open questions.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Feature is already marked `ready-for-build-queue`/`inventory`; PM artifacts have been handed off or are ready to hand off.
+- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
 
 ### 5. Mixer Busses
 
