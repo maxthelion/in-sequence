@@ -4,7 +4,7 @@ title: Scenes In Phrases
 status: inventory
 priority: unset
 blocked_by: []
-stage: review-prototypes
+stage: write-architecture
 owner: pm
 updated: 2026-05-03
 ---
