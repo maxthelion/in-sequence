@@ -4,9 +4,9 @@ title: Observability From Application Logs
 status: inventory
 priority: unset
 blocked_by: []
-stage: inspect-existing-state
+stage: build-prototypes
 owner: pm
-updated: 2026-04-29
+updated: 2026-05-03
 ---
 
 # Observability From Application Logs
