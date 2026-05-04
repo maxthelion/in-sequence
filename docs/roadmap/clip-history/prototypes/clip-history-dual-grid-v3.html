@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clip History - Dual Grid Modal (v3)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #efefec;
+    color: #161616;
+    font: 13px/1.4 system-ui, sans-serif;
+  }
+  button, select { font: inherit; }
+  :root {
+    --surface: #e4e3df;
+    --surface-2: #d4d3ce;
+    --panel: #f7f6f2;
+    --border: #8d8b85;
+    --muted: #66645f;
+    --stub: #a6a49d;
+    --accent: #2f6db1;
+    --accent-soft: #d4e2f4;
+    --play: #6f4aa2;
+    --play-soft: #e6dbf4;
+    --success: #2d7240;
+    --danger: #aa5b00;
+  }
+  .proto-note {
+    max-width: 1080px;
+    border: 2px dashed var(--border);
+    padding: 12px 14px;
+    margin: 0 auto 20px;
+    color: var(--muted);
+    background: #f7f5ef;
+  }
+  .proto-note strong { color: #161616; }
+  .proto-note ul { margin: 8px 0 0 18px; padding: 0; }
+  .proto-note li { margin-top: 4px; }
+  .app {
+    max-width: 1080px;
+    margin: 0 auto;
+    border: 2px solid var(--border);
+    background: var(--surface);
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .stub {
+    border: 1px dashed var(--stub);
+    color: var(--stub);
+    padding: 3px 8px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 640px;
+  }
+  .tracks {
+    border-right: 1px solid var(--border);
+    background: #ebe9e4;
+  }
+  .track {
+    padding: 10px 12px;
+    border-bottom: 1px solid #c6c4bd;
+  }
+  .track.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .track small {
+    display: block;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .editor {
+    display: flex;
+    flex-direction: column;
+  }
+  .section {
+    padding: 12px 14px;
+    border-bottom: 1px solid #c6c4bd;
+  }
+  .section-label {
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .btn {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: #161616;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn.primary:disabled,
+  .btn:disabled {
+    cursor: not-allowed;
+    color: var(--stub);
+    border-color: var(--stub);
+    background: #f2f1ed;
+  }
+  .btn.play {
+    border-color: var(--play);
+    color: var(--play);
+    background: var(--play-soft);
+  }
+  .slots {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .slot-chip {
+    width: 38px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .slot-chip.occupied { border-color: var(--success); color: var(--success); }
+  .slot-chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .param-stub {
+    border: 1px dashed var(--stub);
+    color: var(--stub);
+    padding: 18px;
+    text-align: center;
+  }
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal {
+    width: min(1100px, 100%);
+    min-height: 720px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .modal-subtitle {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+  }
+  .fixture-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    border: 1px dashed var(--border);
+    padding: 8px 10px;
+    background: #f3f1ec;
+  }
+  .fixture-bar strong { margin-right: 4px; }
+  .fixture-btn.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .grids {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .panel {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    min-height: 310px;
+  }
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #c9c6be;
+  }
+  .panel-head h2 {
+    margin: 0;
+    font-size: 13px;
+  }
+  .panel-head span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .matrix {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+  }
+  .cell {
+    min-height: 118px;
+    border: 1px solid var(--border);
+    background: #efede8;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .cell:hover { border-color: var(--accent); background: #f7f5ef; }
+  .cell.selected {
+    border: 2px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 7px;
+  }
+  .cell.occupied {
+    border-color: var(--success);
+    background: #edf5ef;
+  }
+  .cell.current-slot {
+    border-style: dashed;
+  }
+  .cell.confirm {
+    border: 2px solid var(--danger);
+    padding: 7px;
+    background: #f9eee1;
+  }
+  .cell.disabled {
+    color: var(--stub);
+    border-style: dashed;
+    cursor: default;
+    background: #f7f5ef;
+  }
+  .cell-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .cell-tag {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+    min-height: 42px;
+  }
+  .mini-grid span {
+    border: 1px solid #c0beb7;
+    background: #e4e2dc;
+    min-height: 18px;
+  }
+  .mini-grid span.note { background: #b8cce5; border-color: #6b8eb8; }
+  .mini-grid span.rest { background: #ece9e3; }
+  .mini-grid span.ghost { background: #f4f2ee; border-style: dashed; }
+  .summary {
+    margin-top: auto;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .preview {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 14px;
+  }
+  .preview-panel, .confirm-panel {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 12px;
+  }
+  .preview-panel h2, .confirm-panel h2 {
+    margin: 0 0 10px;
+    font-size: 13px;
+  }
+  .preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .pill {
+    border: 1px solid var(--play);
+    background: var(--play-soft);
+    color: var(--play);
+    padding: 3px 8px;
+    font-size: 12px;
+  }
+  .lens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .lens button.active {
+    border-color: var(--play);
+    background: var(--play-soft);
+    color: var(--play);
+  }
+  .timeline {
+    border: 1px solid var(--border);
+    background: #faf8f2;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+  }
+  .timeline-grid span {
+    min-height: 24px;
+    border: 1px solid #c8c5bd;
+    background: #efede8;
+  }
+  .timeline-grid span.playing {
+    background: #d2c1eb;
+    border-color: var(--play);
+  }
+  .timeline-grid span.note {
+    background: #9fc0e7;
+    border-color: #5f86b1;
+  }
+  .quiet {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .confirm-state {
+    border: 1px dashed var(--border);
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #faf8f2;
+  }
+  .confirm-warning {
+    border-color: var(--danger);
+    background: #f9eee1;
+  }
+  .footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .footer-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .budget {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  @media (max-width: 920px) {
+    body { padding: 12px; }
+    .layout { grid-template-columns: 1fr; }
+    .tracks { display: none; }
+    .modal { min-height: auto; }
+    .grids, .preview { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="proto-note">
+    <strong>Clip History prototype v3</strong> reworks the rejected modal around the approved transfer model: select a frozen history cell, preview it as a temporary virtual clip, then commit it into a symmetric destination matrix.
+    <ul>
+      <li>Interaction budget: source selection, optional audition/length tweak, destination selection, save.</li>
+      <li>Adversarial fixtures include empty history, dense history, occupied slots, long labels, and overwrite gating.</li>
+      <li>Off-path controls remain stubbed so review attention stays on source-to-destination capture.</li>
+    </ul>
+  </div>
+
+  <div class="app">
+    <div class="toolbar">
+      <span class="stub">[transport]</span>
+      <span class="stub">[tempo 123.4]</span>
+      <span class="stub">[scene perform]</span>
+      <span class="stub">[mixer]</span>
+    </div>
+    <div class="layout">
+      <aside class="tracks">
+        <div class="track">Kick Generator<small>drum pattern · static clip</small></div>
+        <div class="track active">Glass Marimba<small>generator live · clip history armed</small></div>
+        <div class="track">Bass Drone<small>sample loop</small></div>
+        <div class="track">FX Return<small>send bus</small></div>
+      </aside>
+      <main class="editor">
+        <section class="section">
+          <div class="section-label">Pattern Slots</div>
+          <div class="slots">
+            <div class="slot-chip occupied">A1</div>
+            <div class="slot-chip occupied">A2</div>
+            <div class="slot-chip occupied">A3</div>
+            <div class="slot-chip active">A4</div>
+            <div class="slot-chip">B1</div>
+            <div class="slot-chip occupied">B2</div>
+            <div class="slot-chip">B3</div>
+            <div class="slot-chip">B4</div>
+          </div>
+        </section>
+        <section class="section">
+          <div class="row">
+            <div>
+              <div class="section-label">Generator Source</div>
+              <div><strong>Euclid + Chord Splitter</strong></div>
+              <div class="quiet">Recent output sounded promising in bars -4 to -1.</div>
+            </div>
+            <button class="btn play">Clip History Open</button>
+          </div>
+        </section>
+        <section class="section">
+          <div class="param-stub">[generator parameters and downstream modifier controls stay stubbed during clip-history review]</div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop">
+    <section class="modal">
+      <header class="modal-header">
+        <div>
+          <div class="modal-title">Clip History - Glass Marimba</div>
+          <div class="modal-subtitle">Frozen snapshot from modal open at 03:14.682. Slot clicks stay local; no live engine polling after this point.</div>
+        </div>
+        <button class="btn">Close</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="fixture-bar">
+          <strong>Fixture:</strong>
+          <button class="btn fixture-btn active" data-fixture="dense">Dense history</button>
+          <button class="btn fixture-btn" data-fixture="partial">Sparse history</button>
+          <button class="btn fixture-btn" data-fixture="empty">Empty history</button>
+          <span class="quiet">All variants keep the same 4x4 source and destination layout.</span>
+        </div>
+
+        <div class="grids">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Recent History</h2>
+              <span>16 frozen regions, oldest top-left -> newest bottom-right</span>
+            </div>
+            <div class="matrix" id="history-grid"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Save To Pattern</h2>
+              <span>Destination remains disabled until a source is picked</span>
+            </div>
+            <div class="matrix" id="slot-grid"></div>
+          </section>
+        </div>
+
+        <div class="preview">
+          <section class="preview-panel">
+            <h2>Virtual Clip Preview</h2>
+            <div class="preview-meta">
+              <span class="pill" id="selection-pill">No history region selected</span>
+              <span class="pill" id="destination-pill">No destination selected</span>
+            </div>
+            <div class="lens" id="length-controls">
+              <button class="btn active" data-length="1 bar">1 bar</button>
+              <button class="btn" data-length="2 bars">2 bars</button>
+              <button class="btn" data-length="4 bars">4 bars</button>
+              <button class="btn" data-length="8 steps">8 steps</button>
+            </div>
+            <div class="timeline">
+              <div class="timeline-grid" id="timeline-grid"></div>
+            </div>
+            <div class="row">
+              <div class="quiet" id="preview-copy">Pick a history cell to audition a temporary clip. Nothing is committed until Save.</div>
+              <button class="btn play" id="audition-btn" disabled>Audition</button>
+            </div>
+          </section>
+
+          <section class="confirm-panel">
+            <h2>Save Guardrails</h2>
+            <div class="confirm-state" id="confirm-box">
+              Choose a source region, then choose a destination slot.
+            </div>
+            <label class="quiet" for="name-field">Optional clip name</label>
+            <select id="name-field" class="btn" style="width:100%; margin:6px 0 10px;">
+              <option>Use source timestamp + track name</option>
+              <option>Prompt on save</option>
+            </select>
+            <div class="quiet">Occupied slots reveal a dedicated overwrite step instead of silently replacing content.</div>
+          </section>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="budget">Budget: source -> preview -> destination -> save. Empty history still preserves layout and disables actions cleanly.</div>
+        <div class="footer-actions">
+          <button class="btn">Cancel</button>
+          <button class="btn primary" id="save-btn" disabled>Save Virtual Clip</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+<script>
+  const fixtures = {
+    dense: [
+      { id: "H1", range: "-16 bars", density: [1,0,1,0,1,0,1,0], summary: "staccato octave reply", empty: false },
+      { id: "H2", range: "-15 bars", density: [1,1,0,0,1,1,0,0], summary: "two-hit answer", empty: false },
+      { id: "H3", range: "-14 bars", density: [1,0,0,1,0,1,1,0], summary: "late syncopation", empty: false },
+      { id: "H4", range: "-13 bars", density: [0,0,1,0,1,0,0,1], summary: "pickup into downbeat", empty: false },
+      { id: "H5", range: "-12 bars", density: [1,1,1,0,0,1,0,0], summary: "dense first half", empty: false },
+      { id: "H6", range: "-11 bars", density: [0,1,0,1,1,0,1,0], summary: "alternating accents", empty: false },
+      { id: "H7", range: "-10 bars", density: [1,0,1,1,0,0,1,0], summary: "triplet-feel spill", empty: false },
+      { id: "H8", range: "-9 bars", density: [0,1,1,0,0,1,0,1], summary: "call and response", empty: false },
+      { id: "H9", range: "-8 bars", density: [1,0,0,1,1,0,0,1], summary: "strong corners", empty: false },
+      { id: "H10", range: "-7 bars", density: [0,1,0,0,1,1,0,1], summary: "sparse lead-in", empty: false },
+      { id: "H11", range: "-6 bars", density: [1,1,0,1,0,0,1,0], summary: "push on beat three", empty: false },
+      { id: "H12", range: "-5 bars", density: [0,0,1,1,0,1,0,1], summary: "offbeat staircase", empty: false },
+      { id: "H13", range: "-4 bars", density: [1,0,1,0,1,1,0,1], summary: "best recent groove", empty: false },
+      { id: "H14", range: "-3 bars", density: [1,1,0,0,0,1,1,0], summary: "cluster then release", empty: false },
+      { id: "H15", range: "-2 bars", density: [0,1,1,1,0,0,1,0], summary: "busy turnaround", empty: false },
+      { id: "H16", range: "-1 bar", density: [1,0,1,0,1,0,1,1], summary: "latest phrase", empty: false }
+    ],
+    partial: [
+      { id: "H1", range: "-16 bars", density: [], summary: "no capture", empty: true },
+      { id: "H2", range: "-15 bars", density: [], summary: "no capture", empty: true },
+      { id: "H3", range: "-14 bars", density: [], summary: "no capture", empty: true },
+      { id: "H4", range: "-13 bars", density: [0,0,1,0,0,0,1,0], summary: "two isolated hits", empty: false },
+      { id: "H5", range: "-12 bars", density: [], summary: "no capture", empty: true },
+      { id: "H6", range: "-11 bars", density: [1,0,0,0,1,0,0,0], summary: "bookend notes", empty: false },
+      { id: "H7", range: "-10 bars", density: [], summary: "no capture", empty: true },
+      { id: "H8", range: "-9 bars", density: [], summary: "no capture", empty: true },
+      { id: "H9", range: "-8 bars", density: [0,1,0,0,0,1,0,0], summary: "paired answers", empty: false },
+      { id: "H10", range: "-7 bars", density: [], summary: "no capture", empty: true },
+      { id: "H11", range: "-6 bars", density: [], summary: "no capture", empty: true },
+      { id: "H12", range: "-5 bars", density: [0,0,0,1,0,0,0,1], summary: "late stabs", empty: false },
+      { id: "H13", range: "-4 bars", density: [], summary: "no capture", empty: true },
+      { id: "H14", range: "-3 bars", density: [1,0,1,0,0,0,0,0], summary: "opening pulse", empty: false },
+      { id: "H15", range: "-2 bars", density: [], summary: "no capture", empty: true },
+      { id: "H16", range: "-1 bar", density: [1,1,0,0,0,0,0,0], summary: "latest fragment", empty: false }
+    ],
+    empty: Array.from({ length: 16 }, (_, index) => ({
+      id: `H${index + 1}`,
+      range: `${index === 15 ? "-1 bar" : `-${16 - index} bars`}`,
+      density: [],
+      summary: "no captured notes",
+      empty: true
+    }))
+  };
+
+  const slots = [
+    { id: "A1", state: "occupied", label: "Verse seed" },
+    { id: "A2", state: "occupied", label: "Octave answer" },
+    { id: "A3", state: "occupied", label: "Current clip", current: true },
+    { id: "A4", state: "empty", label: "Empty slot" },
+    { id: "B1", state: "empty", label: "Empty slot" },
+    { id: "B2", state: "occupied", label: "Long arpeggio" },
+    { id: "B3", state: "empty", label: "Empty slot" },
+    { id: "B4", state: "occupied", label: "Muted alt take" },
+    { id: "C1", state: "empty", label: "Empty slot" },
+    { id: "C2", state: "occupied", label: "Dense chorus" },
+    { id: "C3", state: "empty", label: "Empty slot" },
+    { id: "C4", state: "empty", label: "Empty slot" },
+    { id: "D1", state: "occupied", label: "Drift test" },
+    { id: "D2", state: "empty", label: "Empty slot" },
+    { id: "D3", state: "occupied", label: "Held pad" },
+    { id: "D4", state: "empty", label: "Empty slot" }
+  ];
+
+  const state = {
+    fixture: "dense",
+    selectedHistory: null,
+    selectedSlot: null,
+    confirmOverwrite: false,
+    length: "1 bar"
+  };
+
+  const historyGrid = document.getElementById("history-grid");
+  const slotGrid = document.getElementById("slot-grid");
+  const selectionPill = document.getElementById("selection-pill");
+  const destinationPill = document.getElementById("destination-pill");
+  const previewCopy = document.getElementById("preview-copy");
+  const confirmBox = document.getElementById("confirm-box");
+  const auditionBtn = document.getElementById("audition-btn");
+  const saveBtn = document.getElementById("save-btn");
+  const timelineGrid = document.getElementById("timeline-grid");
+
+  function miniGrid(pattern, isEmpty) {
+    if (isEmpty) {
+      return Array.from({ length: 8 }, () => "<span class=\"ghost\"></span>").join("");
+    }
+    return pattern.map((step) => `<span class="${step ? "note" : "rest"}"></span>`).join("");
+  }
+
+  function renderHistory() {
+    const items = fixtures[state.fixture];
+    historyGrid.innerHTML = "";
+    items.forEach((item) => {
+      const button = document.createElement("button");
+      button.className = `cell${state.selectedHistory === item.id ? " selected" : ""}${item.empty ? " disabled" : ""}`;
+      button.disabled = item.empty;
+      button.innerHTML = `
+        <div class="cell-top"><strong>${item.id}</strong><span class="cell-tag">${item.range}</span></div>
+        <div class="mini-grid">${miniGrid(item.density, item.empty)}</div>
+        <div class="summary">${item.summary}</div>
+      `;
+      button.addEventListener("click", () => {
+        state.selectedHistory = item.id;
+        state.confirmOverwrite = false;
+        render();
+      });
+      historyGrid.appendChild(button);
+    });
+  }
+
+  function renderSlots() {
+    slotGrid.innerHTML = "";
+    slots.forEach((slot) => {
+      const selected = state.selectedSlot === slot.id;
+      const needsConfirm = selected && slot.state === "occupied" && state.confirmOverwrite;
+      const disabled = !state.selectedHistory;
+      const button = document.createElement("button");
+      button.className = `cell${slot.state === "occupied" ? " occupied" : ""}${slot.current ? " current-slot" : ""}${selected ? " selected" : ""}${needsConfirm ? " confirm" : ""}${disabled ? " disabled" : ""}`;
+      button.disabled = disabled;
+      button.innerHTML = `
+        <div class="cell-top"><strong>${slot.id}</strong><span class="cell-tag">${slot.state}${slot.current ? " · current" : ""}</span></div>
+        <div class="mini-grid">${miniGrid(slot.state === "occupied" ? [1,0,1,0,0,1,0,1] : [], slot.state !== "occupied")}</div>
+        <div class="summary">${slot.label}</div>
+      `;
+      button.addEventListener("click", () => {
+        state.selectedSlot = slot.id;
+        state.confirmOverwrite = false;
+        render();
+      });
+      slotGrid.appendChild(button);
+    });
+  }
+
+  function renderTimeline() {
+    const history = fixtures[state.fixture].find((item) => item.id === state.selectedHistory);
+    timelineGrid.innerHTML = "";
+    const pattern = history && !history.empty
+      ? Array.from({ length: 16 }, (_, index) => history.density[index % history.density.length] ? "note" : "")
+      : Array.from({ length: 16 }, () => "");
+    pattern.forEach((step, index) => {
+      const node = document.createElement("span");
+      node.className = `${step}${index < 4 ? " playing" : ""}`.trim();
+      timelineGrid.appendChild(node);
+    });
+  }
+
+  function updateCopy() {
+    const history = fixtures[state.fixture].find((item) => item.id === state.selectedHistory);
+    const slot = slots.find((item) => item.id === state.selectedSlot);
+    selectionPill.textContent = history ? `${history.id} selected · ${history.range}` : "No history region selected";
+    destinationPill.textContent = slot ? `${slot.id} selected · ${slot.state}` : "No destination selected";
+
+    if (!history) {
+      previewCopy.textContent = "Pick a history cell to audition a temporary clip. Nothing is committed until Save.";
+      confirmBox.className = "confirm-state";
+      confirmBox.textContent = "Choose a source region, then choose a destination slot.";
+      auditionBtn.disabled = true;
+      saveBtn.disabled = true;
+      return;
+    }
+
+    auditionBtn.disabled = false;
+
+    if (!slot) {
+      previewCopy.textContent = `Audition ${history.id} as a ${state.length} virtual clip, then choose where it should live permanently.`;
+      confirmBox.className = "confirm-state";
+      confirmBox.textContent = "Source locked. Destination still required before save.";
+      saveBtn.disabled = true;
+      return;
+    }
+
+    if (slot.state === "occupied" && !state.confirmOverwrite) {
+      previewCopy.textContent = `Destination ${slot.id} already contains "${slot.label}". Confirm overwrite before save.`;
+      confirmBox.className = "confirm-state confirm-warning";
+      confirmBox.innerHTML = `
+        ${slot.id} is occupied by "${slot.label}".<br>
+        <button class="btn" id="confirm-overwrite">Confirm overwrite of ${slot.id}</button>
+      `;
+      saveBtn.disabled = true;
+      requestAnimationFrame(() => {
+        document.getElementById("confirm-overwrite").onclick = () => {
+          state.confirmOverwrite = true;
+          render();
+        };
+      });
+      return;
+    }
+
+    previewCopy.textContent = `Ready to save ${history.id} into ${slot.id} as a ${state.length} clip. The preview remains temporary until Save.`;
+    confirmBox.className = "confirm-state";
+    confirmBox.textContent = slot.state === "occupied"
+      ? `Overwrite confirmed for ${slot.id}. Save will replace "${slot.label}" with the selected virtual clip.`
+      : `${slot.id} is empty. Save will create a new clip there.`;
+    saveBtn.disabled = false;
+  }
+
+  function render() {
+    renderHistory();
+    renderSlots();
+    renderTimeline();
+    updateCopy();
+    document.querySelectorAll(".fixture-btn").forEach((button) => {
+      button.classList.toggle("active", button.dataset.fixture === state.fixture);
+    });
+    document.querySelectorAll("#length-controls button").forEach((button) => {
+      button.classList.toggle("active", button.dataset.length === state.length);
+    });
+  }
+
+  document.querySelectorAll(".fixture-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.fixture = button.dataset.fixture;
+      state.selectedHistory = null;
+      state.selectedSlot = null;
+      state.confirmOverwrite = false;
+      render();
+    });
+  });
+
+  document.querySelectorAll("#length-controls button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.length = button.dataset.length;
+      render();
+    });
+  });
+
+  render();
+</script>
+</body>
+</html>

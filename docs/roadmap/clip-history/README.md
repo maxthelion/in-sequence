@@ -4,13 +4,13 @@ title: Clip History
 status: inventory
 priority: unset
 blocked_by: []
-stage: build-prototypes
+stage: review-prototypes
 owner: pm
 updated: 2026-05-04
 ---
 
 # Clip History
 
-Status: Reopened for prototype rework after built-modal UX feedback on 2026-05-04.
+Status: Reworked prototype pass completed on 2026-05-04 after built-modal UX feedback.
 
-The roadmap artifact set still exists, but the current build feedback invalidates the build-ready UI assumptions in the spec, plan, and implementation handoff. The next PM action is to rework the prototype and then reconcile the downstream artifacts before this feature can return to the build queue.
+The roadmap artifact set still exists, but the current build feedback invalidated the previous build-ready UI assumptions in the spec, plan, and implementation handoff. A fresh dual-grid modal prototype now restores the intended source-history to destination-slot transfer model and is ready for PM review before the downstream artifacts are reconciled.
