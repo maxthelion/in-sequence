@@ -4,6 +4,8 @@
 
 PM plan — ready for build queue. No production code has been written.
 
+Advisory: [feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md) reopens the UI direction. The engine prerequisites remain relevant, but do not start or resume UI implementation from this plan until the Clip History prototypes and downstream spec are updated to the revised 4x4 source/destination interaction model.
+
 ---
 
 ## Overview

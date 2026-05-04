@@ -4,6 +4,8 @@
 
 Approved for build planning. Architecture review approved 2026-04-29 with one product decision still open (overwrite interaction detail, see section 9).
 
+Advisory: [feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md) invalidates the current UI structure in sections 2.2, 3, 6, and their related acceptance criteria. Do not treat this spec as authoritative for new UI implementation until the prototype rework loop completes and this document is reconciled to the revised 4x4 source/destination modal direction.
+
 ---
 
 ## 1. Purpose

@@ -1,3 +1,9 @@
+---
+verdict: needs-rework
+redirect_to: build-prototypes
+updated: 2026-05-04
+---
+
 # Clip History UX Review
 
 ## User Feedback
@@ -10,18 +16,25 @@ The prototypes did not fully understand the production application's current vis
 
 Use the modal pattern as the basis for the next design pass.
 
-The modal should show:
+The current accepted interaction model is:
 
 - recent history clips as a 4x4 matrix on one side;
 - the 16 pattern slots as a similar 4x4 element on the other side;
-- a clear relationship between selected history region and target pattern slot;
-- enough distinction between temporary audition state and committed clip state.
+- a lower preview and audition area for the selected virtual clip;
+- explicit source selection, destination selection, and overwrite confirmation before save.
 
 ## What Failed Or Needs Another Pass
 
-- The visual style and layout did not show enough awareness of the actual app.
-- The history and pattern-slot concepts need a stronger side-by-side structure.
-- The next pass should clarify the click path from "interesting generated output" to "audition pseudo clip" to "save as real clip."
+- The built modal regressed from "choose a musical moment from history" to "save the latest capture length," so the source-selection concept must be rebuilt.
+- The next prototype must make source history and destination pattern slots symmetrical 4x4 matrices with equal visual weight.
+- The preview area must clearly separate temporary audition state from committed pattern-slot state.
+- Save must stay disabled until the user explicitly picks both a history cell and a destination slot, and occupied slots must require a visible overwrite-confirmation step.
+- The modal layout needs a stable minimum size that does not crop its title or main content.
+- The build path must not poll engine capture state from `body`; opening the modal freezes one snapshot and subsequent slot clicks stay on cheap local UI state.
+
+## Rework Trigger
+
+See [feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md). That review supersedes the previous build-ready interpretation of this feature and sends the roadmap back to `build-prototypes`.
 
 ## Architecture Questions To Resolve Before Spec
 

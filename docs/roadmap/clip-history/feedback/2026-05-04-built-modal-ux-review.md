@@ -1,3 +1,14 @@
+---
+status: handled
+handled_by: pm-assistant
+handled_in:
+  - docs/roadmap/clip-history/README.md
+  - docs/roadmap/clip-history/ux-review.md
+  - docs/roadmap/clip-history/spec.md
+  - docs/roadmap/clip-history/plan.md
+  - docs/roadmap/clip-history/implementation-handoff.md
+---
+
 # Clip History Built Modal UX Review
 
 Status: accepted by user on 2026-05-04.
@@ -139,4 +150,3 @@ Footer:
 - P1: Rework modal IA to source 4x4 + destination 4x4.
 - P1: Gate save behind explicit source/destination/overwrite decisions.
 - P2: Improve visual polish after the interaction model is corrected.
-

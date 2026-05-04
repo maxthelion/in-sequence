@@ -15,6 +15,10 @@
 
 ---
 
+Advisory: [feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md) reopens the Clip History UI direction. Treat the engine prerequisites below as still informative, but do not use this handoff as build-authoritative for the modal IA, click path, or save gating until the prototype rework loop updates the spec and handoff.
+
+---
+
 ## Goal
 
 Clip History lets a musician running a generator-driven track capture generated output they just heard and save it as a real clip in a pattern slot. The feature bridges live generative exploration and predictable authored arrangement without requiring the user to manually recreate a generated phrase. The primary user story is: open history from the generator view, see the last 16 bars of generated notes frozen in a modal, select a bar, audition it as a looping virtual clip, and save it to a chosen pattern slot in one clear click path.
