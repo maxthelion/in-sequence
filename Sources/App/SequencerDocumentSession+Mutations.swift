@@ -578,6 +578,56 @@ extension SequencerDocumentSession {
         }
     }
 
+    private func applySelectedSlotSourceMutation(
+        trackID: UUID,
+        impact: LiveMutationImpact = .snapshotOnly,
+        _ update: (inout Project) -> Void
+    ) {
+        let clipIDsBefore = Set(store.clipPool.map(\.id))
+        let generatorIDsBefore = Set(store.generatorPool.map(\.id))
+        batch(impact: impact, changed: .patternBank(trackID)) { s in
+            var project = s.exportToProject()
+            update(&project)
+            for clip in project.clipPool where !clipIDsBefore.contains(clip.id) {
+                s.appendClip(clip)
+                recordBatchChange(.clip(clip.id))
+            }
+            for generator in project.generatorPool where !generatorIDsBefore.contains(generator.id) {
+                s.appendGenerator(generator)
+                recordBatchChange(.generator(generator.id))
+            }
+            guard let bank = project.patternBanks.first(where: { $0.trackID == trackID }) else { return }
+            s.setPatternBank(trackID: trackID, bank: bank)
+            recordBatchChange(.patternBank(trackID))
+        }
+    }
+
+    func removeSelectedSlotSource(trackID: UUID, slotIndex: Int) {
+        applySelectedSlotSourceMutation(trackID: trackID) { $0.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex) }
+    }
+
+    @discardableResult
+    func createBlankClipSource(trackID: UUID, slotIndex: Int) -> UUID? {
+        var clipID: UUID?
+        applySelectedSlotSourceMutation(trackID: trackID) { clipID = $0.createBlankClipSource(trackID: trackID, slotIndex: slotIndex) }
+        return clipID
+    }
+
+    func assignClipSource(_ clipID: UUID, to trackID: UUID, slotIndex: Int) {
+        applySelectedSlotSourceMutation(trackID: trackID) { $0.assignClipSource(clipID, to: trackID, slotIndex: slotIndex) }
+    }
+
+    @discardableResult
+    func createBlankGeneratorSource(trackID: UUID, slotIndex: Int) -> GeneratorPoolEntry? {
+        var generator: GeneratorPoolEntry?
+        applySelectedSlotSourceMutation(trackID: trackID) { generator = $0.createBlankGeneratorSource(trackID: trackID, slotIndex: slotIndex) }
+        return generator
+    }
+
+    func assignGeneratorSource(_ generatorID: UUID, to trackID: UUID, slotIndex: Int) {
+        applySelectedSlotSourceMutation(trackID: trackID) { $0.assignGeneratorSource(generatorID, to: trackID, slotIndex: slotIndex) }
+    }
+
     // MARK: - Macro slot assign / remove (canonical typed mutations)
 
     /// Assign an AU parameter descriptor to a specific macro slot on a track.

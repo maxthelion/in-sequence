@@ -45,26 +45,43 @@ extension Project {
             return existing
         }
 
-        guard let track = tracks.first(where: { $0.id == trackID }) else {
-            return nil
+        return createBlankClipSource(trackID: trackID, slotIndex: slotIndex)
+    }
+
+    mutating func removeSelectedSlotSource(trackID: UUID, slotIndex: Int) {
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
+            return
         }
-
-        let newClip = ClipPoolEntry(
-            id: UUID(),
-            name: "\(track.name) pattern \(slotIndex + 1)",
-            trackType: track.trackType,
-            content: .emptyNoteGrid(lengthSteps: 16)
-        )
-        clipPool.append(newClip)
-
-        let merged = SourceRef(
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        let updated = SourceRef(
             mode: .clip,
-            generatorID: slot.sourceRef.generatorID,
-            clipID: newClip.id,
+            generatorID: slot.sourceRef.mode == .generator ? nil : slot.sourceRef.generatorID,
+            clipID: nil,
             modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
             modifierBypassed: slot.sourceRef.modifierBypassed
         )
-        setPatternSourceRef(merged, for: trackID, slotIndex: slotIndex)
+        setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
+        reconcileAttachedGeneratorID(for: trackID, preferredGeneratorID: updated.generatorID)
+    }
+
+    @discardableResult
+    mutating func createBlankClipSource(trackID: UUID, slotIndex: Int) -> UUID? {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return nil
+        }
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+
+        let newClip = ClipPoolEntry(
+            id: UUID(),
+            name: "\(track.name) pattern \(slot.slotIndex + 1)",
+            trackType: track.trackType,
+            content: blankClipContent(for: track.trackType)
+        )
+        clipPool.append(newClip)
+
+        assignClipSource(newClip.id, to: trackID, slotIndex: slotIndex)
         return newClip.id
     }
 
@@ -100,6 +117,60 @@ extension Project {
             modifierBypassed: slot.sourceRef.modifierBypassed
         )
         setPatternSourceRef(merged, for: trackID, slotIndex: slotIndex)
+    }
+
+    mutating func assignClipSource(_ clipID: UUID, to trackID: UUID, slotIndex: Int) {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              clipPool.contains(where: { $0.id == clipID && $0.trackType == track.trackType })
+        else {
+            return
+        }
+        setPatternClipID(clipID, for: trackID, slotIndex: slotIndex)
+        let preferredGeneratorID = patternBank(for: trackID).slot(at: slotIndex).sourceRef.generatorID
+        reconcileAttachedGeneratorID(for: trackID, preferredGeneratorID: preferredGeneratorID)
+    }
+
+    @discardableResult
+    mutating func createBlankGeneratorSource(trackID: UUID, slotIndex: Int) -> GeneratorPoolEntry? {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              patternBanks.contains(where: { $0.trackID == trackID })
+        else {
+            return nil
+        }
+        guard let templateKind = GeneratorKind.allCases.first(where: { $0.compatibleWith.contains(track.trackType) }) else {
+            return nil
+        }
+
+        let nextIndex = generatorPool.filter { $0.trackType == track.trackType }.count + 1
+        let newEntry = GeneratorPoolEntry(
+            id: UUID(),
+            name: "\(templateKind.label) \(nextIndex)",
+            trackType: track.trackType,
+            kind: templateKind,
+            params: templateKind.defaultParams
+        )
+        generatorPool.append(newEntry)
+        assignGeneratorSource(newEntry.id, to: trackID, slotIndex: slotIndex)
+        return newEntry
+    }
+
+    mutating func assignGeneratorSource(_ generatorID: UUID, to trackID: UUID, slotIndex: Int) {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }),
+              generatorPool.contains(where: { $0.id == generatorID && $0.trackType == track.trackType })
+        else {
+            return
+        }
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        let updated = SourceRef(
+            mode: .generator,
+            generatorID: generatorID,
+            clipID: slot.sourceRef.clipID,
+            modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
+            modifierBypassed: slot.sourceRef.modifierBypassed
+        )
+        setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
+        reconcileAttachedGeneratorID(for: trackID, preferredGeneratorID: generatorID)
     }
 
     mutating func updateGeneratorEntry(id: UUID, _ update: (inout GeneratorPoolEntry) -> Void) {
@@ -291,5 +362,36 @@ extension Project {
 
         clipPool.append(template)
         return template
+    }
+
+    private func blankClipContent(for trackType: TrackType) -> ClipContent {
+        switch trackType {
+        case .slice:
+            return .emptySliceTriggers(lengthSteps: 16)
+        case .monoMelodic, .polyMelodic:
+            return .emptyNoteGrid(lengthSteps: 16)
+        }
+    }
+
+    mutating func reconcileAttachedGeneratorID(for trackID: UUID, preferredGeneratorID: UUID? = nil) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return
+        }
+
+        let track = tracks[trackIndex]
+        let compatibleGeneratorIDs = Set(
+            generatorPool
+                .filter { $0.trackType == track.trackType }
+                .map(\.id)
+        )
+
+        var bank = patternBanks[bankIndex]
+        let candidateIDs = [preferredGeneratorID] + bank.slots.map(\.sourceRef.generatorID)
+        bank.attachedGeneratorID = candidateIDs
+            .compactMap { $0 }
+            .first(where: { compatibleGeneratorIDs.contains($0) })
+        patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
     }
 }
