@@ -6,6 +6,8 @@ updated: 2026-05-04
 
 # Clip History UX Review
 
+> Superseded as the active roadmap gate on 2026-05-04 by the replacement prototype pass in `prototypes/clip-history-dual-grid-v4.html`. Keep this review as the critique that drove the rework; the next PM-loop action should write a fresh `ux-review.md` against the replacement pass.
+
 ## User Feedback
 
 The modal version is the stronger direction.
