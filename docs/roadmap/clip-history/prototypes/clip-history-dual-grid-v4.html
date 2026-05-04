@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clip History - Dual Grid Modal (v4)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --bg: #efefeb;
+    --surface: #e4e2dc;
+    --surface-2: #d6d3cb;
+    --panel: #f7f5f0;
+    --panel-2: #ece9e1;
+    --border: #8d8a82;
+    --muted: #68655f;
+    --stub: #aaa69e;
+    --accent: #2d68aa;
+    --accent-soft: #d8e3f1;
+    --play: #705098;
+    --play-soft: #e7dff0;
+    --success: #2f7344;
+    --warn: #a95d09;
+    --warn-soft: #f8ede1;
+  }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: #171717;
+    font: 13px/1.4 system-ui, sans-serif;
+  }
+  button, select { font: inherit; }
+  .proto-note {
+    max-width: 1160px;
+    margin: 0 auto 18px;
+    padding: 12px 14px;
+    border: 2px dashed var(--border);
+    background: #f7f5ef;
+    color: var(--muted);
+  }
+  .proto-note strong { color: #171717; }
+  .proto-note ul { margin: 8px 0 0 18px; padding: 0; }
+  .proto-note li { margin-top: 4px; }
+  .app {
+    max-width: 1160px;
+    margin: 0 auto;
+    border: 2px solid var(--border);
+    background: var(--surface);
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .stub {
+    border: 1px dashed var(--stub);
+    color: var(--stub);
+    padding: 3px 8px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr 268px;
+    min-height: 700px;
+  }
+  .tracks, .inspector {
+    background: #ebe8e1;
+  }
+  .tracks { border-right: 1px solid var(--border); }
+  .inspector { border-left: 1px solid var(--border); }
+  .track {
+    padding: 10px 12px;
+    border-bottom: 1px solid #cbc7bf;
+  }
+  .track.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .track small, .inspector small {
+    display: block;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .editor {
+    display: flex;
+    flex-direction: column;
+  }
+  .section {
+    padding: 12px 14px;
+    border-bottom: 1px solid #cbc7bf;
+  }
+  .section-label {
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .chip {
+    min-width: 40px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .chip.occupied { border-color: var(--success); color: var(--success); }
+  .chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .btn {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: #171717;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn.play {
+    border-color: var(--play);
+    color: var(--play);
+    background: var(--play-soft);
+  }
+  .btn.warn {
+    border-color: var(--warn);
+    color: var(--warn);
+    background: var(--warn-soft);
+  }
+  .btn:disabled,
+  .btn.primary:disabled {
+    cursor: not-allowed;
+    color: var(--stub);
+    border-color: var(--stub);
+    background: #f2f0eb;
+  }
+  .param-stub {
+    padding: 18px;
+    border: 1px dashed var(--stub);
+    text-align: center;
+    color: var(--stub);
+  }
+  .inspector .section { min-height: 0; }
+  .inspector-card {
+    padding: 10px;
+    border: 1px solid var(--border);
+    background: #f6f4ef;
+  }
+  .inspector-card + .inspector-card { margin-top: 10px; }
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.42);
+  }
+  .modal {
+    width: min(1120px, 100%);
+    min-height: 760px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .modal-title {
+    margin: 0;
+    font-size: 15px;
+  }
+  .modal-subtitle, .quiet {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .snapshot-cue {
+    margin-top: 6px;
+    display: inline-block;
+    padding: 3px 8px;
+    border: 1px solid var(--play);
+    color: var(--play);
+    background: var(--play-soft);
+    font-size: 12px;
+  }
+  .modal-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+  }
+  .fixture-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px dashed var(--border);
+    background: #f3f1eb;
+  }
+  .fixture-btn.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .panel {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    min-height: 344px;
+  }
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #c9c6be;
+  }
+  .panel-head h2 {
+    margin: 0;
+    font-size: 13px;
+  }
+  .matrix {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+  }
+  .cell {
+    min-height: 126px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .cell:hover { border-color: var(--accent); background: #f6f4ee; }
+  .cell.selected {
+    border: 2px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 7px;
+  }
+  .cell.occupied {
+    border-color: var(--success);
+    background: #eef5ef;
+  }
+  .cell.confirm {
+    border: 2px solid var(--warn);
+    background: var(--warn-soft);
+    padding: 7px;
+  }
+  .cell.disabled {
+    cursor: not-allowed;
+    color: var(--stub);
+    border-style: dashed;
+    background: #f7f5f0;
+  }
+  .cell-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .cell-tag {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+    min-height: 42px;
+  }
+  .mini-grid span {
+    min-height: 18px;
+    border: 1px solid #c1beb6;
+    background: #ebe7de;
+  }
+  .mini-grid span.note { background: #b8cde6; border-color: #6d90b7; }
+  .mini-grid span.slot-note { background: #c6decf; border-color: #6a9b78; }
+  .mini-grid span.ghost { background: #f4f2ee; border-style: dashed; }
+  .summary {
+    margin-top: auto;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1.35fr .95fr;
+    gap: 14px;
+  }
+  .detail-panel {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 12px;
+  }
+  .detail-panel h2 {
+    margin: 0 0 10px;
+    font-size: 13px;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .pill {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    background: #f8f6f1;
+    font-size: 12px;
+  }
+  .pill.virtual {
+    border-color: var(--play);
+    color: var(--play);
+    background: var(--play-soft);
+  }
+  .pill.committed {
+    border-color: var(--success);
+    color: var(--success);
+    background: #edf5ef;
+  }
+  .lens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .lens button.active {
+    border-color: var(--play);
+    background: var(--play-soft);
+    color: var(--play);
+  }
+  .timeline {
+    padding: 10px;
+    border: 1px solid var(--border);
+    background: #faf8f3;
+    margin-bottom: 10px;
+  }
+  .timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+  }
+  .timeline-grid span {
+    min-height: 24px;
+    border: 1px solid #c8c5bd;
+    background: #efede7;
+  }
+  .timeline-grid span.note { background: #a5c4e6; border-color: #6187b0; }
+  .timeline-grid span.playing { box-shadow: inset 0 0 0 2px var(--play); }
+  .save-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .confirm-box {
+    padding: 10px;
+    border: 1px dashed var(--border);
+    background: #faf8f3;
+  }
+  .confirm-box.warn {
+    border-color: var(--warn);
+    background: var(--warn-soft);
+  }
+  .footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .footer-actions {
+    display: flex;
+    gap: 8px;
+  }
+  @media (max-width: 960px) {
+    body { padding: 12px; }
+    .layout { grid-template-columns: 1fr; }
+    .tracks, .inspector { display: none; }
+    .modal { min-height: auto; }
+    .main-grid, .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="proto-note">
+    <strong>Clip History prototype v4</strong> keeps the modal pattern and the 4x4 transfer model, but now sits inside a source-editor shell that more closely matches the app structure while staying intentionally rough.
+    <ul>
+      <li>Frozen snapshot is called out in the title area; all post-open interactions are local prototype state.</li>
+      <li>Recent History and Save To Pattern are symmetric 4x4 matrices with equal weight.</li>
+      <li>Fixture toggles make empty history, disabled save, and occupied-slot overwrite gating reachable on demand.</li>
+    </ul>
+  </div>
+
+  <div class="app">
+    <div class="toolbar">
+      <span class="stub">[transport]</span>
+      <span class="stub">[tempo 123.4]</span>
+      <span class="stub">[song / scenes]</span>
+      <span class="stub">[mixer]</span>
+      <span class="stub">[sidebar toggles]</span>
+    </div>
+
+    <div class="layout">
+      <aside class="tracks">
+        <div class="track">Kick Generator<small>clip source · stable</small></div>
+        <div class="track active">Glass Marimba<small>generator source · clip history available</small></div>
+        <div class="track">Bass Drone<small>sample source</small></div>
+        <div class="track">Perc Echo<small>generator source · muted</small></div>
+      </aside>
+
+      <main class="editor">
+        <section class="section">
+          <div class="section-label">Pattern Slots</div>
+          <div class="chips">
+            <div class="chip occupied">A1</div>
+            <div class="chip occupied">A2</div>
+            <div class="chip active">A3</div>
+            <div class="chip">A4</div>
+            <div class="chip">B1</div>
+            <div class="chip occupied">B2</div>
+            <div class="chip">B3</div>
+            <div class="chip">B4</div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="row">
+            <div>
+              <div class="section-label">Track Source</div>
+              <div><strong>Euclid Pulse -> Chord Splitter -> Humanize</strong></div>
+              <div class="quiet">Live generator chain for the selected track.</div>
+            </div>
+            <button class="btn play">Open Clip History</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-label">Generator Parameters</div>
+          <div class="param-stub">[parameter controls remain stubbed so the prototype focuses on capture and save flow only]</div>
+        </section>
+
+        <section class="section">
+          <div class="section-label">Generated Notes Preview</div>
+          <div class="param-stub">[existing deterministic preview stays separate from clip-history audition]</div>
+        </section>
+      </main>
+
+      <aside class="inspector">
+        <section class="section">
+          <div class="section-label">Selection</div>
+          <div class="inspector-card">
+            <strong>Track</strong>
+            <small>Glass Marimba</small>
+          </div>
+          <div class="inspector-card">
+            <strong>Current Slot</strong>
+            <small>A3 - committed clip playing in the document</small>
+          </div>
+        </section>
+        <section class="section">
+          <div class="section-label">Off Path</div>
+          <div class="inspector-card">
+            <strong>Inspector / automation lanes</strong>
+            <small>stubbed for this review pass</small>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal-backdrop">
+    <section class="modal">
+      <header class="modal-header">
+        <div>
+          <h1 class="modal-title">Clip History - Glass Marimba</h1>
+          <div class="modal-subtitle">Generator source editor modal. Stable minimum size preserves the title, both matrices, and the footer without cropping.</div>
+          <div class="snapshot-cue">Frozen snapshot captured at modal open - 03:14.682</div>
+        </div>
+        <button class="btn">Close</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="fixture-bar">
+          <strong>Fixture:</strong>
+          <button class="btn fixture-btn active" data-fixture="dense">Dense capture</button>
+          <button class="btn fixture-btn" data-fixture="save-disabled">Save disabled</button>
+          <button class="btn fixture-btn" data-fixture="occupied-slot">Occupied slot</button>
+          <button class="btn fixture-btn" data-fixture="empty-history">Empty history</button>
+          <span class="quiet">Every fixture preserves the same modal layout and transfer model.</span>
+        </div>
+
+        <div class="main-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Recent History</h2>
+              <span class="quiet">16 frozen regions, oldest top-left -> newest bottom-right</span>
+            </div>
+            <div class="matrix" id="history-grid"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Save To Pattern</h2>
+              <span class="quiet">16 destination slots, unlocked only after source selection</span>
+            </div>
+            <div class="matrix" id="slot-grid"></div>
+          </section>
+        </div>
+
+        <div class="detail-grid">
+          <section class="detail-panel">
+            <h2>Virtual Clip Preview</h2>
+            <div class="meta-row">
+              <span class="pill virtual" id="source-pill">Temporary audition: nothing selected</span>
+              <span class="pill committed" id="slot-pill">Committed document slot: A3 remains unchanged</span>
+            </div>
+            <div class="lens" id="length-controls">
+              <button class="btn active" data-length="1 bar">1 bar</button>
+              <button class="btn" data-length="2 bars">2 bars</button>
+              <button class="btn" data-length="4 bars">4 bars</button>
+              <button class="btn" data-length="8 steps">8 steps</button>
+            </div>
+            <div class="timeline">
+              <div class="timeline-grid" id="timeline-grid"></div>
+            </div>
+            <div class="row">
+              <div class="quiet" id="preview-copy">Pick a source region from Recent History. The committed slot in the document does not change while auditioning.</div>
+              <button class="btn play" id="audition-btn" disabled>Audition Virtual Clip</button>
+            </div>
+          </section>
+
+          <section class="detail-panel save-rail">
+            <div>
+              <h2>Save Guardrails</h2>
+              <div class="confirm-box" id="confirm-box">Choose a source region first. Destination selection and save remain disabled until the source exists.</div>
+            </div>
+            <div>
+              <label class="quiet" for="naming">Clip naming</label>
+              <select id="naming" class="btn" style="width: 100%; margin-top: 6px;">
+                <option>Use source timestamp + track name</option>
+                <option>Prompt on save</option>
+              </select>
+            </div>
+            <div class="quiet">Occupied destinations require a second explicit confirmation step before save becomes available.</div>
+          </section>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="quiet">Interaction budget: source select -> optional audition / length tweak -> destination select -> optional overwrite confirm -> save.</div>
+        <div class="footer-actions">
+          <button class="btn">Cancel</button>
+          <button class="btn primary" id="save-btn" disabled>Save Virtual Clip</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+<script>
+  const historyFixtures = {
+    dense: [
+      { id: "H1", range: "-16 bars", summary: "staccato reply", density: [1,0,1,0,1,0,1,0], empty: false },
+      { id: "H2", range: "-15 bars", summary: "two-hit answer", density: [1,1,0,0,1,1,0,0], empty: false },
+      { id: "H3", range: "-14 bars", summary: "late syncopation", density: [1,0,0,1,0,1,1,0], empty: false },
+      { id: "H4", range: "-13 bars", summary: "pickup", density: [0,0,1,0,1,0,0,1], empty: false },
+      { id: "H5", range: "-12 bars", summary: "dense front half", density: [1,1,1,0,0,1,0,0], empty: false },
+      { id: "H6", range: "-11 bars", summary: "alternating accents", density: [0,1,0,1,1,0,1,0], empty: false },
+      { id: "H7", range: "-10 bars", summary: "triplet spill", density: [1,0,1,1,0,0,1,0], empty: false },
+      { id: "H8", range: "-9 bars", summary: "call / response", density: [0,1,1,0,0,1,0,1], empty: false },
+      { id: "H9", range: "-8 bars", summary: "strong corners", density: [1,0,0,1,1,0,0,1], empty: false },
+      { id: "H10", range: "-7 bars", summary: "sparse lead-in", density: [0,1,0,0,1,1,0,1], empty: false },
+      { id: "H11", range: "-6 bars", summary: "beat-three push", density: [1,1,0,1,0,0,1,0], empty: false },
+      { id: "H12", range: "-5 bars", summary: "offbeat stair", density: [0,0,1,1,0,1,0,1], empty: false },
+      { id: "H13", range: "-4 bars", summary: "best recent groove", density: [1,0,1,0,1,1,0,1], empty: false },
+      { id: "H14", range: "-3 bars", summary: "cluster release", density: [1,1,0,0,0,1,1,0], empty: false },
+      { id: "H15", range: "-2 bars", summary: "busy turnaround", density: [0,1,1,1,0,0,1,0], empty: false },
+      { id: "H16", range: "-1 bar", summary: "latest phrase", density: [1,0,1,0,1,0,1,1], empty: false }
+    ],
+    "empty-history": Array.from({ length: 16 }, (_, index) => ({
+      id: `H${index + 1}`,
+      range: `${index === 15 ? "-1 bar" : `-${16 - index} bars`}`,
+      summary: "no captured notes",
+      density: [],
+      empty: true
+    }))
+  };
+
+  const slots = [
+    { id: "A1", state: "occupied", label: "Verse seed" },
+    { id: "A2", state: "occupied", label: "Octave answer" },
+    { id: "A3", state: "occupied", label: "Current document slot", current: true },
+    { id: "A4", state: "empty", label: "Empty slot" },
+    { id: "B1", state: "empty", label: "Empty slot" },
+    { id: "B2", state: "occupied", label: "Long arpeggio" },
+    { id: "B3", state: "empty", label: "Empty slot" },
+    { id: "B4", state: "occupied", label: "Muted alt take" },
+    { id: "C1", state: "empty", label: "Empty slot" },
+    { id: "C2", state: "occupied", label: "Dense chorus" },
+    { id: "C3", state: "empty", label: "Empty slot" },
+    { id: "C4", state: "empty", label: "Empty slot" },
+    { id: "D1", state: "occupied", label: "Drift test" },
+    { id: "D2", state: "empty", label: "Empty slot" },
+    { id: "D3", state: "occupied", label: "Held pad" },
+    { id: "D4", state: "empty", label: "Empty slot" }
+  ];
+
+  const presets = {
+    dense: { fixture: "dense", selectedHistory: "H13", selectedSlot: null, confirmOverwrite: false, length: "1 bar" },
+    "save-disabled": { fixture: "dense", selectedHistory: null, selectedSlot: null, confirmOverwrite: false, length: "1 bar" },
+    "occupied-slot": { fixture: "dense", selectedHistory: "H14", selectedSlot: "B2", confirmOverwrite: false, length: "2 bars" },
+    "empty-history": { fixture: "empty-history", selectedHistory: null, selectedSlot: null, confirmOverwrite: false, length: "1 bar" }
+  };
+
+  const state = { ...presets.dense, activePreset: "dense" };
+
+  const historyGrid = document.getElementById("history-grid");
+  const slotGrid = document.getElementById("slot-grid");
+  const sourcePill = document.getElementById("source-pill");
+  const slotPill = document.getElementById("slot-pill");
+  const previewCopy = document.getElementById("preview-copy");
+  const confirmBox = document.getElementById("confirm-box");
+  const auditionBtn = document.getElementById("audition-btn");
+  const saveBtn = document.getElementById("save-btn");
+  const timelineGrid = document.getElementById("timeline-grid");
+
+  function miniGrid(pattern, mode) {
+    if (!pattern.length) {
+      return Array.from({ length: 8 }, () => "<span class=\"ghost\"></span>").join("");
+    }
+    return pattern.map((step) => `<span class="${step ? mode : ""}"></span>`).join("");
+  }
+
+  function currentHistoryItems() {
+    return historyFixtures[state.fixture];
+  }
+
+  function renderHistory() {
+    historyGrid.innerHTML = "";
+    currentHistoryItems().forEach((item) => {
+      const selected = state.selectedHistory === item.id;
+      const button = document.createElement("button");
+      button.className = `cell${selected ? " selected" : ""}${item.empty ? " disabled" : ""}`;
+      button.disabled = item.empty;
+      button.innerHTML = `
+        <div class="cell-top"><strong>${item.id}</strong><span class="cell-tag">${item.range}</span></div>
+        <div class="mini-grid">${miniGrid(item.density, "note")}</div>
+        <div class="summary">${item.summary}</div>
+      `;
+      button.addEventListener("click", () => {
+        state.selectedHistory = item.id;
+        state.selectedSlot = null;
+        state.confirmOverwrite = false;
+        render();
+      });
+      historyGrid.appendChild(button);
+    });
+  }
+
+  function renderSlots() {
+    slotGrid.innerHTML = "";
+    slots.forEach((slot) => {
+      const disabled = !state.selectedHistory;
+      const selected = state.selectedSlot === slot.id;
+      const needsConfirm = selected && slot.state === "occupied" && !state.confirmOverwrite;
+      const button = document.createElement("button");
+      button.className = `cell${slot.state === "occupied" ? " occupied" : ""}${selected ? " selected" : ""}${needsConfirm ? " confirm" : ""}${disabled ? " disabled" : ""}`;
+      button.disabled = disabled;
+      button.innerHTML = `
+        <div class="cell-top"><strong>${slot.id}</strong><span class="cell-tag">${slot.state}${slot.current ? " · current" : ""}</span></div>
+        <div class="mini-grid">${miniGrid(slot.state === "occupied" ? [1,0,1,0,0,1,0,1] : [], "slot-note")}</div>
+        <div class="summary">${slot.label}</div>
+      `;
+      button.addEventListener("click", () => {
+        state.selectedSlot = slot.id;
+        state.confirmOverwrite = false;
+        render();
+      });
+      slotGrid.appendChild(button);
+    });
+  }
+
+  function renderTimeline() {
+    const history = currentHistoryItems().find((item) => item.id === state.selectedHistory);
+    timelineGrid.innerHTML = "";
+    const pattern = history && !history.empty
+      ? Array.from({ length: 16 }, (_, index) => history.density[index % history.density.length])
+      : Array.from({ length: 16 }, () => 0);
+    pattern.forEach((step, index) => {
+      const node = document.createElement("span");
+      node.className = `${step ? "note" : ""}${step && index < 4 ? " playing" : ""}`.trim();
+      timelineGrid.appendChild(node);
+    });
+  }
+
+  function updateCopy() {
+    const history = currentHistoryItems().find((item) => item.id === state.selectedHistory);
+    const slot = slots.find((item) => item.id === state.selectedSlot);
+
+    sourcePill.textContent = history
+      ? `Temporary audition: ${history.id} · ${history.range} · ${state.length}`
+      : "Temporary audition: nothing selected";
+    slotPill.textContent = slot
+      ? `Committed document slot stays unchanged until save: ${slot.id}`
+      : "Committed document slot: A3 remains unchanged";
+
+    if (!history) {
+      previewCopy.textContent = state.fixture === "empty-history"
+        ? "This frozen snapshot contains no captured notes yet. The matrix stays visible so the user understands why audition and save are unavailable."
+        : "Pick a source region from Recent History. The committed slot in the document does not change while auditioning.";
+      confirmBox.className = `confirm-box${state.fixture === "empty-history" ? " warn" : ""}`;
+      confirmBox.textContent = state.fixture === "empty-history"
+        ? "No history regions are available in this snapshot. Destination selection and save are disabled."
+        : "Choose a source region first. Destination selection and save remain disabled until the source exists.";
+      auditionBtn.disabled = true;
+      saveBtn.disabled = true;
+      return;
+    }
+
+    auditionBtn.disabled = false;
+
+    if (!slot) {
+      previewCopy.textContent = `Audition ${history.id} as a temporary ${state.length} clip, then choose where to commit it in the pattern matrix.`;
+      confirmBox.className = "confirm-box";
+      confirmBox.textContent = "Source selected. Destination slot still required before save can unlock.";
+      saveBtn.disabled = true;
+      return;
+    }
+
+    if (slot.state === "occupied" && !state.confirmOverwrite) {
+      previewCopy.textContent = `Destination ${slot.id} already contains "${slot.label}". Audition can continue, but save is blocked until overwrite is confirmed.`;
+      confirmBox.className = "confirm-box warn";
+      confirmBox.innerHTML = `
+        ${slot.id} is occupied by "${slot.label}".<br>
+        <button class="btn warn" id="confirm-overwrite">Confirm overwrite of ${slot.id}</button>
+      `;
+      saveBtn.disabled = true;
+      requestAnimationFrame(() => {
+        document.getElementById("confirm-overwrite").onclick = () => {
+          state.confirmOverwrite = true;
+          render();
+        };
+      });
+      return;
+    }
+
+    previewCopy.textContent = `Ready to commit ${history.id} into ${slot.id}. The clip is still temporary until Save Virtual Clip is pressed.`;
+    confirmBox.className = "confirm-box";
+    confirmBox.textContent = slot.state === "occupied"
+      ? `Overwrite confirmed. Save will replace "${slot.label}" in ${slot.id}.`
+      : `${slot.id} is empty. Save will create a new committed clip there.`;
+    saveBtn.disabled = false;
+  }
+
+  function render() {
+    renderHistory();
+    renderSlots();
+    renderTimeline();
+    updateCopy();
+    document.querySelectorAll(".fixture-btn").forEach((button) => {
+      button.classList.toggle("active", button.dataset.fixture === state.activePreset);
+    });
+    document.querySelectorAll("#length-controls button").forEach((button) => {
+      button.classList.toggle("active", button.dataset.length === state.length);
+    });
+  }
+
+  document.querySelectorAll(".fixture-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      Object.assign(state, presets[button.dataset.fixture], { activePreset: button.dataset.fixture });
+      render();
+    });
+  });
+
+  document.querySelectorAll("#length-controls button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.length = button.dataset.length;
+      render();
+    });
+  });
+
+  render();
+</script>
+</body>
+</html>
