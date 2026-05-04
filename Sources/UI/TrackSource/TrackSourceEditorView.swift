@@ -41,6 +41,7 @@ struct TrackSourceEditorView: View {
     @State private var selectedTab: TrackSourceEditorTab = .source
     @State private var generatorPickerPurpose: GeneratorPickerPurpose?
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
+    @State private var isClipHistoryPresented = false
 
     private struct MacroSlotPickerRequest: Identifiable {
         let slotIndex: Int
@@ -204,6 +205,27 @@ struct TrackSourceEditorView: View {
             }
             .presentationBackground(.ultraThinMaterial)
         }
+        .sheet(isPresented: $isClipHistoryPresented) {
+            ClipHistoryCaptureSheet(
+                trackID: track.id,
+                trackName: track.name,
+                selectedSlotIndex: selectedPatternIndex,
+                occupiedSlots: occupiedPatternSlots,
+                accent: accent,
+                capturedContent: { lengthSteps in
+                    engineController.capturedClipContent(trackID: track.id, lengthSteps: lengthSteps)
+                },
+                onSave: { slotIndex, lengthSteps in
+                    session.saveRollingCaptureToPatternSlot(
+                        trackID: track.id,
+                        slotIndex: slotIndex,
+                        lengthSteps: lengthSteps
+                    ) != nil
+                }
+            )
+            .presentationDetents([.large])
+            .presentationBackground(.clear)
+        }
     }
 
     @ViewBuilder
@@ -247,6 +269,9 @@ struct TrackSourceEditorView: View {
                             .fixedSize(horizontal: false, vertical: true)
 
                         HStack(spacing: 10) {
+                            actionButton(title: "Clip History", accent: StudioTheme.success) {
+                                isClipHistoryPresented = true
+                            }
                             actionButton(title: "Choose Different Generator", accent: accent) {
                                 generatorPickerPurpose = .source
                             }
@@ -537,6 +562,285 @@ struct TrackSourceEditorView: View {
                 session.setSelectedPatternIndex(newValue, for: trackID)
             }
         )
+    }
+}
+
+private struct ClipHistoryCaptureSheet: View {
+    let trackID: UUID
+    let trackName: String
+    let selectedSlotIndex: Int
+    let occupiedSlots: Set<Int>
+    let accent: Color
+    let capturedContent: (Int) -> ClipContent?
+    let onSave: (Int, Int) -> Bool
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var lengthSteps = 16
+    @State private var destinationSlotIndex: Int
+    @State private var saveMessage: String?
+
+    private static let lengthOptions = [16, 32, 64, 128, 256]
+
+    init(
+        trackID: UUID,
+        trackName: String,
+        selectedSlotIndex: Int,
+        occupiedSlots: Set<Int>,
+        accent: Color,
+        capturedContent: @escaping (Int) -> ClipContent?,
+        onSave: @escaping (Int, Int) -> Bool
+    ) {
+        self.trackID = trackID
+        self.trackName = trackName
+        self.selectedSlotIndex = selectedSlotIndex
+        self.occupiedSlots = occupiedSlots
+        self.accent = accent
+        self.capturedContent = capturedContent
+        self.onSave = onSave
+        let preferredSlot = (0..<TrackPatternBank.slotCount).first { $0 != selectedSlotIndex } ?? selectedSlotIndex
+        _destinationSlotIndex = State(initialValue: preferredSlot)
+    }
+
+    var body: some View {
+        ZStack {
+            StudioTheme.stageFill
+                .ignoresSafeArea()
+
+            StudioPanel(title: "Clip History", eyebrow: trackName, accent: accent) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            lengthPicker
+                            TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+                                clipPreview(content: capturedContent(lengthSteps))
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Save To Pattern Slot")
+                                .studioText(.labelBold)
+                                .foregroundStyle(StudioTheme.text)
+                            patternSlotGrid
+                            saveControls
+                        }
+                        .frame(width: 280, alignment: .topLeading)
+                    }
+                }
+            }
+            .padding(24)
+            .frame(minWidth: 840, minHeight: 560)
+        }
+    }
+
+    private var lengthPicker: some View {
+        HStack(spacing: 8) {
+            Text("Length")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.mutedText)
+            ForEach(Self.lengthOptions, id: \.self) { option in
+                Button {
+                    lengthSteps = option
+                    saveMessage = nil
+                } label: {
+                    Text("\(option / 16) bar\(option == 16 ? "" : "s")")
+                        .studioText(.labelBold)
+                        .foregroundStyle(lengthSteps == option ? StudioTheme.text : StudioTheme.mutedText)
+                        .padding(.vertical, 7)
+                        .padding(.horizontal, 10)
+                        .background(
+                            (lengthSteps == option ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)),
+                            in: Capsule()
+                        )
+                        .overlay(Capsule().stroke(lengthSteps == option ? accent : StudioTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func clipPreview(content: ClipContent?) -> some View {
+        let normalized = content?.normalized
+        let steps = normalized?.noteGridSteps ?? []
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Most Recent \(lengthSteps / 16) Bar\(lengthSteps == 16 ? "" : "s")")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                Spacer()
+                Text("\(activeStepCount(in: steps)) active / \(lengthSteps) steps")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            if steps.isEmpty {
+                Text("Play the generator to fill the history buffer.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .frame(maxWidth: .infinity, minHeight: 240, alignment: .center)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: 1)
+                    )
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: historyGridColumns, alignment: .leading, spacing: 6) {
+                        ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                            ClipHistoryStepCell(step: step, index: index, accent: accent)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(2)
+                }
+                .frame(minHeight: 240, maxHeight: 300)
+            }
+        }
+    }
+
+    private var historyGridColumns: [GridItem] {
+        Array(repeating: GridItem(.fixed(34), spacing: 6), count: 16)
+    }
+
+    private var patternSlotGridColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+    }
+
+    private var patternSlotGrid: some View {
+        LazyVGrid(columns: patternSlotGridColumns, spacing: 8) {
+            ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
+                ClipHistoryPatternSlotButton(
+                    slotIndex: slotIndex,
+                    subtitle: slotSubtitle(for: slotIndex),
+                    isSelected: slotIndex == destinationSlotIndex,
+                    accent: accent
+                ) {
+                    destinationSlotIndex = slotIndex
+                    saveMessage = nil
+                }
+            }
+        }
+    }
+
+    private var saveControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let saveMessage {
+                Text(saveMessage)
+                    .studioText(.label)
+                    .foregroundStyle(saveMessage == "Saved" ? StudioTheme.success : StudioTheme.amber)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    guard onSave(destinationSlotIndex, lengthSteps) else {
+                        saveMessage = "No captured notes yet"
+                        return
+                    }
+                    saveMessage = "Saved"
+                    dismiss()
+                } label: {
+                    Text("Save Capture")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
+                        .overlay(Capsule().stroke(accent, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(.plain)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.mutedText)
+            }
+        }
+    }
+
+    private func activeStepCount(in steps: [ClipStep]) -> Int {
+        steps.filter { !($0.main?.notes.isEmpty ?? true) }.count
+    }
+
+    private func slotSubtitle(for slotIndex: Int) -> String {
+        if slotIndex == selectedSlotIndex {
+            return "current"
+        }
+        if occupiedSlots.contains(slotIndex) {
+            return "used"
+        }
+        return "empty"
+    }
+}
+
+private struct ClipHistoryPatternSlotButton: View {
+    let slotIndex: Int
+    let subtitle: String
+    let isSelected: Bool
+    let accent: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text("P\(slotIndex + 1)")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                Text(subtitle)
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(backgroundFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isSelected ? accent : StudioTheme.border, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var backgroundFill: Color {
+        isSelected ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)
+    }
+}
+
+private struct ClipHistoryStepCell: View {
+    let step: ClipStep
+    let index: Int
+    let accent: Color
+
+    private var notes: [ClipStepNote] {
+        step.main?.notes ?? []
+    }
+
+    private var isActive: Bool {
+        !notes.isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text("\(index + 1)")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+            Text(notes.first.map { "\($0.pitch)" } ?? "-")
+                .studioText(.labelBold)
+                .foregroundStyle(isActive ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(width: 34, height: 46)
+        .background(backgroundFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(isActive ? accent : StudioTheme.border, lineWidth: 1)
+        )
+        .help(notes.map { "pitch \($0.pitch), velocity \($0.velocity)" }.joined(separator: "\n"))
+    }
+
+    private var backgroundFill: Color {
+        isActive ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)
     }
 }
 

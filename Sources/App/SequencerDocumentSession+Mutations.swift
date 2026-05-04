@@ -91,6 +91,30 @@ extension SequencerDocumentSession {
         return true
     }
 
+    @discardableResult
+    func saveRollingCaptureToPatternSlot(
+        trackID: UUID,
+        slotIndex: Int,
+        lengthSteps: Int
+    ) -> UUID? {
+        var project = store.exportToProject()
+        guard let clipID = engineController.saveRollingCapture(
+            to: &project,
+            trackID: trackID,
+            destinationSlotIndex: slotIndex,
+            lengthSteps: lengthSteps,
+            name: "Capture P\(slotIndex + 1)"
+        ) else {
+            return nil
+        }
+
+        guard store.replaceProject(project) else {
+            return clipID
+        }
+        dispatchImpact(.fullEngineApply, changed: .full)
+        return clipID
+    }
+
     // MARK: - Track mutations
 
     /// Mutate a track by ID, then dispatch impact.

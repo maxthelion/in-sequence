@@ -18,7 +18,7 @@ final class EngineController: RouterDispatcher {
         let maxSteps: Int
         var steps: [RollingCaptureStep]
 
-        init(maxSteps: Int = 64, steps: [RollingCaptureStep] = []) {
+        init(maxSteps: Int = 256, steps: [RollingCaptureStep] = []) {
             self.maxSteps = max(1, maxSteps)
             self.steps = Array(steps.suffix(max(1, maxSteps)))
         }
