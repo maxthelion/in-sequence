@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-04T17:06:06Z
-Repo HEAD: 89bd8e1
+Generated: 2026-05-05T12:19:59Z
+Repo HEAD: c43cd48
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -48,14 +48,7 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 
 ## Next Agent Item
 
-- **Item:** 1
-- **Feature:** Clip History
-- **Priority:** `unset`
-- **Status:** `inventory`
-- **Action:** `review-prototypes`
-- **Role:** `pm-assistant`
-- **Why:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Output:** Review variants against the UX checklist and choose or reject a direction.
+- No roadmap items currently have an autonomous PM-assistant action.
 
 ## Feature Actions
 
@@ -65,10 +58,10 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Status:** `inventory`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `review-prototypes`
-- **Role:** `pm-assistant`
-- **Reason:** Prototype artifacts exist, but `ux-review.md` is missing.
-- **Suggested output:** Review variants against the UX checklist and choose or reject a direction.
+- **Next action:** `ready-for-build-queue`
+- **Role:** `pm`
+- **Reason:** Planning artifacts are present.
+- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
 
 ### 2. Scene Perform
 
