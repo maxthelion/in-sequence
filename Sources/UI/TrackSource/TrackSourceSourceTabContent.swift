@@ -20,12 +20,20 @@ struct TrackSourceSourceTabContent: View {
     let onUpdateClipContent: (ClipContent) -> Void
     let onShowGeneratorPicker: () -> Void
     let onPresentClipHistory: () -> Void
-    let onRemoveGeneratorSource: () -> Void
+    let onRemoveSource: () -> Void
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
 
+    private var displayState: TrackSourceSourceDisplayState {
+        TrackSourceSourceDisplayState.resolve(
+            sourceMode: sourceMode,
+            currentClip: currentClip,
+            selectedGenerator: selectedGenerator
+        )
+    }
+
     var body: some View {
-        switch sourceMode {
-        case .clip:
+        switch displayState {
+        case .occupiedClip:
             TrackSourceClipPanel(
                 accent: StudioTheme.violet,
                 previewClipContent: previewClipContent,
@@ -41,7 +49,7 @@ struct TrackSourceSourceTabContent: View {
             )
             sourceWell
 
-        case .generator:
+        case .occupiedGenerator:
             sourceWell
 
             if let selectedGenerator {
@@ -55,6 +63,9 @@ struct TrackSourceSourceTabContent: View {
                     onUpdate: onUpdateGeneratorParams
                 )
             }
+
+        case .empty:
+            sourceWell
         }
     }
 
@@ -67,7 +78,7 @@ struct TrackSourceSourceTabContent: View {
             accent: accent,
             onShowGeneratorPicker: onShowGeneratorPicker,
             onPresentClipHistory: onPresentClipHistory,
-            onRemoveGeneratorSource: onRemoveGeneratorSource
+            onRemoveSource: onRemoveSource
         )
     }
 }

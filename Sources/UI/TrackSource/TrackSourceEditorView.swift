@@ -250,7 +250,7 @@ struct TrackSourceEditorView: View {
             onUpdateClipContent: updateClipContent,
             onShowGeneratorPicker: { generatorPickerPurpose = .source },
             onPresentClipHistory: presentClipHistory,
-            onRemoveGeneratorSource: removeGeneratorSource,
+            onRemoveSource: removeSource,
             onUpdateGeneratorParams: updateSourceGeneratorParams
         )
     }
@@ -406,29 +406,8 @@ struct TrackSourceEditorView: View {
         }
     }
 
-    private func removeGeneratorSource() {
-        let trackID = track.id
-        let currentPattern = selectedPattern
-        let slotIndex = selectedPatternIndex
-        session.batch(impact: .snapshotOnly, changed: .full) { s in
-            var p = s.exportToProject()
-            guard let clipID = p.ensureClipForCurrentPattern(trackID: trackID) else { return }
-            // Sync new clip if created.
-            let newClips = p.clipPool.filter { c in
-                s.exportToProject().clipPool.first(where: { $0.id == c.id }) == nil
-            }
-            for clip in newClips { s.appendClip(clip) }
-            for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
-            let updated = SourceRef(
-                mode: .clip,
-                generatorID: nil,
-                clipID: clipID,
-                modifierGeneratorID: currentPattern.sourceRef.modifierGeneratorID,
-                modifierBypassed: currentPattern.sourceRef.modifierBypassed
-            )
-            p.setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
-            for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
-        }
+    private func removeSource() {
+        session.removeSelectedSlotSource(trackID: track.id, slotIndex: selectedPatternIndex)
     }
 
     private func resolvedPatternIndex(in phrase: PhraseModel, trackID: UUID, stepIndex: Int) -> Int {
