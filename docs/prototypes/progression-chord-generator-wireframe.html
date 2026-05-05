@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progression Chord Generator Wireframe</title>
+  <style>
+    :root {
+      --paper: #f7f7f7;
+      --panel: #ffffff;
+      --line: #666666;
+      --line-soft: #b8b8b8;
+      --text: #202020;
+      --muted: #6d6d6d;
+      --stub: #e8e8e8;
+      --accent: #1269aa;
+      --accent-soft: #e6f0f8;
+      --error: #b00020;
+      --success: #176b3a;
+      --changed: #8a6d00;
+      --disabled: #9b9b9b;
+      --focus: #0a58a8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.35;
+      overflow-x: hidden;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 220px minmax(760px, 1fr) 260px;
+      min-height: 100vh;
+    }
+
+    .rail,
+    .aside {
+      border-right: 2px solid var(--line);
+      padding: 22px;
+      background:
+        repeating-linear-gradient(-45deg, transparent, transparent 9px, rgba(0, 0, 0, 0.04) 10px),
+        var(--paper);
+    }
+
+    .aside {
+      border-right: 0;
+      border-left: 2px solid var(--line);
+    }
+
+    .main {
+      padding: 24px 30px 40px;
+      min-width: 0;
+      overflow-x: hidden;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .small {
+      font-size: 13px;
+    }
+
+    .section {
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 18px;
+      margin-bottom: 22px;
+      min-width: 0;
+    }
+
+    .stub {
+      border: 2px dashed var(--line-soft);
+      background:
+        repeating-linear-gradient(-45deg, var(--stub), var(--stub) 8px, #f5f5f5 8px, #f5f5f5 16px);
+      color: var(--muted);
+      padding: 12px;
+    }
+
+    .toolbar,
+    .screen-head,
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .screen-head {
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+
+    .toolbar {
+      flex-wrap: wrap;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    .button {
+      border: 2px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 8px 12px;
+      min-height: 38px;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      border-color: var(--focus);
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .button.danger {
+      border-color: var(--error);
+      color: var(--error);
+    }
+
+    .button.stub-button {
+      border-style: dashed;
+      color: var(--muted);
+    }
+
+    .button.selected,
+    .layer-button.selected,
+    .page-button.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .button:disabled {
+      border-color: var(--disabled);
+      color: var(--disabled);
+      background: #eeeeee;
+      cursor: default;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 8px;
+      min-height: 38px;
+    }
+
+    input:focus,
+    select:focus,
+    button:focus {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    label {
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .top-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 16px;
+      align-items: end;
+      margin-top: 14px;
+    }
+
+    .preset-panel {
+      border: 2px dashed var(--line);
+      background:
+        repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0, 0, 0, 0.035) 11px),
+        var(--panel);
+      padding: 14px;
+      margin-top: 16px;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 2fr) 120px minmax(180px, 1fr) auto;
+      gap: 16px;
+      align-items: end;
+      margin-top: 12px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      border: 2px solid var(--line);
+      background: var(--panel);
+    }
+
+    .segmented.four {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .segmented button {
+      border: 0;
+      border-right: 2px solid var(--line);
+      background: transparent;
+      min-height: 38px;
+      cursor: pointer;
+    }
+
+    .segmented button:last-child {
+      border-right: 0;
+    }
+
+    .segmented button.selected {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .layer-row {
+      display: flex;
+      overflow-x: auto;
+      gap: 10px;
+      margin-top: 16px;
+      padding-bottom: 4px;
+    }
+
+    .layer-button,
+    .page-button {
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 9px 10px;
+      cursor: pointer;
+      min-height: 40px;
+      text-align: left;
+      flex: 0 0 140px;
+    }
+
+    .chord-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(170px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .chord-card {
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 14px;
+      min-height: 96px;
+      display: grid;
+      gap: 8px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .chord-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .chord-card.changed {
+      border-color: var(--changed);
+    }
+
+    .chord-card .meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .selected-chord-strip {
+      margin-top: 14px;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .selected-chord-strip.empty {
+      border-style: dashed;
+      color: var(--muted);
+    }
+
+    .selected-chord-head {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .selected-chord-head strong {
+      min-width: 170px;
+    }
+
+    .selected-chord-controls {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .selected-chord-controls input,
+    .selected-chord-controls select {
+      min-height: 32px;
+      padding: 5px;
+    }
+
+    .layer-strip {
+      margin-top: 18px;
+      border-top: 2px solid var(--line-soft);
+      padding-top: 16px;
+    }
+
+    .steps-panel {
+      margin-top: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(16, minmax(64px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+      width: max-content;
+      min-width: 1150px;
+    }
+
+    .step-cell {
+      border: 2px solid var(--line-soft);
+      background: var(--panel);
+      min-height: 114px;
+      padding: 8px;
+      cursor: pointer;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .step-cell.has-chord {
+      border-color: var(--line);
+    }
+
+    .step-cell.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .step-cell.changed {
+      border-color: var(--changed);
+    }
+
+    .step-index {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .roman {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .layer-value {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .empty-mark {
+      color: var(--disabled);
+      font-weight: 700;
+      align-self: center;
+      justify-self: center;
+    }
+
+    .page-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    .advanced {
+      border-style: dashed;
+      background:
+        repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0, 0, 0, 0.035) 11px),
+        var(--panel);
+    }
+
+    .toast {
+      position: fixed;
+      left: 24px;
+      bottom: 24px;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 12px 14px;
+      display: none;
+      max-width: 360px;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 1080px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .rail,
+      .aside {
+        border: 0;
+        border-bottom: 2px solid var(--line);
+      }
+
+      .top-grid,
+      .preset-grid,
+      .selected-chord-controls,
+      .chord-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="rail" aria-label="Stubbed app navigation">
+      <h3>Workspace</h3>
+      <div class="stack">
+        <button class="button stub-button" data-stub="phrase matrix">[phrase matrix]</button>
+        <button class="button stub-button" data-stub="track list">[track list]</button>
+        <button class="button stub-button" data-stub="mixer">[mixer]</button>
+      </div>
+      <div class="section" style="margin-top: 16px;">
+        <strong>Interaction budget</strong>
+        <p class="small">Primary goal in 3 interactions after entry.</p>
+        <ol class="small">
+          <li>Choose a layer.</li>
+          <li>Select a step on the visible page.</li>
+          <li>Edit that chord layer.</li>
+        </ol>
+      </div>
+    </nav>
+
+    <main class="main">
+      <div class="screen-head">
+        <div>
+          <h1>Progression Chord Steps</h1>
+          <p class="muted">Generator source: chords laid out like a clip. Each chord is a step with editable layers.</p>
+        </div>
+        <div class="toolbar">
+          <button class="button stub-button" data-stub="different generator">Choose Different Generator</button>
+          <button class="button danger" id="remove-source">Remove Source</button>
+        </div>
+      </div>
+
+      <section class="section" aria-labelledby="clip-heading">
+        <div class="toolbar">
+          <div>
+            <h2 id="clip-heading">Clip Setup</h2>
+            <p class="muted">When the clip is playing, preset/root controls stay out of the way.</p>
+          </div>
+          <span class="spacer"></span>
+          <button class="button stub-button" data-stub="source routing">-> [source routing]</button>
+        </div>
+
+        <div class="top-grid">
+          <div class="field">
+            <label>Clip Length</label>
+            <div class="segmented four" id="length-buttons">
+              <button type="button" data-length="16">16</button>
+              <button type="button" data-length="32">32</button>
+              <button type="button" class="selected" data-length="64">64</button>
+              <button type="button" data-length="128">128</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="layers-heading">
+        <div class="toolbar">
+          <div>
+            <h2 id="layers-heading">Chords</h2>
+            <p class="muted">These are the chords in the clip. Select one to edit its defaults below.</p>
+          </div>
+          <span class="spacer"></span>
+          <button class="button" id="load-preset">Load From Preset</button>
+        </div>
+
+        <div class="preset-panel hidden" id="preset-panel">
+          <div class="toolbar">
+            <div>
+              <h2>Load From Preset</h2>
+              <p class="muted">Choose a seed and root, then apply it to the clip. Closing this returns to the playing view.</p>
+            </div>
+            <span class="spacer"></span>
+            <button class="button stub-button" id="cancel-preset">Cancel</button>
+          </div>
+          <div class="preset-grid">
+            <div class="field">
+              <label for="preset">Seed</label>
+              <select id="preset">
+                <option value="i-VII-VI-VII">i - VII - VI - VII</option>
+                <option value="I-V-vi-IV">I - V - vi - IV</option>
+                <option value="ii-V-I-VI">ii - V - I - VI</option>
+                <option value="empty">Empty clip</option>
+                <option value="dense">Dense fixture: awkward chord every step</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="root">Root MIDI</label>
+              <input id="root" type="number" min="0" max="127" value="60">
+            </div>
+            <div class="field">
+              <label>Root Position</label>
+              <div class="segmented" data-group="mode">
+                <button type="button" data-value="major">Major</button>
+                <button type="button" class="selected" data-value="minor">Minor</button>
+              </div>
+            </div>
+            <button class="button primary" id="apply-preset">Apply Preset</button>
+          </div>
+        </div>
+
+        <div class="chord-grid" id="chord-cells"></div>
+
+        <div class="selected-chord-strip" id="selected-chord-strip" aria-live="polite">
+          <div class="selected-chord-head">
+            <strong id="selected-chord-title">Selected chord</strong>
+            <span class="muted" id="selected-chord-status">Select a chord to edit its defaults.</span>
+          </div>
+          <div class="selected-chord-controls">
+            <div class="field">
+              <label for="selected-position">Position</label>
+              <input id="selected-position" type="number" min="-14" max="14" data-selected-field="position">
+            </div>
+            <div class="field">
+              <label for="selected-type">Type</label>
+              <select id="selected-type" data-selected-field="type">
+                <option value="major">major</option>
+                <option value="minor">minor</option>
+                <option value="minor7">minor7</option>
+                <option value="dominant7">dominant7</option>
+                <option value="diminished">diminished</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="selected-inversion">Inversion</label>
+              <select id="selected-inversion" data-selected-field="inversion">
+                <option value="0">root</option>
+                <option value="1">1st</option>
+                <option value="2">2nd</option>
+                <option value="3">3rd</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="selected-voicing">Voicing</label>
+              <select id="selected-voicing" data-selected-field="voicing">
+                <option value="close">close</option>
+                <option value="open">open</option>
+                <option value="drop2">drop2</option>
+                <option value="spread">spread</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="selected-note-count">Notes</label>
+              <select id="selected-note-count" data-selected-field="noteCount">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="selected-length">Length</label>
+              <select id="selected-length" data-selected-field="length">
+                <option value="next">until next</option>
+                <option value="4">4 steps</option>
+                <option value="8">8 steps</option>
+                <option value="16">16 steps</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="layer-strip">
+          <h2>Layers</h2>
+          <p class="muted">Choose what each step displays. Empty overrides inherit the selected chord defaults above.</p>
+          <div class="layer-row" id="layer-row"></div>
+        </div>
+
+        <div class="steps-panel">
+          <div class="toolbar">
+            <div>
+              <h2>16-Step Page</h2>
+              <p class="muted" id="page-label">Steps 1-16 of 64.</p>
+            </div>
+          </div>
+          <div class="step-grid" id="step-grid"></div>
+          <div class="page-row" id="page-row"></div>
+        </div>
+      </section>
+
+      <section class="section advanced" aria-labelledby="defaults-heading">
+        <h2 id="defaults-heading">Secondary Defaults</h2>
+        <p class="muted">Length defaults to "until next chord" so bar-start chords naturally sustain until the following chord event.</p>
+        <div class="stub" style="margin-top: 12px;">-> [humanize, probability, macro mapping]</div>
+      </section>
+    </main>
+
+    <aside class="aside">
+      <h3>Off-path stubs</h3>
+      <div class="stack">
+        <div class="stub">-> [AU destination]</div>
+        <div class="stub">-> [clip source switcher]</div>
+        <div class="stub">-> [preset library]</div>
+        <button class="button stub-button" data-stub="user menu">[user menu]</button>
+      </div>
+      <div class="section" style="margin-top: 16px;">
+        <strong>Prototype states</strong>
+        <div class="stack" style="margin-top: 10px;">
+          <button class="button stub-button" id="fixture-empty">[empty clip]</button>
+          <button class="button stub-button" id="fixture-dense">[dense 16-step page]</button>
+          <button class="button stub-button" id="fixture-long">[128-step clip]</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const layerDefs = [
+      { id: "position", label: "Position" },
+      { id: "type", label: "Type" },
+      { id: "inversion", label: "Inversion" },
+      { id: "voicing", label: "Voicing" },
+      { id: "noteCount", label: "Notes" },
+      { id: "length", label: "Length" }
+    ];
+
+    const presets = {
+      "i-VII-VI-VII": [
+        { position: 0, accidental: 0, type: "minor", inversion: 0, voicing: "close", noteCount: 3, length: "next" },
+        { position: 6, accidental: 0, type: "major", inversion: 0, voicing: "close", noteCount: 3, length: "next" },
+        { position: 5, accidental: 0, type: "major", inversion: 0, voicing: "close", noteCount: 3, length: "next" },
+        { position: 6, accidental: 0, type: "major", inversion: 0, voicing: "close", noteCount: 3, length: "next" }
+      ],
+      "I-V-vi-IV": [
+        { position: 0, accidental: 0, type: "major", inversion: 0, voicing: "close", noteCount: 3, length: "next" },
+        { position: 4, accidental: 0, type: "major", inversion: 0, voicing: "close", noteCount: 3, length: "next" },
+        { position: 5, accidental: 0, type: "minor", inversion: 0, voicing: "open", noteCount: 3, length: "next" },
+        { position: 3, accidental: 0, type: "major", inversion: 0, voicing: "close", noteCount: 3, length: "next" }
+      ],
+      "ii-V-I-VI": [
+        { position: 1, accidental: 0, type: "minor7", inversion: 0, voicing: "close", noteCount: 4, length: "next" },
+        { position: 4, accidental: 0, type: "dominant7", inversion: 0, voicing: "drop2", noteCount: 4, length: "next" },
+        { position: 0, accidental: 0, type: "major", inversion: 0, voicing: "close", noteCount: 3, length: "next" },
+        { position: 5, accidental: 0, type: "major", inversion: 0, voicing: "open", noteCount: 3, length: "next" }
+      ]
+    };
+
+    let state = {
+      mode: "minor",
+      rootMidi: 60,
+      clipLength: 64,
+      page: 0,
+      selectedStep: 0,
+      selectedChordStep: 0,
+      layer: "position",
+      steps: [],
+      changed: new Set()
+    };
+
+    function defaultChord() {
+      return { position: 0, accidental: 0, type: state.mode === "major" ? "major" : "minor", inversion: 0, voicing: "close", noteCount: 3, length: "next" };
+    }
+
+    function blankSteps(length) {
+      return Array.from({ length }, () => null);
+    }
+
+    function seedPreset(name) {
+      state.steps = blankSteps(state.clipLength);
+      if (name === "empty") {
+        state.selectedChordStep = null;
+        return;
+      }
+      if (name === "dense") {
+        for (let index = 0; index < state.clipLength; index++) {
+          state.steps[index] = {
+            position: index % 7,
+            accidental: index % 11 === 0 ? -1 : 0,
+            type: index % 5 === 0 ? "minor7" : index % 3 === 0 ? "dominant7" : "major",
+            inversion: index % 4,
+            voicing: ["close", "open", "drop2", "spread"][index % 4],
+            noteCount: index % 5 === 0 || index % 3 === 0 ? 4 : 3,
+            length: index % 4 === 0 ? 4 : "next"
+          };
+        }
+        state.selectedChordStep = firstChordStep();
+        return;
+      }
+      const source = presets[name] || presets["i-VII-VI-VII"];
+      source.forEach((chord, index) => {
+        const step = index * 16;
+        if (step < state.clipLength) state.steps[step] = { ...chord };
+      });
+      state.selectedChordStep = firstChordStep();
+    }
+
+    function firstChordStep() {
+      const index = state.steps.findIndex(Boolean);
+      return index === -1 ? null : index;
+    }
+
+    function roman(chord) {
+      if (!chord) return "-";
+      const major = ["I", "II", "III", "IV", "V", "VI", "VII"];
+      const minor = ["i", "ii", "iii", "iv", "v", "vi", "vii"];
+      const degree = ((chord.position % 7) + 7) % 7;
+      const majorish = chord.type === "major" || chord.type === "dominant7";
+      let label = majorish ? major[degree] : minor[degree];
+      if (chord.accidental > 0) label = "#".repeat(chord.accidental) + label;
+      if (chord.accidental < 0) label = "b".repeat(Math.abs(chord.accidental)) + label;
+      if (chord.type === "diminished") label += "dim";
+      if (chord.type === "minor7" || chord.type === "dominant7") label += "7";
+      return label;
+    }
+
+    function layerValue(chord) {
+      if (!chord) return "empty";
+      switch (state.layer) {
+      case "position":
+        return `${roman(chord)} / ${chord.position >= 0 ? "+" : ""}${chord.position}`;
+      case "type":
+        return chord.type;
+      case "inversion":
+        return ["root", "1st", "2nd", "3rd"][chord.inversion] || "root";
+      case "voicing":
+        return chord.voicing;
+      case "noteCount":
+        return `${noteCountFor(chord)} notes`;
+      case "length":
+        return chord.length === "next" ? "until next" : `${chord.length} steps`;
+      default:
+        return "";
+      }
+    }
+
+    function noteCountFor(chord) {
+      return clamp(Number.parseInt(chord.noteCount, 10) || 3, 2, 5);
+    }
+
+    function renderLayers() {
+      const row = document.getElementById("layer-row");
+      row.innerHTML = "";
+      layerDefs.forEach(layer => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "layer-button" + (layer.id === state.layer ? " selected" : "");
+        button.textContent = layer.label;
+        button.addEventListener("click", () => {
+          state.layer = layer.id;
+          render();
+        });
+        row.appendChild(button);
+      });
+    }
+
+    function chordTriggers() {
+      return state.steps
+        .map((chord, step) => chord ? { chord, step } : null)
+        .filter(Boolean);
+    }
+
+    function renderChordCells() {
+      const grid = document.getElementById("chord-cells");
+      const triggers = chordTriggers();
+      grid.innerHTML = "";
+      if (!triggers.length) {
+        grid.innerHTML = '<div class="stub">No chords yet. Load a preset to seed chords.</div>';
+        return;
+      }
+      triggers.forEach(({ chord, step }, index) => {
+        const card = document.createElement("div");
+        card.className = "chord-card" +
+          (step === state.selectedChordStep ? " selected" : "") +
+          (state.changed.has(step) ? " changed" : "");
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.innerHTML = `
+          <div class="row">
+            <span class="step-index">${index + 1}</span>
+            <span class="spacer"></span>
+            <span class="roman">${roman(chord)}</span>
+          </div>
+          <div class="meta">Step ${step + 1}</div>
+        `;
+        card.addEventListener("click", () => {
+          state.selectedChordStep = step;
+          render();
+        });
+        card.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            state.selectedChordStep = step;
+            render();
+          }
+        });
+        grid.appendChild(card);
+      });
+    }
+
+    function renderSelectedChordControls() {
+      const chordStep = state.selectedChordStep;
+      const chord = Number.isInteger(chordStep) ? state.steps[chordStep] : null;
+      const strip = document.getElementById("selected-chord-strip");
+      const title = document.getElementById("selected-chord-title");
+      const status = document.getElementById("selected-chord-status");
+      const controls = document.querySelectorAll("[data-selected-field]");
+      strip.classList.toggle("empty", !chord);
+      title.textContent = chord ? `Selected chord: ${roman(chord)}` : "No selected chord";
+      status.textContent = chord
+        ? `Chord from step ${chordStep + 1}. Edit the chord defaults once here; step layers can override them later.`
+        : "Select a chord cell, or select a step that has a chord trigger.";
+      controls.forEach(control => {
+        const field = control.dataset.selectedField;
+        control.disabled = !chord;
+        if (!chord) {
+          if (control.tagName === "INPUT") control.value = "";
+          return;
+        }
+        if (field === "noteCount") {
+          control.value = String(noteCountFor(chord));
+        } else {
+          control.value = String(chord[field]);
+        }
+      });
+    }
+
+    function renderSteps() {
+      const grid = document.getElementById("step-grid");
+      const start = state.page * 16;
+      const end = Math.min(start + 16, state.clipLength);
+      grid.innerHTML = "";
+      document.getElementById("page-label").textContent = `Steps ${start + 1}-${end} of ${state.clipLength}.`;
+      for (let index = start; index < start + 16; index++) {
+        const chord = state.steps[index] || null;
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "step-cell" +
+          (chord ? " has-chord" : "") +
+          (index === state.selectedStep ? " selected" : "") +
+          (state.changed.has(index) ? " changed" : "");
+        cell.disabled = index >= state.clipLength;
+        cell.innerHTML = chord ? `
+          <div class="step-index">${index + 1}</div>
+          <div>
+            <div class="roman">${roman(chord)}</div>
+            <div class="layer-value">${layerValue(chord)}</div>
+          </div>
+          <div class="small muted">${chord.length === "next" ? "until next" : `${chord.length} steps`}</div>
+        ` : `
+          <div class="step-index">${index + 1}</div>
+          <div class="empty-mark">-</div>
+          <div class="small muted">empty</div>
+        `;
+        cell.addEventListener("click", () => {
+          state.selectedStep = index;
+          if (chord) state.selectedChordStep = index;
+          render();
+        });
+        grid.appendChild(cell);
+      }
+    }
+
+    function renderPages() {
+      const row = document.getElementById("page-row");
+      const pageCount = Math.ceil(state.clipLength / 16);
+      row.innerHTML = "";
+      for (let page = 0; page < pageCount; page++) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "page-button" + (page === state.page ? " selected" : "");
+        button.textContent = `${page * 16 + 1}-${Math.min((page + 1) * 16, state.clipLength)}`;
+        button.addEventListener("click", () => {
+          state.page = page;
+          state.selectedStep = page * 16;
+          if (state.steps[state.selectedStep]) state.selectedChordStep = state.selectedStep;
+          render();
+        });
+        row.appendChild(button);
+      }
+    }
+
+    function render() {
+      renderLayers();
+      renderChordCells();
+      renderSelectedChordControls();
+      renderSteps();
+      renderPages();
+    }
+
+    function numberValue(id) {
+      const el = document.getElementById(id);
+      return Number.parseInt(el.value, 10) || 0;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function updateChordDefault(step, field, value) {
+      const chord = state.steps[step];
+      if (!chord) return;
+      if (field === "inversion" || field === "noteCount" || field === "position") {
+        chord[field] = Number.parseInt(value, 10);
+      } else {
+        chord[field] = value;
+      }
+      state.selectedChordStep = step;
+      state.changed.add(step);
+      render();
+    }
+
+    function setClipLength(length) {
+      const previous = state.steps.slice(0, length);
+      while (previous.length < length) previous.push(null);
+      state.clipLength = length;
+      state.steps = previous;
+      state.page = Math.min(state.page, Math.ceil(length / 16) - 1);
+      state.selectedStep = Math.min(state.selectedStep, length - 1);
+      if (!Number.isInteger(state.selectedChordStep) || state.selectedChordStep >= length || !state.steps[state.selectedChordStep]) {
+        state.selectedChordStep = firstChordStep();
+      }
+      render();
+    }
+
+    function setPresetPanel(open) {
+      document.getElementById("preset-panel").classList.toggle("hidden", !open);
+      document.getElementById("load-preset").classList.toggle("selected", open);
+    }
+
+    function syncPresetControls() {
+      document.getElementById("root").value = state.rootMidi;
+      document.querySelectorAll("[data-group='mode'] button").forEach(button => {
+        button.classList.toggle("selected", button.dataset.value === state.mode);
+      });
+    }
+
+    function toast(message) {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.classList.add("show");
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => el.classList.remove("show"), 2000);
+    }
+
+    document.querySelectorAll("[data-stub]").forEach(el => {
+      el.addEventListener("click", () => {
+        console.log("stubbed:", el.dataset.stub);
+        toast(`Stubbed: ${el.dataset.stub}`);
+      });
+    });
+
+    document.querySelector("[data-group='mode']").addEventListener("click", event => {
+      if (event.target.tagName !== "BUTTON") return;
+      document.querySelectorAll("[data-group='mode'] button").forEach(button => button.classList.remove("selected"));
+      event.target.classList.add("selected");
+    });
+
+    document.getElementById("length-buttons").addEventListener("click", event => {
+      if (event.target.tagName !== "BUTTON") return;
+      document.querySelectorAll("#length-buttons button").forEach(button => button.classList.remove("selected"));
+      event.target.classList.add("selected");
+      setClipLength(Number.parseInt(event.target.dataset.length, 10));
+    });
+
+    document.querySelectorAll("[data-selected-field]").forEach(control => {
+      control.addEventListener("change", () => {
+        updateChordDefault(state.selectedChordStep, control.dataset.selectedField, control.value);
+      });
+    });
+
+    document.getElementById("load-preset").addEventListener("click", () => {
+      syncPresetControls();
+      setPresetPanel(true);
+    });
+
+    document.getElementById("cancel-preset").addEventListener("click", () => {
+      syncPresetControls();
+      setPresetPanel(false);
+    });
+
+    document.getElementById("apply-preset").addEventListener("click", () => {
+      state.changed.clear();
+      state.rootMidi = clamp(numberValue("root"), 0, 127);
+      state.mode = document.querySelector("[data-group='mode'] button.selected").dataset.value;
+      seedPreset(document.getElementById("preset").value);
+      state.selectedStep = 0;
+      state.page = 0;
+      setPresetPanel(false);
+      render();
+      toast("Preset applied to the clip.");
+    });
+
+    document.getElementById("remove-source").addEventListener("click", () => {
+      toast("Source removed in prototype state. Draft retained.");
+    });
+
+    document.getElementById("fixture-empty").addEventListener("click", () => {
+      document.getElementById("preset").value = "empty";
+      state.changed.clear();
+      seedPreset("empty");
+      state.page = 0;
+      state.selectedStep = 0;
+      render();
+    });
+
+    document.getElementById("fixture-dense").addEventListener("click", () => {
+      document.getElementById("preset").value = "dense";
+      state.changed.clear();
+      seedPreset("dense");
+      state.page = 0;
+      state.selectedStep = 0;
+      render();
+    });
+
+    document.getElementById("fixture-long").addEventListener("click", () => {
+      document.querySelectorAll("#length-buttons button").forEach(button => {
+        button.classList.toggle("selected", button.dataset.length === "128");
+      });
+      setClipLength(128);
+      seedPreset(document.getElementById("preset").value);
+      state.page = 0;
+      state.selectedStep = 0;
+      render();
+    });
+
+    seedPreset("i-VII-VI-VII");
+    render();
+  </script>
+</body>
+</html>
