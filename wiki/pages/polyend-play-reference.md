@@ -1,6 +1,7 @@
 ---
 title: "Polyend Play Reference"
-category: "architecture"
+category: "uncategorised"
+parent: prior-art
 tags: [polyend-play, reference, step-sequencer, groovebox, variations, perform-mode]
 summary: Summary of the Polyend Play's data model and sequencer concepts worth borrowing — work steps, per-track independence, variations, chance/action, fill tool, and perform mode.
 last-modified-by: user

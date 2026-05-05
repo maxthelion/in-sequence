@@ -1,24 +1,41 @@
 ---
 title: "Macro Coordinator"
 category: "architecture"
-tags: [engine, coordinator, layers, phrase, snapshot, tick, scheduling]
-summary: The per-tick evaluator that reads phrase-layer cells and produces a LayerSnapshot consumed in the prepare phase of the tick loop.
+tags: [engine, coordinator, layers, phrase, snapshot, tick, scheduling, historical]
+summary: Historical/transitional note on MacroCoordinator. The current canonical phrase/source playback path is PlaybackSnapshot-based.
 last-modified-by: codex
 ---
 
-## Role
+## Current Status
 
-The `MacroCoordinator` runs in the **prepare phase** of the engine tick loop (see [[engine-architecture]]#tick-lifecycle). Its job is simple: for the step that is about to play, evaluate every active phrase layer's cell for every track, and publish a plain-struct `LayerSnapshot` that downstream apply-points read.
+This page is historical/transitional.
 
-It does not generate notes. It does not own pipeline state. It reads `Project` plus a phrase id plus a global step index and returns a value.
+The current canonical runtime path is `SequencerSnapshotCompiler` → `PlaybackSnapshot` → `PlaybackSnapshot.layerSnapshot(...)` / `EngineController.resolvedStepNotes(...)`.
+
+For the current per-step note and phrase-layer path, read [[playback-data-path]] first.
+
+`MacroCoordinator` may still exist in source or tests as a transitional component, but it should not be treated as the architecture that new playback features extend.
+
+## Previous Role
+
+The original role of `MacroCoordinator` was to run in the **prepare phase** of the engine tick loop (see [[engine-architecture]]#tick-lifecycle). For the step about to play, it evaluated active phrase layer cells for every track and produced a plain-struct `LayerSnapshot` for downstream apply-points.
+
+It did not generate notes. It did not own pipeline state. It read `Project` plus a phrase id plus a global step index and returned a value.
 
 ## What it evaluates
 
-For each active layer, for each track, the coordinator calls `PhraseModel.resolvedValue(for:trackID:stepIndex:)` at the upcoming step and packs the result into a typed field on `LayerSnapshot`:
+In the older path, for each active layer and track, the coordinator called `PhraseModel.resolvedValue(for:trackID:stepIndex:)` at the upcoming step and packed the result into a typed field on `LayerSnapshot`:
 
 - `.mute` → `snapshot.mute[trackID]: Bool`
 
-Future layers add fields such as `volume`, `transpose`, or `intensity`; the expansion is additive.
+The current snapshot compiler performs the equivalent phrase-layer resolution ahead of the tick into `PhrasePlaybackBuffer` arrays:
+
+- `patternSlotIndex`
+- `mute`
+- `fillEnabled`
+- `macroValues`
+
+`PlaybackSnapshot.layerSnapshot(...)` then reads those arrays for the current step.
 
 ## Mute semantics
 
@@ -28,7 +45,7 @@ Future layers add fields such as `volume`, `transpose`, or `intensity`; the expa
 - a muted track is also filtered out before the router sees it
 - routes sourced from that track therefore fall silent too
 
-This is the current intentional behavior, locked in by the engine mute tests. If a later product decision wants DAW-style output-mute instead, the change belongs in the routing/apply boundary rather than in phrase-layer evaluation itself.
+This remains the intentional behavior. If a later product decision wants DAW-style output-mute instead, the change belongs in the routing/apply boundary rather than in phrase-layer evaluation itself.
 
 ## What it does not do
 
@@ -44,9 +61,16 @@ Three responsibilities are kept apart:
 - **Coordinator** (prepare-time): reads phrase cells and produces a snapshot.
 - **Dispatch** (step-boundary): drains an `EventQueue` and fires sinks.
 
-The coordinator is the seam that lets phrase layers reach runtime without each generator or sink reading the document directly.
+The same separation still matters, but the current seam is the compiled snapshot:
+
+- **Authoring state**: document/live store.
+- **Compile-time**: `SequencerSnapshotCompiler`.
+- **Runtime buffer**: `PlaybackSnapshot`.
+- **Prepare-time**: `PlaybackSnapshot.layerSnapshot(...)` and `EngineController.resolvedStepNotes(...)`.
+- **Dispatch**: `EventQueue` and concrete sinks.
 
 ## Related pages
 
 - [[engine-architecture]] — where the coordinator fits in the tick lifecycle
+- [[playback-data-path]] — current canonical phrase/source/note resolution path
 - [[document-model]] — `PhraseModel` and `PhraseLayerDefinition`

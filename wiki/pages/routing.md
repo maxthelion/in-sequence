@@ -2,7 +2,7 @@
 title: "Routing"
 category: "architecture"
 tags: [midi, routing, fanout, chord, tracks, matrix]
-summary: The project-level MIDI routing layer in sequencer-ai: Route values, MIDIRouter fan-out, chord-context lanes, and the inspector routes UI.
+summary: "The project-level MIDI routing layer in sequencer-ai: Route values, MIDIRouter fan-out, chord-context lanes, and the inspector routes UI."
 last-modified-by: codex
 ---
 

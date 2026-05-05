@@ -45,7 +45,7 @@ Currently: `SequencerAIApp.swift`.
 
 Everything about the `.seqai` document. `FileDocument` conformance, the `Codable` model that's serialized, UTType declarations, phrase/pattern/generator model types, and the pure generator-algo value types used by document data. **No UI, no engine, no platform concerns.** This module may depend on `Musical/` for shipped lookup tables, but should remain importable into a hypothetical CLI tool that only processes documents.
 
-Currently: `SeqAIDocument.swift`, `Project.swift`, `PhraseModel.swift`, `Destination.swift`, `SliceSet.swift`, `TrackGroup.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. Fresh-model document state now centers on inline `Destination`, optional `track.groupID`, project-scoped `trackGroups`, project-scoped `sliceSetPool`, and per-track pattern banks. See [[document-model]], [[generator-algos]], [[track-destinations]], [[slicer-tracks]], and [[routing]].
+Currently: `SeqAIDocument.swift`, `Project.swift`, `PhraseModel.swift`, `Destination.swift`, `SliceSet.swift`, `TrackGroup.swift`, `Route.swift`, `StepAlgo.swift`, `PitchAlgo.swift`, `GeneratorParams.swift`. Fresh-model document state now centers on inline `Destination`, optional `track.groupID`, project-scoped `trackGroups`, project-scoped `sliceSetPool`, and per-track pattern banks. See [[document-model]], [[generator-algos]], [[track-destinations]], [[slicer-tracks]], [[routing]], and [[playback-data-path]].
 
 ### `Sources/Musical/`
 
@@ -63,7 +63,7 @@ Currently: `ContentView`, `SidebarView`, `DetailView`, `InspectorView`, `Transpo
 
 The pipeline runtime and app-facing playback controller. This boundary owns typed streams, the block contract, block registry, DAG executor, tick clock, command queue, and the engine controller that wires those pieces into track playback. It may depend on `MIDI/` for transport to virtual endpoints and on the audio sink protocol used by `Audio/`, but it does not depend on SwiftUI views or document serialization details.
 
-Currently: `Block.swift`, `Stream.swift`, `Executor.swift`, `BlockRegistry.swift`, `TickClock.swift`, `CommandQueue.swift`, `EngineController.swift`, `MIDIRouter.swift`, `TransportMode.swift`, `Blocks/NoteGenerator.swift`, `Blocks/MidiOut.swift`, `Blocks/ChordContextSink.swift`. See [[engine-architecture]] and [[routing]].
+Currently: `Block.swift`, `Stream.swift`, `Executor.swift`, `BlockRegistry.swift`, `TickClock.swift`, `CommandQueue.swift`, `EngineController.swift`, `MIDIRouter.swift`, `TransportMode.swift`, `PlaybackSnapshot.swift`, `SequencerSnapshotCompiler.swift`, `ClipBuffer.swift`, `PhrasePlaybackBuffer.swift`, `TrackSourceProgram.swift`, `Blocks/NoteGenerator.swift`, `Blocks/MidiOut.swift`, `Blocks/ChordContextSink.swift`. See [[engine-architecture]], [[playback-data-path]], and [[routing]].
 
 ### `Sources/Platform/`
 
@@ -144,6 +144,9 @@ Each new directory comes with a wiki page like this one describing what it conta
 ## Related pages
 
 - [[build-system]] — how the project is generated and built
+- [[application-overview]] — what the app does and how the main concepts fit together
+- [[information-architecture-ux]] — workspace ownership and UX boundaries
+- [[playback-data-path]] — how authored state becomes per-step note events
 - [[document-model]] — what lives in a `.seqai`
 - [[generator-algos]] — musical tables, generator kinds, and algo composition
 - [[track-destinations]] — per-track `Destination`, groups, and AU state persistence

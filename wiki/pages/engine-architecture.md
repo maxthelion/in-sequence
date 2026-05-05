@@ -1,8 +1,8 @@
 ---
 title: "Engine Architecture"
 category: "architecture"
-tags: [engine, runtime, executor, midi, blocks, tick-clock]
-summary: The current engine runtime: block protocol, typed streams, DAG executor, tick clock, prepare/dispatch split, routing layer, and the app-facing engine controller.
+tags: [engine, runtime, executor, midi, blocks, tick-clock, snapshot]
+summary: "The current engine runtime: playback snapshots, block protocol, typed streams, DAG executor, tick clock, prepare/dispatch split, routing layer, and the app-facing engine controller."
 last-modified-by: codex
 ---
 
@@ -16,7 +16,7 @@ last-modified-by: codex
 - a DAG executor that drains UI commands at the top of each tick
 - a BPM-driven software tick clock
 - an `EventQueue` that decouples prepare from dispatch
-- a `MacroCoordinator` that evaluates phrase layers into a `LayerSnapshot`
+- a snapshot compiler and `PlaybackSnapshot` hot path for per-step note resolution
 - a routing layer (`MIDIRouter`)
 - an app-facing `EngineController`
 - three core blocks: `note-generator`, `midi-out`, and `chord-context-sink`
@@ -34,7 +34,12 @@ Sources/Engine/
 ├── EventQueue.swift
 ├── Executor.swift
 ├── LayerSnapshot.swift
-├── MacroCoordinator.swift
+├── PlaybackSnapshot.swift
+├── PhrasePlaybackBuffer.swift
+├── ClipBuffer.swift
+├── TrackSourceProgram.swift
+├── SequencerSnapshotCompiler.swift
+├── MacroCoordinator.swift             # transitional / historical; see [[macro-coordinator]]
 ├── MIDIRouter.swift
 ├── ScheduledEvent.swift
 ├── Stream.swift
@@ -144,12 +149,25 @@ Current contract:
 
 That simplicity is intentional because the consumer is still a timer-driven runtime, not the audio render thread.
 
+## Playback snapshot path
+
+The current playback path is snapshot-based. Runtime ticks should read compiled `PlaybackSnapshot` data rather than walking the full document model.
+
+`SequencerSnapshotCompiler` compiles document/live-store state into:
+
+- `PhrasePlaybackBuffer` — phrase layer values resolved into per-step arrays;
+- `TrackSourceProgram` — each track's pattern-slot source program;
+- `ClipBuffer` — compact clip-step data and clip-step macro overrides;
+- `PlaybackSnapshot` — the immutable runtime bundle consumed during prepare.
+
+The canonical per-step note path is documented in [[playback-data-path]]. Update that page whenever a feature changes how the engine decides what notes a track emits on a step.
+
 ## Tick lifecycle
 
 The current tick loop is split into two phases:
 
 1. **Dispatch** drains the previous callback's `EventQueue` and fires sinks.
-2. **Prepare** advances the executor for the upcoming step, evaluates phrase layers through the `MacroCoordinator`, and enqueues `ScheduledEvent`s for the next dispatch.
+2. **Prepare** advances the executor for the upcoming step, resolves phrase/source state through `PlaybackSnapshot`, and enqueues `ScheduledEvent`s for the next dispatch.
 
 That split lives in [EngineController.swift](/Users/maxwilliams/dev/sequencer-ai/Sources/Engine/EngineController.swift:1):
 
@@ -159,7 +177,7 @@ That split lives in [EngineController.swift](/Users/maxwilliams/dev/sequencer-ai
 
 The current prepare/dispatch pair still runs inside one `TickClock` callback. The important architectural seam is the queue boundary, not the timer source. That gives later plans a safe place to move dispatch closer to the audio render thread without changing how events are prepared.
 
-The coordinator side is documented in [[macro-coordinator]].
+The note/source side is documented in [[playback-data-path]].
 
 ## Event queue
 
@@ -226,7 +244,9 @@ It owns:
 - `CommandQueue`
 - `TickClock`
 - `EventQueue`
-- `MacroCoordinator`
+- `PlaybackSnapshot`
+- `SequencerSnapshotCompiler`
+- `MacroCoordinator` only where transitional call sites still need it
 - the current `Executor`
 - per-track generator ids and output runtimes
 - route aggregation state
@@ -240,7 +260,7 @@ Its responsibilities are:
 - dispatch queued events for the current step
 - prepare the next step's events
 - fan note events out to MIDI sinks or audio sinks
-- evaluate phrase layers into a lightweight snapshot used during prepare
+- resolve phrase/source buffers into `LayerSnapshot` and prepared notes during prepare
 
 This is the seam between document/UI state and the lower runtime.
 
@@ -268,7 +288,8 @@ The current suite has broad unit and integration coverage for this layer:
 - command queue concurrency behavior
 - tick clock timing tolerances
 - event queue behavior
-- macro-coordinator mute evaluation
+- playback snapshot compilation and hot-path isolation
+- layer snapshot/macro resolution from compiled buffers
 - `note-generator`
 - `midi-out`
 - `chord-context-sink`
@@ -283,6 +304,9 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme Sequ
 ## Related pages
 
 - [[project-layout]]
+- [[application-overview]]
+- [[information-architecture-ux]]
+- [[playback-data-path]]
 - [[midi-layer]]
 - [[document-model]]
 - [[macro-coordinator]]

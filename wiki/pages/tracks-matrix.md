@@ -2,7 +2,7 @@
 title: "Tracks Matrix"
 category: "ui"
 tags: [tracks, ui, groups, drums, creation]
-summary: The dedicated Tracks workspace: flat-track selection, grouped drum bundles, and the Add Drum Group creation modal.
+summary: "The dedicated Tracks workspace: flat-track selection, grouped drum bundles, and the Add Drum Group creation modal."
 last-modified-by: codex
 ---
 

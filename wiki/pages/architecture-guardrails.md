@@ -10,6 +10,8 @@ This page records cross-cutting architecture choices that roadmap architecture p
 
 It complements [[project-layout]], [[document-model]], [[engine-architecture]], and [[code-review-checklist]].
 
+For product and runtime orientation, start with [[application-overview]], [[information-architecture-ux]], and [[playback-data-path]].
+
 ## Document Truth Versus Runtime State
 
 The `.seqai` document is persisted user truth. It should contain authored musical state and references, not temporary UI/runtime state.
@@ -41,6 +43,8 @@ When a feature affects playback, the architecture pass should ask:
 - can the hot path read a small buffer or lookup rather than walking the document?
 - what narrow invalidation should update the compiled runtime state?
 - what tests prove the runtime buffer matches the authored document truth?
+
+The current canonical note-resolution path is documented in [[playback-data-path]].
 
 ## Array-Style Sequencer Data
 

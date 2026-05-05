@@ -101,6 +101,16 @@ This page is the canonical reference. It should be linked from the sidebar under
 - Tool usage (skills, agents, bootstrapping)
 - Links to related meta pages
 
+### uncategorised
+
+**What belongs here:** Reference material that informs the project but is not itself current sequencer-ai architecture, data model, UI, or implementation guidance.
+
+**Pages should contain:**
+- Prior-art summaries
+- External-device concepts worth borrowing
+- Sibling project notes
+- Links to related current architecture, UI, or feature pages where the reference has become an active design constraint
+
 ### ui
 
 **What belongs here:** User interface design — layouts, components, interactions, visual design, navigation.

@@ -2,7 +2,7 @@
 title: "Generator Algos"
 category: "architecture"
 tags: [generator, composition, musical, patterns, migration]
-summary: The generated-source model for sequencer-ai: trigger and pitch stages, musical lookup tables, shared evaluation, and the current three-kind pool shape.
+summary: "The generated-source model for sequencer-ai: trigger and pitch stages, musical lookup tables, shared evaluation, and the current three-kind pool shape."
 last-modified-by: codex
 ---
 

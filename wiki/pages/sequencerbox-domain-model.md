@@ -1,6 +1,7 @@
 ---
 title: "Sequencerbox Domain Model"
-category: "architecture"
+category: "uncategorised"
+parent: prior-art
 tags: [sequencerbox, domain-model, reference, step-sequencer, web-audio]
 summary: "Overview of the core (non-UI) domain classes in the reference project sequencerbox — Song, Pattern, Scene, Track, Clip, Trigger, Sound — and how they compose into a browser-based step sequencer."
 last-modified-by: user

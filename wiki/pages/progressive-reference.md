@@ -1,6 +1,7 @@
 ---
 title: "Progressive Reference"
-category: "architecture"
+category: "uncategorised"
+parent: prior-art
 tags: [progressive, chord-progressions, voice-leading, reference, chord-generator, chord-stream]
 summary: Summary of the Progressive chord-progression prototype — Roman-numeral chord table, per-slot variant cycling, greedy voice-leading search, metadata-rich progression library, and keyboard-driven performance — feeding the sequencer-ai chord layer design.
 last-modified-by: user

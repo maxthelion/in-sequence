@@ -1,6 +1,7 @@
 ---
 title: "Octatrack MKII Reference"
-category: "architecture"
+category: "uncategorised"
+parent: prior-art
 tags: [octatrack, elektron, reference, step-sequencer, sampler, parameter-locks]
 summary: Summary of the Octatrack MKII data model and sequencer concepts worth borrowing — parts, trigs, parameter locks, scenes, conditional trigs, and the arranger.
 last-modified-by: user

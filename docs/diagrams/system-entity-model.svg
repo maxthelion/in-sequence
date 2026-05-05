@@ -1,0 +1,304 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title desc">
+  <title id="title">SequencerAI System Entity Model</title>
+  <desc id="desc">A rendered entity relationship diagram showing persisted document entities, source and phrase relationships, routing, mixer state, and the compiled playback snapshot path.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#222"/>
+    </marker>
+    <marker id="softArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#666"/>
+    </marker>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      text {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        fill: #171717;
+      }
+      .title {
+        font-size: 31px;
+        font-weight: 700;
+      }
+      .subtitle {
+        font-size: 15px;
+        fill: #555;
+      }
+      .cluster-title {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        fill: #333;
+      }
+      .box-title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .box-detail {
+        font-size: 12px;
+        fill: #4a4a4a;
+      }
+      .tiny {
+        font-size: 11px;
+        fill: #555;
+      }
+      .cluster {
+        fill: #f8f8f8;
+        stroke: #b8b8b8;
+        stroke-width: 1.5;
+        stroke-dasharray: 7 5;
+      }
+      .entity {
+        fill: #fff;
+        stroke: #222;
+        stroke-width: 1.6;
+      }
+      .pool {
+        fill: #f4f8fb;
+        stroke: #1f5f83;
+        stroke-width: 1.6;
+      }
+      .runtime {
+        fill: #f7f4fb;
+        stroke: #684d92;
+        stroke-width: 1.6;
+      }
+      .performance {
+        fill: #f8fbf5;
+        stroke: #51713b;
+        stroke-width: 1.6;
+      }
+      .line {
+        fill: none;
+        stroke: #222;
+        stroke-width: 1.4;
+        marker-end: url(#arrow);
+      }
+      .ref {
+        fill: none;
+        stroke: #666;
+        stroke-width: 1.3;
+        stroke-dasharray: 5 5;
+        marker-end: url(#softArrow);
+      }
+      .flow {
+        fill: none;
+        stroke: #684d92;
+        stroke-width: 2;
+        marker-end: url(#softArrow);
+      }
+      .label-bg {
+        fill: #fff;
+        opacity: 0.92;
+      }
+      .label {
+        font-size: 11px;
+        fill: #333;
+      }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1060" fill="#ffffff"/>
+
+  <text x="48" y="52" class="title">SequencerAI System Entity Model</text>
+  <text x="48" y="79" class="subtitle">Persisted Project state, source and phrase relationships, routing, mixer state, and the compiled playback snapshot path.</text>
+
+  <rect x="44" y="112" width="1512" height="56" fill="#f6f6f6" stroke="#d0d0d0"/>
+  <text x="64" y="136" class="cluster-title">Legend</text>
+  <rect x="145" y="123" width="94" height="26" class="entity"/>
+  <text x="254" y="141" class="tiny">persisted entity</text>
+  <rect x="382" y="123" width="94" height="26" class="pool"/>
+  <text x="491" y="141" class="tiny">document pool</text>
+  <rect x="634" y="123" width="94" height="26" class="performance"/>
+  <text x="743" y="141" class="tiny">performance/mixer state</text>
+  <rect x="930" y="123" width="94" height="26" class="runtime"/>
+  <text x="1039" y="141" class="tiny">runtime snapshot</text>
+  <path d="M 1240 136 H 1300" class="line"/>
+  <text x="1314" y="141" class="tiny">owns / contains</text>
+  <path d="M 1430 136 H 1490" class="ref"/>
+  <text x="1504" y="141" class="tiny">ID reference</text>
+
+  <rect x="44" y="198" width="1512" height="582" class="cluster"/>
+  <text x="64" y="224" class="cluster-title">Persisted .seqai Document</text>
+
+  <rect x="82" y="258" width="230" height="116" class="entity"/>
+  <text x="104" y="286" class="box-title">SeqAIDocument</text>
+  <text x="104" y="312" class="box-detail">FileDocument wrapper</text>
+  <text x="104" y="332" class="box-detail">JSON encode/decode</text>
+  <text x="104" y="352" class="box-detail">owns Project model</text>
+
+  <rect x="370" y="238" width="262" height="162" class="entity"/>
+  <text x="392" y="266" class="box-title">Project</text>
+  <text x="392" y="292" class="box-detail">version</text>
+  <text x="392" y="312" class="box-detail">selectedTrackID</text>
+  <text x="392" y="332" class="box-detail">selectedPhraseID</text>
+  <text x="392" y="352" class="box-detail">normalizes tracks, phrases, banks</text>
+  <text x="392" y="372" class="box-detail">one song per document</text>
+
+  <path d="M 312 316 H 370" class="line"/>
+  <rect x="326" y="302" width="30" height="18" class="label-bg"/>
+  <text x="330" y="315" class="label">model</text>
+
+  <rect x="704" y="228" width="246" height="166" class="entity"/>
+  <text x="726" y="256" class="box-title">StepSequenceTrack</text>
+  <text x="726" y="282" class="box-detail">id, name, trackType</text>
+  <text x="726" y="302" class="box-detail">destination</text>
+  <text x="726" y="322" class="box-detail">groupID?</text>
+  <text x="726" y="342" class="box-detail">mix, velocity, gateLength</text>
+  <text x="726" y="362" class="box-detail">track macro bindings</text>
+
+  <rect x="1028" y="228" width="226" height="166" class="entity"/>
+  <text x="1050" y="256" class="box-title">TrackGroup</text>
+  <text x="1050" y="282" class="box-detail">id, name, color</text>
+  <text x="1050" y="302" class="box-detail">memberIDs</text>
+  <text x="1050" y="322" class="box-detail">sharedDestination?</text>
+  <text x="1050" y="342" class="box-detail">noteMapping</text>
+  <text x="1050" y="362" class="box-detail">mute, solo</text>
+
+  <rect x="1322" y="228" width="198" height="166" class="entity"/>
+  <text x="1344" y="256" class="box-title">Destination</text>
+  <text x="1344" y="282" class="box-detail">midi</text>
+  <text x="1344" y="302" class="box-detail">auInstrument</text>
+  <text x="1344" y="322" class="box-detail">sampler / slicer</text>
+  <text x="1344" y="342" class="box-detail">inheritGroup</text>
+  <text x="1344" y="362" class="box-detail">none</text>
+
+  <path d="M 632 300 H 704" class="line"/>
+  <text x="645" y="292" class="label">tracks[]</text>
+  <path d="M 632 342 C 744 430 914 430 1028 350" class="line"/>
+  <text x="760" y="430" class="label">trackGroups[]</text>
+  <path d="M 950 300 H 1322" class="line"/>
+  <text x="1083" y="292" class="label">destination</text>
+  <path d="M 1254 318 H 1322" class="line"/>
+  <text x="1262" y="310" class="label">shared</text>
+  <path d="M 1028 292 C 1000 250 982 246 950 266" class="ref"/>
+  <text x="968" y="244" class="label">memberIDs</text>
+  <path d="M 704 348 C 656 420 910 430 1028 338" class="ref"/>
+  <text x="820" y="457" class="label">groupID</text>
+
+  <rect x="82" y="462" width="238" height="156" class="entity"/>
+  <text x="104" y="490" class="box-title">TrackPatternBank</text>
+  <text x="104" y="516" class="box-detail">trackID</text>
+  <text x="104" y="536" class="box-detail">16 TrackPatternSlot values</text>
+  <text x="104" y="556" class="box-detail">attachedGeneratorID?</text>
+  <text x="104" y="576" class="box-detail">per-track pattern slots</text>
+
+  <rect x="378" y="462" width="224" height="156" class="entity"/>
+  <text x="400" y="490" class="box-title">SourceRef</text>
+  <text x="400" y="516" class="box-detail">mode: clip | generator</text>
+  <text x="400" y="536" class="box-detail">clipID?</text>
+  <text x="400" y="556" class="box-detail">generatorID?</text>
+  <text x="400" y="576" class="box-detail">modifierGeneratorID?</text>
+
+  <rect x="704" y="456" width="246" height="166" class="pool"/>
+  <text x="726" y="484" class="box-title">ClipPoolEntry</text>
+  <text x="726" y="510" class="box-detail">id, name, trackType</text>
+  <text x="726" y="530" class="box-detail">ClipContent</text>
+  <text x="726" y="550" class="box-detail">noteGrid or sliceTriggers</text>
+  <text x="726" y="570" class="box-detail">macroLanes</text>
+  <text x="726" y="590" class="box-detail">explicit authored steps</text>
+
+  <rect x="1028" y="456" width="226" height="166" class="pool"/>
+  <text x="1050" y="484" class="box-title">GeneratorPoolEntry</text>
+  <text x="1050" y="510" class="box-detail">id, name, trackType</text>
+  <text x="1050" y="530" class="box-detail">GeneratorKind</text>
+  <text x="1050" y="550" class="box-detail">GeneratorParams</text>
+  <text x="1050" y="570" class="box-detail">rule-based note source</text>
+
+  <rect x="1322" y="456" width="198" height="166" class="pool"/>
+  <text x="1344" y="484" class="box-title">SliceSet</text>
+  <text x="1344" y="510" class="box-detail">id</text>
+  <text x="1344" y="530" class="box-detail">sample reference</text>
+  <text x="1344" y="550" class="box-detail">slice markers</text>
+  <text x="1344" y="570" class="box-detail">slice trigger target</text>
+
+  <path d="M 462 400 C 322 432 248 444 202 462" class="line"/>
+  <text x="274" y="428" class="label">patternBanks[]</text>
+  <path d="M 320 540 H 378" class="line"/>
+  <text x="326" y="532" class="label">slots[]</text>
+  <path d="M 202 462 C 314 384 528 336 704 318" class="ref"/>
+  <text x="334" y="390" class="label">trackID</text>
+  <path d="M 602 522 H 704" class="ref"/>
+  <text x="627" y="514" class="label">clipID</text>
+  <path d="M 602 562 C 724 610 930 610 1028 560" class="ref"/>
+  <text x="760" y="638" class="label">generatorID / modifierGeneratorID</text>
+  <path d="M 1254 530 H 1322" class="ref"/>
+  <text x="1270" y="522" class="label">sliceSetID</text>
+
+  <rect x="82" y="670" width="238" height="78" class="performance"/>
+  <text x="104" y="699" class="box-title">MasterBusState</text>
+  <text x="104" y="725" class="box-detail">scenes, activeSceneID, A/B selection</text>
+
+  <rect x="378" y="670" width="224" height="78" class="performance"/>
+  <text x="400" y="699" class="box-title">Route</text>
+  <text x="400" y="725" class="box-detail">source, filter, destination, enabled</text>
+
+  <rect x="704" y="670" width="246" height="78" class="entity"/>
+  <text x="726" y="699" class="box-title">PhraseLayerDefinition</text>
+  <text x="726" y="725" class="box-detail">pattern, mute, fill, macro targets</text>
+
+  <rect x="1028" y="670" width="226" height="78" class="entity"/>
+  <text x="1050" y="699" class="box-title">PhraseModel</text>
+  <text x="1050" y="725" class="box-detail">length, stepsPerBar, cells</text>
+
+  <rect x="1322" y="670" width="198" height="78" class="entity"/>
+  <text x="1344" y="699" class="box-title">PhraseCell</text>
+  <text x="1344" y="725" class="box-detail">inherit, single, bars, steps, curve</text>
+
+  <path d="M 465 400 C 360 564 294 650 236 670" class="line"/>
+  <text x="292" y="620" class="label">masterBus</text>
+  <path d="M 506 400 C 492 520 484 612 490 670" class="line"/>
+  <text x="504" y="604" class="label">routes[]</text>
+  <path d="M 560 400 C 650 528 748 610 816 670" class="line"/>
+  <text x="682" y="626" class="label">layers[]</text>
+  <path d="M 602 400 C 776 540 934 620 1096 670" class="line"/>
+  <text x="868" y="602" class="label">phrases[]</text>
+  <path d="M 1254 708 H 1322" class="line"/>
+  <text x="1262" y="700" class="label">cells[]</text>
+  <path d="M 1322 720 C 1186 804 914 798 826 748" class="ref"/>
+  <text x="1030" y="808" class="label">layerID</text>
+  <path d="M 1322 694 C 1100 626 914 626 826 394" class="ref"/>
+  <text x="1038" y="622" class="label">trackID</text>
+
+  <rect x="44" y="814" width="1512" height="204" class="cluster"/>
+  <text x="64" y="840" class="cluster-title">Compiled Runtime Path</text>
+
+  <rect x="82" y="878" width="228" height="74" class="runtime"/>
+  <text x="104" y="907" class="box-title">LiveSequencerStoreState</text>
+  <text x="104" y="933" class="box-detail">resident editable project state</text>
+
+  <rect x="366" y="878" width="228" height="74" class="runtime"/>
+  <text x="388" y="907" class="box-title">SequencerSnapshotCompiler</text>
+  <text x="388" y="933" class="box-detail">compiles project into buffers</text>
+
+  <rect x="650" y="878" width="228" height="74" class="runtime"/>
+  <text x="672" y="907" class="box-title">PlaybackSnapshot</text>
+  <text x="672" y="933" class="box-detail">tick-safe runtime bundle</text>
+
+  <rect x="934" y="858" width="202" height="52" class="runtime"/>
+  <text x="956" y="889" class="box-title">PhrasePlaybackBuffer</text>
+
+  <rect x="934" y="926" width="202" height="52" class="runtime"/>
+  <text x="956" y="957" class="box-title">TrackSourceProgram</text>
+
+  <rect x="1190" y="858" width="162" height="52" class="runtime"/>
+  <text x="1212" y="889" class="box-title">ClipBuffer</text>
+
+  <rect x="1190" y="926" width="162" height="52" class="runtime"/>
+  <text x="1212" y="957" class="box-title">LayerSnapshot</text>
+
+  <rect x="1398" y="878" width="122" height="74" class="runtime"/>
+  <text x="1418" y="907" class="box-title">NoteEvent</text>
+  <text x="1418" y="933" class="box-detail">audio / MIDI</text>
+
+  <path d="M 310 915 H 366" class="flow"/>
+  <path d="M 594 915 H 650" class="flow"/>
+  <path d="M 878 902 C 904 890 910 886 934 884" class="flow"/>
+  <path d="M 878 922 C 904 938 910 950 934 952" class="flow"/>
+  <path d="M 1136 884 H 1190" class="flow"/>
+  <path d="M 1136 952 H 1190" class="flow"/>
+  <path d="M 1352 884 C 1380 894 1384 902 1398 910" class="flow"/>
+  <path d="M 1352 952 C 1380 944 1384 936 1398 930" class="flow"/>
+
+  <text x="64" y="1000" class="tiny">Rule of thumb: persisted entities describe authored musical state; runtime snapshot entities describe the hot path. Do not make SwiftUI state playback truth.</text>
+</svg>

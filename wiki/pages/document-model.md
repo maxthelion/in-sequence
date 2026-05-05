@@ -148,6 +148,9 @@ To keep `.seqai` portable:
 
 ## Related pages
 
+- [[application-overview]] — how document concepts map to the product model
+- [[system-entity-diagrams]] — UML-style view of the persisted entities and references
+- [[playback-data-path]] — how document/live-store state becomes per-step notes
 - [[project-layout]] — where `Document/` sits in the module graph
 - [[app-support-layout]] — where library content and preferences live (outside the document)
 - [[code-review-checklist]] — the invariants any document-related change must satisfy

@@ -1,6 +1,7 @@
 ---
 title: "Glaypen Reference"
-category: "architecture"
+category: "uncategorised"
+parent: prior-art
 tags: [glaypen, generative, midi, reference, pitch-history, generators]
 summary: Summary of the Glaypen generative MIDI playground — pluggable pitch/step generators, time-stamped param history, and a sliding pitch-history window that freezes generated material into clips.
 last-modified-by: user

@@ -1,6 +1,7 @@
 ---
 title: "Cirklon Reference"
-category: "architecture"
+category: "uncategorised"
+parent: prior-art
 tags: [cirklon, sequentix, reference, step-sequencer, midi, instrument-definitions]
 summary: Summary of the Sequentix Cirklon's data model and sequencer concepts worth borrowing — instrument definitions, dual pattern types (P3/CK), aux rows, scenes, and song mode.
 last-modified-by: user

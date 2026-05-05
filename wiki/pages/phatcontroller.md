@@ -1,7 +1,8 @@
 ---
 title: "PhatController"
-category: "architecture"
-tags: [midi, sequencer, typescript, web-midi, controller]
+category: "uncategorised"
+parent: prior-art
+tags: [midi, sequencer, typescript, web-midi, controller, reference]
 summary: Browser-based MIDI step sequencer and parameter automation controller — sibling project to the Phat iOS AUv3 app, delivering MIDI via the Web MIDI API.
 last-modified-by: user
 ---

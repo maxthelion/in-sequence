@@ -2,7 +2,7 @@
 title: "Track Destinations"
 category: "architecture"
 tags: [audio, midi, destination, voicing, au, routing]
-summary: The per-track destination model for sequencer-ai: Destination, Voicing, AU state persistence, recent-voice recall, and the destination editor workflow.
+summary: "The per-track destination model for sequencer-ai: Destination, Voicing, AU state persistence, recent-voice recall, and the destination editor workflow."
 last-modified-by: codex
 ---
 
