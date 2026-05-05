@@ -55,7 +55,7 @@ extension Project {
         let slot = patternBanks[bankIndex].slot(at: slotIndex)
         let updated = SourceRef(
             mode: .clip,
-            generatorID: slot.sourceRef.mode == .generator ? nil : slot.sourceRef.generatorID,
+            generatorID: slot.sourceRef.generatorID,
             clipID: nil,
             modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
             modifierBypassed: slot.sourceRef.modifierBypassed
@@ -171,6 +171,48 @@ extension Project {
         )
         setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
         reconcileAttachedGeneratorID(for: trackID, preferredGeneratorID: generatorID)
+    }
+
+    @discardableResult
+    mutating func createBlankModifierGenerator(trackID: UUID, slotIndex: Int) -> GeneratorPoolEntry? {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              patternBanks.contains(where: { $0.trackID == trackID }),
+              let templateKind = GeneratorKind.allCases.first(where: {
+                  $0.compatibleWith.contains(track.trackType) && $0.supportsModifierStage
+              })
+        else {
+            return nil
+        }
+
+        let nextIndex = generatorPool.filter { $0.trackType == track.trackType }.count + 1
+        let newEntry = GeneratorPoolEntry(
+            id: UUID(),
+            name: "\(templateKind.label) \(nextIndex)",
+            trackType: track.trackType,
+            kind: templateKind,
+            params: templateKind.defaultParams
+        )
+        generatorPool.append(newEntry)
+        assignModifierGenerator(newEntry.id, to: trackID, slotIndex: slotIndex)
+        return newEntry
+    }
+
+    mutating func assignModifierGenerator(_ modifierGeneratorID: UUID, to trackID: UUID, slotIndex: Int) {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              generatorPool.contains(where: {
+                  $0.id == modifierGeneratorID
+                      && $0.trackType == track.trackType
+                      && $0.kind.supportsModifierStage
+              })
+        else {
+            return
+        }
+
+        setPatternModifierGeneratorID(modifierGeneratorID, for: trackID, slotIndex: slotIndex)
+    }
+
+    mutating func removeModifierGenerator(from trackID: UUID, slotIndex: Int) {
+        setPatternModifierGeneratorID(nil, for: trackID, slotIndex: slotIndex)
     }
 
     mutating func updateGeneratorEntry(id: UUID, _ update: (inout GeneratorPoolEntry) -> Void) {

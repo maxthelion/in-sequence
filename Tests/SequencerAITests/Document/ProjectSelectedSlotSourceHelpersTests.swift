@@ -107,4 +107,65 @@ final class ProjectSelectedSlotSourceHelpersTests: XCTestCase {
         XCTAssertTrue(slot.sourceRef.modifierBypassed)
         XCTAssertEqual(project.patternBank(for: trackID).slot(at: siblingSlotIndex).sourceRef, siblingBaseline)
     }
+
+    func test_createBlankModifierGenerator_updates_only_selected_slot_without_creating_source_material() throws {
+        var (project, trackID, sourceGeneratorID, _, _, siblingBaseline) = try makeProject()
+        let baselineGeneratorCount = project.generatorPool.count
+        let baselineClipCount = project.clipPool.count
+        project.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex)
+
+        let modifier = try XCTUnwrap(project.createBlankModifierGenerator(trackID: trackID, slotIndex: slotIndex))
+
+        let slot = project.patternBank(for: trackID).slot(at: slotIndex)
+        XCTAssertEqual(project.generatorPool.count, baselineGeneratorCount + 1)
+        XCTAssertEqual(project.clipPool.count, baselineClipCount)
+        XCTAssertEqual(slot.sourceRef.mode, .clip)
+        XCTAssertNil(slot.sourceRef.clipID)
+        XCTAssertEqual(slot.sourceRef.generatorID, sourceGeneratorID)
+        XCTAssertEqual(slot.sourceRef.modifierGeneratorID, modifier.id)
+        XCTAssertFalse(slot.sourceRef.modifierBypassed)
+        XCTAssertEqual(project.patternBank(for: trackID).slot(at: siblingSlotIndex).sourceRef, siblingBaseline)
+    }
+
+    func test_assignModifierGenerator_updates_only_selected_slot_without_creating_source_material() throws {
+        var (project, trackID, sourceGeneratorID, _, _, siblingBaseline) = try makeProject()
+        let baselineClipCount = project.clipPool.count
+        let alternateModifier = GeneratorPoolEntry(
+            id: UUID(),
+            name: "Alternate Modifier",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .defaultMono
+        )
+        project.generatorPool.append(alternateModifier)
+        project.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex)
+
+        project.assignModifierGenerator(alternateModifier.id, to: trackID, slotIndex: slotIndex)
+
+        let slot = project.patternBank(for: trackID).slot(at: slotIndex)
+        XCTAssertEqual(project.clipPool.count, baselineClipCount)
+        XCTAssertEqual(slot.sourceRef.mode, .clip)
+        XCTAssertNil(slot.sourceRef.clipID)
+        XCTAssertEqual(slot.sourceRef.generatorID, sourceGeneratorID)
+        XCTAssertEqual(slot.sourceRef.modifierGeneratorID, alternateModifier.id)
+        XCTAssertFalse(slot.sourceRef.modifierBypassed)
+        XCTAssertEqual(project.patternBank(for: trackID).slot(at: siblingSlotIndex).sourceRef, siblingBaseline)
+    }
+
+    func test_removeModifierGenerator_clears_bypass_without_creating_source_material() throws {
+        var (project, trackID, sourceGeneratorID, _, _, siblingBaseline) = try makeProject()
+        let baselineClipCount = project.clipPool.count
+        project.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex)
+
+        project.removeModifierGenerator(from: trackID, slotIndex: slotIndex)
+
+        let slot = project.patternBank(for: trackID).slot(at: slotIndex)
+        XCTAssertEqual(project.clipPool.count, baselineClipCount)
+        XCTAssertEqual(slot.sourceRef.mode, .clip)
+        XCTAssertNil(slot.sourceRef.clipID)
+        XCTAssertEqual(slot.sourceRef.generatorID, sourceGeneratorID)
+        XCTAssertNil(slot.sourceRef.modifierGeneratorID)
+        XCTAssertFalse(slot.sourceRef.modifierBypassed)
+        XCTAssertEqual(project.patternBank(for: trackID).slot(at: siblingSlotIndex).sourceRef, siblingBaseline)
+    }
 }
