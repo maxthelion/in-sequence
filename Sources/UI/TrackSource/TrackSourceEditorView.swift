@@ -230,201 +230,57 @@ struct TrackSourceEditorView: View {
 
     @ViewBuilder
     private var sourceTab: some View {
-        switch selectedSourceMode {
-        case .clip:
-            clipPanel
-
-            StudioPanel(
-                title: "Clip Source",
-                eyebrow: currentClip == nil
-                    ? "This slot will create a blank clip the first time you edit it."
-                    : "This slot is currently playing a clip.",
-                accent: accent
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("Use the clip editor above, or swap this slot to a generator source.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    if compatibleSourceGenerators.isEmpty {
-                        Text("No compatible generators are available for this track yet.")
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    } else {
-                        actionButton(title: "Switch To Generator Source", accent: accent) {
-                            generatorPickerPurpose = .source
-                        }
-                    }
-                }
-            }
-
-        case .generator:
-            if let generator = selectedSourceGenerator {
-                StudioPanel(title: "Generator Source", eyebrow: generator.name, accent: accent) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("This slot is using \(generator.kind.label.lowercased()) as its source.")
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        HStack(spacing: 10) {
-                            actionButton(title: "Clip History", accent: StudioTheme.success) {
-                                isClipHistoryPresented = true
-                            }
-                            actionButton(title: "Choose Different Generator", accent: accent) {
-                                generatorPickerPurpose = .source
-                            }
-                            actionButton(title: "Remove Generator Source", accent: StudioTheme.violet) {
-                                removeGeneratorSource()
-                            }
-                        }
-                    }
-                }
-
-                GeneratorParamsEditorView(
-                    generator: generator,
-                    inputClipChoices: generatedSourceInputClips,
-                    harmonicSidechainClipChoices: harmonicSidechainClips,
-                    sourceMode: .generator,
-                    accent: accent,
-                    layout: .sourceOnly
-                ) { updated in
-                    let generatorID = generator.id
-                    session.mutateGenerator(id: generatorID) { entry in
-                        entry.params = updated
-                    }
-                }
-            } else {
-                StudioPanel(title: "Generator Source", eyebrow: "No source generator selected.", accent: accent) {
-                    actionButton(title: "Select Generator", accent: accent) {
-                        generatorPickerPurpose = .source
-                    }
-                }
-            }
-        }
+        TrackSourceSourceTabContent(
+            sourceMode: selectedSourceMode,
+            currentClip: currentClip,
+            selectedGenerator: selectedSourceGenerator,
+            compatibleGenerators: compatibleSourceGenerators,
+            accent: accent,
+            previewClipContent: previewClipContent,
+            defaultClipNote: defaultClipNote,
+            clipMacroSlots: clipMacroSlots,
+            macroLanes: currentClip?.macroLanes ?? [:],
+            macroFallbackValues: macroFallbackValues,
+            canAssignAUMacros: canAssignAUMacros,
+            playingStepIndex: playingClipStepIndex,
+            generatedSourceInputClips: generatedSourceInputClips,
+            harmonicSidechainClips: harmonicSidechainClips,
+            onAssignMacroSlot: prepareAndPresentMacroSlotPicker(slotIndex:),
+            onUpdateMacroLanes: updateClipMacroLanes,
+            onUpdateClipContent: updateClipContent,
+            onShowGeneratorPicker: { generatorPickerPurpose = .source },
+            onPresentClipHistory: presentClipHistory,
+            onRemoveGeneratorSource: removeGeneratorSource,
+            onUpdateGeneratorParams: updateSourceGeneratorParams
+        )
     }
 
     @ViewBuilder
     private var modifiersTab: some View {
-        if let generator = selectedModifierGenerator {
-            StudioPanel(title: "Modifier", eyebrow: generator.name, accent: StudioTheme.violet) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(
-                        selectedPattern.sourceRef.modifierBypassed
-                            ? "This modifier is bypassed. Re-enable it to hear its pitch processing."
-                            : "Pitch processing runs after the selected source for this slot."
-                    )
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 10) {
-                        actionButton(title: "Choose Different Modifier", accent: StudioTheme.violet) {
-                            generatorPickerPurpose = .modifier
-                        }
-                        actionButton(
-                            title: selectedPattern.sourceRef.modifierBypassed ? "Enable" : "Bypass",
-                            accent: selectedPattern.sourceRef.modifierBypassed ? StudioTheme.success : StudioTheme.amber
-                        ) {
-                            session.setPatternModifierBypassed(
-                                !selectedPattern.sourceRef.modifierBypassed,
-                                for: track.id,
-                                slotIndex: selectedPatternIndex
-                            )
-                        }
-                        actionButton(title: "Remove Modifier", accent: StudioTheme.border) {
-                            session.setPatternModifierGeneratorID(
-                                nil,
-                                for: track.id,
-                                slotIndex: selectedPatternIndex
-                            )
-                        }
-                    }
-                }
-            }
-
-            GeneratorParamsEditorView(
-                generator: generator,
-                inputClipChoices: generatedSourceInputClips,
-                harmonicSidechainClipChoices: harmonicSidechainClips,
-                sourceMode: selectedSourceMode,
-                accent: accent,
-                layout: .modifierOnly
-                ) { updated in
-                    let generatorID = generator.id
-                    session.mutateGenerator(id: generatorID) { entry in
-                        entry.params = updated
-                    }
-                }
-        } else {
-            StudioPanel(title: "Modifiers", eyebrow: "Empty by default.", accent: StudioTheme.violet) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("This slot currently has no modifier. Add one to process the source after it has been resolved.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    if compatibleModifierGenerators.isEmpty {
-                        Text("No compatible modifiers are available for this track yet.")
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    } else {
-                        actionButton(title: "Add Modifier", accent: StudioTheme.violet) {
-                            generatorPickerPurpose = .modifier
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var clipPanel: some View {
-        StudioPanel(
-            title: "Clip",
-            eyebrow: "Pattern editor",
-            accent: StudioTheme.violet,
-            showsHeader: false
-        ) {
-            VStack(alignment: .leading, spacing: 16) {
-                ClipContentPreview(
-                    content: previewClipContent,
-                    defaultNote: defaultClipNote,
-                    macroSlots: clipMacroSlots,
-                    macroLanes: currentClip?.macroLanes ?? [:],
-                    macroFallbackValues: macroFallbackValues,
-                    onAssignMacroSlot: canAssignAUMacros ? { slotIndex in
-                        prepareAndPresentMacroSlotPicker(slotIndex: slotIndex)
-                    } : nil,
-                    onUpdateMacroLanes: { updatedLanes in
-                        let trackID = track.id
-                        session.ensureClipAndMutate(trackID: trackID) { _, entry in
-                            entry.macroLanes = updatedLanes
-                        }
-                    },
-                    playingStepIndex: playingClipStepIndex
-                ) { updated in
-                    let trackID = track.id
-                    #if DEBUG
-                    let mutationStart = StepGridTapDiagnostics.now
-                    StepGridTapDiagnostics.log(
-                        "storeMutationStart",
-                        details: "trackID=\(trackID.uuidString)"
-                    )
-                    #endif
-                    session.ensureClipAndMutate(trackID: trackID) { _, entry in
-                        entry.content = updated
-                    }
-                    #if DEBUG
-                    StepGridTapDiagnostics.log(
-                        "storeMutationEnd",
-                        details: "elapsed=\(StepGridTapDiagnostics.elapsedMilliseconds(since: mutationStart)) trackID=\(trackID.uuidString)"
-                    )
-                    #endif
-                }
-            }
-        }
+        TrackSourceModifierTabContent(
+            selectedGenerator: selectedModifierGenerator,
+            isBypassed: selectedPattern.sourceRef.modifierBypassed,
+            compatibleGenerators: compatibleModifierGenerators,
+            sourceMode: selectedSourceMode,
+            generatedSourceInputClips: generatedSourceInputClips,
+            harmonicSidechainClips: harmonicSidechainClips,
+            onShowGeneratorPicker: { generatorPickerPurpose = .modifier },
+            onToggleBypassed: {
+                session.setPatternModifierBypassed(
+                    !selectedPattern.sourceRef.modifierBypassed,
+                    for: track.id,
+                    slotIndex: selectedPatternIndex
+                )
+            },
+            onRemoveModifier: {
+                session.setPatternModifierGeneratorID(
+                    nil,
+                    for: track.id,
+                    slotIndex: selectedPatternIndex
+                )
+            },
+            onUpdateGeneratorParams: updateModifierGeneratorParams
+        )
     }
 
     private func prepareAndPresentMacroSlotPicker(slotIndex: Int) {
@@ -448,17 +304,53 @@ struct TrackSourceEditorView: View {
         session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
     }
 
-    private func actionButton(title: String, accent: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                .overlay(Capsule().stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1))
+    private func updateClipMacroLanes(_ updatedLanes: [UUID: MacroLane]) {
+        let trackID = track.id
+        session.ensureClipAndMutate(trackID: trackID) { _, entry in
+            entry.macroLanes = updatedLanes
         }
-        .buttonStyle(.plain)
+    }
+
+    private func updateClipContent(_ updated: ClipContent) {
+        let trackID = track.id
+        #if DEBUG
+        let mutationStart = StepGridTapDiagnostics.now
+        StepGridTapDiagnostics.log(
+            "storeMutationStart",
+            details: "trackID=\(trackID.uuidString)"
+        )
+        #endif
+        session.ensureClipAndMutate(trackID: trackID) { _, entry in
+            entry.content = updated
+        }
+        #if DEBUG
+        StepGridTapDiagnostics.log(
+            "storeMutationEnd",
+            details: "elapsed=\(StepGridTapDiagnostics.elapsedMilliseconds(since: mutationStart)) trackID=\(trackID.uuidString)"
+        )
+        #endif
+    }
+
+    private func updateSourceGeneratorParams(_ updated: GeneratorParams) {
+        guard let generatorID = selectedSourceGenerator?.id else {
+            return
+        }
+        session.mutateGenerator(id: generatorID) { entry in
+            entry.params = updated
+        }
+    }
+
+    private func updateModifierGeneratorParams(_ updated: GeneratorParams) {
+        guard let generatorID = selectedModifierGenerator?.id else {
+            return
+        }
+        session.mutateGenerator(id: generatorID) { entry in
+            entry.params = updated
+        }
+    }
+
+    private func presentClipHistory() {
+        isClipHistoryPresented = true
     }
 
     private func select(generator: GeneratorPoolEntry, for purpose: GeneratorPickerPurpose) {
