@@ -310,3 +310,13 @@
 
 - **Write:** `docs/roadmap/agentic-loop/state.md`
 - **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T18:32:09.206Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`, `docs/roadmap/agentic-loop/passes/review-build-holistic-wireframe-from-synthesis-through-lenses.md`
+- **Reason:** A pass exists but has not been reviewed through the required lenses.
+
+## 2026-05-06T18:32:23.500Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.

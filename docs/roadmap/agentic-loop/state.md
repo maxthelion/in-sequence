@@ -1,23 +1,23 @@
 ---
-mode: harden
+mode: review-through-lenses
 status: active
-updated: 2026-05-06T18:28:25.946Z
-next_action: create-hardening-pass
+updated: 2026-05-06T18:32:23.497Z
+next_action: run-pass
 ---
 
 # Agentic Loop State
 
 ## Current Mode
 
-harden
+review-through-lenses
 
 ## Why
 
-Known failures should become cleanup/hardening work before another broad run.
+Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
 
 ## Next Expected Output
 
-`docs/roadmap/agentic-loop/passes/harden-known-failures.md`
+`/Users/maxwilliams/dev/in-sequence/docs/roadmap/agentic-loop/passes/review-build-holistic-wireframe-from-synthesis-through-lenses.md`
 
 ## Current Assumptions
 
