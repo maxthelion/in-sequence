@@ -1,8 +1,8 @@
 ---
 mode: review-through-lenses
 status: active
-updated: 2026-05-06T21:36:13.549Z
-next_action: create-lens-review-pass
+updated: 2026-05-06T21:44:28.207Z
+next_action: run-pass
 ---
 
 # Agentic Loop State
@@ -13,11 +13,11 @@ review-through-lenses
 
 ## Why
 
-A pass exists but has not been reviewed through the required lenses.
+Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
 
 ## Next Expected Output
 
-`docs/roadmap/agentic-loop/reviews/review-review-review-review-review-review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses/`
+`/Users/maxwilliams/dev/in-sequence/docs/roadmap/agentic-loop/passes/review-review-review-review-review-review-review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses.md`
 
 ## Current Assumptions
 

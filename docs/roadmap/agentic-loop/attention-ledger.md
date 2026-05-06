@@ -558,3 +558,8 @@
 
 - **Write:** `docs/roadmap/agentic-loop/state.md`, `docs/roadmap/agentic-loop/passes/review-review-review-review-review-review-review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses.md`
 - **Reason:** A pass exists but has not been reviewed through the required lenses.
+
+## 2026-05-06T21:44:28.218Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
