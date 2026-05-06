@@ -373,3 +373,16 @@
 - **User attention needed:** no
 - **Recorded:** Happy Accident Workbench source-of-truth status, Keep/Discard transaction semantics, runtime-buffer/document-reference boundary, source-slot clip history placement, return-style sends, queued phrase staging, and UI-map evidence limits.
 - **Scheduled:** prepare a production-safe cherry-pick candidate list that separates model/tests from probe-local UI state before requesting one product-shape judgment.
+
+## 2026-05-06T18:58:41.647Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready prepare-candidates pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T20:18:00+01:00
+
+- **Write:** `docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`, `docs/roadmap/agentic-loop/passes/prepare-production-cherry-pick-candidates.md`, `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Prepared:** production-safe model/test seeds for transient performance overrides and developer observability; architecture-plan candidates for performance integration, source-slot capture history, runtime audio buffers, mixer returns, and queued phrase staging.
+- **Rejected:** probe-local UI state, seeded fixtures, synthetic audio behavior, hard-coded final step semantics, top-level Automation as musician UI, whole-branch cherry-picks, and broad project-file churn.
+- **Scheduled:** write narrow P0 production build plans before any cherry-pick or UI integration.

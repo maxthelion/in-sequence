@@ -1,8 +1,9 @@
 ---
 id: prepare-production-cherry-pick-candidates
 mode: prepare-candidates
-status: ready-for-agent
+status: complete
 created: 2026-05-06T20:14:00+01:00
+completed: 2026-05-06T20:18:00+01:00
 objective: Separate production-safe model/test candidates from probe-local UI state
 max_parallel: 1
 requires_context_pack: true
@@ -10,6 +11,16 @@ source_decisions: docs/roadmap/agentic-loop/decisions/inferred-defaults.md
 ---
 
 # Prepare Production Cherry-Pick Candidates
+
+## Completion
+
+Complete. Candidate synthesis exists at
+`docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`.
+
+The pass did not merge or cherry-pick any branch. It separates pure model/test
+seeds from architecture-plan candidates and explicitly rejects probe-local UI
+state, temporary fixtures, whole-branch cherry-picks, and broad project-file
+churn.
 
 ## Objective
 
