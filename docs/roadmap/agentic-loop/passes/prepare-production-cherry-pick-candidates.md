@@ -2,14 +2,13 @@
 id: prepare-production-cherry-pick-candidates
 mode: prepare-candidates
 status: complete
-created: 2026-05-06T20:14:00+01:00
-completed: 2026-05-06T20:18:00+01:00
+created: 2026-05-06T19:14:00.000Z
+completed: '2026-05-06T19:06:24.306Z'
 objective: Separate production-safe model/test candidates from probe-local UI state
 max_parallel: 1
 requires_context_pack: true
 source_decisions: docs/roadmap/agentic-loop/decisions/inferred-defaults.md
 ---
-
 # Prepare Production Cherry-Pick Candidates
 
 ## Completion
