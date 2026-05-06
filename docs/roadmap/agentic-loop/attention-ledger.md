@@ -429,3 +429,8 @@
 - **Caught:** repeat Keep was under-specified; a generic `repeat-intent = step-locked` layer would not preserve the captured source step the user heard.
 - **Fixed:** the build plan now requires engine-owned pending/captured repeat state, a `repeat-source-step` authored destination, range-aware indexed phrase layers, pending-repeat failure behavior, and focused tests for those cases.
 - **Scheduled:** start the reviewed P0 production build plan with the pure overlay model and tests, then integrate engine/session ownership before UI.
+
+## 2026-05-06T19:33:55.378Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`, `docs/roadmap/agentic-loop/passes/review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses.md`
+- **Reason:** A pass exists but has not been reviewed through the required lenses.
