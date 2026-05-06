@@ -79,6 +79,7 @@ struct TrackPerformanceOverride: Equatable, Sendable {
 }
 
 enum TrackRepeatIntent: Equatable, Sendable {
+    case pendingStepLock
     case stepLocked(capturedStepIndex: Int)
 }
 
@@ -95,6 +96,11 @@ runtime overlay. If the probe model is ported directly, normalize its
 `thirtySecond` and `sixtyFourth` remain deferred until a sub-step scheduler
 exists.
 
+Repeat engagement starts as `.pendingStepLock`. The engine captures the
+effective source step on the next prepared tick and replaces it with
+`.stepLocked(capturedStepIndex:)`. UI/session code must not guess the captured
+source step from SwiftUI transport state.
+
 ## Authored Destinations For Keep
 
 Keep must write to explicit authored destinations and clear the overlay after
@@ -104,16 +110,22 @@ Track destinations:
 
 - Fill writes the existing `fill-flag` phrase layer for the target tracks in
   the active performance phrase.
-- Repeat writes a new authored phrase layer for repeat intent. P0 should add a
-  built-in indexed phrase layer such as `repeat-intent` with values:
-  `0 = off`, `1 = step-locked repeat`. Do not expose or persist 1/32 or 1/64
-  values in P0.
-- Step order writes a new authored phrase layer for step-order intent. P0
-  should add a built-in indexed phrase layer such as `step-order` with values:
-  `0 = forward`, `1 = reverse`, `2 = pingPong`.
+- Repeat writes two new authored phrase layers: `repeat-intent` with values
+  `0 = off`, `1 = step-locked repeat`, and `repeat-source-step` with the
+  captured source step index. Keep must leave the overlay active and surface a
+  failure state if any target repeat override is still `.pendingStepLock`.
+  Do not expose or persist 1/32 or 1/64 values in P0.
+- Step order writes a new authored phrase layer such as `step-order` with
+  values: `0 = forward`, `1 = reverse`, `2 = pingPong`.
 - Keep writes `.single(...)` cells for the target tracks unless the UI has
   explicitly selected a narrower bar/step authoring mode. The first P0 UI should
   show this target as "active phrase cells".
+
+Current `PhraseLayerValueType.patternIndex` is tied to pattern-slot semantics.
+Do not reuse it for `repeat-intent`, `repeat-source-step`, or `step-order`.
+Add a range-aware indexed phrase value type or equivalent specialized layer
+target so these layers clamp to their own value ranges instead of the pattern
+bank slot range.
 
 Phrase selection:
 
@@ -123,6 +135,9 @@ Phrase selection:
   phrase derived from transport position.
 - If no playing phrase can be resolved, fall back to selected phrase and show
   that fallback in the Keep target label.
+- Until engine song playback is wired to the same phrase resolver, UI labels
+  should call this the "Live editing phrase" rather than claiming it is
+  necessarily the audible phrase.
 
 Scene/mixer destinations in scope:
 
@@ -265,8 +280,9 @@ surfaces and design tokens.
 
 - [ ] Port a narrow pure `TrackPerformanceOverlay` value model and focused
   tests from `3a1d15d`, renaming away from probe-specific assumptions.
-- [ ] Add authored repeat/order phrase-layer definitions and snapshot fields for
-  resolved repeat/order intent.
+- [ ] Add range-aware authored repeat/order phrase-layer definitions and
+  snapshot fields for resolved repeat intent, captured repeat source step, and
+  step-order intent.
 - [ ] Add engine-owned `trackPerformanceOverlay`, normalization, clear, read
   accessors, and prepared-tick invalidation.
 - [ ] Add overlay-aware step resolution in `EngineController.resolvedStepNotes`
@@ -301,6 +317,8 @@ Session authority tests:
   `PlaybackSnapshot`;
 - Keep writes the expected phrase cells for fill, repeat, and step order, then
   clears the track overlay;
+- Keep for repeat writes both repeat intent and captured source step; pending
+  repeat captures do not clear the overlay or mutate authored phrase state;
 - Keep writes active master-bus scene macro and A/B crossfader overrides when
   present, then clears the master-bus overlay;
 - Discard clears track and master-bus overlays and leaves authored phrase,
@@ -317,6 +335,13 @@ Playback tests:
   phrase step advances;
 - changing or clearing an overlay invalidates already-prepared tick output so
   stale notes do not play on the next tick.
+
+Layer definition tests:
+
+- repeat-intent, repeat-source-step, and step-order layers clamp to their own
+  ranges and are not normalized as pattern slots;
+- older documents decode with repeat/order layers absent and compile to
+  forward/off behavior.
 
 Sub-step limitation tests:
 
