@@ -576,3 +576,11 @@
 - **Caught:** the reviewed pass had already passed UX/IA, architecture, and testing lenses; the only remaining issue is recursive review scheduling.
 - **Fixed:** wrote the required ninth-order lens review outputs, marked the redundant pass complete, and moved loop state back to concrete implementation.
 - **Scheduled:** start `docs/plans/2026-05-06-track-performance-overlay.md` task 1 with the pure overlay value model and focused tests.
+
+## 2026-05-06T23:48:00+01:00
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Caught:** the deterministic scan reselected a recursive lens-review state even though the eighth and ninth review passes are complete and passing.
+- **Fixed:** corrected loop state back to the agent-side implementation task rather than asking for another review pass.
+- **Scheduled:** start `docs/plans/2026-05-06-track-performance-overlay.md` task 1 with the pure overlay value model and focused tests.
