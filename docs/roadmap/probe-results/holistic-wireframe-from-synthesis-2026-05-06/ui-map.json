@@ -1,0 +1,56 @@
+{
+  "surface": "Happy Accident Workbench",
+  "visualCaptureTarget": "index.html",
+  "firstViewportRegions": [
+    {
+      "id": "topbar",
+      "purpose": "Transport, active phrase, queued phrase, sounding summary, Keep and Discard live changes",
+      "primaryEvidence": ["Playing", "NOW Intro Loop", "NEXT Breakdown Cue", "Keep", "Discard"]
+    },
+    {
+      "id": "track-roster",
+      "purpose": "Track roster with selected target set and compact source/routing/performance state",
+      "primaryEvidence": ["Drum Kit Group", "Melodic Generator", "Audio Input Loop", "Bass Clip"]
+    },
+    {
+      "id": "source-capture-work-area",
+      "purpose": "Selected slot source chain, waveform/buffer source, clip history, and capture actions",
+      "primaryEvidence": ["Capture Generated Clip", "Capture Loop To Shared Buffer", "Captured take 032"]
+    },
+    {
+      "id": "consequence-rail",
+      "purpose": "What is sounding now, shared buffer users, transient overlay consequence",
+      "primaryEvidence": ["Amber Voice 4-bar loop", "Transient until kept", "Drum Bus"]
+    },
+    {
+      "id": "arrangement-performance-band",
+      "purpose": "Phrase rows, Scene A/B crossfader, performance override, mixer mini-route",
+      "primaryEvidence": ["Scene A/B", "live override", "Delay Return", "Reverb Return"]
+    }
+  ],
+  "interactionsValidatedByPrototype": [
+    {
+      "action": "Capture Generated Clip",
+      "expectedResult": "Clip history count increments while generator recipe remains visible"
+    },
+    {
+      "action": "Capture Loop To Shared Buffer",
+      "expectedResult": "Button acknowledges shared buffer update"
+    },
+    {
+      "action": "Keep",
+      "expectedResult": "Transient overlay clears with target labelled as active phrase cells and scene blend"
+    },
+    {
+      "action": "Discard",
+      "expectedResult": "Transient overlay clears and authored state restoration is shown"
+    }
+  ],
+  "ownershipLabels": {
+    "document": ["phrase rows", "pattern slots", "captured clip history", "clip pool"],
+    "runtimeSession": ["selected track set", "performance override", "live crossfader override"],
+    "runtimeAudioBuffer": ["shared audio buffer", "loop range", "slice cues"],
+    "audioGraph": ["bus route", "delay return", "reverb return", "post-blend master"],
+    "probeOnly": ["HTML fixture state", "visual acknowledgement counters"]
+  }
+}
