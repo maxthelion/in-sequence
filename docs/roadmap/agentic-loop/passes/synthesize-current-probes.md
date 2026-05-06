@@ -1,8 +1,9 @@
 ---
 id: synthesize-current-probes
 mode: synthesize
-status: ready-for-agent
+status: complete
 created: 2026-05-06T12:55:54.902Z
+completed: 2026-05-06T14:16:45+01:00
 objective: Synthesize Current Probes Into Whole-App Shape
 max_parallel: 1
 requires_context_pack: true
