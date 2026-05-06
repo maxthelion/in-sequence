@@ -399,3 +399,8 @@
 - **Caught:** the candidate list is suitable for build planning, not direct UI porting; P0 performance work still needs explicit session/engine ownership, tick-path precedence, Keep destinations, Discard restoration, and production tests before Swift code is ported.
 - **Fixed:** audio and mixer probe source artifacts are fully qualified so follow-up agents do not mistake UI-local probe models for production engine/audio graph ownership.
 - **Scheduled:** write the P0 transient performance overlay build plan as the next agent-side pass.
+
+## 2026-05-06T19:13:47.624Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready build-planning pass before scheduling lens reviews or hardening.
