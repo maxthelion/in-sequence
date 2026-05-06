@@ -1,8 +1,9 @@
 ---
 id: correct-holistic-wireframe-commit-discard-evidence
 mode: build-wireframe-correction
-status: ready-for-agent
+status: complete
 created: 2026-05-06T19:34:30+01:00
+completed: 2026-05-06T19:42:34+01:00
 objective: Correct Happy Accident Workbench Keep/Discard and ownership evidence gaps
 max_parallel: 1
 requires_context_pack: true
@@ -69,6 +70,23 @@ Update:
 - Recreate the screenshot and confirm it is valid.
 - Update the result note with `visual-capture-status: valid|invalid|blocked`
   and a short correction summary.
+
+## Result
+
+Complete. The Happy Accident Workbench probe now renders visible first-viewport
+Keep and Discard target labels, models runtime-session/document/audio-graph
+owner transitions in the fixture, and exposes distinct post-click
+acknowledgements for committed versus discarded live changes.
+
+Validation:
+
+- `node --test docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06/fixture.test.js`
+  passed 7 tests.
+- Recreated
+  `docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06/screenshot.png`.
+- Confirmed screenshot is a valid 1440 x 960 PNG.
+- Updated `docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06.md`
+  with `visual-capture-status: valid` and the correction summary.
 
 ## Stop Conditions
 

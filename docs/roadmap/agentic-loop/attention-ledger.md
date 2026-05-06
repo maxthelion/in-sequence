@@ -332,3 +332,20 @@
 - **User attention needed:** no
 - **Caught:** the holistic wireframe is visually valid and integrated, but Keep and Discard have indistinct visible consequences, ownership transitions are underspecified, and tests do not exercise the interaction outcome.
 - **Scheduled:** run the narrow agent-side correction pass for visible commit/discard targets and ownership/testing evidence before requesting user product judgment.
+
+## 2026-05-06T18:38:31.556Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready build-wireframe-correction pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T19:42:34+01:00
+
+- **Write:** `docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06/`, `docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06.md`, `docs/roadmap/agentic-loop/passes/correct-holistic-wireframe-commit-discard-evidence.md`, `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Fixed:** Keep and Discard now have visible first-viewport targets, distinct rendered acknowledgements, explicit fixture owner transitions, and focused DOM interaction tests.
+- **Scheduled:** run correction-focused UX/IA, architecture, and testing lens review before user product judgment or inferred-default promotion.
+
+## 2026-05-06T18:43:34.286Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`, `docs/roadmap/agentic-loop/passes/review-correct-holistic-wireframe-commit-discard-evidence-through-lenses.md`
+- **Reason:** A pass exists but has not been reviewed through the required lenses.

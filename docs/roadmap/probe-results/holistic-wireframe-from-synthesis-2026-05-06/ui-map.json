@@ -5,7 +5,13 @@
     {
       "id": "topbar",
       "purpose": "Transport, active phrase, queued phrase, sounding summary, Keep and Discard live changes",
-      "primaryEvidence": ["Playing", "NOW Intro Loop", "NEXT Breakdown Cue", "Keep", "Discard"]
+      "primaryEvidence": [
+        "Playing",
+        "NOW Intro Loop",
+        "NEXT Breakdown Cue",
+        "Keep target: active phrase cells + Scene A/B blend",
+        "Discard target: authored phrase/scene/mixer restore point"
+      ]
     },
     {
       "id": "track-roster",
@@ -20,7 +26,12 @@
     {
       "id": "consequence-rail",
       "purpose": "What is sounding now, shared buffer users, transient overlay consequence",
-      "primaryEvidence": ["Amber Voice 4-bar loop", "Transient until kept", "Drum Bus"]
+      "primaryEvidence": [
+        "Amber Voice 4-bar loop",
+        "Transient until kept",
+        "Fill, repeat, pendulum order, intensity, and live crossfader are auditioning above authored state",
+        "Drum Bus"
+      ]
     },
     {
       "id": "arrangement-performance-band",
@@ -39,11 +50,11 @@
     },
     {
       "action": "Keep",
-      "expectedResult": "Transient overlay clears with target labelled as active phrase cells and scene blend"
+      "expectedResult": "Transient overlay clears with visible acknowledgement: Kept: committed to NOW Intro Loop phrase cells and Scene A/B blend"
     },
     {
       "action": "Discard",
-      "expectedResult": "Transient overlay clears and authored state restoration is shown"
+      "expectedResult": "Transient overlay clears with visible acknowledgement: Discarded: session overlay cleared and authored phrase/scene/mixer restored"
     }
   ],
   "ownershipLabels": {
@@ -52,5 +63,18 @@
     "runtimeAudioBuffer": ["shared audio buffer", "loop range", "slice cues"],
     "audioGraph": ["bus route", "delay return", "reverb return", "post-blend master"],
     "probeOnly": ["HTML fixture state", "visual acknowledgement counters"]
+  },
+  "ownerTransitions": {
+    "performanceOverlaySource": "runtime-session",
+    "keepDestinations": ["document-phrase-cells", "document-scene-state"],
+    "discardRestorationTargets": [
+      "document-phrase-cells",
+      "document-scene-state",
+      "audio-graph-mixer-state"
+    ],
+    "loopCaptureBoundary": {
+      "runtimeOwner": "runtime-audio-buffer",
+      "documentOwner": "document-buffer-reference"
+    }
   }
 }

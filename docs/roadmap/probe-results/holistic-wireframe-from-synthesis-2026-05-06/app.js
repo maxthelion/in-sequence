@@ -9,7 +9,8 @@ const fixture = workbenchFixture;
 const state = {
   overrideVisible: true,
   captureCount: fixture.captures.generatedClipHistory.length,
-  bufferCaptured: false
+  bufferCaptured: false,
+  decisionOutcome: "active"
 };
 
 function el(tag, className, text) {
@@ -109,6 +110,7 @@ function renderSourceArea() {
 }
 
 function renderConsequenceRail() {
+  const transaction = fixture.performanceOverride.transaction;
   const rail = el("aside", "panel consequence");
   rail.append(el("h2", "", "What Is Sounding"));
   fixture.tracks.forEach((track) => {
@@ -128,8 +130,16 @@ function renderConsequenceRail() {
 
   rail.append(el("h2", "", "Transient Overlay"));
   const override = el("div", `override-card ${state.overrideVisible ? "" : "cleared"}`);
-  override.append(el("strong", "", state.overrideVisible ? fixture.performanceOverride.label : "Overlay cleared"));
-  override.append(el("span", "", state.overrideVisible ? Object.values(fixture.performanceOverride.values).join(" / ") : "Authored phrase, scene, and mixer state restored"));
+  if (state.overrideVisible) {
+    override.append(el("strong", "", fixture.performanceOverride.label));
+    override.append(el("span", "", transaction.source.summary));
+  } else if (state.decisionOutcome === "kept") {
+    override.append(el("strong", "", transaction.keep.acknowledgement));
+    override.append(el("span", "", transaction.keep.detail));
+  } else {
+    override.append(el("strong", "", transaction.discard.acknowledgement));
+    override.append(el("span", "", transaction.discard.detail));
+  }
   rail.append(override);
 
   return rail;
@@ -171,6 +181,7 @@ function renderArrangementBand() {
 function renderHeader() {
   const activePhrase = fixture.phrases.find((phrase) => phrase.id === fixture.transport.activePhraseID);
   const queuedPhrase = fixture.phrases.find((phrase) => phrase.id === fixture.transport.queuedPhraseID);
+  const transaction = fixture.performanceOverride.transaction;
   const header = el("header", "topbar");
 
   const status = el("div", "transport");
@@ -184,25 +195,44 @@ function renderHeader() {
   summary.append(el("strong", "", "Sounding now"));
   summary.append(el("span", "", "drums, generated melody, audio loop, bass clip"));
   summary.append(renderPill(`${state.captureCount} captured clip${state.captureCount === 1 ? "" : "s"}`));
-  summary.append(renderPill(state.overrideVisible ? "transient changes active" : "authored state restored", state.overrideVisible ? "hot" : "ok"));
+  const outcomeLabel = state.overrideVisible
+    ? "transient changes active"
+    : state.decisionOutcome === "kept"
+      ? "kept to phrase/scene"
+      : "authored state restored";
+  summary.append(renderPill(outcomeLabel, state.overrideVisible ? "hot" : "ok"));
   header.append(summary);
 
   const decisions = el("div", "commit-actions");
+  const keepCard = el("div", "decision-card");
   const keep = el("button", "keep", "Keep");
   keep.type = "button";
-  keep.title = fixture.performanceOverride.keepTarget;
   keep.addEventListener("click", () => {
     state.overrideVisible = false;
+    state.decisionOutcome = "kept";
     render();
   });
+  keepCard.append(keep);
+  keepCard.append(el("span", "decision-target", transaction.keep.targetLabel));
+  if (state.decisionOutcome === "kept") {
+    keepCard.append(el("strong", "decision-ack", transaction.keep.acknowledgement));
+  }
+
+  const discardCard = el("div", "decision-card");
   const discard = el("button", "discard", "Discard");
   discard.type = "button";
-  discard.title = fixture.performanceOverride.discardTarget;
   discard.addEventListener("click", () => {
     state.overrideVisible = false;
+    state.decisionOutcome = "discarded";
     render();
   });
-  decisions.append(keep, discard);
+  discardCard.append(discard);
+  discardCard.append(el("span", "decision-target", transaction.discard.targetLabel));
+  if (state.decisionOutcome === "discarded") {
+    discardCard.append(el("strong", "decision-ack", transaction.discard.acknowledgement));
+  }
+
+  decisions.append(keepCard, discardCard);
   header.append(decisions);
 
   return header;
@@ -214,8 +244,14 @@ function exposeEvidence() {
     validation: validateScenario(fixture),
     firstViewportLabels: firstViewportLabels(fixture),
     interactionEvidence: {
-      keepButtonTarget: fixture.performanceOverride.keepTarget,
-      discardButtonTarget: fixture.performanceOverride.discardTarget,
+      keepVisibleTarget: fixture.performanceOverride.transaction.keep.targetLabel,
+      discardVisibleTarget: fixture.performanceOverride.transaction.discard.targetLabel,
+      decisionOutcome: state.decisionOutcome,
+      visibleAcknowledgement: state.decisionOutcome === "kept"
+        ? fixture.performanceOverride.transaction.keep.acknowledgement
+        : state.decisionOutcome === "discarded"
+          ? fixture.performanceOverride.transaction.discard.acknowledgement
+          : fixture.performanceOverride.transaction.source.label,
       captureButtons: fixture.captures.nextActions.map((action) => action.label),
       selectedTrackIDs: fixture.transport.selectedTrackIDs
     }

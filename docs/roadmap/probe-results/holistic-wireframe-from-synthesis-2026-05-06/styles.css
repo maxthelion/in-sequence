@@ -67,6 +67,34 @@ input {
 
 .commit-actions {
   justify-content: flex-end;
+  align-items: stretch;
+  flex-wrap: nowrap;
+}
+
+.decision-card {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 220px);
+  gap: 6px 8px;
+  align-items: center;
+  max-width: 330px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.decision-target,
+.decision-ack {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.decision-target {
+  color: var(--muted);
+}
+
+.decision-ack {
+  grid-column: 1 / -1;
+  color: var(--ok);
 }
 
 .keep,

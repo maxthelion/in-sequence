@@ -84,7 +84,13 @@ export const workbenchFixture = {
         id: "capture-loop-buffer",
         label: "Capture Loop To Shared Buffer",
         target: "buffer audio-loop-amber-voice",
-        owner: "runtime-buffer then document reference"
+        owner: "runtime-buffer then document reference",
+        ownerTransition: {
+          runtimeOwner: "runtime-audio-buffer",
+          runtimeLabel: "Runtime audio buffer holds captured sample memory",
+          documentOwner: "document-buffer-reference",
+          documentLabel: "Document reference stores buffer ID, loop range, and slice cues"
+        }
       }
     ]
   },
@@ -124,7 +130,26 @@ export const workbenchFixture = {
       macro: "+18% intensity"
     },
     keepTarget: "write to active phrase cells and scene blend",
-    discardTarget: "clear session overlay, restore authored phrase/scene/mixer state"
+    discardTarget: "clear session overlay, restore authored phrase/scene/mixer state",
+    transaction: {
+      source: {
+        owner: "runtime-session",
+        label: "Runtime session overlay source",
+        summary: "Fill, repeat, pendulum order, intensity, and live crossfader are auditioning above authored state"
+      },
+      keep: {
+        targetLabel: "Keep target: active phrase cells + Scene A/B blend",
+        destinationOwners: ["document-phrase-cells", "document-scene-state"],
+        acknowledgement: "Kept: committed to NOW Intro Loop phrase cells and Scene A/B blend",
+        detail: "Live override is now authored phrase fill/macro/slot intent plus saved Scene A/B blend."
+      },
+      discard: {
+        targetLabel: "Discard target: authored phrase/scene/mixer restore point",
+        restorationOwners: ["document-phrase-cells", "document-scene-state", "audio-graph-mixer-state"],
+        acknowledgement: "Discarded: session overlay cleared and authored phrase/scene/mixer restored",
+        detail: "Runtime override cleared; authored phrase cells, Scene A/B blend, and mixer route are sounding again."
+      }
+    }
   },
   mixer: {
     owner: "audio-graph",
@@ -221,9 +246,30 @@ export function firstViewportLabels(fixture = workbenchFixture) {
     fixture.performanceOverride.label,
     fixture.performanceOverride.keepTarget,
     fixture.performanceOverride.discardTarget,
+    fixture.performanceOverride.transaction.keep.targetLabel,
+    fixture.performanceOverride.transaction.discard.targetLabel,
+    fixture.performanceOverride.transaction.keep.acknowledgement,
+    fixture.performanceOverride.transaction.discard.acknowledgement,
     fixture.sharedAudioBuffer.label,
     fixture.mixer.routeSummary
   ].filter(Boolean);
+}
+
+export function performanceTransitionLabels(fixture = workbenchFixture) {
+  const transaction = fixture.performanceOverride.transaction;
+  return {
+    sourceOwner: transaction.source.owner,
+    sourceLabel: transaction.source.label,
+    keepTarget: transaction.keep.targetLabel,
+    keepAcknowledgement: transaction.keep.acknowledgement,
+    discardTarget: transaction.discard.targetLabel,
+    discardAcknowledgement: transaction.discard.acknowledgement
+  };
+}
+
+export function bufferCaptureOwnership(fixture = workbenchFixture) {
+  const capture = fixture.captures.nextActions.find((action) => action.id === "capture-loop-buffer");
+  return capture?.ownerTransition;
 }
 
 export function scenarioInvariants(fixture = workbenchFixture) {
@@ -233,6 +279,8 @@ export function scenarioInvariants(fixture = workbenchFixture) {
   const queuedPhrase = fixture.phrases.find((phrase) => phrase.id === fixture.transport.queuedPhraseID);
   const capture = fixture.captures.generatedClipHistory[0];
   const buffer = fixture.sharedAudioBuffer;
+  const transaction = fixture.performanceOverride.transaction;
+  const captureOwnership = bufferCaptureOwnership(fixture);
   const overrideTargetsMatchSelection =
     fixture.performanceOverride.selectedTrackIDs.every((id) => fixture.transport.selectedTrackIDs.includes(id)) &&
     selected.length === fixture.performanceOverride.selectedTrackIDs.length;
@@ -251,8 +299,18 @@ export function scenarioInvariants(fixture = workbenchFixture) {
     hasActiveAndQueuedPhrase: Boolean(activePhrase && queuedPhrase && activePhrase.id !== queuedPhrase.id),
     hasCapturedGeneratedClip: Boolean(capture && capture.sourceGeneratorID && capture.owner === "document-clip-pool"),
     hasSharedAudioBufferIdentity: Boolean(buffer.id && buffer.loopRange && buffer.sliceCues.length >= 4),
+    hasBufferCaptureOwnerBoundary:
+      captureOwnership?.runtimeOwner === "runtime-audio-buffer" &&
+      captureOwnership?.documentOwner === "document-buffer-reference",
     bufferUsersReferenceFixtureIDs,
     hasTransientOverride: fixture.performanceOverride.owner === "runtime-session" && overrideTargetsMatchSelection,
+    hasExplicitPerformanceTransaction:
+      transaction?.source.owner === "runtime-session" &&
+      transaction.keep.destinationOwners.includes("document-phrase-cells") &&
+      transaction.keep.destinationOwners.includes("document-scene-state") &&
+      transaction.discard.restorationOwners.includes("document-phrase-cells") &&
+      transaction.discard.restorationOwners.includes("document-scene-state") &&
+      transaction.discard.restorationOwners.includes("audio-graph-mixer-state"),
     hasMixerRouteThroughBusAndReturns:
       fixture.mixer.busses.some((bus) => bus.id === "bus-drums") &&
       fixture.mixer.returns.some((route) => route.id === "return-delay") &&

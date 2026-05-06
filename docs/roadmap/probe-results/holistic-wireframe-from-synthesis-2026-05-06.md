@@ -1,6 +1,7 @@
 ---
 status: complete
 created: 2026-05-06T17:28:11+01:00
+updated: 2026-05-06T19:42:34+01:00
 source_pass: docs/roadmap/agentic-loop/passes/build-holistic-wireframe-from-synthesis.md
 visual-capture-status: valid
 host: local-html-prototype
@@ -25,6 +26,24 @@ The wireframe is intentionally disposable. It uses a local HTML/JS fixture to
 show product shape and validation evidence without changing Swift document
 schema, playback, or audio graph contracts.
 
+## Correction Summary
+
+The commit/discard correction pass made the transient performance decision
+visible and testable:
+
+- **Keep** now shows its first-viewport target: active phrase cells plus Scene
+  A/B blend.
+- **Discard** now shows its first-viewport target: authored
+  phrase/scene/mixer restore point.
+- Clicking **Keep** acknowledges that the live overlay was committed to NOW
+  phrase cells and Scene A/B blend.
+- Clicking **Discard** acknowledges that the session overlay was cleared and
+  authored phrase, scene, and mixer state was restored.
+- The fixture now models the transaction owners explicitly:
+  runtime-session overlay source, document phrase/scene destinations for Keep,
+  authored phrase/scene/mixer restoration targets for Discard, and runtime audio
+  buffer versus document buffer reference for loop capture.
+
 ## Scenario Fixture Coverage
 
 The fixture seeds:
@@ -44,6 +63,8 @@ Ownership labels are explicit:
 | Phrase rows, pattern slots, captured clip history | document |
 | Selected track set, transient overrides, live crossfader | runtime session |
 | Shared audio buffer, loop range, slice cues | runtime audio buffer |
+| Captured audio memory | runtime audio buffer |
+| Captured loop reference, range, slice cue metadata | document buffer reference |
 | Drum bus, returns, post-blend master | audio graph |
 | Counter/acknowledgement interactions | probe-only visual state |
 
@@ -71,18 +92,19 @@ Focused model tests:
 node --test docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06/fixture.test.js
 ```
 
-Result: 4 tests passed.
+Result: 7 tests passed.
 
 Host/render validation:
 
 ```text
-python3 -m http.server 8765 --bind 127.0.0.1
+python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06
 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --headless=new --disable-gpu --window-size=1440,960 --screenshot=docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06/screenshot.png http://127.0.0.1:8765/
 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --headless=new --disable-gpu --virtual-time-budget=1000 --dump-dom http://127.0.0.1:8765/
 ```
 
 Result: screenshot is a 1440 x 960 PNG and DOM evidence includes the intended
-workbench labels, capture actions, Keep/Discard controls, and routing summary.
+workbench labels, capture actions, visible Keep/Discard target labels, distinct
+post-click Keep and Discard acknowledgements, and routing summary.
 
 `visual-capture-status: valid`
 
