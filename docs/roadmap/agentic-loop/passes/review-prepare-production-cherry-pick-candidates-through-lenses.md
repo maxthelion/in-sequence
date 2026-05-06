@@ -2,14 +2,15 @@
 id: review-prepare-production-cherry-pick-candidates-through-lenses
 mode: review-through-lenses
 status: complete
-created: 2026-05-06T20:18:00+01:00
-completed: 2026-05-06T20:20:00+01:00
-objective: Review prepare-production-cherry-pick-candidates through UX/IA, architecture, and testing lenses
+created: 2026-05-06T19:18:00.000Z
+completed: '2026-05-06T19:13:44.274Z'
+objective: >-
+  Review prepare-production-cherry-pick-candidates through UX/IA, architecture,
+  and testing lenses
 max_parallel: 1
 requires_context_pack: true
 reviews_pass: prepare-production-cherry-pick-candidates
 ---
-
 # Review Prepare Production Cherry Pick Candidates Through Lenses
 
 ## Objective
