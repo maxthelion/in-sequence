@@ -404,3 +404,15 @@
 
 - **Write:** `docs/roadmap/agentic-loop/state.md`
 - **Reason:** Run the ready build-planning pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T19:18:49.575Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready build-planning pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T20:21:59+01:00
+
+- **Write:** `docs/plans/2026-05-06-track-performance-overlay.md`, `docs/roadmap/agentic-loop/passes/write-p0-performance-overlay-build-plan.md`, `docs/roadmap/agentic-loop/passes/review-write-p0-performance-overlay-build-plan-through-lenses.md`, `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Planned:** P0 transient track-performance overlay ownership, command API, tick-path precedence, Keep destinations, Discard restore owner, UI expectations, and production test matrix.
+- **Scheduled:** run the build plan through UX/IA, architecture, and testing lens review before porting Swift production code.

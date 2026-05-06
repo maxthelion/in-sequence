@@ -1,8 +1,9 @@
 ---
 id: write-p0-performance-overlay-build-plan
 mode: build-planning
-status: ready-for-agent
+status: complete
 created: 2026-05-06T20:20:00+01:00
+completed: 2026-05-06T20:21:59+01:00
 objective: Write the P0 production build plan for transient track-performance overlays
 max_parallel: 1
 requires_context_pack: true
@@ -67,3 +68,11 @@ The build plan must specify:
 - Current production ownership cannot be identified from code/wiki.
 - The plan would need a user product judgment before naming Keep/Discard
   semantics.
+
+## Completion
+
+Complete. The production build plan exists at
+`docs/plans/2026-05-06-track-performance-overlay.md`.
+
+No Swift production code was changed, no branches were merged or cherry-picked,
+and no user attention is required before the next agent-side review pass.
