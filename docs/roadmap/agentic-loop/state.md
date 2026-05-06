@@ -1,35 +1,28 @@
 ---
-mode: implement-build-plan
-status: ready
-updated: 2026-05-06T23:48:00+01:00
-next_action: implement-plan-task
+mode: review-through-lenses
+status: active
+updated: 2026-05-06T23:29:08.644Z
+next_action: create-lens-review-pass
 ---
 
 # Agentic Loop State
 
 ## Current Mode
 
-implement-build-plan
+review-through-lenses
 
 ## Why
 
-The P0 performance-overlay build plan has passed UX/IA, architecture, and
-testing review. Higher-order review recursion has been closed; the next useful
-agent-side action is the first narrow implementation task.
+A pass exists but has not been reviewed through the required lenses.
 
 ## Next Expected Output
 
-`docs/plans/2026-05-06-track-performance-overlay.md` task 1:
-port the pure `TrackPerformanceOverlay` value model and focused tests from
-`3a1d15d`, renaming away from probe-specific assumptions.
+`docs/roadmap/agentic-loop/reviews/review-review-review-review-review-review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses/`
 
 ## Current Assumptions
 
 - User attention should only be requested for high-leverage product judgment.
 - Agents should handle review, synthesis, and fix scheduling where possible.
-- Implementation should follow the reviewed build plan task order: pure model
-  and tests before engine/session ownership, playback resolution, Keep/Discard,
-  and UI.
 
 ## Blockers
 
