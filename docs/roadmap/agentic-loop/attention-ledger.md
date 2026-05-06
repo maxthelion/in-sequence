@@ -452,3 +452,14 @@
 
 - **Write:** `docs/roadmap/agentic-loop/state.md`, `docs/roadmap/agentic-loop/passes/review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses.md`
 - **Reason:** A pass exists but has not been reviewed through the required lenses.
+
+## 2026-05-06T19:49:01.629Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T20:50:55+01:00
+
+- **Write:** `docs/roadmap/agentic-loop/reviews/review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses/ux-ia.md`, `docs/roadmap/agentic-loop/reviews/review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses/architecture.md`, `docs/roadmap/agentic-loop/reviews/review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses/testing.md`, `docs/roadmap/agentic-loop/state.md`, `docs/roadmap/agentic-loop/passes/review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses.md`
+- **User attention needed:** no
+- **Reason:** The reviewed meta-review passed; the pass caught review-recursion scheduling and moved the loop back to the reviewed P0 build plan instead of scheduling another review.

@@ -1,23 +1,26 @@
 ---
-mode: review-through-lenses
+mode: build-ready
 status: active
-updated: 2026-05-06T19:43:59.445Z
-next_action: create-lens-review-pass
+updated: 2026-05-06T20:50:55+01:00
+next_action: start-reviewed-p0-build-plan
 ---
 
 # Agentic Loop State
 
 ## Current Mode
 
-review-through-lenses
+build-ready
 
 ## Why
 
-A pass exists but has not been reviewed through the required lenses.
+The P0 performance-overlay build plan and its lens/meta-lens reviews have
+passed. This pass caught a review-recursion scheduling issue and closes the
+review chain; no correction pass or user product judgment is needed before the
+first implementation task.
 
 ## Next Expected Output
 
-`docs/roadmap/agentic-loop/reviews/review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses/`
+`docs/plans/2026-05-06-track-performance-overlay.md` task 1: port the narrow pure `TrackPerformanceOverlay` value model and focused tests.
 
 ## Current Assumptions
 
