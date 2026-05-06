@@ -349,3 +349,15 @@
 
 - **Write:** `docs/roadmap/agentic-loop/state.md`, `docs/roadmap/agentic-loop/passes/review-correct-holistic-wireframe-commit-discard-evidence-through-lenses.md`
 - **Reason:** A pass exists but has not been reviewed through the required lenses.
+
+## 2026-05-06T18:48:36.851Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T19:51:00+01:00
+
+- **Write:** `docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/ux-ia.md`, `docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/architecture.md`, `docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/testing.md`, `docs/roadmap/agentic-loop/passes/record-wireframe-decisions-as-inferred-defaults.md`, `docs/roadmap/agentic-loop/passes/review-correct-holistic-wireframe-commit-discard-evidence-through-lenses.md`, `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Caught:** the correction closed the prior blocking Keep/Discard evidence gap; no new correction pass is needed.
+- **Scheduled:** record the accepted workbench semantics as inferred defaults before product judgment or production cherry-picks.

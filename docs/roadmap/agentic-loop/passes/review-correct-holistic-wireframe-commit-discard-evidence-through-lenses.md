@@ -1,8 +1,9 @@
 ---
 id: review-correct-holistic-wireframe-commit-discard-evidence-through-lenses
 mode: review-through-lenses
-status: ready-for-agent
+status: complete
 created: 2026-05-06T18:43:34.281Z
+completed: 2026-05-06T19:51:00+01:00
 objective: Review correct-holistic-wireframe-commit-discard-evidence through UX/IA, architecture, and testing lenses
 max_parallel: 1
 requires_context_pack: true
@@ -38,6 +39,28 @@ small product judgment is genuinely needed, if any.
 - an attention-ledger entry saying what was caught, fixed, or scheduled;
 - updated loop state pointing at the next agent-side correction pass when
   review finds issues.
+
+## Result
+
+Complete. The correction passed UX/IA, architecture, and testing review.
+
+Outputs:
+
+- `docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/ux-ia.md`
+- `docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/architecture.md`
+- `docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/testing.md`
+- `docs/roadmap/agentic-loop/passes/record-wireframe-decisions-as-inferred-defaults.md`
+
+Review outcome:
+
+- Keep and Discard now have visible first-viewport target labels and distinct
+  rendered acknowledgements.
+- Owner transitions are explicit enough for planning while remaining
+  probe-scoped.
+- Focused node tests pass and cover rendered Keep/Discard outcomes.
+- No user attention is needed.
+
+Scheduled next: record accepted workbench decisions as inferred defaults.
 
 ## Stop Conditions
 
