@@ -416,3 +416,16 @@
 - **User attention needed:** no
 - **Planned:** P0 transient track-performance overlay ownership, command API, tick-path precedence, Keep destinations, Discard restore owner, UI expectations, and production test matrix.
 - **Scheduled:** run the build plan through UX/IA, architecture, and testing lens review before porting Swift production code.
+
+## 2026-05-06T19:23:51.461Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T20:27:00+01:00
+
+- **Write:** `docs/roadmap/agentic-loop/reviews/write-p0-performance-overlay-build-plan/ux-ia.md`, `docs/roadmap/agentic-loop/reviews/write-p0-performance-overlay-build-plan/architecture.md`, `docs/roadmap/agentic-loop/reviews/write-p0-performance-overlay-build-plan/testing.md`, `docs/plans/2026-05-06-track-performance-overlay.md`, `docs/roadmap/agentic-loop/passes/review-write-p0-performance-overlay-build-plan-through-lenses.md`, `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Caught:** repeat Keep was under-specified; a generic `repeat-intent = step-locked` layer would not preserve the captured source step the user heard.
+- **Fixed:** the build plan now requires engine-owned pending/captured repeat state, a `repeat-source-step` authored destination, range-aware indexed phrase layers, pending-repeat failure behavior, and focused tests for those cases.
+- **Scheduled:** start the reviewed P0 production build plan with the pure overlay model and tests, then integrate engine/session ownership before UI.
