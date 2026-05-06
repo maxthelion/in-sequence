@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-06T18:48:35Z
-Repo HEAD: dc0a0f9
+Generated: 2026-05-06T18:53:37Z
+Repo HEAD: 3d9f266
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.

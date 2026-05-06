@@ -2,14 +2,14 @@
 id: record-wireframe-decisions-as-inferred-defaults
 mode: record-decisions
 status: complete
-created: 2026-05-06T19:51:00+01:00
-completed: 2026-05-06T20:12:00+01:00
+created: 2026-05-06T18:51:00.000Z
+completed: '2026-05-06T18:57:33.417Z'
 objective: Record accepted Happy Accident Workbench decisions as inferred defaults
 max_parallel: 1
 requires_context_pack: true
-source_reviews: docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/
+source_reviews: >-
+  docs/roadmap/agentic-loop/reviews/correct-holistic-wireframe-commit-discard-evidence/
 ---
-
 # Record Wireframe Decisions As Inferred Defaults
 
 ## Objective
