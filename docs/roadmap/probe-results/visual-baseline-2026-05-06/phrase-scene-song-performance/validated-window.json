@@ -1,0 +1,20 @@
+{
+  "debug_logs" : [
+    "[2026-05-06T08:45:18.730Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:45:18.731Z] VERBOSE [Operation]: Starting operation {app=none, operation=image_command, mode=auto, pid=0, hasAnalyzePrompt=false}",
+    "[2026-05-06T08:45:18.731Z] VERBOSE [Performance]: Starting timer 'image_command'"
+  ],
+  "success" : true,
+  "data" : {
+    "files" : [
+      {
+        "window_title" : "Untitled 4",
+        "window_id" : 23501,
+        "mime_type" : "image\/png",
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/phrase-scene-song-performance\/validated-window.png",
+        "window_index" : 5,
+        "item_label" : "Untitled 4"
+      }
+    ]
+  }
+}

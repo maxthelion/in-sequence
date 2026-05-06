@@ -1,0 +1,7 @@
+lane=audio-input-looping-autoslice
+app=/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app
+pid=72445
+window_id=23525
+window_title=Untitled 4
+status=valid
+reason=captured main document window

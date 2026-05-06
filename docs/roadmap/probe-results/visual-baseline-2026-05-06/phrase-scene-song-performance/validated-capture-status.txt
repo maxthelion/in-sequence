@@ -1,0 +1,7 @@
+lane=phrase-scene-song-performance
+app=/tmp/inseq-probe-visuals/phrase-scene-song-performance-derived/Build/Products/Debug/SequencerAI.app
+pid=72358
+window_id=23501
+window_title=Untitled 4
+status=valid
+reason=captured main document window

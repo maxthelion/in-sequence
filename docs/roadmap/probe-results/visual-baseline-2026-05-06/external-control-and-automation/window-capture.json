@@ -1,0 +1,24 @@
+{
+  "debug_logs" : [
+    "[2026-05-06T08:36:20.165Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:36:20.166Z] VERBOSE [Operation]: Starting operation {mode=auto, hasAnalyzePrompt=false, pid=0, operation=image_command, app=SequencerAI}",
+    "[2026-05-06T08:36:20.166Z] VERBOSE [Performance]: Starting timer 'image_command'",
+    "[2026-05-06T08:36:20.305Z] VERBOSE: Skipping window {index=1, app=SequencerAI, title=, reason=window too small}",
+    "[2026-05-06T08:36:20.305Z] VERBOSE: Skipping window {index=2, app=SequencerAI, title=, reason=window too small}",
+    "[2026-05-06T08:36:20.305Z] VERBOSE: Skipping window {index=3, app=SequencerAI, title=, reason=window too small}",
+    "[2026-05-06T08:36:20.305Z] VERBOSE: Skipping window {index=4, app=SequencerAI, title=, reason=window too small}"
+  ],
+  "success" : true,
+  "data" : {
+    "files" : [
+      {
+        "window_index" : 0,
+        "window_title" : "Open",
+        "window_id" : 23361,
+        "item_label" : "SequencerAI",
+        "mime_type" : "image\/png",
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/external-control-and-automation\/window.png"
+      }
+    ]
+  }
+}

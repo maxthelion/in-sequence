@@ -1,0 +1,20 @@
+{
+  "debug_logs" : [
+    "[2026-05-06T08:46:09.907Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:46:09.907Z] VERBOSE [Operation]: Starting operation {operation=image_command, mode=auto, hasAnalyzePrompt=false, pid=0, app=none}",
+    "[2026-05-06T08:46:09.907Z] VERBOSE [Performance]: Starting timer 'image_command'"
+  ],
+  "success" : true,
+  "data" : {
+    "files" : [
+      {
+        "item_label" : "Untitled 2",
+        "window_title" : "Untitled 2",
+        "window_id" : 23547,
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/external-control-and-automation\/validated-window.png",
+        "window_index" : 3,
+        "mime_type" : "image\/png"
+      }
+    ]
+  }
+}

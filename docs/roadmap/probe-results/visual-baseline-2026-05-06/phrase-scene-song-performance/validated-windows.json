@@ -1,0 +1,180 @@
+{
+  "data" : {
+    "targetApplication" : {
+      "bundleIdentifier" : "ai.sequencer.SequencerAI",
+      "bundlePath" : "\/private\/tmp\/inseq-probe-visuals\/phrase-scene-song-performance-derived\/Build\/Products\/Debug\/SequencerAI.app",
+      "isActive" : true,
+      "isHidden" : false,
+      "name" : "SequencerAI",
+      "processIdentifier" : 72358,
+      "windowCount" : 4
+    },
+    "windows" : [
+      {
+        "bounds" : [
+          [
+            1897,
+            295
+          ],
+          [
+            1500,
+            960
+          ]
+        ],
+        "index" : 0,
+        "isMainWindow" : true,
+        "isMinimized" : false,
+        "spaceID" : 1,
+        "spaceName" : "",
+        "title" : "Untitled 4",
+        "windowID" : 23501
+      },
+      {
+        "bounds" : [
+          [
+            1868,
+            266
+          ],
+          [
+            1500,
+            960
+          ]
+        ],
+        "index" : 1,
+        "isMainWindow" : false,
+        "isMinimized" : false,
+        "spaceID" : 1,
+        "spaceName" : "",
+        "title" : "Untitled 3",
+        "windowID" : 23500
+      },
+      {
+        "bounds" : [
+          [
+            1839,
+            237
+          ],
+          [
+            1500,
+            960
+          ]
+        ],
+        "index" : 2,
+        "isMainWindow" : false,
+        "isMinimized" : false,
+        "spaceID" : 1,
+        "spaceName" : "",
+        "title" : "Untitled 2",
+        "windowID" : 23499
+      },
+      {
+        "bounds" : [
+          [
+            1810,
+            208
+          ],
+          [
+            1500,
+            960
+          ]
+        ],
+        "index" : 3,
+        "isMainWindow" : false,
+        "isMinimized" : false,
+        "spaceID" : 1,
+        "spaceName" : "",
+        "title" : "Untitled",
+        "windowID" : 23498
+      },
+      {
+        "bounds" : [
+          [
+            0,
+            0
+          ],
+          [
+            5120,
+            24
+          ]
+        ],
+        "index" : 4,
+        "isMainWindow" : false,
+        "isMinimized" : false,
+        "title" : "",
+        "windowID" : 23496
+      },
+      {
+        "bounds" : [
+          [
+            0,
+            0
+          ],
+          [
+            5120,
+            24
+          ]
+        ],
+        "index" : 5,
+        "isMainWindow" : false,
+        "isMinimized" : false,
+        "title" : "",
+        "windowID" : 23495
+      },
+      {
+        "bounds" : [
+          [
+            0,
+            0
+          ],
+          [
+            5120,
+            24
+          ]
+        ],
+        "index" : 6,
+        "isMainWindow" : false,
+        "isMinimized" : false,
+        "title" : "",
+        "windowID" : 23497
+      },
+      {
+        "bounds" : [
+          [
+            0,
+            0
+          ],
+          [
+            5120,
+            24
+          ]
+        ],
+        "index" : 7,
+        "isMainWindow" : false,
+        "isMinimized" : false,
+        "title" : "",
+        "windowID" : 23494
+      }
+    ]
+  },
+  "metadata" : {
+    "duration" : 0.10863590240478516,
+    "hints" : [
+      "Use window title or index to target specific window"
+    ],
+    "warnings" : [
+
+    ]
+  },
+  "summary" : {
+    "brief" : "Found 8 windows for SequencerAI",
+    "counts" : {
+      "minimized" : 0,
+      "offScreen" : 0,
+      "windows" : 8
+    },
+    "highlights" : [
+
+    ],
+    "status" : "success"
+  }
+}

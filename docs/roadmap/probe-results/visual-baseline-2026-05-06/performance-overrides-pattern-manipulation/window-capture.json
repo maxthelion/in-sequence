@@ -1,0 +1,24 @@
+{
+  "data" : {
+    "files" : [
+      {
+        "window_id" : 23350,
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/performance-overrides-pattern-manipulation\/window.png",
+        "window_title" : "Open",
+        "item_label" : "SequencerAI",
+        "window_index" : 0,
+        "mime_type" : "image\/png"
+      }
+    ]
+  },
+  "debug_logs" : [
+    "[2026-05-06T08:35:43.672Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:35:43.672Z] VERBOSE [Operation]: Starting operation {operation=image_command, mode=auto, pid=0, app=SequencerAI, hasAnalyzePrompt=false}",
+    "[2026-05-06T08:35:43.673Z] VERBOSE [Performance]: Starting timer 'image_command'",
+    "[2026-05-06T08:35:43.813Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=1}",
+    "[2026-05-06T08:35:43.813Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=2}",
+    "[2026-05-06T08:35:43.813Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=3}",
+    "[2026-05-06T08:35:43.813Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=4}"
+  ],
+  "success" : true
+}

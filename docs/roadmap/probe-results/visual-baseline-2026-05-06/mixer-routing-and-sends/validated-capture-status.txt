@@ -1,0 +1,7 @@
+lane=mixer-routing-and-sends
+app=/tmp/inseq-probe-visuals/mixer-routing-and-sends-derived/Build/Products/Debug/SequencerAI.app
+pid=72402
+window_id=23512
+window_title=Untitled 3
+status=valid
+reason=captured main document window

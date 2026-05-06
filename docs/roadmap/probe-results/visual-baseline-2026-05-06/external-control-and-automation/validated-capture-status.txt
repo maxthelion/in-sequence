@@ -1,0 +1,7 @@
+lane=external-control-and-automation
+app=/tmp/inseq-probe-visuals/external-control-and-automation-derived/Build/Products/Debug/SequencerAI.app
+pid=72531
+window_id=23547
+window_title=Untitled 2
+status=valid
+reason=captured main document window

@@ -1,0 +1,20 @@
+{
+  "success" : true,
+  "data" : {
+    "files" : [
+      {
+        "window_index" : 6,
+        "window_id" : 23512,
+        "window_title" : "Untitled 3",
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/mixer-routing-and-sends\/validated-window.png",
+        "item_label" : "Untitled 3",
+        "mime_type" : "image\/png"
+      }
+    ]
+  },
+  "debug_logs" : [
+    "[2026-05-06T08:45:31.690Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:45:31.690Z] VERBOSE [Operation]: Starting operation {operation=image_command, pid=0, app=none, hasAnalyzePrompt=false, mode=auto}",
+    "[2026-05-06T08:45:31.690Z] VERBOSE [Performance]: Starting timer 'image_command'"
+  ]
+}

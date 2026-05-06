@@ -1,0 +1,1238 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -destination platform=macOS -derivedDataPath /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived build
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:macOS, arch:arm64, id:00008103-000579AC0150801E, name:My Mac }
+{ platform:macOS, arch:x86_64, id:00008103-000579AC0150801E, name:My Mac }
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'SequencerAI' in project 'SequencerAI' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 1b8a00ddcab203e63f3dc7c837d2409e
+Build description path: /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/XCBuildData/1b8a00ddcab203e63f3dc7c837d2409e.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/SDKStatCaches.noindex/macosx15.5-24F74-8254517eb8b97d462ccbc072ba9094c9.sdkstatcache
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/SequencerAI.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/SDKStatCaches.noindex/macosx15.5-24F74-8254517eb8b97d462ccbc072ba9094c9.sdkstatcache
+
+CreateBuildDirectory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/SequencerAI.xcodeproj
+    builtin-create-build-directory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex
+
+CreateBuildDirectory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/SequencerAI.xcodeproj
+    builtin-create-build-directory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products
+
+CreateBuildDirectory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/SequencerAI.xcodeproj
+    builtin-create-build-directory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug
+
+CreateBuildDirectory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/EagerLinkingTBDs/Debug
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/SequencerAI.xcodeproj
+    builtin-create-build-directory /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/EagerLinkingTBDs/Debug
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI-e92fbcc695117aaf3a18aede8b10ebac-VFS/all-product-headers.yaml
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/SequencerAI.xcodeproj
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI-e92fbcc695117aaf3a18aede8b10ebac-VFS/all-product-headers.yaml
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-project-headers.hmap (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-project-headers.hmap
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.hmap (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.hmap
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-own-target-headers.hmap (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-own-target-headers.hmap
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.DependencyStaticMetadataFileList (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.DependencyMetadataFileList (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.DependencyMetadataFileList
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-generated-files.hmap (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-generated-files.hmap
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-all-target-headers.hmap (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-all-target-headers.hmap
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-all-non-framework-target-headers.hmap (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-DebugDylibPath-normal-arm64.txt (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-DebugDylibPath-normal-arm64.txt
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-DebugDylibInstallName-normal-arm64.txt (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-DebugDylibInstallName-normal-arm64.txt
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.LinkFileList (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.LinkFileList
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftFileList (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftFileList
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftConstValuesFileList (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_const_extract_protocols.json (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_const_extract_protocols.json
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-OutputFileMap.json (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-OutputFileMap.json
+
+WriteAuxiliaryFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/Entitlements.plist (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    write-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/Entitlements.plist
+
+MkDir /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /bin/mkdir -p /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources
+
+MkDir /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /bin/mkdir -p /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS
+
+MkDir /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /bin/mkdir -p /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents
+
+MkDir /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /bin/mkdir -p /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app
+
+ProcessProductPackaging /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/SequencerAI.entitlements /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.app.xcent (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+    Entitlements:
+    
+    {
+    "com.apple.security.app-sandbox" = 1;
+    "com.apple.security.application-groups" =     (
+    );
+    "com.apple.security.device.audio-input" = 1;
+    "com.apple.security.files.bookmarks.app-scope" = 1;
+    "com.apple.security.files.user-selected.read-write" = 1;
+    "com.apple.security.get-task-allow" = 1;
+    "com.apple.security.temporary-exception.audio-unit-host" = 1;
+}
+    
+    builtin-productPackagingUtility /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/SequencerAI.entitlements -entitlements -format xml -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.app.xcent
+
+ProcessProductPackagingDER /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.app.xcent /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.app.xcent.der (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /usr/bin/derq query -f xml -i /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.app.xcent -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.app.xcent.der --raw
+
+MkDir /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/thinned (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /bin/mkdir -p /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/thinned
+
+MkDir /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/unthinned (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /bin/mkdir -p /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/unthinned
+
+Ld /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/__preview.dylib normal (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-macos14.0 -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -O0 -L/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -F/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -install_name @rpath/SequencerAI.debug.dylib -rdynamic -Xlinker -no_deduplicate -Xlinker -debug_variant -Xlinker -dependency_info -Xlinker /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_dependency_info.dat -Xlinker -no_adhoc_codesign -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/__preview.dylib
+
+GenerateAssetSymbols /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/Assets.xcassets (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/Assets.xcassets --compile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources --output-format human-readable-text --notices --warnings --export-dependency-info /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_dependencies --output-partial-info-plist /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_generated_info.plist --app-icon AppIcon --enable-on-demand-resources NO --development-region en --target-device mac --minimum-deployment-target 14.0 --platform macosx --bundle-identifier ai.sequencer.SequencerAI --generate-swift-asset-symbol-extensions NO --generate-swift-asset-symbols /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols.swift --generate-objc-asset-symbols /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols.h --generate-asset-symbol-index /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/* com.apple.actool.compilation-results */
+/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols.h
+/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols.swift
+
+
+CpResource /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources/StarterSamples /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Resources/StarterSamples (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Resources/StarterSamples /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources
+
+CpResource /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources/SequencerAIDocument.icns /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/SequencerAIDocument.icns (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/SequencerAIDocument.icns /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources
+
+CompileAssetCatalogVariant thinned /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/Assets.xcassets (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/Assets.xcassets --compile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_dependencies_thinned --output-partial-info-plist /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --enable-on-demand-resources NO --development-region en --target-device mac --minimum-deployment-target 14.0 --platform macosx
+/* com.apple.actool.compilation-results */
+/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_generated_info.plist_thinned
+/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/thinned/AppIcon.icns
+/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/thinned/Assets.car
+
+
+LinkAssetCatalog /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/Assets.xcassets (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-linkAssetCatalog --thinned /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/thinned --thinned-dependencies /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_dependencies_thinned --thinned-info-plist-content /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_generated_info.plist_thinned --unthinned /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_output/unthinned --unthinned-dependencies /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_dependencies_unthinned --unthinned-info-plist-content /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_generated_info.plist_unthinned --output /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources --plist-output /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_generated_info.plist
+note: Emplaced /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources/AppIcon.icns (in target 'SequencerAI' from project 'SequencerAI')
+note: Emplaced /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources/Assets.car (in target 'SequencerAI' from project 'SequencerAI')
+
+ProcessInfoPlistFile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Info.plist /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/Info.plist (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-infoPlistUtility /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Resources/Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/PkgInfo -expandbuildsettings -platform macosx -additionalcontentfile /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/assetcatalog_generated_info.plist -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Info.plist
+
+SwiftDriver SequencerAI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name SequencerAI -Onone -enforce-exclusivity\=checked @/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -target arm64-apple-macos14.0 -g -module-cache-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Index.noindex/DataStore -swift-version 5 -I /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -F /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/SDKStatCaches.noindex/macosx15.5-24F74-8254517eb8b97d462ccbc072ba9094c9.sdkstatcache -output-file-map /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftmodule -validate-clang-modules-once -clang-build-session-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/ModuleCache.noindex/Session.modulevalidation -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-generated-files.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-own-target-headers.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-project-headers.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/include -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources-normal/arm64 -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/arm64 -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-Swift.h -working-directory /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice -experimental-emit-module-separately -disable-cmo
+
+SwiftCompile normal arm64 Compiling\ ScalarValueEditor.swift,\ Scale.swift,\ ScaleID.swift,\ Scales.swift,\ ScenesWorkspaceMode.swift,\ ScenesWorkspaceView+AUEffects.swift,\ ScenesWorkspaceView+Perform.swift,\ ScenesWorkspaceView.swift,\ ScheduledEvent.swift,\ SeqAIDocument.swift,\ SequencerAIApp.swift,\ SequencerAIAppDelegate.swift,\ SequencerDocumentRootView.swift,\ SequencerDocumentSession+Mutations.swift,\ SequencerDocumentSession.swift,\ SequencerDocumentSessionRegistry.swift,\ SequencerSnapshotCompiler.swift,\ SessionSnapshotPublisher.swift,\ SidebarView.swift,\ SingleMacroSlotPickerSheet.swift,\ SliceAnalyzer.swift,\ SliceIndexEditor.swift,\ SliceInspectorView.swift,\ SliceTrackEditingControls.swift,\ SliceTrackWorkspaceView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/ScalarValueEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Scale.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/ScaleID.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Scales.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceMode.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceView+AUEffects.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/ScheduledEvent.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SeqAIDocument.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerAIApp.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerAIAppDelegate.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentRootView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentSession+Mutations.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentSession.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentSessionRegistry.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/SequencerSnapshotCompiler.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SessionSnapshotPublisher.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/SidebarView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/SingleMacroSlotPickerSheet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SliceAnalyzer.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/SliceIndexEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SliceInspectorView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SliceTrackEditingControls.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SliceTrackWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/ScalarValueEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Scale.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/ScaleID.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Scales.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceMode.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceView+AUEffects.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/ScenesWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/ScheduledEvent.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SeqAIDocument.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerAIApp.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerAIAppDelegate.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentRootView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentSession+Mutations.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentSession.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SequencerDocumentSessionRegistry.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/SequencerSnapshotCompiler.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/App/SessionSnapshotPublisher.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/SidebarView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/SingleMacroSlotPickerSheet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SliceAnalyzer.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/SliceIndexEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SliceInspectorView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SliceTrackEditingControls.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SliceTrackWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ SequencerAI (in target 'SequencerAI' from project 'SequencerAI')
+
+EmitSwiftModule normal arm64 (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:23: warning: assuming you mean 'Optional<Destination>.none'; did you mean 'Destination.none' instead?
+        destination: .none,
+                      ^
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+
+SwiftCompile normal arm64 Compiling\ Project+CapturedClips.swift,\ Project+Codable.swift,\ Project+Destinations.swift,\ Project+Diff.swift,\ Project+DrumGroups.swift,\ Project+Patterns.swift,\ Project+Phrases.swift,\ Project+Selection.swift,\ Project+SliceSets.swift,\ Project+TrackMacros.swift,\ Project+TrackSources.swift,\ Project+Tracks.swift,\ Project.swift,\ ProjectDelta.swift,\ RecentVoicesStore.swift,\ Route.swift,\ RouteEditorSheet.swift,\ RoutesListView.swift,\ SampleLibraryBootstrap.swift,\ SamplePlaybackEngine.swift,\ SamplerDestinationWidget.swift,\ SamplerFilterNode.swift,\ SamplerFilterSettings.swift,\ SamplerSettings.swift,\ ScalarCellPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+CapturedClips.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Codable.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Destinations.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Diff.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+DrumGroups.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Patterns.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Phrases.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Selection.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+SliceSets.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+TrackMacros.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+TrackSources.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Tracks.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ProjectDelta.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Platform/RecentVoicesStore.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Route.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/RouteEditorSheet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/RoutesListView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SampleLibraryBootstrap.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SamplePlaybackEngine.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/SamplerDestinationWidget.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SamplerFilterNode.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SamplerFilterSettings.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SamplerSettings.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCells/ScalarCellPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+CapturedClips.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Codable.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:23: warning: assuming you mean 'Optional<Destination>.none'; did you mean 'Destination.none' instead?
+        destination: .none,
+                      ^
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Destinations.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Diff.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+DrumGroups.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Patterns.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Phrases.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Selection.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+SliceSets.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+TrackMacros.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+TrackSources.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project+Tracks.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Project.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ProjectDelta.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Platform/RecentVoicesStore.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Route.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/RouteEditorSheet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/RoutesListView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SampleLibraryBootstrap.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SamplePlaybackEngine.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/SamplerDestinationWidget.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/SamplerFilterNode.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SamplerFilterSettings.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SamplerSettings.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCells/ScalarCellPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 Compiling\ AUAudioUnitFactory.swift,\ AUMacroSlotKnob.swift,\ AUPresetDescriptor.swift,\ AUPresetRowView.swift,\ AUWindowHost.swift,\ AddDestinationSheet.swift,\ AddDrumGroupSheet.swift,\ AlgoPreview.swift,\ AlgorithmSummaryCard.swift,\ AppSupportBootstrap.swift,\ AudioEffectChoice.swift,\ AudioFileRef.swift,\ AudioInputLoopingAutosliceProbeModel.swift,\ AudioInputLoopingAutosliceProbeView.swift,\ AudioInstrumentChoice.swift,\ AudioInstrumentChoiceCache.swift,\ AudioInstrumentHost.swift,\ AudioSample.swift,\ AudioSampleCategory.swift,\ AudioSampleLibrary.swift,\ Block.swift,\ BlockRegistry.swift,\ BooleanCellPreview.swift,\ Chord.swift,\ ChordContextSink.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AUAudioUnitFactory.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/AUMacroSlotKnob.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AUPresetDescriptor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/AUPresetRowView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AUWindowHost.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/AddDestinationSheet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/DrumGroup/AddDrumGroupSheet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AlgoPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Preview/AlgorithmSummaryCard.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Platform/AppSupportBootstrap.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioEffectChoice.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AudioFileRef.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Inputs/AudioInputLoopingAutosliceProbeModel.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Inputs/AudioInputLoopingAutosliceProbeView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentChoice.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentChoiceCache.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentHost.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AudioSample.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AudioSampleCategory.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioSampleLibrary.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Block.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/BlockRegistry.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCells/BooleanCellPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Chord.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Blocks/ChordContextSink.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AUAudioUnitFactory.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/AUMacroSlotKnob.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AUPresetDescriptor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/AUPresetRowView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AUWindowHost.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/AddDestinationSheet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/DrumGroup/AddDrumGroupSheet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AlgoPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Preview/AlgorithmSummaryCard.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Platform/AppSupportBootstrap.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioEffectChoice.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AudioFileRef.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Inputs/AudioInputLoopingAutosliceProbeModel.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Inputs/AudioInputLoopingAutosliceProbeView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentChoice.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentChoiceCache.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentHost.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentHost.swift:415:37: warning: capture of 'self' with non-sendable type 'AudioInstrumentHost' in a '@Sendable' closure
+                guard generation == self.instantiationGeneration else {
+                                    ^
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentHost.swift:29:13: note: class 'AudioInstrumentHost' does not conform to the 'Sendable' protocol
+final class AudioInstrumentHost: TrackPlaybackSink {
+            ^
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentHost.swift:425:54: warning: capture of 'result' with non-sendable type 'Result<AVAudioUnit, AUAudioUnitFactory.FactoryError>' in a '@Sendable' closure
+                guard case let .success(audioUnit) = result,
+                                                     ^
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/AVFAudio.framework/Headers/AVAudioUnit.h:28:12: note: class 'AVAudioUnit' does not conform to the 'Sendable' protocol
+@interface AVAudioUnit : AVAudioNode
+           ^
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioInstrumentHost.swift:1:1: warning: add '@preconcurrency' to suppress 'Sendable'-related warnings from module 'AVFAudio'
+import AVFoundation
+^
+@preconcurrency 
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AudioSample.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/AudioSampleCategory.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/AudioSampleLibrary.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Block.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/BlockRegistry.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCells/BooleanCellPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Chord.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Blocks/ChordContextSink.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 Compiling\ SliceMarker.swift,\ SliceSet.swift,\ SlicerControlField.swift,\ SlicerSettings.swift,\ SlicerSourceWidget.swift,\ SlicerWaveformView.swift,\ SlicerWaveformWindow.swift,\ SnapshotChange.swift,\ SourceParameterSliderRow.swift,\ SourceParameterStepperRow.swift,\ StepAlgo+Kind.swift,\ StepAlgo.swift,\ StepAlgoEditor.swift,\ StepGridView.swift,\ StepSequenceTrack.swift,\ Stream.swift,\ StudioMetricPill.swift,\ StudioMetrics.swift,\ StudioOpacity.swift,\ StudioPanel.swift,\ StudioPlaceholderTile.swift,\ StudioTheme.swift,\ StudioTopBar.swift,\ StudioTypography.swift,\ StyleProfile.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SliceMarker.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SliceSet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerControlField.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SlicerSettings.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerSourceWidget.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerWaveformView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerWaveformWindow.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/SnapshotChange.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Widgets/SourceParameterSliderRow.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Widgets/SourceParameterStepperRow.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepAlgo+Kind.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepAlgo.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/StepAlgoEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/StepGridView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Stream.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioMetricPill.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioMetrics.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioOpacity.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioPanel.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioPlaceholderTile.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioTheme.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/StudioTopBar.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioTypography.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/StyleProfile.swift (in target 'SequencerAI' from project 'SequencerAI')
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SliceMarker.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SliceSet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerControlField.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/SlicerSettings.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerSourceWidget.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerWaveformView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Slicer/SlicerWaveformWindow.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/SnapshotChange.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Widgets/SourceParameterSliderRow.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Widgets/SourceParameterStepperRow.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepAlgo+Kind.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepAlgo.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/StepAlgoEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/StepGridView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:23: warning: assuming you mean 'Optional<Destination>.none'; did you mean 'Destination.none' instead?
+        destination: .none,
+                      ^
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Stream.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioMetricPill.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioMetrics.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioOpacity.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioPanel.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioPlaceholderTile.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioTheme.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/StudioTopBar.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Theme/StudioTypography.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/StyleProfile.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 Compiling\ StyleProfileID.swift,\ StyleProfiles.swift,\ ThrottledMixControl.swift,\ TickClock.swift,\ TrackDestinationEditor.swift,\ TrackGroup.swift,\ TrackMacroApplier.swift,\ TrackMacroDescriptor.swift,\ TrackMixSettings.swift,\ TrackPatternSlotPalette.swift,\ TrackSourceCatalog.swift,\ TrackSourceEditorView.swift,\ TrackSourceProgram.swift,\ TrackType.swift,\ TrackWorkspaceView.swift,\ TracksMatrixView.swift,\ TransportBar.swift,\ TransportMode.swift,\ VoicePickerView.swift,\ WaveformDownsampler.swift,\ WaveformView.swift,\ WorkspaceDetailView.swift,\ WorkspaceSection.swift,\ WrapRow.swift,\ GeneratedAssetSymbols.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/StyleProfileID.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/StyleProfiles.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/ThrottledMixControl.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/TickClock.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestinationEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackGroup.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/TrackMacroApplier.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackMacroDescriptor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackMixSettings.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/TrackPatternSlotPalette.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackSourceCatalog.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/TrackSourceEditorView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/TrackSourceProgram.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackType.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Track/TrackWorkspaceView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TracksMatrixView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TransportBar.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/TransportMode.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/VoicePickerView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/WaveformDownsampler.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/WaveformView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/WorkspaceDetailView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/WorkspaceSection.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Widgets/WrapRow.swift /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/StyleProfileID.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/StyleProfiles.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/ThrottledMixControl.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/TickClock.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestinationEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackGroup.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/TrackMacroApplier.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackMacroDescriptor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackMixSettings.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/TrackPatternSlotPalette.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackSourceCatalog.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/TrackSourceEditorView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/TrackSourceEditorView.swift:448:17: warning: result of call to 'assignAUMacroToSlot(_:to:slotIndex:)' is unused
+        session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
+                ^                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/TrackSourceProgram.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/TrackType.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Track/TrackWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TracksMatrixView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TransportBar.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/TransportMode.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/VoicePickerView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/WaveformDownsampler.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/WaveformView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/WorkspaceDetailView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/WorkspaceSection.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Widgets/WrapRow.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 Compiling\ NoteShape.swift,\ NoteShapeEditor.swift,\ PatternIndexCellPreview.swift,\ PatternIndexPicker.swift,\ PhraseCellEditorSheet.swift,\ PhraseCellPreview.swift,\ PhraseCurvePreset.swift,\ PhraseCurvePreview.swift,\ PhraseLayer+Values.swift,\ PhraseLayerPresentation.swift,\ PhraseModel.swift,\ PhrasePlaybackBuffer.swift,\ PhraseWorkspaceView.swift,\ PitchAlgo+Kind.swift,\ PitchAlgo.swift,\ PitchAlgoEditor.swift,\ PitchContext.swift,\ PlaybackSnapshot.swift,\ PolyLaneSelector.swift,\ PreferencesView.swift,\ PresetBrowserSheet.swift,\ PresetBrowserSheetViewModel.swift,\ PresetStepper.swift,\ ProgressionChordGeneratorEditorView.swift,\ ProgressionChordGeneratorParams.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/NoteShape.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/NoteShapeEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCells/PatternIndexCellPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/PatternIndexPicker.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditorSheet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/PhraseCurvePreset.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/PhraseCurvePreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PhraseLayer+Values.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseLayerPresentation.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PhraseModel.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/PhrasePlaybackBuffer.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseWorkspaceView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PitchAlgo+Kind.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PitchAlgo.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/PitchAlgoEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PitchContext.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/PlaybackSnapshot.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/PolyLaneSelector.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PreferencesView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/PresetBrowserSheet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/PresetBrowserSheetViewModel.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/PresetStepper.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/ProgressionChordGeneratorEditorView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ProgressionChordGeneratorParams.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/NoteShape.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/NoteShapeEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCells/PatternIndexCellPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/PatternIndexPicker.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditorSheet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/PhraseCurvePreset.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseCellEditors/PhraseCurvePreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PhraseLayer+Values.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseLayerPresentation.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PhraseModel.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/PhrasePlaybackBuffer.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PhraseWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PitchAlgo+Kind.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PitchAlgo.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/PitchAlgoEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/PitchContext.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/PlaybackSnapshot.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/PolyLaneSelector.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/PreferencesView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/PresetBrowserSheet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/PresetBrowserSheetViewModel.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/PresetStepper.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/ProgressionChordGeneratorEditorView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ProgressionChordGeneratorParams.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 Compiling\ ChordID.swift,\ Chords.swift,\ ClipBuffer.swift,\ ClipContent+Empty.swift,\ ClipContent.swift,\ ClipContentPreview.swift,\ ClipMacroLaneEditor.swift,\ ClipPianoRollPreview.swift,\ CommandQueue.swift,\ ContentView.swift,\ Destination.swift,\ DestinationSummary.swift,\ DrumGroupPlan.swift,\ DrumKitNoteMap.swift,\ DrumKitPreset.swift,\ EngineController.swift,\ EngineSlicerDispatcher.swift,\ Euclidean.swift,\ EventQueue.swift,\ Executor.swift,\ FullStateCoder.swift,\ GeneratedNotesPreview.swift,\ GeneratedSourceEvaluator.swift,\ GeneratedSourcePipeline.swift,\ GeneratorAttachmentControl.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/ChordID.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Chords.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/ClipBuffer.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ClipContent+Empty.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ClipContent.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Clip/ClipContentPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Track/ClipMacroLaneEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Clip/ClipPianoRollPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/CommandQueue.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/ContentView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Destination.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/DestinationSummary.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/DrumGroupPlan.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/DrumKitNoteMap.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/DrumKitPreset.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/EngineController.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/EngineSlicerDispatcher.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Euclidean.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/EventQueue.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Executor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/FullStateCoder.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Preview/GeneratedNotesPreview.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/GeneratedSourceEvaluator.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/GeneratedSourcePipeline.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/GeneratorAttachmentControl.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/ChordID.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Chords.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/ClipBuffer.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ClipContent+Empty.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/ClipContent.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Clip/ClipContentPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Track/ClipMacroLaneEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Clip/ClipPianoRollPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/CommandQueue.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/ContentView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/Destination.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/DestinationSummary.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/DrumGroupPlan.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/DrumKitNoteMap.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/DrumKitPreset.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/EngineController.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/EngineSlicerDispatcher.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Musical/Euclidean.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/EventQueue.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Executor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/FullStateCoder.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Preview/GeneratedNotesPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/GeneratedSourceEvaluator.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/GeneratedSourcePipeline.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/GeneratorAttachmentControl.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 Compiling\ GeneratorDisplaySupport.swift,\ GeneratorParams.swift,\ GeneratorParamsEditorView.swift,\ GridEditor.swift,\ InspectorView.swift,\ LayerSnapshot.swift,\ LibraryWorkspaceView.swift,\ LiveSequencerStore+Accessors.swift,\ LiveSequencerStore.swift,\ LiveWorkspaceView.swift,\ MIDIClient.swift,\ MIDIEndpoint.swift,\ MIDIPacketBuilder.swift,\ MIDIRouter.swift,\ MIDISession.swift,\ MacroKnobRow.swift,\ MacroPickerCandidateRanker.swift,\ MacroPickerSheet.swift,\ MainAudioGraph.swift,\ MasterBus.swift,\ MasterBusHost.swift,\ MidiOut.swift,\ MixerView.swift,\ MixerWorkspaceView.swift,\ NoteGenerator.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/GeneratorDisplaySupport.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/GeneratorParams.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/GeneratorParamsEditorView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/GridEditor.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/InspectorView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/LayerSnapshot.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Library/LibraryWorkspaceView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/LiveSequencerStore+Accessors.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/LiveSequencerStore.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/LiveWorkspaceView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDIClient.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDIEndpoint.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDIPacketBuilder.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/MIDIRouter.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDISession.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/MacroKnobRow.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/MacroPickerCandidateRanker.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/MacroPickerSheet.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/MainAudioGraph.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/MasterBus.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/MasterBusHost.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Blocks/MidiOut.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/MixerView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/MixerWorkspaceView.swift /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Blocks/NoteGenerator.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/GeneratorDisplaySupport.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/GeneratorParams.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/GeneratorParamsEditorView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackSource/Generator/GridEditor.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/InspectorView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/LayerSnapshot.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Library/LibraryWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/LiveSequencerStore+Accessors.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:23: warning: assuming you mean 'Optional<Destination>.none'; did you mean 'Destination.none' instead?
+        destination: .none,
+                      ^
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: explicitly specify 'Optional' to silence this warning
+        destination: .none,
+                     ^
+                     Optional
+/Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/StepSequenceTrack.swift:44:22: note: use 'Destination.none' instead
+        destination: .none,
+                     ^
+                     Destination
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/LiveSequencerStore.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/LiveWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDIClient.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDIEndpoint.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDIPacketBuilder.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/MIDIRouter.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/MIDI/MIDISession.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/MacroKnobRow.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/MacroPickerCandidateRanker.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/TrackDestination/MacroPickerSheet.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/MainAudioGraph.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Document/MasterBus.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Audio/MasterBusHost.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Blocks/MidiOut.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/MixerView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/UI/Mixer/MixerWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftCompile normal arm64 /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice/Sources/Engine/Blocks/NoteGenerator.swift (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for SequencerAI (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftDriver\ Compilation\ Requirements SequencerAI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name SequencerAI -Onone -enforce-exclusivity\=checked @/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -target arm64-apple-macos14.0 -g -module-cache-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Index.noindex/DataStore -swift-version 5 -I /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -F /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/SDKStatCaches.noindex/macosx15.5-24F74-8254517eb8b97d462ccbc072ba9094c9.sdkstatcache -output-file-map /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftmodule -validate-clang-modules-once -clang-build-session-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/ModuleCache.noindex/Session.modulevalidation -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-generated-files.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-own-target-headers.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-project-headers.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/include -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources-normal/arm64 -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/arm64 -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-Swift.h -working-directory /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling Project+CapturedClips.swift, Project+Codable.swift, Project+Destinations.swift, Project+Diff.swift, Project+DrumGroups.swift, Project+Patterns.swift, Project+Phrases.swift, Project+Selection.swift, Project+SliceSets.swift, Project+TrackMacros.swift, Project+TrackSources.swift, Project+Tracks.swift, Project.swift, ProjectDelta.swift, RecentVoicesStore.swift, Route.swift, RouteEditorSheet.swift, RoutesListView.swift, SampleLibraryBootstrap.swift, SamplePlaybackEngine.swift, SamplerDestinationWidget.swift, SamplerFilterNode.swift, SamplerFilterSettings.swift, SamplerSettings.swift, ScalarCellPreview.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftMergeGeneratedHeaders /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/SequencerAI-Swift.h /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-Swift.h (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-swiftHeaderTool -arch arm64 /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-Swift.h -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/SequencerAI-Swift.h
+
+Copy /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/arm64-apple-macos.swiftmodule /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftmodule (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftmodule /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/arm64-apple-macos.swiftmodule
+
+Copy /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/arm64-apple-macos.swiftdoc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftdoc (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftdoc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/arm64-apple-macos.swiftdoc
+
+Copy /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/arm64-apple-macos.abi.json /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.abi.json (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.abi.json /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/arm64-apple-macos.abi.json
+
+SwiftDriverJobDiscovery normal arm64 Compiling NoteShape.swift, NoteShapeEditor.swift, PatternIndexCellPreview.swift, PatternIndexPicker.swift, PhraseCellEditorSheet.swift, PhraseCellPreview.swift, PhraseCurvePreset.swift, PhraseCurvePreview.swift, PhraseLayer+Values.swift, PhraseLayerPresentation.swift, PhraseModel.swift, PhrasePlaybackBuffer.swift, PhraseWorkspaceView.swift, PitchAlgo+Kind.swift, PitchAlgo.swift, PitchAlgoEditor.swift, PitchContext.swift, PlaybackSnapshot.swift, PolyLaneSelector.swift, PreferencesView.swift, PresetBrowserSheet.swift, PresetBrowserSheetViewModel.swift, PresetStepper.swift, ProgressionChordGeneratorEditorView.swift, ProgressionChordGeneratorParams.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+Copy /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftsourceinfo (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftsourceinfo /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.swiftmodule/Project/arm64-apple-macos.swiftsourceinfo
+
+SwiftDriverJobDiscovery normal arm64 Compiling ChordID.swift, Chords.swift, ClipBuffer.swift, ClipContent+Empty.swift, ClipContent.swift, ClipContentPreview.swift, ClipMacroLaneEditor.swift, ClipPianoRollPreview.swift, CommandQueue.swift, ContentView.swift, Destination.swift, DestinationSummary.swift, DrumGroupPlan.swift, DrumKitNoteMap.swift, DrumKitPreset.swift, EngineController.swift, EngineSlicerDispatcher.swift, Euclidean.swift, EventQueue.swift, Executor.swift, FullStateCoder.swift, GeneratedNotesPreview.swift, GeneratedSourceEvaluator.swift, GeneratedSourcePipeline.swift, GeneratorAttachmentControl.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftDriverJobDiscovery normal arm64 Compiling AUAudioUnitFactory.swift, AUMacroSlotKnob.swift, AUPresetDescriptor.swift, AUPresetRowView.swift, AUWindowHost.swift, AddDestinationSheet.swift, AddDrumGroupSheet.swift, AlgoPreview.swift, AlgorithmSummaryCard.swift, AppSupportBootstrap.swift, AudioEffectChoice.swift, AudioFileRef.swift, AudioInputLoopingAutosliceProbeModel.swift, AudioInputLoopingAutosliceProbeView.swift, AudioInstrumentChoice.swift, AudioInstrumentChoiceCache.swift, AudioInstrumentHost.swift, AudioSample.swift, AudioSampleCategory.swift, AudioSampleLibrary.swift, Block.swift, BlockRegistry.swift, BooleanCellPreview.swift, Chord.swift, ChordContextSink.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftDriverJobDiscovery normal arm64 Compiling StyleProfileID.swift, StyleProfiles.swift, ThrottledMixControl.swift, TickClock.swift, TrackDestinationEditor.swift, TrackGroup.swift, TrackMacroApplier.swift, TrackMacroDescriptor.swift, TrackMixSettings.swift, TrackPatternSlotPalette.swift, TrackSourceCatalog.swift, TrackSourceEditorView.swift, TrackSourceProgram.swift, TrackType.swift, TrackWorkspaceView.swift, TracksMatrixView.swift, TransportBar.swift, TransportMode.swift, VoicePickerView.swift, WaveformDownsampler.swift, WaveformView.swift, WorkspaceDetailView.swift, WorkspaceSection.swift, WrapRow.swift, GeneratedAssetSymbols.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftDriverJobDiscovery normal arm64 Compiling ScalarValueEditor.swift, Scale.swift, ScaleID.swift, Scales.swift, ScenesWorkspaceMode.swift, ScenesWorkspaceView+AUEffects.swift, ScenesWorkspaceView+Perform.swift, ScenesWorkspaceView.swift, ScheduledEvent.swift, SeqAIDocument.swift, SequencerAIApp.swift, SequencerAIAppDelegate.swift, SequencerDocumentRootView.swift, SequencerDocumentSession+Mutations.swift, SequencerDocumentSession.swift, SequencerDocumentSessionRegistry.swift, SequencerSnapshotCompiler.swift, SessionSnapshotPublisher.swift, SidebarView.swift, SingleMacroSlotPickerSheet.swift, SliceAnalyzer.swift, SliceIndexEditor.swift, SliceInspectorView.swift, SliceTrackEditingControls.swift, SliceTrackWorkspaceView.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftDriverJobDiscovery normal arm64 Compiling GeneratorDisplaySupport.swift, GeneratorParams.swift, GeneratorParamsEditorView.swift, GridEditor.swift, InspectorView.swift, LayerSnapshot.swift, LibraryWorkspaceView.swift, LiveSequencerStore+Accessors.swift, LiveSequencerStore.swift, LiveWorkspaceView.swift, MIDIClient.swift, MIDIEndpoint.swift, MIDIPacketBuilder.swift, MIDIRouter.swift, MIDISession.swift, MacroKnobRow.swift, MacroPickerCandidateRanker.swift, MacroPickerSheet.swift, MainAudioGraph.swift, MasterBus.swift, MasterBusHost.swift, MidiOut.swift, MixerView.swift, MixerWorkspaceView.swift, NoteGenerator.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftDriverJobDiscovery normal arm64 Compiling SliceMarker.swift, SliceSet.swift, SlicerControlField.swift, SlicerSettings.swift, SlicerSourceWidget.swift, SlicerWaveformView.swift, SlicerWaveformWindow.swift, SnapshotChange.swift, SourceParameterSliderRow.swift, SourceParameterStepperRow.swift, StepAlgo+Kind.swift, StepAlgo.swift, StepAlgoEditor.swift, StepGridView.swift, StepSequenceTrack.swift, Stream.swift, StudioMetricPill.swift, StudioMetrics.swift, StudioOpacity.swift, StudioPanel.swift, StudioPlaceholderTile.swift, StudioTheme.swift, StudioTopBar.swift, StudioTypography.swift, StyleProfile.swift (in target 'SequencerAI' from project 'SequencerAI')
+
+SwiftDriver\ Compilation SequencerAI normal arm64 com.apple.xcode.tools.swift.compiler (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-Swift-Compilation -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name SequencerAI -Onone -enforce-exclusivity\=checked @/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -target arm64-apple-macos14.0 -g -module-cache-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Index.noindex/DataStore -swift-version 5 -I /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -F /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -c -j8 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/SDKStatCaches.noindex/macosx15.5-24F74-8254517eb8b97d462ccbc072ba9094c9.sdkstatcache -output-file-map /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftmodule -validate-clang-modules-once -clang-build-session-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/ModuleCache.noindex/Session.modulevalidation -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-generated-files.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-own-target-headers.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-project-headers.hmap -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/include -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources-normal/arm64 -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources/arm64 -Xcc -I/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI-Swift.h -working-directory /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice -experimental-emit-module-separately -disable-cmo
+
+Ld /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib normal (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-macos14.0 -dynamiclib -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -O0 -L/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -L/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -F/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -F/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -filelist /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.LinkFileList -install_name @rpath/SequencerAI.debug.dylib -Xlinker -rpath -Xlinker @executable_path/../Frameworks -Xlinker -object_path_lto -Xlinker /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -debug_variant -Xlinker -dependency_info -Xlinker /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_dependency_info.dat -fobjc-link-runtime -fprofile-instr-generate -L/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.swiftmodule -Xlinker -alias -Xlinker _main -Xlinker ___debug_main_executable_dylib_entry_point -Xlinker -no_adhoc_codesign -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib
+
+ConstructStubExecutorLinkFileList /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-ExecutorLinkFileList-normal-arm64.txt (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    construct-stub-executor-link-file-list /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/libPreviewsJITStubExecutor_no_swift_entry_point.a /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib/libPreviewsJITStubExecutor.a --output /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-ExecutorLinkFileList-normal-arm64.txt
+note: Using stub executor library with Swift entry point. (in target 'SequencerAI' from project 'SequencerAI')
+
+Ld /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI normal (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-macos14.0 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk -O0 -L/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -F/tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug -Xlinker -rpath -Xlinker @executable_path -Xlinker -rpath -Xlinker @executable_path/../Frameworks -rdynamic -Xlinker -no_deduplicate -Xlinker -debug_variant -e ___debug_blank_executor_main -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_dylib -Xlinker /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-DebugDylibPath-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_instlnm -Xlinker /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-DebugDylibInstallName-normal-arm64.txt -Xlinker -filelist -Xlinker /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI-ExecutorLinkFileList-normal-arm64.txt /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib -Xlinker -no_adhoc_codesign -o /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI
+
+ExtractAppIntentsMetadata (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name SequencerAI --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk --xcode-version 16F6 --platform-family macOS --deployment-target 14.0 --bundle-identifier ai.sequencer.SequencerAI --output /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Resources --target-triple arm64-apple-macos14.0 --binary-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI --dependency-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI_dependency_info.dat --stringsdata-file /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftFileList --metadata-file-list /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.DependencyMetadataFileList --static-metadata-file-list /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.DependencyStaticMetadataFileList --swift-const-vals-list /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/Objects-normal/arm64/SequencerAI.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-05-06 09:35:04.237 appintentsmetadataprocessor[67246:87554169] Starting appintentsmetadataprocessor export
+2026-05-06 09:35:04.239 appintentsmetadataprocessor[67246:87554169] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+
+CopySwiftLibs /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib --scan-folder /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Frameworks --scan-folder /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/PlugIns --scan-folder /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Library/SystemExtensions --scan-folder /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Extensions --platform macosx --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+CodeSign /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib
+
+CodeSign /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/__preview.dylib (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app/Contents/MacOS/__preview.dylib
+
+CodeSign /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --entitlements /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Intermediates.noindex/SequencerAI.build/Debug/SequencerAI.build/SequencerAI.app.xcent --timestamp\=none --generate-entitlement-der /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app
+
+RegisterExecutionPolicyException /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-RegisterExecutionPolicyException /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app
+
+Validate /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    builtin-validationUtility /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app -no-validate-extension -infoplist-subpath Contents/Info.plist
+
+Touch /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /usr/bin/touch -c /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app
+
+RegisterWithLaunchServices /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app (in target 'SequencerAI' from project 'SequencerAI')
+    cd /Users/maxwilliams/dev/in-sequence/.worktrees/probe-overnight-broad-probe-2026-05-05-audio-input-looping-autoslice
+    /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted /tmp/inseq-probe-visuals/audio-input-looping-autoslice-derived/Build/Products/Debug/SequencerAI.app
+
+note: Disabling hardened runtime with ad-hoc codesigning. (in target 'SequencerAI' from project 'SequencerAI')
+** BUILD SUCCEEDED **
+

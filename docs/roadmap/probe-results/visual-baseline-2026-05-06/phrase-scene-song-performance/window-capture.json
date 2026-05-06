@@ -1,0 +1,24 @@
+{
+  "success" : true,
+  "debug_logs" : [
+    "[2026-05-06T08:33:55.704Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:33:55.705Z] VERBOSE [Operation]: Starting operation {operation=image_command, app=SequencerAI, pid=0, hasAnalyzePrompt=false, mode=auto}",
+    "[2026-05-06T08:33:55.705Z] VERBOSE [Performance]: Starting timer 'image_command'",
+    "[2026-05-06T08:33:55.840Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=1}",
+    "[2026-05-06T08:33:55.840Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=2}",
+    "[2026-05-06T08:33:55.840Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=3}",
+    "[2026-05-06T08:33:55.840Z] VERBOSE: Skipping window {app=SequencerAI, title=, reason=window too small, index=4}"
+  ],
+  "data" : {
+    "files" : [
+      {
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/phrase-scene-song-performance\/window.png",
+        "window_title" : "",
+        "window_index" : 0,
+        "window_id" : 23312,
+        "mime_type" : "image\/png",
+        "item_label" : "SequencerAI"
+      }
+    ]
+  }
+}

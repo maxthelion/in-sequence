@@ -1,0 +1,17 @@
+{
+  "data" : {
+    "files" : [
+      {
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/mixer-routing-and-sends\/validated-screen.png",
+        "item_label" : "screen0",
+        "mime_type" : "image\/png"
+      }
+    ]
+  },
+  "success" : true,
+  "debug_logs" : [
+    "[2026-05-06T08:45:32.070Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:45:32.071Z] VERBOSE [Operation]: Starting operation {app=none, mode=screen, pid=0, hasAnalyzePrompt=false, operation=image_command}",
+    "[2026-05-06T08:45:32.071Z] VERBOSE [Performance]: Starting timer 'image_command'"
+  ]
+}

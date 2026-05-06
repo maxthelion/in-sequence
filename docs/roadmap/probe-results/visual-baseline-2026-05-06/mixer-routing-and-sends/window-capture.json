@@ -1,0 +1,24 @@
+{
+  "debug_logs" : [
+    "[2026-05-06T08:34:33.809Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:34:33.810Z] VERBOSE [Operation]: Starting operation {app=SequencerAI, operation=image_command, mode=auto, hasAnalyzePrompt=false, pid=0}",
+    "[2026-05-06T08:34:33.810Z] VERBOSE [Performance]: Starting timer 'image_command'",
+    "[2026-05-06T08:34:34.075Z] VERBOSE: Skipping window {index=1, title=, reason=window too small, app=SequencerAI}",
+    "[2026-05-06T08:34:34.075Z] VERBOSE: Skipping window {index=2, title=, reason=window too small, app=SequencerAI}",
+    "[2026-05-06T08:34:34.075Z] VERBOSE: Skipping window {index=3, title=, reason=window too small, app=SequencerAI}",
+    "[2026-05-06T08:34:34.075Z] VERBOSE: Skipping window {index=4, title=, reason=window too small, app=SequencerAI}"
+  ],
+  "data" : {
+    "files" : [
+      {
+        "window_id" : 23322,
+        "window_index" : 0,
+        "mime_type" : "image\/png",
+        "item_label" : "SequencerAI",
+        "window_title" : "",
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/mixer-routing-and-sends\/window.png"
+      }
+    ]
+  },
+  "success" : true
+}

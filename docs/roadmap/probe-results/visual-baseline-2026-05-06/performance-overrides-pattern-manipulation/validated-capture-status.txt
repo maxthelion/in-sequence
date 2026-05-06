@@ -1,0 +1,7 @@
+lane=performance-overrides-pattern-manipulation
+app=/tmp/inseq-probe-visuals/performance-overrides-pattern-manipulation-derived/Build/Products/Debug/SequencerAI.app
+pid=72488
+window_id=23537
+window_title=Untitled 4
+status=valid
+reason=captured main document window

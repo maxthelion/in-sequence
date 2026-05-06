@@ -1,0 +1,7 @@
+lane=track-editor-foundation
+app=/tmp/inseq-probe-visuals/track-editor-foundation-derived/Build/Products/Debug/SequencerAI.app
+pid=72316
+window_id=23490
+window_title=Untitled 4
+status=valid
+reason=captured main document window

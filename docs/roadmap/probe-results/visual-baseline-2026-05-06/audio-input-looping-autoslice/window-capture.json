@@ -1,0 +1,24 @@
+{
+  "data" : {
+    "files" : [
+      {
+        "item_label" : "SequencerAI",
+        "window_title" : "Open",
+        "mime_type" : "image\/png",
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/audio-input-looping-autoslice\/window.png",
+        "window_id" : 23339,
+        "window_index" : 0
+      }
+    ]
+  },
+  "debug_logs" : [
+    "[2026-05-06T08:35:09.920Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:35:09.920Z] VERBOSE [Operation]: Starting operation {mode=auto, operation=image_command, app=SequencerAI, hasAnalyzePrompt=false, pid=0}",
+    "[2026-05-06T08:35:09.920Z] VERBOSE [Performance]: Starting timer 'image_command'",
+    "[2026-05-06T08:35:10.061Z] VERBOSE: Skipping window {index=1, reason=window too small, app=SequencerAI, title=}",
+    "[2026-05-06T08:35:10.061Z] VERBOSE: Skipping window {index=2, reason=window too small, app=SequencerAI, title=}",
+    "[2026-05-06T08:35:10.061Z] VERBOSE: Skipping window {index=3, reason=window too small, app=SequencerAI, title=}",
+    "[2026-05-06T08:35:10.061Z] VERBOSE: Skipping window {index=4, reason=window too small, app=SequencerAI, title=}"
+  ],
+  "success" : true
+}

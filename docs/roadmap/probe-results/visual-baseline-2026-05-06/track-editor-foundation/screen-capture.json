@@ -1,0 +1,17 @@
+{
+  "data" : {
+    "files" : [
+      {
+        "item_label" : "screen0",
+        "mime_type" : "image\/png",
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/track-editor-foundation\/screen.png"
+      }
+    ]
+  },
+  "debug_logs" : [
+    "[2026-05-06T08:33:17.398Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:33:17.398Z] VERBOSE [Operation]: Starting operation {hasAnalyzePrompt=false, operation=image_command, pid=0, app=none, mode=screen}",
+    "[2026-05-06T08:33:17.398Z] VERBOSE [Performance]: Starting timer 'image_command'"
+  ],
+  "success" : true
+}

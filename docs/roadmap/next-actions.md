@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-05T12:29:40Z
-Repo HEAD: 89a0d20
+Generated: 2026-05-06T12:58:25Z
+Repo HEAD: 5642df6
 Branch:    codex/tracks-perform-scenes-workspace
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -326,4 +326,48 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 - **Role:** `pm`
 - **Reason:** Status is `deferred`; this item is intentionally skipped for now.
 - **Suggested output:** No action until the user reactivates this item.
+
+### ?. agentic-loop
+
+- **Directory:** `docs/roadmap/agentic-loop/`
+- **Status:** `unknown`
+- **Priority:** `unset`
+- **Blocked by:** `[]`
+- **Next action:** `clarify-feature`
+- **Role:** `user`
+- **Reason:** No `notes.md` yet.
+- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+### ?. lanes
+
+- **Directory:** `docs/roadmap/lanes/`
+- **Status:** `unknown`
+- **Priority:** `unset`
+- **Blocked by:** `[]`
+- **Next action:** `clarify-feature`
+- **Role:** `user`
+- **Reason:** No `notes.md` yet.
+- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+### ?. probe-results
+
+- **Directory:** `docs/roadmap/probe-results/`
+- **Status:** `unknown`
+- **Priority:** `unset`
+- **Blocked by:** `[]`
+- **Next action:** `clarify-feature`
+- **Role:** `user`
+- **Reason:** No `notes.md` yet.
+- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
+
+### ?. probes
+
+- **Directory:** `docs/roadmap/probes/`
+- **Status:** `unknown`
+- **Priority:** `unset`
+- **Blocked by:** `[]`
+- **Next action:** `clarify-feature`
+- **Role:** `user`
+- **Reason:** No `notes.md` yet.
+- **Suggested output:** Capture the brief user clarification: what feels wrong, what users are trying to achieve, what the model already gets right, and any constraints.
 

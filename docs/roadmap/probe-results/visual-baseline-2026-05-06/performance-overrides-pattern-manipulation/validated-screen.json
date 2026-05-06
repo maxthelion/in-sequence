@@ -1,0 +1,17 @@
+{
+  "debug_logs" : [
+    "[2026-05-06T08:45:57.675Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:45:57.676Z] VERBOSE [Operation]: Starting operation {operation=image_command, pid=0, mode=screen, app=none, hasAnalyzePrompt=false}",
+    "[2026-05-06T08:45:57.676Z] VERBOSE [Performance]: Starting timer 'image_command'"
+  ],
+  "data" : {
+    "files" : [
+      {
+        "item_label" : "screen0",
+        "mime_type" : "image\/png",
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/performance-overrides-pattern-manipulation\/validated-screen.png"
+      }
+    ]
+  },
+  "success" : true
+}

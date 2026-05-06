@@ -1,0 +1,17 @@
+{
+  "data" : {
+    "files" : [
+      {
+        "path" : "\/Users\/maxwilliams\/dev\/in-sequence\/docs\/roadmap\/probe-results\/visual-baseline-2026-05-06\/external-control-and-automation\/screen.png",
+        "item_label" : "screen0",
+        "mime_type" : "image\/png"
+      }
+    ]
+  },
+  "success" : true,
+  "debug_logs" : [
+    "[2026-05-06T08:36:21.007Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-06T08:36:21.007Z] VERBOSE [Operation]: Starting operation {hasAnalyzePrompt=false, mode=screen, pid=0, app=none, operation=image_command}",
+    "[2026-05-06T08:36:21.007Z] VERBOSE [Performance]: Starting timer 'image_command'"
+  ]
+}
