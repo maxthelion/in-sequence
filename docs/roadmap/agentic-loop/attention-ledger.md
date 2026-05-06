@@ -225,3 +225,88 @@
 - **Write:** `docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06.md`, `docs/roadmap/probe-results/holistic-wireframe-from-synthesis-2026-05-06/`, `docs/roadmap/agentic-loop/passes/build-holistic-wireframe-from-synthesis.md`, `docs/roadmap/agentic-loop/state.md`
 - **User attention needed:** no
 - **Reason:** The holistic wireframe pass is complete with valid visual evidence; the next action is agent-side UX/IA, architecture, and testing review.
+
+## 2026-05-06T16:32:06.797Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T16:37:09.648Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T16:42:12.025Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T16:47:14.384Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T16:52:16.606Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T16:57:19.004Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T17:02:20.719Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T17:07:22.452Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T17:26:41.289Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T17:31:43.007Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T17:36:44.812Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T17:57:26.779Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T18:08:18.196Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T18:13:19.940Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T18:18:21.902Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T18:23:23.675Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
+
+## 2026-05-06T18:28:25.950Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Known failures should become cleanup/hardening work before another broad run.
