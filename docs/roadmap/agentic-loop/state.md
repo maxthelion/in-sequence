@@ -1,26 +1,25 @@
 ---
-mode: prepare-candidates
+mode: review-through-lenses
 status: ready
 updated: 2026-05-06T20:18:00+01:00
-next_action: write-production-build-plans
+next_action: run-pass
 ---
 
 # Agentic Loop State
 
 ## Current Mode
 
-prepare-candidates
+review-through-lenses
 
 ## Why
 
-The production cherry-pick candidate synthesis now separates pure model/test
-seeds from candidates that need architecture mapping first. The next agent-side
-step is to write narrow production build plans for the P0 candidates before any
-branch cherry-pick or UI integration.
+The production cherry-pick candidate synthesis is complete and a lens-review
+pass now exists. Run the review pass before writing production build plans or
+porting any model/test artifact.
 
 ## Next Expected Output
 
-`docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`
+`docs/roadmap/agentic-loop/passes/review-prepare-production-cherry-pick-candidates-through-lenses.md`
 
 ## Current Assumptions
 

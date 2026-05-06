@@ -381,8 +381,8 @@
 
 ## 2026-05-06T20:18:00+01:00
 
-- **Write:** `docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`, `docs/roadmap/agentic-loop/passes/prepare-production-cherry-pick-candidates.md`, `docs/roadmap/agentic-loop/state.md`
+- **Write:** `docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`, `docs/roadmap/agentic-loop/passes/prepare-production-cherry-pick-candidates.md`, `docs/roadmap/agentic-loop/passes/review-prepare-production-cherry-pick-candidates-through-lenses.md`, `docs/roadmap/agentic-loop/state.md`
 - **User attention needed:** no
 - **Prepared:** production-safe model/test seeds for transient performance overrides and developer observability; architecture-plan candidates for performance integration, source-slot capture history, runtime audio buffers, mixer returns, and queued phrase staging.
 - **Rejected:** probe-local UI state, seeded fixtures, synthetic audio behavior, hard-coded final step semantics, top-level Automation as musician UI, whole-branch cherry-picks, and broad project-file churn.
-- **Scheduled:** write narrow P0 production build plans before any cherry-pick or UI integration.
+- **Scheduled:** run the candidate synthesis through UX/IA, architecture, and testing lens review before writing P0 production build plans or porting artifacts.
