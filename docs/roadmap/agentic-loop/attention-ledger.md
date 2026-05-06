@@ -320,3 +320,15 @@
 
 - **Write:** `docs/roadmap/agentic-loop/state.md`
 - **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T18:33:28.924Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T19:34:30+01:00
+
+- **Write:** `docs/roadmap/agentic-loop/reviews/build-holistic-wireframe-from-synthesis/ux-ia.md`, `docs/roadmap/agentic-loop/reviews/build-holistic-wireframe-from-synthesis/architecture.md`, `docs/roadmap/agentic-loop/reviews/build-holistic-wireframe-from-synthesis/testing.md`, `docs/roadmap/agentic-loop/passes/correct-holistic-wireframe-commit-discard-evidence.md`, `docs/roadmap/agentic-loop/passes/review-build-holistic-wireframe-from-synthesis-through-lenses.md`, `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Caught:** the holistic wireframe is visually valid and integrated, but Keep and Discard have indistinct visible consequences, ownership transitions are underspecified, and tests do not exercise the interaction outcome.
+- **Scheduled:** run the narrow agent-side correction pass for visible commit/discard targets and ownership/testing evidence before requesting user product judgment.
