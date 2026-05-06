@@ -1,8 +1,9 @@
 ---
 id: review-prepare-production-cherry-pick-candidates-through-lenses
 mode: review-through-lenses
-status: ready-for-agent
+status: complete
 created: 2026-05-06T20:18:00+01:00
+completed: 2026-05-06T20:20:00+01:00
 objective: Review prepare-production-cherry-pick-candidates through UX/IA, architecture, and testing lenses
 max_parallel: 1
 requires_context_pack: true
@@ -43,3 +44,11 @@ small product judgment is genuinely needed, if any.
 
 - visual evidence is missing or invalid and cannot be recreated;
 - the output is too broken to review without first scheduling a correction pass.
+
+## Completion
+
+Complete. Lens reviews exist under
+`docs/roadmap/agentic-loop/reviews/prepare-production-cherry-pick-candidates/`.
+The reviewed candidate synthesis passed for build planning, and the next
+agent-side pass is
+`docs/roadmap/agentic-loop/passes/write-p0-performance-overlay-build-plan.md`.

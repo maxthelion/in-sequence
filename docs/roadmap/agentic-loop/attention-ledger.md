@@ -386,3 +386,16 @@
 - **Prepared:** production-safe model/test seeds for transient performance overrides and developer observability; architecture-plan candidates for performance integration, source-slot capture history, runtime audio buffers, mixer returns, and queued phrase staging.
 - **Rejected:** probe-local UI state, seeded fixtures, synthetic audio behavior, hard-coded final step semantics, top-level Automation as musician UI, whole-branch cherry-picks, and broad project-file churn.
 - **Scheduled:** run the candidate synthesis through UX/IA, architecture, and testing lens review before writing P0 production build plans or porting artifacts.
+
+## 2026-05-06T19:08:45.730Z
+
+- **Write:** `docs/roadmap/agentic-loop/state.md`
+- **Reason:** Run the ready review-through-lenses pass before scheduling lens reviews or hardening.
+
+## 2026-05-06T20:20:00+01:00
+
+- **Write:** `docs/roadmap/agentic-loop/reviews/prepare-production-cherry-pick-candidates/ux-ia.md`, `docs/roadmap/agentic-loop/reviews/prepare-production-cherry-pick-candidates/architecture.md`, `docs/roadmap/agentic-loop/reviews/prepare-production-cherry-pick-candidates/testing.md`, `docs/roadmap/agentic-loop/passes/write-p0-performance-overlay-build-plan.md`, `docs/roadmap/agentic-loop/passes/review-prepare-production-cherry-pick-candidates-through-lenses.md`, `docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`, `docs/roadmap/agentic-loop/state.md`
+- **User attention needed:** no
+- **Caught:** the candidate list is suitable for build planning, not direct UI porting; P0 performance work still needs explicit session/engine ownership, tick-path precedence, Keep destinations, Discard restoration, and production tests before Swift code is ported.
+- **Fixed:** audio and mixer probe source artifacts are fully qualified so follow-up agents do not mistake UI-local probe models for production engine/audio graph ownership.
+- **Scheduled:** write the P0 transient performance overlay build plan as the next agent-side pass.
