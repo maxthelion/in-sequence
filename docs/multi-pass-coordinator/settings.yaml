@@ -43,6 +43,7 @@ loops:
   - id: pm
     label: PM Loop
     inbox: docs/roadmap/supervisor-requests
+    instructions: docs/multi-pass-coordinator/loop-actors/pm.md
     can_do:
       - clarify feature intent
       - group features into lanes
@@ -54,6 +55,7 @@ loops:
   - id: build
     label: Build Loop
     inbox: .claude/state/inbox
+    instructions: docs/multi-pass-coordinator/loop-actors/build.md
     can_do:
       - implement bounded production changes
       - run focused tests
@@ -64,6 +66,7 @@ loops:
   - id: visual-review
     label: Visual Review Loop
     inbox: .peekaboo-loop/inbox
+    instructions: docs/multi-pass-coordinator/loop-actors/visual-review.md
     can_do:
       - capture UI evidence
       - review screenshots against product intent
@@ -73,6 +76,7 @@ loops:
   - id: ux-ia-review
     label: UX/IA Review
     inbox: docs/multi-pass-coordinator/inbox/ux-ia
+    instructions: docs/multi-pass-coordinator/loop-actors/ux-ia-review.md
     can_do:
       - review workflow clarity
       - check information architecture
@@ -82,6 +86,7 @@ loops:
   - id: architecture-review
     label: Architecture Review
     inbox: docs/multi-pass-coordinator/inbox/architecture
+    instructions: docs/multi-pass-coordinator/loop-actors/architecture-review.md
     can_do:
       - review ownership boundaries
       - identify implementation consequences
@@ -91,6 +96,7 @@ loops:
   - id: testing-review
     label: Testing Review
     inbox: docs/multi-pass-coordinator/inbox/testing
+    instructions: docs/multi-pass-coordinator/loop-actors/testing-review.md
     can_do:
       - identify missing tests
       - review whether evidence is sufficient
