@@ -26,6 +26,7 @@ Pods/
 
 # Generated / intermediate
 *.tmp
+.meta/
 
 # Editor
 .vscode/

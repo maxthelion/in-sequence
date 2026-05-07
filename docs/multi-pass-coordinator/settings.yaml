@@ -1,0 +1,158 @@
+version: 1
+
+project:
+  name: in-sequence
+  root: /Users/maxwilliams/dev/in-sequence
+  read_first:
+    - README.md
+    - docs/roadmap/AGENTS.md
+    - docs/roadmap/context-pack.md
+    - docs/roadmap/agentic-loop/state.md
+    - docs/roadmap/agentic-loop/decisions/inferred-defaults.md
+    - docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md
+    - wiki/pages/application-overview.md
+    - wiki/pages/information-architecture-ux.md
+    - wiki/pages/live-view.md
+    - wiki/pages/document-model.md
+    - wiki/pages/playback-data-path.md
+
+meta:
+  ticked_by: meta
+  cadence: hourly
+  runtime_log_dir: .meta/multi-pass-coordinator
+  note: >
+    Meta invokes this coordinator. The coordinator owns project-local judgment
+    and writes requests to loop inboxes. Meta records the tick result and
+    enforces global scheduling/resource limits.
+
+coordination:
+  inbox: docs/multi-pass-coordinator/inbox/coordinator
+  log: docs/multi-pass-coordinator/hourly-log.md
+  plan: docs/multi-pass-coordinator/current-plan.md
+  lanes: docs/multi-pass-coordinator/lanes.md
+  show_readiness: docs/multi-pass-coordinator/show-readiness.md
+  product_owner_attention: docs/multi-pass-coordinator/product-owner-attention.md
+  allowed_write_roots:
+    - docs/multi-pass-coordinator
+    - docs/roadmap/supervisor-requests
+    - docs/roadmap/agentic-loop
+    - .claude/state/inbox
+    - .peekaboo-loop/inbox
+
+loops:
+  - id: pm
+    label: PM Loop
+    inbox: docs/roadmap/supervisor-requests
+    can_do:
+      - clarify feature intent
+      - group features into lanes
+      - update roadmap artifacts
+      - produce implementation handoffs
+      - summarize open questions with recommended defaults
+    request_format: markdown
+
+  - id: build
+    label: Build Loop
+    inbox: .claude/state/inbox
+    can_do:
+      - implement bounded production changes
+      - run focused tests
+      - address code critiques
+      - prepare work for review
+    request_format: markdown
+
+  - id: visual-review
+    label: Visual Review Loop
+    inbox: .peekaboo-loop/inbox
+    can_do:
+      - capture UI evidence
+      - review screenshots against product intent
+      - file UX critiques into the build loop
+    request_format: markdown
+
+  - id: ux-ia-review
+    label: UX/IA Review
+    inbox: docs/multi-pass-coordinator/inbox/ux-ia
+    can_do:
+      - review workflow clarity
+      - check information architecture
+      - evaluate whether the UI supports the intended user story
+    request_format: markdown
+
+  - id: architecture-review
+    label: Architecture Review
+    inbox: docs/multi-pass-coordinator/inbox/architecture
+    can_do:
+      - review ownership boundaries
+      - identify implementation consequences
+      - check whether a branch should be corrected before merge
+    request_format: markdown
+
+  - id: testing-review
+    label: Testing Review
+    inbox: docs/multi-pass-coordinator/inbox/testing
+    can_do:
+      - identify missing tests
+      - review whether evidence is sufficient
+      - ask build loop to add or repair tests
+    request_format: markdown
+
+scripts:
+  - id: project-status
+    command: scripts/multi-pass/project-status.sh
+    provides:
+      - worktrees
+      - branches
+      - dirty files
+      - recent commits
+
+  - id: roadmap-status
+    command: scripts/multi-pass/roadmap-status.sh
+    provides:
+      - mapped features
+      - artifact stages
+      - blockers
+      - missing handoffs
+
+  - id: lane-status
+    command: scripts/multi-pass/lane-status.sh
+    provides:
+      - current lanes
+      - feature grouping
+      - cross-feature conflicts
+
+  - id: review-status
+    command: scripts/multi-pass/review-status.sh
+    provides:
+      - UX/IA review coverage
+      - architecture review coverage
+      - testing/performance review coverage
+      - unreviewed agent work
+
+  - id: inbox-status
+    command: scripts/multi-pass/inbox-status.sh
+    provides:
+      - pending loop requests
+      - blocked requests
+      - stale requests
+
+  - id: show-readiness
+    command: scripts/multi-pass/show-readiness.sh
+    provides:
+      - active work
+      - blockers to product-owner verification
+      - readiness hierarchy status
+
+readiness_hierarchy:
+  - can_users_do_the_intended_thing
+  - reliable_and_evidenced
+  - understandable_and_efficient
+  - delightful
+  - performant_and_maintainable
+  - fits_project_philosophy
+
+policies:
+  max_requests_per_tick: 5
+  ask_product_owner_only_for_interesting_product_decisions: true
+  require_lens_review_before_product_owner_verification: true
+  prefer_agent_side_correction_before_product_owner_attention: true
