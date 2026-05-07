@@ -1,0 +1,30 @@
+actions:
+  - id: capture-visual-evidence
+    description: Capture screenshots and UI structure for a named app/worktree/scenario.
+    typical_outputs:
+      - .claude/state/visual-review/<run-id>/manifest.json
+      - .claude/state/visual-review/<run-id>/window.png
+      - .claude/state/visual-review/<run-id>/review-brief.md
+    required_context:
+      - runnable app or app path command
+      - scenario name
+      - Peekaboo permissions
+
+  - id: review-visual-evidence
+    description: Compare captured UI evidence against product intent and decide if it is ready.
+    typical_outputs:
+      - visual review note
+      - build or UX follow-up request if needed
+    required_context:
+      - captured evidence
+      - accepted prototype/spec
+      - product README or wiki overview
+
+  - id: diagnose-visual-capture
+    description: Diagnose why visual capture cannot run and write the exact unblocker.
+    typical_outputs:
+      - blocker note
+    required_context:
+      - Peekaboo permission status
+      - app launch command
+      - capture log

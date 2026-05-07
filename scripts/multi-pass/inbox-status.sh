@@ -5,9 +5,9 @@ echo "# Inbox Status"
 echo
 for dir in \
   docs/multi-pass-coordinator/inbox/coordinator \
-  docs/roadmap/supervisor-requests \
-  .claude/state/inbox \
-  .peekaboo-loop/inbox \
+  docs/multi-pass-coordinator/inbox/pm \
+  docs/multi-pass-coordinator/inbox/build-loop \
+  docs/multi-pass-coordinator/inbox/visual-review \
   docs/multi-pass-coordinator/inbox/ux-ia \
   docs/multi-pass-coordinator/inbox/architecture \
   docs/multi-pass-coordinator/inbox/testing

@@ -1,0 +1,39 @@
+actions:
+  - id: implement-work-item
+    description: Implement a bounded production change in a named worktree or branch.
+    typical_outputs:
+      - code changes
+      - tests or verification notes
+    required_context:
+      - worktree
+      - branch
+      - plan or implementation handoff
+
+  - id: address-critique
+    description: Fix concrete review findings from UX, architecture, testing, visual, or adversarial review.
+    typical_outputs:
+      - corrected code
+      - focused test updates
+    required_context:
+      - critique file
+      - affected worktree
+      - relevant evidence paths
+
+  - id: add-evidence
+    description: Add focused tests or verification evidence for existing work.
+    typical_outputs:
+      - tests
+      - verification notes
+    required_context:
+      - worktree
+      - behavior under review
+      - missing evidence note
+
+  - id: prepare-ready-summary
+    description: Summarize reviewed work that is ready for product-owner verification.
+    typical_outputs:
+      - .claude/state/ready-for-user.md
+    required_context:
+      - passing tests
+      - completed reviews
+      - current diff

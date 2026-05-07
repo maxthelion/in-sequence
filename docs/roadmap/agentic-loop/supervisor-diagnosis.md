@@ -1,7 +1,7 @@
 ---
 status: complete
 created: 2026-05-07T10:24:47Z
-source_request: docs/roadmap/supervisor-requests/2026-05-07-supervisor-diagnose.md
+source_request: docs/multi-pass-coordinator/inbox/pm/archive/2026-05-07-supervisor-diagnose.md
 ---
 
 # Supervisor Diagnosis

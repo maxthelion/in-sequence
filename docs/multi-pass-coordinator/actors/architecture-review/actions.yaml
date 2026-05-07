@@ -1,0 +1,21 @@
+actions:
+  - id: review-diff
+    description: Review a worktree diff for architecture, ownership, and implementation consequences.
+    typical_outputs:
+      - architecture review note
+      - build follow-up request if needed
+    required_context:
+      - worktree
+      - branch
+      - plan or handoff
+
+  - id: review-plan
+    description: Review a proposed plan before implementation for architecture risk and sequencing.
+    typical_outputs:
+      - architecture review note
+      - recommended constraints or defaults
+    required_context:
+      - plan/spec
+      - relevant source modules
+      - project architecture docs
+

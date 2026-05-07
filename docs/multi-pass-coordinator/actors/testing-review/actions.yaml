@@ -1,0 +1,19 @@
+actions:
+  - id: review-evidence
+    description: Review whether the current tests and verification evidence are enough for the requested behavior.
+    typical_outputs:
+      - testing review note
+      - build follow-up request if evidence is missing
+    required_context:
+      - worktree
+      - behavior under review
+      - relevant tests
+
+  - id: propose-tests
+    description: Propose focused tests that freeze high-level behavior and important details.
+    typical_outputs:
+      - test plan
+      - build request to add tests
+    required_context:
+      - user story/spec
+      - current implementation shape

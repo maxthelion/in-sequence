@@ -1,0 +1,21 @@
+actions:
+  - id: review-flow
+    description: Review whether a user workflow is understandable, efficient, and aligned with the product intent.
+    typical_outputs:
+      - UX/IA review note
+      - follow-up build request when correction is needed
+    required_context:
+      - feature/lane/user story
+      - screenshot or prototype evidence
+      - project README or wiki overview
+
+  - id: review-information-architecture
+    description: Review navigation, grouping, naming, and workspace coherence across features or lanes.
+    typical_outputs:
+      - IA critique
+      - recommended grouping or lane update
+    required_context:
+      - related features
+      - current UI evidence
+      - wiki IA page
+

@@ -1,0 +1,37 @@
+actions:
+  - id: diagnose-supervisor-blocker
+    description: Diagnose a blocked or paused project loop and write a concise process diagnosis.
+    typical_outputs:
+      - docs/roadmap/agentic-loop/supervisor-diagnosis.md
+    required_context:
+      - loop state
+      - recent logs or generated summaries
+      - request evidence
+
+  - id: refine-lane
+    description: Clarify a cross-feature lane, recommend defaults, and identify safe build promotion boundaries.
+    typical_outputs:
+      - docs/roadmap/lanes/<lane>.md
+    required_context:
+      - lane note
+      - related feature artifacts
+      - project README or wiki overview
+
+  - id: prepare-implementation-handoff
+    description: Turn feature or lane intent into a build-ready handoff.
+    typical_outputs:
+      - docs/roadmap/<feature>/implementation-handoff.md
+      - docs/plans/<plan>.md
+    required_context:
+      - spec
+      - architecture notes
+      - UX review
+
+  - id: reduce-product-question
+    description: Reduce an open product question to options, a recommended default, and what it unlocks.
+    typical_outputs:
+      - docs/roadmap/<feature>/open-questions.md
+      - docs/multi-pass-coordinator/product-owner-attention.md
+    required_context:
+      - linked feature or lane artifacts
+      - known project principles
