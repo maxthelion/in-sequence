@@ -1,6 +1,6 @@
 # Current Coordinator Plan
 
-## 2026-05-07T12:04Z Tick
+## 2026-05-07T12:46Z Tick
 
 Plan followed:
 
@@ -12,14 +12,18 @@ Plan followed:
   `evidence-promoted-work`, `evidence-reviews`, `evidence-tests`,
   `roadmap-status`, `lane-status`, `review-status`, `inbox-status`, and
   `show-readiness`.
-- Check whether the previously scheduled P0 overlay model reviews were still
-  pending or had produced fresh pass/fail evidence.
-- If reviews passed, schedule the next bounded build-loop slice rather than
-  asking the product owner or promoting UI work.
-- Update local coordination state so the next tick sees the model slice as
-  reviewed and the engine/session foundation as promoted.
-- Leave product-owner attention empty unless a real product choice appeared.
+- Check whether the build-loop completion note for the P0 overlay
+  engine/session slice had already been routed to architecture/testing review.
+- Schedule review requests for the completed `a3b8cfe` slice if none were
+  pending, rather than promoting playback or UI work directly.
+- Update local coordination state so the next tick sees the engine/session
+  slice as awaiting review and the completion note as handled.
+- Write only to coordinator state plus architecture/testing inboxes. Do not
+  write PM, build, UX/IA, or visual-review requests this tick unless the
+  evidence scripts reveal a blocker in those lanes.
+- Ask for product-owner attention only if the completed slice creates a
+  product decision that cannot be reduced by architecture/testing review.
 
-Departure note: none. The evidence scripts showed both model-slice reviews
-passed, so I scheduled the next build-loop slice and did not request human
-attention.
+Departure note: none. The evidence scripts showed no pending reviews for
+`a3b8cfe`, so I routed the completed slice to architecture and testing review
+and did not request human attention.
