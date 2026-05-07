@@ -1,7 +1,7 @@
 ---
 created: 2026-05-07T10:09:00Z
 source: multi-pass-coordinator
-status: requested
+status: completed
 priority: high
 target_output: docs/roadmap/agentic-loop/supervisor-diagnosis.md
 ---
