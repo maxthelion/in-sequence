@@ -16,8 +16,13 @@ bounded piece of production work, normally in a named worktree and branch.
   wiki context before editing code.
 - Run focused tests when available.
 - Do not merge, push, or touch unrelated worktrees.
+- Treat the request scope as a hard boundary. If the implementation appears to
+  require visible UI, persistence, merge, broad architecture, or product-scope
+  work that the request explicitly excluded, stop and write a blocker note
+  rather than preserving the wrong shape.
+- If an out-of-scope file must change only to satisfy compiler exhaustiveness
+  from an in-scope model/API change, keep that edit minimal and report it.
 - If the work cannot be safely completed in one tick, leave a concrete follow-up
   request with the next action and evidence still needed.
 
 Commit tightly scoped code changes when complete.
-
