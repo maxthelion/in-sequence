@@ -70,6 +70,43 @@ work is agent-side selector cleanup or an explicit external blocker.
 
 Product-owner attention: none requested.
 
+## 2026-05-07T11:42Z
+
+Plan followed: read the coordinator inbox from the invocation, settings,
+README, previous coordinator outputs, `project.read_first` context, current
+coordinator artifacts, and all configured status/evidence scripts before
+scheduling work. Departure: the prior build request had already produced
+implementation evidence, so this tick scheduled reviews rather than another
+build request.
+
+Inspected: roadmap context, inferred defaults, production cherry-pick
+candidates, application/IA/Live/document/playback wiki pages, actor inventory,
+project state, worktrees, actor inboxes, promoted-work evidence, reviews, tests,
+roadmap/lane status, readiness, the P0 overlay build plan, the
+`.worktrees/p0-track-performance-overlay` commit, and the model/test diff.
+
+Scheduled: two review requests:
+`docs/multi-pass-coordinator/inbox/architecture/2026-05-07-p0-track-performance-overlay-model-review.md`
+and
+`docs/multi-pass-coordinator/inbox/testing/2026-05-07-p0-track-performance-overlay-model-review.md`.
+They ask for architecture and testing review of commit `1ab2bc1` before any
+engine/session/UI wiring is promoted.
+
+Changed: added the two review requests, updated
+`docs/roadmap/agentic-loop/state.md` to
+`awaiting-p0-overlay-model-reviews`, and updated `current-plan.md`,
+`show-readiness.md`, and this log. No product-owner attention was requested.
+
+Blocked: product-owner verification remains blocked because the landed work is
+a pure model/test foundation, not runnable user-facing behavior. The next
+implementation blocker is review coverage for the model slice.
+
+Not ready to show the product owner: there is no visible overlay transaction,
+no Keep/Discard UI, and no reviewed engine/session playback path. The focused
+tests are promising, but reviews must confirm the slice before deeper wiring.
+
+Product-owner attention: none requested.
+
 ## 2026-05-07T11:00Z
 
 Plan followed: read the coordinator inbox, settings, README, previous

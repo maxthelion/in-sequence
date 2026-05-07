@@ -1,6 +1,6 @@
 # Current Coordinator Plan
 
-## 2026-05-07T11:20Z Tick
+## 2026-05-07T11:42Z Tick
 
 Plan followed:
 
@@ -8,15 +8,18 @@ Plan followed:
   coordinator outputs, `project.read_first` context, and current coordinator
   artifacts.
 - Run the configured scripts: `actor-inventory`, `project-status`,
+  `evidence-repo-state`, `evidence-worktrees`, `evidence-inboxes`,
+  `evidence-promoted-work`, `evidence-reviews`, `evidence-tests`,
   `roadmap-status`, `lane-status`, `review-status`, `inbox-status`, and
   `show-readiness`.
-- Verify whether `ready-for-p0-overlay-promotion` survives the project-local
-  scans after the meta selector fixes.
-- If the promotion gate remains clean and no inbox item already covers it,
-  schedule one bounded build-loop request for the first P0 performance overlay
-  slice.
-- Leave product-owner attention empty unless a real product choice appears.
+- Check whether the previously scheduled P0 performance overlay build request
+  was still pending or had produced fresh implementation/test evidence.
+- If implementation evidence existed, schedule review rather than promoting
+  the next build slice.
+- Update local coordination state so the next tick sees the model slice as
+  landed and awaiting review.
+- Leave product-owner attention empty unless a real product choice appeared.
 
-Departure note: none. `show-readiness` did not rewrite the state this time; it
-confirmed `next_action: promote-p0-overlay-build-plan`, so I scheduled build
-work instead of another PM cleanup pass.
+Departure note: the evidence scripts showed that the build-loop request had
+already produced commit `1ab2bc1` and a passing focused xcodebuild run, so I
+scheduled architecture and testing reviews instead of another build request.
