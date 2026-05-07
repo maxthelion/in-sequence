@@ -29,6 +29,7 @@ coordination:
   inbox: docs/multi-pass-coordinator/inbox/coordinator
   log: docs/multi-pass-coordinator/hourly-log.md
   plan: docs/multi-pass-coordinator/current-plan.md
+  evidence_log: docs/multi-pass-coordinator/evidence-log.md
   lanes: docs/multi-pass-coordinator/lanes.md
   show_readiness: docs/multi-pass-coordinator/show-readiness.md
   product_owner_attention: docs/multi-pass-coordinator/product-owner-attention.md
@@ -125,6 +126,50 @@ scripts:
       - branches
       - dirty files
       - recent commits
+
+  - id: evidence-repo-state
+    command: scripts/multi-pass/evidence-repo-state.sh
+    provides:
+      - timestamp
+      - branch and commit
+      - dirty state
+      - recent commits
+
+  - id: evidence-worktrees
+    command: scripts/multi-pass/evidence-worktrees.sh
+    provides:
+      - worktree paths
+      - worktree branches and commits
+      - worktree dirty summaries
+
+  - id: evidence-inboxes
+    command: scripts/multi-pass/evidence-inboxes.sh
+    provides:
+      - pending actor requests
+      - recent archived actor requests
+      - inbox freshness context
+
+  - id: evidence-promoted-work
+    command: scripts/multi-pass/evidence-promoted-work.sh
+    provides:
+      - active promoted work
+      - agentic loop state
+      - build-loop promotion archives
+      - known implementation worktrees
+
+  - id: evidence-reviews
+    command: scripts/multi-pass/evidence-reviews.sh
+    provides:
+      - review files
+      - review frontmatter
+      - review mtime and git state
+
+  - id: evidence-tests
+    command: scripts/multi-pass/evidence-tests.sh
+    provides:
+      - recorded test evidence
+      - recent xcresult bundles
+      - evidence log excerpts
 
   - id: roadmap-status
     command: scripts/multi-pass/roadmap-status.sh
