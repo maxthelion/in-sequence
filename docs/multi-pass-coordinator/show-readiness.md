@@ -31,3 +31,104 @@ Readiness assessment:
 Product-owner attention: none. The next action is agent-side supervisor
 diagnosis, requested in
 `docs/roadmap/supervisor-requests/2026-05-07-supervisor-diagnose.md`.
+
+## 2026-05-07T10:51Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: still blocked for active roadmap-loop output.
+  The supervisor diagnosis exists, but state has not yet moved to a safe build
+  promotion or explicit selector-fix blocker.
+- Reliable and evidenced: the valid evidence is the original non-recursive P0
+  performance overlay plan and its UX/IA, architecture, and testing reviews.
+  Recursive review-of-review files must be ignored or archived before they can
+  influence readiness.
+- Understandable and efficient: not ready. A product-owner checkpoint would
+  still expose process cleanup rather than a verified product slice.
+- Delightful: not applicable until there is a reviewed, runnable product slice.
+- Performant and maintainable: P0 overlay implementation can proceed only after
+  selector cleanup confirms review-through-lenses passes cannot re-enter the
+  review queue.
+- Fits project philosophy: the accepted Happy Accident Workbench defaults and
+  visible Keep/Discard overlay semantics remain the right product direction.
+
+Product-owner attention: none. The next action is PM/supervisor cleanup,
+requested in
+`docs/multi-pass-coordinator/inbox/pm/2026-05-07-selector-cleanup-and-resume-gate.md`.
+
+## 2026-05-07T11:00Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: unchanged. No production behavior was built
+  or reviewed during this coordination tick.
+- Reliable and evidenced: blocked by process evidence. The valid P0 overlay
+  evidence remains the original non-recursive plan reviews, but the active scan
+  still contains
+  `docs/roadmap/agentic-loop/passes/review-write-p0-performance-overlay-build-plan-through-lenses.md`.
+- Understandable and efficient: not ready. A user checkpoint would still be
+  about coordination cleanup, not a usable musical workflow.
+- Delightful: not applicable until there is a reviewed, runnable product slice.
+- Performant and maintainable: build promotion should wait until terminal
+  review-pass artifacts cannot re-enter the lens-review queue.
+- Fits project philosophy: the Happy Accident Workbench direction and visible
+  Keep/Discard overlay semantics remain the right product target.
+
+Product-owner attention: none. The next action is PM/supervisor cleanup,
+requested in
+`docs/multi-pass-coordinator/inbox/pm/2026-05-07-residual-terminal-review-pass-cleanup.md`.
+
+## 2026-05-07T11:10Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: unchanged. This tick did not build or verify
+  new musical behavior.
+- Reliable and evidenced: process state has improved because the active scan no
+  longer shows a residual terminal `review-*-through-lenses.md` pass. The
+  readiness script now selects `harden-known-failures`, so the next evidence
+  should be a concrete hardening output or diagnosis.
+- Understandable and efficient: not ready. A product-owner checkpoint would
+  still be about scheduler/process state, not a coherent runnable product
+  slice.
+- Delightful: not applicable until a reviewed user-facing workflow exists.
+- Performant and maintainable: the P0 performance overlay plan still has valid
+  non-recursive review evidence, but the active selector now asks for hardening
+  before another broad run.
+- Fits project philosophy: the accepted Happy Accident Workbench direction and
+  visible Keep/Discard overlay semantics remain the product target.
+
+Product-owner attention: none. The next action is PM hardening, requested in
+`docs/multi-pass-coordinator/inbox/pm/2026-05-07-harden-known-failures-pass.md`.
+
+## 2026-05-07T11:20Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The P0 track performance overlay is
+  now promoted into a build-loop request, but no production behavior has landed
+  or been verified.
+- Reliable and evidenced: the promotion gate is clean. `show-readiness` still
+  reports `next_action: promote-p0-overlay-build-plan`, and the original
+  non-recursive UX/IA, architecture, and testing reviews for the build plan are
+  the valid evidence.
+- Understandable and efficient: not ready. The first scheduled slice is a pure
+  model/test foundation, not a user-facing Live/Track Perform surface.
+- Delightful: not applicable until Keep/Discard controls and overlay badges
+  exist in a runnable UI.
+- Performant and maintainable: the requested first slice is intentionally
+  narrow so engine/session/UI wiring can build on a tested value model.
+- Fits project philosophy: the request preserves the Happy Accident Workbench
+  direction by keeping transient performance state explicit and reversible.
+
+Product-owner attention: none. The next action is build-loop implementation,
+requested in
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-07-p0-track-performance-overlay-model.md`.
