@@ -210,3 +210,40 @@ multi-pass coordinator attention path remains empty and Lane C defaults are
 already recorded.
 
 Product-owner attention: none requested.
+
+## 2026-05-07T12:04Z
+
+Plan followed: read the coordinator inbox from the invocation, settings,
+README, previous coordinator outputs, `project.read_first` context, current
+coordinator artifacts, and all configured status/evidence scripts before
+scheduling work. No departure from the plan.
+
+Inspected: roadmap context, inferred defaults, production cherry-pick
+candidates, application/IA/Live/document/playback wiki pages, actor inventory,
+project state, worktrees, actor inboxes, promoted-work evidence, reviews,
+tests, roadmap/lane status, readiness, the P0 overlay build plan, the archived
+architecture/testing reviews for commit `1ab2bc1`, and current coordinator
+state.
+
+Scheduled: one build-loop request at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-07-p0-track-performance-overlay-engine-session.md`.
+It asks the build actor to continue in `.worktrees/p0-track-performance-overlay`
+from `1ab2bc1` and implement the next bounded foundation slice: repeat/order
+layer definitions, engine-owned overlay state, set/read/clear APIs, session
+delegation, normalization, and prepared-tick invalidation.
+
+Changed: added the build-loop request, updated
+`docs/roadmap/agentic-loop/state.md` to
+`p0-overlay-engine-session-slice-promoted`, and updated `current-plan.md`,
+`show-readiness.md`, and this log. No PM, visual, UX/IA, architecture, or
+testing-review request was created this tick.
+
+Blocked: product-owner verification remains blocked because there is still no
+runnable user-facing overlay workflow. The next blocker to clear is
+engine/session implementation and evidence for the promoted slice.
+
+Not ready to show the product owner: the reviewed model foundation is not a
+visible musical workflow, and the scheduled work still stops before Track
+Perform UI, Keep/Discard writes, and visible transaction labels.
+
+Product-owner attention: none requested.
