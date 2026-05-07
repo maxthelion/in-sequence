@@ -1,77 +1,60 @@
 ---
-mode: ready-for-p0-overlay-promotion
-status: ready-for-p0-overlay-promotion
-updated: 2026-05-07T11:19:07Z
-next_action: promote-p0-overlay-build-plan
+mode: awaiting-p0-overlay-model-reviews
+status: awaiting-p0-overlay-model-reviews
+updated: 2026-05-07T11:42:45Z
+next_action: review-p0-overlay-model-slice
 ---
 
 # Agentic Loop State
 
 ## Current Mode
 
-ready-for-p0-overlay-promotion
+awaiting-p0-overlay-model-reviews
 
 ## Why
 
-The recursive review-of-review gate has been cleaned up, and the deterministic
-meta scripts that kept re-pausing or rewriting this state have been corrected.
+The P0 track performance overlay build plan has now been promoted and the first
+bounded production slice has landed in a dedicated build worktree:
 
-The fixes now in `/Users/maxwilliams/dev/meta` are:
+- worktree: `.worktrees/p0-track-performance-overlay`
+- branch: `auto/p0-track-performance-overlay`
+- commit: `1ab2bc1 Add track performance overlay model`
+- files:
+  - `Sources/Engine/TrackPerformanceOverlay.swift`
+  - `Tests/SequencerAITests/Engine/TrackPerformanceOverlayTests.swift`
+  - `SequencerAI.xcodeproj/project.pbxproj`
 
-- terminal `review-*-through-lenses` passes are excluded from latest/runnable
-  legacy agentic-loop selection;
-- review files with `status: reviewed` plus `verdict: pass` count as completed
-  lens evidence;
-- consecutive checkpoint commits remain supervisor context, but no longer pause
-  a project by themselves;
-- legacy agentic-loop job launching is skipped when a project has
-  `docs/multi-pass-coordinator/settings.yaml`, because the multi-pass
-  coordinator owns project-local loop scheduling.
-
-The active scan is clean:
-
-- no active `docs/roadmap/agentic-loop/passes/review-*-through-lenses.md`
-  files remain;
-- no active pass or review file with `mode: review-through-lenses` remains;
-- no active `docs/roadmap/agentic-loop/reviews/review-*-through-lenses*/`
-  directories remain.
+Focused verification was recorded in
+`docs/multi-pass-coordinator/evidence-log.md`: the narrow
+`TrackPerformanceOverlayTests` xcodebuild run passed at `2026-05-07T11:29Z`
+with 6 tests and 0 failures.
 
 ## Active Evidence
 
-Treat these as the active P0 performance overlay build-planning evidence:
+Treat these as the active P0 performance overlay evidence:
 
-- `docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`
-- `docs/roadmap/agentic-loop/passes/write-p0-performance-overlay-build-plan.md`
 - `docs/plans/2026-05-06-track-performance-overlay.md`
-- `docs/roadmap/agentic-loop/reviews/write-p0-performance-overlay-build-plan/ux-ia.md`
-- `docs/roadmap/agentic-loop/reviews/write-p0-performance-overlay-build-plan/architecture.md`
-- `docs/roadmap/agentic-loop/reviews/write-p0-performance-overlay-build-plan/testing.md`
+- `.worktrees/p0-track-performance-overlay`
+- `docs/multi-pass-coordinator/evidence-log.md`
+- `docs/roadmap/agentic-loop/synthesis/production-cherry-pick-candidates.md`
+- `docs/roadmap/agentic-loop/decisions/inferred-defaults.md`
+- `wiki/pages/playback-data-path.md`
+- `wiki/pages/document-model.md`
+- `wiki/pages/live-view.md`
 
-The original non-recursive UX/IA, architecture, and testing reviews passed and
-caught the material repeat Keep ambiguity. No fresh product-shape review is
-required before promotion because the cleanup only removed process-noise
-artifacts from active gating; it did not change the P0 review contract.
-
-## Promotion Gate
-
-P0 performance overlay build promotion is allowed only while the active review
-scan cannot select either of these as further lens-review sources:
-
-- pass files under `docs/roadmap/agentic-loop/passes/` with
-  `mode: review-through-lenses` or names matching `review-*-through-lenses.md`;
-- review directories or review files under
-  `docs/roadmap/agentic-loop/reviews/review-*-through-lenses*/`.
-
-If either path pattern reappears in the active scan before promotion, return to
-`selector-cleanup-blocked` and apply the selector rule from
-`docs/roadmap/agentic-loop/supervisor-diagnosis.md`: review-through-lenses
-passes are terminal review actions and must not re-enter the lens-review queue.
+The original non-recursive UX/IA, architecture, and testing reviews for the
+build plan remain valid planning evidence. The new model slice is production
+code, so it needs fresh architecture and testing review before engine/session
+wiring is promoted.
 
 ## Next Expected Output
 
-Promote `docs/plans/2026-05-06-track-performance-overlay.md` into the build
-loop.
+Architecture and testing reviews for commit `1ab2bc1` should determine whether
+the pure model slice can be accepted as the foundation for the next build-loop
+request: engine-owned overlay state, normalization, clear accessors, and
+prepared-tick invalidation.
 
 ## Product-Owner Attention
 
-None. This was a process integrity gate, not a product decision.
+None. This is still foundational code and review coordination, not a product
+decision or runnable user-facing workflow.
