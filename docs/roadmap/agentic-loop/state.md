@@ -1,21 +1,21 @@
 ---
-mode: p0-overlay-engine-session-slice-promoted
-status: p0-overlay-engine-session-slice-promoted
-updated: 2026-05-07T12:04:28Z
-next_action: build-p0-overlay-engine-session-slice
+mode: awaiting-p0-overlay-engine-session-reviews
+status: awaiting-p0-overlay-engine-session-reviews
+updated: 2026-05-07T12:46:31Z
+next_action: review-p0-overlay-engine-session-slice
 ---
 
 # Agentic Loop State
 
 ## Current Mode
 
-p0-overlay-engine-session-slice-promoted
+awaiting-p0-overlay-engine-session-reviews
 
 ## Why
 
 The P0 track performance overlay build plan is progressing in bounded
-production slices. The first pure model slice landed in a dedicated build
-worktree:
+production slices. The first pure model slice landed and passed review in a
+dedicated build worktree:
 
 - worktree: `.worktrees/p0-track-performance-overlay`
 - branch: `auto/p0-track-performance-overlay`
@@ -52,19 +52,25 @@ Treat these as the active P0 performance overlay evidence:
 - `wiki/pages/document-model.md`
 - `wiki/pages/live-view.md`
 
-The original non-recursive UX/IA, architecture, and testing reviews for the
-build plan remain valid planning evidence. The model slice reviews passed, so
-the next build-loop request has been promoted:
+The engine/session ownership slice has now landed:
 
-- `docs/multi-pass-coordinator/inbox/build-loop/2026-05-07-p0-track-performance-overlay-engine-session.md`
+- commit: `a3b8cfe feat(engine): add track performance overlay ownership`
+- worktree state after commit: clean
+- focused overlay/session tests passed: 15 tests, 0 failures
+- full `xcodebuild test -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS'`
+  passed with 816 tests, 3 skipped, 0 failures
+
+The original non-recursive UX/IA, architecture, and testing reviews for the
+build plan remain valid planning evidence. The engine/session production slice
+is new code, so it needs fresh architecture and testing review before playback
+resolution or UI work is promoted.
 
 ## Next Expected Output
 
-The build loop should add authored repeat/order layer definitions plus
-engine/session ownership for setting, reading, clearing, normalizing, and
-invalidating runtime track performance overlay state. It should stop before
-Track Perform UI, Keep/Discard writes, and full overlay-aware playback
-resolution.
+Architecture and testing reviews for commit `a3b8cfe` should determine whether
+the engine/session ownership slice can be accepted as the foundation for the
+next build-loop request: overlay-aware playback resolution and pending repeat
+capture, still before Track Perform UI and Keep/Discard writes.
 
 ## Product-Owner Attention
 
