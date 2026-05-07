@@ -1,7 +1,7 @@
 ---
 mode: ready-for-p0-overlay-promotion
 status: ready-for-p0-overlay-promotion
-updated: 2026-05-07T10:55:53Z
+updated: 2026-05-07T11:02:59Z
 next_action: promote-p0-overlay-build-plan
 ---
 
@@ -22,6 +22,9 @@ The active scan has been cleaned locally:
 
 - terminal `review-*-through-lenses.md` pass files were moved out of
   `docs/roadmap/agentic-loop/passes/`;
+- the regenerated residual terminal pass from the 2026-05-07T11:00Z coordinator
+  tick was preserved as process evidence at
+  `docs/roadmap/agentic-loop/archive/review-through-lenses-2026-05-07/passes/review-write-p0-performance-overlay-build-plan-through-lenses-regenerated-2026-05-07T110047Z.md`;
 - generated review-of-review directories named
   `docs/roadmap/agentic-loop/reviews/review-*-through-lenses*/` were moved out
   of `docs/roadmap/agentic-loop/reviews/`;
