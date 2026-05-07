@@ -1,7 +1,7 @@
 ---
 mode: ready-for-p0-overlay-promotion
 status: ready-for-p0-overlay-promotion
-updated: 2026-05-07T11:09:31Z
+updated: 2026-05-07T11:19:07Z
 next_action: promote-p0-overlay-build-plan
 ---
 
@@ -13,19 +13,20 @@ ready-for-p0-overlay-promotion
 
 ## Why
 
-The recursive review-of-review gate has been cleaned up.
+The recursive review-of-review gate has been cleaned up, and the deterministic
+meta scripts that kept re-pausing or rewriting this state have been corrected.
 
-The original issue was that the meta agentic-loop selector treated completed
-review pass artifacts as reviewable source work and did not recognize review
-files with `status: reviewed` plus `verdict: pass` as complete. That caused it
-to regenerate `review-write-p0-performance-overlay-build-plan-through-lenses.md`
-even after the PM cleanup archived the terminal review artifacts.
+The fixes now in `/Users/maxwilliams/dev/meta` are:
 
-The selector fix has been applied in `/Users/maxwilliams/dev/meta`:
-
-- terminal review passes are excluded from latest/runnable pass selection;
-- `status: reviewed` with `verdict: pass` is accepted as completed lens
-  evidence.
+- terminal `review-*-through-lenses` passes are excluded from latest/runnable
+  legacy agentic-loop selection;
+- review files with `status: reviewed` plus `verdict: pass` count as completed
+  lens evidence;
+- consecutive checkpoint commits remain supervisor context, but no longer pause
+  a project by themselves;
+- legacy agentic-loop job launching is skipped when a project has
+  `docs/multi-pass-coordinator/settings.yaml`, because the multi-pass
+  coordinator owns project-local loop scheduling.
 
 The active scan is clean:
 
@@ -48,7 +49,7 @@ Treat these as the active P0 performance overlay build-planning evidence:
 
 The original non-recursive UX/IA, architecture, and testing reviews passed and
 caught the material repeat Keep ambiguity. No fresh product-shape review is
-required before promotion because this cleanup only removed process-noise
+required before promotion because the cleanup only removed process-noise
 artifacts from active gating; it did not change the P0 review contract.
 
 ## Promotion Gate
