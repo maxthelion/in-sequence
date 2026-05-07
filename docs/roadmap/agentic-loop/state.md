@@ -1,7 +1,7 @@
 ---
 mode: ready-for-p0-overlay-promotion
 status: ready-for-p0-overlay-promotion
-updated: 2026-05-07T11:02:59Z
+updated: 2026-05-07T11:09:31Z
 next_action: promote-p0-overlay-build-plan
 ---
 
@@ -13,23 +13,27 @@ ready-for-p0-overlay-promotion
 
 ## Why
 
-The supervisor diagnosis is complete. It found that the recursive
-review-of-review artifacts were process noise: the selector treated completed
-`review-through-lenses` passes and generated review files as reviewable source
-material.
+The recursive review-of-review gate has been cleaned up.
 
-The active scan has been cleaned locally:
+The original issue was that the meta agentic-loop selector treated completed
+review pass artifacts as reviewable source work and did not recognize review
+files with `status: reviewed` plus `verdict: pass` as complete. That caused it
+to regenerate `review-write-p0-performance-overlay-build-plan-through-lenses.md`
+even after the PM cleanup archived the terminal review artifacts.
 
-- terminal `review-*-through-lenses.md` pass files were moved out of
-  `docs/roadmap/agentic-loop/passes/`;
-- the regenerated residual terminal pass from the 2026-05-07T11:00Z coordinator
-  tick was preserved as process evidence at
-  `docs/roadmap/agentic-loop/archive/review-through-lenses-2026-05-07/passes/review-write-p0-performance-overlay-build-plan-through-lenses-regenerated-2026-05-07T110047Z.md`;
-- generated review-of-review directories named
-  `docs/roadmap/agentic-loop/reviews/review-*-through-lenses*/` were moved out
-  of `docs/roadmap/agentic-loop/reviews/`;
-- archived files are preserved as process evidence at
-  `docs/roadmap/agentic-loop/archive/review-through-lenses-2026-05-07/`.
+The selector fix has been applied in `/Users/maxwilliams/dev/meta`:
+
+- terminal review passes are excluded from latest/runnable pass selection;
+- `status: reviewed` with `verdict: pass` is accepted as completed lens
+  evidence.
+
+The active scan is clean:
+
+- no active `docs/roadmap/agentic-loop/passes/review-*-through-lenses.md`
+  files remain;
+- no active pass or review file with `mode: review-through-lenses` remains;
+- no active `docs/roadmap/agentic-loop/reviews/review-*-through-lenses*/`
+  directories remain.
 
 ## Active Evidence
 
@@ -65,8 +69,7 @@ passes are terminal review actions and must not re-enter the lens-review queue.
 ## Next Expected Output
 
 Promote `docs/plans/2026-05-06-track-performance-overlay.md` into the build
-loop only after the coordinator confirms the active scan is still free of
-review-through-lenses pass files and review-of-review directories.
+loop.
 
 ## Product-Owner Attention
 
