@@ -95,6 +95,42 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_liveMasterCrossfaderOverride_writesRuntimeOverlayOnly() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+
+        let revisionBefore = session.store.revision
+        let authoredSelectionBefore = session.store.masterBus.abSelection
+        let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+        let masterBusCallsBefore = engine.masterBusApplyCallCount
+
+        engine.setLiveMasterCrossfader(0.82)
+
+        XCTAssertEqual(engine.masterBusPerformanceOverlay.crossfaderOverride, 0.82)
+        XCTAssertEqual(engine.resolvedMasterBusState.abSelection?.crossfader, 0.82)
+        XCTAssertEqual(session.store.revision, revisionBefore)
+        XCTAssertEqual(session.store.masterBus.abSelection, authoredSelectionBefore)
+        XCTAssertEqual(documentBox.document.project.masterBus.abSelection, authoredSelectionBefore)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore)
+
+        engine.clearLiveMasterCrossfader()
+        XCTAssertNil(engine.masterBusPerformanceOverlay.crossfaderOverride)
+        XCTAssertEqual(session.store.masterBus.abSelection, authoredSelectionBefore)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_liveSceneMacroOverlay_doesNotMutateStoreOrSnapshots() {
         let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
         let engine = EngineController(client: nil, endpoint: nil)

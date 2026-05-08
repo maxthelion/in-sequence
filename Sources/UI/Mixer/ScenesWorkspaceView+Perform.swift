@@ -10,7 +10,7 @@ extension ScenesWorkspaceView {
             ?? MasterBusScene.sceneB
         StudioPanel(title: "Scenes Perform", eyebrow: "Runtime scene macro overrides", accent: StudioTheme.amber) {
             VStack(alignment: .leading, spacing: 16) {
-                crossfader(selection)
+                sharedCrossfader(selection, sceneA: sceneA, sceneB: sceneB)
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 16) {
                         performSlot(title: "Slot A", scene: sceneA, isA: true)
@@ -25,50 +25,25 @@ extension ScenesWorkspaceView {
         }
     }
 
-    private func crossfader(_ selection: MasterBusABSelection) -> some View {
+    private func sharedCrossfader(
+        _ selection: MasterBusABSelection,
+        sceneA: MasterBusScene,
+        sceneB: MasterBusScene
+    ) -> some View {
         let value = engineController.masterBusPerformanceOverlay.crossfaderOverride ?? selection.crossfader
-        return HStack(spacing: 12) {
-            Text("A")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.amber)
-            Slider(
-                value: Binding(
-                    get: { engineController.masterBusPerformanceOverlay.crossfaderOverride ?? selection.crossfader },
-                    set: { engineController.setLiveMasterCrossfader($0) }
-                ),
-                in: 0...1
-            )
-            .tint(StudioTheme.amber)
-            Text("B")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.amber)
-
-            Text("\(Int((value * 100).rounded()))%")
-                .studioText(.eyebrowBold)
-                .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 48, alignment: .trailing)
-
-            Button {
+        return MasterCrossfaderView(
+            sceneAName: sceneA.name,
+            sceneBName: sceneB.name,
+            value: value,
+            hasLiveOverride: engineController.masterBusPerformanceOverlay.crossfaderOverride != nil,
+            showsPersistenceActions: true,
+            onChange: { engineController.setLiveMasterCrossfader($0) },
+            onReset: { engineController.clearLiveMasterCrossfader() },
+            onSave: { savedValue in
+                session.setMasterCrossfader(savedValue)
                 engineController.clearLiveMasterCrossfader()
-            } label: {
-                Label("Reset", systemImage: "arrow.uturn.backward")
             }
-            .buttonStyle(.bordered)
-            .disabled(engineController.masterBusPerformanceOverlay.crossfaderOverride == nil)
-
-            Button {
-                session.setMasterCrossfader(value)
-                engineController.clearLiveMasterCrossfader()
-            } label: {
-                Label("Save Blend", systemImage: "tray.and.arrow.down")
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.cyan)
-            .disabled(engineController.masterBusPerformanceOverlay.crossfaderOverride == nil)
-        }
-        .padding(12)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        )
     }
 
     private func performSlot(title: String, scene: MasterBusScene, isA: Bool) -> some View {
