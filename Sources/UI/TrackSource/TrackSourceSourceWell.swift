@@ -34,9 +34,8 @@ struct TrackSourceSourceWell: View {
     let sourceMode: TrackSourceMode
     let currentClip: ClipPoolEntry?
     let selectedGenerator: GeneratorPoolEntry?
-    let compatibleGenerators: [GeneratorPoolEntry]
     let accent: Color
-    let onShowGeneratorPicker: () -> Void
+    let onShowSourcePicker: () -> Void
     let onPresentClipHistory: () -> Void
     let onRemoveSource: () -> Void
 
@@ -85,15 +84,8 @@ struct TrackSourceSourceWell: View {
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
-
-                if compatibleGenerators.isEmpty {
-                    Text("No compatible generators are available for this track yet.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-
                 HStack(spacing: 10) {
-                    TrackSourceActionButton(title: "Change Source", accent: accent, action: onShowGeneratorPicker)
+                    TrackSourceActionButton(title: "Change Source", accent: accent, action: onShowSourcePicker)
                     TrackSourceActionButton(title: "Remove Source", accent: StudioTheme.border, action: onRemoveSource)
                 }
             }
@@ -125,7 +117,7 @@ struct TrackSourceSourceWell: View {
 
                 HStack(spacing: 10) {
                     TrackSourceActionButton(title: "Clip History...", accent: StudioTheme.success, action: onPresentClipHistory)
-                    TrackSourceActionButton(title: "Change Source", accent: accent, action: onShowGeneratorPicker)
+                    TrackSourceActionButton(title: "Change Source", accent: accent, action: onShowSourcePicker)
                     TrackSourceActionButton(title: "Remove Source", accent: StudioTheme.violet, action: onRemoveSource)
                 }
             }
@@ -155,13 +147,7 @@ struct TrackSourceSourceWell: View {
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
 
-                TrackSourceActionButton(title: "[+] Add Source", accent: accent, action: onShowGeneratorPicker)
-
-                if compatibleGenerators.isEmpty {
-                    Text("No compatible generators are available for this track yet.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
+                TrackSourceActionButton(title: "[+] Add Source", accent: accent, action: onShowSourcePicker)
             }
         }
     }

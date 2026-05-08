@@ -4,7 +4,9 @@ struct TrackSourceSourceTabContent: View {
     let sourceMode: TrackSourceMode
     let currentClip: ClipPoolEntry?
     let selectedGenerator: GeneratorPoolEntry?
+    let compatibleClips: [ClipPoolEntry]
     let compatibleGenerators: [GeneratorPoolEntry]
+    let sourcePickerStep: TrackSourceContainedSourcePickerStep?
     let accent: Color
     let previewClipContent: ClipContent
     let defaultClipNote: ClipStepNote
@@ -18,7 +20,14 @@ struct TrackSourceSourceTabContent: View {
     let onAssignMacroSlot: (Int) -> Void
     let onUpdateMacroLanes: ([UUID: MacroLane]) -> Void
     let onUpdateClipContent: (ClipContent) -> Void
-    let onShowGeneratorPicker: () -> Void
+    let onShowSourcePicker: () -> Void
+    let onBackOutSourcePicker: () -> Void
+    let onShowSourceGeneratorPool: () -> Void
+    let onShowSourceClipPool: () -> Void
+    let onCreateBlankGeneratorSource: () -> Void
+    let onAssignGeneratorSource: (GeneratorPoolEntry) -> Void
+    let onCreateBlankClipSource: () -> Void
+    let onAssignClipSource: (ClipPoolEntry) -> Void
     let onPresentClipHistory: () -> Void
     let onRemoveSource: () -> Void
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
@@ -47,12 +56,12 @@ struct TrackSourceSourceTabContent: View {
                 onUpdateMacroLanes: onUpdateMacroLanes,
                 onUpdateClipContent: onUpdateClipContent
             )
-            sourceWell
+            sourceSection
 
         case .occupiedGenerator:
-            sourceWell
+            sourceSection
 
-            if let selectedGenerator {
+            if sourcePickerStep == nil, let selectedGenerator {
                 GeneratorParamsEditorView(
                     generator: selectedGenerator,
                     inputClipChoices: generatedSourceInputClips,
@@ -65,20 +74,37 @@ struct TrackSourceSourceTabContent: View {
             }
 
         case .empty:
-            sourceWell
+            sourceSection
         }
     }
 
-    private var sourceWell: some View {
-        TrackSourceSourceWell(
-            sourceMode: sourceMode,
-            currentClip: currentClip,
-            selectedGenerator: selectedGenerator,
-            compatibleGenerators: compatibleGenerators,
-            accent: accent,
-            onShowGeneratorPicker: onShowGeneratorPicker,
-            onPresentClipHistory: onPresentClipHistory,
-            onRemoveSource: onRemoveSource
-        )
+    @ViewBuilder
+    private var sourceSection: some View {
+        if let sourcePickerStep {
+            TrackSourceContainedSourcePicker(
+                step: sourcePickerStep,
+                accent: accent,
+                compatibleGenerators: compatibleGenerators,
+                compatibleClips: compatibleClips,
+                onBack: { self.sourcePickerStep == .root ? onBackOutSourcePicker() : onShowSourcePicker() },
+                onCancel: onBackOutSourcePicker,
+                onShowGeneratorPool: onShowSourceGeneratorPool,
+                onShowClipPool: onShowSourceClipPool,
+                onCreateBlankGenerator: onCreateBlankGeneratorSource,
+                onSelectGenerator: onAssignGeneratorSource,
+                onCreateBlankClip: onCreateBlankClipSource,
+                onSelectClip: onAssignClipSource
+            )
+        } else {
+            TrackSourceSourceWell(
+                sourceMode: sourceMode,
+                currentClip: currentClip,
+                selectedGenerator: selectedGenerator,
+                accent: accent,
+                onShowSourcePicker: onShowSourcePicker,
+                onPresentClipHistory: onPresentClipHistory,
+                onRemoveSource: onRemoveSource
+            )
+        }
     }
 }
