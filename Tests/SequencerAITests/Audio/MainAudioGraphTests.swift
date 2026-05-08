@@ -149,6 +149,27 @@ final class MasterMeterPublisherTests: XCTestCase {
     }
 
     @MainActor
+    func test_meterPublishesHighestChannelPeaksRecordedSincePreviousPublish() {
+        let publisher = MasterMeterPublisher()
+        publisher.stopPublishing()
+
+        publisher.recordPeakAmplitudes(left: 0.9, right: 0.7)
+        publisher.recordPeakAmplitudes(left: 0.2, right: 0.3)
+        publisher.publishPendingToMain(now: 1)
+
+        XCTAssertEqual(publisher.displayState.leftPeakDBFS, MasterMeterPublisher.dbFS(amplitude: 0.9), accuracy: 0.0001)
+        XCTAssertEqual(publisher.displayState.rightPeakDBFS, MasterMeterPublisher.dbFS(amplitude: 0.7), accuracy: 0.0001)
+        XCTAssertEqual(publisher.displayState.leftPeakHoldDBFS, publisher.displayState.leftPeakDBFS)
+        XCTAssertEqual(publisher.displayState.rightPeakHoldDBFS, publisher.displayState.rightPeakDBFS)
+
+        publisher.recordPeakAmplitudes(left: 0.1, right: 0.2)
+        publisher.publishPendingToMain(now: 2)
+
+        XCTAssertEqual(publisher.displayState.leftPeakDBFS, MasterMeterPublisher.dbFS(amplitude: 0.1), accuracy: 0.0001)
+        XCTAssertEqual(publisher.displayState.rightPeakDBFS, MasterMeterPublisher.dbFS(amplitude: 0.2), accuracy: 0.0001)
+    }
+
+    @MainActor
     func test_peakHoldMaintainsMarkerThenReleasesTowardLivePeak() {
         let publisher = MasterMeterPublisher(peakHoldDuration: 0.5, peakHoldReleaseDBPerSecond: 10)
         publisher.stopPublishing()

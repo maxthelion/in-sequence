@@ -465,6 +465,8 @@ final class MasterMeterPublisher {
 }
 
 private final class MasterMeterTransport {
+    private static let zeroAmplitudeBits = Int64(bitPattern: 0.0.bitPattern)
+
     private let leftBits = AtomicInt64(Int64(bitPattern: 0.0.bitPattern))
     private let rightBits = AtomicInt64(Int64(bitPattern: 0.0.bitPattern))
     private let clipped = AtomicInt32(0)
@@ -472,8 +474,8 @@ private final class MasterMeterTransport {
     func store(left: Double, right: Double) {
         let safeLeft = Self.safeAmplitude(left)
         let safeRight = Self.safeAmplitude(right)
-        leftBits.store(Int64(bitPattern: safeLeft.bitPattern))
-        rightBits.store(Int64(bitPattern: safeRight.bitPattern))
+        leftBits.storeMaximum(Self.amplitudeBits(safeLeft), shouldReplace: Self.shouldReplaceAmplitude)
+        rightBits.storeMaximum(Self.amplitudeBits(safeRight), shouldReplace: Self.shouldReplaceAmplitude)
         if safeLeft > 1 || safeRight > 1 {
             clipped.store(1)
         }
@@ -481,8 +483,8 @@ private final class MasterMeterTransport {
 
     func snapshot() -> (left: Double, right: Double, isClipped: Bool) {
         (
-            left: Double(bitPattern: UInt64(bitPattern: leftBits.load())),
-            right: Double(bitPattern: UInt64(bitPattern: rightBits.load())),
+            left: Self.amplitude(fromBits: leftBits.exchange(Self.zeroAmplitudeBits)),
+            right: Self.amplitude(fromBits: rightBits.exchange(Self.zeroAmplitudeBits)),
             isClipped: clipped.load() != 0
         )
     }
@@ -494,6 +496,18 @@ private final class MasterMeterTransport {
     private static func safeAmplitude(_ value: Double) -> Double {
         guard value.isFinite, value > 0 else { return 0 }
         return value
+    }
+
+    private static func amplitudeBits(_ value: Double) -> Int64 {
+        Int64(bitPattern: value.bitPattern)
+    }
+
+    private static func amplitude(fromBits bits: Int64) -> Double {
+        Double(bitPattern: UInt64(bitPattern: bits))
+    }
+
+    private static func shouldReplaceAmplitude(stored: Int64, next: Int64) -> Bool {
+        amplitude(fromBits: stored) < amplitude(fromBits: next)
     }
 }
 
@@ -519,6 +533,25 @@ private final class AtomicInt64 {
             let oldValue = load()
             if OSAtomicCompareAndSwap64Barrier(oldValue, value, storage) {
                 return
+            }
+        }
+    }
+
+    func storeMaximum(_ value: Int64, shouldReplace: (Int64, Int64) -> Bool) {
+        while true {
+            let oldValue = load()
+            guard shouldReplace(oldValue, value) else { return }
+            if OSAtomicCompareAndSwap64Barrier(oldValue, value, storage) {
+                return
+            }
+        }
+    }
+
+    func exchange(_ value: Int64) -> Int64 {
+        while true {
+            let oldValue = load()
+            if OSAtomicCompareAndSwap64Barrier(oldValue, value, storage) {
+                return oldValue
             }
         }
     }
