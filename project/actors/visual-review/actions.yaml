@@ -1,0 +1,4 @@
+actions:
+  - id: capture-ui-evidence
+  - id: review-screenshot
+  - id: request-visual-correction

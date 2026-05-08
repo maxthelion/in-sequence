@@ -1,0 +1,4 @@
+actions:
+  - id: review-diff
+  - id: review-architecture
+  - id: request-correction

@@ -1,10 +1,10 @@
 # id	kind	inbox	cadence_minutes	command
-coordinator	top	docs/multi-pass-coordinator/inbox/coordinator	30	coordinator
-process-fixer	top	docs/multi-pass-coordinator/inbox/process-fixer	240	process-fixer
-pm	actor	docs/multi-pass-coordinator/inbox/pm	0	tick-loops
-build	actor	docs/multi-pass-coordinator/inbox/build-loop	0	tick-loops
-architecture-review	actor	docs/multi-pass-coordinator/inbox/architecture	0	tick-loops
-testing-review	actor	docs/multi-pass-coordinator/inbox/testing	0	tick-loops
-ux-ia-review	actor	docs/multi-pass-coordinator/inbox/ux-ia	0	tick-loops
-visual-review	actor	docs/multi-pass-coordinator/inbox/visual-review	0	tick-loops
-pm-behaviour-tree	behaviour-tree	.claude/state	0	scripts/codex/bt-iteration.sh
+coordinator	top	docs/multi-pass-coordinator/inbox/coordinator	30	project/actors/coordinator/run.sh
+process-fixer	top	project/actors/process-fixer/inbox	240	project/actors/process-fixer/run.sh
+pm	actor	docs/multi-pass-coordinator/inbox/pm	0	project/actors/pm/run.sh
+build	actor	docs/multi-pass-coordinator/inbox/build-loop	0	project/actors/build/run.sh
+architecture-review	actor	docs/multi-pass-coordinator/inbox/architecture	0	project/actors/architecture-review/run.sh
+testing-review	actor	docs/multi-pass-coordinator/inbox/testing	0	project/actors/testing-review/run.sh
+ux-ia-review	actor	docs/multi-pass-coordinator/inbox/ux-ia	0	project/actors/ux-ia-review/run.sh
+visual-review	actor	docs/multi-pass-coordinator/inbox/visual-review	0	project/actors/visual-review/run.sh
+pm-behaviour-tree	behaviour-tree	.claude/state	0	project/behaviour-trees/pm-loop/tick.sh

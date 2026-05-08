@@ -41,8 +41,8 @@ loops:
   - id: pm
     label: PM Loop
     inbox: docs/multi-pass-coordinator/inbox/pm
-    actor_prompt: docs/multi-pass-coordinator/actors/pm/prompt.md
-    actor_actions: docs/multi-pass-coordinator/actors/pm/actions.yaml
+    actor_prompt: project/actors/pm/prompt.md
+    actor_actions: project/actors/pm/actions.yaml
     actor_scripts: scripts/roadmap
     can_do:
       - clarify feature intent
@@ -55,8 +55,8 @@ loops:
   - id: build
     label: Build Loop
     inbox: docs/multi-pass-coordinator/inbox/build-loop
-    actor_prompt: docs/multi-pass-coordinator/actors/build-loop/prompt.md
-    actor_actions: docs/multi-pass-coordinator/actors/build-loop/actions.yaml
+    actor_prompt: project/actors/build/prompt.md
+    actor_actions: project/actors/build/actions.yaml
     actor_scripts: scripts/build-loop
     can_do:
       - implement bounded production changes
@@ -68,8 +68,8 @@ loops:
   - id: visual-review
     label: Visual Review Loop
     inbox: docs/multi-pass-coordinator/inbox/visual-review
-    actor_prompt: docs/multi-pass-coordinator/actors/visual-review/prompt.md
-    actor_actions: docs/multi-pass-coordinator/actors/visual-review/actions.yaml
+    actor_prompt: project/actors/visual-review/prompt.md
+    actor_actions: project/actors/visual-review/actions.yaml
     actor_scripts: scripts/visual-review
     can_do:
       - capture UI evidence
@@ -80,8 +80,8 @@ loops:
   - id: ux-ia-review
     label: UX/IA Review
     inbox: docs/multi-pass-coordinator/inbox/ux-ia
-    actor_prompt: docs/multi-pass-coordinator/actors/ux-ia-review/prompt.md
-    actor_actions: docs/multi-pass-coordinator/actors/ux-ia-review/actions.yaml
+    actor_prompt: project/actors/ux-ia-review/prompt.md
+    actor_actions: project/actors/ux-ia-review/actions.yaml
     can_do:
       - review workflow clarity
       - check information architecture
@@ -91,8 +91,8 @@ loops:
   - id: architecture-review
     label: Architecture Review
     inbox: docs/multi-pass-coordinator/inbox/architecture
-    actor_prompt: docs/multi-pass-coordinator/actors/architecture-review/prompt.md
-    actor_actions: docs/multi-pass-coordinator/actors/architecture-review/actions.yaml
+    actor_prompt: project/actors/architecture-review/prompt.md
+    actor_actions: project/actors/architecture-review/actions.yaml
     can_do:
       - review ownership boundaries
       - identify implementation consequences
@@ -102,8 +102,8 @@ loops:
   - id: testing-review
     label: Testing Review
     inbox: docs/multi-pass-coordinator/inbox/testing
-    actor_prompt: docs/multi-pass-coordinator/actors/testing-review/prompt.md
-    actor_actions: docs/multi-pass-coordinator/actors/testing-review/actions.yaml
+    actor_prompt: project/actors/testing-review/prompt.md
+    actor_actions: project/actors/testing-review/actions.yaml
     can_do:
       - identify missing tests
       - review whether evidence is sufficient
@@ -112,7 +112,7 @@ loops:
 
 scripts:
   - id: actor-inventory
-    command: bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/actor-inventory.ts --project . --settings docs/multi-pass-coordinator/settings.yaml
+    command: project/scripts/actor-inventory.sh
     provides:
       - available actors
       - actor inboxes
