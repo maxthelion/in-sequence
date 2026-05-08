@@ -5,6 +5,101 @@ Short notes explaining why the coordinator scheduled work.
 Keep entries brief. The goal is to help the next tick understand what changed,
 not to produce a parallel project-management system.
 
+## 2026-05-08T16:13Z
+
+Fresh work-observer output reaffirmed the P0 Track Performance Overlay
+checkpoint decision: clean `d36c78b`, no pending P0 build/review/product-code
+requests, and no new product or process evidence after the 16:04Z coordinator
+disposition. Existing holistic and process-health memory still holds because
+only observer cadence notes changed. Scheduled nothing new; product-owner
+review remains the next action, with `authored phrase cells` still carried as
+later copy polish unless the product owner rejects it.
+
+## 2026-05-08T16:04Z
+
+Fresh holistic-observer output reaffirmed the P0 Track Performance Overlay
+checkpoint decision: clean `d36c78b`, current-work/show-readiness/product-owner
+attention still aligned, and Lane C mixer defaults do not conflict with Track
+Perform Keep/Discard semantics. Existing work-observer and process-health
+memory still holds because only observer cadence notes changed. Scheduled
+nothing new; product-owner review remains the next action, with `authored
+phrase cells` still carried as later copy polish unless the product owner
+rejects it.
+
+## 2026-05-08T15:39Z
+
+Fresh work-observer output reaffirmed the P0 Track Performance Overlay
+checkpoint decision: clean `d36c78b`, no pending P0 build/review/product-code
+requests, and no new product or process evidence after the 15:04Z coordinator
+disposition. Existing holistic and process-health memory still holds because
+only observer cadence notes changed. Scheduled nothing new; product-owner
+review remains the next action, with `authored phrase cells` still carried as
+later copy polish unless the product owner rejects it.
+
+## 2026-05-08T15:04Z
+
+Fresh work-observer output reaffirmed the P0 Track Performance Overlay
+checkpoint decision: clean `d36c78b`, no pending P0 build/review requests, and
+no new product-code or review evidence after the 14:29Z coordinator
+disposition. Existing holistic and process-health memory still holds because
+only observer cadence notes changed. Scheduled nothing new; product-owner
+review remains the next action, with `authored phrase cells` still carried as
+later copy polish unless the product owner rejects it.
+
+## 2026-05-08T14:29Z
+
+Fresh work-observer output reaffirmed the P0 Track Performance Overlay
+checkpoint decision: clean `d36c78b`, no pending P0 build/review requests, and
+no new product-code or review evidence after the 13:59Z coordinator
+disposition. Scheduled nothing new. Product-owner review remains the next
+action, with `authored phrase cells` still carried as later copy polish unless
+the product owner rejects it.
+
+## 2026-05-08T13:59Z
+
+Fresh work and holistic observers both reaffirm the P0 Track Performance
+Overlay checkpoint decision: clean `d36c78b`, no pending P0 actor requests,
+all actor/review gates passed for the internal checkpoint, and no new
+cross-slice blocker. Scheduled nothing new; product-owner review remains the
+next action, with `authored phrase cells` carried as later copy polish unless
+the product owner rejects it.
+
+## 2026-05-08T13:38Z
+
+Process-fixer completed the settings-only reporter wiring: `settings.yaml` now
+lists `scripts/multi-pass/inbox-archive-consistency.sh`, and the archived
+request/final confirm the reporter ran. Scheduled nothing else. Product-owner
+attention remains the P0 checkpoint already requested at 12:50Z; stale archive
+frontmatter and historical duplicate notes stay as monitor-only hygiene.
+
+## 2026-05-08T13:28Z
+
+Process-health ran the new inbox/archive consistency reporter and found only
+settings discoverability plus low-severity historical hygiene issues. Accepted
+the already-filed process-fixer request to list
+`scripts/multi-pass/inbox-archive-consistency.sh` in coordinator settings.
+Scheduled nothing else; product-owner attention remains the P0 checkpoint
+already requested at 12:50Z.
+
+## 2026-05-08T13:18Z
+
+Work-observer confirms the P0 overlay is still at the product-owner
+checkpoint; no product-code, review, or evidence changed after the 12:50Z
+decision. Process-fixer added the report-only inbox/archive consistency script,
+but the result is not yet reflected in process-health memory or settings.
+Scheduled one process-health observer follow-up to decide whether reporter
+wiring or status-normalization repair is needed. Product-owner attention
+remains the existing P0 checkpoint request.
+
+## 2026-05-08T13:04Z
+
+Process-health observer reports the loop is healthy enough to continue: P0
+overlay reached a product-owner checkpoint, review failures were routed into
+focused build corrections, and the only new process issue is stale archive
+status/reporting. Accepted the existing process-fixer request for a report-only
+inbox/archive consistency script and scheduled nothing else. Product-owner
+attention remains the P0 checkpoint already requested at 12:50Z.
+
 ## 2026-05-08T12:50Z
 
 Architecture review passed the UI transaction commits `d818d8d..d36c78b` and

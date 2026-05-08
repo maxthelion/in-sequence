@@ -256,6 +256,13 @@ scripts:
       - blocked requests
       - stale requests
 
+  - id: inbox-archive-consistency
+    command: scripts/multi-pass/inbox-archive-consistency.sh
+    provides:
+      - archived-pending request detection
+      - active/archive duplicate detection
+      - duplicate coordinator completion-note detection
+
   - id: show-readiness
     command: scripts/multi-pass/show-readiness.sh
     provides:
