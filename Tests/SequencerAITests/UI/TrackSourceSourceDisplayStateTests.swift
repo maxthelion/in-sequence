@@ -146,4 +146,92 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
 
         XCTAssertNil(TrackSourceContainedSourcePickerNavigation.destination(from: .root, action: .back))
     }
+
+    func test_modifierDisplayStateBadgesReflectEmptyPresentAndBypassedStates() {
+        let modifier = GeneratorPoolEntry(
+            id: UUID(),
+            name: "Humanize",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .defaultMono
+        )
+
+        let empty = TrackSourceModifierDisplayState.resolve(
+            trackType: .monoMelodic,
+            selectedGenerator: nil,
+            isBypassed: false
+        )
+        let present = TrackSourceModifierDisplayState.resolve(
+            trackType: .monoMelodic,
+            selectedGenerator: modifier,
+            isBypassed: false
+        )
+        let bypassed = TrackSourceModifierDisplayState.resolve(
+            trackType: .monoMelodic,
+            selectedGenerator: modifier,
+            isBypassed: true
+        )
+
+        XCTAssertEqual(empty, .empty)
+        XCTAssertEqual(empty.badgeTitle, "Empty")
+        XCTAssertEqual(present, .occupied)
+        XCTAssertEqual(present.badgeTitle, "Mod")
+        XCTAssertEqual(bypassed, .bypassed)
+        XCTAssertEqual(bypassed.badgeTitle, "Byp")
+    }
+
+    func test_modifierDisplayStateShowsUnavailableForUnsupportedTrackTypes() {
+        XCTAssertTrue(TrackSourceModifierDisplayState.supportsModifierStage(trackType: .monoMelodic))
+        XCTAssertTrue(TrackSourceModifierDisplayState.supportsModifierStage(trackType: .polyMelodic))
+        XCTAssertFalse(TrackSourceModifierDisplayState.supportsModifierStage(trackType: .slice))
+
+        let state = TrackSourceModifierDisplayState.resolve(
+            trackType: .slice,
+            selectedGenerator: nil,
+            isBypassed: false
+        )
+
+        XCTAssertEqual(state, .unavailable)
+        XCTAssertEqual(state.badgeTitle, "N/A")
+    }
+
+    func test_containedModifierPickerRootAndEmptyPoolPresentation() {
+        let root = TrackSourceContainedModifierPickerPresentation.resolve(
+            step: .root,
+            compatibleModifierCount: 0
+        )
+        XCTAssertEqual(root.actions, [.createBlankModifier, .showModifierPool])
+        XCTAssertNil(root.emptyStateTitle)
+
+        let emptyPool = TrackSourceContainedModifierPickerPresentation.resolve(
+            step: .modifierPool,
+            compatibleModifierCount: 0
+        )
+        XCTAssertEqual(emptyPool.emptyStateTitle, "No compatible modifiers are in the pool yet.")
+
+        let nonEmptyPool = TrackSourceContainedModifierPickerPresentation.resolve(
+            step: .modifierPool,
+            compatibleModifierCount: 1
+        )
+        XCTAssertNil(nonEmptyPool.emptyStateTitle)
+    }
+
+    func test_containedModifierPickerNavigationDoesNotMutateEmptySource() throws {
+        var project = Project.empty
+        project.appendTrack(trackType: .monoMelodic)
+        let trackID = project.selectedTrack.id
+        let slotIndex = 1
+        project.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex)
+        let sourceBeforeNavigation = project.patternBank(for: trackID).slot(at: slotIndex).sourceRef
+
+        var pickerStep: TrackSourceContainedModifierPickerStep? = .modifierPool
+        pickerStep = TrackSourceContainedModifierPickerNavigation.destination(from: pickerStep, action: .back)
+        XCTAssertEqual(pickerStep, .root)
+        XCTAssertEqual(project.patternBank(for: trackID).slot(at: slotIndex).sourceRef, sourceBeforeNavigation)
+
+        pickerStep = TrackSourceContainedModifierPickerNavigation.destination(from: pickerStep, action: .cancel)
+        XCTAssertNil(pickerStep)
+        XCTAssertEqual(project.patternBank(for: trackID).slot(at: slotIndex).sourceRef, sourceBeforeNavigation)
+        XCTAssertNil(project.patternBank(for: trackID).slot(at: slotIndex).sourceRef.clipID)
+    }
 }

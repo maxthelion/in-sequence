@@ -24,7 +24,7 @@ struct TrackSourceEditorView: View {
 
     @State private var selectedTab: TrackSourceEditorTab = .source
     @State private var sourcePickerStep: TrackSourceContainedSourcePickerStep?
-    @State private var isShowingModifierPicker = false
+    @State private var modifierPickerStep: TrackSourceContainedModifierPickerStep?
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var isClipHistoryPresented = false
 
@@ -59,6 +59,20 @@ struct TrackSourceEditorView: View {
     }
     private var selectedModifierGenerator: GeneratorPoolEntry? {
         session.store.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID)
+    }
+    private var sourceDisplayState: TrackSourceSourceDisplayState {
+        TrackSourceSourceDisplayState.resolve(
+            sourceMode: selectedSourceMode,
+            currentClip: currentClip,
+            selectedGenerator: selectedSourceGenerator
+        )
+    }
+    private var modifierDisplayState: TrackSourceModifierDisplayState {
+        TrackSourceModifierDisplayState.resolve(
+            trackType: track.trackType,
+            selectedGenerator: selectedModifierGenerator,
+            isBypassed: selectedPattern.sourceRef.modifierBypassed
+        )
     }
     private var previewClipContent: ClipContent {
         currentClip?.content
@@ -150,9 +164,10 @@ struct TrackSourceEditorView: View {
                     )
 
                     Picker("Editor Section", selection: $selectedTab) {
-                        ForEach(TrackSourceEditorTab.allCases) { tab in
-                            Text(tab.title).tag(tab)
-                        }
+                        Text("\(TrackSourceEditorTab.source.title) \(sourceDisplayState.badgeTitle)")
+                            .tag(TrackSourceEditorTab.source)
+                        Text("\(TrackSourceEditorTab.modifiers.title) \(modifierDisplayState.badgeTitle)")
+                            .tag(TrackSourceEditorTab.modifiers)
                     }
                     .pickerStyle(.segmented)
                 }
@@ -166,18 +181,6 @@ struct TrackSourceEditorView: View {
                     modifiersTab
                 }
             }
-        }
-        .sheet(isPresented: $isShowingModifierPicker) {
-            TrackSourceGeneratorSelectionSheet(
-                title: "Select Modifier",
-                generators: compatibleModifierGenerators,
-                onSelect: { generator in
-                    selectModifier(generator)
-                    isShowingModifierPicker = false
-                }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationBackground(.clear)
         }
         .sheet(item: $macroSlotPickerRequest) { request in
             SingleMacroSlotPickerSheet(
@@ -214,10 +217,14 @@ struct TrackSourceEditorView: View {
         }
         .onChange(of: selectedPatternIndex) { _, _ in
             sourcePickerStep = nil
+            modifierPickerStep = nil
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue != .source {
                 sourcePickerStep = nil
+            }
+            if newValue != .modifiers {
+                modifierPickerStep = nil
             }
         }
     }
@@ -268,13 +275,19 @@ struct TrackSourceEditorView: View {
     @ViewBuilder
     private var modifiersTab: some View {
         TrackSourceModifierTabContent(
+            trackType: track.trackType,
             selectedGenerator: selectedModifierGenerator,
             isBypassed: selectedPattern.sourceRef.modifierBypassed,
             compatibleGenerators: compatibleModifierGenerators,
+            modifierPickerStep: modifierPickerStep,
             sourceMode: selectedSourceMode,
             generatedSourceInputClips: generatedSourceInputClips,
             harmonicSidechainClips: harmonicSidechainClips,
-            onShowGeneratorPicker: { isShowingModifierPicker = true },
+            onShowGeneratorPicker: { updateModifierPickerStep(.showRoot) },
+            onBackOutGeneratorPicker: { updateModifierPickerStep(.cancel) },
+            onShowModifierPool: { updateModifierPickerStep(.showModifierPool) },
+            onCreateBlankModifier: createBlankModifier,
+            onSelectModifier: selectModifier,
             onToggleBypassed: {
                 session.setPatternModifierBypassed(
                     !selectedPattern.sourceRef.modifierBypassed,
@@ -290,6 +303,13 @@ struct TrackSourceEditorView: View {
                 )
             },
             onUpdateGeneratorParams: updateModifierGeneratorParams
+        )
+    }
+
+    private func updateModifierPickerStep(_ action: TrackSourceContainedModifierPickerNavigationAction) {
+        modifierPickerStep = TrackSourceContainedModifierPickerNavigation.destination(
+            from: modifierPickerStep,
+            action: action
         )
     }
 
@@ -384,34 +404,13 @@ struct TrackSourceEditorView: View {
     }
 
     private func selectModifier(_ generator: GeneratorPoolEntry) {
-        let trackID = track.id
-        // For modifier selection, we may need to ensure a clip exists when the slot
-        // is in clip mode without a clip ID yet. Use batch to handle both steps atomically.
-        let currentPattern = selectedPattern
-        let currentSourceMode = selectedSourceMode
-        let slotIndex = selectedPatternIndex
-        session.batch(impact: .snapshotOnly, changed: .full) { s in
-            var p = s.exportToProject()
-            var clipID = currentPattern.sourceRef.clipID
-            if currentSourceMode == .clip, clipID == nil {
-                clipID = p.ensureClipForCurrentPattern(trackID: trackID)
-                // Sync new clip into store if created.
-                let newClips = p.clipPool.filter { c in
-                    s.exportToProject().clipPool.first(where: { $0.id == c.id }) == nil
-                }
-                for clip in newClips { s.appendClip(clip) }
-                for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
-            }
-            let updated = SourceRef(
-                mode: currentSourceMode,
-                generatorID: currentPattern.sourceRef.generatorID,
-                clipID: clipID,
-                modifierGeneratorID: generator.id,
-                modifierBypassed: false
-            )
-            p.setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
-            for bank in p.patternBanks { s.setPatternBank(trackID: bank.trackID, bank: bank) }
-        }
+        session.assignModifierGenerator(generator.id, to: track.id, slotIndex: selectedPatternIndex)
+        modifierPickerStep = nil
+    }
+
+    private func createBlankModifier() {
+        _ = session.createBlankModifierGenerator(trackID: track.id, slotIndex: selectedPatternIndex)
+        modifierPickerStep = nil
     }
 
     private func removeSource() {
