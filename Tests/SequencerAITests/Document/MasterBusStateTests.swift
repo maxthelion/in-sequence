@@ -54,6 +54,33 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(state.masterOutputGain, 0)
     }
 
+    func test_authoredOutOfRangeMasterOutputGainDecodesNormalizedWithoutLosingState() throws {
+        let sceneAID = UUID()
+        let sceneBID = UUID()
+        let sceneA = MasterBusScene(id: sceneAID, name: "Intro Loop", inserts: [.filter()])
+        let sceneB = MasterBusScene(id: sceneBID, name: "Breakdown", inserts: [.bitcrusher()])
+        let state = MasterBusState(
+            scenes: [sceneA, sceneB],
+            activeSceneID: sceneBID,
+            abSelection: MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneBID, crossfader: 0.75),
+            masterOutputGain: 1
+        )
+
+        let highDecoded = try decodePersisted(state, overridingMasterOutputGainWith: 2.5)
+        let lowDecoded = try decodePersisted(state, overridingMasterOutputGainWith: -0.25)
+
+        XCTAssertEqual(highDecoded.masterOutputGain, 2)
+        XCTAssertEqual(lowDecoded.masterOutputGain, 0)
+
+        for decoded in [highDecoded, lowDecoded] {
+            XCTAssertEqual(decoded.scenes, state.scenes)
+            XCTAssertEqual(decoded.activeSceneID, sceneBID)
+            XCTAssertEqual(decoded.activeScene.name, "Breakdown")
+            XCTAssertEqual(decoded.activeScene.inserts, sceneB.inserts)
+            XCTAssertEqual(decoded.abSelection, state.abSelection)
+        }
+    }
+
     func test_auEffectStateBlob_roundTrips() throws {
         let blob = Data([1, 2, 3, 4])
         let componentID = AudioComponentID(type: "aufx", subtype: "TEST", manufacturer: "CDX ", version: 0)
@@ -211,5 +238,16 @@ final class MasterBusStateTests: XCTestCase {
 
         XCTAssertEqual(state.scenes.count, 2)
         XCTAssertNotNil(state.abSelection)
+    }
+
+    private func decodePersisted(
+        _ state: MasterBusState,
+        overridingMasterOutputGainWith masterOutputGain: Double
+    ) throws -> MasterBusState {
+        let encoded = try JSONEncoder().encode(state)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object["masterOutputGain"] = masterOutputGain
+        let data = try JSONSerialization.data(withJSONObject: object)
+        return try JSONDecoder().decode(MasterBusState.self, from: data)
     }
 }
