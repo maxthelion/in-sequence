@@ -90,6 +90,10 @@ set -e
 if [ "$STATUS" -eq 0 ]; then
   ARCHIVED="$(project_tick_archive_request "$REQUEST")"
   echo "- archived: ${ARCHIVED#$ROOT/}" >> "$RUNTIME/last-summary.md"
+  if [ "$ACTOR_ID" != "coordinator" ]; then
+    NOTE="$(project_tick_write_note "$ROOT/docs/multi-pass-coordinator/inbox/coordinator" "$ACTOR_ID-completed" "$ACTOR_LABEL Completed" "Actor \`$ACTOR_ID\` completed request \`${REQUEST#$ROOT/}\`.\n\n- archived request: \`${ARCHIVED#$ROOT/}\`\n- result: \`${RESULT_FILE#$ROOT/}\`\n\nCoordinator/decider should inspect the result and decide whether current-work status, holistic status, review coverage, rework, or product-owner attention needs to change.")"
+    echo "- coordinator note: ${NOTE#$ROOT/}" >> "$RUNTIME/last-summary.md"
+  fi
   exit 0
 fi
 

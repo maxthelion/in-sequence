@@ -86,7 +86,23 @@ ensure_due_top_loop_notes() {
         local last="$ROOT/.meta/project/actors/coordinator/last-summary.md"
         if ! is_recent_file "$last" "$cadence"; then
           write_inbox_note "$inbox_abs" "coordinator-cadence" "Coordinator Cadence Tick" \
-            "Run one coordinator tick. Read project state, existing inboxes, and any blocked requests before deciding the next action."
+            "Run one coordinator/decider tick. Read observer outputs, project state, existing inboxes, and any blocked requests before deciding the next action."
+          wrote=$((wrote + 1))
+        fi
+        ;;
+      work-observer)
+        local last="$ROOT/.meta/project/actors/work-observer/last-summary.md"
+        if ! is_recent_file "$last" "$cadence"; then
+          write_inbox_note "$inbox_abs" "work-observer-cadence" "Work Observer Cadence Tick" \
+            "Inspect current work items, actor completions, and available evidence. Update current-work checklists and notify the coordinator what decision is needed next."
+          wrote=$((wrote + 1))
+        fi
+        ;;
+      holistic-observer)
+        local last="$ROOT/.meta/project/actors/holistic-observer/last-summary.md"
+        if ! is_recent_file "$last" "$cadence"; then
+          write_inbox_note "$inbox_abs" "holistic-observer-cadence" "Holistic Observer Cadence Tick" \
+            "Inspect whether active work coheres as a whole product. Update holistic status and notify the coordinator about emerging cross-slice tensions."
           wrote=$((wrote + 1))
         fi
         ;;

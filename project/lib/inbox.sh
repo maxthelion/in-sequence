@@ -98,7 +98,7 @@ priority: medium
 
 # $title
 
-$body
 EOF
+  printf "%b\n" "$body" >> "$file"
   printf "%s\n" "$file"
 }

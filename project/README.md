@@ -9,6 +9,8 @@ script owns the local roster and dispatch order.
 The first version is intentionally small:
 
 - write a coordinator cadence note when the coordinator has not run recently;
+- write observer cadence notes so work status and holistic product status stay
+  fresh enough for decisions;
 - write a process-fixer note when blocked requests exist;
 - dispatch one runnable inbox request per tick by default;
 - execute actors through local `project/actors/*/run.sh` scripts;
@@ -23,6 +25,10 @@ The roster lives at `project/scripts/loops.tsv`.
   minimal `status:` line; no rich frontmatter model is required.
 - `project/lib/codex.sh`: one Codex runner with timeout handling.
 - `project/actors/<actor>/run.sh`: actor entrypoints.
+- `project/actors/work-observer`: updates current work checklists.
+- `project/actors/holistic-observer`: updates whole-product status.
+- `project/actors/coordinator`: decider that reads observer outputs and routes
+  work to build/review/PM loops.
 - `project/behaviour-trees/pm-loop/tick.sh`: wrapper for the existing PM
   behaviour-tree path.
 

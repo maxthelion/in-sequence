@@ -1,4 +1,6 @@
 # id	kind	inbox	cadence_minutes	command
+work-observer	top	docs/multi-pass-coordinator/inbox/work-observer	30	project/actors/work-observer/run.sh
+holistic-observer	top	docs/multi-pass-coordinator/inbox/holistic-observer	120	project/actors/holistic-observer/run.sh
 coordinator	top	docs/multi-pass-coordinator/inbox/coordinator	30	project/actors/coordinator/run.sh
 process-fixer	top	project/actors/process-fixer/inbox	240	project/actors/process-fixer/run.sh
 pm	actor	docs/multi-pass-coordinator/inbox/pm	0	project/actors/pm/run.sh

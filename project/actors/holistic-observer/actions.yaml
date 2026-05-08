@@ -1,0 +1,11 @@
+actions:
+  - update_holistic_status
+  - inspect_current_work_for_cross_slice_coherence
+  - identify_emerging_product_tensions
+  - write_coordinator_observation_note
+
+write_roots:
+  - docs/multi-pass-coordinator/coordinator/holistic-status.md
+  - docs/multi-pass-coordinator/coordinator/decision-log.md
+  - docs/multi-pass-coordinator/inbox/coordinator
+

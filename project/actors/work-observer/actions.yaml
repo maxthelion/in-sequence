@@ -1,0 +1,11 @@
+actions:
+  - update_current_work_checklists
+  - summarize_actor_completion_notes
+  - mark_missing_or_stale_lens_evidence
+  - write_coordinator_observation_note
+
+write_roots:
+  - docs/multi-pass-coordinator/coordinator/current-work
+  - docs/multi-pass-coordinator/coordinator/decision-log.md
+  - docs/multi-pass-coordinator/inbox/coordinator
+
