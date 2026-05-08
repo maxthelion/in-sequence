@@ -1,70 +1,80 @@
 import SwiftUI
 
+struct ScenePerformDominance: Equatable {
+    let isADominant: Bool
+    let isBDominant: Bool
+
+    init(effectiveCrossfader: Double) {
+        isADominant = effectiveCrossfader < 0.5
+        isBDominant = effectiveCrossfader > 0.5
+    }
+}
+
 extension ScenesWorkspaceView {
     @ViewBuilder
     var performView: some View {
+        let effectiveCrossfader = engineController.effectiveCrossfader
+        let dominance = ScenePerformDominance(effectiveCrossfader: effectiveCrossfader)
         let selection = activeABSelection
         let sceneA = masterBus.scene(id: selection.sceneAID) ?? masterBus.activeScene
         let sceneB = masterBus.scene(id: selection.sceneBID)
             ?? masterBus.scenes.first { $0.id != sceneA.id }
             ?? MasterBusScene.sceneB
         StudioPanel(title: "Scenes Perform", eyebrow: "Runtime scene macro overrides", accent: StudioTheme.amber) {
-            VStack(alignment: .leading, spacing: 16) {
-                sharedCrossfader(selection, sceneA: sceneA, sceneB: sceneB)
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 16) {
-                        performSlot(title: "Slot A", scene: sceneA, isA: true)
-                        performSlot(title: "Slot B", scene: sceneB, isA: false)
-                    }
-                    VStack(alignment: .leading, spacing: 16) {
-                        performSlot(title: "Slot A", scene: sceneA, isA: true)
-                        performSlot(title: "Slot B", scene: sceneB, isA: false)
-                    }
-                }
+            HStack(alignment: .top, spacing: 0) {
+                performSlot(title: "Slot A", scene: sceneA, isA: true, isDominant: dominance.isADominant)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                crossfaderColumn(value: effectiveCrossfader)
+                    .frame(width: 120)
+                    .padding(.horizontal, 14)
+
+                performSlot(title: "Slot B", scene: sceneB, isA: false, isDominant: dominance.isBDominant)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
     }
 
-    private func sharedCrossfader(
-        _ selection: MasterBusABSelection,
-        sceneA: MasterBusScene,
-        sceneB: MasterBusScene
-    ) -> some View {
-        let value = engineController.masterBusPerformanceOverlay.crossfaderOverride ?? selection.crossfader
-        return MasterCrossfaderView(
-            sceneAName: sceneA.name,
-            sceneBName: sceneB.name,
-            value: value,
-            hasLiveOverride: engineController.masterBusPerformanceOverlay.crossfaderOverride != nil,
-            showsPersistenceActions: true,
-            onChange: { engineController.setLiveMasterCrossfader($0) },
-            onReset: { engineController.clearLiveMasterCrossfader() },
-            onSave: { savedValue in
-                session.setMasterCrossfader(savedValue)
-                engineController.clearLiveMasterCrossfader()
+    private func crossfaderColumn(value: Double) -> some View {
+        VStack(spacing: 12) {
+            Text("A")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.amber)
+
+            ScenePerformCrossfaderTrack(value: value) { nextValue in
+                engineController.setLiveMasterCrossfader(nextValue)
             }
-        )
+            .frame(width: 48, height: 220)
+
+            Text("\(Int((value * 100).rounded()))%")
+                .studioText(.eyebrowBold)
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 52, alignment: .center)
+
+            Text("B")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.amber)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
     }
 
-    private func performSlot(title: String, scene: MasterBusScene, isA: Bool) -> some View {
+    private func performSlot(title: String, scene: MasterBusScene, isA: Bool, isDominant: Bool) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
+            HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title.uppercased())
                         .studioText(.micro)
                         .tracking(0.8)
-                        .foregroundStyle(StudioTheme.amber)
+                        .foregroundStyle(isDominant ? Color.white.opacity(0.72) : StudioTheme.amber)
                     Text(scene.name)
                         .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(isDominant ? Color.white : StudioTheme.text)
+                        .lineLimit(1)
                 }
                 Spacer()
-                if engineController.hasMasterSceneMacroOverrides(sceneID: scene.id) {
-                    Text("MODIFIED")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.amber)
-                }
                 Button {
                     scenePerformSlotPickerRequest = ScenePerformSlotPickerRequest(slot: isA ? .a : .b)
                 } label: {
@@ -76,29 +86,24 @@ extension ScenesWorkspaceView {
                 .tint(StudioTheme.amber)
                 .help("Choose scene")
             }
+            .padding(12)
+            .contentShape(Rectangle())
+            .background(
+                isDominant ? StudioTheme.text : Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+            )
+            .onTapGesture {
+                engineController.setLiveMasterCrossfader(isA ? 0 : 1)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("\(title), \(scene.name), switch crossfader to Scene \(isA ? "A" : "B")")
+            .accessibilityValue(isDominant ? "Active" : "Inactive")
+            .accessibilityAction {
+                engineController.setLiveMasterCrossfader(isA ? 0 : 1)
+            }
 
             performMacroSlots(scene)
-
-            HStack(spacing: 8) {
-                Button {
-                    engineController.clearMasterSceneMacroOverrides(sceneID: scene.id)
-                } label: {
-                    Label("Revert", systemImage: "arrow.uturn.backward")
-                }
-                .buttonStyle(.bordered)
-                .disabled(!engineController.hasMasterSceneMacroOverrides(sceneID: scene.id))
-
-                Button {
-                    let values = engineController.masterSceneMacroOverrides(sceneID: scene.id)
-                    session.saveMasterScenePerformanceOverrides(values, to: scene.id)
-                    engineController.clearMasterSceneMacroOverrides(sceneID: scene.id)
-                } label: {
-                    Label("Save to Scene", systemImage: "tray.and.arrow.down")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.cyan)
-                .disabled(!engineController.hasMasterSceneMacroOverrides(sceneID: scene.id))
-            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(14)
@@ -110,16 +115,18 @@ extension ScenesWorkspaceView {
     }
 
     private func performMacroSlots(_ scene: MasterBusScene) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
-                    performMacroSlot(slotIndex, scene: scene)
-                        .frame(width: 68)
-                }
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(minimum: 68), spacing: 8),
+                GridItem(.flexible(minimum: 68), spacing: 8)
+            ],
+            spacing: 10
+        ) {
+            ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
+                performMacroSlot(slotIndex, scene: scene)
             }
-            .padding(.horizontal, 12)
         }
-        .padding(.vertical, 12)
+        .padding(12)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -260,5 +267,66 @@ extension ScenesWorkspaceView {
             session.setMasterABMode(MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneID, crossfader: current.crossfader))
         }
         scenePerformSlotPickerRequest = nil
+    }
+}
+
+private struct ScenePerformCrossfaderTrack: View {
+    let value: Double
+    let onChange: (Double) -> Void
+
+    private var clampedValue: Double {
+        min(max(value, 0), 1)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let height = max(proxy.size.height, 1)
+            let thumbY = height * clampedValue
+
+            ZStack(alignment: .top) {
+                Capsule()
+                    .fill(StudioTheme.border.opacity(0.8))
+                    .frame(width: 10)
+                    .frame(maxHeight: .infinity)
+                    .frame(maxWidth: .infinity)
+
+                Capsule()
+                    .fill(StudioTheme.amber.opacity(0.28))
+                    .frame(width: 10, height: thumbY)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                Circle()
+                    .fill(StudioTheme.amber)
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.65), lineWidth: 2)
+                    )
+                    .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
+                    .offset(y: min(max(thumbY - 14, 0), height - 28))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+                        let y = min(max(drag.location.y, 0), height)
+                        onChange(Double(y / height))
+                    }
+            )
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Scene crossfader")
+        .accessibilityValue("\(Int((clampedValue * 100).rounded())) percent")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                onChange(min(clampedValue + 0.05, 1))
+            case .decrement:
+                onChange(max(clampedValue - 0.05, 0))
+            @unknown default:
+                break
+            }
+        }
     }
 }
