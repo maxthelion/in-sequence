@@ -10,6 +10,7 @@ directly and you do not schedule build work directly.
 Read the Multi-Pass Coordinator README first:
 
 - `/Users/maxwilliams/dev/multi-pass-coordinator/README.md`
+- `project/actors/process-health-observer/README.md`
 
 Then read:
 
@@ -44,4 +45,3 @@ Update `docs/multi-pass-coordinator/coordinator/process-health.md`.
 At the end, write a concise coordinator inbox note only when the decider should
 act. The note should identify whether the next action belongs to the
 coordinator, process-fixer, process-improver, build loop, or another observer.
-
