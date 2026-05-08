@@ -1,0 +1,10 @@
+# id	kind	inbox	cadence_minutes	command
+coordinator	top	docs/multi-pass-coordinator/inbox/coordinator	30	coordinator
+process-fixer	top	docs/multi-pass-coordinator/inbox/process-fixer	240	process-fixer
+pm	actor	docs/multi-pass-coordinator/inbox/pm	0	tick-loops
+build	actor	docs/multi-pass-coordinator/inbox/build-loop	0	tick-loops
+architecture-review	actor	docs/multi-pass-coordinator/inbox/architecture	0	tick-loops
+testing-review	actor	docs/multi-pass-coordinator/inbox/testing	0	tick-loops
+ux-ia-review	actor	docs/multi-pass-coordinator/inbox/ux-ia	0	tick-loops
+visual-review	actor	docs/multi-pass-coordinator/inbox/visual-review	0	tick-loops
+pm-behaviour-tree	behaviour-tree	.claude/state	0	scripts/codex/bt-iteration.sh
