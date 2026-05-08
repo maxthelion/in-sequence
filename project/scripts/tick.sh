@@ -114,13 +114,6 @@ ensure_due_top_loop_notes() {
           wrote=$((wrote + 1))
         fi
         ;;
-      process-fixer)
-        if find "$ROOT/docs/multi-pass-coordinator/inbox" -maxdepth 3 -type f -name '*.md' -exec grep -l '^status:[[:space:]]*blocked' {} \; 2>/dev/null | grep -q .; then
-          write_inbox_note "$inbox_abs" "process-fixer-blockers" "Process Fixer Blocker Sweep" \
-            "Inspect blocked loop requests and repair the local harness or actor instructions if a deterministic bug is preventing coordinator recovery."
-          wrote=$((wrote + 1))
-        fi
-        ;;
     esac
   done < "$ROSTER"
   return 0

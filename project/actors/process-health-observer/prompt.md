@@ -45,3 +45,9 @@ Update `docs/multi-pass-coordinator/coordinator/process-health.md`.
 At the end, write a concise coordinator inbox note only when the decider should
 act. The note should identify whether the next action belongs to the
 coordinator, process-fixer, process-improver, build loop, or another observer.
+
+If you find a concrete harness repair that is small, local, and not a product
+decision, you may also write a request directly to
+`project/actors/process-fixer/inbox/`. Keep that request bounded: name the
+symptom, cite the evidence, describe the smallest repair, and state how the
+coordinator can tell the process is healthy again.

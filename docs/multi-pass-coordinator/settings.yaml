@@ -77,6 +77,20 @@ loops:
       - identify missing deterministic observation scripts
       - identify process churn, stale inboxes, or weak handoffs
       - notify the coordinator when process repair or improvement is needed
+      - write bounded repair requests to the process-fixer inbox
+    request_format: markdown
+
+  - id: process-fixer
+    label: Process Fixer
+    inbox: project/actors/process-fixer/inbox
+    actor_prompt: project/actors/process-fixer/prompt.md
+    actor_actions: project/actors/process-fixer/actions.yaml
+    can_do:
+      - repair project-local ticker and actor runner issues
+      - repair actor prompts and action inventories
+      - repair inbox routing or status handling
+      - add small deterministic observation scripts when requested
+      - notify the coordinator after a repair
     request_format: markdown
 
   - id: pm

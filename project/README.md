@@ -32,6 +32,9 @@ The roster lives at `project/scripts/loops.tsv`.
 - `project/actors/process-health-observer`: checks whether the loop itself is
   producing builder progress, review follow-through, and useful process
   feedback.
+- `project/actors/process-fixer`: inbox-only repair actor. It runs only when a
+  process-health observer, coordinator, or human writes a concrete repair
+  request to `project/actors/process-fixer/inbox/`.
 - `project/behaviour-trees/pm-loop/tick.sh`: wrapper for the existing PM
   behaviour-tree path.
 
