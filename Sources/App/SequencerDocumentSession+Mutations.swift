@@ -387,6 +387,12 @@ extension SequencerDocumentSession {
         }
     }
 
+    func setMasterOutputGain(_ value: Double) {
+        mutateMasterBus { masterBus in
+            masterBus.setMasterOutputGain(value)
+        }
+    }
+
     // MARK: - Phrase mutations
 
     /// Mutate a phrase by ID, then dispatch impact.

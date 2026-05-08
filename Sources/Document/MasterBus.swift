@@ -1,19 +1,24 @@
 import Foundation
 
 struct MasterBusState: Codable, Equatable, Sendable {
+    static let masterOutputGainRange: ClosedRange<Double> = 0...2
+
     var scenes: [MasterBusScene]
     var activeSceneID: UUID
     var abSelection: MasterBusABSelection?
+    var masterOutputGain: Double
 
     init(
         scenes: [MasterBusScene]? = nil,
         activeSceneID: UUID? = nil,
-        abSelection: MasterBusABSelection? = nil
+        abSelection: MasterBusABSelection? = nil,
+        masterOutputGain: Double = 1
     ) {
         let resolvedScenes = scenes ?? [.sceneA, .sceneB]
         self.scenes = resolvedScenes
         self.activeSceneID = activeSceneID ?? resolvedScenes.first?.id ?? MasterBusScene.sceneAID
         self.abSelection = abSelection
+        self.masterOutputGain = masterOutputGain
         normalize()
     }
 
@@ -152,7 +157,13 @@ struct MasterBusState: Codable, Equatable, Sendable {
         abSelection = selection
     }
 
+    mutating func setMasterOutputGain(_ value: Double) {
+        masterOutputGain = Self.normalizedMasterOutputGain(value)
+    }
+
     mutating func normalize() {
+        masterOutputGain = Self.normalizedMasterOutputGain(masterOutputGain)
+
         if scenes.isEmpty {
             scenes = [.sceneA, .sceneB]
         }
@@ -226,6 +237,11 @@ struct MasterBusState: Codable, Equatable, Sendable {
         } while existingNames.contains(candidate)
         return candidate
     }
+
+    private static func normalizedMasterOutputGain(_ value: Double) -> Double {
+        guard value.isFinite else { return 1 }
+        return value.clamped(to: masterOutputGainRange)
+    }
 }
 
 extension MasterBusState {
@@ -234,6 +250,7 @@ extension MasterBusState {
         case activeSceneID
         case draftScene
         case abSelection
+        case masterOutputGain
     }
 
     init(from decoder: Decoder) throws {
@@ -243,6 +260,7 @@ extension MasterBusState {
             ?? scenes.first?.id
             ?? MasterBusScene.sceneAID
         abSelection = try container.decodeIfPresent(MasterBusABSelection.self, forKey: .abSelection)
+        masterOutputGain = try container.decodeIfPresent(Double.self, forKey: .masterOutputGain) ?? 1
 
         if let draftScene = try container.decodeIfPresent(MasterBusScene.self, forKey: .draftScene) {
             if let index = scenes.firstIndex(where: { $0.id == activeSceneID }) {
@@ -263,6 +281,7 @@ extension MasterBusState {
         try container.encode(scenes, forKey: .scenes)
         try container.encode(activeSceneID, forKey: .activeSceneID)
         try container.encodeIfPresent(abSelection, forKey: .abSelection)
+        try container.encode(masterOutputGain, forKey: .masterOutputGain)
     }
 }
 

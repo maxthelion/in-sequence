@@ -102,6 +102,35 @@ final class MasterBusHostTests: XCTestCase {
     }
 
     @MainActor
+    func test_masterOutputGainAppliesToFinalOutputWithoutChangingBranchMath() {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        let sceneA = MasterBusScene(name: "A")
+        let sceneB = MasterBusScene(name: "B")
+        host.attach(to: graph)
+
+        host.apply(MasterBusState(
+            scenes: [sceneA, sceneB],
+            activeSceneID: sceneA.id,
+            abSelection: MasterBusABSelection(sceneAID: sceneA.id, sceneBID: sceneB.id, crossfader: 0.5),
+            masterOutputGain: 0.4
+        ))
+
+        XCTAssertEqual(graph.masterOutputGainForTesting, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[0].gain, Float(sqrt(0.5)), accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[1].gain, Float(sqrt(0.5)), accuracy: 0.0001)
+
+        host.setLiveCrossfaderOverride(1)
+
+        XCTAssertEqual(graph.masterOutputGainForTesting, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[0].gain, 0, accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[1].gain, 1, accuracy: 0.0001)
+        XCTAssertEqual(host.appliedState.masterOutputGain, 0.4)
+        XCTAssertEqual(host.appliedState.abSelection?.crossfader, 0.5)
+        XCTAssertEqual(host.resolvedState.abSelection?.crossfader, 1)
+    }
+
+    @MainActor
     func test_liveMacroOverrideUpdatesExistingNodeWithoutReapply() throws {
         let graph = MainAudioGraph()
         let host = MasterBusHost()

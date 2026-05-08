@@ -201,7 +201,7 @@ final class MasterBusHost: MasterBusHosting {
 
         performOnMain {
             let built = self.buildMasterChains(for: state)
-            audioGraph.installMasterChains(built.chains)
+            audioGraph.installMasterChains(built.chains, masterOutputGain: state.masterOutputGain)
             self.lock.withLock {
                 self.installedShape = built.shape
                 self.installedNodesByInsertID = built.nodesByInsertID

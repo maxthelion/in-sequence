@@ -58,6 +58,43 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_setMasterOutputGain_updatesOnlyGlobalMasterGain() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+
+        let scenesBefore = session.store.masterBus.scenes
+        let selectionBefore = session.store.masterBus.abSelection
+        let trackMixBefore = session.store.selectedTrack.mix
+        let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+        let masterBusCallsBefore = engine.masterBusApplyCallCount
+
+        session.setMasterOutputGain(1.4)
+
+        XCTAssertEqual(session.store.masterBus.masterOutputGain, 1.4)
+        XCTAssertEqual(session.store.masterBus.scenes, scenesBefore)
+        XCTAssertEqual(session.store.masterBus.abSelection, selectionBefore)
+        XCTAssertEqual(session.store.selectedTrack.mix, trackMixBefore)
+        XCTAssertEqual(engine.masterBusState.masterOutputGain, 1.4)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore + 1)
+        XCTAssertEqual(documentBox.document.project.masterBus.masterOutputGain, 1)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.masterBus.masterOutputGain, 1.4)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_liveSceneMacroOverlay_doesNotMutateStoreOrSnapshots() {
         let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
         let engine = EngineController(client: nil, endpoint: nil)

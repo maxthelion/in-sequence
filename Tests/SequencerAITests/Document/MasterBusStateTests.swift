@@ -11,6 +11,7 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertTrue(project.masterBus.activeScene.macroBindings.isEmpty)
         XCTAssertEqual(project.masterBus.abSelection?.sceneAID, project.masterBus.scenes[0].id)
         XCTAssertEqual(project.masterBus.abSelection?.sceneBID, project.masterBus.scenes[1].id)
+        XCTAssertEqual(project.masterBus.masterOutputGain, 1)
     }
 
     func test_oldProjectJSONDecodesWithDefaultMasterBus() throws {
@@ -25,6 +26,32 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(decoded.masterBus.activeScene.name, "Scene A")
         XCTAssertTrue(decoded.masterBus.scenes[0].inserts.isEmpty)
         XCTAssertNotNil(decoded.masterBus.abSelection)
+    }
+
+    func test_legacyMasterBusJSONDecodesWithUnityMasterOutputGain() throws {
+        let encoded = try JSONEncoder().encode(MasterBusState.default)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: "masterOutputGain")
+        let legacyData = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(MasterBusState.self, from: legacyData)
+
+        XCTAssertEqual(decoded.masterOutputGain, 1)
+    }
+
+    func test_masterOutputGainRoundTripsAndNormalizesToValidRange() throws {
+        var state = MasterBusState.default
+        state.setMasterOutputGain(1.75)
+
+        let decoded = try JSONDecoder().decode(MasterBusState.self, from: try JSONEncoder().encode(state))
+
+        XCTAssertEqual(decoded.masterOutputGain, 1.75)
+
+        state.setMasterOutputGain(2.5)
+        XCTAssertEqual(state.masterOutputGain, 2)
+
+        state.setMasterOutputGain(-0.25)
+        XCTAssertEqual(state.masterOutputGain, 0)
     }
 
     func test_auEffectStateBlob_roundTrips() throws {
