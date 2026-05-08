@@ -2,6 +2,7 @@
 work-observer	top	docs/multi-pass-coordinator/inbox/work-observer	30	project/actors/work-observer/run.sh
 holistic-observer	top	docs/multi-pass-coordinator/inbox/holistic-observer	120	project/actors/holistic-observer/run.sh
 coordinator	top	docs/multi-pass-coordinator/inbox/coordinator	30	project/actors/coordinator/run.sh
+process-health-observer	top	docs/multi-pass-coordinator/inbox/process-health-observer	180	project/actors/process-health-observer/run.sh
 process-fixer	top	project/actors/process-fixer/inbox	240	project/actors/process-fixer/run.sh
 pm	actor	docs/multi-pass-coordinator/inbox/pm	0	project/actors/pm/run.sh
 build	actor	docs/multi-pass-coordinator/inbox/build-loop	0	project/actors/build/run.sh

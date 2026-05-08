@@ -106,6 +106,14 @@ ensure_due_top_loop_notes() {
           wrote=$((wrote + 1))
         fi
         ;;
+      process-health-observer)
+        local last="$ROOT/.meta/project/actors/process-health-observer/last-summary.md"
+        if ! is_recent_file "$last" "$cadence"; then
+          write_inbox_note "$inbox_abs" "process-health-observer-cadence" "Process Health Observer Cadence Tick" \
+            "Inspect whether the multi-pass loop is producing useful builder progress, whether actors are running into environment/tooling problems, and whether better deterministic observation scripts or prompt/process changes are needed. Update process health and notify the coordinator if a process decision is needed."
+          wrote=$((wrote + 1))
+        fi
+        ;;
       process-fixer)
         if find "$ROOT/docs/multi-pass-coordinator/inbox" -maxdepth 3 -type f -name '*.md' -exec grep -l '^status:[[:space:]]*blocked' {} \; 2>/dev/null | grep -q .; then
           write_inbox_note "$inbox_abs" "process-fixer-blockers" "Process Fixer Blocker Sweep" \

@@ -32,6 +32,7 @@ coordination:
   evidence_log: docs/multi-pass-coordinator/evidence-log.md
   current_work: docs/multi-pass-coordinator/coordinator/current-work
   holistic_status: docs/multi-pass-coordinator/coordinator/holistic-status.md
+  process_health: docs/multi-pass-coordinator/coordinator/process-health.md
   decision_log: docs/multi-pass-coordinator/coordinator/decision-log.md
   lanes: docs/multi-pass-coordinator/lanes.md
   show_readiness: docs/multi-pass-coordinator/show-readiness.md
@@ -63,6 +64,19 @@ loops:
       - compare active work against README and north-star docs
       - identify cross-slice product or architecture tensions
       - notify the coordinator when the zoomed-out product shape needs action
+    request_format: markdown
+
+  - id: process-health-observer
+    label: Process Health Observer
+    inbox: docs/multi-pass-coordinator/inbox/process-health-observer
+    actor_prompt: project/actors/process-health-observer/prompt.md
+    actor_actions: project/actors/process-health-observer/actions.yaml
+    can_do:
+      - inspect whether builders are producing product-code progress
+      - inspect actor logs for environment, timeout, memory, or tooling problems
+      - identify missing deterministic observation scripts
+      - identify process churn, stale inboxes, or weak handoffs
+      - notify the coordinator when process repair or improvement is needed
     request_format: markdown
 
   - id: pm

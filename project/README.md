@@ -29,6 +29,9 @@ The roster lives at `project/scripts/loops.tsv`.
 - `project/actors/holistic-observer`: updates whole-product status.
 - `project/actors/coordinator`: decider that reads observer outputs and routes
   work to build/review/PM loops.
+- `project/actors/process-health-observer`: checks whether the loop itself is
+  producing builder progress, review follow-through, and useful process
+  feedback.
 - `project/behaviour-trees/pm-loop/tick.sh`: wrapper for the existing PM
   behaviour-tree path.
 
