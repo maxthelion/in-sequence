@@ -81,6 +81,26 @@ final class MasterBusStateTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func test_masterMeterStateIsRuntimeOnlyAndAbsentFromProjectCodableState() throws {
+        let project = Project.empty
+        let publisher = MasterMeterPublisher()
+        publisher.stopPublishing()
+        publisher.recordPeakAmplitudes(left: 1.5, right: 0.25)
+        publisher.publishPendingToMain(now: 1)
+
+        let encoded = try JSONEncoder().encode(project)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let masterBus = try XCTUnwrap(object["masterBus"] as? [String: Any])
+
+        XCTAssertTrue(publisher.displayState.isClipLatched)
+        XCTAssertNil(masterBus["meter"])
+        XCTAssertNil(masterBus["masterMeter"])
+        XCTAssertNil(masterBus["clipLatched"])
+        XCTAssertNil(masterBus["leftPeakDBFS"])
+        XCTAssertNil(masterBus["rightPeakDBFS"])
+    }
+
     func test_auEffectStateBlob_roundTrips() throws {
         let blob = Data([1, 2, 3, 4])
         let componentID = AudioComponentID(type: "aufx", subtype: "TEST", manufacturer: "CDX ", version: 0)

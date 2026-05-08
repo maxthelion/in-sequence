@@ -202,6 +202,7 @@ final class MasterBusHost: MasterBusHosting {
         performOnMain {
             let built = self.buildMasterChains(for: state)
             audioGraph.installMasterChains(built.chains, masterOutputGain: state.masterOutputGain)
+            self.configureInstalledNodes(for: state, nodesByInsertID: built.nodesByInsertID)
             self.lock.withLock {
                 self.installedShape = built.shape
                 self.installedNodesByInsertID = built.nodesByInsertID
@@ -338,6 +339,16 @@ final class MasterBusHost: MasterBusHosting {
             applyAUMacroValues(to: unit, insertID: insert.id, scene: scene)
         default:
             return
+        }
+    }
+
+    @MainActor
+    private func configureInstalledNodes(for state: MasterBusState, nodesByInsertID: [UUID: AVAudioNode]) {
+        for branch in Self.branches(for: state) {
+            for insert in branch.scene.inserts where insert.isEnabled {
+                guard let node = nodesByInsertID[insert.id] else { continue }
+                configureExistingNode(node, for: insert, in: branch.scene)
+            }
         }
     }
 

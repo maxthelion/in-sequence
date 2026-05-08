@@ -461,6 +461,10 @@ final class EngineController: RouterDispatcher {
         masterBusHost.resolvedState
     }
 
+    var masterMeterPublisher: MasterMeterPublisher {
+        mainAudioGraph.masterMeterPublisher
+    }
+
     var masterBusApplyCallCount: Int {
         masterBusHost.applyCallCount
     }

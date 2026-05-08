@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import Observation
 
 final class MainAudioGraph {
     struct MasterChain {
@@ -14,17 +15,24 @@ final class MainAudioGraph {
 
     let engine: AVAudioEngine
     let preMasterMixer: AVAudioMixerNode
+    let masterMeterPublisher: MasterMeterPublisher
     private(set) var masterBranchesForTesting: [MasterBranchReadout] = []
     private(set) var masterOutputGainForTesting: Float = 1
+    private(set) var masterMeterTapPointForTesting: MasterMeterTapPoint?
+    private(set) var masterMeterTapInstallCountForTesting = 0
+    private(set) var masterMeterTapRemoveCountForTesting = 0
 
     private let graphLock = NSLock()
     private let finalOutputMixer = AVAudioMixerNode()
     private var managedMasterNodes: [AVAudioNode] = []
     private var managedMasterGainMixers: [AVAudioMixerNode] = []
     private var isStarted = false
+    private var isMasterMeterTapInstalled = false
+    private let masterMeterTapGeneration = AtomicInt32(0)
 
-    init(engine: AVAudioEngine = AVAudioEngine()) {
+    init(engine: AVAudioEngine = AVAudioEngine(), masterMeterPublisher: MasterMeterPublisher = MasterMeterPublisher()) {
         self.engine = engine
+        self.masterMeterPublisher = masterMeterPublisher
         self.preMasterMixer = AVAudioMixerNode()
 
         performOnMain {
@@ -33,6 +41,14 @@ final class MainAudioGraph {
             self.engine.connect(self.preMasterMixer, to: self.finalOutputMixer, format: nil)
             self.engine.connect(self.finalOutputMixer, to: self.engine.mainMixerNode, format: nil)
             self.engine.prepare()
+            self.installMasterMeterTapIfNeeded()
+        }
+    }
+
+    deinit {
+        masterMeterPublisher.stopPublishing()
+        performOnMain {
+            self.removeMasterMeterTapIfNeeded()
         }
     }
 
@@ -67,6 +83,8 @@ final class MainAudioGraph {
     func start() throws {
         try performOnMainThrowing {
             guard !self.isStarted || !self.engine.isRunning else { return }
+            self.installMasterMeterTapIfNeeded()
+            self.masterMeterPublisher.startPublishing()
             try self.engine.start()
             self.isStarted = true
         }
@@ -74,6 +92,8 @@ final class MainAudioGraph {
 
     func stop() {
         performOnMain {
+            self.removeMasterMeterTapIfNeeded()
+            self.masterMeterPublisher.stopPublishing()
             guard self.isStarted || self.engine.isRunning else { return }
             self.engine.stop()
             self.isStarted = false
@@ -87,6 +107,7 @@ final class MainAudioGraph {
         performOnMain {
             let clampedMasterOutputGain = Self.clampedMasterOutputGain(masterOutputGain)
             let wasRunning = self.engine.isRunning
+            self.removeMasterMeterTapIfNeeded()
             if wasRunning {
                 self.engine.stop()
             }
@@ -141,12 +162,52 @@ final class MainAudioGraph {
             self.masterOutputGainForTesting = clampedMasterOutputGain
             self.engine.connect(self.preMasterMixer, to: firstDestinations, fromBus: 0, format: nil)
             self.engine.prepare()
+            self.installMasterMeterTapIfNeeded()
 
             if wasRunning {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
         }
+    }
+
+    var isMasterMeterTapInstalledForTesting: Bool {
+        isMasterMeterTapInstalled
+    }
+
+    var masterMeterTapGenerationForTesting: Int {
+        Int(masterMeterTapGeneration.load())
+    }
+
+    func recordMasterMeterPeakForTesting(left: Double, right: Double, generation: Int? = nil) {
+        let currentGeneration = masterMeterTapGeneration.load()
+        let resolvedGeneration = generation.map(Int32.init) ?? currentGeneration
+        guard resolvedGeneration == currentGeneration else { return }
+        masterMeterPublisher.recordPeakAmplitudes(left: left, right: right)
+    }
+
+    @MainActor
+    private func installMasterMeterTapIfNeeded() {
+        guard !isMasterMeterTapInstalled else { return }
+        let generation = masterMeterTapGeneration.increment()
+        finalOutputMixer.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
+            guard let self, self.masterMeterTapGeneration.load() == generation else { return }
+            self.masterMeterPublisher.process(buffer: buffer)
+        }
+        isMasterMeterTapInstalled = true
+        masterMeterTapPointForTesting = .finalOutputMixer
+        masterMeterTapInstallCountForTesting += 1
+    }
+
+    @MainActor
+    private func removeMasterMeterTapIfNeeded() {
+        guard isMasterMeterTapInstalled else { return }
+        masterMeterTapGeneration.increment()
+        finalOutputMixer.removeTap(onBus: 0)
+        masterMeterPublisher.recordPeakAmplitudes(left: 0, right: 0)
+        isMasterMeterTapInstalled = false
+        masterMeterTapPointForTesting = nil
+        masterMeterTapRemoveCountForTesting += 1
     }
 
     private static func clampedMasterOutputGain(_ gain: Double) -> Float {
@@ -206,5 +267,291 @@ final class MainAudioGraph {
         if let thrownError {
             throw thrownError
         }
+    }
+}
+
+enum MasterMeterTapPoint: Equatable {
+    case finalOutputMixer
+}
+
+struct MasterMeterDisplayState: Equatable {
+    static let silenceDBFS = -Double.infinity
+    static let silent = MasterMeterDisplayState(
+        leftPeakDBFS: silenceDBFS,
+        rightPeakDBFS: silenceDBFS,
+        leftPeakHoldDBFS: silenceDBFS,
+        rightPeakHoldDBFS: silenceDBFS,
+        isClipLatched: false
+    )
+
+    var leftPeakDBFS: Double
+    var rightPeakDBFS: Double
+    var leftPeakHoldDBFS: Double
+    var rightPeakHoldDBFS: Double
+    var isClipLatched: Bool
+    var isClearClipActionable: Bool { isClipLatched }
+}
+
+@Observable
+final class MasterMeterPublisher {
+    private(set) var displayState: MasterMeterDisplayState = .silent
+
+    @ObservationIgnored private let transport = MasterMeterTransport()
+    @ObservationIgnored private let publishInterval: TimeInterval
+    @ObservationIgnored private let peakHoldDuration: TimeInterval
+    @ObservationIgnored private let peakHoldReleaseDBPerSecond: Double
+    @ObservationIgnored private var publishTimer: DispatchSourceTimer?
+    @ObservationIgnored private var lastPublishTime: TimeInterval?
+    @ObservationIgnored private var leftPeakHoldTime: TimeInterval = 0
+    @ObservationIgnored private var rightPeakHoldTime: TimeInterval = 0
+
+    init(
+        publishInterval: TimeInterval = 1.0 / 30.0,
+        peakHoldDuration: TimeInterval = 0.75,
+        peakHoldReleaseDBPerSecond: Double = 18
+    ) {
+        self.publishInterval = publishInterval
+        self.peakHoldDuration = peakHoldDuration
+        self.peakHoldReleaseDBPerSecond = peakHoldReleaseDBPerSecond
+    }
+
+    func startPublishing() {
+        if Thread.isMainThread {
+            startPublishingOnMain()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.startPublishingOnMain()
+            }
+        }
+    }
+
+    func stopPublishing() {
+        if Thread.isMainThread {
+            stopPublishingOnMain()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.stopPublishingOnMain()
+            }
+        }
+    }
+
+    deinit {
+        publishTimer?.cancel()
+    }
+
+    func process(buffer: AVAudioPCMBuffer) {
+        let frameCount = Int(buffer.frameLength)
+        guard frameCount > 0, let channels = buffer.floatChannelData else {
+            recordPeakAmplitudes(left: 0, right: 0)
+            return
+        }
+
+        let channelCount = Int(buffer.format.channelCount)
+        guard channelCount > 0 else {
+            recordPeakAmplitudes(left: 0, right: 0)
+            return
+        }
+
+        let left = Self.peakAmplitude(channel: channels[0], frameCount: frameCount)
+        let right = channelCount > 1
+            ? Self.peakAmplitude(channel: channels[1], frameCount: frameCount)
+            : left
+        recordPeakAmplitudes(left: left, right: right)
+    }
+
+    func recordPeakAmplitudes(left: Double, right: Double) {
+        transport.store(left: left, right: right)
+    }
+
+    func publishPendingToMain(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.publishPendingToMain()
+            }
+            return
+        }
+
+        let snapshot = transport.snapshot()
+        let leftPeak = Self.dbFS(amplitude: snapshot.left)
+        let rightPeak = Self.dbFS(amplitude: snapshot.right)
+        let elapsed = max(0, now - (lastPublishTime ?? now))
+        lastPublishTime = now
+
+        let leftHold = nextPeakHold(
+            currentHold: displayState.leftPeakHoldDBFS,
+            holdTime: &leftPeakHoldTime,
+            livePeak: leftPeak,
+            now: now,
+            elapsed: elapsed
+        )
+        let rightHold = nextPeakHold(
+            currentHold: displayState.rightPeakHoldDBFS,
+            holdTime: &rightPeakHoldTime,
+            livePeak: rightPeak,
+            now: now,
+            elapsed: elapsed
+        )
+
+        displayState = MasterMeterDisplayState(
+            leftPeakDBFS: leftPeak,
+            rightPeakDBFS: rightPeak,
+            leftPeakHoldDBFS: leftHold,
+            rightPeakHoldDBFS: rightHold,
+            isClipLatched: displayState.isClipLatched || snapshot.isClipped
+        )
+    }
+
+    func clearClip() {
+        transport.clearClip()
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.clearClip()
+            }
+            return
+        }
+        displayState.isClipLatched = false
+    }
+
+    static func dbFS(amplitude: Double) -> Double {
+        guard amplitude.isFinite, amplitude > 0 else {
+            return MasterMeterDisplayState.silenceDBFS
+        }
+        return 20 * log10(amplitude)
+    }
+
+    private func startPublishingOnMain() {
+        guard publishTimer == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + publishInterval, repeating: publishInterval)
+        timer.setEventHandler { [weak self] in
+            self?.publishPendingToMain()
+        }
+        publishTimer = timer
+        timer.resume()
+    }
+
+    private func stopPublishingOnMain() {
+        publishTimer?.cancel()
+        publishTimer = nil
+    }
+
+    private static func peakAmplitude(channel: UnsafePointer<Float>, frameCount: Int) -> Double {
+        var peak: Float = 0
+        for frame in 0..<frameCount {
+            peak = max(peak, abs(channel[frame]))
+        }
+        return Double(peak)
+    }
+
+    private func nextPeakHold(
+        currentHold: Double,
+        holdTime: inout TimeInterval,
+        livePeak: Double,
+        now: TimeInterval,
+        elapsed: TimeInterval
+    ) -> Double {
+        if !currentHold.isFinite || livePeak >= currentHold {
+            holdTime = now
+            return livePeak
+        }
+
+        guard now - holdTime >= peakHoldDuration else {
+            return currentHold
+        }
+
+        let released = currentHold - peakHoldReleaseDBPerSecond * elapsed
+        return max(livePeak, released)
+    }
+}
+
+private final class MasterMeterTransport {
+    private let leftBits = AtomicInt64(Int64(bitPattern: 0.0.bitPattern))
+    private let rightBits = AtomicInt64(Int64(bitPattern: 0.0.bitPattern))
+    private let clipped = AtomicInt32(0)
+
+    func store(left: Double, right: Double) {
+        let safeLeft = Self.safeAmplitude(left)
+        let safeRight = Self.safeAmplitude(right)
+        leftBits.store(Int64(bitPattern: safeLeft.bitPattern))
+        rightBits.store(Int64(bitPattern: safeRight.bitPattern))
+        if safeLeft > 1 || safeRight > 1 {
+            clipped.store(1)
+        }
+    }
+
+    func snapshot() -> (left: Double, right: Double, isClipped: Bool) {
+        (
+            left: Double(bitPattern: UInt64(bitPattern: leftBits.load())),
+            right: Double(bitPattern: UInt64(bitPattern: rightBits.load())),
+            isClipped: clipped.load() != 0
+        )
+    }
+
+    func clearClip() {
+        clipped.store(0)
+    }
+
+    private static func safeAmplitude(_ value: Double) -> Double {
+        guard value.isFinite, value > 0 else { return 0 }
+        return value
+    }
+}
+
+private final class AtomicInt64 {
+    private let storage: UnsafeMutablePointer<Int64>
+
+    init(_ value: Int64) {
+        storage = UnsafeMutablePointer<Int64>.allocate(capacity: 1)
+        storage.initialize(to: value)
+    }
+
+    deinit {
+        storage.deinitialize(count: 1)
+        storage.deallocate()
+    }
+
+    func load() -> Int64 {
+        OSAtomicAdd64Barrier(0, storage)
+    }
+
+    func store(_ value: Int64) {
+        while true {
+            let oldValue = load()
+            if OSAtomicCompareAndSwap64Barrier(oldValue, value, storage) {
+                return
+            }
+        }
+    }
+}
+
+private final class AtomicInt32 {
+    private let storage: UnsafeMutablePointer<Int32>
+
+    init(_ value: Int32) {
+        storage = UnsafeMutablePointer<Int32>.allocate(capacity: 1)
+        storage.initialize(to: value)
+    }
+
+    deinit {
+        storage.deinitialize(count: 1)
+        storage.deallocate()
+    }
+
+    func load() -> Int32 {
+        OSAtomicAdd32Barrier(0, storage)
+    }
+
+    func store(_ value: Int32) {
+        while true {
+            let oldValue = load()
+            if OSAtomicCompareAndSwap32Barrier(oldValue, value, storage) {
+                return
+            }
+        }
+    }
+
+    @discardableResult
+    func increment() -> Int32 {
+        OSAtomicIncrement32Barrier(storage)
     }
 }
