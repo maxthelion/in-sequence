@@ -28,6 +28,168 @@ enum TrackSourceContainedSourcePickerStep: Equatable {
     }
 }
 
+enum TrackSourceContainedSourcePickerGroupID: Hashable {
+    case generator
+    case clip
+}
+
+enum TrackSourceContainedSourcePickerActionID: Equatable {
+    case createBlankGenerator
+    case showGeneratorPool
+    case createBlankClip
+    case showClipPool
+}
+
+enum TrackSourceContainedSourcePickerActionRole: Equatable {
+    case primaryRecovery
+    case poolDisclosure
+}
+
+struct TrackSourceContainedSourcePickerActionPresentation: Equatable {
+    let id: TrackSourceContainedSourcePickerActionID
+    let title: String
+    let detail: String
+    let role: TrackSourceContainedSourcePickerActionRole
+}
+
+struct TrackSourceContainedSourcePickerGroupPresentation: Equatable, Identifiable {
+    let id: TrackSourceContainedSourcePickerGroupID
+    let title: String
+    let description: String
+    let primary: TrackSourceContainedSourcePickerActionPresentation
+    let secondary: TrackSourceContainedSourcePickerActionPresentation
+}
+
+struct TrackSourceContainedSourcePickerEmptyStatePresentation: Equatable {
+    let title: String
+    let detail: String
+    let recoveryAction: TrackSourceContainedSourcePickerActionPresentation
+}
+
+struct TrackSourceContainedSourcePickerPresentation: Equatable {
+    let step: TrackSourceContainedSourcePickerStep
+    let rootGroups: [TrackSourceContainedSourcePickerGroupPresentation]
+    let emptyState: TrackSourceContainedSourcePickerEmptyStatePresentation?
+
+    static func resolve(
+        step: TrackSourceContainedSourcePickerStep,
+        compatibleGeneratorCount: Int,
+        compatibleClipCount: Int
+    ) -> TrackSourceContainedSourcePickerPresentation {
+        TrackSourceContainedSourcePickerPresentation(
+            step: step,
+            rootGroups: step == .root ? Self.rootGroups : [],
+            emptyState: Self.emptyState(
+                for: step,
+                compatibleGeneratorCount: compatibleGeneratorCount,
+                compatibleClipCount: compatibleClipCount
+            )
+        )
+    }
+
+    private static let newBlankGeneratorAction = TrackSourceContainedSourcePickerActionPresentation(
+        id: .createBlankGenerator,
+        title: "New Blank Generator",
+        detail: "Fastest recovery path for this slot.",
+        role: .primaryRecovery
+    )
+
+    private static let selectGeneratorAction = TrackSourceContainedSourcePickerActionPresentation(
+        id: .showGeneratorPool,
+        title: "Select Generator From Pool",
+        detail: "Browse compatible pool entries in this editor.",
+        role: .poolDisclosure
+    )
+
+    private static let newBlankClipAction = TrackSourceContainedSourcePickerActionPresentation(
+        id: .createBlankClip,
+        title: "New Blank Clip",
+        detail: "Fastest recovery path for this slot.",
+        role: .primaryRecovery
+    )
+
+    private static let selectClipAction = TrackSourceContainedSourcePickerActionPresentation(
+        id: .showClipPool,
+        title: "Select Clip From Pool",
+        detail: "Browse compatible pool entries in this editor.",
+        role: .poolDisclosure
+    )
+
+    private static let rootGroups = [
+        TrackSourceContainedSourcePickerGroupPresentation(
+            id: .generator,
+            title: "Generator",
+            description: "Create a new blank generator quickly or switch to one already in the pool.",
+            primary: newBlankGeneratorAction,
+            secondary: selectGeneratorAction
+        ),
+        TrackSourceContainedSourcePickerGroupPresentation(
+            id: .clip,
+            title: "Clip",
+            description: "Start from a fresh blank clip or reuse an existing compatible clip.",
+            primary: newBlankClipAction,
+            secondary: selectClipAction
+        )
+    ]
+
+    private static func emptyState(
+        for step: TrackSourceContainedSourcePickerStep,
+        compatibleGeneratorCount: Int,
+        compatibleClipCount: Int
+    ) -> TrackSourceContainedSourcePickerEmptyStatePresentation? {
+        switch step {
+        case .root:
+            return nil
+        case .generatorPool:
+            guard compatibleGeneratorCount == 0 else {
+                return nil
+            }
+            return TrackSourceContainedSourcePickerEmptyStatePresentation(
+                title: "No compatible generators are in the pool yet.",
+                detail: "Create a blank generator to recover without leaving this source tab.",
+                recoveryAction: newBlankGeneratorAction
+            )
+        case .clipPool:
+            guard compatibleClipCount == 0 else {
+                return nil
+            }
+            return TrackSourceContainedSourcePickerEmptyStatePresentation(
+                title: "No compatible clips are in the pool yet.",
+                detail: "Create a blank clip to recover without leaving this source tab.",
+                recoveryAction: newBlankClipAction
+            )
+        }
+    }
+}
+
+enum TrackSourceContainedSourcePickerNavigationAction: Equatable {
+    case showRoot
+    case showGeneratorPool
+    case showClipPool
+    case back
+    case cancel
+}
+
+enum TrackSourceContainedSourcePickerNavigation {
+    static func destination(
+        from currentStep: TrackSourceContainedSourcePickerStep?,
+        action: TrackSourceContainedSourcePickerNavigationAction
+    ) -> TrackSourceContainedSourcePickerStep? {
+        switch action {
+        case .showRoot:
+            return .root
+        case .showGeneratorPool:
+            return .generatorPool
+        case .showClipPool:
+            return .clipPool
+        case .back:
+            return currentStep == .root ? nil : .root
+        case .cancel:
+            return nil
+        }
+    }
+}
+
 struct TrackSourceContainedSourcePicker: View {
     let step: TrackSourceContainedSourcePickerStep
     let accent: Color
@@ -41,6 +203,14 @@ struct TrackSourceContainedSourcePicker: View {
     let onSelectGenerator: (GeneratorPoolEntry) -> Void
     let onCreateBlankClip: () -> Void
     let onSelectClip: (ClipPoolEntry) -> Void
+
+    private var presentation: TrackSourceContainedSourcePickerPresentation {
+        TrackSourceContainedSourcePickerPresentation.resolve(
+            step: step,
+            compatibleGeneratorCount: compatibleGenerators.count,
+            compatibleClipCount: compatibleClips.count
+        )
+    }
 
     var body: some View {
         StudioPanel(title: step.title, eyebrow: step.eyebrow, accent: accent) {
@@ -61,37 +231,24 @@ struct TrackSourceContainedSourcePicker: View {
 
     private var rootContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            pickerGroup(
-                title: "Generator",
-                description: "Create a new blank generator quickly or switch to one already in the pool.",
-                primaryTitle: "New Blank Generator",
-                primaryAccent: accent,
-                primaryAction: onCreateBlankGenerator,
-                secondaryTitle: "Select Generator From Pool",
-                secondaryAction: onShowGeneratorPool
-            )
-
-            pickerGroup(
-                title: "Clip",
-                description: "Start from a fresh blank clip or reuse an existing compatible clip.",
-                primaryTitle: "New Blank Clip",
-                primaryAccent: StudioTheme.success,
-                primaryAction: onCreateBlankClip,
-                secondaryTitle: "Select Clip From Pool",
-                secondaryAction: onShowClipPool
-            )
+            ForEach(presentation.rootGroups) { group in
+                pickerGroup(
+                    group: group,
+                    primaryAccent: accent(for: group.primary.id),
+                    primaryAction: action(for: group.primary.id),
+                    secondaryAction: action(for: group.secondary.id)
+                )
+            }
         }
     }
 
     private var generatorPoolContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if compatibleGenerators.isEmpty {
+            if let emptyState = presentation.emptyState {
                 emptyPoolMessage(
-                    title: "No compatible generators are in the pool yet.",
-                    detail: "Create a blank generator to recover without leaving this source tab.",
-                    recoveryTitle: "New Blank Generator",
-                    recoveryAccent: accent,
-                    recoveryAction: onCreateBlankGenerator
+                    emptyState: emptyState,
+                    recoveryAccent: accent(for: emptyState.recoveryAction.id),
+                    recoveryAction: action(for: emptyState.recoveryAction.id)
                 )
             } else {
                 ScrollView {
@@ -113,13 +270,11 @@ struct TrackSourceContainedSourcePicker: View {
 
     private var clipPoolContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if compatibleClips.isEmpty {
+            if let emptyState = presentation.emptyState {
                 emptyPoolMessage(
-                    title: "No compatible clips are in the pool yet.",
-                    detail: "Create a blank clip to recover without leaving this source tab.",
-                    recoveryTitle: "New Blank Clip",
-                    recoveryAccent: StudioTheme.success,
-                    recoveryAction: onCreateBlankClip
+                    emptyState: emptyState,
+                    recoveryAccent: accent(for: emptyState.recoveryAction.id),
+                    recoveryAction: action(for: emptyState.recoveryAction.id)
                 )
             } else {
                 ScrollView {
@@ -150,34 +305,31 @@ struct TrackSourceContainedSourcePicker: View {
     }
 
     private func pickerGroup(
-        title: String,
-        description: String,
-        primaryTitle: String,
+        group: TrackSourceContainedSourcePickerGroupPresentation,
         primaryAccent: Color,
         primaryAction: @escaping () -> Void,
-        secondaryTitle: String,
         secondaryAction: @escaping () -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
+            Text(group.title)
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.text)
 
-            Text(description)
+            Text(group.description)
                 .studioText(.body)
                 .foregroundStyle(StudioTheme.mutedText)
                 .fixedSize(horizontal: false, vertical: true)
 
             primaryPickerButton(
-                title: primaryTitle,
-                detail: "Fastest recovery path for this slot.",
+                title: group.primary.title,
+                detail: group.primary.detail,
                 accent: primaryAccent,
                 action: primaryAction
             )
 
             poolEntryButton(
-                title: secondaryTitle,
-                detail: "Browse compatible pool entries in this editor.",
+                title: group.secondary.title,
+                detail: group.secondary.detail,
                 accent: StudioTheme.border,
                 action: secondaryAction
             )
@@ -200,23 +352,45 @@ struct TrackSourceContainedSourcePicker: View {
     }
 
     private func emptyPoolMessage(
-        title: String,
-        detail: String,
-        recoveryTitle: String,
+        emptyState: TrackSourceContainedSourcePickerEmptyStatePresentation,
         recoveryAccent: Color,
         recoveryAction: @escaping () -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
+            Text(emptyState.title)
                 .studioText(.bodyBold)
                 .foregroundStyle(StudioTheme.text)
 
-            Text(detail)
+            Text(emptyState.detail)
                 .studioText(.body)
                 .foregroundStyle(StudioTheme.mutedText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            TrackSourceActionButton(title: recoveryTitle, accent: recoveryAccent, action: recoveryAction)
+            TrackSourceActionButton(title: emptyState.recoveryAction.title, accent: recoveryAccent, action: recoveryAction)
+        }
+    }
+
+    private func action(for actionID: TrackSourceContainedSourcePickerActionID) -> () -> Void {
+        switch actionID {
+        case .createBlankGenerator:
+            return onCreateBlankGenerator
+        case .showGeneratorPool:
+            return onShowGeneratorPool
+        case .createBlankClip:
+            return onCreateBlankClip
+        case .showClipPool:
+            return onShowClipPool
+        }
+    }
+
+    private func accent(for actionID: TrackSourceContainedSourcePickerActionID) -> Color {
+        switch actionID {
+        case .createBlankGenerator:
+            return accent
+        case .createBlankClip:
+            return StudioTheme.success
+        case .showGeneratorPool, .showClipPool:
+            return StudioTheme.border
         }
     }
 

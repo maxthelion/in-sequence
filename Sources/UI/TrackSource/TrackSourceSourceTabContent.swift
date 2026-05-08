@@ -86,7 +86,7 @@ struct TrackSourceSourceTabContent: View {
                 accent: accent,
                 compatibleGenerators: compatibleGenerators,
                 compatibleClips: compatibleClips,
-                onBack: { self.sourcePickerStep == .root ? onBackOutSourcePicker() : onShowSourcePicker() },
+                onBack: handlePickerBack,
                 onCancel: onBackOutSourcePicker,
                 onShowGeneratorPool: onShowSourceGeneratorPool,
                 onShowClipPool: onShowSourceClipPool,
@@ -105,6 +105,17 @@ struct TrackSourceSourceTabContent: View {
                 onPresentClipHistory: onPresentClipHistory,
                 onRemoveSource: onRemoveSource
             )
+        }
+    }
+
+    private func handlePickerBack() {
+        switch TrackSourceContainedSourcePickerNavigation.destination(from: sourcePickerStep, action: .back) {
+        case .root:
+            onShowSourcePicker()
+        case nil:
+            onBackOutSourcePicker()
+        case .generatorPool, .clipPool:
+            break
         }
     }
 }

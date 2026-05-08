@@ -244,10 +244,10 @@ struct TrackSourceEditorView: View {
             onAssignMacroSlot: prepareAndPresentMacroSlotPicker(slotIndex:),
             onUpdateMacroLanes: updateClipMacroLanes,
             onUpdateClipContent: updateClipContent,
-            onShowSourcePicker: { sourcePickerStep = .root },
-            onBackOutSourcePicker: { sourcePickerStep = nil },
-            onShowSourceGeneratorPool: { sourcePickerStep = .generatorPool },
-            onShowSourceClipPool: { sourcePickerStep = .clipPool },
+            onShowSourcePicker: { updateSourcePickerStep(.showRoot) },
+            onBackOutSourcePicker: { updateSourcePickerStep(.cancel) },
+            onShowSourceGeneratorPool: { updateSourcePickerStep(.showGeneratorPool) },
+            onShowSourceClipPool: { updateSourcePickerStep(.showClipPool) },
             onCreateBlankGeneratorSource: createBlankGeneratorSource,
             onAssignGeneratorSource: assignGeneratorSource,
             onCreateBlankClipSource: createBlankClipSource,
@@ -255,6 +255,13 @@ struct TrackSourceEditorView: View {
             onPresentClipHistory: presentClipHistory,
             onRemoveSource: removeSource,
             onUpdateGeneratorParams: updateSourceGeneratorParams
+        )
+    }
+
+    private func updateSourcePickerStep(_ action: TrackSourceContainedSourcePickerNavigationAction) {
+        sourcePickerStep = TrackSourceContainedSourcePickerNavigation.destination(
+            from: sourcePickerStep,
+            action: action
         )
     }
 
