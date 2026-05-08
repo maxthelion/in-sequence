@@ -5,6 +5,119 @@ Short notes explaining why the coordinator scheduled work.
 Keep entries brief. The goal is to help the next tick understand what changed,
 not to produce a parallel project-management system.
 
+## 2026-05-08T12:50Z
+
+Architecture review passed the UI transaction commits `d818d8d..d36c78b` and
+filed no correction. Requested product-owner attention for the P0 Track
+Performance Overlay checkpoint. Scheduled no duplicate build, visual, UX/IA,
+architecture, testing, holistic, work-observer, or process-repair work; the
+remaining known issue is non-blocking copy polish around `authored phrase
+cells`.
+
+## 2026-05-08T12:41Z
+
+Visual review passed `d36c78b`, and work-observer marked architecture as the
+lowest unmet readiness gate. Scheduled one architecture review for the UI
+transaction commits `d818d8d..d36c78b`. Did not schedule testing review because
+build evidence is current through the latest commit: focused transaction tests,
+capture test, diff check, and full xcodebuild passed by report. Product-owner
+attention remains blocked until the architecture review passes.
+
+## 2026-05-08T12:27Z
+
+Build-loop finalized the transaction-button legibility correction at `d36c78b`
+with focused transaction tests, capture test, full xcodebuild, and diff check
+reported passing. The fresh build capture appears to preserve the accepted card
+badges/card controls while making `Waiting` and `Discard` readable. Scheduled
+fresh visual review of `d36c78b`; no product-owner attention until visual
+acceptance and the stale architecture/testing lens decision.
+
+## 2026-05-08T12:18Z
+
+Build actor for transaction-button legibility exited with status 143 before
+writing a final summary or committing. Inspection found useful dirty partial
+work in `.worktrees/p0-track-performance-overlay` plus a fresh capture that
+appears to show readable `Waiting` and `Discard` transaction actions.
+Scheduled a narrow continuation by updating the existing build-loop request;
+did not route to process-fixer because this is not yet a repeated timeout
+pattern. Archived the handled coordinator blocker note and kept
+product-owner attention blocked.
+
+## 2026-05-08T12:06Z
+
+Work observer confirmed no newer build or review has landed after the
+transaction-button visual blocker. Scheduled nothing new because the existing
+high-priority build-loop correction is still the lowest unmet readiness gate.
+Archived the handled work-observer coordinator notes and kept product-owner
+attention blocked.
+
+## 2026-05-08T11:59Z
+
+Visual review of `1b826ba` did not pass. It accepted the card badges and
+card-level controls as legible, but found the transaction-strip actions still
+render as unlabeled yellow controls rather than readable `Waiting`/`Keep` and
+`Discard` actions. Accepted the already-filed build-loop correction, archived
+the handled visual coordinator notes, and kept product-owner attention blocked.
+
+## 2026-05-08T11:50Z
+
+Build landed `1b826ba` for Track Perform card control and badge legibility,
+with focused transaction tests, full test evidence, and a build capture
+reported. Holistic observation remains product-positive but recommends
+independent visual acceptance before any product-owner checkpoint. Scheduled
+fresh visual review of `1b826ba`, archived handled build/holistic coordinator
+notes, and kept stale architecture/testing lens coverage as the next decision
+after visual review.
+
+## 2026-05-08T11:30Z
+
+Visual review blocked corrected commit `0d026e6` on card legibility: the
+transaction strip and Keep feedback read clearly, but per-card perform controls
+collapse to ellipses and transient badges wrap mid-word. Accepted the
+already-filed build-loop legibility correction, archived the handled
+visual/work-observer coordinator notes, and kept product-owner attention
+blocked.
+
+## 2026-05-08T11:11Z
+
+UX/IA review passed corrected commit `0d026e6`, with only later copy-polish
+risk around `authored phrase cells`. Scheduled nothing new because visual
+review of the same commit is already pending and is now the lowest unmet gate.
+Archived the handled UX/IA coordinator notes and kept product-owner attention
+blocked.
+
+## 2026-05-08T11:02Z
+
+Build correction `0d026e6` landed visible Keep-result feedback with focused,
+session/overlay, and full-suite evidence reported passing after an unrelated
+single-test rerun. Scheduled fresh UX/IA and visual review of the corrected
+transaction, archived the build completion note, and kept product-owner
+attention blocked until those user-facing gates report.
+
+## 2026-05-08T10:53Z
+
+UX/IA review of `3ec4b13` blocked the visible transaction because Keep can
+appear to succeed while pending-repeat or missing-authoring-target results are
+ignored. Accepted the already-filed build-loop correction, superseded the stale
+visual-review request for the known-blocked UI, archived the handled
+coordinator notes, and kept product-owner attention blocked.
+
+## 2026-05-08T10:46Z
+
+Work observer confirmed `3ec4b13` moved the P0 overlay to the UX/IA readiness
+level and flagged stale architecture/testing lens evidence for later decision.
+Scheduled nothing new because UX/IA and visual review are already pending and
+are the lowest useful gates. Archived the handled work-observer coordinator
+notes.
+
+## 2026-05-08T10:38Z
+
+Build landed the minimal visible Track Perform transaction at `3ec4b13` with
+focused and full tests passing. Scheduled UX/IA and visual review of the
+implemented transaction, archived the handled build completion notes, and kept
+product-owner attention blocked until the user-facing review gates pass or file
+concrete corrections.
+
 ## 2026-05-08T10:22Z
 
 Testing-review reconsideration passed at `d818d8d`, closing the missing-target

@@ -3,6 +3,347 @@
 This file is for the hourly coordinator's short tick notes: what it planned,
 what it inspected, what it scheduled, and what remains blocked.
 
+## 2026-05-08T12:50Z
+
+Plan followed: read the fresh architecture-review coordinator notes first,
+then README, settings, current plan, readiness notes, evidence log,
+agentic-loop state, current-work memory, holistic status, process-health
+memory, recent actor summaries, active inboxes, and configured script context.
+No departure from the plan.
+
+Inspected: architecture-review final for `d818d8d..d36c78b`, the paired
+coordinator completion note, active current-work/readiness state, evidence log,
+actor summaries, and active inboxes.
+
+Scheduled: product-owner checkpoint attention in
+`docs/multi-pass-coordinator/product-owner-attention.md`.
+
+Changed: recorded the UI architecture gate in `evidence-log.md`, updated
+`docs/roadmap/agentic-loop/state.md` to the product-owner checkpoint state,
+refreshed `current-plan.md`, `show-readiness.md`, `decision-log.md`, and the
+current-work disposition, and archived the two handled coordinator notes.
+
+Blocked: no agent-detectable blocker remains for the internal P0 Track
+Performance Overlay checkpoint. The next decision belongs to the product owner:
+accept the checkpoint or request one focused follow-up.
+
+Product-owner attention: requested.
+
+## 2026-05-08T12:27Z
+
+Plan followed: read the two fresh build completion coordinator notes, then
+README, settings, current coordinator artifacts, readiness/evidence logs,
+agentic-loop state, active current-work memory, holistic/process-health memory,
+recent actor summaries, active inboxes, and configured project scripts as
+context. No departure from the plan.
+
+Inspected: build final for `d36c78b`, the build capture
+`.meta/project/actors/build/p0-track-performance-overlay-transaction-button-legibility.png`,
+the clean P0 overlay worktree, current-work memory, holistic/process-health
+memory, active inboxes, and recent actor summaries.
+
+Scheduled: fresh visual review at
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-transaction-button-legibility-review.md`.
+
+Changed: archived the two handled build coordinator notes, recorded the landed
+transaction-button correction in evidence/readiness/state/current-work memory,
+updated the decision log, current plan, and this log.
+
+Blocked: product-owner verification remains blocked until independent visual
+review accepts `d36c78b`; if it passes, the coordinator still needs to decide
+whether stale architecture/testing lens evidence for the latest UI commits
+needs one more pass.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T12:06Z
+
+Plan followed: read the fresh work-observer coordinator notes, then
+`README.md`, settings, current coordinator artifacts, readiness/evidence logs,
+agentic-loop state, active current-work memory, holistic/process-health memory,
+recent actor summaries, active inboxes, and configured project scripts as
+context. No departure from the plan.
+
+Inspected: work-observer final for the 12:04Z cadence, the current-work update,
+the already-pending build-loop transaction-button correction, active inboxes,
+recent actor summaries, holistic/process-health memory, and the clean P0
+overlay worktree state reported by the observer.
+
+Scheduled: no new request. The existing build-loop request at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-transaction-button-legibility.md`
+remains the next action.
+
+Changed: archived the two handled work-observer coordinator notes, updated the
+decision log, current plan, readiness/state notes, current-work coordinator
+timestamp, and this log.
+
+Blocked: product-owner verification remains blocked until build corrects the
+transaction-strip action controls and fresh visual review accepts readable
+`Waiting`/`Keep` and `Discard` actions.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T12:18Z
+
+Plan followed: read the build-actor blocked coordinator note first, then
+README, settings, current coordinator state, readiness/evidence state,
+agentic-loop state, current-work, holistic/process-health memory, recent actor
+summaries, active inboxes, and configured scripts as context. No departure
+from the plan.
+
+Inspected: build actor last summary/stderr, the target build-loop request, the
+dirty `.worktrees/p0-track-performance-overlay` state, the partial diff, and
+the fresh capture
+`.meta/project/actors/build/p0-track-performance-overlay-transaction-button-legibility.png`.
+
+Scheduled: no duplicate request. The existing build-loop request was narrowed
+with a coordinator continuation note: validate and finish the dirty partial,
+run focused checks, commit, write a final summary, and notify the coordinator.
+
+Changed: updated the existing build-loop request, current-work memory,
+decision log, current plan, readiness notes, evidence log, and agentic-loop
+state; archived the handled build-blocked coordinator note.
+
+Blocked: product-owner verification remains blocked until the partial is
+committed and fresh visual review accepts the transaction actions.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T11:50Z
+
+Plan followed: read the fresh build and holistic-observer coordinator notes,
+then README, settings, current coordinator artifacts, readiness/evidence logs,
+agentic-loop state, active current-work memory, holistic/process-health memory,
+recent actor summaries, active inboxes, and configured project scripts as
+context. No departure from the plan.
+
+Inspected: build final for `1b826ba`, the fresh holistic observer final and
+status update, prior visual blocker evidence for `0d026e6`, active current-work
+memory, current inboxes, and the clean P0 overlay worktree at `1b826ba`.
+
+Scheduled: fresh visual review at
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-card-legibility-review.md`.
+
+Changed: archived the handled build/holistic coordinator notes, recorded the
+landed card-legibility correction in evidence/readiness/state/current-work
+memory, updated the decision log, current plan, and this log.
+
+Blocked: product-owner verification remains blocked until independent visual
+review accepts `1b826ba`; if it passes, the coordinator still needs to decide
+whether stale architecture/testing lens evidence for the latest UI commits
+needs one more pass.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T11:59Z
+
+Plan followed: read the fresh visual-review coordinator notes, then
+`README.md`, settings, current coordinator plan, readiness notes, evidence log,
+agentic-loop state, active current-work memory, holistic status,
+process-health memory, recent actor summaries, active inboxes, and the
+configured project scripts as context. No departure from the plan.
+
+Inspected: visual-review final for the `1b826ba` card-legibility review, the
+already-filed build-loop correction, active inboxes, current-work memory,
+holistic/process-health memory, and recent build/visual actor summaries.
+
+Scheduled: no new request. Accepted the visual-review-filed build-loop
+correction already pending at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-transaction-button-legibility.md`.
+
+Changed: marked the two visual-review coordinator notes handled and archived
+them, recorded the visual blocker in `docs/multi-pass-coordinator/evidence-log.md`,
+updated `docs/roadmap/agentic-loop/state.md` to the transaction-button
+legibility blocker, and refreshed `current-plan.md`, `show-readiness.md`,
+current-work memory, decision log, and this log.
+
+Blocked: product-owner verification remains blocked. Visual review accepted
+the corrected card badges and card controls, but the transaction strip still
+does not expose readable `Waiting`/`Keep` and `Discard` controls.
+
+Not ready to show the product owner: the visible workflow still has an
+action-legibility blocker on the primary Keep/Discard transaction.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T11:11Z
+
+Plan followed: read the fresh UX/IA coordinator notes first, then `README.md`,
+settings, current coordinator plan, readiness notes, evidence log,
+agentic-loop state, active current-work memory, holistic status,
+process-health memory, recent actor summaries, active inboxes, and the
+configured project scripts as context before deciding whether to schedule
+anything. No departure from the plan.
+
+Inspected: UX/IA actor final for
+`2026-05-08-p0-track-performance-overlay-keep-feedback-review`, the UX/IA pass
+note, the active visual-review request for corrected commit `0d026e6`,
+current-work, process-health, holistic status, active actor inboxes, and
+recent actor finals.
+
+Scheduled: nothing new. The pending visual-review request at
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`
+is now the lowest unmet gate and directly covers the next needed evidence.
+
+Changed: marked the two UX/IA coordinator notes handled, archived them,
+recorded the UX/IA pass in `docs/multi-pass-coordinator/evidence-log.md`,
+updated `docs/roadmap/agentic-loop/state.md` to visual-review pending, and
+refreshed `current-plan.md`, `show-readiness.md`, current-work memory, and
+this log.
+
+Blocked: product-owner verification remains blocked until visual evidence
+lands for the corrected Track Perform transaction. After visual review, the
+coordinator should decide whether stale architecture/testing lens evidence
+needs one more pass before a product-owner-ready checkpoint.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T11:30Z
+
+Plan followed: read the fresh visual-review and work-observer coordinator
+notes, then README, settings, current coordinator plan, readiness notes,
+evidence log, agentic-loop state, active current-work memory, holistic status,
+process-health memory, recent actor summaries, active inboxes, and the
+configured project scripts as context. No departure from the plan.
+
+Inspected: visual actor final and captures for `0d026e6`, work-observer final,
+active P0 current-work memory, the pending build-loop legibility request, and
+current coordination/evidence state.
+
+Scheduled: nothing new. Visual review already filed the concrete build-loop
+correction at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-perform-card-legibility.md`.
+
+Changed: marked the visual-review and work-observer coordinator notes handled,
+archived them, recorded the visual gate blocker in
+`docs/multi-pass-coordinator/evidence-log.md`, updated
+`docs/roadmap/agentic-loop/state.md` to card-legibility rework pending, and
+refreshed `current-plan.md`, `show-readiness.md`, `decision-log.md`, and this
+log.
+
+Blocked: product-owner verification remains blocked because the running Track
+Perform surface has unreadable per-card controls and transient badges.
+
+Not ready to show the product owner: the transaction behavior is built and
+UX/IA-approved, but visual evidence says the card-level controls and active
+state are not usable yet.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T11:02Z
+
+Plan followed: read the coordinator inbox build-completed note first, then
+settings, `README.md`, current coordinator artifacts, readiness notes,
+evidence log, agentic-loop state, active current-work memory, holistic status,
+process-health memory, recent actor summaries, active inboxes, and the
+configured project scripts as context. No departure from the plan.
+
+Inspected: build actor final for
+`2026-05-08-p0-track-performance-overlay-keep-result-feedback`, archived
+build-loop request, clean `.worktrees/p0-track-performance-overlay` state,
+recent commit history, active actor inboxes, and current readiness/evidence
+state.
+
+Scheduled: UX/IA and visual review for corrected commit `0d026e6`:
+`docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`
+and
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`.
+
+Changed: marked the build completion note handled, archived it, recorded the
+new Keep-result feedback evidence, updated `docs/roadmap/agentic-loop/state.md`
+to wait for corrected transaction review, and refreshed `current-plan.md`,
+`show-readiness.md`, current-work, decision log, and this log.
+
+Blocked: product-owner verification remains blocked until UX/IA and visual
+review pass on the corrected transaction. If either fails, the next action is a
+small build-loop correction.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T10:53Z
+
+Plan followed: read the fresh UX/IA coordinator notes, then settings, README,
+current coordinator artifacts, evidence/readiness/state memory, recent actor
+summaries, active inboxes, and the configured project scripts as context. No
+departure from the plan.
+
+Inspected: UX/IA actor final for `3ec4b13`, the filed build-loop correction,
+active visual-review request, current P0 overlay work memory, holistic and
+process-health memory, readiness/evidence logs, and actor summaries.
+
+Scheduled: nothing new. The relevant build-loop correction already exists at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-keep-result-feedback.md`.
+
+Changed: archived the two handled UX/IA coordinator notes, superseded the
+visual-review request for the known-blocked `3ec4b13` UI, recorded the UX/IA
+blocker in current-work/readiness/evidence/state/decision logs, and left the
+build-loop correction as the next active request.
+
+Blocked: product-owner verification remains blocked because Keep can still
+appear to succeed while pending-repeat or missing-authoring-target outcomes are
+not visible to the performer.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T10:46Z
+
+Plan followed: read the fresh work-observer coordinator notes first, then
+README, settings, current coordinator plan, readiness notes, evidence log,
+agentic-loop state, active current-work memory, holistic status,
+process-health memory, recent actor summaries, active inboxes, and the
+configured project scripts as context. No departure from the plan.
+
+Inspected: work-observer final for the 10:44Z cadence, active UX/IA and visual
+review requests for `3ec4b13`, actor last summaries, active inboxes, current
+P0 overlay current-work memory, and existing readiness/evidence state.
+
+Scheduled: nothing new. The next useful gates are already queued at
+`docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`
+and
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`.
+
+Changed: marked the two work-observer coordinator notes handled, archived
+them, updated current-work review timestamp, decision log, current plan,
+show-readiness, agentic-loop state, and this log.
+
+Blocked: product-owner verification remains blocked until UX/IA and visual
+review inspect the visible Track Perform transaction. Architecture and
+independent testing evidence are stale for `3ec4b13`, but the coordinator
+should decide on those only after the user-facing review gates complete.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T10:38Z
+
+Plan followed: read the two fresh build coordinator notes first, then settings,
+README, current coordinator artifacts, readiness/evidence logs, agentic-loop
+state, active current-work memory, holistic/process-health memory, recent actor
+summaries, active inboxes, and configured project scripts as context. No
+departure from the plan.
+
+Inspected: build final for `3ec4b13`, the clean P0 overlay worktree, recent
+commit history, active actor inboxes, current-work, holistic/process-health
+memory, and the Track Performance Overlay build-plan UI requirements.
+
+Scheduled: UX/IA review at
+`docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`
+and visual review at
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`.
+
+Changed: archived the handled build coordinator notes, recorded the landed UI
+transaction evidence in `docs/multi-pass-coordinator/evidence-log.md`, updated
+`docs/roadmap/agentic-loop/state.md` to wait for user-facing review gates, and
+refreshed current-work, readiness, decision log, current plan, and this log.
+
+Blocked: product-owner verification remains blocked until UX/IA and visual
+review confirm the visible transaction is understandable and visually coherent,
+or file concrete build-loop corrections.
+
+Not ready to show the product owner: the intended transaction exists by build
+evidence, but no user-facing review has checked the running workflow.
+
+Product-owner attention: none requested.
+
 ## 2026-05-08T10:12Z
 
 Plan followed: read the coordinator inbox build/work-observer notes, settings,
@@ -711,5 +1052,33 @@ the backend Keep/Discard behavior.
 Not ready to show the product owner: this remains foundational session and
 engine behavior. The visible user workflow should wait until these reviews
 pass and the UI slice exists.
+
+Product-owner attention: none requested.
+
+## 2026-05-08T12:41Z
+
+Plan followed: read the fresh visual-review and work-observer coordinator
+notes first, then README, settings, current plan, readiness notes, evidence
+log, agentic-loop state, current-work memory, holistic status, process-health
+memory, recent actor summaries, active inboxes, and configured script context.
+No departure from the plan.
+
+Inspected: visual-review final for `d36c78b`, work-observer final/current-work
+update, clean `.worktrees/p0-track-performance-overlay` state at `d36c78b`,
+recent architecture/testing summaries, active actor inboxes, evidence log, and
+process-health memory.
+
+Scheduled: one architecture review at
+`docs/multi-pass-coordinator/inbox/architecture/2026-05-08-p0-track-performance-overlay-ui-transaction-review.md`
+for UI transaction commits `d818d8d..d36c78b`.
+
+Changed: recorded visual acceptance in `evidence-log.md`, updated
+`docs/roadmap/agentic-loop/state.md` to wait for UI architecture review,
+refreshed `current-plan.md`, `show-readiness.md`, `decision-log.md`, and the
+current-work disposition, and archived the four handled coordinator notes.
+
+Blocked: product-owner verification remains blocked until architecture review
+confirms the UI transaction surface is maintainable and respects existing
+session/engine/document ownership boundaries.
 
 Product-owner attention: none requested.

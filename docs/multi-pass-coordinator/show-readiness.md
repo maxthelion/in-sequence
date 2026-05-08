@@ -6,6 +6,41 @@ Use the readiness hierarchy from `settings.yaml`: first whether the intended
 user action works, then evidence, clarity, delight, performance, and project
 fit.
 
+## 2026-05-08T12:50Z
+
+The P0 Track Performance Overlay is ready for a product-owner checkpoint.
+
+Readiness assessment:
+
+- Can users do the intended thing: yes by current build and review evidence.
+  The visible Track Perform transaction has Keep/Discard controls, feedback
+  for deferred or failed Keep outcomes, readable card badges, and readable
+  transaction-strip actions at `d36c78b`.
+- Reliable and evidenced: yes for this checkpoint. Build reported focused
+  transaction tests, a capture test, `git diff --check`, and full macOS
+  `xcodebuild test` passing with 841 tests, 4 skipped, and 0 failures. Visual,
+  UX/IA, architecture, and the coordinator-accepted testing evidence now cover
+  the implemented P0 slice.
+- Understandable and efficient: yes for the internal P0 gate. UX/IA accepted
+  the transaction semantics, including pending-repeat, deferred-repeat,
+  missing-target, successful Keep, no-active-overlay, and Discard paths.
+- Delightful: acceptable for an internal checkpoint. Visual review accepted the
+  corrected card controls, badges, transaction target/status copy, and
+  `Waiting`/`Discard` action controls.
+- Performant and maintainable: acceptable. Architecture review passed the UI
+  transaction commits `d818d8d..d36c78b`; the implementation stays on the
+  existing session command API and does not fork document, engine, persistence,
+  audio, MIDI, roadmap, or process behavior.
+- Fits project philosophy: aligned. The workflow exposes reversible live
+  performance changes with explicit Keep/Discard semantics, matching the
+  README's setup-vs-performing direction.
+
+Product-owner attention: requested in
+`docs/multi-pass-coordinator/product-owner-attention.md`. Ask for acceptance of
+the P0 Track Performance Overlay as an internal checkpoint, with the known
+residual copy-polish risk around `authored phrase cells` called out as
+non-blocking unless the product owner disagrees.
+
 ## 2026-05-07T10:09Z
 
 No active branch should be shown to the product owner this tick.
@@ -585,3 +620,351 @@ Readiness assessment:
 Product-owner attention: none. The next action is build-loop implementation at
 `docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-minimal-ui-transaction.md`,
 followed by UX/IA and visual review before any product-owner checkpoint.
+
+## 2026-05-08T10:38Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: implementation now exists by build evidence.
+  Commit `3ec4b13` adds the visible Track Perform transaction in the existing
+  Tracks perform surface, including controls, transient badge labels,
+  Keep/Discard target labels, and a transaction strip.
+- Reliable and evidenced: improved. The build final reports focused
+  transaction tests passing with 5 tests and 0 failures, combined
+  transaction/session/overlay tests passing with 39 tests and 0 failures, and
+  full `xcodebuild test` passing with 836 tests, 3 skipped, and 0 failures.
+- Understandable and efficient: blocked pending review. No UX/IA review has
+  checked whether the controls, badges, and target labels are understandable in
+  the production workspace.
+- Delightful: blocked pending visual evidence. No visual review has captured
+  or inspected the running transaction strip and per-track badges.
+- Performant and maintainable: acceptable for the current decision. The slice
+  is bounded to UI command wiring and presentation; no process-health issue
+  requires stopping product work.
+- Fits project philosophy: aligned if review confirms the labels are clear.
+  The implementation is aimed at explicit, reversible performance changes with
+  visible Keep and Discard targets.
+
+Product-owner attention: none. The next action is UX/IA plus visual review at
+`docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`
+and
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`.
+
+## 2026-05-08T10:46Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: unchanged from the 10:38Z read. The visible
+  Track Perform transaction exists by build evidence at `3ec4b13`.
+- Reliable and evidenced: unchanged. Build evidence reports focused,
+  combined, and full `xcodebuild test` passes for `3ec4b13`.
+- Understandable and efficient: still blocked pending UX/IA review. The work
+  observer confirms this is the lowest unmet readiness level.
+- Delightful: still blocked pending visual evidence for the running transaction
+  strip, badges, labels, and controls.
+- Performant and maintainable: architecture and independent testing lens
+  evidence are stale for the latest UI commit, but those are not the next
+  lowest gates while UX/IA and visual review are already pending.
+- Fits project philosophy: still aligned if user-facing review confirms the
+  explicit Keep/Discard transaction reads clearly.
+
+Product-owner attention: none. The next action remains the already-pending
+UX/IA plus visual review at
+`docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`
+and
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`.
+
+## 2026-05-08T10:53Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: blocked in the visible workflow. The Track
+  Perform transaction exists, but UX/IA review found Keep can still be
+  misleading when the session returns a non-kept result.
+- Reliable and evidenced: build evidence for `3ec4b13` remains good, but the
+  user-facing failure mode is now evidenced by UX/IA review rather than tests
+  or visual capture.
+- Understandable and efficient: blocked. Pending repeat locks and missing
+  authored targets need inline feedback or an adjusted Keep affordance so the
+  performer does not see a successful-looking Keep with no result.
+- Delightful: blocked until the Keep failure/pending states are visible and
+  predictable.
+- Performant and maintainable: no new systemic concern this tick. The smallest
+  correction is a bounded UI/IA build-loop request with focused presentation
+  and action-result tests.
+- Fits project philosophy: aligned. Making non-kept outcomes visible protects
+  the project rule that performance changes are explicit, reversible, and not
+  silently lost.
+
+Product-owner attention: none. The next action is the already-filed
+build-loop correction at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-keep-result-feedback.md`.
+Visual review of `3ec4b13` was superseded and should rerun after the
+correction lands.
+
+## 2026-05-08T11:02Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: implementation now exists by build evidence
+  through corrected commit `0d026e6`, including visible feedback for non-kept
+  Keep outcomes.
+- Reliable and evidenced: improved. Build reported focused transaction tests,
+  session/overlay suites, `git diff --check`, and a full `xcodebuild test`
+  pass with 839 tests, 3 skipped, and 0 failures after an unrelated
+  single-test rerun.
+- Understandable and efficient: blocked pending review. The exact UX blocker
+  has been corrected by build evidence, but UX/IA has not yet judged the
+  corrected pending-repeat and failed-target feedback.
+- Delightful: blocked pending visual evidence. The corrected transaction needs
+  screenshot/visual review before product-owner attention.
+- Performant and maintainable: acceptable for the current decision. The change
+  is bounded to UI transaction presentation/action handling and focused tests.
+- Fits project philosophy: aligned if review confirms the feedback is clear.
+  The correction supports explicit, reversible performance changes instead of
+  silent Keep failures.
+
+Product-owner attention: none. The next action is fresh UX/IA plus visual
+review at
+`docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`
+and
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`.
+
+## 2026-05-08T11:11Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: implementation exists by build evidence
+  through corrected commit `0d026e6`, including visible feedback for non-kept
+  Keep outcomes.
+- Reliable and evidenced: improved. Build reported focused transaction tests,
+  session/overlay suites, `git diff --check`, and a full `xcodebuild test`
+  pass with 839 tests, 3 skipped, and 0 failures after an unrelated
+  single-test rerun. UX/IA review of `0d026e6` also passed.
+- Understandable and efficient: passed for this internal P0 gate. UX/IA found
+  pending-repeat, deferred-repeat, missing-target, successful Keep,
+  no-active-overlay, and Discard paths predictable enough. Residual copy risk:
+  `authored phrase cells` is implementation-facing and should later become
+  performer language.
+- Delightful: blocked pending visual evidence. The corrected transaction still
+  needs screenshot/visual review before product-owner attention.
+- Performant and maintainable: acceptable for the current decision. The only
+  active review gate is visual; architecture/testing lens evidence can be
+  reconsidered after visual review lands.
+- Fits project philosophy: aligned. The corrected transaction protects
+  explicit, reversible performance changes by making non-kept outcomes visible.
+
+Product-owner attention: none. The next action is the already-pending visual
+review at
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`.
+
+## 2026-05-08T11:30Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: blocked at the visible workflow level.
+  The corrected Track Perform transaction exists at `0d026e6`, but visual
+  review found the per-card perform controls and active-state badges are not
+  legible enough for a performer to use confidently.
+- Reliable and evidenced: build and UX/IA evidence remain good. The fresh
+  visual evidence adds a concrete blocker rather than invalidating the
+  transaction behavior.
+- Understandable and efficient: UX/IA passed the transaction semantics, but
+  the card-level controls fail visual readability because Fill, Repeat, Order,
+  and Clear collapse and badges split into fragments.
+- Delightful: blocked. The active runtime state looks broken rather than
+  intentional while badges wrap mid-word.
+- Performant and maintainable: acceptable for the current decision. The
+  smallest next change is a bounded UI legibility correction in
+  `TracksMatrixView.swift`, followed by focused tests and a fresh visual
+  capture.
+- Fits project philosophy: aligned in intent, blocked in presentation. Explicit
+  reversible performance changes only work if the performer can read the
+  controls and transient state.
+
+Product-owner attention: none. The next action is the pending build-loop
+correction at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-perform-card-legibility.md`,
+followed by fresh visual review.
+
+## 2026-05-08T11:50Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: nearly ready, pending visual review. Build
+  correction `1b826ba` reports that card controls and transient badges are now
+  legible, but independent visual review has not accepted the corrected
+  surface yet.
+- Reliable and evidenced: build evidence is current through `1b826ba`.
+  Focused `TrackPerformanceTransactionTests` and full `xcodebuild test` were
+  reported passing, with a build capture written for the fixed card.
+- Understandable and efficient: UX/IA passed the transaction semantics at
+  `0d026e6`; the remaining question is whether the visible card layout reads
+  clearly after the legibility correction.
+- Delightful: blocked pending fresh visual evidence. The prior visual blocker
+  made active runtime state look broken; the fix needs independent acceptance.
+- Performant and maintainable: acceptable for the current decision. If visual
+  review passes, the coordinator still needs to decide whether stale
+  architecture/testing lens evidence for `3ec4b13`, `0d026e6`, and `1b826ba`
+  should be refreshed before a product-owner checkpoint.
+- Fits project philosophy: aligned. The slice still supports explicit,
+  reversible performance changes with Keep/Discard semantics.
+
+Product-owner attention: none. The next action is fresh visual review at
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-card-legibility-review.md`.
+
+## 2026-05-08T11:59Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: still blocked at the visible workflow level.
+  Visual review accepted the corrected card badges and card controls at
+  `1b826ba`, but the transaction-strip actions are unreadable.
+- Reliable and evidenced: build evidence remains current through `1b826ba`,
+  and visual review has now supplied a concrete blocker with screenshot crops.
+  The next evidence must come from a build correction plus fresh visual review.
+- Understandable and efficient: blocked. The performer cannot trust the
+  transaction strip if `Waiting`/`Keep` and `Discard` render as unlabeled
+  yellow icon blocks.
+- Delightful: blocked. The card-level surface is improved, but the primary
+  commit/discard actions still look placeholder-like rather than intentional.
+- Performant and maintainable: acceptable for the current decision. The
+  smallest next change is bounded to transaction action presentation or the
+  capture path if production UI is already correct.
+- Fits project philosophy: aligned in intent, blocked in presentation.
+  Explicit reversible performance changes require legible Keep/Discard action
+  controls.
+
+Product-owner attention: none. The next action is the pending build-loop
+correction at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-transaction-button-legibility.md`,
+followed by fresh visual review.
+
+## 2026-05-08T12:06Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: unchanged from 11:59Z. The work observer
+  confirmed no newer build or review completion after the visual blocker, so
+  the transaction-strip action controls remain the user-visible blocker.
+- Reliable and evidenced: unchanged. Build evidence remains current through
+  `1b826ba`, and visual evidence still blocks on unreadable transaction action
+  controls. The next evidence should be a build correction plus fresh visual
+  review.
+- Understandable and efficient: blocked. The performer still cannot trust the
+  primary `Waiting`/`Keep` and `Discard` controls while they render as
+  unlabeled yellow icon blocks.
+- Delightful: blocked. The card-level surface is accepted, but the primary
+  transaction action area still looks placeholder-like in evidence.
+- Performant and maintainable: acceptable for the current decision. No fresh
+  process-health issue or product-code evidence justifies interrupting the
+  pending build correction.
+- Fits project philosophy: aligned in intent, blocked in presentation.
+  Explicit reversible performance changes require legible Keep/Discard action
+  controls.
+
+Product-owner attention: none. The next action remains the pending build-loop
+correction at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-transaction-button-legibility.md`,
+followed by fresh visual review.
+
+## 2026-05-08T12:18Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: still blocked. The transaction-button
+  legibility correction has promising dirty partial work and a fresh capture,
+  but it is not committed or reported complete.
+- Reliable and evidenced: blocked at build finalization. The partial touches
+  UI and UI tests and produced
+  `.meta/project/actors/build/p0-track-performance-overlay-transaction-button-legibility.png`;
+  focused checks and a committed build final are still required.
+- Understandable and efficient: likely improved, but not independently
+  accepted. Visual review must inspect the committed correction before this can
+  move to a checkpoint.
+- Delightful: still blocked by unaccepted visual evidence.
+- Performant and maintainable: no new process repair is scheduled from one
+  status-143 build termination; continue monitoring for repeats.
+- Fits project philosophy: still aligned. The request preserves explicit,
+  reversible Track Perform Keep/Discard actions.
+
+Product-owner attention: none. The next action is build-loop continuation of
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-transaction-button-legibility.md`.
+
+## 2026-05-08T12:27Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: nearly ready, pending independent visual
+  review. Build correction `d36c78b` reports that transaction-strip actions are
+  legible and the build capture appears to show readable `Waiting` and
+  `Discard` controls.
+- Reliable and evidenced: build evidence is current through `d36c78b`.
+  Focused `TrackPerformanceTransactionTests`, the capture test,
+  `git diff --check`, and full `xcodebuild test` were reported passing.
+- Understandable and efficient: UX/IA has already passed the corrected
+  transaction semantics, and the remaining question is visual acceptance of the
+  final action-button presentation.
+- Delightful: blocked pending fresh visual evidence. The prior visual blocker
+  made primary transaction actions look placeholder-like; the committed fix
+  needs independent acceptance.
+- Performant and maintainable: acceptable for the current decision. If visual
+  review passes, decide whether stale architecture/testing lens evidence for
+  the UI transaction commits needs one more pass before a product-owner
+  checkpoint.
+- Fits project philosophy: aligned. The slice supports explicit, reversible
+  Track Perform changes with readable Keep/Discard semantics by build
+  evidence.
+
+Product-owner attention: none. The next action is fresh visual review at
+`docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-transaction-button-legibility-review.md`.
+
+## 2026-05-08T12:41Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: yes by current build and visual evidence.
+  The visible Track Perform transaction has Keep/Discard controls, feedback for
+  deferred or failed Keep outcomes, readable card badges, and readable
+  transaction-strip actions at `d36c78b`.
+- Reliable and evidenced: yes for the current UI decision. Build reported
+  focused transaction tests, a capture test, `git diff --check`, and full
+  macOS `xcodebuild test` passing with 841 tests, 4 skipped, and 0 failures.
+  Visual review passed the committed transaction-button correction.
+- Understandable and efficient: yes for the P0 gate. UX/IA has accepted the
+  transaction semantics; visual review has accepted the final action-button
+  presentation.
+- Delightful: acceptable for an internal checkpoint. The remaining UX copy risk
+  around `authored phrase cells` is polish, not a blocker for this gate.
+- Performant and maintainable: blocked on architecture review freshness. The
+  last architecture pass covered session Keep/Discard through `096ed01`, not
+  the UI transaction commits through `d36c78b`.
+- Fits project philosophy: aligned. The workflow exposes reversible live
+  performance changes with explicit Keep/Discard semantics.
+
+Product-owner attention: none. The next action is architecture review at
+`docs/multi-pass-coordinator/inbox/architecture/2026-05-08-p0-track-performance-overlay-ui-transaction-review.md`.

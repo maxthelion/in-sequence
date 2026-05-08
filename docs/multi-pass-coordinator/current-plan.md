@@ -1,5 +1,358 @@
 # Current Coordinator Plan
 
+## 2026-05-08T12:50Z Tick
+
+Plan followed:
+
+- Read the fresh architecture-review coordinator notes, then `README.md`,
+  settings, current coordinator plan, readiness notes, evidence log,
+  agentic-loop state, active current-work memory, holistic status,
+  process-health memory, recent actor summaries, active inboxes, and the
+  configured project scripts as context.
+- Accepted the architecture review pass for `d818d8d..d36c78b`: no correction
+  was filed, and the visible Track Perform transaction stays on the existing
+  session command API, `EngineController` runtime overlay reads, and local
+  presentation result/status state.
+- Decided the P0 Track Performance Overlay has cleared the current build,
+  evidence, UX/IA, visual, architecture, testing, and philosophy gates for an
+  internal checkpoint.
+- Requested product-owner attention in
+  `docs/multi-pass-coordinator/product-owner-attention.md`.
+- Scheduled no duplicate build, visual, UX/IA, architecture, testing,
+  holistic, work-observer, process-repair, or observer request this tick.
+- Marked the two coordinator notes handled and archived them.
+
+No departure from the plan. The next action is product-owner review of the P0
+Track Performance Overlay checkpoint. If accepted, proceed with the relevant
+checkpoint/tag/cherry-pick discipline; if rejected, route the smallest focused
+follow-up.
+
+## 2026-05-08T12:41Z Tick
+
+Plan followed:
+
+- Read the fresh visual-review and work-observer coordinator notes, then
+  `README.md`, settings, current coordinator plan, readiness notes, evidence
+  log, agentic-loop state, active current-work memory, holistic status,
+  process-health memory, recent actor summaries, active inboxes, and the
+  configured project scripts as context.
+- Accepted visual review of `d36c78b fix(ui): keep transaction strip actions
+  legible` as passed: `Waiting` and `Discard` now read as labeled controls,
+  transaction target/status copy is readable, and the previously accepted card
+  badges/card controls remain legible.
+- Accepted the work-observer update that the P0 overlay workflow is showable as
+  implemented, with architecture now the lowest unmet readiness gate.
+- Decided that current build-reported test evidence is enough for this bounded
+  UI correction: focused transaction tests, capture test, `git diff --check`,
+  and full macOS `xcodebuild test` passed through `d36c78b`.
+- Scheduled one architecture review at
+  `docs/multi-pass-coordinator/inbox/architecture/2026-05-08-p0-track-performance-overlay-ui-transaction-review.md`
+  for `d818d8d..d36c78b`.
+- Scheduled no duplicate build, testing-review, visual, UX/IA, holistic,
+  work-observer, process-repair, or product-owner request this tick.
+- Marked the four coordinator notes handled and archived them.
+
+No departure from the plan. The blocker is now architecture review of the UI
+transaction commits. If it passes, the next coordinator tick should prepare a
+product-owner-ready checkpoint; if it fails, route the smallest correction to
+the build loop.
+
+## 2026-05-08T12:27Z Tick
+
+Plan followed:
+
+- Read the two fresh build completion coordinator notes, then `README.md`,
+  settings, current coordinator plan, readiness notes, evidence log,
+  agentic-loop state, active current-work memory, holistic status,
+  process-health memory, recent actor summaries, active inboxes, and the
+  configured project scripts as context.
+- Accepted build correction `d36c78b fix(ui): keep transaction strip actions
+  legible` in `.worktrees/p0-track-performance-overlay`, with focused
+  `TrackPerformanceTransactionTests`, capture test, full `xcodebuild test`,
+  and `git diff --check` reported passing.
+- Inspected the build capture at
+  `.meta/project/actors/build/p0-track-performance-overlay-transaction-button-legibility.png`;
+  it now shows readable `Waiting` and `Discard` controls while preserving the
+  accepted compact card badges and card controls.
+- Scheduled fresh visual review at
+  `docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-transaction-button-legibility-review.md`.
+- Scheduled no duplicate build, UX/IA, holistic, work-observer, testing,
+  architecture, process-repair, or product-owner request this tick.
+- Marked the two build coordinator notes handled and archived them.
+
+No departure from the plan. The blocker is now independent visual acceptance
+of `d36c78b`. If visual review passes, explicitly decide whether stale
+architecture/testing lens evidence for the UI transaction commits needs one
+more pass before product-owner attention.
+
+## 2026-05-08T12:18Z Tick
+
+Plan followed:
+
+- Read the build-actor blocked coordinator note, then `README.md`, settings,
+  current coordinator plan, readiness notes, evidence log, agentic-loop state,
+  active current-work memory, holistic status, process-health memory, recent
+  actor summaries, active inboxes, and the configured project scripts as
+  context.
+- Inspected the failed build actor state. The actor exited with status 143
+  after about nine minutes, wrote no final summary, and left the target
+  worktree dirty with changes in `Sources/UI/TracksMatrixView.swift` and
+  `Tests/SequencerAITests/LiveWorkspaceViewTests.swift`.
+- Inspected the new capture at
+  `.meta/project/actors/build/p0-track-performance-overlay-transaction-button-legibility.png`;
+  it appears to make the transaction-strip actions readable, so the correct
+  next step is continuation/finalization rather than broad retry or process
+  repair.
+- Updated the existing build-loop request with a coordinator continuation
+  section asking the next build actor to validate the dirty partial, make only
+  necessary adjustments, run focused checks, commit, write the final, and
+  notify the coordinator.
+- Scheduled no duplicate build request, no visual review yet, no UX/IA,
+  architecture, testing, holistic, process-repair, or product-owner request
+  this tick.
+- Marked the build-blocked coordinator note handled and archived it.
+
+No departure from the plan. The blocker remains build-loop finalization of the
+transaction-button legibility partial. After that lands, route a fresh visual
+review before deciding whether stale architecture/testing lens evidence needs
+one more pass before a product-owner-ready checkpoint.
+
+## 2026-05-08T12:06Z Tick
+
+Plan followed:
+
+- Read the fresh work-observer coordinator notes, then `README.md`, settings,
+  current coordinator plan, readiness notes, evidence log, agentic-loop state,
+  active current-work memory, holistic status, process-health memory, recent
+  actor summaries, active inboxes, and the configured project scripts as
+  context.
+- Accepted the work-observer update as confirmation, not a new product fact:
+  the P0 overlay worktree is still clean at `1b826ba`, no newer build or
+  review completion has landed after the 11:58Z visual blocker, and the only
+  active build-loop request remains the transaction-button legibility
+  correction.
+- Scheduled no duplicate build, visual, UX/IA, testing, architecture,
+  holistic, process-repair, or product-owner request this tick.
+- Marked the two work-observer coordinator notes handled and archived them.
+- Wrote only to coordinator inbox/archive and coordination state/log files.
+
+No departure from the plan. The blocker remains build-loop correction of
+transaction action button legibility. After that lands, route a fresh visual
+review before deciding whether stale architecture/testing lens evidence needs
+one more pass before a product-owner-ready checkpoint.
+
+## 2026-05-08T11:59Z Tick
+
+Plan followed:
+
+- Read the fresh visual-review coordinator notes, then `README.md`, settings,
+  current coordinator plan, readiness notes, evidence log, agentic-loop state,
+  active current-work memory, holistic status, process-health memory, recent
+  actor summaries, active inboxes, and the configured project scripts as
+  context.
+- Accepted visual review of `1b826ba fix(ui): keep track perform card controls
+  legible` as blocked. The prior card-level blocker is resolved, but the
+  transaction-strip action controls render as unlabeled yellow icon blocks, so
+  `Waiting`/`Keep` and `Discard` are not visually acceptable.
+- Accepted the already-filed build-loop correction at
+  `docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-transaction-button-legibility.md`.
+- Scheduled no duplicate build, visual, UX/IA, testing, architecture,
+  holistic, process-repair, or product-owner request this tick.
+- Marked the two visual-review coordinator notes handled and archived them.
+- Wrote only to coordinator inbox/archive and coordination state/log files.
+
+No departure from the plan. The blocker is now build-loop correction of
+transaction action button legibility while preserving the accepted card badges
+and card controls. After that lands, route a fresh visual review before
+deciding whether stale architecture/testing lens evidence needs one more pass
+before a product-owner-ready checkpoint.
+
+## 2026-05-08T11:50Z Tick
+
+Plan followed:
+
+- Read the fresh build and holistic-observer coordinator notes, then
+  `README.md`, settings, current coordinator plan, readiness notes, evidence
+  log, agentic-loop state, active current-work memory, holistic status,
+  process-health memory, recent actor summaries, active inboxes, and the
+  configured project scripts as context.
+- Accepted build correction `1b826ba fix(ui): keep track perform card controls
+  legible` in `.worktrees/p0-track-performance-overlay`, with focused
+  `TrackPerformanceTransactionTests`, full `xcodebuild test`, and a build
+  capture reported.
+- Accepted the fresh holistic observer read that the product direction remains
+  coherent and the next whole-product issue is evidence sequencing.
+- Scheduled fresh visual review at
+  `docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-card-legibility-review.md`.
+- Scheduled no duplicate build, UX/IA, holistic, work-observer, testing,
+  architecture, process-repair, or product-owner request this tick.
+- Marked the build and holistic coordinator notes handled and archived them.
+- Wrote only to visual-review/coordinator inboxes and coordination state/log
+  files.
+
+No departure from the plan. The blocker is now independent visual acceptance
+of `1b826ba`. If visual review passes, explicitly decide whether stale
+architecture/testing lens evidence for the UI commits needs one more pass
+before product-owner attention.
+
+## 2026-05-08T11:30Z Tick
+
+Plan followed:
+
+- Read the fresh visual-review and work-observer coordinator notes, then
+  `README.md`, settings, current coordinator plan, readiness notes, evidence
+  log, agentic-loop state, active current-work memory, holistic status,
+  process-health memory, recent actor summaries, active inboxes, and the
+  configured project scripts as context.
+- Accepted the visual-review blocker for corrected commit `0d026e6`: the
+  transaction strip and Keep feedback are readable, but per-card perform
+  controls collapse to ellipses and transient badges wrap mid-word.
+- Confirmed visual review already filed the concrete build-loop correction at
+  `docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-perform-card-legibility.md`.
+- Accepted the work-observer update that this is now the lowest unmet readiness
+  level for the P0 Track Performance Overlay.
+- Scheduled no duplicate build, UX/IA, visual, testing, architecture,
+  holistic, process-repair, or product-owner request this tick.
+- Marked the visual-review and work-observer coordinator notes handled and
+  archived them.
+- Wrote only to coordinator inbox/archive and coordination state/log files.
+
+No departure from the plan. The blocker is now build-loop correction of
+per-card control and badge legibility. After that lands, route a fresh visual
+review before deciding whether stale architecture/testing lens evidence needs
+one more pass before a product-owner-ready checkpoint.
+
+## 2026-05-08T11:11Z Tick
+
+Plan followed:
+
+- Read the fresh UX/IA coordinator notes, then `README.md`, settings, current
+  coordinator plan, readiness notes, evidence log, agentic-loop state, active
+  current-work memory, holistic status, process-health memory, recent actor
+  summaries, active inboxes, and the configured project scripts as context.
+- Accepted the UX/IA pass for corrected commit `0d026e6 fix(ui): surface track
+  performance keep feedback`.
+- Recorded that pending-repeat, deferred-repeat, missing-target, successful
+  Keep, no-active-overlay, and Discard paths are predictable enough for the
+  internal P0 gate, with later copy-polish risk around `authored phrase cells`.
+- Confirmed visual review of `0d026e6` is already pending at
+  `docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`.
+- Scheduled no duplicate build, UX/IA, testing, architecture, observer,
+  process-repair, or product-owner request this tick.
+- Marked the two UX/IA coordinator notes handled and archived them.
+- Wrote only to coordinator inbox/archive and coordination state/log files.
+
+No departure from the plan. The blocker is now visual evidence for the
+corrected Track Perform transaction. After visual review lands, decide whether
+stale architecture/testing lens evidence needs one more pass before a
+product-owner-ready checkpoint.
+
+## 2026-05-08T11:02Z Tick
+
+Plan followed:
+
+- Read the fresh build completion note, then `README.md`, settings, current
+  coordinator plan, readiness notes, evidence log, agentic-loop state, active
+  current-work memory, holistic status, process-health memory, recent actor
+  summaries, active inboxes, and the configured project scripts as context.
+- Confirmed build correction `0d026e6 fix(ui): surface track performance keep
+  feedback` landed in `.worktrees/p0-track-performance-overlay` with focused
+  transaction tests, session/overlay suites, `git diff --check`, and full
+  `xcodebuild test` reported passing after an unrelated single-test rerun.
+- Scheduled UX/IA review at
+  `docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`.
+- Scheduled visual review at
+  `docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-keep-feedback-review.md`.
+- Scheduled no duplicate build, testing, architecture, observer,
+  process-repair, or product-owner request this tick.
+- Marked the build completion coordinator note handled and archived it.
+- Wrote only to UX/IA, visual, and coordinator inboxes plus coordination
+  state/log files.
+
+No departure from the plan. The blocker is now user-facing review evidence for
+the corrected Keep-result feedback transaction. If either review fails, route
+the smallest correction to build-loop; if both pass, decide whether stale
+architecture/testing lens evidence needs one more pass before a
+product-owner-ready checkpoint.
+
+## 2026-05-08T10:53Z Tick
+
+Plan followed:
+
+- Read the fresh UX/IA coordinator notes, then `README.md`, settings, current
+  coordinator plan, readiness notes, evidence log, agentic-loop state, active
+  current-work memory, holistic status, process-health memory, recent actor
+  summaries, active inboxes, and the configured project scripts as context.
+- Accepted the UX/IA review result that `3ec4b13` does not pass because the
+  Keep affordance ignores non-kept session results for pending repeat and
+  missing authored targets.
+- Confirmed UX/IA already filed the concrete build-loop correction at
+  `docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-keep-result-feedback.md`.
+- Superseded the stale visual-review request for `3ec4b13` because visual
+  review should run after the known UX blocker is corrected.
+- Scheduled no duplicate build, testing, architecture, observer,
+  process-repair, or product-owner request this tick.
+- Marked the two UX/IA coordinator inbox notes handled and archived them.
+- Wrote only to coordinator/visual inbox archives and coordination state/log
+  files.
+
+No departure from the plan. The blocker is now build-loop correction of Keep
+result feedback in the visible Track Perform transaction. Expected next
+verification is focused UI presentation/action tests plus the existing
+transaction/session/overlay and full test commands, followed by fresh UX/IA
+and visual review of the corrected transaction.
+
+## 2026-05-08T10:46Z Tick
+
+Plan followed:
+
+- Read the fresh work-observer coordinator notes, then `README.md`, settings,
+  current coordinator plan, readiness notes, evidence log, agentic-loop state,
+  active current-work memory, holistic status, process-health memory, recent
+  actor summaries, active inboxes, and the configured project scripts as
+  context.
+- Accepted the work-observer update that the lowest unmet readiness level for
+  P0 Track Performance Overlay is now UX/IA review of the visible transaction.
+- Confirmed UX/IA and visual review requests for `3ec4b13` are already pending
+  and directly cover the next useful user-facing verification.
+- Scheduled no duplicate build, testing, architecture, observer, process
+  repair, or product-owner attention this tick.
+- Marked the two work-observer coordinator notes handled and archived them.
+- Wrote only to coordinator inbox/archive and coordination state/log files.
+
+No departure from the plan. The blocker remains user-facing review evidence for
+the visible transaction. After UX/IA and visual review complete, the next
+coordinator tick should decide whether stale architecture/testing lens evidence
+needs one more pass before a product-owner-ready checkpoint.
+
+## 2026-05-08T10:38Z Tick
+
+Plan followed:
+
+- Read the two fresh build coordinator notes, then settings, `README.md`,
+  current coordinator plan, readiness notes, evidence log, agentic-loop state,
+  active current-work memory, holistic status, process-health memory, recent
+  actor summaries, active inboxes, and the configured project scripts as
+  context.
+- Confirmed the minimal visible Track Perform transaction landed at
+  `3ec4b13` in `.worktrees/p0-track-performance-overlay`, with focused
+  transaction tests, combined transaction/session/overlay tests, and full
+  `xcodebuild test` reported passing.
+- Confirmed no active UX/IA, visual, testing, architecture, build, observer,
+  or process-health inbox request duplicates the next action.
+- Scheduled UX/IA review at
+  `docs/multi-pass-coordinator/inbox/ux-ia/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`.
+- Scheduled visual review at
+  `docs/multi-pass-coordinator/inbox/visual-review/2026-05-08-p0-track-performance-overlay-visible-transaction-review.md`.
+- Marked the two coordinator inbox notes handled by archiving them.
+- Wrote only to review/coordinator inboxes, current coordination logs,
+  readiness/evidence/state memory, and this coordination plan.
+
+No departure from the plan. The blocker is now user-facing review evidence for
+the visible transaction, not more backend build work or product-owner
+attention. The expected next verification is UX/IA plus visual review; if
+either fails, route the smallest correction to build-loop.
+
 ## 2026-05-08T10:22Z Tick
 
 Plan followed:
