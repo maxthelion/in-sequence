@@ -42,6 +42,7 @@ enum TrackSourceContainedSourcePickerActionID: Equatable {
 
 enum TrackSourceContainedSourcePickerActionRole: Equatable {
     case primaryRecovery
+    case secondaryRecovery
     case poolDisclosure
 }
 
@@ -101,10 +102,17 @@ struct TrackSourceContainedSourcePickerPresentation: Equatable {
         role: .poolDisclosure
     )
 
-    private static let newBlankClipAction = TrackSourceContainedSourcePickerActionPresentation(
+    private static let newBlankClipRootAction = TrackSourceContainedSourcePickerActionPresentation(
         id: .createBlankClip,
         title: "New Blank Clip",
-        detail: "Fastest recovery path for this slot.",
+        detail: "Start this slot from an empty clip.",
+        role: .secondaryRecovery
+    )
+
+    private static let newBlankClipEmptyPoolAction = TrackSourceContainedSourcePickerActionPresentation(
+        id: .createBlankClip,
+        title: "New Blank Clip",
+        detail: "Recover from the empty clip pool without leaving this editor.",
         role: .primaryRecovery
     )
 
@@ -127,7 +135,7 @@ struct TrackSourceContainedSourcePickerPresentation: Equatable {
             id: .clip,
             title: "Clip",
             description: "Start from a fresh blank clip or reuse an existing compatible clip.",
-            primary: newBlankClipAction,
+            primary: newBlankClipRootAction,
             secondary: selectClipAction
         )
     ]
@@ -156,7 +164,7 @@ struct TrackSourceContainedSourcePickerPresentation: Equatable {
             return TrackSourceContainedSourcePickerEmptyStatePresentation(
                 title: "No compatible clips are in the pool yet.",
                 detail: "Create a blank clip to recover without leaving this source tab.",
-                recoveryAction: newBlankClipAction
+                recoveryAction: newBlankClipEmptyPoolAction
             )
         }
     }
@@ -320,11 +328,10 @@ struct TrackSourceContainedSourcePicker: View {
                 .foregroundStyle(StudioTheme.mutedText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            primaryPickerButton(
-                title: group.primary.title,
-                detail: group.primary.detail,
+            pickerActionButton(
+                action: group.primary,
                 accent: primaryAccent,
-                action: primaryAction
+                trigger: primaryAction
             )
 
             poolEntryButton(
@@ -394,26 +401,25 @@ struct TrackSourceContainedSourcePicker: View {
         }
     }
 
-    private func primaryPickerButton(
-        title: String,
-        detail: String,
+    private func pickerActionButton(
+        action: TrackSourceContainedSourcePickerActionPresentation,
         accent: Color,
-        action: @escaping () -> Void
+        trigger: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button(action: trigger) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(title)
+                Text(action.title)
                     .studioText(.bodyBold)
                     .foregroundStyle(StudioTheme.text)
 
-                Text(detail)
+                Text(action.detail)
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
             .background(
-                accent.opacity(StudioOpacity.selectedFill),
+                rootActionFill(for: action.role, accent: accent),
                 in: RoundedRectangle(
                     cornerRadius: StudioMetrics.CornerRadius.control,
                     style: .continuous
@@ -424,10 +430,34 @@ struct TrackSourceContainedSourcePicker: View {
                     cornerRadius: StudioMetrics.CornerRadius.control,
                     style: .continuous
                 )
-                .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                .stroke(rootActionStroke(for: action.role, accent: accent), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func rootActionFill(
+        for role: TrackSourceContainedSourcePickerActionRole,
+        accent: Color
+    ) -> Color {
+        switch role {
+        case .primaryRecovery:
+            return accent.opacity(StudioOpacity.selectedFill)
+        case .secondaryRecovery, .poolDisclosure:
+            return Color.white.opacity(StudioOpacity.subtleFill)
+        }
+    }
+
+    private func rootActionStroke(
+        for role: TrackSourceContainedSourcePickerActionRole,
+        accent: Color
+    ) -> Color {
+        switch role {
+        case .primaryRecovery:
+            return accent.opacity(StudioOpacity.ghostStroke)
+        case .secondaryRecovery, .poolDisclosure:
+            return StudioTheme.border.opacity(StudioOpacity.ghostStroke)
+        }
     }
 
     private func poolEntryButton(

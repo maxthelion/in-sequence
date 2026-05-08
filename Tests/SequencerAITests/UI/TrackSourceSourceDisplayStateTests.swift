@@ -82,6 +82,12 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(presentation.rootGroups.first?.primary.id, .createBlankGenerator)
         XCTAssertEqual(presentation.rootGroups.first?.primary.role, .primaryRecovery)
         XCTAssertEqual(presentation.rootGroups.first?.secondary.id, .showGeneratorPool)
+
+        let clipGroup = presentation.rootGroups.last
+        XCTAssertEqual(clipGroup?.primary.id, .createBlankClip)
+        XCTAssertEqual(clipGroup?.primary.role, .secondaryRecovery)
+        XCTAssertEqual(clipGroup?.primary.detail, "Start this slot from an empty clip.")
+        XCTAssertNotEqual(clipGroup?.primary.detail, presentation.rootGroups.first?.primary.detail)
     }
 
     func test_containedSourcePickerEmptyPoolBranchesExposeRecoveryActions() {
