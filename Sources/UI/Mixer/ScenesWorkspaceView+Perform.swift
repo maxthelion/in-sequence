@@ -89,7 +89,7 @@ extension ScenesWorkspaceView {
             .padding(12)
             .contentShape(Rectangle())
             .background(
-                isDominant ? StudioTheme.text : Color.white.opacity(StudioOpacity.subtleFill),
+                isDominant ? StudioTheme.background : Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
             )
             .onTapGesture {
