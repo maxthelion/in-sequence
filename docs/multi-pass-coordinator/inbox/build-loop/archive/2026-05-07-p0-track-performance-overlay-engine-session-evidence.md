@@ -1,12 +1,15 @@
 ---
 created: 2026-05-07T13:35:28Z
 source: testing-review
-status: pending
+status: completed
 priority: high
 action: add-evidence
 worktree: .worktrees/p0-track-performance-overlay
 branch: auto/p0-track-performance-overlay
 base_commit: a3b8cfec6245654248d337b1eeb0332355e814da
+completion_commit: 2d0e50bc364b7b65e07e5ac0148490e583685cbb
+completed_at: 2026-05-07T13:42:00Z
+completion_note: docs/multi-pass-coordinator/inbox/coordinator/archive/2026-05-07-p0-track-performance-overlay-engine-session-evidence-resolved.md
 plan: docs/plans/2026-05-06-track-performance-overlay.md
 critique: docs/multi-pass-coordinator/inbox/testing/archive/2026-05-07-p0-track-performance-overlay-engine-session-review.md
 ---

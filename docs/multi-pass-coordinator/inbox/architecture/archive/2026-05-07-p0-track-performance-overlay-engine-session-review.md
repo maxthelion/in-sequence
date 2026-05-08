@@ -1,7 +1,7 @@
 ---
 created: 2026-05-07T12:46:31Z
 source: multi-pass-coordinator
-status: pending
+status: superseded
 priority: high
 action: review-diff
 worktree: .worktrees/p0-track-performance-overlay
@@ -9,6 +9,8 @@ branch: auto/p0-track-performance-overlay
 base_commit: 1ab2bc131b72c8604bf2cef1ad5d660bd201efc8
 commit: a3b8cfec6245654248d337b1eeb0332355e814da
 plan: docs/plans/2026-05-06-track-performance-overlay.md
+superseded_at: 2026-05-07T13:43:09Z
+superseded_by: docs/multi-pass-coordinator/inbox/architecture/2026-05-07-p0-track-performance-overlay-engine-session-resolved-review.md
 depends_on:
   build_request: docs/multi-pass-coordinator/inbox/build-loop/archive/2026-05-07-p0-track-performance-overlay-engine-session.md
   completion_note: docs/multi-pass-coordinator/inbox/coordinator/archive/2026-05-07-p0-track-performance-overlay-engine-session-ready-for-review.md

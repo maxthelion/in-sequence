@@ -1,14 +1,14 @@
 ```markdown
-# Lane C - Mixer Routing and Sends Supervisor Note
+# Lane C - Mixer Routing and Sends
 
-Lane complexity: complicated. Mixer Main Out, Mixer Busses, and Send Effects share the audio graph, routing model, insert semantics, scene A/B mixer state, meters, and clipping behavior, so broad build work should proceed only with lane-level defaults recorded.
+Lane complexity: complicated. Mixer Main Out, Mixer Busses, and Send Effects share one audio graph and routing model, so broad build should proceed only with common lane defaults recorded.
 
 Safe assumptions:
-- Bus solo defaults to additive solo, matching the safer DAW-like behavior unless the product later explicitly chooses exclusive solo.
-- Ordinary busses and sends have global inserts; scene-scoped inserts are out of scope unless added by a later lane decision.
-- Bus deletion shows a confirmation with affected routes before rerouting to master.
+- Bus solo defaults to additive DAW-like solo, not exclusive solo.
+- Ordinary busses and sends have global inserts unless a later lane explicitly introduces scene-scoped inserts.
+- Bus deletion shows a confirmation with affected routes before rerouting anything to master.
 - The master fader is global and post-blend.
-- Clip indicators clear manually by default, not on a timer.
+- Clip indicators clear manually by default.
 
-Next automation move: allow PM/build promotion for Lane C items using these defaults. Escalate only if implementation shows these assumptions conflict with the existing audio graph or scene model.
+Next automation move: promote the next Lane C build item using these defaults as the lane contract. Do not ask for separate prototype approval on each mixer feature unless implementation exposes a new product conflict.
 ```

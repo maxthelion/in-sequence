@@ -8,7 +8,8 @@ worktree: .worktrees/p0-track-performance-overlay
 branch: auto/p0-track-performance-overlay
 base_commit: 096ed0153c7b6741d95849fc5cb6c2f64b132840
 plan: docs/plans/2026-05-06-track-performance-overlay.md
-critique: docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md
+critique: docs/multi-pass-coordinator/inbox/testing/archive/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md
+review_result: .meta/project/actors/testing-review/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.final.md
 ---
 
 # Add Missing-Target Keep Evidence For P0 Track Performance Overlay
@@ -51,7 +52,8 @@ missing-target shape.
 ## Required Context
 
 - `docs/plans/2026-05-06-track-performance-overlay.md`
-- `docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md`
+- `docs/multi-pass-coordinator/inbox/testing/archive/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md`
+- `.meta/project/actors/testing-review/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.final.md`
 - `docs/multi-pass-coordinator/evidence-log.md`
 - `wiki/pages/live-view.md`
 - `wiki/pages/document-model.md`

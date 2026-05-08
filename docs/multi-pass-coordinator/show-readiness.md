@@ -217,3 +217,371 @@ in
 `docs/multi-pass-coordinator/inbox/architecture/2026-05-07-p0-track-performance-overlay-engine-session-review.md`
 and
 `docs/multi-pass-coordinator/inbox/testing/2026-05-07-p0-track-performance-overlay-engine-session-review.md`.
+
+## 2026-05-07T14:00Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The engine/session foundation is
+  reviewed, but playback still does not apply the overlay in the tick path and
+  no visible Track Perform workflow exists.
+- Reliable and evidenced: strong enough for the next build slice. Commit
+  `2d0e50b` has focused passing overlay tests, plus fresh architecture and
+  testing review passes.
+- Understandable and efficient: not ready. There are still no transient
+  badges, Track Perform controls, Keep target labels, or Discard target labels.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: ready for overlay-aware playback resolution. The
+  scheduled request keeps runtime overlay application after snapshot
+  resolution and before source evaluation, without broad UI or persistence
+  changes.
+- Fits project philosophy: still aligned. The next slice makes the reversible
+  performance overlay audible while preserving authored phrase/document state.
+
+Product-owner attention: none. The next action is build-loop implementation,
+requested in
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-07-p0-track-performance-overlay-playback-resolution.md`.
+
+## 2026-05-07T13:43Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The engine/session ownership slice
+  plus evidence commit still does not expose a visible Track Perform workflow
+  for auditioning, Keeping, or Discarding track performance changes.
+- Reliable and evidenced: improved but pending review. Commit `2d0e50b` adds
+  the focused missing tests from the testing review and reports 15 focused
+  overlay tests passing, but testing review has not yet converted the
+  `needs-evidence` verdict to pass.
+- Understandable and efficient: not ready. There are still no transient badges,
+  Track Perform controls, or transaction labels for a user to inspect.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: pending review. The prior architecture request
+  for `a3b8cfe` was archived while still marked `pending`, so the next useful
+  evidence is a current architecture review over `1ab2bc1..2d0e50b`.
+- Fits project philosophy: still aligned. The slice keeps runtime performance
+  changes reversible and outside authored phrase/document state until a later
+  explicit Keep path exists.
+
+Product-owner attention: none. The next action is agent-side review, requested
+in
+`docs/multi-pass-coordinator/inbox/architecture/2026-05-07-p0-track-performance-overlay-engine-session-resolved-review.md`
+and
+`docs/multi-pass-coordinator/inbox/testing/2026-05-07-p0-track-performance-overlay-engine-session-evidence-review.md`.
+
+## 2026-05-08T08:18Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. Playback-resolution code exists
+  only as dirty partial work, and there is still no visible Track Perform
+  workflow for auditioning, Keeping, or Discarding track performance changes.
+- Reliable and evidenced: partial. The dirty playback-resolution implementation
+  compiles and the focused `TrackPerformanceOverlayTests` run passed with 22
+  tests and 0 failures, but the slice is uncommitted, has no full-test evidence,
+  and has not passed architecture or testing review.
+- Understandable and efficient: not ready. There are still no transient badges,
+  Track Perform controls, Keep target labels, or Discard target labels.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: pending build-loop finish and review. The next
+  useful step is to finish and commit the partial playback-resolution slice,
+  then review it.
+- Fits project philosophy: still aligned. The partial work keeps runtime
+  overlay application after snapshot resolution and before source evaluation,
+  preserving authored phrase/document state until a later explicit Keep path.
+
+Product-owner attention: none. The next action is build-loop continuation,
+requested in
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-playback-resolution-finish.md`.
+
+## 2026-05-08T08:31Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. Playback now applies the runtime
+  track performance overlay in the engine slice, but there is still no visible
+  Track Perform workflow for auditioning, Keeping, or Discarding track
+  performance changes.
+- Reliable and evidenced: improved but pending review. Commit `3b50781` in
+  `.worktrees/p0-track-performance-overlay` has focused overlay tests passing
+  with 22 tests and 0 failures, a full macOS test run passing with 825 tests,
+  3 skipped, and 0 failures, and a clean worktree. Architecture and testing
+  reviews are still required for the new `2d0e50b..3b50781` diff.
+- Understandable and efficient: not ready. There are still no transient
+  badges, Track Perform controls, Keep target labels, or Discard target labels.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: pending review. The next useful evidence is
+  reviewer judgment on tick-path ownership, repeat capture, generator-source
+  no-op behavior, and test coverage for the playback-resolution slice.
+- Fits project philosophy: still aligned. The slice makes the reversible
+  performance overlay audible while preserving authored phrase/document state
+  until a later explicit Keep path.
+
+Product-owner attention: none. The next action is agent-side review, requested
+in
+`docs/multi-pass-coordinator/inbox/architecture/2026-05-08-p0-track-performance-overlay-playback-resolution-review.md`
+and
+`docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-playback-resolution-review.md`.
+
+## 2026-05-08T08:42Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. Playback now applies the runtime
+  track performance overlay in the engine slice, but there is still no visible
+  Track Perform workflow for auditioning, Keeping, or Discarding track
+  performance changes.
+- Reliable and evidenced: improved but still gated. Commit `3b50781` has
+  focused overlay tests passing with 22 tests and 0 failures, a full macOS test
+  run passing with 825 tests, 3 skipped, and 0 failures, and a clean worktree.
+  Architecture review has passed; testing review is still pending.
+- Understandable and efficient: not ready. There are still no transient
+  badges, Track Perform controls, Keep target labels, or Discard target labels.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: partially reviewed. Architecture passed the
+  tick-path ownership and source-step semantics; testing still needs to confirm
+  the evidence is enough for playback resolution and pending repeat capture.
+- Fits project philosophy: still aligned. The slice makes the reversible
+  performance overlay audible while preserving authored phrase/document state
+  until a later explicit Keep path.
+
+Product-owner attention: none. The next action is the already-pending testing
+review at
+`docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-playback-resolution-review.md`.
+
+## 2026-05-08T08:53Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. Playback now applies the runtime
+  track performance overlay, but there is still no visible Track Perform
+  workflow for auditioning, Keeping, or Discarding track performance changes.
+- Reliable and evidenced: strong enough for the next build slice. Commit
+  `3b50781` has focused overlay tests passing with 22 tests and 0 failures, a
+  full macOS test run passing with 825 tests, 3 skipped, and 0 failures, a
+  clean worktree, plus architecture and testing review passes.
+- Understandable and efficient: not ready. There are still no transient badges,
+  Track Perform controls, Keep target labels, Discard target labels, or
+  transaction strip.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: ready for the session Keep/Discard slice. The
+  next scheduled work is persistence/restore behavior and tests, before UI.
+- Fits project philosophy: still aligned. The next slice should make the
+  reversible overlay explicitly preservable or discardable without turning
+  runtime performance state into accidental authored edits.
+
+Product-owner attention: none. The next action is build-loop implementation,
+requested in
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-keep-discard-session.md`.
+
+## 2026-05-08T09:12Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The backend session Keep/Discard
+  slice has landed, but there is still no visible Track Perform workflow for
+  auditioning, Keeping, or Discarding track performance changes.
+- Reliable and evidenced: improved but pending review. Commit `096ed01` has
+  focused session/overlay tests passing with 33 tests and 0 failures, a full
+  macOS test run passing with 830 tests, 3 skipped, and 0 failures, and a clean
+  worktree. Architecture and testing reviews are still required for the new
+  `3b50781..096ed01` diff.
+- Understandable and efficient: not ready. There are still no transient
+  badges, Track Perform controls, Keep target labels, Discard target labels, or
+  transaction strip.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: pending review. The next useful evidence is
+  reviewer judgment on session ownership, authored Keep destinations, pending
+  repeat failure behavior, Discard restore semantics, and master-bus overlay
+  reuse.
+- Fits project philosophy: still aligned. The slice preserves the Happy
+  Accident Workbench rule that runtime performance changes become authored only
+  through explicit Keep and can be restored through Discard.
+
+Product-owner attention: none. The next action is agent-side review, requested
+in
+`docs/multi-pass-coordinator/inbox/architecture/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md`
+and
+`docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md`.
+
+## 2026-05-08T09:22Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The backend session Keep/Discard
+  slice has landed, but there is still no visible Track Perform workflow for
+  auditioning, Keeping, or Discarding track performance changes.
+- Reliable and evidenced: improved but still gated. Commit `096ed01` has
+  focused session/overlay tests passing with 33 tests and 0 failures, a full
+  macOS test run passing with 830 tests, 3 skipped, and 0 failures, a clean
+  worktree, and an architecture review pass. Testing review is still pending.
+- Understandable and efficient: not ready. There are still no transient
+  badges, Track Perform controls, Keep target labels, Discard target labels, or
+  transaction strip.
+- Delightful: not applicable until the visible overlay transaction exists.
+- Performant and maintainable: partially reviewed. Architecture passed the
+  session ownership and Keep/Discard boundary review; testing still needs to
+  confirm evidence for authored Keep destinations, pending repeat failure
+  behavior, Discard restore semantics, master-bus reuse, and full-suite
+  freshness.
+- Fits project philosophy: still aligned. The slice preserves the Happy
+  Accident Workbench rule that runtime performance changes become authored only
+  through explicit Keep and can be restored through Discard.
+
+Product-owner attention: none. The next action is the already-pending testing
+review at
+`docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md`.
+
+## 2026-05-08T09:37Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The backend session Keep/Discard
+  slice has landed, but there is still no visible Track Perform workflow,
+  overlay badge, Keep/Discard target label, or transaction strip.
+- Reliable and evidenced: still gated. Commit `096ed01` has build-reported
+  focused and full-suite passing tests plus architecture review, but the
+  testing review for `3b50781..096ed01` remains pending.
+- Understandable and efficient: not ready. The visible transaction does not
+  exist, so the user cannot see what is being auditioned or where Keep/Discard
+  will apply.
+- Delightful: not applicable until the Track Perform transaction is visible and
+  runnable.
+- Performant and maintainable: partially reviewed. Architecture and holistic
+  direction are acceptable; testing still needs to validate the Keep/Discard
+  evidence before UI promotion.
+- Fits project philosophy: aligned. The holistic observer confirmed the
+  backend slices still support reversible, explicit performance changes in the
+  Happy Accident Workbench direction.
+
+Product-owner attention: none. The next action is the already-pending testing
+review at
+`docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-keep-discard-session-review.md`.
+
+## 2026-05-08T09:47Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The backend session Keep/Discard
+  slice has landed, but the visible Track Perform workflow, overlay badge,
+  target labels, and transaction strip still do not exist.
+- Reliable and evidenced: blocked. Testing review for `096ed01` returned
+  `needs-evidence` because the missing-authoring-target safe-failure path is
+  not frozen by a test.
+- Understandable and efficient: not ready. The user cannot see what is being
+  auditioned or where Keep/Discard will apply.
+- Delightful: not applicable until the Track Perform transaction is visible and
+  runnable.
+- Performant and maintainable: partially reviewed. Architecture has passed,
+  but testing requires the missing-target evidence before UI promotion.
+- Fits project philosophy: aligned. The requested evidence protects the rule
+  that runtime performance changes are only authored through explicit Keep and
+  are not silently lost on failure.
+
+Product-owner attention: none. The next action is the already-pending
+build-loop evidence request at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-keep-discard-missing-target-evidence.md`.
+
+## 2026-05-08T09:57Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. The visible Track Perform workflow,
+  overlay badge, target labels, and transaction strip still do not exist.
+- Reliable and evidenced: still blocked on the same testing gap. The
+  missing-authoring-target Keep safe-failure path still needs focused build-loop
+  evidence before UI promotion.
+- Understandable and efficient: not ready. There is no user-facing transaction
+  surface to inspect.
+- Delightful: not applicable until the Track Perform transaction is visible and
+  runnable.
+- Performant and maintainable: product flow remains healthy enough to continue.
+  Process health found low-severity coordination noise but no product-code,
+  environment, or review-flow blocker.
+- Fits project philosophy: aligned. The pending evidence protects explicit,
+  reversible Keep/Discard semantics.
+
+Product-owner attention: none. The next action remains the already-pending
+build-loop evidence request at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-keep-discard-missing-target-evidence.md`.
+
+## 2026-05-08T10:12Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. Backend/session Keep/Discard
+  behavior has evidence through `d818d8d`, but the visible Track Perform
+  workflow, overlay badge, target labels, and transaction strip still do not
+  exist.
+- Reliable and evidenced: improved but still gated. Build follow-up `d818d8d`
+  adds the missing-authoring-target Keep safe-failure test and reports focused
+  session/overlay verification passing with 34 tests and 0 failures; testing
+  review has not yet reconsidered the prior `needs-evidence` verdict.
+- Understandable and efficient: not ready. The user-facing transaction surface
+  is still absent.
+- Delightful: not applicable until the Track Perform transaction is visible and
+  runnable.
+- Performant and maintainable: ready for focused testing reconsideration, not
+  broader UI promotion yet.
+- Fits project philosophy: aligned. The new evidence protects explicit,
+  reversible Keep/Discard semantics by proving a failed Keep does not silently
+  mutate authored state or discard runtime overlay state.
+
+Product-owner attention: none. The next action is testing-review
+reconsideration at
+`docs/multi-pass-coordinator/inbox/testing/2026-05-08-p0-track-performance-overlay-keep-discard-missing-target-reconsideration.md`.
+
+## 2026-05-08T10:22Z
+
+No active branch should be shown to the product owner this tick.
+
+Readiness assessment:
+
+- Can users do the intended thing: not yet. Backend/session Keep/Discard
+  behavior has passed testing at `d818d8d`, but the visible Track Perform
+  workflow, overlay badge, target labels, and transaction strip still do not
+  exist.
+- Reliable and evidenced: sufficient for the backend/session slice. Testing
+  reconsideration passed after the missing-authoring-target Keep safe-failure
+  test landed, with focused session/overlay verification passing with 34 tests
+  and 0 failures.
+- Understandable and efficient: still blocked. The user-facing transaction
+  surface is absent, so a performer cannot see what is transient or where Keep
+  and Discard will apply.
+- Delightful: not applicable until the Track Perform transaction is visible and
+  runnable.
+- Performant and maintainable: ready for the next bounded UI slice. Architecture
+  and testing gates have accepted the backend/session foundation, and the next
+  request is intentionally limited to command wiring, badges, labels, and the
+  transaction strip.
+- Fits project philosophy: aligned. The next UI slice directly supports the
+  accepted rule that runtime performance changes are safe only when Keep and
+  Discard targets are visible.
+
+Product-owner attention: none. The next action is build-loop implementation at
+`docs/multi-pass-coordinator/inbox/build-loop/2026-05-08-p0-track-performance-overlay-minimal-ui-transaction.md`,
+followed by UX/IA and visual review before any product-owner checkpoint.
