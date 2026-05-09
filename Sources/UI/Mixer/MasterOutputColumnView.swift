@@ -250,17 +250,32 @@ struct MasterOutputColumnView: View {
                 }
 
                 if meterState.isClearClipActionable {
-                    Button("CLR") {
-                        engineController.masterMeterPublisher.clearClip()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.mini)
-                    .tint(StudioTheme.amber)
-                    .accessibilityIdentifier("master-meter-clear-clip")
+                    clearClipButton
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
         }
+    }
+
+    private var clearClipButton: some View {
+        Button {
+            engineController.masterMeterPublisher.clearClip()
+        } label: {
+            Text("CLR")
+                .studioText(.eyebrowBold)
+                .tracking(0.4)
+                .monospaced()
+                .foregroundStyle(StudioTheme.background)
+                .frame(
+                    minWidth: MasterOutputClearClipControlMetrics.minWidth,
+                    minHeight: MasterOutputClearClipControlMetrics.minHeight
+                )
+                .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .accessibilityLabel("Clear master output clip")
+        .accessibilityIdentifier("master-meter-clear-clip")
     }
 
     private var outputScale: some View {

@@ -25,6 +25,11 @@ enum MasterOutputColumnLayout {
     }
 }
 
+enum MasterOutputClearClipControlMetrics {
+    static let minWidth: CGFloat = 34
+    static let minHeight: CGFloat = 22
+}
+
 enum MasterOutputGainScale {
     static let gainRange = MasterBusState.masterOutputGainRange
     static let unityPosition = position(forGain: 1)
