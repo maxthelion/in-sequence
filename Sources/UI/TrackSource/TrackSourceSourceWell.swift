@@ -60,8 +60,8 @@ struct TrackSourceSourceWell: View {
 
     private var clipSourceWell: some View {
         StudioPanel(
-            title: "Source",
-            eyebrow: "Selected slot source",
+            title: "Source Well",
+            eyebrow: "Placement for the selected slot",
             accent: accent
         ) {
             VStack(alignment: .leading, spacing: 14) {
@@ -80,7 +80,7 @@ struct TrackSourceSourceWell: View {
                     }
                 }
 
-                Text("This slot is sourcing notes from the selected clip.")
+                Text("This selected slot is sourcing notes from a clip.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -93,7 +93,7 @@ struct TrackSourceSourceWell: View {
     }
 
     private var generatorSourceWell: some View {
-        StudioPanel(title: "Source", eyebrow: "Selected slot source", accent: accent) {
+        StudioPanel(title: "Source Well", eyebrow: "Placement for the selected slot", accent: accent) {
             VStack(alignment: .leading, spacing: 14) {
                 sourceSummaryRow(
                     badgeTitle: displayState.badgeTitle,
@@ -110,7 +110,7 @@ struct TrackSourceSourceWell: View {
                     }
                 }
 
-                Text("This slot is using a generator as its source.")
+                Text("This selected slot is using a generator as its source.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -125,7 +125,7 @@ struct TrackSourceSourceWell: View {
     }
 
     private var emptySourceWell: some View {
-        StudioPanel(title: "Source", eyebrow: "No source selected.", accent: accent) {
+        StudioPanel(title: "Source Well", eyebrow: "Placement for the selected slot", accent: accent) {
             VStack(alignment: .leading, spacing: 14) {
                 sourceSummaryRow(
                     badgeTitle: displayState.badgeTitle,
@@ -142,7 +142,7 @@ struct TrackSourceSourceWell: View {
                     }
                 }
 
-                Text("This slot stays silent until you add a source.")
+                Text("This selected slot stays silent until you add a source.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)

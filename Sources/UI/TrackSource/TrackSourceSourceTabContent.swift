@@ -43,20 +43,23 @@ struct TrackSourceSourceTabContent: View {
     var body: some View {
         switch displayState {
         case .occupiedClip:
-            TrackSourceClipPanel(
-                accent: StudioTheme.violet,
-                previewClipContent: previewClipContent,
-                defaultClipNote: defaultClipNote,
-                clipMacroSlots: clipMacroSlots,
-                macroLanes: macroLanes,
-                macroFallbackValues: macroFallbackValues,
-                canAssignAUMacros: canAssignAUMacros,
-                playingStepIndex: playingStepIndex,
-                onAssignMacroSlot: onAssignMacroSlot,
-                onUpdateMacroLanes: onUpdateMacroLanes,
-                onUpdateClipContent: onUpdateClipContent
-            )
             sourceSection
+
+            if sourcePickerStep == nil {
+                TrackSourceClipPanel(
+                    accent: StudioTheme.success,
+                    previewClipContent: previewClipContent,
+                    defaultClipNote: defaultClipNote,
+                    clipMacroSlots: clipMacroSlots,
+                    macroLanes: macroLanes,
+                    macroFallbackValues: macroFallbackValues,
+                    canAssignAUMacros: canAssignAUMacros,
+                    playingStepIndex: playingStepIndex,
+                    onAssignMacroSlot: onAssignMacroSlot,
+                    onUpdateMacroLanes: onUpdateMacroLanes,
+                    onUpdateClipContent: onUpdateClipContent
+                )
+            }
 
         case .occupiedGenerator:
             sourceSection

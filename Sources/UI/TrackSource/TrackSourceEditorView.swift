@@ -1,6 +1,6 @@
 import SwiftUI
 
-private enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
+enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
     case source
     case modifiers
 
@@ -11,7 +11,7 @@ private enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
         case .source:
             return "Source"
         case .modifiers:
-            return "Modifiers"
+            return "Modifier"
         }
     }
 }
@@ -163,13 +163,16 @@ struct TrackSourceEditorView: View {
                         onBypassToggle: { _ in }
                     )
 
-                    Picker("Editor Section", selection: $selectedTab) {
-                        Text("\(TrackSourceEditorTab.source.title) \(sourceDisplayState.badgeTitle)")
-                            .tag(TrackSourceEditorTab.source)
-                        Text("\(TrackSourceEditorTab.modifiers.title) \(modifierDisplayState.badgeTitle)")
-                            .tag(TrackSourceEditorTab.modifiers)
-                    }
-                    .pickerStyle(.segmented)
+                    TrackSourceSlotWellTabBar(
+                        selectedTab: $selectedTab,
+                        sourceState: sourceDisplayState,
+                        modifierState: modifierDisplayState,
+                        currentClip: currentClip,
+                        selectedSourceGenerator: selectedSourceGenerator,
+                        selectedModifierGenerator: selectedModifierGenerator,
+                        trackType: track.trackType,
+                        accent: accent
+                    )
                 }
             }
 

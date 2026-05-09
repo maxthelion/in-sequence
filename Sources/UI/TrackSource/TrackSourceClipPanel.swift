@@ -15,10 +15,10 @@ struct TrackSourceClipPanel: View {
 
     var body: some View {
         StudioPanel(
-            title: "Clip",
-            eyebrow: "Pattern editor",
+            title: "Clip Contents",
+            eyebrow: "Secondary editor for the selected source clip",
             accent: accent,
-            showsHeader: false
+            showsHeader: true
         ) {
             ClipContentPreview(
                 content: previewClipContent,

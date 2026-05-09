@@ -67,7 +67,7 @@ struct TrackSourceModifierWell: View {
     @ViewBuilder
     private var occupiedWell: some View {
         if let selectedGenerator {
-            StudioPanel(title: "Modifier", eyebrow: selectedGenerator.name, accent: StudioTheme.violet) {
+            StudioPanel(title: "Modifier Well", eyebrow: "Post-source placement for the selected slot", accent: StudioTheme.violet) {
                 VStack(alignment: .leading, spacing: 14) {
                     modifierSummaryRow(
                         badgeTitle: displayState.badgeTitle,
@@ -86,7 +86,7 @@ struct TrackSourceModifierWell: View {
 
                     Text(
                         isBypassed
-                            ? "This modifier is bypassed. Re-enable it to hear its pitch processing."
+                            ? "This selected-slot modifier is bypassed. Re-enable it to hear its pitch processing."
                             : "Pitch processing runs after the selected source for this slot."
                     )
                     .studioText(.body)
@@ -110,7 +110,7 @@ struct TrackSourceModifierWell: View {
     }
 
     private var emptyWell: some View {
-        StudioPanel(title: "Modifier", eyebrow: "Empty by default.", accent: StudioTheme.violet) {
+        StudioPanel(title: "Modifier Well", eyebrow: "Post-source placement for the selected slot", accent: StudioTheme.violet) {
             VStack(alignment: .leading, spacing: 14) {
                 modifierSummaryRow(badgeTitle: displayState.badgeTitle, accent: StudioTheme.border) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -124,7 +124,7 @@ struct TrackSourceModifierWell: View {
                     }
                 }
 
-                Text("This slot currently has no modifier. Adding one does not create source material.")
+                Text("This selected slot currently has no modifier. Adding one does not create source material.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -135,7 +135,7 @@ struct TrackSourceModifierWell: View {
     }
 
     private var unavailableWell: some View {
-        StudioPanel(title: "Modifier", eyebrow: "Unavailable for this track.", accent: StudioTheme.violet) {
+        StudioPanel(title: "Modifier Well", eyebrow: "Post-source placement for the selected slot", accent: StudioTheme.violet) {
             VStack(alignment: .leading, spacing: 14) {
                 modifierSummaryRow(badgeTitle: displayState.badgeTitle, accent: StudioTheme.border) {
                     VStack(alignment: .leading, spacing: 3) {
