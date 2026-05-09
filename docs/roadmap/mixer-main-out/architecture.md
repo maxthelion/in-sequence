@@ -18,8 +18,12 @@ Written: 2026-04-30
 UX direction: Variant A (right-side fixed master column, accepted in `ux-review.md`).
 
 Decision update: the previously blocking product questions were resolved on
-2026-05-03 in `decisions.md`. Where Section 5 or Section 9 says user input is
-required, `decisions.md` is now authoritative.
+2026-05-03 in `decisions.md`. Product-owner correction on 2026-05-09 then
+superseded the earlier dominant-scene insert display model: Master Out edits
+`MasterBusState.masterInserts` after the Scene A/B blend and before final
+output gain/metering. Where older sections discuss dominant Scene A/B insert
+display as a candidate, the corrected decision in `decisions.md` is
+authoritative.
 
 ---
 
@@ -54,10 +58,10 @@ decision below.
    widget reads from it directly. The mixer's master column re-uses the same state; it does not
    own a copy.
 
-6. **Inserts are per-scene, not global.** `MasterBusScene.inserts` stores the insert chain for
-   each scene. There is no global post-crossfade insert chain in the current model. The mixer
-   master column must surface one scene's insert list, not a new chain kind. Which scene's list to
-   show when the crossfader is mid-blend is an unresolved product decision (see Section 5).
+6. **Master Out inserts are post-blend, not scene-scoped.** `MasterBusScene.inserts` still stores
+   scene insert chains for scene workflows, but the mixer Master Out column edits
+   `MasterBusState.masterInserts`. That chain is applied after the Scene A/B blend and before
+   final output gain/metering, and it must not switch contents as the crossfader moves.
 
 7. **Mixer and scenes live in separate workspace sections today.** `WorkspaceSection.mixer` routes
    to `MixerWorkspaceView`; `WorkspaceSection.scenes` routes to `ScenesWorkspaceView`. The master
@@ -75,15 +79,16 @@ The `.seqai` document is the only truth for authored state. The following fields
 the document if they are to survive across sessions:
 
 - Master output gain level (if a user-controllable fader is in scope).
-- Insert chains (already on `MasterBusScene.inserts` — must remain there).
+- Scene insert chains (already on `MasterBusScene.inserts` — must remain there for scene
+  workflows).
+- Post-blend Master Out insert chain (`MasterBusState.masterInserts`).
 - Crossfader authored position (already on `MasterBusABSelection.crossfader` — must remain there).
 
 The following fields must not be persisted:
 
 - Real-time meter levels (peak amplitudes from the audio tap).
-- Clip indicator latch state (see Section 5, question 6 — policy is unresolved, but the latch
-  should be a session-scoped runtime flag, not a document field, unless a user explicitly
-  chooses to save the clear action).
+- Clip indicator latch state. The latch is session-scoped runtime state and
+  clears only on explicit user action.
 - Any UI-only selection or hover state.
 
 ### 2b. No UI-Only Playback Truth
@@ -94,7 +99,7 @@ red flag. Specifically:
 - The crossfader position visible in the master column must read from the same
   `masterBusPerformanceOverlay.crossfaderOverride` that drives the audio graph. The column must
   not maintain a local copy.
-- The master fader (however scoped) must drive the audio graph through the same mutation path as
+- The master fader must drive the audio graph through the same mutation path as
   all other audio-graph parameters (`performOnMain` → `MasterBusHost.apply`), not through a
   local `AVAudioMixerNode.outputVolume` write in the view.
 
@@ -123,14 +128,15 @@ through the `performOnMain` dispatch path used by `MainAudioGraph`. Direct write
 
 | Field | Location | Status | Notes |
 |---|---|---|---|
-| `MasterBusScene.inserts` | `MasterBus.swift` | Exists and working | No change required |
+| `MasterBusScene.inserts` | `MasterBus.swift` | Exists and working | Scene workflows only; not edited from Master Out |
+| `MasterBusState.masterInserts` | `MasterBus.swift` | Required / implemented | Post-blend Master Out chain |
 | `MasterBusABSelection.crossfader` | `MasterBus.swift:686` | Exists and working | No change required |
 | `MasterBusScene.outputGain` | `MasterBus.swift:280` | Exists but always normalized to 1 | See question 2 below |
-| `MasterBusState.masterOutputGain` (proposed) | `MasterBus.swift` | Does not exist | Required if global fader is in scope |
+| `MasterBusState.masterOutputGain` | `MasterBus.swift` | Required / implemented | Global final-output fader |
 
-Whether the master fader is per-scene (`MasterBusScene.outputGain` repaired) or global
-(`MasterBusState.masterOutputGain` added) is the most consequential architectural decision for
-this feature (UX review question 2). It must be resolved before spec. See Section 5.
+The corrected Master Out model keeps both authored final-output controls on
+`MasterBusState`: `masterInserts` for post-blend processing and `masterOutputGain`
+for final output level.
 
 ### 3b. Transient Runtime State
 
@@ -138,8 +144,7 @@ this feature (UX review question 2). It must be resolved before spec. See Sectio
 |---|---|---|
 | `crossfaderOverride: Double?` | `MasterBusPerformanceOverlayState` (on `EngineController`) | Already @Observable; drives live audio graph. The master column reads this, it does not own it. |
 | Peak meter values (L, R): `Double` | `MasterMeterPublisher` (proposed) | Populated by audio tap callback via atomic store; polled by UI display link. NOT document state. |
-| Clip latch flag: `Bool` | `MasterMeterPublisher` (proposed) | Set when peak > 0 dBFS; cleared by user action. NOT document state (policy unresolved — see question 6). |
-| Active-scene-for-insert-display: `MasterBusSceneID?` | Computed from `masterBus.abSelection` + crossfader position | Derived, not stored. Rule to be specified. |
+| Clip latch flag: `Bool` | `MasterMeterPublisher` (proposed) | Set when peak > 0 dBFS; cleared by user action. NOT document state. |
 
 ### 3c. Proposed `MasterMeterPublisher`
 
@@ -154,9 +159,9 @@ A new `@Observable` class (`MasterMeterPublisher` or equivalent, owned by `Maste
   that are updated by the main-thread polling loop.
 - Exposes a `clearClip()` action callable from the UI to reset `isClipped`.
 
-The tap must be installed on `finalOutputMixer` (after the per-branch gain mixing, before
-`mainMixerNode`), as `existing-state.md` section 8 question 3 recommends. This placement measures
-what the master insert chain and crossfader produce, which is what the user needs to monitor.
+The tap must be installed on `finalOutputMixer`, after the Scene A/B blend and
+post-blend master inserts, so it measures the same final-output path the user
+hears.
 
 The tap lifecycle must be tied to engine start/stop events. `MasterBusHost.installMasterChains`
 already stops and restarts the engine; that method (or its caller) must also coordinate tap
@@ -168,25 +173,24 @@ removal and reinstall.
 
 ### 4a. Master Fader
 
-The master fader drives one gain value: either `MasterBusScene.outputGain` (per-scene path) or
-`MasterBusState.masterOutputGain` (global path). The mutation path in either case:
+The master fader drives one gain value: `MasterBusState.masterOutputGain`. The mutation path is:
 
 1. View gesture → `session.mutateMasterBus(...)` (document mutation, same pattern as
    `session.reorderInserts`).
 2. Session mutation triggers `EngineController.applyMasterBusState(...)` (or equivalent).
-3. `MasterBusHost.apply(...)` sets `managedMasterGainMixer.outputVolume` for the relevant branch.
+3. `MasterBusHost.apply(...)` sets `finalOutputMixer.outputVolume`.
 
-If the global path is chosen, `managedMasterGainMixer` (or a new post-blend gain node) is written
-directly in one call. If the per-scene path is chosen, `outputGain` must be read at the correct
-scene index and applied to the corresponding branch gain mixer. The `normalized()` call must not
-reset it afterward.
+`MasterBusScene.outputGain` stays out of scope and must not be repaired or
+repurposed as the Master Out fader.
 
-### 4b. Insert Chain (Mixer Panel Re-exposure)
+### 4b. Insert Chain (Post-Blend Master Out)
 
-Insert add, remove, bypass, and reorder mutations already exist via
-`SequencerDocumentSession+Mutations.swift:297–324`. The mixer master column re-exposes these same
-mutations; it does not introduce new mutation paths. The view binds to `masterBus.scenes[i].inserts`
-for the active scene (determined by the display rule resolved in Section 5, question 1).
+Master Out insert add, remove, bypass, and reorder mutations target
+`MasterBusState.masterInserts`. The view binds to that single chain and labels
+it as final-output processing, e.g. `Final chain` / `After Scene A/B mix`.
+It must not bind to `masterBus.scenes[i].inserts`, must not use a
+dominant-scene selector, and must not expose Scene A/B insert editing from this
+section.
 
 ### 4c. Crossfader
 
@@ -210,22 +214,17 @@ than through a document field.
 
 The six open questions from `ux-review.md` are addressed below.
 
-### Question 1 — Active scene inserts during mid-blend (RESOLVED)
+### Question 1 — Master Out insert ownership (RESOLVED)
 
-**Which scene's insert chain does the master out panel display when the crossfader is mid-blend?**
+**Which insert chain does the master out panel edit?**
 
-Options:
-- Always the A-slot scene (simple; predictable; A is conventionally dominant).
-- Always the scene with higher crossfader weight (dynamic; more complex display logic).
-- Show both with a separator (highest information density; unclear layout at scale).
+Resolved by product-owner correction on 2026-05-09: Master Out edits
+`MasterBusState.masterInserts`, a post-blend chain after the Scene A/B mix and
+before final output gain/metering.
 
-Architecture can implement any of these, but the correct policy is a product decision. The
-display rule determines the view binding and the label ("Inserts (Scene: X)"). This must be
-resolved before spec. The question is recorded in `open-questions.md`.
-
-**Architectural implication:** All three options bind to existing `MasterBusScene.inserts` data.
-No new model field is required for any option. The only difference is the index computation in
-the view or view model.
+Architectural implication: no active-scene insert display rule is used in
+Master Out. Existing `MasterBusScene.inserts` data remains for scene workflows
+only.
 
 ### Question 2 — Master fader scope: per-scene vs. global (RESOLVED)
 
@@ -246,13 +245,12 @@ The conventional behavior (global, post-blend) is strongly implied by the user s
 ("a clearly separated master out section... control the final output independently of individual
 tracks or busses") and the prototype label "MASTER OUT." However, this is a model change with
 migration implications for existing documents that rely on `MasterBusScene.outputGain` being 1.0.
-The decision is recorded in `open-questions.md`.
+The decision is recorded in `decisions.md`.
 
-**Architectural recommendation (advisory, not decided):** The global field is more correct for the
-user story intent. Per-scene outputGain repair is a dead end because it produces
-per-scene master levels, which is not what Story 1 describes. If the user confirms the global
-interpretation, the implementation adds `MasterBusState.masterOutputGain: Double` (default 1.0,
-persisted) and connects it to a new or repurposed gain node after the crossfade blend.
+Resolved implementation direction: use `MasterBusState.masterOutputGain`
+(default 1.0, persisted) and apply it on the final output path after the
+crossfade blend. Per-scene `outputGain` repair is out of scope because it
+produces per-scene master levels, which is not what Story 1 describes.
 
 ### Question 3 — Unity (0 dB) position and default fader value (RESOLVABLE IN SPEC)
 
@@ -269,13 +267,14 @@ spec with a note that the dB display scale is a UI/implementation concern.
 
 ### Question 4 — Empty insert chain affordance (RESOLVABLE IN SPEC)
 
-**What is shown when a scene's insert chain is empty?**
+**What is shown when the Master Out insert chain is empty?**
 
 Architecture position: The two dashed-border empty-slot rows shown in Variant A are the correct
-pattern. They are consistent with the existing `ScenesWorkspaceView` insert list behavior and with
-the prototype's empty-slot rendering. The spec should confirm the slot count (2 visible empty
-slots) and the label ("— empty slot —" as shown in the prototype). No model change is required;
-the view renders empty dashed rows when `scene.inserts.count` is below the visible slot count.
+pattern. They preserve the prototype's empty-slot rendering while applying to
+`MasterBusState.masterInserts`. The spec should confirm the slot count (2
+visible empty slots) and the label ("— empty slot —" as shown in the
+prototype). The view renders empty dashed rows when `masterInserts.count` is
+below the visible slot count.
 
 This is a spec-level decision.
 
@@ -307,29 +306,19 @@ The acceptance signal repeats this: "it does not reset on its own until the user
 This strongly implies user-action-only reset, which is also the conventional DAW behavior
 (Pro Tools, Logic, Ableton all require a user click to clear clip indicators).
 
-Architecture recommendation: Implement user-action-only reset as the default. Auto-hold-and-reset
-is explicitly not required by the story. If the user wants auto-reset as an option, it is additive
-and can be handled in a follow-up. The question is noted in `open-questions.md` only to confirm
-that no automatic reset timer is required, rather than to seek an alternative answer.
-
-**This question is likely resolvable as "user-action-only" based on the user story text.** It is
-included in `open-questions.md` as a confirmation request rather than a blocking unknown.
+Architecture decision: implement user-action-only reset. Auto-hold-and-reset is
+explicitly not required by the story. If the user wants auto-reset as an
+option, it is additive and can be handled in a follow-up.
 
 ---
 
 ## 6. Relationship to Mixer Busses (Item 5)
 
-`existing-state.md` section 8 and the notes cross-reference note that mixer-busses (item 5) has
-its own Q4 about whether insert state is scene-scoped or global. That question is closely related
-to this feature's question 2 (master fader scope) and question 1 (active scene insert display).
-
-**Guardrail:** The mixer-main-out feature must not unilaterally change `MasterBusScene.inserts`
-from per-scene to global without coordinating with the mixer-busses roadmap item. The current
-architecture assumes that inserts remain per-scene for this feature. If mixer-busses resolves its
-Q4 in favor of a global chain, the master column's insert display rule (question 1) may change.
-
-The spec should note this dependency explicitly and flag that a global insert chain refactor, if
-it lands as part of mixer-busses, would supersede the active-scene display rule adopted here.
+Mixer-busses (item 5) can still decide how ordinary buses, sends, and scene
+insert workflows are represented. Mixer Main Out now has its own final-output
+chain on `MasterBusState.masterInserts`; item 5 should preserve or explicitly
+migrate that post-blend chain rather than treating it as part of
+`MasterBusScene.inserts`.
 
 ---
 
@@ -354,22 +343,23 @@ The `publishToMain` dispatch pattern is the closest analog for the main-thread p
 | Risk | Severity | Mitigation |
 |---|---|---|
 | Tap invalidation on graph rebuild | High | Must explicitly uninstall tap before `installMasterChains` stop and reinstall after restart. If not handled, clip indicators will stop updating silently after any insert-chain edit. |
-| `normalized()` clobbering a repaired `outputGain` | High | If per-scene path is chosen, `normalized()` must be changed in the same commit as the UI. Any call path that triggers `normalized()` without the UI guard will silently reset the fader. |
+| `MasterBusScene.outputGain` reused accidentally | High | Keep the Master Out fader on `MasterBusState.masterOutputGain`; do not repair or reuse scene `outputGain` as a shortcut. |
 | Duplicate crossfader widget state | Medium | Extracting the widget to a shared component and ensuring both call sites read from `masterBusPerformanceOverlay.crossfaderOverride` is required. A local copy would desync from the scenes view. |
 | Audio thread dBFS conversion cost | Low | Peak detection (absolute value scan over a buffer) is trivially inexpensive. Risk is negligible. |
 | Narrow viewport layout at 540 pt | Medium | Test on actual iPad split-screen dimensions. The collapse policy (question 5) must be decided before spec to avoid a late layout regression. |
-| Mixer-busses global-chain refactor superseding this design | Medium | The per-scene insert assumption in this architecture could be invalidated if mixer-busses (item 5) adopts a global post-blend chain. The spec should note the dependency and the condition under which the active-scene display rule becomes moot. |
+| Scene insert affordances leaking back into Master Out | Medium | Keep Master Out bound to `MasterBusState.masterInserts`, label it as final-output processing, and leave Scene A/B insert editing in scene-oriented workflows. |
 
 ---
 
 ## 9. Architecture Questions Gating Spec
 
-Questions 1, 2, and 6 from Section 5 were resolved on 2026-05-03 in `decisions.md`.
+Questions 2 and 6 from Section 5 were resolved on 2026-05-03 in `decisions.md`;
+Question 1 was corrected on 2026-05-09 after product-owner review.
 Questions 3, 4, and 5 are resolvable within the spec.
 
 | # | Question | Resolution path |
 |---|---|---|
-| 1 | Which scene's inserts show during mid-blend? | Resolved: show the scene with higher crossfader weight |
+| 1 | Which insert chain does Master Out edit? | Resolved: post-blend `MasterBusState.masterInserts`; no dominant-scene display |
 | 2 | Master fader: global `masterOutputGain` or repaired per-scene `outputGain`? | Resolved: global post-blend master output gain |
 | 3 | Unity position and default fader value at document creation | Resolvable in spec (default: 0 dB = 1.0, ~75–80 % up the throw) |
 | 4 | Empty insert chain affordance | Resolvable in spec (dashed empty slots matching prototype) |

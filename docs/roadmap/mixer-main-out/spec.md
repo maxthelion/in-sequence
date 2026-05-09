@@ -9,7 +9,8 @@ prototype_approval: prototype-approval.md
 # Mixer Main Out — Spec
 
 Sources: `user-stories.md`, `existing-state.md`, `ux-review.md`, `prototype-approval.md`,
-`decisions.md`, `architecture.md`, and `architecture-review.md`.
+`decisions.md`, `architecture.md`, `architecture-review.md`, and the accepted 2026-05-09
+product-owner correction.
 
 ---
 
@@ -25,7 +26,9 @@ This spec covers all four approved user stories for Mixer Main Out:
 ### Explicitly out of scope
 
 - Per-scene master output gain. V1 is one global master output fader only.
-- A new global master insert-chain model. Master inserts remain scene-scoped in v1.
+- Editing Scene A or Scene B insert chains from Master Out. Scene insert editing remains
+  available in the existing scene workflows, but this mixer section owns only the post-blend
+  master-bus insert chain.
 - Auto-clearing clip indication. The latch clears only on explicit user action.
 - Reset / Save Blend / Save to Scene controls in the mixer master column.
 - New effect types, new AudioUnit hosting rules, or mixer-busses redesign.
@@ -41,7 +44,7 @@ master column inside the mixer workspace.
 The key product decisions are locked:
 
 - The master fader is one global final-output control applied after the A/B blend.
-- The insert panel shows the scene with the higher current crossfader weight.
+- The insert panel edits the post-blend `MasterBusState.masterInserts` chain.
 - The clip indicator latches until the user presses `CLR`.
 
 This feature is a conservative DAW-style extension of the current master-bus path, not a
@@ -87,9 +90,9 @@ The mixer gains a dedicated master-out column on the right edge. It contains, to
 bottom:
 
 1. Scene A/B crossfader section
-2. Scene-scoped insert chain section
-3. Global master fader section
-4. Output meter and clip indicator section
+2. Post-blend master insert chain section
+3. Combined global master fader and output meter section
+4. Clip indicator and manual clear status
 
 The existing Scene Perform crossfader widget is extracted into a reusable shared view so
 both call sites render the same live state.
@@ -141,28 +144,36 @@ from an existing mixer collapse pattern.
 
 ### 4.3 Story 2 — Insert effects on the master out
 
-Master inserts remain scene-scoped and reuse the existing insert model and mutation paths.
+Master Out edits one post-blend master-bus insert chain stored on
+`MasterBusState.masterInserts`.
 
-The insert section displays the dominant scene's chain:
+Signal order is:
 
-- if Scene A has higher current crossfader weight, show Scene A inserts
-- if Scene B has higher current crossfader weight, show Scene B inserts
-- if the crossfader is exactly centered, resolve ties to Scene A for deterministic display
+- Scene A/B branches
+- Scene A/B crossfade blend
+- `MasterBusState.masterInserts`
+- final output gain and metering
 
-The section label includes the active scene name, for example:
+The section label should present final-output ownership explicitly, for example:
 
-`Inserts (Scene: Intro Loop)`
+`Final chain`
 
-The section supports the existing behaviours only:
+Supporting copy may identify placement as:
+
+`After Scene A/B mix`
+
+The section supports the same insert operations as other insert chains:
 
 - add insert
 - bypass / enable insert
 - reorder insert
 - remove insert
 
-No new insert-chain model is introduced.
+The section must not display or mutate `MasterBusScene.inserts`, must not switch chain
+contents as the crossfader moves, and must not expose Scene A/B insert-edit affordances.
+Scene A/B inserts remain editable from the existing scene-oriented surfaces.
 
-When the visible scene has fewer than two inserts, render dashed empty rows labeled:
+When the master chain has fewer than two inserts, render dashed empty rows labeled:
 
 `— empty slot —`
 
@@ -229,7 +240,7 @@ Existing persisted fields reused by this feature:
 
 | Field | Owner | Used for |
 |---|---|---|
-| `scenes[].inserts` | `MasterBusScene` | Insert chain for the displayed dominant scene |
+| `masterInserts` | `MasterBusState` | Post-blend master-bus insert chain |
 | `abSelection.crossfader` | `MasterBusABSelection` | Authored baseline crossfader position |
 
 ### 5.2 Transient
@@ -255,7 +266,7 @@ No meter value or clip state is persisted.
 - Meter tap callbacks run off the main thread.
 - Observable/UI publication from tap data must dispatch to the main thread.
 - Audio-graph mutations continue to go through the existing `performOnMain` discipline.
-- Any rebuild of the master insert chain must remove and reinstall the meter tap so
+- Any rebuild of the post-blend master insert chain must remove and reinstall the meter tap so
   metering does not silently stop after insert edits.
 
 ### 6.2 Backward compatibility
@@ -288,10 +299,11 @@ behaviour.
 
 ### Story 2
 
-- The insert section shows the dominant scene's chain and labels the scene by name.
-- Add, bypass, reorder, and remove reuse the existing insert behaviours.
+- The insert section shows the post-blend `MasterBusState.masterInserts` chain and labels it
+  as final-output processing.
+- Add, bypass, reorder, and remove mutate `MasterBusState.masterInserts`.
 - An empty chain shows two dashed `— empty slot —` rows.
-- The feature does not introduce a new global insert-chain model.
+- The feature does not edit Scene A/B insert chains from Master Out.
 
 ### Story 3
 
@@ -311,9 +323,9 @@ behaviour.
 
 ## 8. Non-Goals and Dependencies
 
-- This spec does not resolve mixer-busses item 5 into a global insert-chain redesign.
-- If mixer-busses later introduces a true global post-blend insert chain, that later
-  feature may supersede the dominant-scene display rule defined here.
+- This spec does not resolve mixer-busses item 5 into a general bus-routing redesign.
+- If mixer-busses later changes how ordinary buses or scene inserts are organized, that later
+  feature must preserve or explicitly migrate this post-blend Master Out chain.
 - This spec does not introduce new effect types, new metering preferences, or alternate
   clip-reset policies.
 
@@ -325,5 +337,5 @@ None. The remaining architecture choices were resolved here:
 
 - global master fader uses `masterOutputGain`
 - unity is `1.0` / `0 dB`
-- empty insert state uses dashed rows
+- empty master insert state uses dashed rows
 - narrow-width behaviour uses the compact strip below `540 pt`

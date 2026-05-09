@@ -8,10 +8,13 @@ Resolved on 2026-05-03 from the holistic mixer policy and approved by the user:
 
 ## Decisions
 
-1. **Mid-crossfade insert display:** show the scene with the higher crossfader weight.
+1. **Master Out insert ownership:** edit the post-blend master-bus insert chain.
 
-   This keeps the master insert panel aligned with the currently dominant audible
-   scene without trying to show both chains in the constrained master column.
+   Product-owner correction on 2026-05-09 superseded the earlier dominant-scene
+   insert display decision. Master Out inserts are stored on
+   `MasterBusState.masterInserts` and run after the Scene A/B blend and before
+   final output gain/metering. Master Out must not expose Scene A/B insert
+   editing affordances.
 
 2. **Master fader:** use one global final output level.
 

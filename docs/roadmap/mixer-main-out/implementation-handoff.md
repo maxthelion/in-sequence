@@ -21,7 +21,7 @@
 | [existing-state.md](existing-state.md) | Current code reality: scene-scoped inserts already exist, the mixer has no master section, and metering is absent. |
 | [user-stories.md](user-stories.md) | User intent and acceptance signals for the master section, inserts, metering, and crossfader. |
 | [ux-review.md](ux-review.md) | Accepted UX direction. Explains why Variant A beat the top-band alternative. |
-| [prototype-approval.md](prototype-approval.md) | User approval and the three locked product decisions for v1. |
+| [prototype-approval.md](prototype-approval.md) | User approval for the right-side column direction. Its earlier dominant-scene insert wording is superseded by the accepted 2026-05-09 product-owner correction captured in `spec.md` and `decisions.md`. |
 | [prototypes/mixer-main-out-variant-a.html](prototypes/mixer-main-out-variant-a.html) | Selected prototype for layout, control grouping, and visual hierarchy. |
 | [decisions.md](decisions.md) | The settled product decisions that the implementation must not reopen. |
 | [notes.md](notes.md) | Original product framing and cross-links to busses, sends, and Scene Perform. |
@@ -39,7 +39,7 @@ manage the final output without leaving the mixer. In v1 that means:
 
 - one fixed right-side master column in the mixer
 - one global post-blend master fader
-- scene-scoped master inserts surfaced in the mixer instead of only in Scenes
+- one post-blend `MasterBusState.masterInserts` chain surfaced in Master Out
 - one shared Scene A/B crossfader control reused from Scene Perform
 - one new transient dBFS meter plus manual clip latch clear
 
@@ -52,13 +52,13 @@ rewrite.
 
 The approved direction is Variant A: a fixed right-side master column inside
 the mixer workspace. The master fader is global and applied after the A/B
-crossfade blend. The insert panel remains scene-scoped and shows whichever scene
-has the higher current crossfader weight. The clip indicator is manual-clear
-only in v1.
+crossfade blend. The insert panel edits the post-blend
+`MasterBusState.masterInserts` chain after the Scene A/B blend and before final
+output gain and metering. The clip indicator is manual-clear only in v1.
 
-Do not add a second prototype pass, a per-scene master fader, or a new global
-master insert model unless later user feedback explicitly invalidates the
-approved lane.
+Do not add a second prototype pass, a per-scene master fader, or Scene A/B
+insert editing affordances inside Master Out unless later user feedback
+explicitly invalidates the approved lane.
 
 ---
 
@@ -70,8 +70,9 @@ approved lane.
 2. The global master gain and the meter tap must stay on the same audible
    post-fader point. If `finalOutputMixer.outputVolume` is the master fader,
    meter `finalOutputMixer`. Do not ship pre-fader metering by accident.
-3. Scene-scoped inserts are the v1 boundary. Reuse `MasterBusScene.inserts` and
-   the existing mutation helpers; do not invent a second insert-chain model.
+3. Master Out inserts are owned by `MasterBusState.masterInserts`, positioned
+   after the Scene A/B blend and before final output gain/metering. Do not read
+   or mutate `MasterBusScene.inserts` from this section.
 4. The mixer master column must read and write the same
    `masterBusPerformanceOverlay.crossfaderOverride` path used by Scene Perform
    today. No duplicate local crossfader state.
@@ -110,8 +111,9 @@ documented guardrails.
 Follow the plan's phases in order:
 
 1. **Phase 0 - verification**
-   Confirm the post-fader seam on `finalOutputMixer`, the extraction seams for
-   the shared crossfader and insert controls, and the exact test landing zones.
+   Confirm the post-fader seam on `finalOutputMixer`, the extraction seam for
+   the shared crossfader, the `MasterBusState.masterInserts` mutation surface,
+   and the exact test landing zones.
 2. **Phase 1 - persisted master gain**
    Add `masterOutputGain` to `MasterBusState`, wire a focused session mutation,
    and apply the gain on the final output path.
@@ -119,8 +121,8 @@ Follow the plan's phases in order:
    Add the runtime-only meter owner, clip latch, and tap lifecycle without
    leaking state into the document.
 4. **Phase 3 - mixer master column**
-   Extract the shared crossfader, surface scene-scoped inserts in the mixer,
-   add the master fader, and add the meter/clip UI.
+   Extract the shared crossfader, surface post-blend master inserts in the
+   mixer, add the master fader, and add the meter/clip UI.
 5. **Phase 4 - verification and polish**
    Add the document, session, engine, and UI coverage called out in the plan and
    confirm the accepted behaviour against the spec.
@@ -131,9 +133,9 @@ Follow the plan's phases in order:
 
 | Area | Expected work |
 |---|---|
-| `Sources/Document/MasterBus.swift` | Add `masterOutputGain` with legacy-safe decoding and normalization rules |
-| `Sources/App/SequencerDocumentSession+Mutations.swift` | Add a focused master-output gain mutation path |
-| `Sources/Audio/MainAudioGraph.swift` and `Sources/Audio/MasterBusHost.swift` | Apply the global gain and own the meter tap lifecycle |
+| `Sources/Document/MasterBus.swift` | Add `masterOutputGain` and `masterInserts` with legacy-safe decoding and normalization rules |
+| `Sources/App/SequencerDocumentSession+Mutations.swift` | Add focused master-output gain and post-blend master-insert mutation paths |
+| `Sources/Audio/MainAudioGraph.swift` and `Sources/Audio/MasterBusHost.swift` | Apply the global gain, route post-blend master inserts, and own the meter tap lifecycle |
 | `Sources/Engine/EngineController.swift` | Publish transient meter state and clip clear actions safely to SwiftUI |
 | `Sources/UI/Mixer/MixerWorkspaceView.swift` and related mixer/scenes views | Add the master column and extract/reuse the crossfader and insert UI |
 | `Tests/SequencerAITests/Document/`, `App/`, `Audio/`, and UI-focused tests | Add coverage for decode defaults, session mutation, post-fader metering, and master-column behaviour |
@@ -155,8 +157,8 @@ observable:
 - The meter reflects the same post-fader signal the user hears.
 - The clip indicator latches on overload and clears only when the user presses
   clear.
-- The insert panel reuses scene-scoped master inserts and follows the dominant
-  crossfader side.
+- The insert panel edits `MasterBusState.masterInserts` after the Scene A/B
+  blend and does not expose Scene A/B insert editing.
 - The mixer crossfader stays in sync with Scene Perform because both surfaces
   share the same live override path.
 
@@ -168,7 +170,7 @@ See [spec.md](spec.md) Section 8 for the full acceptance criteria and
 ## Non-Goals And Deferred Follow-Ups
 
 - No per-scene master output gain in v1.
-- No new global master insert chain after the A/B blend.
+- No Scene A/B insert editing from Master Out.
 - No auto-clear timer for clip state.
 - No Reset / Save Blend / Save to Scene controls in the mixer master column.
 - No new effect types, AU hosting rules, or mixer-busses redesign.

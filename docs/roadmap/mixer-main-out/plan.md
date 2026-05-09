@@ -7,8 +7,10 @@ created: 2026-05-03
 
 ## Status
 
-PM plan — implementation handoff still required. No production code has been
-written.
+Historical PM build plan, reconciled after the accepted 2026-05-09
+product-owner correction. The implementation has since landed; use
+`spec.md`, `implementation-handoff.md`, and `decisions.md` as the current
+product contract.
 
 ---
 
@@ -26,11 +28,11 @@ The implementation stays deliberately narrow:
    clear
 4. extract the existing Scene Perform crossfader into a shared view and embed a
    new master column in the mixer workspace
-5. re-expose existing scene-scoped insert controls instead of inventing a new
-   master insert model
+5. expose `MasterBusState.masterInserts` as the post-blend Master Out insert
+   chain
 
-No new effect types, no scene-specific master fader, and no new global insert
-chain are in scope.
+No new effect types, no scene-specific master fader, and no Scene A/B insert
+editing from Master Out are in scope.
 
 ---
 
@@ -81,16 +83,17 @@ master mixer column instead of reimplemented.
 
 1. Confirm the existing crossfader widget still writes through
    `setLiveMasterCrossfader(_:)`.
-2. Confirm the current insert editing surface already exercises the scene-scoped
-   insert mutation helpers the master column should reuse.
-3. Confirm where the dominant-scene display rule should live so both label and
-   insert list stay in sync.
+2. Confirm the master-bus model exposes a `MasterBusState.masterInserts`
+   mutation surface for post-blend Master Out inserts.
+3. Confirm the Master Out insert label and actions stay bound to the post-blend
+   chain rather than Scene A/B insert lists.
 
 **Acceptance signals.**
 
 - The implementer knows which crossfader view code will be extracted versus
   reused.
-- The insert section can reuse existing mutations without adding a second model.
+- The insert section can mutate `MasterBusState.masterInserts` without exposing
+  Scene A/B insert editing.
 
 ### 0-C. Confirm the existing test landing zones
 
@@ -306,24 +309,25 @@ component.
 - The master-out surface is visually distinct and always reachable.
 - Narrow-width behavior does not hide the master path entirely.
 
-### 3-C. Re-expose scene-scoped inserts with the dominant-scene rule
+### 3-C. Expose post-blend Master Out inserts
 
-**What it is.** Show existing inserts inside the master column without creating
-another insert model.
+**What it is.** Show the post-blend Master Out insert chain inside the master
+column.
 
 **Required behavior.**
 
-1. Determine the visible insert chain from current crossfader weight.
-2. Tie exact-center display to Scene A for deterministic output.
-3. Reuse existing add, bypass, reorder, and remove mutations.
-4. Show empty placeholder rows when the visible scene has fewer than two
+1. Bind the visible insert chain to `MasterBusState.masterInserts`.
+2. Keep the chain stable as the Scene A/B crossfader moves.
+3. Support add, bypass, reorder, and remove mutations for the post-blend chain.
+4. Show empty placeholder rows when the master chain has fewer than two
    inserts.
 
 **Acceptance signals.**
 
-- Insert editing in the master column mutates the same authored state the scene
-  workspace uses.
-- The label and the visible chain stay aligned during live crossfader moves.
+- Insert editing in the master column mutates `MasterBusState.masterInserts`.
+- The label communicates final-output ownership, for example `Final chain` /
+  `After Scene A/B mix`.
+- Master Out does not expose Scene A/B insert editing affordances.
 
 ### 3-D. Add the master fader and meter presentation
 
@@ -366,7 +370,7 @@ boundaries.
 **Add or extend tests for:**
 
 1. applying master gain on the final output path
-2. dominant-scene selection for insert display
+2. post-blend `MasterBusState.masterInserts` mutation and graph routing
 3. clip latch set/clear behavior
 4. tap lifecycle surviving graph rebuilds without duplicate install
 
@@ -389,8 +393,8 @@ boundaries.
    track-strip fader positions
 2. drag the crossfader in either surface and confirm mirrored UI state
 3. trigger the clip latch, then clear it manually
-4. edit inserts from the mixer column and confirm the scene workspace reflects
-   the same chain
+4. edit inserts from the mixer column and confirm they affect the post-blend
+   Master Out chain, not Scene A/B insert chains
 
 **Acceptance signals.**
 
@@ -401,7 +405,7 @@ boundaries.
 
 ## Non-Goals and Watchouts
 
-- Do not introduce a new global master insert chain.
+- Do not expose Scene A/B insert editing from Master Out.
 - Do not revive `MasterBusScene.outputGain` as a v1 shortcut.
 - Do not persist meter values or clip latch state.
 - Do not give the mixer master column extra Scene Perform actions that the spec
