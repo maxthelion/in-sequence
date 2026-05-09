@@ -17,12 +17,14 @@ final class MainAudioGraph {
     let preMasterMixer: AVAudioMixerNode
     let masterMeterPublisher: MasterMeterPublisher
     private(set) var masterBranchesForTesting: [MasterBranchReadout] = []
+    private(set) var postBlendMasterInsertNodesForTesting: [AVAudioNode] = []
     private(set) var masterOutputGainForTesting: Float = 1
     private(set) var masterMeterTapPointForTesting: MasterMeterTapPoint?
     private(set) var masterMeterTapInstallCountForTesting = 0
     private(set) var masterMeterTapRemoveCountForTesting = 0
 
     private let graphLock = NSLock()
+    private let postBlendMixer = AVAudioMixerNode()
     private let finalOutputMixer = AVAudioMixerNode()
     private var managedMasterNodes: [AVAudioNode] = []
     private var managedMasterGainMixers: [AVAudioMixerNode] = []
@@ -37,8 +39,10 @@ final class MainAudioGraph {
 
         performOnMain {
             self.engine.attach(self.preMasterMixer)
+            self.engine.attach(self.postBlendMixer)
             self.engine.attach(self.finalOutputMixer)
-            self.engine.connect(self.preMasterMixer, to: self.finalOutputMixer, format: nil)
+            self.engine.connect(self.preMasterMixer, to: self.postBlendMixer, format: nil)
+            self.engine.connect(self.postBlendMixer, to: self.finalOutputMixer, format: nil)
             self.engine.connect(self.finalOutputMixer, to: self.engine.mainMixerNode, format: nil)
             self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
@@ -100,7 +104,11 @@ final class MainAudioGraph {
         }
     }
 
-    func installMasterChains(_ chains: [MasterChain], masterOutputGain: Double = 1) {
+    func installMasterChains(
+        _ chains: [MasterChain],
+        postBlendMasterNodes: [AVAudioNode] = [],
+        masterOutputGain: Double = 1
+    ) {
         graphLock.lock()
         defer { graphLock.unlock() }
 
@@ -113,6 +121,9 @@ final class MainAudioGraph {
             }
 
             self.engine.disconnectNodeOutput(self.preMasterMixer)
+            self.engine.disconnectNodeInput(self.postBlendMixer)
+            self.engine.disconnectNodeOutput(self.postBlendMixer)
+            self.engine.disconnectNodeInput(self.finalOutputMixer)
             for node in self.managedMasterNodes {
                 if node.engine === self.engine {
                     self.engine.disconnectNodeInput(node)
@@ -124,6 +135,9 @@ final class MainAudioGraph {
             self.managedMasterGainMixers = []
 
             let resolvedChains = chains.isEmpty ? [MasterChain(nodes: [], gain: 1)] : chains
+            let resolvedPostBlendNodes = postBlendMasterNodes.filter { node in
+                node.engine == nil || node.engine === self.engine
+            }
             var firstDestinations: [AVAudioConnectionPoint] = []
             var branchReadouts: [MasterBranchReadout] = []
 
@@ -153,11 +167,27 @@ final class MainAudioGraph {
                     firstDestinations.append(AVAudioConnectionPoint(node: gainMixer, bus: 0))
                 }
 
-                self.engine.connect(gainMixer, to: self.finalOutputMixer, format: nil)
+                self.engine.connect(gainMixer, to: self.postBlendMixer, format: nil)
                 branchReadouts.append(MasterBranchReadout(nodes: chainNodes, gain: clampedGain))
             }
 
+            for node in resolvedPostBlendNodes where node.engine == nil {
+                self.engine.attach(node)
+            }
+            self.managedMasterNodes.append(contentsOf: resolvedPostBlendNodes)
+
+            if let firstMasterNode = resolvedPostBlendNodes.first {
+                self.engine.connect(self.postBlendMixer, to: firstMasterNode, format: nil)
+                for (source, destination) in zip(resolvedPostBlendNodes, resolvedPostBlendNodes.dropFirst()) {
+                    self.engine.connect(source, to: destination, format: nil)
+                }
+                self.engine.connect(resolvedPostBlendNodes.last ?? firstMasterNode, to: self.finalOutputMixer, format: nil)
+            } else {
+                self.engine.connect(self.postBlendMixer, to: self.finalOutputMixer, format: nil)
+            }
+
             self.masterBranchesForTesting = branchReadouts
+            self.postBlendMasterInsertNodesForTesting = resolvedPostBlendNodes
             self.finalOutputMixer.outputVolume = clampedMasterOutputGain
             self.masterOutputGainForTesting = clampedMasterOutputGain
             self.engine.connect(self.preMasterMixer, to: firstDestinations, fromBus: 0, format: nil)
@@ -213,6 +243,17 @@ final class MainAudioGraph {
     private static func clampedMasterOutputGain(_ gain: Double) -> Float {
         guard gain.isFinite else { return 1 }
         return Float(min(max(gain, 0), 2))
+    }
+
+    func setMasterOutputGain(_ gain: Double) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            let clampedGain = Self.clampedMasterOutputGain(gain)
+            self.finalOutputMixer.outputVolume = clampedGain
+            self.masterOutputGainForTesting = clampedGain
+        }
     }
 
     func setMasterBranchGains(_ gains: [Double]) {
@@ -300,19 +341,22 @@ final class MasterMeterPublisher {
     @ObservationIgnored private let publishInterval: TimeInterval
     @ObservationIgnored private let peakHoldDuration: TimeInterval
     @ObservationIgnored private let peakHoldReleaseDBPerSecond: Double
+    @ObservationIgnored private let levelReleaseDBPerSecond: Double
     @ObservationIgnored private var publishTimer: DispatchSourceTimer?
     @ObservationIgnored private var lastPublishTime: TimeInterval?
     @ObservationIgnored private var leftPeakHoldTime: TimeInterval = 0
     @ObservationIgnored private var rightPeakHoldTime: TimeInterval = 0
 
     init(
-        publishInterval: TimeInterval = 1.0 / 30.0,
+        publishInterval: TimeInterval = 1.0 / 60.0,
         peakHoldDuration: TimeInterval = 0.75,
-        peakHoldReleaseDBPerSecond: Double = 18
+        peakHoldReleaseDBPerSecond: Double = 18,
+        levelReleaseDBPerSecond: Double = 42
     ) {
         self.publishInterval = publishInterval
         self.peakHoldDuration = peakHoldDuration
         self.peakHoldReleaseDBPerSecond = peakHoldReleaseDBPerSecond
+        self.levelReleaseDBPerSecond = levelReleaseDBPerSecond
     }
 
     func startPublishing() {
@@ -372,10 +416,20 @@ final class MasterMeterPublisher {
         }
 
         let snapshot = transport.snapshot()
-        let leftPeak = Self.dbFS(amplitude: snapshot.left)
-        let rightPeak = Self.dbFS(amplitude: snapshot.right)
+        let leftLivePeak = Self.dbFS(amplitude: snapshot.left)
+        let rightLivePeak = Self.dbFS(amplitude: snapshot.right)
         let elapsed = max(0, now - (lastPublishTime ?? now))
         lastPublishTime = now
+        let leftPeak = nextDisplayedPeak(
+            currentPeak: displayState.leftPeakDBFS,
+            livePeak: leftLivePeak,
+            elapsed: elapsed
+        )
+        let rightPeak = nextDisplayedPeak(
+            currentPeak: displayState.rightPeakDBFS,
+            livePeak: rightLivePeak,
+            elapsed: elapsed
+        )
 
         let leftHold = nextPeakHold(
             currentHold: displayState.leftPeakHoldDBFS,
@@ -461,6 +515,19 @@ final class MasterMeterPublisher {
 
         let released = currentHold - peakHoldReleaseDBPerSecond * elapsed
         return max(livePeak, released)
+    }
+
+    private func nextDisplayedPeak(
+        currentPeak: Double,
+        livePeak: Double,
+        elapsed: TimeInterval
+    ) -> Double {
+        guard currentPeak.isFinite else { return livePeak }
+        guard livePeak.isFinite else {
+            return currentPeak - levelReleaseDBPerSecond * elapsed
+        }
+        guard livePeak < currentPeak else { return livePeak }
+        return max(livePeak, currentPeak - levelReleaseDBPerSecond * elapsed)
     }
 }
 

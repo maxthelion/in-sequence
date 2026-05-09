@@ -12,6 +12,7 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(project.masterBus.abSelection?.sceneAID, project.masterBus.scenes[0].id)
         XCTAssertEqual(project.masterBus.abSelection?.sceneBID, project.masterBus.scenes[1].id)
         XCTAssertEqual(project.masterBus.masterOutputGain, 1)
+        XCTAssertTrue(project.masterBus.masterInserts.isEmpty)
     }
 
     func test_oldProjectJSONDecodesWithDefaultMasterBus() throws {
@@ -32,11 +33,13 @@ final class MasterBusStateTests: XCTestCase {
         let encoded = try JSONEncoder().encode(MasterBusState.default)
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         object.removeValue(forKey: "masterOutputGain")
+        object.removeValue(forKey: "masterInserts")
         let legacyData = try JSONSerialization.data(withJSONObject: object)
 
         let decoded = try JSONDecoder().decode(MasterBusState.self, from: legacyData)
 
         XCTAssertEqual(decoded.masterOutputGain, 1)
+        XCTAssertTrue(decoded.masterInserts.isEmpty)
     }
 
     func test_masterOutputGainRoundTripsAndNormalizesToValidRange() throws {
@@ -52,6 +55,24 @@ final class MasterBusStateTests: XCTestCase {
 
         state.setMasterOutputGain(-0.25)
         XCTAssertEqual(state.masterOutputGain, 0)
+    }
+
+    func test_masterInsertsRoundTripAsPostBlendBusState() throws {
+        let sceneA = MasterBusScene(name: "A", inserts: [.filter()])
+        let sceneB = MasterBusScene(name: "B", inserts: [.bitcrusher()])
+        var state = MasterBusState(scenes: [sceneA, sceneB], activeSceneID: sceneA.id)
+        let insert = MasterBusInsert.filter()
+
+        state.addMasterInsert(insert)
+        state.updateMasterInsert(id: insert.id) { $0.isEnabled = false }
+
+        let decoded = try JSONDecoder().decode(MasterBusState.self, from: try JSONEncoder().encode(state))
+
+        XCTAssertEqual(decoded.masterInserts.count, 1)
+        XCTAssertEqual(decoded.masterInserts[0].id, insert.id)
+        XCTAssertFalse(decoded.masterInserts[0].isEnabled)
+        XCTAssertEqual(decoded.scene(id: sceneA.id)?.inserts.count, 1)
+        XCTAssertEqual(decoded.scene(id: sceneB.id)?.inserts.count, 1)
     }
 
     func test_authoredOutOfRangeMasterOutputGainDecodesNormalizedWithoutLosingState() throws {

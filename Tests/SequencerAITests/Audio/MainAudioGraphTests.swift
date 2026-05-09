@@ -48,6 +48,28 @@ final class MainAudioGraphTests: XCTestCase {
     }
 
     @MainActor
+    func test_installMasterChains_placesMasterInsertsAfterBranchMix() throws {
+        let graph = MainAudioGraph()
+        let sceneFilter = AVAudioUnitEQ(numberOfBands: 1)
+        let masterLimiter = AVAudioUnitDistortion()
+
+        graph.installMasterChains(
+            [
+                MainAudioGraph.MasterChain(nodes: [sceneFilter], gain: 0.25),
+                MainAudioGraph.MasterChain(nodes: [], gain: 0.75),
+            ],
+            postBlendMasterNodes: [masterLimiter],
+            masterOutputGain: 0.8
+        )
+
+        XCTAssertEqual(graph.masterBranchesForTesting.count, 2)
+        XCTAssertTrue(graph.masterBranchesForTesting[0].nodes.first === sceneFilter)
+        XCTAssertEqual(graph.postBlendMasterInsertNodesForTesting.count, 1)
+        XCTAssertTrue(graph.postBlendMasterInsertNodesForTesting[0] === masterLimiter)
+        XCTAssertEqual(graph.masterOutputGainForTesting, 0.8, accuracy: 0.0001)
+    }
+
+    @MainActor
     func test_masterHostConfiguresNativeFilterNodeInSharedGraph() throws {
         let graph = MainAudioGraph()
         let host = MasterBusHost()
@@ -170,6 +192,20 @@ final class MasterMeterPublisherTests: XCTestCase {
     }
 
     @MainActor
+    func test_meterDisplayReleasesSmoothlyWhenNoAudioArrives() {
+        let publisher = MasterMeterPublisher(levelReleaseDBPerSecond: 12)
+        publisher.stopPublishing()
+
+        publisher.recordPeakAmplitudes(left: 1, right: 1)
+        publisher.publishPendingToMain(now: 1)
+        publisher.publishPendingToMain(now: 1.25)
+
+        XCTAssertEqual(publisher.displayState.leftPeakDBFS, -3, accuracy: 0.0001)
+        XCTAssertEqual(publisher.displayState.rightPeakDBFS, -3, accuracy: 0.0001)
+        XCTAssertFalse(publisher.displayState.isClipLatched)
+    }
+
+    @MainActor
     func test_peakHoldMaintainsMarkerThenReleasesTowardLivePeak() {
         let publisher = MasterMeterPublisher(peakHoldDuration: 0.5, peakHoldReleaseDBPerSecond: 10)
         publisher.stopPublishing()
@@ -180,7 +216,7 @@ final class MasterMeterPublisherTests: XCTestCase {
 
         publisher.recordPeakAmplitudes(left: 0.1, right: 0.1)
         publisher.publishPendingToMain(now: 1.25)
-        XCTAssertEqual(publisher.displayState.leftPeakDBFS, -20, accuracy: 0.0001)
+        XCTAssertEqual(publisher.displayState.leftPeakDBFS, -10.5, accuracy: 0.0001)
         XCTAssertEqual(publisher.displayState.leftPeakHoldDBFS, 0, accuracy: 0.0001)
 
         publisher.publishPendingToMain(now: 1.75)

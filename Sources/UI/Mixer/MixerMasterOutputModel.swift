@@ -25,34 +25,6 @@ enum MasterOutputColumnLayout {
     }
 }
 
-struct MasterOutputDominantScene: Equatable {
-    let id: UUID
-    let slotLabel: String
-}
-
-enum MasterOutputSceneSelector {
-    static func dominantScene(
-        in masterBus: MasterBusState,
-        selection: MasterBusABSelection,
-        liveCrossfader: Double?
-    ) -> MasterOutputDominantScene {
-        let crossfader = clamp(liveCrossfader ?? selection.crossfader, to: 0...1)
-        if crossfader > 0.5 {
-            return MasterOutputDominantScene(id: selection.sceneBID, slotLabel: "B")
-        }
-        return MasterOutputDominantScene(id: selection.sceneAID, slotLabel: "A")
-    }
-
-    static func scene(
-        in masterBus: MasterBusState,
-        selection: MasterBusABSelection,
-        liveCrossfader: Double?
-    ) -> MasterBusScene {
-        let dominant = dominantScene(in: masterBus, selection: selection, liveCrossfader: liveCrossfader)
-        return masterBus.scene(id: dominant.id) ?? masterBus.activeScene
-    }
-}
-
 enum MasterOutputGainScale {
     static let gainRange = MasterBusState.masterOutputGainRange
     static let unityPosition = position(forGain: 1)

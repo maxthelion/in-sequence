@@ -21,30 +21,22 @@ final class MixerMasterOutputTests: XCTestCase {
         XCTAssertTrue(MasterOutputColumnLayout.presentation(for: 320).usesCompactOverlay)
     }
 
-    func test_dominantSceneSelectionUsesHigherCrossfaderWeightAndSceneATieBreak() {
+    func test_masterOutputInsertsUseMasterBusChainNotDominantScene() {
         let sceneAID = UUID()
         let sceneBID = UUID()
-        let sceneA = MasterBusScene(id: sceneAID, name: "Intro")
-        let sceneB = MasterBusScene(id: sceneBID, name: "Break")
-        let masterBus = MasterBusState(
+        let sceneA = MasterBusScene(id: sceneAID, name: "Intro", inserts: [.filter()])
+        let sceneB = MasterBusScene(id: sceneBID, name: "Break", inserts: [.bitcrusher()])
+        var masterBus = MasterBusState(
             scenes: [sceneA, sceneB],
             activeSceneID: sceneAID,
-            abSelection: MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneBID, crossfader: 0.5)
+            abSelection: MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneBID, crossfader: 1)
         )
-        let selection = masterBus.abSelection!
 
-        XCTAssertEqual(
-            MasterOutputSceneSelector.dominantScene(in: masterBus, selection: selection, liveCrossfader: nil),
-            MasterOutputDominantScene(id: sceneAID, slotLabel: "A")
-        )
-        XCTAssertEqual(
-            MasterOutputSceneSelector.dominantScene(in: masterBus, selection: selection, liveCrossfader: 0.5001),
-            MasterOutputDominantScene(id: sceneBID, slotLabel: "B")
-        )
-        XCTAssertEqual(
-            MasterOutputSceneSelector.scene(in: masterBus, selection: selection, liveCrossfader: 0.9),
-            sceneB
-        )
+        masterBus.addMasterInsert(.filter())
+
+        XCTAssertEqual(masterBus.masterInserts.count, 1)
+        XCTAssertEqual(masterBus.scene(id: sceneAID)?.inserts.count, 1)
+        XCTAssertEqual(masterBus.scene(id: sceneBID)?.inserts.count, 1)
     }
 
     func test_masterOutputGainScaleKeepsUnityNearApprovedFaderThrow() {

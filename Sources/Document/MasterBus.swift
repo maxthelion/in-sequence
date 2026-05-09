@@ -7,18 +7,21 @@ struct MasterBusState: Codable, Equatable, Sendable {
     var activeSceneID: UUID
     var abSelection: MasterBusABSelection?
     var masterOutputGain: Double
+    var masterInserts: [MasterBusInsert]
 
     init(
         scenes: [MasterBusScene]? = nil,
         activeSceneID: UUID? = nil,
         abSelection: MasterBusABSelection? = nil,
-        masterOutputGain: Double = 1
+        masterOutputGain: Double = 1,
+        masterInserts: [MasterBusInsert] = []
     ) {
         let resolvedScenes = scenes ?? [.sceneA, .sceneB]
         self.scenes = resolvedScenes
         self.activeSceneID = activeSceneID ?? resolvedScenes.first?.id ?? MasterBusScene.sceneAID
         self.abSelection = abSelection
         self.masterOutputGain = masterOutputGain
+        self.masterInserts = masterInserts
         normalize()
     }
 
@@ -116,6 +119,33 @@ struct MasterBusState: Codable, Equatable, Sendable {
         }
     }
 
+    mutating func addMasterInsert(_ insert: MasterBusInsert) {
+        masterInserts.append(insert.normalized())
+        normalize()
+    }
+
+    mutating func updateMasterInsert(id: UUID, _ update: (inout MasterBusInsert) -> Void) {
+        guard let index = masterInserts.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        update(&masterInserts[index])
+        masterInserts[index] = masterInserts[index].normalized()
+        normalize()
+    }
+
+    mutating func removeMasterInsert(id: UUID) {
+        masterInserts.removeAll { $0.id == id }
+        normalize()
+    }
+
+    mutating func reorderMasterInserts(ids: [UUID]) {
+        let byID = Dictionary(uniqueKeysWithValues: masterInserts.map { ($0.id, $0) })
+        let ordered = ids.compactMap { byID[$0] }
+        let missing = masterInserts.filter { !ids.contains($0.id) }
+        masterInserts = ordered + missing
+        normalize()
+    }
+
     mutating func upsertMacroBinding(_ binding: MasterSceneMacroBinding, sceneID: UUID? = nil) {
         updateScene(id: sceneID ?? activeSceneID) { scene in
             guard binding.target.isValid(in: scene) else { return }
@@ -163,6 +193,7 @@ struct MasterBusState: Codable, Equatable, Sendable {
 
     mutating func normalize() {
         masterOutputGain = Self.normalizedMasterOutputGain(masterOutputGain)
+        masterInserts = Self.normalizedInserts(masterInserts)
 
         if scenes.isEmpty {
             scenes = [.sceneA, .sceneB]
@@ -242,6 +273,18 @@ struct MasterBusState: Codable, Equatable, Sendable {
         guard value.isFinite else { return 1 }
         return value.clamped(to: masterOutputGainRange)
     }
+
+    private static func normalizedInserts(_ inserts: [MasterBusInsert]) -> [MasterBusInsert] {
+        var seenIDs = Set<UUID>()
+        return inserts.map { insert in
+            var normalized = insert.normalized()
+            if seenIDs.contains(normalized.id) {
+                normalized.id = UUID()
+            }
+            seenIDs.insert(normalized.id)
+            return normalized
+        }
+    }
 }
 
 extension MasterBusState {
@@ -251,6 +294,7 @@ extension MasterBusState {
         case draftScene
         case abSelection
         case masterOutputGain
+        case masterInserts
     }
 
     init(from decoder: Decoder) throws {
@@ -261,6 +305,7 @@ extension MasterBusState {
             ?? MasterBusScene.sceneAID
         abSelection = try container.decodeIfPresent(MasterBusABSelection.self, forKey: .abSelection)
         masterOutputGain = try container.decodeIfPresent(Double.self, forKey: .masterOutputGain) ?? 1
+        masterInserts = try container.decodeIfPresent([MasterBusInsert].self, forKey: .masterInserts) ?? []
 
         if let draftScene = try container.decodeIfPresent(MasterBusScene.self, forKey: .draftScene) {
             if let index = scenes.firstIndex(where: { $0.id == activeSceneID }) {
@@ -282,6 +327,7 @@ extension MasterBusState {
         try container.encode(activeSceneID, forKey: .activeSceneID)
         try container.encodeIfPresent(abSelection, forKey: .abSelection)
         try container.encode(masterOutputGain, forKey: .masterOutputGain)
+        try container.encode(masterInserts, forKey: .masterInserts)
     }
 }
 

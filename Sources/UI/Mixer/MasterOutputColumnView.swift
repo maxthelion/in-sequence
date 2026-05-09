@@ -15,12 +15,6 @@ struct MasterOutputColumnView: View {
             ?? masterBus.scenes.first { $0.id != sceneA.id }
             ?? MasterBusScene.sceneB
     }
-    private var dominant: MasterOutputDominantScene {
-        MasterOutputSceneSelector.dominantScene(in: masterBus, selection: selection, liveCrossfader: liveCrossfader)
-    }
-    private var dominantScene: MasterBusScene {
-        masterBus.scene(id: dominant.id) ?? masterBus.activeScene
-    }
     private var meterState: MasterMeterDisplayState {
         engineController.masterMeterPublisher.displayState
     }
@@ -41,11 +35,8 @@ struct MasterOutputColumnView: View {
             section("Inserts") {
                 masterInsertSection
             }
-            section("Fader") {
-                masterFaderSection
-            }
-            section("Meter") {
-                masterMeterSection
+            section("Output") {
+                masterOutputSection
             }
         }
         .padding(12)
@@ -66,7 +57,7 @@ struct MasterOutputColumnView: View {
                     .studioText(.eyebrowBold)
                     .tracking(1.0)
                     .foregroundStyle(StudioTheme.text)
-                Text("Scene \(dominant.slotLabel)")
+                Text("Post-blend bus")
                     .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.amber)
@@ -98,16 +89,19 @@ struct MasterOutputColumnView: View {
     private var masterInsertSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(dominantScene.name)
+                Text("Final chain")
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 addInsertMenu
             }
+            Text("After Scene A/B mix")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
 
             VStack(spacing: 6) {
-                ForEach(dominantScene.inserts) { insert in
+                ForEach(masterBus.masterInserts) { insert in
                     masterInsertRow(insert)
                 }
 
@@ -121,13 +115,13 @@ struct MasterOutputColumnView: View {
     private var addInsertMenu: some View {
         Menu {
             Button {
-                session.addMasterBusInsert(.filter(), to: dominantScene.id)
+                session.addMasterOutputInsert(.filter())
             } label: {
                 Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
             }
 
             Button {
-                session.addMasterBusInsert(.bitcrusher(), to: dominantScene.id)
+                session.addMasterOutputInsert(.bitcrusher())
             } label: {
                 Label("Bitcrusher", systemImage: "waveform.path.ecg")
             }
@@ -140,7 +134,7 @@ struct MasterOutputColumnView: View {
                 Menu("AU Effect") {
                     ForEach(effects.prefix(16)) { effect in
                         Button(effect.displayName) {
-                            session.addMasterBusInsert(.auEffect(effect), to: dominantScene.id)
+                            session.addMasterOutputInsert(.auEffect(effect))
                         }
                     }
                 }
@@ -190,7 +184,7 @@ struct MasterOutputColumnView: View {
                 insertMoveButton(insert, systemName: "arrow.down", delta: 1)
 
                 Button(role: .destructive) {
-                    session.removeMasterBusInsert(insert.id, from: dominantScene.id)
+                    session.removeMasterOutputInsert(insert.id)
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 10, weight: .semibold))
@@ -221,53 +215,30 @@ struct MasterOutputColumnView: View {
             )
     }
 
-    private var masterFaderSection: some View {
+    private var masterOutputSection: some View {
         VStack(alignment: .center, spacing: 8) {
             HStack(alignment: .bottom, spacing: 10) {
-                MasterOutputFader(
+                MasterOutputFaderMeter(
                     gain: displayedGain,
+                    meterState: meterState,
                     onBegin: beginGainDrag,
                     onChange: updateGain,
                     onEnd: commitGain
                 )
-                .frame(width: 42, height: 178)
+                .frame(width: 72, height: 178)
 
-                faderScale
+                outputScale
                     .frame(height: 178)
             }
 
-            Text(MasterOutputGainScale.dbLabel(forGain: displayedGain))
-                .studioText(.eyebrowBold)
-                .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
-                .frame(maxWidth: .infinity)
-        }
-    }
-
-    private var faderScale: some View {
-        VStack {
-            ForEach(["+6", "0", "-6", "-12", "-18", "-24", "-36", "-inf"], id: \.self) { label in
-                Text(label)
-                    .studioText(.micro)
+            HStack(spacing: 8) {
+                Text(MasterOutputGainScale.dbLabel(forGain: displayedGain))
+                    .studioText(.eyebrowBold)
                     .monospacedDigit()
-                    .foregroundStyle(label == "0" ? StudioTheme.amber : StudioTheme.mutedText)
-                if label != "-inf" {
-                    Spacer(minLength: 1)
-                }
-            }
-        }
-    }
+                    .foregroundStyle(StudioTheme.text)
 
-    private var masterMeterSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .bottom, spacing: 10) {
-                DualMasterMeterView(state: meterState)
-                    .frame(width: 54, height: 156)
-                meterScale
-                    .frame(height: 156)
-            }
+                Spacer(minLength: 4)
 
-            HStack(spacing: 6) {
                 if meterState.isClipLatched {
                     Text("CLIP")
                         .studioText(.micro)
@@ -288,13 +259,13 @@ struct MasterOutputColumnView: View {
                     .accessibilityIdentifier("master-meter-clear-clip")
                 }
             }
-            .frame(minHeight: 24, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
         }
     }
 
-    private var meterScale: some View {
+    private var outputScale: some View {
         VStack {
-            ForEach(["0", "-6", "-12", "-18", "-24", "-36", "-inf"], id: \.self) { label in
+            ForEach(["+6", "0", "-6", "-12", "-18", "-24", "-36", "-inf"], id: \.self) { label in
                 Text(label)
                     .studioText(.micro)
                     .monospacedDigit()
@@ -311,7 +282,7 @@ struct MasterOutputColumnView: View {
     }
 
     private var emptySlotCount: Int {
-        max(0, 2 - dominantScene.inserts.count)
+        max(0, 2 - masterBus.masterInserts.count)
     }
 
     private var fallbackSelection: MasterBusABSelection {
@@ -335,20 +306,24 @@ struct MasterOutputColumnView: View {
             gainControl.begin(with: masterBus.masterOutputGain)
         }
         guard gainControl.update(clamped) else { return }
-        session.setMasterOutputGain(clamped)
+        engineController.setLiveMasterOutputGain(clamped)
     }
 
     private func commitGain() {
-        _ = gainControl.commit()
+        guard let finalGain = gainControl.commit() else {
+            engineController.clearLiveMasterOutputGain()
+            return
+        }
+        session.setMasterOutputGain(finalGain)
     }
 
     private func insertEnabledBinding(_ insert: MasterBusInsert) -> Binding<Bool> {
         Binding(
             get: {
-                dominantScene.inserts.first(where: { $0.id == insert.id })?.isEnabled ?? insert.isEnabled
+                masterBus.masterInserts.first(where: { $0.id == insert.id })?.isEnabled ?? insert.isEnabled
             },
             set: { isEnabled in
-                session.updateMasterBusInsert(insert.id, in: dominantScene.id) { updated in
+                session.updateMasterOutputInsert(insert.id) { updated in
                     updated.isEnabled = isEnabled
                 }
             }
@@ -369,18 +344,18 @@ struct MasterOutputColumnView: View {
 
     private func move(_ insert: MasterBusInsert, by delta: Int) {
         guard let next = moveTargetIndex(for: insert, by: delta),
-              let current = dominantScene.inserts.firstIndex(where: { $0.id == insert.id })
+              let current = masterBus.masterInserts.firstIndex(where: { $0.id == insert.id })
         else { return }
-        var ids = dominantScene.inserts.map(\.id)
+        var ids = masterBus.masterInserts.map(\.id)
         ids.remove(at: current)
         ids.insert(insert.id, at: next)
-        session.reorderMasterBusInserts(ids, in: dominantScene.id)
+        session.reorderMasterOutputInserts(ids)
     }
 
     private func moveTargetIndex(for insert: MasterBusInsert, by delta: Int) -> Int? {
-        guard let current = dominantScene.inserts.firstIndex(where: { $0.id == insert.id }) else { return nil }
+        guard let current = masterBus.masterInserts.firstIndex(where: { $0.id == insert.id }) else { return nil }
         let next = current + delta
-        guard dominantScene.inserts.indices.contains(next) else { return nil }
+        guard masterBus.masterInserts.indices.contains(next) else { return nil }
         return next
     }
 
@@ -396,8 +371,9 @@ struct MasterOutputColumnView: View {
     }
 }
 
-private struct MasterOutputFader: View {
+private struct MasterOutputFaderMeter: View {
     let gain: Double
+    let meterState: MasterMeterDisplayState
     let onBegin: () -> Void
     let onChange: (Double) -> Void
     let onEnd: () -> Void
@@ -412,20 +388,39 @@ private struct MasterOutputFader: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .fill(Color.white.opacity(0.06))
 
+                HStack(alignment: .bottom, spacing: 4) {
+                    meterLane(peak: meterState.leftPeakDBFS, hold: meterState.leftPeakHoldDBFS)
+                    Spacer(minLength: 26)
+                    meterLane(peak: meterState.rightPeakDBFS, hold: meterState.rightPeakHoldDBFS)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(StudioTheme.cyan)
-                    .frame(height: filledHeight)
+                    .fill(StudioTheme.cyan.opacity(0.48))
+                    .frame(width: 30, height: filledHeight)
+
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .stroke(StudioTheme.cyan.opacity(0.85), lineWidth: 1)
+                    .frame(width: 30)
+
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .fill(StudioTheme.cyan.opacity(0.34))
+                    .frame(width: 30, height: filledHeight)
 
                 Rectangle()
-                    .fill(StudioTheme.amber.opacity(0.8))
-                    .frame(height: 2)
+                    .fill(StudioTheme.amber.opacity(0.85))
+                    .frame(width: 58, height: 2)
                     .offset(y: -height * MasterOutputGainScale.unityPosition + 1)
 
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.selectedFill))
-                    .frame(width: 30, height: 5)
+                    .fill(StudioTheme.text)
+                    .frame(width: 42, height: 6)
+                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                     .offset(y: -filledHeight + 10)
             }
+            .animation(.linear(duration: 0.05), value: meterState.leftPeakDBFS)
+            .animation(.linear(duration: 0.05), value: meterState.rightPeakDBFS)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -439,49 +434,35 @@ private struct MasterOutputFader: View {
                     }
             )
         }
-        .accessibilityIdentifier("master-output-gain-fader")
-    }
-}
-
-private struct DualMasterMeterView: View {
-    let state: MasterMeterDisplayState
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 6) {
-            meterLane(peak: state.leftPeakDBFS, hold: state.leftPeakHoldDBFS, label: "L")
-            meterLane(peak: state.rightPeakDBFS, hold: state.rightPeakHoldDBFS, label: "R")
-        }
-        .accessibilityIdentifier("master-output-meter")
+        .accessibilityIdentifier("master-output-fader-meter")
     }
 
-    private func meterLane(peak: Double, hold: Double, label: String) -> some View {
-        VStack(spacing: 4) {
-            GeometryReader { proxy in
-                let height = proxy.size.height
-                let peakHeight = height * MasterMeterLevelScale.normalized(peak)
-                let holdOffset = height * (1 - MasterMeterLevelScale.normalized(hold))
+    private func meterLane(peak: Double, hold: Double) -> some View {
+        GeometryReader { proxy in
+            let height = proxy.size.height
+            let normalizedPeak = MasterMeterLevelScale.normalized(peak)
+            let peakHeight = height * normalizedPeak
+            let holdOffset = height * (1 - MasterMeterLevelScale.normalized(hold))
 
-                ZStack(alignment: .bottom) {
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .fill(Color.white.opacity(0.06))
+            ZStack(alignment: .bottom) {
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
 
-                    VStack(spacing: 0) {
-                        Rectangle().fill(StudioTheme.amber).frame(height: peakHeight * 0.12)
-                        Rectangle().fill(StudioTheme.amber.opacity(0.78)).frame(height: peakHeight * 0.24)
-                        Rectangle().fill(StudioTheme.success).frame(height: max(0, peakHeight * 0.64))
-                    }
+                LinearGradient(
+                    colors: [StudioTheme.success, StudioTheme.success, StudioTheme.amber, Color.red],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+                .frame(height: max(3, peakHeight))
+                .opacity(normalizedPeak > 0 ? 0.95 : 0)
 
-                    Rectangle()
-                        .fill(StudioTheme.text)
-                        .frame(height: 2)
-                        .offset(y: -holdOffset + 1)
-                        .opacity(hold.isFinite ? 0.9 : 0)
-                }
+                Rectangle()
+                    .fill(StudioTheme.text)
+                    .frame(height: 2)
+                    .offset(y: -holdOffset + 1)
+                    .opacity(hold.isFinite ? 0.9 : 0)
             }
-
-            Text(label)
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
         }
+        .frame(width: 10)
     }
 }

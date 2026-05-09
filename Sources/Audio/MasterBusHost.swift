@@ -12,6 +12,8 @@ protocol MasterBusHosting: AnyObject {
     func setSceneMacroOverride(sceneID: UUID, macroID: UUID, value: Double)
     func clearSceneMacroOverrides(sceneID: UUID)
     func setLiveCrossfaderOverride(_ value: Double?)
+    func setLiveMasterOutputGain(_ value: Double)
+    func clearLiveMasterOutputGain()
     func clearPerformanceOverlay()
     func prepareAUEffect(insertID: UUID)
     func currentAUEffect(insertID: UUID) -> AVAudioUnit?
@@ -39,6 +41,7 @@ final class MasterBusHost: MasterBusHosting {
 
     private struct MasterBusGraphShape: Equatable {
         let branches: [MasterBusBranchShape]
+        let masterInserts: [MasterBusInsertShape]
     }
 
     private struct MasterBusBranchShape: Equatable {
@@ -59,6 +62,7 @@ final class MasterBusHost: MasterBusHosting {
 
     private struct BuiltMasterChains {
         let chains: [MainAudioGraph.MasterChain]
+        let postBlendMasterNodes: [AVAudioNode]
         let nodesByInsertID: [UUID: AVAudioNode]
         let shape: MasterBusGraphShape
     }
@@ -134,6 +138,18 @@ final class MasterBusHost: MasterBusHosting {
         refreshAudioGraphForPerformanceChange()
     }
 
+    func setLiveMasterOutputGain(_ value: Double) {
+        guard let audioGraph = lock.withLock({ self.audioGraph }) else { return }
+        audioGraph.setMasterOutputGain(value)
+    }
+
+    func clearLiveMasterOutputGain() {
+        let (gain, audioGraph) = lock.withLock {
+            (self.state.masterOutputGain, self.audioGraph)
+        }
+        audioGraph?.setMasterOutputGain(gain)
+    }
+
     func clearPerformanceOverlay() {
         lock.withLock {
             performanceOverlay.clearAll()
@@ -201,7 +217,11 @@ final class MasterBusHost: MasterBusHosting {
 
         performOnMain {
             let built = self.buildMasterChains(for: state)
-            audioGraph.installMasterChains(built.chains, masterOutputGain: state.masterOutputGain)
+            audioGraph.installMasterChains(
+                built.chains,
+                postBlendMasterNodes: built.postBlendMasterNodes,
+                masterOutputGain: state.masterOutputGain
+            )
             self.configureInstalledNodes(for: state, nodesByInsertID: built.nodesByInsertID)
             self.lock.withLock {
                 self.installedShape = built.shape
@@ -217,8 +237,10 @@ final class MasterBusHost: MasterBusHosting {
         let chains = branches.map { branch in
             chain(for: branch.scene, gain: branch.gain, nodesByInsertID: &nodesByInsertID)
         }
+        let postBlendMasterNodes = masterInsertNodes(for: state.masterInserts, nodesByInsertID: &nodesByInsertID)
         return BuiltMasterChains(
             chains: chains,
+            postBlendMasterNodes: postBlendMasterNodes,
             nodesByInsertID: nodesByInsertID,
             shape: Self.graphShape(for: state)
         )
@@ -240,6 +262,22 @@ final class MasterBusHost: MasterBusHosting {
             return node
         }
         return MainAudioGraph.MasterChain(nodes: nodes, gain: gain)
+    }
+
+    @MainActor
+    private func masterInsertNodes(
+        for inserts: [MasterBusInsert],
+        nodesByInsertID: inout [UUID: AVAudioNode]
+    ) -> [AVAudioNode] {
+        inserts.compactMap { insert -> AVAudioNode? in
+            guard insert.isEnabled else { return nil }
+            let node = node(for: insert)
+            if let node {
+                nodesByInsertID[insert.id] = node
+                configureExistingMasterNode(node, for: insert)
+            }
+            return node
+        }
     }
 
     @MainActor
@@ -325,6 +363,10 @@ final class MasterBusHost: MasterBusHosting {
                     self.configureExistingNode(node, for: insert, in: branch.scene)
                 }
             }
+            for insert in state.masterInserts where insert.isEnabled {
+                guard let node = nodesByInsertID[insert.id] else { continue }
+                self.configureExistingMasterNode(node, for: insert)
+            }
         }
     }
 
@@ -343,12 +385,28 @@ final class MasterBusHost: MasterBusHosting {
     }
 
     @MainActor
+    private func configureExistingMasterNode(_ node: AVAudioNode, for insert: MasterBusInsert) {
+        switch (node, insert.kind) {
+        case let (eq as AVAudioUnitEQ, .nativeFilter(settings)):
+            configureFilterNode(eq, settings: settings, wetDry: insert.wetDry)
+        case let (distortion as AVAudioUnitDistortion, .nativeBitcrusher(settings)):
+            configureLoFiNode(distortion, settings: settings, wetDry: insert.wetDry)
+        default:
+            return
+        }
+    }
+
+    @MainActor
     private func configureInstalledNodes(for state: MasterBusState, nodesByInsertID: [UUID: AVAudioNode]) {
         for branch in Self.branches(for: state) {
             for insert in branch.scene.inserts where insert.isEnabled {
                 guard let node = nodesByInsertID[insert.id] else { continue }
                 configureExistingNode(node, for: insert, in: branch.scene)
             }
+        }
+        for insert in state.masterInserts where insert.isEnabled {
+            guard let node = nodesByInsertID[insert.id] else { continue }
+            configureExistingMasterNode(node, for: insert)
         }
     }
 
@@ -408,6 +466,10 @@ final class MasterBusHost: MasterBusHosting {
                         return MasterBusInsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
                     }
                 )
+            },
+            masterInserts: state.masterInserts.compactMap { insert in
+                guard insert.isEnabled else { return nil }
+                return MasterBusInsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
             }
         )
     }
@@ -427,6 +489,11 @@ final class MasterBusHost: MasterBusHosting {
         insertID: UUID,
         in state: MasterBusState
     ) -> (componentID: AudioComponentID, stateBlob: Data?)? {
+        if let insert = state.masterInserts.first(where: { $0.id == insertID }),
+           case let .auEffect(componentID, stateBlob) = insert.kind
+        {
+            return (componentID, stateBlob)
+        }
         for scene in state.scenes {
             guard let insert = scene.inserts.first(where: { $0.id == insertID }),
                   case let .auEffect(componentID, stateBlob) = insert.kind

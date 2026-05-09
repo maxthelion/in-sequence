@@ -498,6 +498,14 @@ final class EngineController: RouterDispatcher {
         masterBusHost.setLiveCrossfaderOverride(nil)
     }
 
+    func setLiveMasterOutputGain(_ value: Double) {
+        masterBusHost.setLiveMasterOutputGain(value)
+    }
+
+    func clearLiveMasterOutputGain() {
+        masterBusHost.clearLiveMasterOutputGain()
+    }
+
     func clearMasterBusPerformanceOverlay() {
         masterBusPerformanceOverlay.clearAll()
         masterBusHost.clearPerformanceOverlay()

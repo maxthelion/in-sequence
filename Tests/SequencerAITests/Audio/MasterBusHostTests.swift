@@ -77,6 +77,30 @@ final class MasterBusHostTests: XCTestCase {
     }
 
     @MainActor
+    func test_applyInstallsMasterInsertsOnPostBlendChain() throws {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        let sceneA = MasterBusScene(name: "A", inserts: [.filter()])
+        let sceneB = MasterBusScene(name: "B", inserts: [.bitcrusher()])
+        let masterInsert = MasterBusInsert(name: "Master Filter", kind: .nativeFilter(.default))
+        host.attach(to: graph)
+
+        host.apply(MasterBusState(
+            scenes: [sceneA, sceneB],
+            activeSceneID: sceneA.id,
+            abSelection: MasterBusABSelection(sceneAID: sceneA.id, sceneBID: sceneB.id, crossfader: 0.5),
+            masterInserts: [masterInsert]
+        ))
+
+        XCTAssertEqual(graph.masterBranchesForTesting.count, 2)
+        XCTAssertEqual(graph.masterBranchesForTesting[0].nodes.count, 1)
+        XCTAssertEqual(graph.masterBranchesForTesting[1].nodes.count, 1)
+        XCTAssertEqual(graph.postBlendMasterInsertNodesForTesting.count, 1)
+        XCTAssertTrue(graph.postBlendMasterInsertNodesForTesting[0] is AVAudioUnitEQ)
+        XCTAssertEqual(host.appliedState.masterInserts.first?.id, masterInsert.id)
+    }
+
+    @MainActor
     func test_abModeInstallsTwoSceneBranchesWithEqualPowerGains() throws {
         let graph = MainAudioGraph()
         let host = MasterBusHost()

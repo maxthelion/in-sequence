@@ -349,6 +349,30 @@ extension SequencerDocumentSession {
         }
     }
 
+    func addMasterOutputInsert(_ insert: MasterBusInsert) {
+        mutateMasterBus { masterBus in
+            masterBus.addMasterInsert(insert)
+        }
+    }
+
+    func updateMasterOutputInsert(_ insertID: UUID, edit: (inout MasterBusInsert) -> Void) {
+        mutateMasterBus { masterBus in
+            masterBus.updateMasterInsert(id: insertID, edit)
+        }
+    }
+
+    func removeMasterOutputInsert(_ insertID: UUID) {
+        mutateMasterBus { masterBus in
+            masterBus.removeMasterInsert(id: insertID)
+        }
+    }
+
+    func reorderMasterOutputInserts(_ ids: [UUID]) {
+        mutateMasterBus { masterBus in
+            masterBus.reorderMasterInserts(ids: ids)
+        }
+    }
+
     func upsertMasterSceneMacroBinding(_ binding: MasterSceneMacroBinding, in sceneID: UUID) {
         mutateMasterBus { masterBus in
             masterBus.upsertMacroBinding(binding, sceneID: sceneID)

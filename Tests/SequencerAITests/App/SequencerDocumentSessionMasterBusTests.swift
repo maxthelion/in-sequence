@@ -58,6 +58,36 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_masterOutputInsertEdit_updatesPostBlendChainWithoutSceneMutation() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+
+        let scenesBefore = session.store.masterBus.scenes
+        let masterBusCallsBefore = engine.masterBusApplyCallCount
+
+        session.addMasterOutputInsert(.filter())
+
+        XCTAssertEqual(session.store.masterBus.masterInserts.count, 1)
+        XCTAssertEqual(session.store.masterBus.scenes, scenesBefore)
+        XCTAssertEqual(engine.masterBusState.masterInserts.count, 1)
+        XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore + 1)
+        XCTAssertTrue(documentBox.document.project.masterBus.masterInserts.isEmpty)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.masterBus.masterInserts.count, 1)
+        XCTAssertEqual(documentBox.document.project.masterBus.scenes, scenesBefore)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_setMasterOutputGain_updatesOnlyGlobalMasterGain() {
         let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
         let engine = EngineController(client: nil, endpoint: nil)
@@ -91,6 +121,40 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
 
         session.flushToDocument()
         XCTAssertEqual(documentBox.document.project.masterBus.masterOutputGain, 1.4)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_liveMasterOutputGainDragAvoidsDocumentMutationUntilCommit() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+
+        let revisionBefore = session.store.revision
+        let masterBusCallsBefore = engine.masterBusApplyCallCount
+
+        engine.setLiveMasterOutputGain(0.35)
+
+        XCTAssertEqual(session.store.revision, revisionBefore)
+        XCTAssertEqual(session.store.masterBus.masterOutputGain, 1)
+        XCTAssertEqual(documentBox.document.project.masterBus.masterOutputGain, 1)
+        XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore)
+
+        session.setMasterOutputGain(0.35)
+
+        XCTAssertEqual(session.store.masterBus.masterOutputGain, 0.35)
+        XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore + 1)
+        XCTAssertEqual(documentBox.document.project.masterBus.masterOutputGain, 1)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.masterBus.masterOutputGain, 0.35)
 
         SequencerDocumentSessionRegistry.unregister(session)
     }

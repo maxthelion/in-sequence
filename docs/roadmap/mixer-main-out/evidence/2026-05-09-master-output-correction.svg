@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="680" viewBox="0 0 520 680" role="img" aria-labelledby="title desc">
+  <title id="title">Master Out correction evidence</title>
+  <desc id="desc">Master Out column showing post-blend master inserts and a combined fader and stereo meter control.</desc>
+  <rect width="520" height="680" fill="#111318"/>
+  <rect x="96" y="24" width="328" height="632" rx="10" fill="#22252b" stroke="#ff8738" stroke-width="2"/>
+
+  <text x="124" y="66" fill="#eef0f5" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="1">MASTER OUT</text>
+  <text x="124" y="90" fill="#ff8738" font-family="Helvetica, Arial, sans-serif" font-size="13" letter-spacing="1">POST-BLEND BUS</text>
+
+  <line x1="124" y1="122" x2="396" y2="122" stroke="#ffffff" stroke-opacity="0.15"/>
+  <text x="124" y="150" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">CROSSFADER</text>
+  <text x="124" y="178" fill="#eef0f5" font-family="Helvetica, Arial, sans-serif" font-size="13">Scene A</text>
+  <text x="340" y="178" fill="#eef0f5" font-family="Helvetica, Arial, sans-serif" font-size="13">Scene B</text>
+  <rect x="124" y="194" width="272" height="12" rx="6" fill="#ffffff" fill-opacity="0.10"/>
+  <rect x="252" y="187" width="16" height="26" rx="4" fill="#00ccff"/>
+
+  <line x1="124" y1="242" x2="396" y2="242" stroke="#ffffff" stroke-opacity="0.15"/>
+  <text x="124" y="270" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">INSERTS</text>
+  <text x="124" y="296" fill="#eef0f5" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="700">Final chain</text>
+  <text x="124" y="316" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="12">After Scene A/B mix</text>
+  <rect x="124" y="336" width="272" height="48" rx="7" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.16"/>
+  <circle cx="150" cy="360" r="12" fill="#ff8738" fill-opacity="0.28"/>
+  <path d="M144 360h12M150 354v12" stroke="#eef0f5" stroke-width="2" stroke-linecap="round"/>
+  <text x="172" y="356" fill="#eef0f5" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700">Master Filter</text>
+  <text x="172" y="374" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="11">Post-blend insert</text>
+  <rect x="124" y="394" width="272" height="32" rx="7" fill="#ffffff" fill-opacity="0.025" stroke="#ffffff" stroke-opacity="0.24" stroke-dasharray="5 5"/>
+  <text x="224" y="415" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="11" letter-spacing="1">- empty slot -</text>
+
+  <line x1="124" y1="462" x2="396" y2="462" stroke="#ffffff" stroke-opacity="0.15"/>
+  <text x="124" y="490" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">OUTPUT</text>
+
+  <rect x="184" y="514" width="112" height="120" rx="8" fill="#ffffff" fill-opacity="0.07" stroke="#00ccff" stroke-opacity="0.55"/>
+  <rect x="202" y="540" width="12" height="74" rx="5" fill="#78e8a1"/>
+  <rect x="202" y="522" width="12" height="18" rx="5" fill="#ff8738"/>
+  <rect x="266" y="558" width="12" height="56" rx="5" fill="#78e8a1"/>
+  <rect x="266" y="546" width="12" height="12" rx="5" fill="#ff8738"/>
+  <rect x="224" y="548" width="32" height="66" rx="5" fill="#00ccff" fill-opacity="0.42"/>
+  <rect x="216" y="547" width="48" height="7" rx="3" fill="#eef0f5"/>
+  <line x1="196" y1="558" x2="284" y2="558" stroke="#ff8738" stroke-width="3"/>
+  <text x="205" y="628" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="10">L</text>
+  <text x="269" y="628" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="10">R</text>
+
+  <text x="316" y="520" fill="#ff8738" font-family="Helvetica, Arial, sans-serif" font-size="11">+6</text>
+  <text x="316" y="558" fill="#ff8738" font-family="Helvetica, Arial, sans-serif" font-size="11">0</text>
+  <text x="316" y="586" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="11">-12</text>
+  <text x="316" y="618" fill="#9ca3af" font-family="Helvetica, Arial, sans-serif" font-size="11">-36</text>
+  <text x="184" y="654" fill="#eef0f5" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700">0 dB</text>
+</svg>
