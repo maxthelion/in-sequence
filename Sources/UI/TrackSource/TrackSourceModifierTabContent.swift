@@ -19,30 +19,32 @@ struct TrackSourceModifierTabContent: View {
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
 
     var body: some View {
-        modifierWell
+        VStack(alignment: .leading, spacing: 14) {
+            modifierWell
 
-        if let modifierPickerStep {
-            TrackSourceContainedModifierPicker(
-                step: modifierPickerStep,
-                compatibleModifiers: compatibleGenerators,
-                onBack: onShowGeneratorPicker,
-                onCancel: onBackOutGeneratorPicker,
-                onShowModifierPool: onShowModifierPool,
-                onCreateBlankModifier: onCreateBlankModifier,
-                onSelectModifier: onSelectModifier
-            )
-        }
+            if let modifierPickerStep {
+                TrackSourceContainedModifierPicker(
+                    step: modifierPickerStep,
+                    compatibleModifiers: compatibleGenerators,
+                    onBack: onShowGeneratorPicker,
+                    onCancel: onBackOutGeneratorPicker,
+                    onShowModifierPool: onShowModifierPool,
+                    onCreateBlankModifier: onCreateBlankModifier,
+                    onSelectModifier: onSelectModifier
+                )
+            }
 
-        if modifierPickerStep == nil, let selectedGenerator {
-            GeneratorParamsEditorView(
-                generator: selectedGenerator,
-                inputClipChoices: generatedSourceInputClips,
-                harmonicSidechainClipChoices: harmonicSidechainClips,
-                sourceMode: sourceMode,
-                accent: StudioTheme.violet,
-                layout: .modifierOnly,
-                onUpdate: onUpdateGeneratorParams
-            )
+            if modifierPickerStep == nil, let selectedGenerator {
+                GeneratorParamsEditorView(
+                    generator: selectedGenerator,
+                    inputClipChoices: generatedSourceInputClips,
+                    harmonicSidechainClipChoices: harmonicSidechainClips,
+                    sourceMode: sourceMode,
+                    accent: StudioTheme.violet,
+                    layout: .modifierOnly,
+                    onUpdate: onUpdateGeneratorParams
+                )
+            }
         }
     }
 

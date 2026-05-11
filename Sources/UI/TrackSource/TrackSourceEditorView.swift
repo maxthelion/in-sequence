@@ -155,33 +155,29 @@ struct TrackSourceEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(title: "Pattern", accent: accent) {
-                VStack(alignment: .leading, spacing: 14) {
-                    TrackPatternSlotPalette(
-                        selectedSlot: selectedPatternIndexBinding,
-                        occupiedSlots: occupiedPatternSlots,
-                        bypassState: .notApplicable,
-                        onBypassToggle: { _ in }
-                    )
-
-                    TrackSourceSlotWellTabBar(
-                        selectedTab: $selectedTab,
-                        sourceState: sourceDisplayState,
-                        modifierState: modifierDisplayState,
-                        currentClip: currentClip,
-                        selectedSourceGenerator: selectedSourceGenerator,
-                        selectedModifierGenerator: selectedModifierGenerator,
-                        trackType: track.trackType,
-                        accent: accent
-                    )
-                }
+                TrackPatternSlotPalette(
+                    selectedSlot: selectedPatternIndexBinding,
+                    occupiedSlots: occupiedPatternSlots,
+                    bypassState: .notApplicable,
+                    onBypassToggle: { _ in }
+                )
             }
 
-            Group {
-                switch selectedTab {
-                case .source:
-                    sourceTab
-                case .modifiers:
-                    modifiersTab
+            VStack(alignment: .leading, spacing: 0) {
+                TrackSourceSlotWellTabBar(
+                    selectedTab: $selectedTab,
+                    sourceState: sourceDisplayState,
+                    modifierState: modifierDisplayState,
+                    accent: accent
+                )
+
+                Group {
+                    switch selectedTab {
+                    case .source:
+                        sourceTab
+                    case .modifiers:
+                        modifiersTab
+                    }
                 }
             }
         }

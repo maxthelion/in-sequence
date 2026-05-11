@@ -41,43 +41,55 @@ struct TrackSourceSourceTabContent: View {
     }
 
     var body: some View {
-        switch displayState {
-        case .occupiedClip:
-            sourceSection
+        VStack(alignment: .leading, spacing: 14) {
+            switch displayState {
+            case .occupiedClip:
+                sourceSection
 
-            if sourcePickerStep == nil {
-                TrackSourceClipPanel(
-                    accent: StudioTheme.success,
-                    previewClipContent: previewClipContent,
-                    defaultClipNote: defaultClipNote,
-                    clipMacroSlots: clipMacroSlots,
-                    macroLanes: macroLanes,
-                    macroFallbackValues: macroFallbackValues,
-                    canAssignAUMacros: canAssignAUMacros,
-                    playingStepIndex: playingStepIndex,
-                    onAssignMacroSlot: onAssignMacroSlot,
-                    onUpdateMacroLanes: onUpdateMacroLanes,
-                    onUpdateClipContent: onUpdateClipContent
-                )
+                if sourcePickerStep == nil {
+                    TrackSourceClipPanel(
+                        accent: StudioTheme.success,
+                        previewClipContent: previewClipContent,
+                        defaultClipNote: defaultClipNote,
+                        clipMacroSlots: clipMacroSlots,
+                        macroLanes: macroLanes,
+                        macroFallbackValues: macroFallbackValues,
+                        canAssignAUMacros: canAssignAUMacros,
+                        playingStepIndex: playingStepIndex,
+                        onAssignMacroSlot: onAssignMacroSlot,
+                        onUpdateMacroLanes: onUpdateMacroLanes,
+                        onUpdateClipContent: onUpdateClipContent
+                    )
+                }
+
+            case .occupiedGenerator:
+                sourceSection
+
+                if sourcePickerStep == nil, let selectedGenerator {
+                    HStack {
+                        Spacer()
+                        TrackSourceActionButton(
+                            title: "Clip History...",
+                            accent: StudioTheme.success,
+                            action: onPresentClipHistory
+                        )
+                    }
+                    .padding(.horizontal, 10)
+
+                    GeneratorParamsEditorView(
+                        generator: selectedGenerator,
+                        inputClipChoices: generatedSourceInputClips,
+                        harmonicSidechainClipChoices: harmonicSidechainClips,
+                        sourceMode: .generator,
+                        accent: accent,
+                        layout: .sourceOnly,
+                        onUpdate: onUpdateGeneratorParams
+                    )
+                }
+
+            case .empty:
+                sourceSection
             }
-
-        case .occupiedGenerator:
-            sourceSection
-
-            if sourcePickerStep == nil, let selectedGenerator {
-                GeneratorParamsEditorView(
-                    generator: selectedGenerator,
-                    inputClipChoices: generatedSourceInputClips,
-                    harmonicSidechainClipChoices: harmonicSidechainClips,
-                    sourceMode: .generator,
-                    accent: accent,
-                    layout: .sourceOnly,
-                    onUpdate: onUpdateGeneratorParams
-                )
-            }
-
-        case .empty:
-            sourceSection
         }
     }
 
@@ -105,7 +117,6 @@ struct TrackSourceSourceTabContent: View {
                 selectedGenerator: selectedGenerator,
                 accent: accent,
                 onShowSourcePicker: onShowSourcePicker,
-                onPresentClipHistory: onPresentClipHistory,
                 onRemoveSource: onRemoveSource
             )
         }

@@ -30,13 +30,29 @@ enum TrackSourceSourceDisplayState: Equatable {
     }
 }
 
+struct TrackSourceSourceWellPresentation: Equatable {
+    let displayState: TrackSourceSourceDisplayState
+
+    var occupiedAffordanceLabels: [String] {
+        switch displayState {
+        case .occupiedClip, .occupiedGenerator:
+            return ["Remove Source"]
+        case .empty:
+            return []
+        }
+    }
+
+    var emptyAffordanceLabels: [String] {
+        displayState == .empty ? ["Add Source"] : []
+    }
+}
+
 struct TrackSourceSourceWell: View {
     let sourceMode: TrackSourceMode
     let currentClip: ClipPoolEntry?
     let selectedGenerator: GeneratorPoolEntry?
     let accent: Color
     let onShowSourcePicker: () -> Void
-    let onPresentClipHistory: () -> Void
     let onRemoveSource: () -> Void
 
     private var displayState: TrackSourceSourceDisplayState {
@@ -59,96 +75,64 @@ struct TrackSourceSourceWell: View {
     }
 
     private var clipSourceWell: some View {
-        StudioPanel(
-            title: "Source Well",
-            eyebrow: "Placement for the selected slot",
-            accent: accent
-        ) {
-            VStack(alignment: .leading, spacing: 14) {
-                sourceSummaryRow(
-                    badgeTitle: displayState.badgeTitle,
-                    accent: StudioTheme.success
-                ) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(currentClip?.name ?? "Unnamed Clip")
-                            .studioText(.bodyBold)
-                            .foregroundStyle(StudioTheme.text)
+        slotWell(accent: StudioTheme.success, isEmpty: false) {
+            sourceBadge(title: displayState.badgeTitle, accent: StudioTheme.success)
 
-                        Text(clipMetadata)
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(currentClip?.name ?? "Unnamed Clip")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
 
-                Text("This selected slot is sourcing notes from a clip.")
-                    .studioText(.body)
+                Text(clipMetadata)
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 10) {
-                    TrackSourceActionButton(title: "Change Source", accent: accent, action: onShowSourcePicker)
-                    TrackSourceActionButton(title: "Remove Source", accent: StudioTheme.border, action: onRemoveSource)
-                }
             }
+
+            Spacer(minLength: 0)
+
+            removeButton(action: onRemoveSource)
         }
     }
 
     private var generatorSourceWell: some View {
-        StudioPanel(title: "Source Well", eyebrow: "Placement for the selected slot", accent: accent) {
-            VStack(alignment: .leading, spacing: 14) {
-                sourceSummaryRow(
-                    badgeTitle: displayState.badgeTitle,
-                    accent: accent
-                ) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(selectedGenerator?.name ?? "Unnamed Generator")
-                            .studioText(.bodyBold)
-                            .foregroundStyle(StudioTheme.text)
+        slotWell(accent: accent, isEmpty: false) {
+            sourceBadge(title: displayState.badgeTitle, accent: accent)
 
-                        Text(selectedGenerator?.kind.label ?? "Generator source")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(selectedGenerator?.name ?? "Unnamed Generator")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
 
-                Text("This selected slot is using a generator as its source.")
-                    .studioText(.body)
+                Text(selectedGenerator?.kind.label ?? "Generator source")
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack(spacing: 10) {
-                    TrackSourceActionButton(title: "Clip History...", accent: StudioTheme.success, action: onPresentClipHistory)
-                    TrackSourceActionButton(title: "Change Source", accent: accent, action: onShowSourcePicker)
-                    TrackSourceActionButton(title: "Remove Source", accent: StudioTheme.violet, action: onRemoveSource)
-                }
             }
+
+            Spacer(minLength: 0)
+
+            removeButton(action: onRemoveSource)
         }
     }
 
     private var emptySourceWell: some View {
-        StudioPanel(title: "Source Well", eyebrow: "Placement for the selected slot", accent: accent) {
-            VStack(alignment: .leading, spacing: 14) {
-                sourceSummaryRow(
-                    badgeTitle: displayState.badgeTitle,
-                    accent: StudioTheme.border
-                ) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("No source selected")
-                            .studioText(.bodyBold)
-                            .foregroundStyle(StudioTheme.text)
+        slotWell(accent: accent, isEmpty: true) {
+            sourceBadge(title: displayState.badgeTitle, accent: StudioTheme.border)
 
-                        Text("Add a clip or generator for this slot.")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("No source selected")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
 
-                Text("This selected slot stays silent until you add a source.")
-                    .studioText(.body)
+                Text("This selected slot stays silent until you add a clip or generator.")
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                TrackSourceActionButton(title: "[+] Add Source", accent: accent, action: onShowSourcePicker)
             }
+
+            Spacer(minLength: 0)
+
+            TrackSourceActionButton(title: "[+] Add Source", accent: accent, action: onShowSourcePicker)
         }
     }
 
@@ -163,16 +147,30 @@ struct TrackSourceSourceWell: View {
         return "\(currentClip.trackType.label) clip · \(barsLabel)"
     }
 
-    private func sourceSummaryRow<Content: View>(
-        badgeTitle: String,
+    private func slotWell<Content: View>(
         accent: Color,
+        isEmpty: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            sourceBadge(title: badgeTitle, accent: accent)
+        HStack(alignment: .center, spacing: 12) {
             content()
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .padding(.vertical, 11)
+        .padding(.horizontal, 14)
+        .background(
+            accent.opacity(isEmpty ? StudioOpacity.subtleFill : StudioOpacity.selectedFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(
+                    accent.opacity(isEmpty ? StudioOpacity.subtleStroke : StudioOpacity.ghostStroke),
+                    style: StrokeStyle(lineWidth: 1.5, dash: isEmpty ? [6, 5] : [])
+                )
+        )
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
     }
 
     private func sourceBadge(title: String, accent: Color) -> some View {
@@ -186,5 +184,24 @@ struct TrackSourceSourceWell: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
             )
+    }
+
+    private func removeButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text("x")
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 28, height: 28)
+                .background(
+                    Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Remove Source")
     }
 }

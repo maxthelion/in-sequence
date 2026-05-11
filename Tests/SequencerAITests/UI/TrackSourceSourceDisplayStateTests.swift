@@ -62,6 +62,25 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(state.badgeTitle, "Empty")
     }
 
+    func test_occupiedSourceWellPresentationExposesOnlyRemoveAffordance() {
+        let occupiedClip = TrackSourceSourceWellPresentation(displayState: .occupiedClip)
+        let occupiedGenerator = TrackSourceSourceWellPresentation(displayState: .occupiedGenerator)
+
+        XCTAssertEqual(occupiedClip.occupiedAffordanceLabels, ["Remove Source"])
+        XCTAssertEqual(occupiedGenerator.occupiedAffordanceLabels, ["Remove Source"])
+        XCTAssertFalse(occupiedClip.occupiedAffordanceLabels.contains("Change Source"))
+        XCTAssertFalse(occupiedGenerator.occupiedAffordanceLabels.contains("Change Source"))
+        XCTAssertTrue(occupiedClip.emptyAffordanceLabels.isEmpty)
+        XCTAssertTrue(occupiedGenerator.emptyAffordanceLabels.isEmpty)
+    }
+
+    func test_emptySourceWellPresentationExposesAddSourceAfterRemoval() {
+        let empty = TrackSourceSourceWellPresentation(displayState: .empty)
+
+        XCTAssertTrue(empty.occupiedAffordanceLabels.isEmpty)
+        XCTAssertEqual(empty.emptyAffordanceLabels, ["Add Source"])
+    }
+
     func test_containedSourcePickerRootPresentationGroupsGeneratorBeforeClip() {
         let presentation = TrackSourceContainedSourcePickerPresentation.resolve(
             step: .root,

@@ -67,42 +67,32 @@ struct TrackSourceModifierWell: View {
     @ViewBuilder
     private var occupiedWell: some View {
         if let selectedGenerator {
-            StudioPanel(title: "Modifier Well", eyebrow: "Post-source placement for the selected slot", accent: StudioTheme.violet) {
-                VStack(alignment: .leading, spacing: 14) {
-                    modifierSummaryRow(
-                        badgeTitle: displayState.badgeTitle,
-                        accent: isBypassed ? StudioTheme.amber : StudioTheme.violet
-                    ) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(selectedGenerator.name)
-                                .studioText(.bodyBold)
-                                .foregroundStyle(StudioTheme.text)
+            slotWell(accent: isBypassed ? StudioTheme.amber : StudioTheme.violet, isEmpty: false) {
+                modifierBadge(
+                    title: displayState.badgeTitle,
+                    accent: isBypassed ? StudioTheme.amber : StudioTheme.violet
+                )
 
-                            Text(selectedGenerator.kind.label)
-                                .studioText(.label)
-                                .foregroundStyle(StudioTheme.mutedText)
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(selectedGenerator.name)
+                        .studioText(.bodyBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
 
-                    Text(
-                        isBypassed
-                            ? "This selected-slot modifier is bypassed. Re-enable it to hear its pitch processing."
-                            : "Pitch processing runs after the selected source for this slot."
-                    )
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 10) {
-                        TrackSourceActionButton(title: "Choose Different Modifier", accent: StudioTheme.violet, action: onShowGeneratorPicker)
-                        TrackSourceActionButton(
-                            title: isBypassed ? "Enable" : "Bypass",
-                            accent: isBypassed ? StudioTheme.success : StudioTheme.amber,
-                            action: onToggleBypassed
-                        )
-                        TrackSourceActionButton(title: "Remove Modifier", accent: StudioTheme.border, action: onRemoveModifier)
-                    }
+                    Text(selectedGenerator.kind.label)
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
                 }
+
+                Spacer(minLength: 0)
+
+                TrackSourceActionButton(title: "Choose", accent: StudioTheme.violet, action: onShowGeneratorPicker)
+                TrackSourceActionButton(
+                    title: isBypassed ? "Enable" : "Bypass",
+                    accent: isBypassed ? StudioTheme.success : StudioTheme.amber,
+                    action: onToggleBypassed
+                )
+                removeButton(action: onRemoveModifier)
             }
         } else {
             emptyWell
@@ -110,63 +100,67 @@ struct TrackSourceModifierWell: View {
     }
 
     private var emptyWell: some View {
-        StudioPanel(title: "Modifier Well", eyebrow: "Post-source placement for the selected slot", accent: StudioTheme.violet) {
-            VStack(alignment: .leading, spacing: 14) {
-                modifierSummaryRow(badgeTitle: displayState.badgeTitle, accent: StudioTheme.border) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("No modifier selected")
-                            .studioText(.bodyBold)
-                            .foregroundStyle(StudioTheme.text)
+        slotWell(accent: StudioTheme.violet, isEmpty: true) {
+            modifierBadge(title: displayState.badgeTitle, accent: StudioTheme.border)
 
-                        Text("Add one to process the resolved source.")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("No modifier selected")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
 
-                Text("This selected slot currently has no modifier. Adding one does not create source material.")
-                    .studioText(.body)
+                Text("Add one to process the resolved source without creating source material.")
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                TrackSourceActionButton(title: "[+] Add Modifier", accent: StudioTheme.violet, action: onShowGeneratorPicker)
             }
+
+            Spacer(minLength: 0)
+
+            TrackSourceActionButton(title: "[+] Add Modifier", accent: StudioTheme.violet, action: onShowGeneratorPicker)
         }
     }
 
     private var unavailableWell: some View {
-        StudioPanel(title: "Modifier Well", eyebrow: "Post-source placement for the selected slot", accent: StudioTheme.violet) {
-            VStack(alignment: .leading, spacing: 14) {
-                modifierSummaryRow(badgeTitle: displayState.badgeTitle, accent: StudioTheme.border) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Modifiers are unavailable for this track type")
-                            .studioText(.bodyBold)
-                            .foregroundStyle(StudioTheme.text)
+        slotWell(accent: StudioTheme.border, isEmpty: true) {
+            modifierBadge(title: displayState.badgeTitle, accent: StudioTheme.border)
 
-                        Text("\(trackType.label) tracks cannot host modifier generators.")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Modifiers are unavailable for this track type")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
 
-                Text("Source editing remains available, but modifier actions are disabled for this selected slot.")
-                    .studioText(.body)
+                Text("\(trackType.label) tracks cannot host modifier generators.")
+                    .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
             }
+
+            Spacer(minLength: 0)
         }
     }
 
-    private func modifierSummaryRow<Content: View>(
-        badgeTitle: String,
+    private func slotWell<Content: View>(
         accent: Color,
+        isEmpty: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            modifierBadge(title: badgeTitle, accent: accent)
+        HStack(alignment: .center, spacing: 12) {
             content()
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .padding(.vertical, 11)
+        .padding(.horizontal, 14)
+        .background(
+            accent.opacity(isEmpty ? StudioOpacity.subtleFill : StudioOpacity.selectedFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(
+                    accent.opacity(isEmpty ? StudioOpacity.subtleStroke : StudioOpacity.ghostStroke),
+                    style: StrokeStyle(lineWidth: 1.5, dash: isEmpty ? [6, 5] : [])
+                )
+        )
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
     }
 
     private func modifierBadge(title: String, accent: Color) -> some View {
@@ -180,5 +174,24 @@ struct TrackSourceModifierWell: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
             )
+    }
+
+    private func removeButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text("x")
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 28, height: 28)
+                .background(
+                    Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Remove Modifier")
     }
 }
