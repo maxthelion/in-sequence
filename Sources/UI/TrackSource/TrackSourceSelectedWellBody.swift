@@ -6,6 +6,16 @@ struct TrackSourceSelectedWellBody<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
+        let shape = UnevenRoundedRectangle(
+            cornerRadii: .init(
+                topLeading: 0,
+                bottomLeading: StudioMetrics.CornerRadius.section,
+                bottomTrailing: StudioMetrics.CornerRadius.section,
+                topTrailing: 0
+            ),
+            style: .continuous
+        )
+
         VStack(alignment: .leading, spacing: 14) {
             content
         }
@@ -13,10 +23,10 @@ struct TrackSourceSelectedWellBody<Content: View>: View {
         .padding(14)
         .background(
             accent.opacity(isEmpty ? StudioOpacity.subtleFill : StudioOpacity.selectedFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+            in: shape
         )
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+            shape
                 .stroke(
                     accent.opacity(isEmpty ? StudioOpacity.subtleStroke : StudioOpacity.ghostStroke),
                     style: StrokeStyle(lineWidth: 1.5, dash: isEmpty ? [7, 5] : [])
