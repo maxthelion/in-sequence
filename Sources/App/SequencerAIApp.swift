@@ -33,7 +33,9 @@ struct SequencerAIApp: App {
     }
 
     var body: some Scene {
-        DocumentGroup(newDocument: { SeqAIDocument() }) { file in
+        DocumentGroup(newDocument: {
+            SeqAIDocument(project: VisualFixtureDocumentLoader.projectFromEnvironment() ?? .empty)
+        }) { file in
             // SeqAIDocument is a ReferenceFileDocument (class). The session and all
             // views receive a Binding<SeqAIDocument> whose getter returns the stable
             // reference. Mutations to `document.project` go directly to the class
