@@ -92,6 +92,25 @@ final class SamplePlaybackEngineTests: XCTestCase {
         XCTAssertNotNil(handle)
     }
 
+    func test_startRepairsPreparedVoiceGraphBeforePlayback() throws {
+        let engine = SamplePlaybackEngine()
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.disconnectFirstPreparedVoiceForTesting(trackID: trackID)
+        XCTAssertFalse(engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID))
+
+        do {
+            try engine.start()
+        } catch {
+            throw XCTSkip("Audio engine unavailable in this environment: \(error)")
+        }
+        defer { engine.stop() }
+
+        XCTAssertTrue(engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID))
+        let handle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+        XCTAssertNotNil(handle)
+    }
+
     func test_applyEnvelope_shapesAttackAndRelease() throws {
         let format = AVAudioFormat(standardFormatWithSampleRate: 1_000, channels: 1)!
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 10)!

@@ -137,6 +137,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     func start() throws {
         guard !isStarted else { return }
+        validatePreparedTrackGraphs()
         try audioGraph.start()
         isStarted = true
     }
@@ -154,10 +155,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func prepareTrack(trackID: UUID) {
-        guard trackVoicePools[trackID] == nil else { return }
-
         performOnMain { [self] in
-            guard trackVoicePools[trackID] == nil else { return }
+            if let pool = trackVoicePools[trackID] {
+                repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                return
+            }
             let mixer = trackMixer(for: trackID)
             var voices: [AVAudioPlayerNode] = []
             var voiceFilters: [SamplerFilterNode] = []
@@ -426,6 +428,50 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return mixer
     }
 
+    private func validatePreparedTrackGraphs() {
+        performOnMain { [self] in
+            for (trackID, pool) in trackVoicePools {
+                repairPreparedTrackGraph(trackID: trackID, pool: pool)
+            }
+        }
+    }
+
+    @MainActor
+    private func repairPreparedTrackGraph(trackID: UUID, pool: TrackVoicePool) {
+        let mixer = trackMixer(for: trackID)
+        let trackFilter = trackFilters[trackID] ?? {
+            let filter = SamplerFilterNode()
+            audioGraph.attach(filter.avNode)
+            trackFilters[trackID] = filter
+            return filter
+        }()
+
+        ensureConnected(mixer, to: trackFilter.avNode)
+        ensureConnected(trackFilter.avNode, to: audioGraph.preMasterMixer)
+
+        for (voice, voiceFilter) in zip(pool.voices, pool.voiceFilters) {
+            ensureConnected(voice, to: voiceFilter.avNode)
+            ensureConnected(voiceFilter.avNode, to: mixer)
+        }
+    }
+
+    @MainActor
+    private func ensureConnected(_ source: AVAudioNode, to destination: AVAudioNode) {
+        if source.engine == nil {
+            audioGraph.attach(source)
+        }
+        if destination.engine == nil {
+            audioGraph.attach(destination)
+        }
+
+        let outputs = audioGraph.engine.outputConnectionPoints(for: source, outputBus: 0)
+        guard !outputs.contains(where: { $0.node === destination }) else { return }
+        if !outputs.isEmpty {
+            audioGraph.disconnectOutput(source)
+        }
+        audioGraph.connect(source, to: destination)
+    }
+
     /// Apply filter settings to the filter node for the given track.
     ///
     /// Called from the document layer when the user edits `track.filter` directly
@@ -547,6 +593,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let minLog = log10(20.0)
         let maxLog = log10(20_000.0)
         return pow(10, minLog + ((maxLog - minLog) * value))
+    }
+
+    func disconnectFirstPreparedVoiceForTesting(trackID: UUID) {
+        performOnMain { [self] in
+            guard let voice = trackVoicePools[trackID]?.voices.first else { return }
+            audioGraph.disconnectOutput(voice)
+        }
+    }
+
+    func isFirstPreparedVoiceConnectedForTesting(trackID: UUID) -> Bool {
+        performOnMain { [self] in
+            guard let voice = trackVoicePools[trackID]?.voices.first else { return false }
+            return audioGraph.engine.outputConnectionPoints(for: voice, outputBus: 0).isEmpty == false
+        }
     }
 
     private func performOnMain<T>(_ work: @escaping @MainActor () -> T) -> T {
