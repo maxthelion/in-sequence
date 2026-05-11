@@ -169,8 +169,6 @@ struct TrackSourceSourceWell: View {
                     style: StrokeStyle(lineWidth: 1.5, dash: isEmpty ? [6, 5] : [])
                 )
         )
-        .padding(.horizontal, 10)
-        .padding(.top, 8)
     }
 
     private func sourceBadge(title: String, accent: Color) -> some View {

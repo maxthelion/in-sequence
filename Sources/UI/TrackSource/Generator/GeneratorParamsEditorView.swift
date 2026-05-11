@@ -5,6 +5,8 @@ struct GeneratorParamsEditorView: View {
         case stacked
         case sourceOnly
         case modifierOnly
+        case sourceContained
+        case modifierContained
     }
 
     let generator: GeneratorPoolEntry
@@ -47,6 +49,10 @@ struct GeneratorParamsEditorView: View {
                 sourceSection
             case .modifierOnly:
                 modifierSection
+            case .sourceContained:
+                sourceSection
+            case .modifierContained:
+                modifierSection
             }
         }
     }
@@ -58,7 +64,7 @@ struct GeneratorParamsEditorView: View {
         } else {
             switch generator.params {
             case let .mono(trigger, _, shape):
-                StudioPanel(title: "Generator Source", eyebrow: "Used when this slot is set to Generator", accent: accent) {
+                sourceEditorContainer(title: "Generator Source", eyebrow: "Used when this slot is set to Generator") {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(stepDisplayLabel(trigger.stepStage))
                             .studioText(.label)
@@ -75,7 +81,7 @@ struct GeneratorParamsEditorView: View {
                 }
 
             case let .poly(trigger, _, shape):
-                StudioPanel(title: "Generator Source", eyebrow: "Used when this slot is set to Generator", accent: accent) {
+                sourceEditorContainer(title: "Generator Source", eyebrow: "Used when this slot is set to Generator") {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(stepDisplayLabel(trigger.stepStage))
                             .studioText(.label)
@@ -92,10 +98,15 @@ struct GeneratorParamsEditorView: View {
                 }
 
             case let .progressionChords(params):
-                ProgressionChordGeneratorEditorView(params: params, accent: accent, onUpdate: onUpdate)
+                ProgressionChordGeneratorEditorView(
+                    params: params,
+                    accent: accent,
+                    showsPanel: layout != .sourceContained,
+                    onUpdate: onUpdate
+                )
 
             case let .slice(trigger, sliceIndexes):
-                StudioPanel(title: "Generator Source", eyebrow: "Used when this slot is set to Generator", accent: accent) {
+                sourceEditorContainer(title: "Generator Source", eyebrow: "Used when this slot is set to Generator") {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(stepDisplayLabel(trigger.stepStage))
                             .studioText(.label)
@@ -112,14 +123,14 @@ struct GeneratorParamsEditorView: View {
                 }
 
             case let .template(templateID):
-                StudioPanel(title: "Template Source", eyebrow: "Generator-defined source", accent: accent) {
+                sourceEditorContainer(title: "Template Source", eyebrow: "Generator-defined source") {
                     Text(templateID.uuidString)
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(StudioTheme.mutedText)
                 }
 
             case .drum:
-                StudioPanel(title: "Generator Source", eyebrow: "Drum voices", accent: accent) {
+                sourceEditorContainer(title: "Generator Source", eyebrow: "Drum voices") {
                     Text("Drum generator editing is not exposed in this track workspace.")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
@@ -132,7 +143,7 @@ struct GeneratorParamsEditorView: View {
     private var modifierSection: some View {
         switch generator.params {
         case let .mono(_, pitch, _):
-            StudioPanel(title: "Pitch Modifier", eyebrow: "Runs after the selected source", accent: StudioTheme.violet) {
+            modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Runs after the selected source") {
                 PitchAlgoEditor(
                     stage: pitch.pitchStage,
                     inputClipChoices: inputClipChoices,
@@ -143,7 +154,7 @@ struct GeneratorParamsEditorView: View {
             }
 
         case let .poly(_, pitches, _):
-            StudioPanel(title: "Pitch Modifier", eyebrow: "Runs after the selected source", accent: StudioTheme.violet) {
+            modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Runs after the selected source") {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("\(pitches.count) lanes over the selected source")
                         .studioText(.label)
@@ -180,7 +191,7 @@ struct GeneratorParamsEditorView: View {
             }
 
         case .progressionChords:
-            StudioPanel(title: "Pitch Modifier", eyebrow: "Not available for chord sources", accent: StudioTheme.violet) {
+            modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Not available for chord sources") {
                 Text("Progression chord generators emit complete chords, so they do not expose a separate modifier stage.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
@@ -189,7 +200,7 @@ struct GeneratorParamsEditorView: View {
 
         case .slice:
             if sourceMode == .clip {
-                StudioPanel(title: "Generator Modifier", eyebrow: "Runs after the selected source", accent: StudioTheme.violet) {
+                modifierEditorContainer(title: "Generator Modifier", eyebrow: "Runs after the selected source") {
                     Text("Slice tracks do not have a separate pitch modifier stage yet. Choose generator mode on the slot to use the generator as the source.")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
@@ -202,6 +213,75 @@ struct GeneratorParamsEditorView: View {
 
         case .drum:
             EmptyView()
+        }
+    }
+
+    private func sourceEditorContainer<Content: View>(
+        title: String,
+        eyebrow: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        editorContainer(
+            title: title,
+            eyebrow: eyebrow,
+            accent: accent,
+            isContained: layout == .sourceContained,
+            content: content
+        )
+    }
+
+    private func modifierEditorContainer<Content: View>(
+        title: String,
+        eyebrow: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        editorContainer(
+            title: title,
+            eyebrow: eyebrow,
+            accent: StudioTheme.violet,
+            isContained: layout == .modifierContained,
+            content: content
+        )
+    }
+
+    @ViewBuilder
+    private func editorContainer<Content: View>(
+        title: String,
+        eyebrow: String,
+        accent: Color,
+        isContained: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        if isContained {
+            let containedTitle = title == "Generator Source" ? "Generator Controls" : title
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(containedTitle.uppercased())
+                        .studioText(.bodyEmphasis)
+                        .tracking(1.1)
+                        .foregroundStyle(StudioTheme.text)
+
+                    Text(eyebrow)
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+                content()
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                StudioTheme.panelFill.opacity(0.92),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+            )
+        } else {
+            StudioPanel(title: title, eyebrow: eyebrow, accent: accent) {
+                content()
+            }
         }
     }
 

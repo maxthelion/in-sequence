@@ -3,6 +3,7 @@ import SwiftUI
 struct ProgressionChordGeneratorEditorView: View {
     let params: ProgressionChordGeneratorParams
     let accent: Color
+    var showsPanel = true
     let onUpdate: (GeneratorParams) -> Void
 
     @State private var selectedChordStep: Int?
@@ -34,13 +35,13 @@ struct ProgressionChordGeneratorEditorView: View {
     }
 
     var body: some View {
-        StudioPanel(title: "Progression Chords", eyebrow: "Chord generator source", accent: accent) {
-            VStack(alignment: .leading, spacing: 16) {
-                clipSetup
-                chordsSection
-                selectedChordControls
-                layerSection
-                stepPageSection
+        Group {
+            if showsPanel {
+                StudioPanel(title: "Progression Chords", eyebrow: "Chord generator source", accent: accent) {
+                    editorContent
+                }
+            } else {
+                editorContent
             }
         }
         .onAppear {
@@ -50,6 +51,16 @@ struct ProgressionChordGeneratorEditorView: View {
         }
         .onChange(of: params) {
             syncSelection()
+        }
+    }
+
+    private var editorContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            clipSetup
+            chordsSection
+            selectedChordControls
+            layerSection
+            stepPageSection
         }
     }
 

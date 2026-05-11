@@ -2,6 +2,14 @@ import XCTest
 @testable import SequencerAI
 
 final class TrackSourceSourceDisplayStateTests: XCTestCase {
+    func test_editorTabsKeepClipHistoryAsTabPeer() {
+        XCTAssertEqual(
+            TrackSourceEditorTab.allCases.map(\.title),
+            ["Source", "Modifier", "Clip History"]
+        )
+        XCTAssertEqual(TrackSourceEditorTab.clipHistory.id, "clipHistory")
+    }
+
     func test_clipSourceWithClip_resolvesToOccupiedClip() {
         let state = TrackSourceSourceDisplayState.resolve(
             sourceMode: .clip,

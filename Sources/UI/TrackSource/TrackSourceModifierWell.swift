@@ -159,8 +159,6 @@ struct TrackSourceModifierWell: View {
                     style: StrokeStyle(lineWidth: 1.5, dash: isEmpty ? [6, 5] : [])
                 )
         )
-        .padding(.horizontal, 10)
-        .padding(.top, 8)
     }
 
     private func modifierBadge(title: String, accent: Color) -> some View {

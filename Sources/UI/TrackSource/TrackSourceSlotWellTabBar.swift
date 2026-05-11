@@ -21,6 +21,13 @@ struct TrackSourceSlotWellTabBar: View {
                 badgeTitle: modifierState.badgeTitle,
                 badgeAccent: modifierBadgeAccent
             )
+
+            slotButton(
+                tab: .clipHistory,
+                title: "Clip History",
+                badgeTitle: "Capture",
+                badgeAccent: StudioTheme.success
+            )
         }
         .padding(.horizontal, 10)
     }

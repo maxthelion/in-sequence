@@ -28,7 +28,6 @@ struct TrackSourceSourceTabContent: View {
     let onAssignGeneratorSource: (GeneratorPoolEntry) -> Void
     let onCreateBlankClipSource: () -> Void
     let onAssignClipSource: (ClipPoolEntry) -> Void
-    let onPresentClipHistory: () -> Void
     let onRemoveSource: () -> Void
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
 
@@ -41,7 +40,7 @@ struct TrackSourceSourceTabContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        TrackSourceSelectedWellBody(accent: bodyAccent, isEmpty: displayState == .empty) {
             switch displayState {
             case .occupiedClip:
                 sourceSection
@@ -66,23 +65,13 @@ struct TrackSourceSourceTabContent: View {
                 sourceSection
 
                 if sourcePickerStep == nil, let selectedGenerator {
-                    HStack {
-                        Spacer()
-                        TrackSourceActionButton(
-                            title: "Clip History...",
-                            accent: StudioTheme.success,
-                            action: onPresentClipHistory
-                        )
-                    }
-                    .padding(.horizontal, 10)
-
                     GeneratorParamsEditorView(
                         generator: selectedGenerator,
                         inputClipChoices: generatedSourceInputClips,
                         harmonicSidechainClipChoices: harmonicSidechainClips,
                         sourceMode: .generator,
                         accent: accent,
-                        layout: .sourceOnly,
+                        layout: .sourceContained,
                         onUpdate: onUpdateGeneratorParams
                     )
                 }
@@ -90,6 +79,15 @@ struct TrackSourceSourceTabContent: View {
             case .empty:
                 sourceSection
             }
+        }
+    }
+
+    private var bodyAccent: Color {
+        switch displayState {
+        case .occupiedClip:
+            return StudioTheme.success
+        case .occupiedGenerator, .empty:
+            return accent
         }
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
     case source
     case modifiers
+    case clipHistory
 
     var id: String { rawValue }
 
@@ -12,6 +13,8 @@ enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
             return "Source"
         case .modifiers:
             return "Modifier"
+        case .clipHistory:
+            return "Clip History"
         }
     }
 }
@@ -177,6 +180,8 @@ struct TrackSourceEditorView: View {
                         sourceTab
                     case .modifiers:
                         modifiersTab
+                    case .clipHistory:
+                        clipHistoryTab
                     }
                 }
             }
@@ -258,7 +263,6 @@ struct TrackSourceEditorView: View {
             onAssignGeneratorSource: assignGeneratorSource,
             onCreateBlankClipSource: createBlankClipSource,
             onAssignClipSource: assignClipSource,
-            onPresentClipHistory: presentClipHistory,
             onRemoveSource: removeSource,
             onUpdateGeneratorParams: updateSourceGeneratorParams
         )
@@ -302,6 +306,13 @@ struct TrackSourceEditorView: View {
                 )
             },
             onUpdateGeneratorParams: updateModifierGeneratorParams
+        )
+    }
+
+    private var clipHistoryTab: some View {
+        TrackSourceClipHistoryTabContent(
+            accent: StudioTheme.success,
+            onPresentClipHistory: presentClipHistory
         )
     }
 

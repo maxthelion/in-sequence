@@ -19,7 +19,7 @@ struct TrackSourceModifierTabContent: View {
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        TrackSourceSelectedWellBody(accent: bodyAccent, isEmpty: bodyIsEmpty) {
             modifierWell
 
             if let modifierPickerStep {
@@ -41,10 +41,40 @@ struct TrackSourceModifierTabContent: View {
                     harmonicSidechainClipChoices: harmonicSidechainClips,
                     sourceMode: sourceMode,
                     accent: StudioTheme.violet,
-                    layout: .modifierOnly,
+                    layout: .modifierContained,
                     onUpdate: onUpdateGeneratorParams
                 )
             }
+        }
+    }
+
+    private var displayState: TrackSourceModifierDisplayState {
+        TrackSourceModifierDisplayState.resolve(
+            trackType: trackType,
+            selectedGenerator: selectedGenerator,
+            isBypassed: isBypassed
+        )
+    }
+
+    private var bodyAccent: Color {
+        switch displayState {
+        case .occupied:
+            return StudioTheme.violet
+        case .bypassed:
+            return StudioTheme.amber
+        case .empty:
+            return StudioTheme.violet
+        case .unavailable:
+            return StudioTheme.border
+        }
+    }
+
+    private var bodyIsEmpty: Bool {
+        switch displayState {
+        case .empty, .unavailable:
+            return true
+        case .occupied, .bypassed:
+            return false
         }
     }
 
