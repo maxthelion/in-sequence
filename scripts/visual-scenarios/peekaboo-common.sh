@@ -3,6 +3,102 @@ set -euo pipefail
 
 APP_NAME="${APP_NAME:-SequencerAI}"
 PEEKABOO_BIN="${PEEKABOO_BIN:-peekaboo}"
+PEEKABOO_ACTION_TIMEOUT_SECONDS="${PEEKABOO_ACTION_TIMEOUT_SECONDS:-8}"
+
+action_log() {
+  local output_dir="${PEEKABOO_OUTPUT_DIR:-.claude/state/visual-review}"
+  mkdir -p "$output_dir"
+  printf '%s\n' "$*" >> "$output_dir/scenario-actions.log"
+}
+
+run_with_timeout() {
+  local seconds="$1"
+  shift
+
+  "$@" &
+  local child_pid="$!"
+  local elapsed=0
+
+  while kill -0 "$child_pid" 2>/dev/null; do
+    if [ "$elapsed" -ge "$seconds" ]; then
+      kill "$child_pid" 2>/dev/null || true
+      sleep 1
+      kill -9 "$child_pid" 2>/dev/null || true
+      wait "$child_pid" 2>/dev/null || true
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  wait "$child_pid"
+}
+
+post_mouse_event() {
+  local type="$1"
+  local x="$2"
+  local y="$3"
+
+  swift -e '
+import CoreGraphics
+import Foundation
+
+let type = CommandLine.arguments[1]
+let x = Double(CommandLine.arguments[2])!
+let y = Double(CommandLine.arguments[3])!
+let button = CGMouseButton.left
+let source = CGEventSource(stateID: .hidSystemState)
+let point = CGPoint(x: x, y: y)
+
+let mouseType: CGEventType
+switch type {
+case "down":
+  mouseType = .leftMouseDown
+case "up":
+  mouseType = .leftMouseUp
+case "drag":
+  mouseType = .leftMouseDragged
+default:
+  exit(64)
+}
+
+CGEvent(
+  mouseEventSource: source,
+  mouseType: mouseType,
+  mouseCursorPosition: point,
+  mouseButton: button
+)?.post(tap: .cghidEventTap)
+' "$type" "$x" "$y"
+}
+
+cg_click_point() {
+  local x="$1"
+  local y="$2"
+
+  post_mouse_event down "$x" "$y"
+  sleep 0.05
+  post_mouse_event up "$x" "$y"
+}
+
+cg_drag_point() {
+  local from_x="$1"
+  local from_y="$2"
+  local to_x="$3"
+  local to_y="$4"
+
+  post_mouse_event down "$from_x" "$from_y"
+
+  local steps=14
+  local step
+  for step in $(seq 1 "$steps"); do
+    local x=$((from_x + ((to_x - from_x) * step / steps)))
+    local y=$((from_y + ((to_y - from_y) * step / steps)))
+    post_mouse_event drag "$x" "$y"
+    sleep 0.025
+  done
+
+  post_mouse_event up "$to_x" "$to_y"
+}
 
 latest_app_pid() {
   "$PEEKABOO_BIN" app list --json --no-remote \
@@ -35,7 +131,16 @@ click_point() {
   local pid="$1"
   local x="$2"
   local y="$3"
-  "$PEEKABOO_BIN" click --coords "${x},${y}" --pid "$pid" --no-remote --json >/dev/null
+  local status
+  if run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" \
+    "$PEEKABOO_BIN" click --coords "${x},${y}" --pid "$pid" --no-remote --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.claude/state/visual-review}/peekaboo-actions.err"; then
+    return 0
+  else
+    status="$?"
+  fi
+
+  action_log "Peekaboo click at ${x},${y} for pid ${pid} failed or timed out with status ${status}; falling back to CoreGraphics click."
+  run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" cg_click_point "$x" "$y"
 }
 
 drag_point() {
@@ -44,14 +149,22 @@ drag_point() {
   local from_y="$3"
   local to_x="$4"
   local to_y="$5"
-  "$PEEKABOO_BIN" drag \
+  local status
+  if run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" "$PEEKABOO_BIN" drag \
     --from-coords "${from_x},${from_y}" \
     --to-coords "${to_x},${to_y}" \
     --duration 350 \
     --steps 14 \
     --pid "$pid" \
     --no-remote \
-    --json >/dev/null
+    --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.claude/state/visual-review}/peekaboo-actions.err"; then
+    return 0
+  else
+    status="$?"
+  fi
+
+  action_log "Peekaboo drag from ${from_x},${from_y} to ${to_x},${to_y} for pid ${pid} failed or timed out with status ${status}; falling back to CoreGraphics drag."
+  run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" cg_drag_point "$from_x" "$from_y" "$to_x" "$to_y"
 }
 
 wait_for_window_title() {
