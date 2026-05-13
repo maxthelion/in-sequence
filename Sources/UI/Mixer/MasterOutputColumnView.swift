@@ -4,6 +4,7 @@ struct MasterOutputColumnView: View {
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
     @StateObject private var gainControl = ThrottledMixValue()
+    @State private var isAddFXPresented = false
 
     private var masterBus: MasterBusState { session.store.masterBus }
     private var selection: MasterBusABSelection { masterBus.abSelection ?? fallbackSelection }
@@ -22,17 +23,15 @@ struct MasterOutputColumnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            section("Crossfader") {
-                MasterCrossfaderView(
-                    sceneAName: sceneA.name,
-                    sceneBName: sceneB.name,
-                    value: crossfaderValue,
-                    hasLiveOverride: liveCrossfader != nil,
-                    showsPersistenceActions: false,
-                    onChange: { engineController.setLiveMasterCrossfader($0) }
-                )
-            }
-            section("Inserts") {
+            MasterCrossfaderView(
+                sceneAName: sceneA.name,
+                sceneBName: sceneB.name,
+                value: crossfaderValue,
+                hasLiveOverride: liveCrossfader != nil,
+                showsPersistenceActions: false,
+                onChange: { engineController.setLiveMasterCrossfader($0) }
+            )
+            section("FX") {
                 masterInsertSection
             }
             section("Output") {
@@ -46,6 +45,9 @@ struct MasterOutputColumnView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(StudioTheme.amber.opacity(0.7), lineWidth: 1)
         )
+        .sheet(isPresented: $isAddFXPresented) {
+            addFXSheet
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("mixer-master-out-column")
     }
@@ -57,21 +59,8 @@ struct MasterOutputColumnView: View {
                     .studioText(.eyebrowBold)
                     .tracking(1.0)
                     .foregroundStyle(StudioTheme.text)
-                Text("Post-blend bus")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.amber)
             }
             Spacer(minLength: 6)
-            if meterState.isClipLatched {
-                Text("CLIP")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            }
         }
     }
 
@@ -88,14 +77,6 @@ struct MasterOutputColumnView: View {
 
     private var masterInsertSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("Final chain")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Spacer(minLength: 4)
-                addInsertMenu
-            }
             Text("After Scene A/B mix")
                 .studioText(.micro)
                 .foregroundStyle(StudioTheme.mutedText)
@@ -110,44 +91,6 @@ struct MasterOutputColumnView: View {
                 }
             }
         }
-    }
-
-    private var addInsertMenu: some View {
-        Menu {
-            Button {
-                session.addMasterOutputInsert(.filter())
-            } label: {
-                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-            }
-
-            Button {
-                session.addMasterOutputInsert(.bitcrusher())
-            } label: {
-                Label("Bitcrusher", systemImage: "waveform.path.ecg")
-            }
-
-            let effects = engineController.availableAudioEffects
-            if effects.isEmpty {
-                Button("No AU effects found") {}
-                    .disabled(true)
-            } else {
-                Menu("AU Effect") {
-                    ForEach(effects.prefix(16)) { effect in
-                        Button(effect.displayName) {
-                            session.addMasterOutputInsert(.auEffect(effect))
-                        }
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 11, weight: .bold))
-                .frame(width: 24, height: 24)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(StudioTheme.success)
-        .help("Add insert")
-        .accessibilityLabel("Add master insert")
     }
 
     private func masterInsertRow(_ insert: MasterBusInsert) -> some View {
@@ -203,16 +146,97 @@ struct MasterOutputColumnView: View {
     }
 
     private var emptyInsertSlot: some View {
-        Text("- empty slot -")
-            .studioText(.micro)
-            .tracking(0.8)
-            .foregroundStyle(StudioTheme.mutedText)
-            .frame(maxWidth: .infinity, minHeight: 30)
-            .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-            )
+        Button {
+            isAddFXPresented = true
+        } label: {
+            Label("Add FX", systemImage: "plus")
+                .studioText(.micro)
+                .tracking(0.6)
+                .foregroundStyle(StudioTheme.text)
+                .frame(maxWidth: .infinity, minHeight: 32)
+        }
+        .buttonStyle(.plain)
+        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+        )
+        .accessibilityLabel("Add master output FX")
+    }
+
+    private var addFXSheet: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Master Out FX")
+                    .studioText(.title)
+                    .foregroundStyle(StudioTheme.text)
+                Spacer()
+                Button("Done") {
+                    isAddFXPresented = false
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                addFXButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                    session.addMasterOutputInsert(.filter())
+                    isAddFXPresented = false
+                }
+                addFXButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                    session.addMasterOutputInsert(.bitcrusher())
+                    isAddFXPresented = false
+                }
+            }
+
+            Divider()
+
+            Text("AU Effect")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            let effects = engineController.availableAudioEffects
+            if effects.isEmpty {
+                Text("No AU effects found")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(effects.prefix(16)) { effect in
+                            addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                session.addMasterOutputInsert(.auEffect(effect))
+                                isAddFXPresented = false
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+            }
+        }
+        .padding(18)
+        .frame(width: 360)
+    }
+
+    private func addFXButton(title: String, systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: 22)
+                Text(title)
+                    .studioText(.labelBold)
+                    .lineLimit(1)
+                Spacer()
+            }
+            .foregroundStyle(StudioTheme.text)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var masterOutputSection: some View {
@@ -246,7 +270,7 @@ struct MasterOutputColumnView: View {
                         .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 4)
-                        .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 }
 
                 if meterState.isClearClipActionable {
@@ -270,7 +294,7 @@ struct MasterOutputColumnView: View {
                     minWidth: MasterOutputClearClipControlMetrics.minWidth,
                     minHeight: MasterOutputClearClipControlMetrics.minHeight
                 )
-                .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .background(Color.red, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
         .buttonStyle(.plain)
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
@@ -404,9 +428,9 @@ private struct MasterOutputFaderMeter: View {
                     .fill(Color.white.opacity(0.06))
 
                 HStack(alignment: .bottom, spacing: 4) {
-                    meterLane(peak: meterState.leftPeakDBFS, hold: meterState.leftPeakHoldDBFS)
+                    meterLane(peak: meterState.leftPeakDBFS)
                     Spacer(minLength: 26)
-                    meterLane(peak: meterState.rightPeakDBFS, hold: meterState.rightPeakHoldDBFS)
+                    meterLane(peak: meterState.rightPeakDBFS)
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
@@ -452,32 +476,43 @@ private struct MasterOutputFaderMeter: View {
         .accessibilityIdentifier("master-output-fader-meter")
     }
 
-    private func meterLane(peak: Double, hold: Double) -> some View {
+    private func meterLane(peak: Double) -> some View {
         GeometryReader { proxy in
             let height = proxy.size.height
             let normalizedPeak = MasterMeterLevelScale.normalized(peak)
             let peakHeight = height * normalizedPeak
-            let holdOffset = height * (1 - MasterMeterLevelScale.normalized(hold))
 
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .fill(Color.white.opacity(0.08))
 
-                LinearGradient(
-                    colors: [StudioTheme.success, StudioTheme.success, StudioTheme.amber, Color.red],
-                    startPoint: .bottom,
-                    endPoint: .top
-                )
-                .frame(height: max(3, peakHeight))
-                .opacity(normalizedPeak > 0 ? 0.95 : 0)
-
-                Rectangle()
-                    .fill(StudioTheme.text)
-                    .frame(height: 2)
-                    .offset(y: -holdOffset + 1)
-                    .opacity(hold.isFinite ? 0.9 : 0)
+                meterGradient
+                    .frame(height: height)
+                    .mask {
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            Rectangle()
+                                .frame(height: peakHeight)
+                        }
+                    }
+                    .opacity(normalizedPeak > 0 ? 0.95 : 0)
             }
         }
         .frame(width: 10)
+    }
+
+    private var meterGradient: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: StudioTheme.success, location: 0),
+                .init(color: StudioTheme.success, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
+                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
+                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
+                .init(color: Color.red, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
+                .init(color: Color.red, location: 1)
+            ],
+            startPoint: .bottom,
+            endPoint: .top
+        )
     }
 }

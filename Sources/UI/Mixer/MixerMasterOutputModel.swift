@@ -57,8 +57,10 @@ enum MasterOutputGainScale {
 }
 
 enum MasterMeterLevelScale {
-    static let floorDBFS = -60.0
+    static let floorDBFS = MasterMeterDisplayState.displayFloorDBFS
     static let ceilingDBFS = 0.0
+    static let warningDBFS = -18.0
+    static let dangerDBFS = -1.0
 
     static func normalized(_ dbFS: Double) -> Double {
         guard dbFS.isFinite else { return 0 }

@@ -12,14 +12,14 @@ struct MasterCrossfaderView: View {
 
     var body: some View {
         content
-            .padding(12)
+            .padding(10)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("master-crossfader")
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             sceneNameRow
             sliderRow
 
@@ -31,38 +31,30 @@ struct MasterCrossfaderView: View {
 
     private var sceneNameRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            sceneBadge(slot: "A", name: sceneAName, alignment: .leading, frameAlignment: .leading)
-            Spacer(minLength: 6)
+            sceneBadge(slot: "A", frameAlignment: .leading)
+            Spacer(minLength: 8)
             Text("\(Int((clampedValue * 100).rounded()))%")
                 .studioText(.eyebrowBold)
                 .monospacedDigit()
                 .foregroundStyle(StudioTheme.text)
-                .frame(width: 48, alignment: .trailing)
-            Spacer(minLength: 6)
-            sceneBadge(slot: "B", name: sceneBName, alignment: .trailing, frameAlignment: .trailing)
+                .frame(width: 46, alignment: .center)
+            Spacer(minLength: 8)
+            sceneBadge(slot: "B", frameAlignment: .trailing)
         }
     }
 
     private var sliderRow: some View {
-        HStack(spacing: 10) {
-            Text("A")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.amber)
-
-            Slider(
-                value: Binding(
-                    get: { clampedValue },
-                    set: { onChange($0) }
-                ),
-                in: 0...1
-            )
-            .tint(StudioTheme.amber)
-            .accessibilityIdentifier("master-crossfader-slider")
-
-            Text("B")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.amber)
-        }
+        Slider(
+            value: Binding(
+                get: { clampedValue },
+                set: { onChange($0) }
+            ),
+            in: 0...1
+        )
+        .tint(StudioTheme.amber)
+        .accessibilityLabel("Scene A B blend")
+        .accessibilityValue("\(sceneAName) to \(sceneBName)")
+        .accessibilityIdentifier("master-crossfader-slider")
     }
 
     private var actionRow: some View {
@@ -92,21 +84,11 @@ struct MasterCrossfaderView: View {
 
     private func sceneBadge(
         slot: String,
-        name: String,
-        alignment: HorizontalAlignment,
         frameAlignment: Alignment
     ) -> some View {
-        VStack(alignment: alignment, spacing: 2) {
-            Text(slot)
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.amber)
-            Text(name)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-                .truncationMode(.tail)
-        }
-        .frame(maxWidth: 68, alignment: frameAlignment)
+        Text(slot)
+            .studioText(.eyebrowBold)
+            .foregroundStyle(StudioTheme.amber)
+        .frame(maxWidth: .infinity, alignment: frameAlignment)
     }
 }

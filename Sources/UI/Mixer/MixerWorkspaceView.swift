@@ -89,7 +89,7 @@ private struct MasterOutputCompactStrip: View {
                     Text("CLIP")
                         .studioText(.micro)
                         .tracking(0.8)
-                        .foregroundStyle(StudioTheme.amber)
+                        .foregroundStyle(Color.red)
                         .rotationEffect(.degrees(-90))
                         .frame(width: 34, height: 24)
                 }
@@ -123,7 +123,7 @@ private struct CompactMasterMeter: View {
                 .fill(Color.white.opacity(0.06))
                 .overlay(alignment: .bottom) {
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .fill(state.isClipLatched ? StudioTheme.amber : StudioTheme.success)
+                        .fill(state.isClipLatched ? Color.red : StudioTheme.success)
                         .frame(height: max(4, height * peak))
                 }
         }

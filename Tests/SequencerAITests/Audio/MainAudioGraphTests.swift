@@ -206,6 +206,19 @@ final class MasterMeterPublisherTests: XCTestCase {
     }
 
     @MainActor
+    func test_meterDisplayReturnsToSilentStateWhenNoAudioArrivesPastFloor() {
+        let publisher = MasterMeterPublisher(levelReleaseDBPerSecond: 120)
+        publisher.stopPublishing()
+
+        publisher.recordPeakAmplitudes(left: 1, right: 1)
+        publisher.publishPendingToMain(now: 1)
+        publisher.publishPendingToMain(now: 1.6)
+
+        XCTAssertEqual(publisher.displayState.leftPeakDBFS, MasterMeterDisplayState.silenceDBFS)
+        XCTAssertEqual(publisher.displayState.rightPeakDBFS, MasterMeterDisplayState.silenceDBFS)
+    }
+
+    @MainActor
     func test_peakHoldMaintainsMarkerThenReleasesTowardLivePeak() {
         let publisher = MasterMeterPublisher(peakHoldDuration: 0.5, peakHoldReleaseDBPerSecond: 10)
         publisher.stopPublishing()

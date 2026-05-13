@@ -317,6 +317,7 @@ enum MasterMeterTapPoint: Equatable {
 
 struct MasterMeterDisplayState: Equatable {
     static let silenceDBFS = -Double.infinity
+    static let displayFloorDBFS = -60.0
     static let silent = MasterMeterDisplayState(
         leftPeakDBFS: silenceDBFS,
         rightPeakDBFS: silenceDBFS,
@@ -524,7 +525,8 @@ final class MasterMeterPublisher {
     ) -> Double {
         guard currentPeak.isFinite else { return livePeak }
         guard livePeak.isFinite else {
-            return currentPeak - levelReleaseDBPerSecond * elapsed
+            let released = currentPeak - levelReleaseDBPerSecond * elapsed
+            return released <= MasterMeterDisplayState.displayFloorDBFS ? MasterMeterDisplayState.silenceDBFS : released
         }
         guard livePeak < currentPeak else { return livePeak }
         return max(livePeak, currentPeak - levelReleaseDBPerSecond * elapsed)

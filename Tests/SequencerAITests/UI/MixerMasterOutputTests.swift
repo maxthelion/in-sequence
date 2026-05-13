@@ -62,6 +62,9 @@ final class MixerMasterOutputTests: XCTestCase {
         XCTAssertTrue(state.isClearClipActionable)
         XCTAssertEqual(MasterMeterLevelScale.normalized(MasterMeterDisplayState.silenceDBFS), 0)
         XCTAssertEqual(MasterMeterLevelScale.normalized(3), 1)
+        XCTAssertEqual(MasterMeterLevelScale.warningDBFS, -18)
+        XCTAssertEqual(MasterMeterLevelScale.dangerDBFS, -1)
+        XCTAssertLessThan(MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS), MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS))
     }
 
     func test_clearClipControlKeepsLegibleFooterSizeAtNormalColumnWidth() {
