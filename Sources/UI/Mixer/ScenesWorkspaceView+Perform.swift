@@ -78,12 +78,25 @@ extension ScenesWorkspaceView {
                 Button {
                     scenePerformSlotPickerRequest = ScenePerformSlotPickerRequest(slot: isA ? .a : .b)
                 } label: {
-                    Image(systemName: "square.grid.3x3.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 28, height: 28)
+                    HStack(spacing: 5) {
+                        Text("Choose")
+                            .studioText(.micro)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .foregroundStyle(isDominant ? Color.white.opacity(0.72) : StudioTheme.mutedText)
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(
+                        Color.white.opacity(isDominant ? StudioOpacity.borderSubtle : StudioOpacity.subtleFill),
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(isDominant ? Color.white.opacity(0.16) : StudioTheme.border, lineWidth: 1)
+                    )
                 }
-                .buttonStyle(.bordered)
-                .tint(StudioTheme.amber)
+                .buttonStyle(.plain)
                 .help("Choose scene")
             }
             .padding(12)
