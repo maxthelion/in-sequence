@@ -1,0 +1,2134 @@
+{
+  "debug_logs" : [
+    "[2026-05-13T12:12:03.303Z] DEBUG: Runtime host: local (in-process)",
+    "[2026-05-13T12:12:03.304Z] VERBOSE [Operation]: Starting operation {menubar=false, app=none, operation=see_command, mode=auto, annotate=false, hasAnalyzePrompt=false}",
+    "[2026-05-13T12:12:03.304Z] VERBOSE [Performance]: Starting timer 'see_command'",
+    "[2026-05-13T12:12:03.304Z] VERBOSE [Permissions]: Checking screen recording permissions",
+    "[2026-05-13T12:12:03.311Z] VERBOSE [Permissions]: Screen recording permission granted",
+    "[2026-05-13T12:12:03.311Z] VERBOSE [Capture]: Starting capture and detection phase",
+    "[2026-05-13T12:12:03.311Z] VERBOSE [Capture]: Determined capture mode {mode=window}",
+    "[2026-05-13T12:12:03.311Z] VERBOSE [Operation]: Starting operation {operation=capture_phase, mode=window}",
+    "[2026-05-13T12:12:03.311Z] VERBOSE [Performance]: Starting timer 'capture_phase'",
+    "[2026-05-13T12:12:03.311Z] VERBOSE [Capture]: Initiating window capture {windowTitle=any, app=PID:37090}",
+    "[2026-05-13T12:12:03.311Z] VERBOSE [Performance]: Starting timer 'window_capture'",
+    "[2026-05-13T12:12:03.592Z] VERBOSE [Performance]: Timer 'window_capture' completed {duration_ms=281}",
+    "[2026-05-13T12:12:03.593Z] VERBOSE [Operation]: Operation completed {mode=window, success=true, operation=capture_phase}",
+    "[2026-05-13T12:12:03.593Z] VERBOSE [Performance]: Timer 'capture_phase' completed {duration_ms=281}",
+    "[2026-05-13T12:12:03.593Z] VERBOSE [Performance]: Starting timer 'file_write'",
+    "[2026-05-13T12:12:03.593Z] VERBOSE: Saved screenshot to: .claude\/state\/visual-review\/20260513T121142Z-modal-legibility-fix-relaunch\/see-default.png",
+    "[2026-05-13T12:12:03.593Z] VERBOSE [Performance]: Timer 'file_write' completed {duration_ms=0}",
+    "[2026-05-13T12:12:03.593Z] VERBOSE [Operation]: Starting operation {operation=element_detection}",
+    "[2026-05-13T12:12:03.593Z] VERBOSE [Performance]: Starting timer 'element_detection'",
+    "[2026-05-13T12:12:04.302Z] VERBOSE [Operation]: Operation completed {success=true, operation=element_detection}",
+    "[2026-05-13T12:12:04.302Z] VERBOSE [Performance]: Timer 'element_detection' completed {duration_ms=708}",
+    "[2026-05-13T12:12:04.308Z] VERBOSE [Capture]: Capture completed successfully {screenshotSize=1151259, elementCount=292, snapshotId=0A90D482-7E20-4930-BD92-7F12E0BE561B}",
+    "[2026-05-13T12:12:04.308Z] VERBOSE [Operation]: Operation completed {operation=see_command, executionTimeMs=1004, success=true}",
+    "[2026-05-13T12:12:04.308Z] VERBOSE [Performance]: Timer 'see_command' completed {duration_ms=1004}"
+  ],
+  "data" : {
+    "execution_time" : 1.0042920112609863,
+    "screenshot_raw" : ".claude\/state\/visual-review\/20260513T121142Z-modal-legibility-fix-relaunch\/see-default.png",
+    "capture_mode" : "window",
+    "window_title" : "Untitled",
+    "interactable_count" : 215,
+    "is_dialog" : false,
+    "success" : true,
+    "screenshot_annotated" : ".claude\/state\/visual-review\/20260513T121142Z-modal-legibility-fix-relaunch\/see-default.png",
+    "application_name" : "SequencerAI",
+    "element_count" : 292,
+    "ui_elements" : [
+      {
+        "role_description" : "button",
+        "label" : "Play",
+        "id" : "elem_3",
+        "description" : "Play",
+        "identifier" : "play.fill",
+        "is_actionable" : true,
+        "role" : "button"
+      },
+      {
+        "label" : "record.circle.fill",
+        "is_actionable" : false,
+        "description" : "record.circle.fill",
+        "identifier" : "record.circle.fill",
+        "id" : "elem_4",
+        "role_description" : "button",
+        "role" : "button"
+      },
+      {
+        "description" : "Song",
+        "label" : "Song",
+        "identifier" : "transport-mode",
+        "role" : "button",
+        "id" : "elem_9",
+        "role_description" : "button",
+        "is_actionable" : true
+      },
+      {
+        "role_description" : "button",
+        "role" : "button",
+        "identifier" : "transport-mode",
+        "label" : "Free",
+        "is_actionable" : true,
+        "description" : "Free",
+        "id" : "elem_10"
+      },
+      {
+        "id" : "elem_14",
+        "is_actionable" : true,
+        "description" : "PHRASE",
+        "role_description" : "button",
+        "label" : "PHRASE",
+        "role" : "button"
+      },
+      {
+        "label" : "TRACKS",
+        "description" : "TRACKS",
+        "is_actionable" : true,
+        "id" : "elem_15",
+        "role_description" : "button",
+        "role" : "button"
+      },
+      {
+        "role" : "button",
+        "label" : "MIXER",
+        "id" : "elem_16",
+        "role_description" : "button",
+        "description" : "MIXER",
+        "is_actionable" : true
+      },
+      {
+        "label" : "SCENES",
+        "id" : "elem_17",
+        "role_description" : "button",
+        "role" : "button",
+        "description" : "SCENES",
+        "is_actionable" : true
+      },
+      {
+        "id" : "elem_18",
+        "role" : "button",
+        "label" : "LIBRARY",
+        "description" : "LIBRARY",
+        "role_description" : "button",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : true,
+        "id" : "elem_31",
+        "label" : "Mute",
+        "description" : "Mute",
+        "role_description" : "button",
+        "role" : "button"
+      },
+      {
+        "label" : "Edit",
+        "role" : "button",
+        "description" : "Edit",
+        "is_actionable" : true,
+        "id" : "elem_32",
+        "role_description" : "button"
+      },
+      {
+        "is_actionable" : true,
+        "id" : "elem_45",
+        "role" : "button",
+        "description" : "Add master output FX",
+        "role_description" : "button",
+        "label" : "Add master output FX"
+      },
+      {
+        "is_actionable" : true,
+        "description" : "Add master output FX",
+        "id" : "elem_46",
+        "label" : "Add master output FX",
+        "role" : "button",
+        "role_description" : "button"
+      },
+      {
+        "label" : "close button",
+        "id" : "elem_64",
+        "role_description" : "close button",
+        "is_actionable" : true,
+        "role" : "button"
+      },
+      {
+        "label" : "full screen button",
+        "role_description" : "full screen button",
+        "id" : "elem_65",
+        "is_actionable" : true,
+        "role" : "button",
+        "help" : "this button also has an action to zoom the window"
+      },
+      {
+        "role" : "button",
+        "label" : "minimize button",
+        "id" : "elem_67",
+        "is_actionable" : true,
+        "role_description" : "minimize button"
+      },
+      {
+        "role" : "group",
+        "id" : "elem_1",
+        "is_actionable" : false,
+        "label" : "group",
+        "role_description" : "group"
+      },
+      {
+        "role" : "group",
+        "is_actionable" : true,
+        "label" : "group",
+        "id" : "elem_35",
+        "identifier" : "mixer-master-out-column",
+        "role_description" : "group"
+      },
+      {
+        "id" : "elem_37",
+        "identifier" : "master-crossfader",
+        "role_description" : "group",
+        "is_actionable" : true,
+        "label" : "group",
+        "role" : "group"
+      },
+      {
+        "role_description" : "group",
+        "label" : "group",
+        "id" : "elem_66",
+        "role" : "group",
+        "is_actionable" : false
+      },
+      {
+        "is_actionable" : true,
+        "id" : "elem_6",
+        "label" : "slider",
+        "role" : "slider",
+        "role_description" : "slider"
+      },
+      {
+        "id" : "elem_28",
+        "role_description" : "slider",
+        "role" : "slider",
+        "is_actionable" : true,
+        "label" : "slider"
+      },
+      {
+        "role_description" : "slider",
+        "identifier" : "master-crossfader-slider",
+        "label" : "slider",
+        "description" : "Scene A B blend",
+        "is_actionable" : true,
+        "id" : "elem_41",
+        "role" : "slider"
+      },
+      {
+        "id" : "menu_70",
+        "role" : "menu",
+        "label" : "Apple",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : true,
+        "role" : "menu",
+        "id" : "menu_142",
+        "label" : "SequencerAI"
+      },
+      {
+        "role" : "menu",
+        "id" : "menu_166",
+        "label" : "File",
+        "is_actionable" : true
+      },
+      {
+        "id" : "menu_197",
+        "label" : "Edit",
+        "is_actionable" : true,
+        "role" : "menu"
+      },
+      {
+        "role" : "menu",
+        "is_actionable" : true,
+        "label" : "View",
+        "id" : "menu_231"
+      },
+      {
+        "is_actionable" : true,
+        "id" : "menu_237",
+        "label" : "Window",
+        "role" : "menu"
+      },
+      {
+        "role" : "menu",
+        "id" : "menu_289",
+        "label" : "Help",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Untitled",
+        "role_description" : "standard window",
+        "label" : "Untitled",
+        "id" : "elem_0",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "role_description" : "text",
+        "label" : "SequencerAI",
+        "id" : "elem_2",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "role_description" : "text",
+        "label" : "BPM",
+        "id" : "elem_5"
+      },
+      {
+        "role" : "other",
+        "role_description" : "value indicator",
+        "label" : "value indicator",
+        "id" : "elem_7",
+        "is_actionable" : false
+      },
+      {
+        "label" : "120",
+        "id" : "elem_8",
+        "role_description" : "text",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "role_description" : "text",
+        "id" : "elem_11",
+        "label" : "1:1:1"
+      },
+      {
+        "id" : "elem_12",
+        "role" : "other",
+        "help" : "No recent note trigger",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "id" : "elem_13",
+        "label" : "Sample playback pending",
+        "role_description" : "text",
+        "is_actionable" : true
+      },
+      {
+        "label" : "scroll area",
+        "role" : "other",
+        "id" : "elem_19",
+        "role_description" : "scroll area",
+        "is_actionable" : false
+      },
+      {
+        "id" : "elem_20",
+        "role" : "other",
+        "label" : "MIXER",
+        "role_description" : "text",
+        "is_actionable" : true
+      },
+      {
+        "id" : "elem_21",
+        "role_description" : "text",
+        "is_actionable" : true,
+        "role" : "other",
+        "label" : "Track strips active now"
+      },
+      {
+        "role" : "other",
+        "is_actionable" : false,
+        "id" : "elem_22",
+        "role_description" : "scroll area",
+        "label" : "scroll area"
+      },
+      {
+        "role" : "other",
+        "id" : "elem_23",
+        "label" : "Live Meter Kick",
+        "role_description" : "text",
+        "is_actionable" : true
+      },
+      {
+        "role_description" : "text",
+        "id" : "elem_24",
+        "role" : "other",
+        "is_actionable" : true,
+        "label" : "Selected"
+      },
+      {
+        "is_actionable" : true,
+        "id" : "elem_25",
+        "role" : "other",
+        "label" : "Sampler",
+        "role_description" : "text"
+      },
+      {
+        "id" : "elem_26",
+        "role" : "other",
+        "label" : "Pan",
+        "is_actionable" : true,
+        "role_description" : "text"
+      },
+      {
+        "label" : "100%",
+        "id" : "elem_27",
+        "role_description" : "text",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "label" : "value indicator",
+        "id" : "elem_29",
+        "is_actionable" : false,
+        "role_description" : "value indicator"
+      },
+      {
+        "label" : "C",
+        "role" : "other",
+        "role_description" : "text",
+        "is_actionable" : true,
+        "id" : "elem_30"
+      },
+      {
+        "id" : "elem_33",
+        "role_description" : "text",
+        "label" : "1 active steps",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "is_actionable" : true,
+        "label" : "1 pitches",
+        "role" : "other",
+        "role_description" : "text",
+        "id" : "elem_34"
+      },
+      {
+        "label" : "MASTER OUT",
+        "is_actionable" : true,
+        "id" : "elem_36",
+        "role_description" : "text",
+        "role" : "other"
+      },
+      {
+        "label" : "A",
+        "id" : "elem_38",
+        "role_description" : "text",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "role_description" : "text",
+        "role" : "other",
+        "id" : "elem_39",
+        "is_actionable" : true,
+        "label" : "0%"
+      },
+      {
+        "role_description" : "text",
+        "id" : "elem_40",
+        "role" : "other",
+        "is_actionable" : true,
+        "label" : "B"
+      },
+      {
+        "role_description" : "value indicator",
+        "role" : "other",
+        "label" : "value indicator",
+        "id" : "elem_42",
+        "is_actionable" : false
+      },
+      {
+        "id" : "elem_43",
+        "label" : "FX",
+        "is_actionable" : true,
+        "role" : "other",
+        "role_description" : "text"
+      },
+      {
+        "id" : "elem_44",
+        "label" : "After Scene A\/B mix",
+        "role" : "other",
+        "is_actionable" : true,
+        "role_description" : "text"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "label" : "OUTPUT",
+        "id" : "elem_47",
+        "role_description" : "text"
+      },
+      {
+        "identifier" : "master-output-fader-meter",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "elem_48"
+      },
+      {
+        "role_description" : "text",
+        "is_actionable" : true,
+        "role" : "other",
+        "label" : "+6",
+        "id" : "elem_49"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "role_description" : "text",
+        "id" : "elem_50",
+        "label" : "0"
+      },
+      {
+        "id" : "elem_51",
+        "is_actionable" : true,
+        "role_description" : "text",
+        "role" : "other",
+        "label" : "-6"
+      },
+      {
+        "role_description" : "text",
+        "role" : "other",
+        "is_actionable" : true,
+        "label" : "-12",
+        "id" : "elem_52"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "label" : "-18",
+        "id" : "elem_53",
+        "role_description" : "text"
+      },
+      {
+        "label" : "-24",
+        "role_description" : "text",
+        "id" : "elem_54",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "label" : "-36",
+        "id" : "elem_55",
+        "role_description" : "text",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "role_description" : "text",
+        "is_actionable" : true,
+        "label" : "-inf",
+        "role" : "other",
+        "id" : "elem_56"
+      },
+      {
+        "id" : "elem_57",
+        "role_description" : "text",
+        "role" : "other",
+        "label" : "0 dB",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "label" : "VOICE ROUTES",
+        "role_description" : "text",
+        "id" : "elem_58",
+        "is_actionable" : true
+      },
+      {
+        "id" : "elem_59",
+        "role_description" : "text",
+        "role" : "other",
+        "label" : "Future drum and sliced-loop mixer coverage",
+        "is_actionable" : true
+      },
+      {
+        "label" : "Tagged Voices",
+        "role_description" : "text",
+        "is_actionable" : true,
+        "id" : "elem_60",
+        "role" : "other"
+      },
+      {
+        "id" : "elem_61",
+        "is_actionable" : true,
+        "label" : "Drum and slice tracks",
+        "role" : "other",
+        "role_description" : "text"
+      },
+      {
+        "label" : "Per-Voice Treatment",
+        "role_description" : "text",
+        "role" : "other",
+        "id" : "elem_62",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "id" : "elem_63",
+        "role_description" : "text",
+        "is_actionable" : true,
+        "label" : "Mute, bus, FX, and gain"
+      },
+      {
+        "role_description" : "menu button",
+        "title" : "",
+        "id" : "elem_68",
+        "description" : "document actions",
+        "label" : "menu button",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "elem_69",
+        "role_description" : "text",
+        "label" : "Untitled"
+      },
+      {
+        "is_actionable" : true,
+        "label" : "Menu Item",
+        "role" : "other",
+        "id" : "menuitem_71"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_72",
+        "is_actionable" : true,
+        "label" : "About This Mac",
+        "title" : "About This Mac"
+      },
+      {
+        "role" : "other",
+        "title" : "System Information",
+        "label" : "System Information",
+        "is_actionable" : true,
+        "id" : "menuitem_73"
+      },
+      {
+        "id" : "menuitem_74",
+        "is_actionable" : false,
+        "label" : "",
+        "title" : "",
+        "role" : "other"
+      },
+      {
+        "title" : "System Settings…",
+        "role" : "other",
+        "id" : "menuitem_75",
+        "is_actionable" : true,
+        "label" : "System Settings…"
+      },
+      {
+        "label" : "App Store",
+        "id" : "menuitem_76",
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "App Store"
+      },
+      {
+        "title" : "",
+        "id" : "menuitem_77",
+        "is_actionable" : false,
+        "role" : "other",
+        "label" : ""
+      },
+      {
+        "id" : "menuitem_78",
+        "label" : "Recent Items",
+        "title" : "Recent Items",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_79",
+        "is_actionable" : true,
+        "label" : "Menu Item",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_80",
+        "label" : "Applications",
+        "title" : "Applications",
+        "role" : "other",
+        "is_actionable" : false
+      },
+      {
+        "title" : "FaceTime",
+        "id" : "menuitem_81",
+        "role" : "other",
+        "label" : "FaceTime",
+        "is_actionable" : true
+      },
+      {
+        "label" : "Show “FaceTime” in Finder",
+        "title" : "Show “FaceTime” in Finder",
+        "is_actionable" : true,
+        "id" : "menuitem_82",
+        "role" : "other"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_83",
+        "title" : "Google Chrome",
+        "label" : "Google Chrome"
+      },
+      {
+        "role" : "other",
+        "label" : "Show “Google Chrome” in Finder",
+        "id" : "menuitem_84",
+        "is_actionable" : true,
+        "title" : "Show “Google Chrome” in Finder"
+      },
+      {
+        "id" : "menuitem_85",
+        "label" : "Preview",
+        "title" : "Preview",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_86",
+        "is_actionable" : true,
+        "label" : "Show “Preview” in Finder",
+        "title" : "Show “Preview” in Finder"
+      },
+      {
+        "role" : "other",
+        "label" : "SequencerAI",
+        "is_actionable" : true,
+        "title" : "SequencerAI",
+        "id" : "menuitem_87"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_88",
+        "label" : "Show “SequencerAI” in Finder",
+        "title" : "Show “SequencerAI” in Finder",
+        "is_actionable" : true
+      },
+      {
+        "title" : "SequencerAI",
+        "label" : "SequencerAI",
+        "is_actionable" : true,
+        "id" : "menuitem_89",
+        "role" : "other"
+      },
+      {
+        "is_actionable" : true,
+        "id" : "menuitem_90",
+        "title" : "Show “SequencerAI” in Finder",
+        "role" : "other",
+        "label" : "Show “SequencerAI” in Finder"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "SequencerAI",
+        "id" : "menuitem_91",
+        "label" : "SequencerAI"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_92",
+        "label" : "Show “SequencerAI” in Finder",
+        "title" : "Show “SequencerAI” in Finder",
+        "is_actionable" : true
+      },
+      {
+        "label" : "SequencerAI",
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_93",
+        "title" : "SequencerAI"
+      },
+      {
+        "is_actionable" : true,
+        "title" : "Show “SequencerAI” in Finder",
+        "role" : "other",
+        "label" : "Show “SequencerAI” in Finder",
+        "id" : "menuitem_94"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_95",
+        "label" : "SequencerAI",
+        "is_actionable" : true,
+        "title" : "SequencerAI"
+      },
+      {
+        "title" : "Show “SequencerAI” in Finder",
+        "is_actionable" : true,
+        "role" : "other",
+        "label" : "Show “SequencerAI” in Finder",
+        "id" : "menuitem_96"
+      },
+      {
+        "role" : "other",
+        "label" : "SequencerAI",
+        "title" : "SequencerAI",
+        "id" : "menuitem_97",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Show “SequencerAI” in Finder",
+        "label" : "Show “SequencerAI” in Finder",
+        "id" : "menuitem_98",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "is_actionable" : true,
+        "title" : "Visual Studio Code",
+        "role" : "other",
+        "label" : "Visual Studio Code",
+        "id" : "menuitem_99"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_100",
+        "title" : "Show “Visual Studio Code” in Finder",
+        "label" : "Show “Visual Studio Code” in Finder"
+      },
+      {
+        "role" : "other",
+        "label" : "",
+        "title" : "",
+        "is_actionable" : false,
+        "id" : "menuitem_101"
+      },
+      {
+        "id" : "menuitem_102",
+        "role" : "other",
+        "label" : "Documents",
+        "is_actionable" : false,
+        "title" : "Documents"
+      },
+      {
+        "label" : ".codex",
+        "title" : ".codex",
+        "role" : "other",
+        "id" : "menuitem_103",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Show “.codex” in Finder",
+        "role" : "other",
+        "id" : "menuitem_104",
+        "label" : "Show “.codex” in Finder",
+        "is_actionable" : true
+      },
+      {
+        "title" : "agentic-automation-continued.md",
+        "id" : "menuitem_105",
+        "label" : "agentic-automation-continued.md",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "title" : "Show “agentic-automation-continued.md” in Finder",
+        "label" : "Show “agentic-automation-continued.md” in Finder",
+        "is_actionable" : true,
+        "id" : "menuitem_106"
+      },
+      {
+        "id" : "menuitem_107",
+        "label" : "basspractice",
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "basspractice"
+      },
+      {
+        "label" : "Show “basspractice” in Finder",
+        "role" : "other",
+        "is_actionable" : true,
+        "title" : "Show “basspractice” in Finder",
+        "id" : "menuitem_108"
+      },
+      {
+        "is_actionable" : true,
+        "label" : "blog.maxthelion.me-2026",
+        "title" : "blog.maxthelion.me-2026",
+        "role" : "other",
+        "id" : "menuitem_109"
+      },
+      {
+        "title" : "Show “blog.maxthelion.me-2026” in Finder",
+        "role" : "other",
+        "label" : "Show “blog.maxthelion.me-2026” in Finder",
+        "id" : "menuitem_110",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_111",
+        "is_actionable" : true,
+        "label" : "citygenerator",
+        "title" : "citygenerator"
+      },
+      {
+        "title" : "Show “citygenerator” in Finder",
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_112",
+        "label" : "Show “citygenerator” in Finder"
+      },
+      {
+        "title" : "intentional",
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_113",
+        "label" : "intentional"
+      },
+      {
+        "label" : "Show “intentional” in Finder",
+        "role" : "other",
+        "title" : "Show “intentional” in Finder",
+        "is_actionable" : true,
+        "id" : "menuitem_114"
+      },
+      {
+        "label" : "meta",
+        "role" : "other",
+        "title" : "meta",
+        "is_actionable" : true,
+        "id" : "menuitem_115"
+      },
+      {
+        "id" : "menuitem_116",
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "Show “meta” in Finder",
+        "label" : "Show “meta” in Finder"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_117",
+        "title" : "multi-pass-coordinator",
+        "label" : "multi-pass-coordinator",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Show “multi-pass-coordinator” in Finder",
+        "id" : "menuitem_118",
+        "label" : "Show “multi-pass-coordinator” in Finder",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_119",
+        "label" : "process-improvement-intent-quality-preservation.md",
+        "is_actionable" : true,
+        "title" : "process-improvement-intent-quality-preservation.md"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "label" : "Show “process-improvement-intent-quality-preservation.md” in Finder",
+        "title" : "Show “process-improvement-intent-quality-preservation.md” in Finder",
+        "id" : "menuitem_120"
+      },
+      {
+        "role" : "other",
+        "title" : "README.md",
+        "id" : "menuitem_121",
+        "label" : "README.md",
+        "is_actionable" : true
+      },
+      {
+        "id" : "menuitem_122",
+        "label" : "Show “README.md” in Finder",
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "Show “README.md” in Finder"
+      },
+      {
+        "is_actionable" : false,
+        "title" : "",
+        "label" : "",
+        "id" : "menuitem_123",
+        "role" : "other"
+      },
+      {
+        "is_actionable" : false,
+        "label" : "Servers",
+        "title" : "Servers",
+        "role" : "other",
+        "id" : "menuitem_124"
+      },
+      {
+        "title" : "Macintosh HD",
+        "role" : "other",
+        "label" : "Macintosh HD",
+        "is_actionable" : true,
+        "id" : "menuitem_125"
+      },
+      {
+        "is_actionable" : false,
+        "title" : "",
+        "id" : "menuitem_126",
+        "label" : "",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_127",
+        "title" : "Clear Menu",
+        "label" : "Clear Menu",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "id" : "menuitem_128",
+        "role" : "other",
+        "title" : "",
+        "label" : "",
+        "is_actionable" : false
+      },
+      {
+        "title" : "Force Quit…",
+        "label" : "Force Quit…",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_129",
+        "keyboard_shortcut" : "⎋"
+      },
+      {
+        "title" : "Force Quit SequencerAI",
+        "keyboard_shortcut" : "⎋",
+        "id" : "menuitem_130",
+        "label" : "Force Quit SequencerAI",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "title" : "",
+        "role" : "other",
+        "label" : "",
+        "id" : "menuitem_131",
+        "is_actionable" : false
+      },
+      {
+        "title" : "Sleep",
+        "id" : "menuitem_132",
+        "role" : "other",
+        "label" : "Sleep",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "title" : "Restart…",
+        "is_actionable" : true,
+        "label" : "Restart…",
+        "id" : "menuitem_133"
+      },
+      {
+        "role" : "other",
+        "label" : "Restart",
+        "id" : "menuitem_134",
+        "title" : "Restart",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Shut Down…",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_135",
+        "label" : "Shut Down…"
+      },
+      {
+        "title" : "Shut Down",
+        "role" : "other",
+        "id" : "menuitem_136",
+        "label" : "Shut Down",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_137",
+        "label" : "",
+        "is_actionable" : false,
+        "title" : ""
+      },
+      {
+        "keyboard_shortcut" : "Q",
+        "title" : "Lock Screen",
+        "id" : "menuitem_138",
+        "label" : "Lock Screen",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Log Out Max Williams…",
+        "role" : "other",
+        "label" : "Log Out Max Williams…",
+        "keyboard_shortcut" : "Q",
+        "id" : "menuitem_139",
+        "is_actionable" : true
+      },
+      {
+        "keyboard_shortcut" : "Q",
+        "is_actionable" : true,
+        "id" : "menuitem_140",
+        "title" : "Log Out Max Williams",
+        "role" : "other",
+        "label" : "Log Out Max Williams"
+      },
+      {
+        "is_actionable" : false,
+        "title" : "",
+        "id" : "menuitem_141",
+        "role" : "other",
+        "label" : ""
+      },
+      {
+        "label" : "Menu Item",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_143"
+      },
+      {
+        "id" : "menuitem_144",
+        "is_actionable" : true,
+        "title" : "About SequencerAI",
+        "label" : "About SequencerAI",
+        "role" : "other"
+      },
+      {
+        "label" : "",
+        "role" : "other",
+        "is_actionable" : false,
+        "title" : "",
+        "id" : "menuitem_145"
+      },
+      {
+        "title" : "Settings…",
+        "role" : "other",
+        "keyboard_shortcut" : ",",
+        "label" : "Settings…",
+        "id" : "menuitem_146",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : false,
+        "role" : "other",
+        "id" : "menuitem_147",
+        "title" : "",
+        "label" : ""
+      },
+      {
+        "title" : "Services",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_148",
+        "label" : "Services"
+      },
+      {
+        "id" : "menuitem_149",
+        "role" : "other",
+        "is_actionable" : true,
+        "label" : "Menu Item"
+      },
+      {
+        "label" : "Activity Monitor",
+        "title" : "Activity Monitor",
+        "id" : "menuitem_150",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "label" : "Allocations & Leaks",
+        "role" : "other",
+        "title" : "Allocations & Leaks",
+        "id" : "menuitem_151",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : true,
+        "id" : "menuitem_152",
+        "title" : "File Activity",
+        "role" : "other",
+        "label" : "File Activity"
+      },
+      {
+        "label" : "System Trace",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_153",
+        "title" : "System Trace"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_154",
+        "label" : "Time Profile Active Application",
+        "is_actionable" : true,
+        "title" : "Time Profile Active Application"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "Time Profile App Under Mouse",
+        "id" : "menuitem_155",
+        "label" : "Time Profile App Under Mouse"
+      },
+      {
+        "role" : "other",
+        "title" : "Time Profile Entire System",
+        "label" : "Time Profile Entire System",
+        "id" : "menuitem_156",
+        "is_actionable" : true
+      },
+      {
+        "label" : "Toggle Instruments Recording",
+        "is_actionable" : true,
+        "title" : "Toggle Instruments Recording",
+        "id" : "menuitem_157",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_158",
+        "label" : "Services Settings…",
+        "title" : "Services Settings…",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "label" : "",
+        "is_actionable" : false,
+        "id" : "menuitem_159",
+        "role" : "other",
+        "title" : ""
+      },
+      {
+        "label" : "Hide SequencerAI",
+        "id" : "menuitem_160",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "H",
+        "title" : "Hide SequencerAI",
+        "role" : "other"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_161",
+        "label" : "Hide Others",
+        "title" : "Hide Others",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "H"
+      },
+      {
+        "label" : "Show All",
+        "role" : "other",
+        "is_actionable" : true,
+        "title" : "Show All",
+        "id" : "menuitem_162"
+      },
+      {
+        "role" : "other",
+        "title" : "",
+        "id" : "menuitem_163",
+        "label" : "",
+        "is_actionable" : false
+      },
+      {
+        "label" : "Quit SequencerAI",
+        "role" : "other",
+        "title" : "Quit SequencerAI",
+        "id" : "menuitem_164",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "Q"
+      },
+      {
+        "is_actionable" : true,
+        "keyboard_shortcut" : "Q",
+        "title" : "Quit and Keep Windows",
+        "role" : "other",
+        "id" : "menuitem_165",
+        "label" : "Quit and Keep Windows"
+      },
+      {
+        "is_actionable" : true,
+        "label" : "Menu Item",
+        "id" : "menuitem_167",
+        "role" : "other"
+      },
+      {
+        "label" : "New",
+        "is_actionable" : true,
+        "title" : "New",
+        "keyboard_shortcut" : "N",
+        "id" : "menuitem_168",
+        "role" : "other"
+      },
+      {
+        "keyboard_shortcut" : "O",
+        "title" : "Open…",
+        "role" : "other",
+        "id" : "menuitem_169",
+        "label" : "Open…",
+        "is_actionable" : true
+      },
+      {
+        "label" : "Open Recent",
+        "is_actionable" : true,
+        "title" : "Open Recent",
+        "role" : "other",
+        "id" : "menuitem_170"
+      },
+      {
+        "label" : "Menu Item",
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_171"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_172",
+        "label" : "Clear Menu",
+        "is_actionable" : false,
+        "title" : "Clear Menu"
+      },
+      {
+        "id" : "menuitem_173",
+        "role" : "other",
+        "label" : "",
+        "is_actionable" : false,
+        "title" : ""
+      },
+      {
+        "label" : "Close",
+        "title" : "Close",
+        "role" : "other",
+        "id" : "menuitem_174",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "W"
+      },
+      {
+        "label" : "Close All",
+        "title" : "Close All",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "W",
+        "id" : "menuitem_175",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_176",
+        "label" : "Save",
+        "role" : "other",
+        "is_actionable" : true,
+        "title" : "Save",
+        "keyboard_shortcut" : "S"
+      },
+      {
+        "title" : "Save As…",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_177",
+        "keyboard_shortcut" : "S",
+        "label" : "Save As…"
+      },
+      {
+        "id" : "menuitem_178",
+        "label" : "Duplicate",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "S",
+        "title" : "Duplicate",
+        "role" : "other"
+      },
+      {
+        "title" : "Rename…",
+        "role" : "other",
+        "id" : "menuitem_179",
+        "label" : "Rename…",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Move To…",
+        "label" : "Move To…",
+        "id" : "menuitem_180",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_181",
+        "label" : "Revert To",
+        "role" : "other",
+        "title" : "Revert To",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "label" : "Menu Item",
+        "id" : "menuitem_182"
+      },
+      {
+        "id" : "menuitem_183",
+        "is_actionable" : false,
+        "label" : "Browse All Versions…",
+        "title" : "Browse All Versions…",
+        "role" : "other"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_184",
+        "title" : "",
+        "label" : "",
+        "is_actionable" : false
+      },
+      {
+        "id" : "menuitem_185",
+        "label" : "Share",
+        "role" : "other",
+        "is_actionable" : true,
+        "title" : "Share"
+      },
+      {
+        "label" : "Menu Item",
+        "role" : "other",
+        "id" : "menuitem_186",
+        "is_actionable" : true
+      },
+      {
+        "title" : "iCloud Drive",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_187",
+        "label" : "iCloud Drive"
+      },
+      {
+        "label" : "iCloud Sharing",
+        "is_actionable" : true,
+        "id" : "menuitem_188",
+        "title" : "iCloud Sharing",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_189",
+        "title" : "",
+        "label" : "",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "title" : "AirDrop",
+        "is_actionable" : true,
+        "id" : "menuitem_190",
+        "label" : "AirDrop",
+        "role" : "other"
+      },
+      {
+        "title" : "Messages",
+        "role" : "other",
+        "label" : "Messages",
+        "is_actionable" : true,
+        "id" : "menuitem_191"
+      },
+      {
+        "is_actionable" : true,
+        "title" : "Notes",
+        "id" : "menuitem_192",
+        "label" : "Notes",
+        "role" : "other"
+      },
+      {
+        "label" : "Freeform",
+        "role" : "other",
+        "is_actionable" : true,
+        "title" : "Freeform",
+        "id" : "menuitem_193"
+      },
+      {
+        "role" : "other",
+        "label" : "Simulator",
+        "is_actionable" : true,
+        "id" : "menuitem_194",
+        "title" : "Simulator"
+      },
+      {
+        "id" : "menuitem_195",
+        "title" : "",
+        "label" : "",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_196",
+        "label" : "More…",
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "More…"
+      },
+      {
+        "id" : "menuitem_198",
+        "label" : "Menu Item",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "label" : "Undo",
+        "id" : "menuitem_199",
+        "title" : "Undo",
+        "keyboard_shortcut" : "Z",
+        "is_actionable" : false
+      },
+      {
+        "label" : "Redo",
+        "id" : "menuitem_200",
+        "keyboard_shortcut" : "Z",
+        "title" : "Redo",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "title" : "",
+        "role" : "other",
+        "id" : "menuitem_201",
+        "is_actionable" : false,
+        "label" : ""
+      },
+      {
+        "title" : "Cut",
+        "role" : "other",
+        "is_actionable" : false,
+        "keyboard_shortcut" : "X",
+        "id" : "menuitem_202",
+        "label" : "Cut"
+      },
+      {
+        "title" : "Copy",
+        "id" : "menuitem_203",
+        "label" : "Copy",
+        "keyboard_shortcut" : "C",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_204",
+        "is_actionable" : false,
+        "keyboard_shortcut" : "V",
+        "label" : "Paste",
+        "role" : "other",
+        "title" : "Paste"
+      },
+      {
+        "is_actionable" : false,
+        "label" : "Delete",
+        "role" : "other",
+        "id" : "menuitem_205",
+        "title" : "Delete"
+      },
+      {
+        "label" : "Select All",
+        "keyboard_shortcut" : "A",
+        "is_actionable" : false,
+        "title" : "Select All",
+        "role" : "other",
+        "id" : "menuitem_206"
+      },
+      {
+        "label" : "",
+        "title" : "",
+        "is_actionable" : false,
+        "id" : "menuitem_207",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_208",
+        "role" : "other",
+        "is_actionable" : true,
+        "label" : "Writing Tools",
+        "title" : "Writing Tools"
+      },
+      {
+        "label" : "Menu Item",
+        "role" : "other",
+        "id" : "menuitem_209",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : false,
+        "title" : "Show Writing Tools",
+        "label" : "Show Writing Tools",
+        "id" : "menuitem_210",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_211",
+        "title" : "",
+        "is_actionable" : false,
+        "label" : "",
+        "role" : "other"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_212",
+        "label" : "Proofread",
+        "is_actionable" : false,
+        "title" : "Proofread"
+      },
+      {
+        "title" : "Rewrite",
+        "is_actionable" : false,
+        "id" : "menuitem_213",
+        "label" : "Rewrite",
+        "role" : "other"
+      },
+      {
+        "title" : "",
+        "label" : "",
+        "id" : "menuitem_214",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "label" : "Make Friendly",
+        "id" : "menuitem_215",
+        "title" : "Make Friendly",
+        "role" : "other",
+        "is_actionable" : false
+      },
+      {
+        "id" : "menuitem_216",
+        "title" : "Make Professional",
+        "label" : "Make Professional",
+        "is_actionable" : false,
+        "role" : "other"
+      },
+      {
+        "label" : "Make Concise",
+        "role" : "other",
+        "id" : "menuitem_217",
+        "is_actionable" : false,
+        "title" : "Make Concise"
+      },
+      {
+        "title" : "",
+        "label" : "",
+        "role" : "other",
+        "is_actionable" : false,
+        "id" : "menuitem_218"
+      },
+      {
+        "title" : "Summarize",
+        "is_actionable" : false,
+        "label" : "Summarize",
+        "id" : "menuitem_219",
+        "role" : "other"
+      },
+      {
+        "title" : "Create Key Points",
+        "id" : "menuitem_220",
+        "is_actionable" : false,
+        "role" : "other",
+        "label" : "Create Key Points"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_221",
+        "is_actionable" : false,
+        "label" : "Make List",
+        "title" : "Make List"
+      },
+      {
+        "is_actionable" : false,
+        "title" : "Make Table",
+        "label" : "Make Table",
+        "role" : "other",
+        "id" : "menuitem_222"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_223",
+        "label" : "",
+        "is_actionable" : false,
+        "title" : ""
+      },
+      {
+        "title" : "Compose…",
+        "role" : "other",
+        "is_actionable" : false,
+        "id" : "menuitem_224",
+        "label" : "Compose…"
+      },
+      {
+        "label" : "AutoFill",
+        "role" : "other",
+        "id" : "menuitem_225",
+        "is_actionable" : true,
+        "title" : "AutoFill"
+      },
+      {
+        "id" : "menuitem_226",
+        "label" : "Menu Item",
+        "role" : "other",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Contact…",
+        "id" : "menuitem_227",
+        "is_actionable" : false,
+        "label" : "Contact…",
+        "role" : "other"
+      },
+      {
+        "is_actionable" : false,
+        "id" : "menuitem_228",
+        "title" : "Passwords…",
+        "role" : "other",
+        "label" : "Passwords…"
+      },
+      {
+        "id" : "menuitem_229",
+        "role" : "other",
+        "title" : "Start Dictation…",
+        "label" : "Start Dictation…",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : true,
+        "keyboard_shortcut" : "E",
+        "role" : "other",
+        "id" : "menuitem_230",
+        "label" : "Emoji & Symbols",
+        "title" : "Emoji & Symbols"
+      },
+      {
+        "is_actionable" : true,
+        "id" : "menuitem_232",
+        "label" : "Menu Item",
+        "role" : "other"
+      },
+      {
+        "title" : "Show Tab Bar",
+        "label" : "Show Tab Bar",
+        "is_actionable" : true,
+        "id" : "menuitem_233",
+        "role" : "other"
+      },
+      {
+        "label" : "Show All Tabs",
+        "id" : "menuitem_234",
+        "role" : "other",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "\\",
+        "title" : "Show All Tabs"
+      },
+      {
+        "label" : "",
+        "is_actionable" : false,
+        "title" : "",
+        "role" : "other",
+        "id" : "menuitem_235"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_236",
+        "label" : "Enter Full Screen",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "F",
+        "title" : "Enter Full Screen"
+      },
+      {
+        "label" : "Menu Item",
+        "id" : "menuitem_238",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "label" : "Minimize",
+        "title" : "Minimize",
+        "keyboard_shortcut" : "M",
+        "role" : "other",
+        "id" : "menuitem_239",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "label" : "Minimize All",
+        "title" : "Minimize All",
+        "is_actionable" : true,
+        "id" : "menuitem_240",
+        "keyboard_shortcut" : "M"
+      },
+      {
+        "id" : "menuitem_241",
+        "is_actionable" : true,
+        "title" : "Zoom",
+        "role" : "other",
+        "label" : "Zoom"
+      },
+      {
+        "title" : "Zoom All",
+        "role" : "other",
+        "is_actionable" : true,
+        "label" : "Zoom All",
+        "id" : "menuitem_242"
+      },
+      {
+        "id" : "menuitem_243",
+        "label" : "Fill",
+        "keyboard_shortcut" : "F",
+        "is_actionable" : true,
+        "title" : "Fill",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_244",
+        "label" : "Center",
+        "role" : "other",
+        "keyboard_shortcut" : "C",
+        "is_actionable" : true,
+        "title" : "Center"
+      },
+      {
+        "label" : "",
+        "title" : "",
+        "role" : "other",
+        "is_actionable" : false,
+        "id" : "menuitem_245"
+      },
+      {
+        "title" : "Move & Resize",
+        "role" : "other",
+        "id" : "menuitem_246",
+        "label" : "Move & Resize",
+        "is_actionable" : true
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_247",
+        "label" : "Menu Item"
+      },
+      {
+        "id" : "menuitem_248",
+        "is_actionable" : false,
+        "label" : "Halves",
+        "role" : "other",
+        "title" : "Halves"
+      },
+      {
+        "label" : "Left",
+        "title" : "Left",
+        "role" : "other",
+        "is_actionable" : true,
+        "id" : "menuitem_249",
+        "keyboard_shortcut" : ""
+      },
+      {
+        "keyboard_shortcut" : "\u001d",
+        "role" : "other",
+        "id" : "menuitem_250",
+        "is_actionable" : true,
+        "title" : "Right",
+        "label" : "Right"
+      },
+      {
+        "id" : "menuitem_251",
+        "role" : "other",
+        "label" : "Top",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "\u001e",
+        "title" : "Top"
+      },
+      {
+        "role" : "other",
+        "is_actionable" : true,
+        "title" : "Bottom",
+        "keyboard_shortcut" : "\u001f",
+        "id" : "menuitem_252",
+        "label" : "Bottom"
+      },
+      {
+        "role" : "other",
+        "label" : "",
+        "title" : "",
+        "id" : "menuitem_253",
+        "is_actionable" : false
+      },
+      {
+        "role" : "other",
+        "is_actionable" : false,
+        "title" : "Quarters",
+        "label" : "Quarters",
+        "id" : "menuitem_254"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "title" : "Top Left",
+        "label" : "Top Left",
+        "id" : "menuitem_255"
+      },
+      {
+        "title" : "Top Right",
+        "label" : "Top Right",
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_256"
+      },
+      {
+        "id" : "menuitem_257",
+        "title" : "Bottom Left",
+        "role" : "other",
+        "label" : "Bottom Left",
+        "is_actionable" : true
+      },
+      {
+        "id" : "menuitem_258",
+        "role" : "other",
+        "label" : "Bottom Right",
+        "is_actionable" : true,
+        "title" : "Bottom Right"
+      },
+      {
+        "id" : "menuitem_259",
+        "title" : "",
+        "role" : "other",
+        "label" : "",
+        "is_actionable" : false
+      },
+      {
+        "id" : "menuitem_260",
+        "title" : "Arrange",
+        "role" : "other",
+        "label" : "Arrange",
+        "is_actionable" : false
+      },
+      {
+        "label" : "Left & Right",
+        "role" : "other",
+        "title" : "Left & Right",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "\u001c",
+        "id" : "menuitem_261"
+      },
+      {
+        "role" : "other",
+        "label" : "Left & Quarters",
+        "is_actionable" : true,
+        "title" : "Left & Quarters",
+        "keyboard_shortcut" : "\u001c",
+        "id" : "menuitem_262"
+      },
+      {
+        "label" : "Right & Left",
+        "role" : "other",
+        "id" : "menuitem_263",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "\u001d",
+        "title" : "Right & Left"
+      },
+      {
+        "is_actionable" : true,
+        "label" : "Right & Quarters",
+        "title" : "Right & Quarters",
+        "id" : "menuitem_264",
+        "keyboard_shortcut" : "\u001d",
+        "role" : "other"
+      },
+      {
+        "title" : "Top & Bottom",
+        "id" : "menuitem_265",
+        "is_actionable" : true,
+        "keyboard_shortcut" : "\u001e",
+        "role" : "other",
+        "label" : "Top & Bottom"
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_266",
+        "label" : "Top & Quarters",
+        "keyboard_shortcut" : "\u001e",
+        "title" : "Top & Quarters",
+        "is_actionable" : true
+      },
+      {
+        "label" : "Bottom & Top",
+        "role" : "other",
+        "id" : "menuitem_267",
+        "is_actionable" : true,
+        "title" : "Bottom & Top",
+        "keyboard_shortcut" : "\u001f"
+      },
+      {
+        "keyboard_shortcut" : "\u001f",
+        "role" : "other",
+        "label" : "Bottom & Quarters",
+        "title" : "Bottom & Quarters",
+        "id" : "menuitem_268",
+        "is_actionable" : true
+      },
+      {
+        "title" : "Quarters",
+        "label" : "Quarters",
+        "id" : "menuitem_269",
+        "is_actionable" : true,
+        "role" : "other"
+      },
+      {
+        "label" : "",
+        "title" : "",
+        "role" : "other",
+        "is_actionable" : false,
+        "id" : "menuitem_270"
+      },
+      {
+        "label" : "Return to Previous Size",
+        "keyboard_shortcut" : "R",
+        "title" : "Return to Previous Size",
+        "is_actionable" : false,
+        "role" : "other",
+        "id" : "menuitem_271"
+      },
+      {
+        "title" : "Full Screen Tile",
+        "role" : "other",
+        "label" : "Full Screen Tile",
+        "is_actionable" : true,
+        "id" : "menuitem_272"
+      },
+      {
+        "is_actionable" : true,
+        "role" : "other",
+        "id" : "menuitem_273",
+        "label" : "Menu Item"
+      },
+      {
+        "role" : "other",
+        "title" : "Left of Screen",
+        "id" : "menuitem_274",
+        "is_actionable" : true,
+        "label" : "Left of Screen"
+      },
+      {
+        "label" : "Right of Screen",
+        "title" : "Right of Screen",
+        "role" : "other",
+        "id" : "menuitem_275",
+        "is_actionable" : true
+      },
+      {
+        "role" : "other",
+        "id" : "menuitem_276",
+        "label" : "",
+        "title" : "",
+        "is_actionable" : false
+      },
+      {
+        "id" : "menuitem_277",
+        "title" : "Remove Window from Set",
+        "role" : "other",
+        "label" : "Remove Window from Set",
+        "is_actionable" : false
+      },
+      {
+        "role" : "other",
+        "title" : "",
+        "label" : "",
+        "id" : "menuitem_278",
+        "is_actionable" : false
+      },
+      {
+        "is_actionable" : true,
+        "id" : "menuitem_279",
+        "title" : "Bring All to Front",
+        "role" : "other",
+        "label" : "Bring All to Front"
+      },
+      {
+        "label" : "Arrange in Front",
+        "is_actionable" : true,
+        "id" : "menuitem_280",
+        "title" : "Arrange in Front",
+        "role" : "other"
+      },
+      {
+        "title" : "",
+        "id" : "menuitem_281",
+        "label" : "",
+        "role" : "other",
+        "is_actionable" : false
+      },
+      {
+        "label" : "Untitled",
+        "role" : "other",
+        "id" : "menuitem_282",
+        "is_actionable" : true,
+        "title" : "Untitled"
+      },
+      {
+        "is_actionable" : false,
+        "role" : "other",
+        "id" : "menuitem_283",
+        "title" : "",
+        "label" : ""
+      },
+      {
+        "label" : "Show Previous Tab",
+        "is_actionable" : false,
+        "keyboard_shortcut" : "\t",
+        "title" : "Show Previous Tab",
+        "role" : "other",
+        "id" : "menuitem_284"
+      },
+      {
+        "id" : "menuitem_285",
+        "label" : "Show Next Tab",
+        "is_actionable" : false,
+        "title" : "Show Next Tab",
+        "role" : "other",
+        "keyboard_shortcut" : "\t"
+      },
+      {
+        "id" : "menuitem_286",
+        "label" : "Move Tab to New Window",
+        "is_actionable" : false,
+        "role" : "other",
+        "title" : "Move Tab to New Window"
+      },
+      {
+        "role" : "other",
+        "label" : "Merge All Windows",
+        "is_actionable" : false,
+        "id" : "menuitem_287",
+        "title" : "Merge All Windows"
+      },
+      {
+        "label" : "",
+        "role" : "other",
+        "is_actionable" : false,
+        "title" : "",
+        "id" : "menuitem_288"
+      },
+      {
+        "label" : "Menu Item",
+        "is_actionable" : true,
+        "id" : "menuitem_290",
+        "role" : "other"
+      },
+      {
+        "id" : "menuitem_291",
+        "role" : "other",
+        "title" : "SequencerAI Help",
+        "label" : "SequencerAI Help",
+        "is_actionable" : true
+      }
+    ],
+    "snapshot_id" : "0A90D482-7E20-4930-BD92-7F12E0BE561B",
+    "ui_map" : "\/Users\/maxwilliams\/.peekaboo\/snapshots\/0A90D482-7E20-4930-BD92-7F12E0BE561B\/snapshot.json"
+  },
+  "success" : true
+}

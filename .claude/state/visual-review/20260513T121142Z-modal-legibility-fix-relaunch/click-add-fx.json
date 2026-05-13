@@ -1,0 +1,17 @@
+{
+  "debug_logs" : [
+    "[2026-05-13T12:12:04.362Z] DEBUG: Runtime host: local (in-process)"
+  ],
+  "success" : true,
+  "data" : {
+    "waitTime" : 0.005430936813354492,
+    "clickLocation" : {
+      "x" : 3153,
+      "y" : 694
+    },
+    "clickedElement" : "Button: Add master output FX",
+    "targetApp" : "SequencerAI",
+    "success" : true,
+    "executionTime" : 1.3104180097579956
+  }
+}

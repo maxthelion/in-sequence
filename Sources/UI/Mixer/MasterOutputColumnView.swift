@@ -165,59 +165,71 @@ struct MasterOutputColumnView: View {
     }
 
     private var addFXSheet: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Master Out FX")
-                    .studioText(.title)
-                    .foregroundStyle(StudioTheme.text)
-                Spacer()
-                Button("Done") {
-                    isAddFXPresented = false
+        ZStack {
+            StudioTheme.stageFill
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Master Out FX")
+                        .studioText(.title)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer()
+                    Button("Done") {
+                        isAddFXPresented = false
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(StudioTheme.cyan)
                 }
-            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                addFXButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
-                    session.addMasterOutputInsert(.filter())
-                    isAddFXPresented = false
+                VStack(alignment: .leading, spacing: 8) {
+                    addFXButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                        session.addMasterOutputInsert(.filter())
+                        isAddFXPresented = false
+                    }
+                    addFXButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                        session.addMasterOutputInsert(.bitcrusher())
+                        isAddFXPresented = false
+                    }
                 }
-                addFXButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
-                    session.addMasterOutputInsert(.bitcrusher())
-                    isAddFXPresented = false
-                }
-            }
 
-            Divider()
+                Divider()
+                    .overlay(StudioTheme.border)
 
-            Text("AU Effect")
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            let effects = engineController.availableAudioEffects
-            if effects.isEmpty {
-                Text("No AU effects found")
-                    .studioText(.label)
+                Text("AU Effect")
+                    .studioText(.micro)
+                    .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-            } else {
-                ScrollView {
-                    VStack(spacing: 6) {
-                        ForEach(effects.prefix(16)) { effect in
-                            addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
-                                session.addMasterOutputInsert(.auEffect(effect))
-                                isAddFXPresented = false
+
+                let effects = engineController.availableAudioEffects
+                if effects.isEmpty {
+                    Text("No AU effects found")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                } else {
+                    ScrollView {
+                        VStack(spacing: 6) {
+                            ForEach(effects.prefix(16)) { effect in
+                                addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                    session.addMasterOutputInsert(.auEffect(effect))
+                                    isAddFXPresented = false
+                                }
                             }
                         }
                     }
+                    .frame(maxHeight: 220)
+                    .scrollContentBackground(.hidden)
                 }
-                .frame(maxHeight: 220)
             }
+            .padding(18)
+            .frame(width: 360)
         }
-        .padding(18)
-        .frame(width: 360)
+        .presentationBackground(.clear)
+        .environment(\.colorScheme, .dark)
     }
 
     private func addFXButton(title: String, systemName: String, action: @escaping () -> Void) -> some View {
@@ -237,6 +249,10 @@ struct MasterOutputColumnView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         }
         .buttonStyle(.plain)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+        )
     }
 
     private var masterOutputSection: some View {

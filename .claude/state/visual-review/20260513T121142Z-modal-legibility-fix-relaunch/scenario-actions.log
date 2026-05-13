@@ -1,0 +1,7 @@
+Visual command written: workspace=mixer; transport=stop; masterGain=1; meterPeak=0; clearClip=false
+Visual command written: workspace=mixer; transport=stop; masterGain=1; meterPeak=0.45
+Visual command written: workspace=mixer; transport=stop; masterGain=2; meterPeak=1.35
+Visual command written: workspace=mixer; transport=stop; masterGain=0.25; meterPeak=0.15
+Visual command written: workspace=mixer; transport=stop; masterGain=1; meterPeak=0.45
+Visual command written: workspace=mixer; transport=stop; masterGain=1; meterPeak=0.45; clearClip=true
+Visual command written: workspace=mixer; transport=stop; masterGain=1
