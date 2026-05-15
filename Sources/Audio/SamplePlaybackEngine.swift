@@ -116,6 +116,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private static let voicesPerTrack = 4
     private let audioGraph: MainAudioGraph
     private let previewNode = AVAudioPlayerNode()
+    private let lifecycleLock = NSLock()
     private var fileCache: [URL: AVAudioFile] = [:]
     private var isStarted = false
     private var trackVoicePools: [UUID: TrackVoicePool] = [:]
@@ -126,7 +127,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
 
     var preparedTrackIDs: Set<UUID> {
-        Set(trackVoicePools.keys)
+        lifecycleLock.withLock {
+            Set(trackVoicePools.keys)
+        }
     }
 
     init(audioGraph: MainAudioGraph = MainAudioGraph()) {
@@ -136,77 +139,78 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func start() throws {
-        guard !isStarted else { return }
+        guard lifecycleLock.withLock({ !isStarted }) else { return }
         validatePreparedTrackGraphs()
         try audioGraph.start()
-        isStarted = true
+        lifecycleLock.withLock {
+            isStarted = true
+        }
     }
 
     func stop() {
-        guard isStarted else { return }
-        for pool in trackVoicePools.values {
+        let (shouldStop, pools) = lifecycleLock.withLock { () -> (Bool, [TrackVoicePool]) in
+            guard isStarted else { return (false, []) }
+            isStarted = false
+            return (true, Array(trackVoicePools.values))
+        }
+        guard shouldStop else { return }
+        for pool in pools {
             for voice in pool.voices {
                 voice.stop()
             }
         }
         previewNode.stop()
         audioGraph.stop()
-        isStarted = false
     }
 
     func prepareTrack(trackID: UUID) {
         performOnMain { [self] in
-            if let pool = trackVoicePools[trackID] {
-                repairPreparedTrackGraph(trackID: trackID, pool: pool)
-                return
-            }
-            let mixer = trackMixer(for: trackID)
-            var voices: [AVAudioPlayerNode] = []
-            var voiceFilters: [SamplerFilterNode] = []
-            var handles: [UUID] = []
+            lifecycleLock.withLock {
+                if let pool = trackVoicePools[trackID] {
+                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                    return
+                }
+                let mixer = trackMixer(for: trackID)
+                var voices: [AVAudioPlayerNode] = []
+                var voiceFilters: [SamplerFilterNode] = []
+                var handles: [UUID] = []
 
-            for _ in 0..<Self.voicesPerTrack {
-                let voice = AVAudioPlayerNode()
-                let voiceFilter = SamplerFilterNode()
-                audioGraph.attach(voice)
-                audioGraph.attach(voiceFilter.avNode)
-                audioGraph.connect(voice, to: voiceFilter.avNode)
-                audioGraph.connect(voiceFilter.avNode, to: mixer)
-                voices.append(voice)
-                voiceFilters.append(voiceFilter)
-                handles.append(UUID())
-            }
+                for _ in 0..<Self.voicesPerTrack {
+                    let voice = AVAudioPlayerNode()
+                    let voiceFilter = SamplerFilterNode()
+                    audioGraph.attach(voice)
+                    audioGraph.attach(voiceFilter.avNode)
+                    audioGraph.connect(voice, to: voiceFilter.avNode)
+                    audioGraph.connect(voiceFilter.avNode, to: mixer)
+                    voices.append(voice)
+                    voiceFilters.append(voiceFilter)
+                    handles.append(UUID())
+                }
 
-            trackVoicePools[trackID] = TrackVoicePool(
-                voices: voices,
-                voiceFilters: voiceFilters,
-                handles: handles,
-                cursor: 0
-            )
+                trackVoicePools[trackID] = TrackVoicePool(
+                    voices: voices,
+                    voiceFilters: voiceFilters,
+                    handles: handles,
+                    cursor: 0
+                )
+            }
         }
     }
 
     @discardableResult
     func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime? = nil) -> VoiceHandle? {
-        guard isStarted else { return nil }
+        guard lifecycleLock.withLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
-        guard var pool = trackVoicePools[trackID],
-              !pool.voices.isEmpty
-        else {
-            return nil
+        return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic) { [self] voice, voiceFilter, params in
+            self.scheduleAndStart(
+                voice,
+                voiceFilter: voiceFilter,
+                file: file,
+                settings: settings,
+                params: params,
+                at: when
+            )
         }
-
-        let voiceIndex = pool.cursor % pool.voices.count
-        let voice = pool.voices[voiceIndex]
-        let voiceFilter = voiceIndex < pool.voiceFilters.count ? pool.voiceFilters[voiceIndex] : nil
-        let handleID = UUID()
-        pool.handles[voiceIndex] = handleID
-        pool.cursor = (voiceIndex &+ 1) % pool.voices.count
-        trackVoicePools[trackID] = pool
-        let params = voiceParams[trackID]
-
-        scheduleAndStart(voice, voiceFilter: voiceFilter, file: file, settings: settings, params: params, at: when)
-        return VoiceHandle(id: handleID)
     }
 
     @discardableResult
@@ -220,7 +224,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         reverse: Bool = false,
         stepParameters: SliceTriggerStepParameters? = nil
     ) -> VoiceHandle? {
-        guard isStarted else { return nil }
+        guard lifecycleLock.withLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
 
         let clampedSettings = settings.clamped
@@ -229,42 +233,21 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let resolvedEnd = max(resolvedStart + 1, min(endFrame, file.length))
         guard resolvedEnd > resolvedStart else { return nil }
 
-        guard var pool = trackVoicePools[trackID],
-              !pool.voices.isEmpty
-        else {
-            return nil
+        return playWithPreparedVoice(trackID: trackID, voiceMode: clampedSettings.voiceMode) { [self] voice, voiceFilter, params in
+            self.scheduleAndStartSlice(
+                voice,
+                voiceFilter: voiceFilter,
+                sampleURL: sampleURL,
+                file: file,
+                startFrame: resolvedStart,
+                endFrame: resolvedEnd,
+                settings: clampedSettings,
+                params: params,
+                at: when,
+                reverse: reverse,
+                sliceParameters: sliceParameters
+            )
         }
-
-        let voiceIndex: Int
-        switch clampedSettings.voiceMode {
-        case .mono:
-            voiceIndex = 0
-        case .polyphonic:
-            voiceIndex = pool.cursor % pool.voices.count
-            pool.cursor = (voiceIndex &+ 1) % pool.voices.count
-        }
-
-        let voice = pool.voices[voiceIndex]
-        let voiceFilter = voiceIndex < pool.voiceFilters.count ? pool.voiceFilters[voiceIndex] : nil
-        let handleID = UUID()
-        pool.handles[voiceIndex] = handleID
-        trackVoicePools[trackID] = pool
-        let params = voiceParams[trackID]
-
-        scheduleAndStartSlice(
-            voice,
-            voiceFilter: voiceFilter,
-            sampleURL: sampleURL,
-            file: file,
-            startFrame: resolvedStart,
-            endFrame: resolvedEnd,
-            settings: clampedSettings,
-            params: params,
-            at: when,
-            reverse: reverse,
-            sliceParameters: sliceParameters
-        )
-        return VoiceHandle(id: handleID)
     }
 
     private func scheduleAndStart(
@@ -347,6 +330,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func stopVoice(_ handle: VoiceHandle) {
+        lifecycleLock.lock()
+        defer { lifecycleLock.unlock() }
         for pool in trackVoicePools.values {
             guard let index = pool.handles.firstIndex(of: handle.id) else {
                 continue
@@ -357,7 +342,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func stopAllMainVoices() {
-        for pool in trackVoicePools.values {
+        let pools = lifecycleLock.withLock { Array(trackVoicePools.values) }
+        for pool in pools {
             for voice in pool.voices {
                 voice.stop()
             }
@@ -366,36 +352,45 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     func setTrackMix(trackID: UUID, level: Double, pan: Double) {
         prepareTrack(trackID: trackID)
-        let mixer = trackMixer(for: trackID)
-        mixer.outputVolume = Float(min(max(level, 0), 1))
-        mixer.pan = Float(min(max(pan, -1), 1))
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                let mixer = trackMixer(for: trackID)
+                mixer.outputVolume = Float(min(max(level, 0), 1))
+                mixer.pan = Float(min(max(pan, -1), 1))
+            }
+        }
     }
 
     func removeTrack(trackID: UUID) {
-        if let pool = trackVoicePools.removeValue(forKey: trackID) {
-            for voice in pool.voices {
-                voice.stop()
-                audioGraph.disconnectOutput(voice)
-                audioGraph.detach(voice)
+        performOnMain { [self] in
+            lifecycleLock.lock()
+            defer { lifecycleLock.unlock() }
+
+            if let pool = trackVoicePools.removeValue(forKey: trackID) {
+                for voice in pool.voices {
+                    voice.stop()
+                    audioGraph.disconnectOutput(voice)
+                    audioGraph.detach(voice)
+                }
+                for filter in pool.voiceFilters {
+                    audioGraph.disconnectOutput(filter.avNode)
+                    audioGraph.detach(filter.avNode)
+                }
             }
-            for filter in pool.voiceFilters {
+            voiceParams.removeValue(forKey: trackID)
+            guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
+            audioGraph.disconnectOutput(mixer)
+            audioGraph.detach(mixer)
+            // Also tear down the filter inserted after this mixer.
+            if let filter = trackFilters.removeValue(forKey: trackID) {
                 audioGraph.disconnectOutput(filter.avNode)
                 audioGraph.detach(filter.avNode)
             }
         }
-        voiceParams.removeValue(forKey: trackID)
-        guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
-        audioGraph.disconnectOutput(mixer)
-        audioGraph.detach(mixer)
-        // Also tear down the filter inserted after this mixer.
-        if let filter = trackFilters.removeValue(forKey: trackID) {
-            audioGraph.disconnectOutput(filter.avNode)
-            audioGraph.detach(filter.avNode)
-        }
     }
 
     func audition(sampleURL: URL) {
-        guard isStarted else { return }
+        guard lifecycleLock.withLock({ isStarted }) else { return }
         guard let file = cachedFile(url: sampleURL) else { return }
         previewNode.stop()
         previewNode.volume = 1.0
@@ -408,7 +403,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {
-        voiceParams[trackID, default: [:]][kind] = value
+        lifecycleLock.withLock {
+            voiceParams[trackID, default: [:]][kind] = value
+        }
     }
 
     private func trackMixer(for trackID: UUID) -> AVAudioMixerNode {
@@ -430,46 +427,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     private func validatePreparedTrackGraphs() {
         performOnMain { [self] in
-            for (trackID, pool) in trackVoicePools {
-                repairPreparedTrackGraph(trackID: trackID, pool: pool)
+            lifecycleLock.withLock {
+                for (trackID, pool) in trackVoicePools {
+                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                }
             }
         }
-    }
-
-    @MainActor
-    private func repairPreparedTrackGraph(trackID: UUID, pool: TrackVoicePool) {
-        let mixer = trackMixer(for: trackID)
-        let trackFilter = trackFilters[trackID] ?? {
-            let filter = SamplerFilterNode()
-            audioGraph.attach(filter.avNode)
-            trackFilters[trackID] = filter
-            return filter
-        }()
-
-        ensureConnected(mixer, to: trackFilter.avNode)
-        ensureConnected(trackFilter.avNode, to: audioGraph.preMasterMixer)
-
-        for (voice, voiceFilter) in zip(pool.voices, pool.voiceFilters) {
-            ensureConnected(voice, to: voiceFilter.avNode)
-            ensureConnected(voiceFilter.avNode, to: mixer)
-        }
-    }
-
-    @MainActor
-    private func ensureConnected(_ source: AVAudioNode, to destination: AVAudioNode) {
-        if source.engine == nil {
-            audioGraph.attach(source)
-        }
-        if destination.engine == nil {
-            audioGraph.attach(destination)
-        }
-
-        let outputs = audioGraph.engine.outputConnectionPoints(for: source, outputBus: 0)
-        guard !outputs.contains(where: { $0.node === destination }) else { return }
-        if !outputs.isEmpty {
-            audioGraph.disconnectOutput(source)
-        }
-        audioGraph.connect(source, to: destination)
     }
 
     /// Apply filter settings to the filter node for the given track.
@@ -478,24 +441,31 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// (e.g. via `SamplerDestinationWidget`). Per-step macro dispatch uses
     /// `filterNode(for:)` and the fine-grained setters instead.
     func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {
-        trackFilters[trackID]?.apply(settings)
+        let filter = lifecycleLock.withLock {
+            trackFilters[trackID]
+        }
+        filter?.apply(settings)
     }
 
     /// Returns the filter node for the given track, or nil if it doesn't exist.
     ///
     /// Used by `TrackMacroApplier` to dispatch per-step filter macro values.
     func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? {
-        trackFilters[trackID]
+        lifecycleLock.withLock {
+            trackFilters[trackID]
+        }
     }
 
     private func cachedFile(url: URL) -> AVAudioFile? {
-        if let f = fileCache[url] { return f }
-        guard let f = try? AVAudioFile(forReading: url) else { return nil }
-        if fileCache.count >= 64 {
-            fileCache.removeAll(keepingCapacity: true)
+        lifecycleLock.withLock {
+            if let f = fileCache[url] { return f }
+            guard let f = try? AVAudioFile(forReading: url) else { return nil }
+            if fileCache.count >= 64 {
+                fileCache.removeAll(keepingCapacity: true)
+            }
+            fileCache[url] = f
+            return f
         }
-        fileCache[url] = f
-        return f
     }
 
     private func sliceBuffer(
@@ -595,18 +565,162 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return pow(10, minLog + ((maxLog - minLog) * value))
     }
 
-    func disconnectFirstPreparedVoiceForTesting(trackID: UUID) {
+    private func playWithPreparedVoice(
+        trackID: UUID,
+        voiceMode: SlicerVoiceMode,
+        schedule: @escaping (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Void
+    ) -> VoiceHandle? {
         performOnMain { [self] in
-            guard let voice = trackVoicePools[trackID]?.voices.first else { return }
-            audioGraph.disconnectOutput(voice)
+            var didRepair = false
+
+            while true {
+                var selectedVoice: AVAudioPlayerNode?
+                var selectedFilter: SamplerFilterNode?
+                var selectedParams: [BuiltinMacroKind: Double]?
+                var selectedHandleID: UUID?
+                var needsRepair = false
+
+                lifecycleLock.withLock {
+                    guard var pool = trackVoicePools[trackID],
+                          !pool.voices.isEmpty
+                    else {
+                        return
+                    }
+
+                    let voiceIndex: Int
+                    switch voiceMode {
+                    case .mono:
+                        voiceIndex = 0
+                    case .polyphonic:
+                        voiceIndex = pool.cursor % pool.voices.count
+                    }
+
+                    guard voiceIndex < pool.voiceFilters.count,
+                          voiceIndex < pool.handles.count
+                    else {
+                        needsRepair = true
+                        return
+                    }
+
+                    let voice = pool.voices[voiceIndex]
+                    let voiceFilter = pool.voiceFilters[voiceIndex]
+                    guard isPreparedTrackRouteReadyForPlayback(
+                        trackID: trackID,
+                        voice: voice,
+                        voiceFilter: voiceFilter
+                    ) else {
+                        needsRepair = true
+                        return
+                    }
+
+                    let handleID = UUID()
+                    pool.handles[voiceIndex] = handleID
+                    if voiceMode == .polyphonic {
+                        pool.cursor = (voiceIndex &+ 1) % pool.voices.count
+                    }
+                    trackVoicePools[trackID] = pool
+                    selectedVoice = voice
+                    selectedFilter = voiceFilter
+                    selectedParams = voiceParams[trackID]
+                    selectedHandleID = handleID
+                }
+
+                if needsRepair {
+                    guard !didRepair else { return nil }
+                    didRepair = true
+                    lifecycleLock.withLock {
+                        guard let pool = trackVoicePools[trackID] else { return }
+                        repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                    }
+                    continue
+                }
+
+                guard let voice = selectedVoice,
+                      let voiceFilter = selectedFilter,
+                      let handleID = selectedHandleID
+                else {
+                    return nil
+                }
+
+                schedule(voice, voiceFilter, selectedParams)
+                return VoiceHandle(id: handleID)
+            }
         }
     }
 
-    func isFirstPreparedVoiceConnectedForTesting(trackID: UUID) -> Bool {
-        performOnMain { [self] in
-            guard let voice = trackVoicePools[trackID]?.voices.first else { return false }
-            return audioGraph.engine.outputConnectionPoints(for: voice, outputBus: 0).isEmpty == false
+    @MainActor
+    private func isPreparedTrackRouteReadyForPlayback(
+        trackID: UUID,
+        voice: AVAudioPlayerNode,
+        voiceFilter: SamplerFilterNode
+    ) -> Bool {
+        guard voice.engine === audioGraph.engine,
+              voiceFilter.avNode.engine === audioGraph.engine,
+              let mixer = trackMixers[trackID],
+              mixer.engine === audioGraph.engine,
+              let trackFilter = trackFilters[trackID],
+              trackFilter.avNode.engine === audioGraph.engine
+        else {
+            return false
         }
+
+        return outputConnectionExists(from: voice, to: voiceFilter.avNode) &&
+            outputConnectionExists(from: voiceFilter.avNode, to: mixer) &&
+            outputConnectionExists(from: mixer, to: trackFilter.avNode) &&
+            outputConnectionExists(from: trackFilter.avNode, to: audioGraph.preMasterMixer)
+    }
+
+    @MainActor
+    private func repairPreparedTrackGraph(trackID: UUID, pool: TrackVoicePool) {
+        let mixer = trackMixer(for: trackID)
+        repairTrackMixerOutput(trackID: trackID, mixer: mixer)
+
+        for index in pool.voices.indices {
+            let voice = pool.voices[index]
+            guard index < pool.voiceFilters.count else { continue }
+            let filter = pool.voiceFilters[index]
+
+            audioGraph.attach(voice)
+            audioGraph.attach(filter.avNode)
+            connectOutputIfNeeded(voice, to: filter.avNode)
+            connectOutputIfNeeded(filter.avNode, to: mixer)
+        }
+    }
+
+    @MainActor
+    private func repairTrackMixerOutput(trackID: UUID, mixer: AVAudioMixerNode) {
+        audioGraph.attach(mixer)
+        let filter: SamplerFilterNode
+        if let existing = trackFilters[trackID] {
+            filter = existing
+        } else {
+            let next = SamplerFilterNode()
+            trackFilters[trackID] = next
+            filter = next
+        }
+
+        audioGraph.attach(filter.avNode)
+        connectOutputIfNeeded(mixer, to: filter.avNode)
+        connectOutputIfNeeded(filter.avNode, to: audioGraph.preMasterMixer)
+    }
+
+    private func outputConnectionExists(from source: AVAudioNode, to destination: AVAudioNode) -> Bool {
+        audioGraph.engine.outputConnectionPoints(for: source, outputBus: 0).contains { point in
+            point.node === destination
+        }
+    }
+
+    @MainActor
+    private func connectOutputIfNeeded(_ source: AVAudioNode, to destination: AVAudioNode) {
+        guard source.engine === audioGraph.engine,
+              destination.engine === audioGraph.engine,
+              !outputConnectionExists(from: source, to: destination)
+        else {
+            return
+        }
+
+        audioGraph.disconnectOutput(source)
+        audioGraph.connect(source, to: destination)
     }
 
     private func performOnMain<T>(_ work: @escaping @MainActor () -> T) -> T {
@@ -623,5 +737,60 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }
         return result!
+    }
+}
+
+extension SamplePlaybackEngine {
+    func disconnectFirstPreparedVoiceForTesting(trackID: UUID) {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                guard let voice = trackVoicePools[trackID]?.voices.first else { return }
+                audioGraph.disconnectOutput(voice)
+            }
+        }
+    }
+
+    func isFirstPreparedVoiceConnectedForTesting(trackID: UUID) -> Bool {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                guard let pool = trackVoicePools[trackID],
+                      let voice = pool.voices.first,
+                      let filter = pool.voiceFilters.first
+                else {
+                    return false
+                }
+                return outputConnectionExists(from: voice, to: filter.avNode)
+            }
+        }
+    }
+
+    func disconnectPreparedTrackMixerOutputForTesting(trackID: UUID) {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                guard let mixer = trackMixers[trackID] else { return }
+                audioGraph.disconnectOutput(mixer)
+            }
+        }
+    }
+
+    func isPreparedTrackMixerOutputConnectedForTesting(trackID: UUID) -> Bool {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                guard let mixer = trackMixers[trackID],
+                      let filter = trackFilters[trackID]
+                else {
+                    return false
+                }
+                return outputConnectionExists(from: mixer, to: filter.avNode)
+            }
+        }
+    }
+}
+
+private extension NSLock {
+    func withLock<T>(_ work: () -> T) -> T {
+        lock()
+        defer { unlock() }
+        return work()
     }
 }

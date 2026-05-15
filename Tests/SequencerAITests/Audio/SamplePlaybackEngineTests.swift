@@ -111,6 +111,36 @@ final class SamplePlaybackEngineTests: XCTestCase {
         XCTAssertNotNil(handle)
     }
 
+    func test_playRepairsDisconnectedPreparedVoiceAfterStart() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.disconnectFirstPreparedVoiceForTesting(trackID: trackID)
+        XCTAssertFalse(engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID))
+
+        let handle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+
+        XCTAssertNotNil(handle)
+        XCTAssertTrue(engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID))
+    }
+
+    func test_playRepairsDisconnectedPreparedTrackMixerAfterStart() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.disconnectPreparedTrackMixerOutputForTesting(trackID: trackID)
+        XCTAssertFalse(engine.isPreparedTrackMixerOutputConnectedForTesting(trackID: trackID))
+
+        let handle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+
+        XCTAssertNotNil(handle)
+        XCTAssertTrue(engine.isPreparedTrackMixerOutputConnectedForTesting(trackID: trackID))
+    }
+
     func test_applyEnvelope_shapesAttackAndRelease() throws {
         let format = AVAudioFormat(standardFormatWithSampleRate: 1_000, channels: 1)!
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 10)!
