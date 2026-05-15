@@ -28,15 +28,13 @@ struct TrackSourceClipHistoryTabContent: View {
                 )
             }
             .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
-            .padding(.vertical, 11)
+            .padding(.vertical, 13)
             .padding(.horizontal, 14)
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
             .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                Rectangle()
+                    .fill(accent.opacity(StudioOpacity.softStroke))
+                    .frame(height: 1),
+                alignment: .bottom
             )
         }
     }

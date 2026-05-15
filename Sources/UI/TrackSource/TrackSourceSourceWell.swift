@@ -75,7 +75,7 @@ struct TrackSourceSourceWell: View {
     }
 
     private var clipSourceWell: some View {
-        slotWell(accent: StudioTheme.success, isEmpty: false) {
+        slotWell(accent: StudioTheme.success) {
             sourceBadge(title: displayState.badgeTitle, accent: StudioTheme.success)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -96,7 +96,7 @@ struct TrackSourceSourceWell: View {
     }
 
     private var generatorSourceWell: some View {
-        slotWell(accent: accent, isEmpty: false) {
+        slotWell(accent: accent) {
             sourceBadge(title: displayState.badgeTitle, accent: accent)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -117,8 +117,8 @@ struct TrackSourceSourceWell: View {
     }
 
     private var emptySourceWell: some View {
-        slotWell(accent: accent, isEmpty: true) {
-            sourceBadge(title: displayState.badgeTitle, accent: StudioTheme.border)
+        slotWell(accent: accent) {
+            sourceBadge(title: displayState.badgeTitle, accent: accent)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("No source selected")
@@ -149,25 +149,19 @@ struct TrackSourceSourceWell: View {
 
     private func slotWell<Content: View>(
         accent: Color,
-        isEmpty: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
         HStack(alignment: .center, spacing: 12) {
             content()
         }
         .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
-        .padding(.vertical, 11)
+        .padding(.vertical, 13)
         .padding(.horizontal, 14)
-        .background(
-            accent.opacity(isEmpty ? StudioOpacity.subtleFill : StudioOpacity.selectedFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-        )
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(
-                    accent.opacity(isEmpty ? StudioOpacity.subtleStroke : StudioOpacity.ghostStroke),
-                    style: StrokeStyle(lineWidth: 1.5, dash: isEmpty ? [6, 5] : [])
-                )
+            Rectangle()
+                .fill(accent.opacity(StudioOpacity.softStroke))
+                .frame(height: 1),
+            alignment: .bottom
         )
     }
 

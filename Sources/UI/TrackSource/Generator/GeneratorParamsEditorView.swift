@@ -268,16 +268,7 @@ struct GeneratorParamsEditorView: View {
 
                 content()
             }
-            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                StudioTheme.panelFill.opacity(0.92),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
-            )
         } else {
             StudioPanel(title: title, eyebrow: eyebrow, accent: accent) {
                 content()

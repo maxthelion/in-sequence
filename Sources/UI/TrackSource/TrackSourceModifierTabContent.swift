@@ -32,6 +32,9 @@ struct TrackSourceModifierTabContent: View {
                     onCreateBlankModifier: onCreateBlankModifier,
                     onSelectModifier: onSelectModifier
                 )
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
+                .padding(.top, 12)
             }
 
             if modifierPickerStep == nil, let selectedGenerator {
@@ -44,6 +47,9 @@ struct TrackSourceModifierTabContent: View {
                     layout: .modifierContained,
                     onUpdate: onUpdateGeneratorParams
                 )
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
+                .padding(.top, 12)
             }
         }
     }

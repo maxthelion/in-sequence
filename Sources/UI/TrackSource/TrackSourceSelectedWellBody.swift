@@ -1,9 +1,20 @@
 import SwiftUI
 
+struct TrackSourceSelectedWellBodyPresentation: Equatable {
+    let isEmpty: Bool
+
+    var usesDashedStroke: Bool { false }
+    var usesActiveSectionFill: Bool { true }
+}
+
 struct TrackSourceSelectedWellBody<Content: View>: View {
     let accent: Color
     let isEmpty: Bool
     @ViewBuilder var content: Content
+
+    private var presentation: TrackSourceSelectedWellBodyPresentation {
+        TrackSourceSelectedWellBodyPresentation(isEmpty: isEmpty)
+    }
 
     var body: some View {
         let shape = UnevenRoundedRectangle(
@@ -20,16 +31,15 @@ struct TrackSourceSelectedWellBody<Content: View>: View {
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
         .background(
-            accent.opacity(isEmpty ? StudioOpacity.subtleFill : StudioOpacity.selectedFill),
+            accent.opacity(presentation.usesActiveSectionFill ? StudioOpacity.selectedFill : StudioOpacity.subtleFill),
             in: shape
         )
         .overlay(
             shape
                 .stroke(
-                    accent.opacity(isEmpty ? StudioOpacity.subtleStroke : StudioOpacity.ghostStroke),
-                    style: StrokeStyle(lineWidth: 1.5, dash: isEmpty ? [7, 5] : [])
+                    accent.opacity(StudioOpacity.ghostStroke),
+                    style: StrokeStyle(lineWidth: 1.5, dash: presentation.usesDashedStroke ? [7, 5] : [])
                 )
         )
         .padding(.horizontal, 10)

@@ -47,7 +47,6 @@ struct TrackSourceSourceTabContent: View {
 
                 if sourcePickerStep == nil {
                     TrackSourceClipPanel(
-                        accent: StudioTheme.success,
                         previewClipContent: previewClipContent,
                         defaultClipNote: defaultClipNote,
                         clipMacroSlots: clipMacroSlots,
@@ -59,6 +58,9 @@ struct TrackSourceSourceTabContent: View {
                         onUpdateMacroLanes: onUpdateMacroLanes,
                         onUpdateClipContent: onUpdateClipContent
                     )
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 14)
+                    .padding(.top, 12)
                 }
 
             case .occupiedGenerator:
@@ -74,6 +76,9 @@ struct TrackSourceSourceTabContent: View {
                         layout: .sourceContained,
                         onUpdate: onUpdateGeneratorParams
                     )
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 14)
+                    .padding(.top, 12)
                 }
 
             case .empty:
@@ -108,6 +113,7 @@ struct TrackSourceSourceTabContent: View {
                 onCreateBlankClip: onCreateBlankClipSource,
                 onSelectClip: onAssignClipSource
             )
+            .padding(14)
         } else {
             TrackSourceSourceWell(
                 sourceMode: sourceMode,

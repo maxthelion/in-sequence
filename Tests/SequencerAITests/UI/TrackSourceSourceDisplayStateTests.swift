@@ -10,6 +10,16 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(TrackSourceEditorTab.clipHistory.id, "clipHistory")
     }
 
+    func test_selectedWellBodyKeepsEmptyStateAsActiveSection() {
+        let emptyBody = TrackSourceSelectedWellBodyPresentation(isEmpty: true)
+        let occupiedBody = TrackSourceSelectedWellBodyPresentation(isEmpty: false)
+
+        XCTAssertTrue(emptyBody.usesActiveSectionFill)
+        XCTAssertTrue(occupiedBody.usesActiveSectionFill)
+        XCTAssertFalse(emptyBody.usesDashedStroke)
+        XCTAssertFalse(occupiedBody.usesDashedStroke)
+    }
+
     func test_clipSourceWithClip_resolvesToOccupiedClip() {
         let state = TrackSourceSourceDisplayState.resolve(
             sourceMode: .clip,
