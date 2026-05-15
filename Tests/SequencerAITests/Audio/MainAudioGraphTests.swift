@@ -4,6 +4,85 @@ import XCTest
 
 final class MainAudioGraphTests: XCTestCase {
     @MainActor
+    func test_installMixerBuses_reusesHostsByStableIDAndTearsDownRemovedBuses() throws {
+        let graph = MainAudioGraph()
+        let busID = UUID()
+        let otherBusID = UUID()
+        let bus = MixerBus(id: busID, name: "Drums")
+
+        graph.installMixerBuses([bus])
+        let firstReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drum Stem")])
+        let reusedReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+
+        XCTAssertTrue(firstReadout.inputMixer === reusedReadout.inputMixer)
+        XCTAssertEqual(reusedReadout.topologyRebuildCount, 1)
+
+        graph.installMixerBuses([MixerBus(id: otherBusID, name: "FX")])
+
+        XCTAssertNil(graph.mixerBusReadoutForTesting(busID: busID))
+        XCTAssertNotNil(graph.mixerBusReadoutForTesting(busID: otherBusID))
+    }
+
+    @MainActor
+    func test_connectTrackOutput_routesToMasterBusOrFailsSafeToMaster() throws {
+        let graph = MainAudioGraph()
+        let source = AVAudioPlayerNode()
+        let busID = UUID()
+        graph.attach(source)
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drums")])
+
+        graph.connectTrackOutput(source, to: nil)
+        XCTAssertTrue(graph.trackOutputDestinationForTesting(source) === graph.preMasterMixer)
+
+        graph.connectTrackOutput(source, to: busID)
+        let busReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+        XCTAssertTrue(graph.trackOutputDestinationForTesting(source) === busReadout.inputMixer)
+
+        graph.connectTrackOutput(source, to: UUID())
+        XCTAssertTrue(graph.trackOutputDestinationForTesting(source) === graph.preMasterMixer)
+    }
+
+    @MainActor
+    func test_mixerBusMixAndBypassStayParameterOnlyWhileInsertShapeRebuildsTopology() throws {
+        let graph = MainAudioGraph()
+        let busID = UUID()
+        let insertID = UUID()
+        let insert = MixerBusInsert(
+            id: insertID,
+            name: "Filter",
+            isEnabled: true,
+            kind: .nativeFilter(MasterFilterSettings(mode: .lowPass, cutoffHz: 1_000, resonance: 0.1))
+        )
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drums", inserts: [insert])])
+        let initialReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+
+        graph.setMixerBusMix(
+            busID: busID,
+            mix: BusMixSettings(level: 0.5, pan: -0.25, isMuted: false, isSoloed: false),
+            effectiveMute: false
+        )
+        let afterMix = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+        XCTAssertEqual(afterMix.topologyRebuildCount, initialReadout.topologyRebuildCount)
+        XCTAssertEqual(afterMix.outputVolume, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(afterMix.pan, -0.25, accuracy: 0.0001)
+
+        var bypassedInsert = insert
+        bypassedInsert.isEnabled = false
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drums", inserts: [bypassedInsert])])
+        let afterBypass = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+        XCTAssertEqual(afterBypass.topologyRebuildCount, initialReadout.topologyRebuildCount)
+        let eq = try XCTUnwrap(afterBypass.insertNodes.first as? AVAudioUnitEQ)
+        XCTAssertTrue(eq.bands[0].bypass)
+
+        let extraInsert = MixerBusInsert(name: "Crush", kind: .nativeBitcrusher(.default))
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drums", inserts: [bypassedInsert, extraInsert])])
+        let afterShapeChange = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+        XCTAssertEqual(afterShapeChange.topologyRebuildCount, initialReadout.topologyRebuildCount + 1)
+    }
+
+    @MainActor
     func test_installMasterChains_connectsInsertOrderBetweenPreMasterAndOutput() throws {
         let graph = MainAudioGraph()
         let filter = AVAudioUnitEQ(numberOfBands: 1)

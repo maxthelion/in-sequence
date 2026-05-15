@@ -14,6 +14,7 @@ protocol TrackPlaybackSink: AnyObject {
     func stop()
     func shutdown()
     func setMix(_ mix: TrackMixSettings)
+    func setOutputBusID(_ busID: UUID?)
     func setDestination(_ destination: Destination)
     func selectInstrument(_ choice: AudioInstrumentChoice)
     func captureStateBlob() throws -> Data?
@@ -24,6 +25,8 @@ extension TrackPlaybackSink {
     func preparePresetBrowser() {
         prepareIfNeeded()
     }
+
+    func setOutputBusID(_ busID: UUID?) {}
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
@@ -38,6 +41,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var outputMixer: AVAudioMixerNode?
     private var shouldBeRunning = false
     private var currentMix = TrackMixSettings.default
+    private var currentOutputBusID: UUID?
     private var currentChoice: AudioInstrumentChoice
     private var currentDestination: Destination
     private var instantiationGeneration: UInt64 = 0
@@ -229,6 +233,18 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
             self.currentMix = mix
             self.applyCurrentMix()
+        }
+    }
+
+    func setOutputBusID(_ busID: UUID?) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            guard !self.isShutdown else { return }
+            guard self.currentOutputBusID != busID else { return }
+
+            self.currentOutputBusID = busID
+            guard let outputMixer = self.outputMixer else { return }
+            self.audioGraph.connectTrackOutput(outputMixer, to: busID)
         }
     }
 
@@ -459,7 +475,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             if self.outputMixer == nil {
                 self.outputMixer = mixer
                 self.audioGraph.attach(mixer)
-                self.audioGraph.connect(mixer, to: self.audioGraph.preMasterMixer)
+                self.audioGraph.connectTrackOutput(mixer, to: self.currentOutputBusID)
             }
             if self.audioGraph.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
                 self.audioGraph.connect(nextInstrument, to: mixer)

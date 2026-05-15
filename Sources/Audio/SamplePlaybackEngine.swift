@@ -29,6 +29,9 @@ protocol SamplePlaybackSink: AnyObject {
     /// Apply the track's fader state to its mixer node. Takes effect live for
     /// in-flight voices as well as subsequent triggers.
     func setTrackMix(trackID: UUID, level: Double, pan: Double)
+    /// Rewire the prepared track output to a user-created bus, or back to master
+    /// when `busID` is nil.
+    func setTrackOutputBus(trackID: UUID, busID: UUID?)
     /// Tear down the track's mixer node and disconnect any voices still routed to it.
     /// Safe to call for unknown tracks (no-op).
     func removeTrack(trackID: UUID)
@@ -51,6 +54,8 @@ protocol SamplePlaybackSink: AnyObject {
 
 extension SamplePlaybackSink {
     func prepareTrack(trackID: UUID) {}
+
+    func setTrackOutputBus(trackID: UUID, busID: UUID?) {}
 
     func playSlice(
         sampleURL: URL,
@@ -123,6 +128,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var trackMixers: [UUID: AVAudioMixerNode] = [:]
     /// Per-track filter nodes inserted between the track mixer and the main mixer.
     private var trackFilters: [UUID: SamplerFilterNode] = [:]
+    private var trackOutputBusIDs: [UUID: UUID] = [:]
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
 
@@ -361,6 +367,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
     }
 
+    func setTrackOutputBus(trackID: UUID, busID: UUID?) {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                trackOutputBusIDs[trackID] = busID
+                guard let filter = trackFilters[trackID] else { return }
+                audioGraph.connectTrackOutput(filter.avNode, to: busID)
+            }
+        }
+    }
+
     func removeTrack(trackID: UUID) {
         performOnMain { [self] in
             lifecycleLock.lock()
@@ -378,6 +394,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 }
             }
             voiceParams.removeValue(forKey: trackID)
+            trackOutputBusIDs.removeValue(forKey: trackID)
             guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
             audioGraph.disconnectOutput(mixer)
             audioGraph.detach(mixer)
@@ -418,7 +435,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let filter = SamplerFilterNode()
         audioGraph.attach(filter.avNode)
         audioGraph.connect(mixer, to: filter.avNode)
-        audioGraph.connect(filter.avNode, to: audioGraph.preMasterMixer)
+        audioGraph.connectTrackOutput(filter.avNode, to: trackOutputBusIDs[trackID])
         trackFilters[trackID] = filter
 
         trackMixers[trackID] = mixer

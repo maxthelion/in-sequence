@@ -28,6 +28,8 @@ final class MainAudioGraph {
     private let finalOutputMixer = AVAudioMixerNode()
     private var managedMasterNodes: [AVAudioNode] = []
     private var managedMasterGainMixers: [AVAudioMixerNode] = []
+    private var mixerBusHosts: [UUID: MixerBusHost] = [:]
+    private var trackOutputDestinationsForTesting: [ObjectIdentifier: AVAudioNode] = [:]
     private var isStarted = false
     private var isMasterMeterTapInstalled = false
     private let masterMeterTapGeneration = AtomicInt32(0)
@@ -81,6 +83,75 @@ final class MainAudioGraph {
     func disconnectOutput(_ node: AVAudioNode) {
         performOnMain {
             self.engine.disconnectNodeOutput(node)
+        }
+    }
+
+    func installMixerBuses(_ buses: [MixerBus], effectiveMuteByBusID: [UUID: Bool] = [:]) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            let wasRunning = self.engine.isRunning
+            self.removeMasterMeterTapIfNeeded()
+            if wasRunning {
+                self.engine.stop()
+            }
+
+            let nextIDs = Set(buses.map(\.id))
+            let removedIDs = self.mixerBusHosts.keys.filter { !nextIDs.contains($0) }
+            for busID in removedIDs {
+                self.mixerBusHosts[busID]?.teardown(from: self)
+                self.mixerBusHosts.removeValue(forKey: busID)
+            }
+
+            for bus in MixerBus.normalizedCollection(buses) {
+                let host = self.mixerBusHosts[bus.id] ?? MixerBusHost(id: bus.id)
+                self.mixerBusHosts[bus.id] = host
+                host.install(bus: bus, in: self, effectiveMute: effectiveMuteByBusID[bus.id] ?? bus.mix.isMuted)
+            }
+
+            self.engine.prepare()
+            self.installMasterMeterTapIfNeeded()
+
+            if wasRunning {
+                try? self.engine.start()
+                self.isStarted = self.engine.isRunning
+            }
+        }
+    }
+
+    func setMixerBusMix(busID: UUID, mix: BusMixSettings, effectiveMute: Bool) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            self.mixerBusHosts[busID]?.applyMix(mix, effectiveMute: effectiveMute)
+        }
+    }
+
+    func connectTrackOutput(_ source: AVAudioNode, to busID: UUID?) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            guard source.engine === self.engine else { return }
+            let wasRunning = self.engine.isRunning
+            self.removeMasterMeterTapIfNeeded()
+            if wasRunning {
+                self.engine.stop()
+            }
+
+            self.engine.disconnectNodeOutput(source)
+            let destination = busID.flatMap { self.mixerBusHosts[$0]?.destinationNode() } ?? self.preMasterMixer
+            self.engine.connect(source, to: destination, format: nil)
+            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)] = destination
+            self.engine.prepare()
+            self.installMasterMeterTapIfNeeded()
+
+            if wasRunning {
+                try? self.engine.start()
+                self.isStarted = self.engine.isRunning
+            }
         }
     }
 
@@ -205,6 +276,34 @@ final class MainAudioGraph {
         isMasterMeterTapInstalled
     }
 
+    var mixerBusReadoutsForTesting: [MixerBusHost.Readout] {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            self.mixerBusHosts.values.compactMap { $0.readout() }
+                .sorted { $0.busID.uuidString < $1.busID.uuidString }
+        }
+    }
+
+    func mixerBusReadoutForTesting(busID: UUID) -> MixerBusHost.Readout? {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            self.mixerBusHosts[busID]?.readout()
+        }
+    }
+
+    func trackOutputDestinationForTesting(_ source: AVAudioNode) -> AVAudioNode? {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)]
+        }
+    }
+
     var masterMeterTapGenerationForTesting: Int {
         Int(masterMeterTapGeneration.load())
     }
@@ -308,6 +407,22 @@ final class MainAudioGraph {
         if let thrownError {
             throw thrownError
         }
+    }
+
+    private func performOnMainReturning<T>(_ work: @escaping @MainActor () -> T) -> T {
+        if Thread.isMainThread {
+            return MainActor.assumeIsolated {
+                work()
+            }
+        }
+
+        var output: T?
+        DispatchQueue.main.sync {
+            output = MainActor.assumeIsolated {
+                work()
+            }
+        }
+        return output!
     }
 }
 
@@ -624,6 +739,7 @@ private final class AtomicInt64 {
             }
         }
     }
+
 }
 
 private final class AtomicInt32 {

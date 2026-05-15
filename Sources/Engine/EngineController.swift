@@ -4,7 +4,7 @@ import Observation
 
 @Observable
 final class EngineController: RouterDispatcher {
-    private struct PipelineEntry: Equatable {
+    struct PipelineEntry: Equatable {
         let trackID: UUID
         let output: Destination.Kind
     }
@@ -74,11 +74,6 @@ final class EngineController: RouterDispatcher {
         let pitchOffset: Int
     }
 
-    private enum AudioOutputKey: Hashable {
-        case track(UUID)
-        case group(TrackGroupID)
-    }
-
     private let midiClient: MIDIClient?
     private let endpoint: MIDIEndpoint?
     private let sharedAudioOutput: TrackPlaybackSink?
@@ -120,6 +115,8 @@ final class EngineController: RouterDispatcher {
     private var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
     private var audioOutputsByTrackID: [UUID: TrackPlaybackSink] = [:]
     private var audioOutputKeysByTrackID: [UUID: AudioOutputKey] = [:]
+    private var effectiveMutedTrackIDs: Set<UUID> = []
+    private var effectiveMutedBusIDs: Set<UUID> = []
     private var lastDestinationByOutputKey: [AudioOutputKey: Destination] = [:]
     private var liveSampleTrackIDs: Set<UUID> = []
     private var routeMidiOutputs: [Destination: MidiOut] = [:]
@@ -402,20 +399,6 @@ final class EngineController: RouterDispatcher {
     /// directly to the live playback sinks without rebuilding the document-driven
     /// engine pipeline.
     func setMix(trackID: UUID, mix: TrackMixSettings) {
-        let host = withStateLock {
-            if let runtime = audioTrackRuntimes[trackID] {
-                audioTrackRuntimes[trackID] = AudioTrackRuntime(
-                    trackID: runtime.trackID,
-                    generatorBlockID: runtime.generatorBlockID,
-                    mix: mix,
-                    destination: runtime.destination,
-                    pitchOffset: runtime.pitchOffset
-                )
-            }
-            return audioOutputsByTrackID[trackID]
-        }
-        host?.setMix(mix)
-
         guard let trackIndex = currentDocumentModel.tracks.firstIndex(where: { $0.id == trackID }) else {
             return
         }
@@ -423,34 +406,18 @@ final class EngineController: RouterDispatcher {
         if currentDocumentModel.selectedTrackID == trackID {
             currentTrackMix = mix
         }
-        let track = currentDocumentModel.tracks[trackIndex]
-
-        guard case .sample = track.destination else {
-            if case .slicer = track.destination {
-                sampleEngine.setTrackMix(
-                    trackID: trackID,
-                    level: mix.clampedLevel,
-                    pan: mix.clampedPan
-                )
-            }
-            return
-        }
-
-        sampleEngine.setTrackMix(
-            trackID: trackID,
-            level: mix.clampedLevel,
-            pan: mix.clampedPan
-        )
+        refreshEffectiveMixerState(for: currentDocumentModel)
     }
 
-    /// Scoped bus mix update for performance-time bus controls. Phase 1 does not
-    /// yet route audio through custom busses, so this keeps engine document state
-    /// coherent without rebuilding the document-model pipeline.
+    /// Scoped bus mix update for performance-time bus controls. This stays on the
+    /// parameter path: bus fader, pan, mute, solo, and bypass-style insert changes
+    /// avoid broad document re-application and do not rebuild the engine pipeline.
     func setMixerBusMix(busID: UUID, mix: BusMixSettings) {
         guard let index = currentDocumentModel.buses.firstIndex(where: { $0.id == busID }) else {
             return
         }
         currentDocumentModel.buses[index].mix = mix.normalized()
+        refreshEffectiveMixerState(for: currentDocumentModel)
     }
 
     var registeredKindIDs: [String] {
@@ -731,6 +698,7 @@ final class EngineController: RouterDispatcher {
         selectedOutput = Self.effectiveDestination(for: selectedTrack.id, in: documentModel).destination.kind
         currentTrackMix = selectedTrack.mix
         router.applyRoutesSnapshot(documentModel.routes)
+        installMixerBuses(for: documentModel)
 
         do {
             if withStateLock({ pipelineShape != Self.pipelineShape(for: documentModel) || executor == nil }) {
@@ -802,7 +770,17 @@ final class EngineController: RouterDispatcher {
     }
 
     private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
-        let (executor, audioRuntimes, audioOutputs, generatorIDs, generatedStates, chordContexts, rollingCaptureBuffers, playbackSnapshot) = withStateLock {
+        let (
+            executor,
+            audioRuntimes,
+            audioOutputs,
+            generatorIDs,
+            generatedStates,
+            chordContexts,
+            rollingCaptureBuffers,
+            playbackSnapshot,
+            effectiveMutedTrackIDs
+        ) = withStateLock {
             (
                 self.executor,
                 self.audioTrackRuntimes,
@@ -811,7 +789,8 @@ final class EngineController: RouterDispatcher {
                 self.generatedEvaluationStatesByTrackID,
                 self.chordContextByLane,
                 self.rollingCaptureBuffersByTrackID,
-                self.currentPlaybackSnapshot
+                self.currentPlaybackSnapshot,
+                self.effectiveMutedTrackIDs
             )
         }
 
@@ -921,7 +900,7 @@ final class EngineController: RouterDispatcher {
         // Sample/slicer dispatch → queue (drum tracks and any other track with sample-like destinations).
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         for track in playbackSnapshot.tracks {
-            guard !track.mix.isMuted,
+            guard !effectiveMutedTrackIDs.contains(track.id),
                   !currentLayerSnapshot.isMuted(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"],
@@ -1122,6 +1101,7 @@ final class EngineController: RouterDispatcher {
             preparedTickIndex = nil
         }
 
+        installMixerBuses(for: documentModel)
         syncAudioOutputs(for: documentModel)
         currentDocumentModel = documentModel
         selectedOutput = Self.effectiveDestination(for: documentModel.selectedTrack.id, in: documentModel).destination.kind
@@ -1219,7 +1199,7 @@ final class EngineController: RouterDispatcher {
     ) {
         switch destination {
         case let .midi(port, channel, noteOffset):
-            if let track, track.mix.isMuted {
+            if let track, isTrackEffectivelyMuted(track.id) {
                 return
             }
             guard let port else {
@@ -1231,7 +1211,7 @@ final class EngineController: RouterDispatcher {
 
         case .auInstrument:
             guard let track,
-                  !track.mix.isMuted,
+                  !isTrackEffectivelyMuted(track.id),
                   !currentLayerSnapshot.isMuted(track.id),
                   audioOutputsByTrackID[track.id] != nil
             else {
@@ -1252,7 +1232,7 @@ final class EngineController: RouterDispatcher {
 
         case let .slicer(sliceSetID, settings):
             guard let track,
-                  !track.mix.isMuted,
+                  !isTrackEffectivelyMuted(track.id),
                   !currentLayerSnapshot.isMuted(track.id)
             else {
                 return
@@ -1316,6 +1296,10 @@ final class EngineController: RouterDispatcher {
         return midiClient?.destinations.first(where: { $0.displayName == port.displayName })
     }
 
+    private func isTrackEffectivelyMuted(_ trackID: UUID) -> Bool {
+        withStateLock { effectiveMutedTrackIDs.contains(trackID) }
+    }
+
     private func syncTrackParams(for documentModel: Project) {
         // Note injection uses the typed preparedNotesByBlockID path only; no params to sync.
         // Reset generator evaluation state and prepared-tick index so the next prepareTick
@@ -1347,7 +1331,69 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    private func installMixerBuses(for documentModel: Project) {
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
+        withStateLock {
+            effectiveMutedTrackIDs = effectiveMuteState.mutedTrackIDs
+            effectiveMutedBusIDs = effectiveMuteState.mutedBusIDs
+        }
+        mainAudioGraph.installMixerBuses(
+            documentModel.buses,
+            effectiveMuteByBusID: Dictionary(
+                uniqueKeysWithValues: documentModel.buses.map {
+                    ($0.id, effectiveMuteState.mutedBusIDs.contains($0.id))
+                }
+            )
+        )
+    }
+
+    private func refreshEffectiveMixerState(for documentModel: Project) {
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
+        let audioOutputs = withStateLock { self.audioOutputsByTrackID }
+        withStateLock {
+            effectiveMutedTrackIDs = effectiveMuteState.mutedTrackIDs
+            effectiveMutedBusIDs = effectiveMuteState.mutedBusIDs
+            for (trackID, runtime) in audioTrackRuntimes {
+                guard let track = documentModel.tracks.first(where: { $0.id == trackID }) else { continue }
+                audioTrackRuntimes[trackID] = AudioTrackRuntime(
+                    trackID: runtime.trackID,
+                    generatorBlockID: runtime.generatorBlockID,
+                    mix: Self.effectiveMix(for: track.mix, isMuted: effectiveMuteState.mutedTrackIDs.contains(trackID)),
+                    destination: runtime.destination,
+                    pitchOffset: runtime.pitchOffset
+                )
+            }
+        }
+
+        for track in documentModel.tracks {
+            let effectiveMix = Self.effectiveMix(
+                for: track.mix,
+                isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)
+            )
+            audioOutputs[track.id]?.setMix(effectiveMix)
+            switch track.destination {
+            case .sample, .slicer:
+                sampleEngine.setTrackMix(
+                    trackID: track.id,
+                    level: effectiveMix.isMuted ? 0 : effectiveMix.clampedLevel,
+                    pan: effectiveMix.clampedPan
+                )
+            default:
+                continue
+            }
+        }
+
+        for bus in documentModel.buses {
+            mainAudioGraph.setMixerBusMix(
+                busID: bus.id,
+                mix: bus.mix,
+                effectiveMute: effectiveMuteState.mutedBusIDs.contains(bus.id)
+            )
+        }
+    }
+
     private func syncAudioOutputs(for documentModel: Project) {
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
         let desiredAudioTracks = documentModel.tracks.compactMap { track -> (StepSequenceTrack, Destination, Int, AudioOutputKey)? in
             let (destination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
             guard case .auInstrument = destination,
@@ -1393,7 +1439,8 @@ final class EngineController: RouterDispatcher {
                 host.setDestination(destination)
             }
             nextDestinations[key] = destination
-            host.setMix(track.mix)
+            host.setOutputBusID(track.outputBusID)
+            host.setMix(Self.effectiveMix(for: track.mix, isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)))
             host.prepareIfNeeded()
             if isRunning {
                 host.startIfNeeded()
@@ -1416,7 +1463,10 @@ final class EngineController: RouterDispatcher {
                         AudioTrackRuntime(
                             trackID: $0.0.id,
                             generatorBlockID: generatorIDsByTrackID[$0.0.id] ?? Self.generatorBlockID(for: $0.0.id),
-                            mix: $0.0.mix,
+                            mix: Self.effectiveMix(
+                                for: $0.0.mix,
+                                isMuted: effectiveMuteState.mutedTrackIDs.contains($0.0.id)
+                            ),
                             destination: $0.1,
                             pitchOffset: $0.2
                         )
@@ -1435,6 +1485,7 @@ final class EngineController: RouterDispatcher {
     /// mixer UI. The engine prepares per-track mixers and voice pools here so
     /// tick-time sample dispatch never mutates the AVAudioEngine graph.
     private func syncSampleMixers(for documentModel: Project) {
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
         var sampleTrackIDs: Set<UUID> = []
         for track in documentModel.tracks {
             switch track.destination {
@@ -1445,10 +1496,12 @@ final class EngineController: RouterDispatcher {
             }
             sampleTrackIDs.insert(track.id)
             sampleEngine.prepareTrack(trackID: track.id)
+            sampleEngine.setTrackOutputBus(trackID: track.id, busID: track.outputBusID)
+            let mix = Self.effectiveMix(for: track.mix, isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id))
             sampleEngine.setTrackMix(
                 trackID: track.id,
-                level: track.mix.clampedLevel,
-                pan: track.mix.clampedPan
+                level: mix.isMuted ? 0 : mix.clampedLevel,
+                pan: mix.clampedPan
             )
         }
 
@@ -1540,34 +1593,6 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private static func noteEvent(from generated: GeneratedNote) -> NoteEvent {
-        NoteEvent(
-            pitch: UInt8(min(max(generated.pitch, 0), 127)),
-            velocity: UInt8(min(max(generated.velocity, 0), 127)),
-            length: UInt16(min(max(generated.length, 0), Int(UInt16.max))),
-            gate: true,
-            voiceTag: generated.voiceTag,
-            sliceParameters: generated.sliceParameters
-        )
-    }
-
-    private static func generatorBlockID(for trackID: UUID) -> BlockID {
-        "gen-\(trackID.uuidString.lowercased())"
-    }
-
-    private static func midiOutBlockID(for trackID: UUID) -> BlockID {
-        "out-\(trackID.uuidString.lowercased())"
-    }
-
-    private static func pipelineShape(for documentModel: Project) -> [PipelineEntry] {
-        documentModel.tracks.map {
-            PipelineEntry(
-                trackID: $0.id,
-                output: Self.effectiveDestination(for: $0.id, in: documentModel).destination.kind
-            )
-        }
-    }
-
     private func flushAllPendingMIDINoteOffs(now: TimeInterval) {
         let midiOutBlocks = withStateLock { Array(midiOutBlocksByTrackID.values) }
         midiOutBlocks.forEach { $0.flushPendingNoteOffs(now: now) }
@@ -1619,80 +1644,6 @@ final class EngineController: RouterDispatcher {
             for destination in detachedRoutedDestinations {
                 routeMidiOutputs.removeValue(forKey: destination)
             }
-        }
-    }
-
-    private static func routedMIDIDestination(from route: Route) -> Destination? {
-        guard case let .midi(port, channel, noteOffset) = route.destination else {
-            return nil
-        }
-
-        return .midi(port: port, channel: channel, noteOffset: noteOffset)
-    }
-
-    private static func transportString(for tickIndex: UInt64, stepsPerBar: Int) -> String {
-        let zeroBasedTick = Int(tickIndex)
-        let bar = zeroBasedTick / stepsPerBar + 1
-        let stepsPerBeat = max(1, stepsPerBar / 4)
-        let beat = (zeroBasedTick % stepsPerBar) / stepsPerBeat + 1
-        let step = zeroBasedTick % stepsPerBeat + 1
-        return "\(bar):\(beat):\(step)"
-    }
-
-    private static func effectiveDestination(for trackID: UUID, in documentModel: Project) -> (destination: Destination, pitchOffset: Int) {
-        guard let track = documentModel.tracks.first(where: { $0.id == trackID }) else {
-            return (.none, 0)
-        }
-
-        if case .inheritGroup = track.destination {
-            guard let groupID = track.groupID,
-                  let group = documentModel.trackGroups.first(where: { $0.id == groupID }),
-                  let sharedDestination = group.sharedDestination
-            else {
-                return (.none, 0)
-            }
-
-            return (sharedDestination, group.noteMapping[trackID] ?? 0)
-        }
-
-        return (track.destination, 0)
-    }
-
-    private static func audioOutputKey(for track: StepSequenceTrack, in documentModel: Project) -> AudioOutputKey? {
-        let (destination, _) = effectiveDestination(for: track.id, in: documentModel)
-        guard case .auInstrument = destination else {
-            return nil
-        }
-        if case .inheritGroup = track.destination,
-           let groupID = track.groupID
-        {
-            return .group(groupID)
-        }
-        return .track(track.id)
-    }
-
-    private static func shifted(_ notes: [NoteEvent], by semitones: Int) -> [NoteEvent] {
-        guard semitones != 0 else {
-            return notes
-        }
-
-        return notes.map { note in
-            let shiftedPitch = min(max(Int(note.pitch) + semitones, 0), 127)
-            return NoteEvent(
-                pitch: UInt8(shiftedPitch),
-                velocity: note.velocity,
-                length: note.length,
-                gate: note.gate,
-                voiceTag: note.voiceTag,
-                sliceParameters: note.sliceParameters
-            )
-        }
-    }
-
-    private static func uniqueHosts(_ hosts: [TrackPlaybackSink]) -> [TrackPlaybackSink] {
-        var seen: Set<ObjectIdentifier> = []
-        return hosts.filter { host in
-            seen.insert(ObjectIdentifier(host)).inserted
         }
     }
 
