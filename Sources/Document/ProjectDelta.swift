@@ -2,6 +2,7 @@ import Foundation
 
 enum ProjectDelta: Equatable, Hashable {
     case trackMixChanged(trackID: UUID, mix: TrackMixSettings)
+    case mixerBusMixChanged(busID: UUID, mix: BusMixSettings)
     case selectedTrackChanged(trackID: UUID)
 
     case trackDestinationChanged(trackID: UUID, destination: Destination)
@@ -20,6 +21,7 @@ enum ProjectDelta: Equatable, Hashable {
     var isPhaseOneHotPath: Bool {
         switch self {
         case .trackMixChanged,
+             .mixerBusMixChanged,
              .selectedTrackChanged,
              .masterBusChanged,
              .patternBanksChanged,

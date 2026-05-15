@@ -44,8 +44,24 @@ extension Project {
             deltas.append(.routesChanged)
         }
 
-        if buses != previous.buses {
+        if buses.map(\.id) != previous.buses.map(\.id) {
             deltas.append(.busesChanged)
+        } else {
+            var hasStructuralBusChange = false
+            for bus in buses {
+                guard let previousBus = previous.buses.first(where: { $0.id == bus.id }) else {
+                    continue
+                }
+                if bus.mix != previousBus.mix {
+                    deltas.append(.mixerBusMixChanged(busID: bus.id, mix: bus.mix))
+                }
+                if bus.changedOutsideMix(comparedTo: previousBus) {
+                    hasStructuralBusChange = true
+                }
+            }
+            if hasStructuralBusChange {
+                deltas.append(.busesChanged)
+            }
         }
 
         if masterBus != previous.masterBus {
@@ -84,5 +100,14 @@ private extension StepSequenceTrack {
         outputBusID != previous.outputBusID ||
         velocity != previous.velocity ||
         gateLength != previous.gateLength
+    }
+}
+
+private extension MixerBus {
+    func changedOutsideMix(comparedTo previous: MixerBus) -> Bool {
+        id != previous.id ||
+        name != previous.name ||
+        color != previous.color ||
+        inserts != previous.inserts
     }
 }

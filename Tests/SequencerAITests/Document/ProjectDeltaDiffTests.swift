@@ -86,6 +86,33 @@ final class ProjectDeltaDiffTests: XCTestCase {
         XCTAssertFalse(ProjectDelta.busesChanged.isPhaseOneHotPath)
     }
 
+    func test_mixer_bus_mix_change_produces_scoped_mix_delta() {
+        var before = Project.empty
+        let busID = before.addMixerBus(name: "Drums")
+        var after = before
+        after.updateMixerBusMix(id: busID) { mix in
+            mix.level = 0.5
+            mix.pan = -0.25
+            mix.isMuted = true
+            mix.isSoloed = true
+        }
+
+        XCTAssertEqual(
+            after.deltas(from: before),
+            [.mixerBusMixChanged(busID: busID, mix: after.buses[0].mix)]
+        )
+        XCTAssertTrue(ProjectDelta.mixerBusMixChanged(busID: busID, mix: after.buses[0].mix).isPhaseOneHotPath)
+    }
+
+    func test_mixer_bus_name_change_stays_structural_delta() {
+        var before = Project.empty
+        let busID = before.addMixerBus(name: "Drums")
+        var after = before
+        after.renameMixerBus(id: busID, name: "Percussion")
+
+        XCTAssertEqual(after.deltas(from: before), [.busesChanged])
+    }
+
     func test_track_output_bus_change_produces_trackParameterChanged() {
         var before = Project.empty
         let busID = before.addMixerBus(name: "Drums")

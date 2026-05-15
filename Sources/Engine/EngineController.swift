@@ -443,6 +443,16 @@ final class EngineController: RouterDispatcher {
         )
     }
 
+    /// Scoped bus mix update for performance-time bus controls. Phase 1 does not
+    /// yet route audio through custom busses, so this keeps engine document state
+    /// coherent without rebuilding the document-model pipeline.
+    func setMixerBusMix(busID: UUID, mix: BusMixSettings) {
+        guard let index = currentDocumentModel.buses.firstIndex(where: { $0.id == busID }) else {
+            return
+        }
+        currentDocumentModel.buses[index].mix = mix.normalized()
+    }
+
     var registeredKindIDs: [String] {
         registry.kinds().map(\.id)
     }
@@ -664,6 +674,9 @@ final class EngineController: RouterDispatcher {
                 if trackID == documentModel.selectedTrackID {
                     currentTrackMix = mix
                 }
+
+            case let .mixerBusMixChanged(busID, mix):
+                setMixerBusMix(busID: busID, mix: mix)
 
             case let .selectedTrackChanged(trackID):
                 let selectedTrack = documentModel.tracks.first(where: { $0.id == trackID }) ?? documentModel.selectedTrack

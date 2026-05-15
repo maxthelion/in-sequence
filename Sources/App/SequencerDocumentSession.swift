@@ -175,6 +175,8 @@ final class SequencerDocumentSession {
             engineController.writeStateBlob(blob, for: trackID)
         case let .mix(trackID, mix):
             engineController.setMix(trackID: trackID, mix: mix)
+        case let .mixerBusMix(busID, mix):
+            engineController.setMixerBusMix(busID: busID, mix: mix)
         case let .masterBus(masterBus):
             engineController.apply(masterBus: masterBus)
         }
@@ -223,7 +225,7 @@ final class SequencerDocumentSession {
             bus.mix = mix
         }
         guard changed else { return }
-        applyDocumentModelMutation()
+        applyMixerBusMixPerformanceMutation(busID: busID)
     }
 
     func setMixerBusLevel(_ level: Double, busID: UUID) {
@@ -258,12 +260,14 @@ final class SequencerDocumentSession {
             track.mix.isSoloed = soloed
         }
         guard changed else { return }
-        applyDocumentModelMutation()
+        applyTrackMixPerformanceMutation(trackID: trackID)
     }
 
     func clearAllSolo() {
+        let soloedTrackIDs = store.tracks.filter { $0.mix.isSoloed }.map(\.id)
+        let soloedBusIDs = store.buses.filter { $0.mix.isSoloed }.map(\.id)
         guard store.clearAllSolo() else { return }
-        applyDocumentModelMutation()
+        applySoloClearPerformanceMutation(trackIDs: soloedTrackIDs, busIDs: soloedBusIDs)
     }
 
     @discardableResult
@@ -280,7 +284,43 @@ final class SequencerDocumentSession {
             update(&bus.mix)
         }
         guard changed else { return }
-        applyDocumentModelMutation()
+        applyMixerBusMixPerformanceMutation(busID: busID)
+    }
+
+    private func applyMixerBusMixPerformanceMutation(busID: UUID) {
+        guard let bus = store.buses.first(where: { $0.id == busID }) else { return }
+        revision = store.revision
+        dispatchScopedRuntimeUpdate(.mixerBusMix(busID: busID, mix: bus.mix))
+        scheduleFlushToDocument()
+    }
+
+    private func applyTrackMixPerformanceMutation(trackID: UUID) {
+        guard let track = store.tracks.first(where: { $0.id == trackID }) else { return }
+        revision = store.revision
+        engineController.setMix(trackID: trackID, mix: track.mix)
+        publishSnapshot(changed: .track(trackID))
+        scheduleFlushToDocument()
+    }
+
+    private func applySoloClearPerformanceMutation(trackIDs: [UUID], busIDs: [UUID]) {
+        revision = store.revision
+
+        var snapshotChange = SnapshotChange.none
+        for trackID in trackIDs {
+            guard let track = store.tracks.first(where: { $0.id == trackID }) else { continue }
+            engineController.setMix(trackID: trackID, mix: track.mix)
+            snapshotChange.formUnion(.track(trackID))
+        }
+
+        for busID in busIDs {
+            guard let bus = store.buses.first(where: { $0.id == busID }) else { continue }
+            dispatchScopedRuntimeUpdate(.mixerBusMix(busID: busID, mix: bus.mix))
+        }
+
+        if snapshotChange.requiresPlaybackSnapshotInstall {
+            publishSnapshot(changed: snapshotChange)
+        }
+        scheduleFlushToDocument()
     }
 
     private func applyDocumentModelMutation() {

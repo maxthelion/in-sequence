@@ -12,6 +12,8 @@ enum ScopedRuntimeUpdate: Sendable {
     case auState(trackID: UUID, blob: Data?)
     /// Update mix settings for a single track (general-consumer path).
     case mix(trackID: UUID, mix: TrackMixSettings)
+    /// Update bus mix state without rebuilding the document-model pipeline.
+    case mixerBusMix(busID: UUID, mix: BusMixSettings)
     /// Update master bus scene/end-of-chain state without rebuilding playback.
     case masterBus(MasterBusState)
 }
