@@ -1,5 +1,57 @@
 import SwiftUI
 
+enum TrackSourceSlotWellTabAccentToken: Equatable {
+    case trackAccent
+    case success
+    case violet
+    case amber
+    case border
+
+    func color(trackAccent: Color) -> Color {
+        switch self {
+        case .trackAccent:
+            return trackAccent
+        case .success:
+            return StudioTheme.success
+        case .violet:
+            return StudioTheme.violet
+        case .amber:
+            return StudioTheme.amber
+        case .border:
+            return StudioTheme.border
+        }
+    }
+}
+
+struct TrackSourceSlotWellTabAccentPresentation: Equatable {
+    let badge: TrackSourceSlotWellTabAccentToken
+    let selected: TrackSourceSlotWellTabAccentToken
+
+    static func source(for state: TrackSourceSourceDisplayState) -> TrackSourceSlotWellTabAccentPresentation {
+        switch state {
+        case .occupiedClip:
+            return TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
+        case .occupiedGenerator:
+            return TrackSourceSlotWellTabAccentPresentation(badge: .trackAccent, selected: .trackAccent)
+        case .empty:
+            return TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .border)
+        }
+    }
+
+    static func modifier(for state: TrackSourceModifierDisplayState) -> TrackSourceSlotWellTabAccentPresentation {
+        switch state {
+        case .occupied:
+            return TrackSourceSlotWellTabAccentPresentation(badge: .violet, selected: .violet)
+        case .bypassed:
+            return TrackSourceSlotWellTabAccentPresentation(badge: .amber, selected: .amber)
+        case .empty:
+            return TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .violet)
+        case .unavailable:
+            return TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .border)
+        }
+    }
+}
+
 struct TrackSourceSlotWellTabBar: View {
     @Binding var selectedTab: TrackSourceEditorTab
     let sourceState: TrackSourceSourceDisplayState
@@ -12,21 +64,21 @@ struct TrackSourceSlotWellTabBar: View {
                 tab: .source,
                 title: "Source",
                 badgeTitle: sourceState.badgeTitle,
-                badgeAccent: sourceBadgeAccent
+                accentPresentation: sourceAccentPresentation
             )
 
             slotButton(
                 tab: .modifiers,
                 title: "Modifier",
                 badgeTitle: modifierState.badgeTitle,
-                badgeAccent: modifierBadgeAccent
+                accentPresentation: modifierAccentPresentation
             )
 
             slotButton(
                 tab: .clipHistory,
                 title: "Clip History",
                 badgeTitle: "Capture",
-                badgeAccent: StudioTheme.success
+                accentPresentation: TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
             )
         }
         .padding(.horizontal, 10)
@@ -36,9 +88,11 @@ struct TrackSourceSlotWellTabBar: View {
         tab: TrackSourceEditorTab,
         title: String,
         badgeTitle: String,
-        badgeAccent: Color
+        accentPresentation: TrackSourceSlotWellTabAccentPresentation
     ) -> some View {
         let isSelected = selectedTab == tab
+        let badgeAccent = accentPresentation.badge.color(trackAccent: accent)
+        let selectedAccent = accentPresentation.selected.color(trackAccent: accent)
 
         return Button {
             selectedTab = tab
@@ -58,18 +112,18 @@ struct TrackSourceSlotWellTabBar: View {
                 .padding(.horizontal, 12)
 
                 Rectangle()
-                    .fill(isSelected ? badgeAccent : Color.clear)
+                    .fill(isSelected ? selectedAccent : Color.clear)
                     .frame(height: 2)
             }
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .background(
-                (isSelected ? badgeAccent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)),
+                (isSelected ? selectedAccent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .stroke(
-                        isSelected ? badgeAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
+                        isSelected ? selectedAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
                         lineWidth: isSelected ? 1.5 : 1
                     )
             )
@@ -78,26 +132,12 @@ struct TrackSourceSlotWellTabBar: View {
         .buttonStyle(.plain)
     }
 
-    private var sourceBadgeAccent: Color {
-        switch sourceState {
-        case .occupiedClip:
-            return StudioTheme.success
-        case .occupiedGenerator:
-            return accent
-        case .empty:
-            return StudioTheme.border
-        }
+    private var sourceAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
+        TrackSourceSlotWellTabAccentPresentation.source(for: sourceState)
     }
 
-    private var modifierBadgeAccent: Color {
-        switch modifierState {
-        case .occupied:
-            return StudioTheme.violet
-        case .bypassed:
-            return StudioTheme.amber
-        case .empty, .unavailable:
-            return StudioTheme.border
-        }
+    private var modifierAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
+        TrackSourceSlotWellTabAccentPresentation.modifier(for: modifierState)
     }
 
     private func badge(title: String, accent: Color) -> some View {

@@ -232,6 +232,13 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(state.badgeTitle, "N/A")
     }
 
+    func test_emptyModifierTabUsesVioletSelectedAccentWithMutedBadge() {
+        let presentation = TrackSourceSlotWellTabAccentPresentation.modifier(for: .empty)
+
+        XCTAssertEqual(presentation.badge, .border)
+        XCTAssertEqual(presentation.selected, .violet)
+    }
+
     func test_containedModifierPickerRootAndEmptyPoolPresentation() {
         let root = TrackSourceContainedModifierPickerPresentation.resolve(
             step: .root,
