@@ -692,6 +692,7 @@ final class EngineController: RouterDispatcher {
                  .tracksInsertedOrRemoved,
                  .trackGroupsChanged,
                  .routesChanged,
+                 .busesChanged,
                  .phrasesChanged,
                  .layersChanged,
                  .coarseResync:

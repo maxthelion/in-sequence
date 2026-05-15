@@ -44,6 +44,10 @@ extension Project {
             deltas.append(.routesChanged)
         }
 
+        if buses != previous.buses {
+            deltas.append(.busesChanged)
+        }
+
         if masterBus != previous.masterBus {
             deltas.append(.masterBusChanged)
         }
@@ -77,6 +81,7 @@ private extension StepSequenceTrack {
         stepPattern != previous.stepPattern ||
         stepAccents != previous.stepAccents ||
         groupID != previous.groupID ||
+        outputBusID != previous.outputBusID ||
         velocity != previous.velocity ||
         gateLength != previous.gateLength
     }

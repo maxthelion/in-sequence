@@ -281,6 +281,52 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertNotNil(state.abSelection)
     }
 
+    func test_legacyProjectJSONDecodesWithoutMixerBusesRoutingOrSolo() throws {
+        let encoded = try JSONEncoder().encode(Project.empty)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: "buses")
+        var tracks = try XCTUnwrap(object["tracks"] as? [[String: Any]])
+        for index in tracks.indices {
+            tracks[index].removeValue(forKey: "outputBusID")
+            var mix = try XCTUnwrap(tracks[index]["mix"] as? [String: Any])
+            mix.removeValue(forKey: "isSoloed")
+            tracks[index]["mix"] = mix
+        }
+        object["tracks"] = tracks
+        let legacyData = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(Project.self, from: legacyData)
+
+        XCTAssertTrue(decoded.buses.isEmpty)
+        XCTAssertNil(decoded.selectedTrack.outputBusID)
+        XCTAssertFalse(decoded.selectedTrack.mix.isSoloed)
+    }
+
+    func test_mixerBusRoutingAndSoloStateRoundTrips() throws {
+        var project = Project.empty
+        let busID = project.addMixerBus(name: " Drum Stem ", color: " blue ")
+        project.setTrackOutputBus(trackID: project.selectedTrackID, busID: busID)
+        project.setTrackSoloed(true, trackID: project.selectedTrackID)
+        project.updateMixerBusMix(id: busID) { mix in
+            mix.level = 0.62
+            mix.pan = -0.25
+            mix.isMuted = true
+            mix.isSoloed = true
+        }
+        project.buses[0].inserts = [.filter()]
+
+        let decoded = try JSONDecoder().decode(Project.self, from: try JSONEncoder().encode(project))
+
+        XCTAssertEqual(decoded.buses.count, 1)
+        XCTAssertEqual(decoded.buses[0].id, busID)
+        XCTAssertEqual(decoded.buses[0].name, "Drum Stem")
+        XCTAssertEqual(decoded.buses[0].color, "blue")
+        XCTAssertEqual(decoded.buses[0].mix, BusMixSettings(level: 0.62, pan: -0.25, isMuted: true, isSoloed: true))
+        XCTAssertEqual(decoded.buses[0].inserts.count, 1)
+        XCTAssertEqual(decoded.selectedTrack.outputBusID, busID)
+        XCTAssertTrue(decoded.selectedTrack.mix.isSoloed)
+    }
+
     private func decodePersisted(
         _ state: MasterBusState,
         overridingMasterOutputGainWith masterOutputGain: Double

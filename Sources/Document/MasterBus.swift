@@ -760,6 +760,96 @@ struct MasterBusABSelection: Codable, Equatable, Sendable {
     }
 }
 
+typealias MixerBusInsert = MasterBusInsert
+
+struct BusMixSettings: Codable, Equatable, Hashable, Sendable {
+    var level: Double
+    var pan: Double
+    var isMuted: Bool
+    var isSoloed: Bool
+
+    static let `default` = BusMixSettings(level: 1, pan: 0, isMuted: false, isSoloed: false)
+
+    var clampedLevel: Double {
+        min(max(level, 0), 1)
+    }
+
+    var clampedPan: Double {
+        min(max(pan, -1), 1)
+    }
+
+    func normalized() -> BusMixSettings {
+        BusMixSettings(level: clampedLevel, pan: clampedPan, isMuted: isMuted, isSoloed: isSoloed)
+    }
+}
+
+struct MixerBus: Codable, Equatable, Identifiable, Sendable {
+    var id: UUID
+    var name: String
+    var color: String?
+    var mix: BusMixSettings
+    var inserts: [MixerBusInsert]
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        color: String? = nil,
+        mix: BusMixSettings = .default,
+        inserts: [MixerBusInsert] = []
+    ) {
+        self.id = id
+        self.name = Self.normalizedName(name, fallback: "Bus")
+        self.color = Self.normalizedColor(color)
+        self.mix = mix.normalized()
+        self.inserts = Self.normalizedInserts(inserts)
+    }
+
+    func normalized(fallbackName: String) -> MixerBus {
+        MixerBus(
+            id: id,
+            name: Self.normalizedName(name, fallback: fallbackName),
+            color: Self.normalizedColor(color),
+            mix: mix.normalized(),
+            inserts: Self.normalizedInserts(inserts)
+        )
+    }
+
+    static func normalizedName(_ name: String, fallback: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackName = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? (fallbackName.isEmpty ? "Bus" : fallbackName) : trimmed
+    }
+
+    static func normalizedColor(_ color: String?) -> String? {
+        let trimmed = color?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+
+    static func normalizedCollection(_ buses: [MixerBus]) -> [MixerBus] {
+        var seenIDs = Set<UUID>()
+        return buses.enumerated().map { index, bus in
+            var normalized = bus.normalized(fallbackName: "Bus \(index + 1)")
+            if seenIDs.contains(normalized.id) {
+                normalized.id = UUID()
+            }
+            seenIDs.insert(normalized.id)
+            return normalized
+        }
+    }
+
+    private static func normalizedInserts(_ inserts: [MixerBusInsert]) -> [MixerBusInsert] {
+        var seenIDs = Set<UUID>()
+        return inserts.map { insert in
+            var normalized = insert.normalized()
+            if seenIDs.contains(normalized.id) {
+                normalized.id = UUID()
+            }
+            seenIDs.insert(normalized.id)
+            return normalized
+        }
+    }
+}
+
 struct MasterBusInsert: Codable, Equatable, Identifiable, Sendable {
     var id: UUID
     var name: String

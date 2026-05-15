@@ -103,6 +103,9 @@ final class LiveSequencerStore {
     /// Routes, ordered as stored.
     private var storeRoutes: [Route] = []
 
+    /// User-created mixer busses, ordered as stored.
+    private var storeBuses: [MixerBus] = []
+
     /// Master bus end-of-chain scenes and live draft state.
     private var storeMasterBus: MasterBusState = .default
 
@@ -134,6 +137,7 @@ final class LiveSequencerStore {
         storeTrackGroups = project.trackGroups
         storeLayers = project.layers
         storeRoutes = project.routes
+        storeBuses = MixerBus.normalizedCollection(project.buses)
         storeMasterBus = project.masterBus.normalized()
         storeSelectedTrackID = project.selectedTrackID
         storeSelectedPhraseID = project.selectedPhraseID
@@ -189,6 +193,7 @@ final class LiveSequencerStore {
             clipPool: orderedClips,
             layers: storeLayers,
             routes: storeRoutes,
+            buses: storeBuses,
             masterBus: storeMasterBus,
             patternBanks: orderedBanks,
             sliceSetPool: orderedSliceSets,
@@ -448,6 +453,68 @@ final class LiveSequencerStore {
         revision &+= 1
     }
 
+    @discardableResult
+    func appendMixerBus(name: String? = nil, color: String? = nil) -> UUID {
+        var project = exportToProject()
+        let busID = project.addMixerBus(name: name, color: color)
+        let normalized = MixerBus.normalizedCollection(project.buses)
+        guard normalized != storeBuses else {
+            return busID
+        }
+        storeBuses = normalized
+        revision &+= 1
+        return busID
+    }
+
+    @discardableResult
+    func mutateMixerBus(id: UUID, _ update: (inout MixerBus) -> Void) -> Bool {
+        guard let index = storeBuses.firstIndex(where: { $0.id == id }) else {
+            return false
+        }
+        var bus = storeBuses[index]
+        let before = bus
+        update(&bus)
+        bus = bus.normalized(fallbackName: "Bus \(index + 1)")
+        guard bus != before else {
+            return false
+        }
+        storeBuses[index] = bus
+        revision &+= 1
+        return true
+    }
+
+    @discardableResult
+    func clearAllSolo() -> Bool {
+        var changed = false
+        for index in storeTracks.indices where storeTracks[index].mix.isSoloed {
+            storeTracks[index].mix.isSoloed = false
+            changed = true
+        }
+        for index in storeBuses.indices where storeBuses[index].mix.isSoloed {
+            storeBuses[index].mix.isSoloed = false
+            changed = true
+        }
+        guard changed else {
+            return false
+        }
+        revision &+= 1
+        return true
+    }
+
+    @discardableResult
+    func deleteMixerBus(id: UUID) -> [UUID] {
+        guard storeBuses.contains(where: { $0.id == id }) else {
+            return []
+        }
+        let affectedTrackIDs = storeTracks.filter { $0.outputBusID == id }.map(\.id)
+        storeBuses.removeAll { $0.id == id }
+        for index in storeTracks.indices where storeTracks[index].outputBusID == id {
+            storeTracks[index].outputBusID = nil
+        }
+        revision &+= 1
+        return affectedTrackIDs
+    }
+
     /// Replace master bus state. Bumps revision only if the value changed.
     func setMasterBus(_ masterBus: MasterBusState) {
         let normalized = masterBus.normalized()
@@ -514,6 +581,7 @@ final class LiveSequencerStore {
     var trackGroups: [TrackGroup] { storeTrackGroups }
     var layers: [PhraseLayerDefinition] { storeLayers }
     var routes: [Route] { storeRoutes }
+    var buses: [MixerBus] { storeBuses }
     var masterBus: MasterBusState { storeMasterBus }
     var selectedTrackID: UUID { storeSelectedTrackID }
     var selectedPhraseID: UUID { storeSelectedPhraseID }

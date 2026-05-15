@@ -9,6 +9,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var stepAccents: [Bool]
     var destination: Destination
     var groupID: TrackGroupID?
+    var outputBusID: UUID?
     var mix: TrackMixSettings
     var velocity: Int
     var gateLength: Int
@@ -27,6 +28,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case stepAccents
         case destination
         case groupID
+        case outputBusID
         case mix
         case velocity
         case gateLength
@@ -41,8 +43,9 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         pitches: [60, 64, 67, 72],
         stepPattern: Array(repeating: true, count: 16),
         stepAccents: Array(repeating: false, count: 16),
-        destination: .none,
+        destination: Destination.none,
         groupID: nil,
+        outputBusID: nil,
         mix: .default,
         velocity: 100,
         gateLength: 4,
@@ -59,6 +62,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepAccents: [Bool]? = nil,
         destination: Destination? = nil,
         groupID: TrackGroupID? = nil,
+        outputBusID: UUID? = nil,
         mix: TrackMixSettings = .default,
         velocity: Int,
         gateLength: Int,
@@ -73,6 +77,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
         self.destination = destination ?? Project.defaultDestination(for: trackType)
         self.groupID = groupID
+        self.outputBusID = outputBusID
         self.mix = mix
         self.velocity = velocity
         self.gateLength = gateLength
@@ -131,6 +136,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         stepAccents = Self.normalizedAccents(decodedAccents, stepCount: stepPattern.count)
         destination = try container.decode(Destination.self, forKey: .destination)
         groupID = try container.decodeIfPresent(TrackGroupID.self, forKey: .groupID)
+        outputBusID = try container.decodeIfPresent(UUID.self, forKey: .outputBusID)
         mix = try container.decodeIfPresent(TrackMixSettings.self, forKey: .mix) ?? .default
         velocity = try container.decode(Int.self, forKey: .velocity)
         gateLength = try container.decode(Int.self, forKey: .gateLength)
@@ -154,6 +160,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(stepAccents, forKey: .stepAccents)
         try container.encode(destination, forKey: .destination)
         try container.encodeIfPresent(groupID, forKey: .groupID)
+        try container.encodeIfPresent(outputBusID, forKey: .outputBusID)
         try container.encode(mix, forKey: .mix)
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)

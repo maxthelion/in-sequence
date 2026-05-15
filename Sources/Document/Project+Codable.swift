@@ -17,6 +17,7 @@ struct NormalizedFields {
         case clipPool
         case layers
         case routes
+        case buses
         case masterBus
         case patternBanks
         case sliceSetPool
@@ -122,6 +123,9 @@ static func normalize(
         let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
         let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
         let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
+        let resolvedBuses = MixerBus.normalizedCollection(
+            try container.decodeIfPresent([MixerBus].self, forKey: .buses) ?? []
+        )
         let resolvedMasterBus = try container.decodeIfPresent(MasterBusState.self, forKey: .masterBus)?.normalized() ?? .default
         let normalized = Self.normalize(
             tracks: resolvedTracks,
@@ -135,12 +139,13 @@ static func normalize(
         )
 
         version = resolvedVersion
-        tracks = resolvedTracks
+        tracks = Self.tracksByClearingMissingOutputBuses(resolvedTracks, buses: resolvedBuses)
         trackGroups = resolvedTrackGroups
         generatorPool = resolvedGeneratorPool
         clipPool = resolvedClipPool
         layers = normalized.layers
         routes = resolvedRoutes
+        buses = resolvedBuses
         masterBus = resolvedMasterBus
         patternBanks = normalized.patternBanks
         sliceSetPool = try container.decodeIfPresent([SliceSet].self, forKey: .sliceSetPool) ?? []
@@ -159,6 +164,7 @@ static func normalize(
         try container.encode(clipPool, forKey: .clipPool)
         try container.encode(layers, forKey: .layers)
         try container.encode(routes, forKey: .routes)
+        try container.encode(buses, forKey: .buses)
         try container.encode(masterBus.normalized(), forKey: .masterBus)
         try container.encode(patternBanks, forKey: .patternBanks)
         try container.encode(sliceSetPool, forKey: .sliceSetPool)
@@ -200,6 +206,8 @@ static func normalize(
             selectedTrackID = tracks[0].id
         }
         masterBus = masterBus.normalized()
+        buses = MixerBus.normalizedCollection(buses)
+        tracks = Self.tracksByClearingMissingOutputBuses(tracks, buses: buses)
     }
 
     static func defaultPatternBanks(

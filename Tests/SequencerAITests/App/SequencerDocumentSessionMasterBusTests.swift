@@ -258,6 +258,98 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
 
         SequencerDocumentSessionRegistry.unregister(session)
     }
+
+    func test_mixerBusMutations_updateStoreAndFlushThroughDocumentModel() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        let trackID = session.store.selectedTrackID
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+
+        let busID = session.addMixerBus(name: "", color: " red ")
+        session.renameMixerBus(busID, name: " Stems ")
+        session.setMixerBusColor(" blue ", busID: busID)
+        session.setTrackOutputBus(trackID: trackID, busID: busID)
+        session.setMixerBusLevel(0.45, busID: busID)
+        session.setMixerBusPan(-0.3, busID: busID)
+        session.setMixerBusMuted(true, busID: busID)
+        session.setMixerBusSoloed(true, busID: busID)
+        session.setTrackSoloed(true, trackID: trackID)
+
+        let bus = session.store.buses[0]
+        XCTAssertEqual(bus.id, busID)
+        XCTAssertEqual(bus.name, "Stems")
+        XCTAssertEqual(bus.color, "blue")
+        XCTAssertEqual(bus.mix, BusMixSettings(level: 0.45, pan: -0.3, isMuted: true, isSoloed: true))
+        XCTAssertEqual(session.store.selectedTrack.outputBusID, busID)
+        XCTAssertTrue(session.store.selectedTrack.mix.isSoloed)
+        XCTAssertGreaterThan(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertTrue(documentBox.document.project.buses.isEmpty)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.buses.first?.id, busID)
+        XCTAssertEqual(documentBox.document.project.selectedTrack.outputBusID, busID)
+        XCTAssertTrue(documentBox.document.project.selectedTrack.mix.isSoloed)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_clearAllSolo_clearsTrackAndBusSoloState() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: EngineController(client: nil, endpoint: nil),
+            debounceInterval: .seconds(100)
+        )
+        let trackID = session.store.selectedTrackID
+        let busID = session.addMixerBus(name: "Bus")
+        session.setTrackSoloed(true, trackID: trackID)
+        session.setMixerBusSoloed(true, busID: busID)
+
+        session.clearAllSolo()
+
+        XCTAssertFalse(session.store.selectedTrack.mix.isSoloed)
+        XCTAssertFalse(session.store.buses[0].mix.isSoloed)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_deleteMixerBus_returnsAffectedTracksToMaster() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: EngineController(client: nil, endpoint: nil),
+            debounceInterval: .seconds(100)
+        )
+        let routedTrackID = session.store.selectedTrackID
+        let busID = session.addMixerBus(name: "Drums")
+        session.setTrackOutputBus(trackID: routedTrackID, busID: busID)
+
+        let affectedTrackIDs = session.deleteMixerBus(id: busID)
+
+        XCTAssertEqual(affectedTrackIDs, [routedTrackID])
+        XCTAssertTrue(session.store.buses.isEmpty)
+        XCTAssertNil(session.store.selectedTrack.outputBusID)
+
+        session.flushToDocument()
+        XCTAssertTrue(documentBox.document.project.buses.isEmpty)
+        XCTAssertNil(documentBox.document.project.selectedTrack.outputBusID)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
 }
 
 private final class DocumentBox {

@@ -194,4 +194,99 @@ final class SequencerDocumentSession {
         publishSnapshot(changed: .track(trackID))
         scheduleFlushToDocument()
     }
+
+    @discardableResult
+    func addMixerBus(name: String? = nil, color: String? = nil) -> UUID {
+        let busID = store.appendMixerBus(name: name, color: color)
+        applyDocumentModelMutation()
+        return busID
+    }
+
+    func renameMixerBus(_ busID: UUID, name: String) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            bus.name = name
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func setMixerBusColor(_ color: String?, busID: UUID) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            bus.color = MixerBus.normalizedColor(color)
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func setMixerBusMix(busID: UUID, mix: BusMixSettings) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            bus.mix = mix
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func setMixerBusLevel(_ level: Double, busID: UUID) {
+        updateMixerBusMix(busID: busID) { $0.level = level }
+    }
+
+    func setMixerBusPan(_ pan: Double, busID: UUID) {
+        updateMixerBusMix(busID: busID) { $0.pan = pan }
+    }
+
+    func setMixerBusMuted(_ muted: Bool, busID: UUID) {
+        updateMixerBusMix(busID: busID) { $0.isMuted = muted }
+    }
+
+    func setMixerBusSoloed(_ soloed: Bool, busID: UUID) {
+        updateMixerBusMix(busID: busID) { $0.isSoloed = soloed }
+    }
+
+    func setTrackOutputBus(trackID: UUID, busID: UUID?) {
+        guard busID == nil || store.buses.contains(where: { $0.id == busID }) else {
+            return
+        }
+        let changed = store.mutateTrack(id: trackID) { track in
+            track.outputBusID = busID
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func setTrackSoloed(_ soloed: Bool, trackID: UUID) {
+        let changed = store.mutateTrack(id: trackID) { track in
+            track.mix.isSoloed = soloed
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func clearAllSolo() {
+        guard store.clearAllSolo() else { return }
+        applyDocumentModelMutation()
+    }
+
+    @discardableResult
+    func deleteMixerBus(id: UUID) -> [UUID] {
+        let existed = store.buses.contains { $0.id == id }
+        let affectedTrackIDs = store.deleteMixerBus(id: id)
+        guard existed else { return [] }
+        applyDocumentModelMutation()
+        return affectedTrackIDs
+    }
+
+    private func updateMixerBusMix(busID: UUID, _ update: (inout BusMixSettings) -> Void) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            update(&bus.mix)
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    private func applyDocumentModelMutation() {
+        revision = store.revision
+        engineController.apply(documentModel: store.exportToProject())
+        snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
+        scheduleFlushToDocument()
+    }
 }

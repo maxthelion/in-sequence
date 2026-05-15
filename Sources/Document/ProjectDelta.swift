@@ -9,6 +9,7 @@ enum ProjectDelta: Equatable, Hashable {
     case tracksInsertedOrRemoved
     case trackGroupsChanged
     case routesChanged
+    case busesChanged
     case masterBusChanged
     case patternBanksChanged
     case phrasesChanged
@@ -30,6 +31,7 @@ enum ProjectDelta: Equatable, Hashable {
              .tracksInsertedOrRemoved,
              .trackGroupsChanged,
              .routesChanged,
+             .busesChanged,
              .layersChanged,
              .coarseResync:
             return false
