@@ -946,7 +946,8 @@ final class EngineController: RouterDispatcher {
         routedMIDINotes = [:]
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         let trackInputs = playbackSnapshot.tracks.compactMap { track -> RouterTickInput? in
-            guard !currentLayerSnapshot.isMuted(track.id),
+            guard !effectiveMutedTrackIDs.contains(track.id),
+                  !currentLayerSnapshot.isMuted(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"]
             else {
@@ -956,7 +957,7 @@ final class EngineController: RouterDispatcher {
             return RouterTickInput(sourceTrack: track.id, notes: events, chordContext: nil)
         }
         router.tick(trackInputs)
-        flushRoutedEvents(bpm: executor.currentBPM, snapshot: playbackSnapshot)
+        flushRoutedEvents(bpm: executor.currentBPM, snapshot: playbackSnapshot, effectiveMutedTrackIDs: effectiveMutedTrackIDs)
     }
 
     private func dispatchTick() {
@@ -1046,6 +1047,7 @@ final class EngineController: RouterDispatcher {
         var generatorIDs: [UUID: BlockID] = [:]
         var midiOutBlocks: [UUID: MidiOut] = [:]
         var audioRuntimes: [UUID: AudioTrackRuntime] = [:]
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
 
         for track in documentModel.tracks {
             let (effectiveDestination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
@@ -1064,7 +1066,7 @@ final class EngineController: RouterDispatcher {
                         "noteOffset": .number(Double(noteOffset + pitchOffset))
                     ],
                     client: midiClient,
-                    endpoint: track.mix.isMuted ? nil : (port.flatMap(resolveEndpoint(named:)))
+                    endpoint: effectiveMuteState.mutedTrackIDs.contains(track.id) ? nil : (port.flatMap(resolveEndpoint(named:)))
                 )
                 blocks[midiOutBlockID] = midiOut
                 wiring[midiOutBlockID] = ["notes": (generatorBlockID, "notes")]
@@ -1108,9 +1110,9 @@ final class EngineController: RouterDispatcher {
         currentTrackMix = documentModel.selectedTrack.mix
     }
 
-    private func flushRoutedEvents(bpm: Double, snapshot: PlaybackSnapshot) {
+    private func flushRoutedEvents(bpm: Double, snapshot: PlaybackSnapshot, effectiveMutedTrackIDs: Set<UUID>) {
         for (destination, notes) in routedNoteEvents where !notes.isEmpty {
-            flushRoutedNotes(notes, to: destination, bpm: bpm, snapshot: snapshot)
+            flushRoutedNotes(notes, to: destination, bpm: bpm, snapshot: snapshot, effectiveMutedTrackIDs: effectiveMutedTrackIDs)
         }
 
         let midiDestinationsToTick = Set(routeMidiOutputs.keys).union(routedMIDINotes.keys)
@@ -1153,7 +1155,13 @@ final class EngineController: RouterDispatcher {
     // Phase 1b: `snapshot` is passed from `prepareTick` so this function reads
     // snapshot-carried tracks rather than `currentDocumentModel.tracks`.
     // `currentDocumentModel` is not read on the tick path.
-    private func flushRoutedNotes(_ notes: [NoteEvent], to destination: RouteDestination, bpm: Double, snapshot: PlaybackSnapshot) {
+    private func flushRoutedNotes(
+        _ notes: [NoteEvent],
+        to destination: RouteDestination,
+        bpm: Double,
+        snapshot: PlaybackSnapshot,
+        effectiveMutedTrackIDs: Set<UUID>
+    ) {
         switch destination {
         case let .midi(port, channel, noteOffset):
             let adjustedNotes = notes.map { note in
@@ -1174,16 +1182,32 @@ final class EngineController: RouterDispatcher {
             guard let track = snapshot.tracks.first(where: { $0.id == trackID }) else {
                 return
             }
-            let (destination, pitchOffset) = effectiveDestination(for: trackID)
-            flushConcreteDestination(destination, notes: notes, bpm: bpm, pitchOffset: pitchOffset, track: track)
+            let resolved = snapshot.resolvedDestination(for: trackID)
+            flushConcreteDestination(
+                resolved.destination,
+                notes: notes,
+                bpm: bpm,
+                pitchOffset: resolved.pitchOffset,
+                track: track,
+                snapshot: snapshot,
+                effectiveMutedTrackIDs: effectiveMutedTrackIDs
+            )
 
         case let .trackInput(trackID, tag):
             guard let track = snapshot.tracks.first(where: { $0.id == trackID }) else {
                 return
             }
             _ = tag
-            let (destination, pitchOffset) = effectiveDestination(for: trackID)
-            flushConcreteDestination(destination, notes: notes, bpm: bpm, pitchOffset: pitchOffset, track: track)
+            let resolved = snapshot.resolvedDestination(for: trackID)
+            flushConcreteDestination(
+                resolved.destination,
+                notes: notes,
+                bpm: bpm,
+                pitchOffset: resolved.pitchOffset,
+                track: track,
+                snapshot: snapshot,
+                effectiveMutedTrackIDs: effectiveMutedTrackIDs
+            )
 
         case .chordContext:
             return
@@ -1195,11 +1219,13 @@ final class EngineController: RouterDispatcher {
         notes: [NoteEvent],
         bpm: Double,
         pitchOffset: Int = 0,
-        track: StepSequenceTrack?
+        track: StepSequenceTrack?,
+        snapshot: PlaybackSnapshot,
+        effectiveMutedTrackIDs: Set<UUID>
     ) {
         switch destination {
         case let .midi(port, channel, noteOffset):
-            if let track, isTrackEffectivelyMuted(track.id) {
+            if let track, effectiveMutedTrackIDs.contains(track.id) {
                 return
             }
             guard let port else {
@@ -1211,7 +1237,7 @@ final class EngineController: RouterDispatcher {
 
         case .auInstrument:
             guard let track,
-                  !isTrackEffectivelyMuted(track.id),
+                  !effectiveMutedTrackIDs.contains(track.id),
                   !currentLayerSnapshot.isMuted(track.id),
                   audioOutputsByTrackID[track.id] != nil
             else {
@@ -1232,7 +1258,7 @@ final class EngineController: RouterDispatcher {
 
         case let .slicer(sliceSetID, settings):
             guard let track,
-                  !isTrackEffectivelyMuted(track.id),
+                  !effectiveMutedTrackIDs.contains(track.id),
                   !currentLayerSnapshot.isMuted(track.id)
             else {
                 return
@@ -1242,7 +1268,7 @@ final class EngineController: RouterDispatcher {
                 trackID: track.id,
                 sliceSetID: sliceSetID,
                 settings: settings,
-                snapshot: currentPlaybackSnapshot,
+                snapshot: snapshot,
                 sampleLibrary: sampleLibrary,
                 sampleLibraryRoot: sampleLibraryRoot,
                 stepsPerBar: stepsPerBar,
@@ -1296,10 +1322,6 @@ final class EngineController: RouterDispatcher {
         return midiClient?.destinations.first(where: { $0.displayName == port.displayName })
     }
 
-    private func isTrackEffectivelyMuted(_ trackID: UUID) -> Bool {
-        withStateLock { effectiveMutedTrackIDs.contains(trackID) }
-    }
-
     private func syncTrackParams(for documentModel: Project) {
         // Note injection uses the typed preparedNotesByBlockID path only; no params to sync.
         // Reset generator evaluation state and prepared-tick index so the next prepareTick
@@ -1312,11 +1334,12 @@ final class EngineController: RouterDispatcher {
 
     private func syncMidiOutputs(for documentModel: Project) {
         let midiOutBlocks = withStateLock { midiOutBlocksByTrackID }
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
         for track in documentModel.tracks {
             let (destination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
             let nextEndpoint: MIDIEndpoint?
             if case let .midi(port, channel, noteOffset) = destination,
-               !track.mix.isMuted
+               !effectiveMuteState.mutedTrackIDs.contains(track.id)
             {
                 nextEndpoint = port.flatMap(resolveEndpoint(named:))
                 midiOutBlocks[track.id]?.apply(paramKey: "channel", value: .number(Double(channel)))
@@ -1382,6 +1405,7 @@ final class EngineController: RouterDispatcher {
                 continue
             }
         }
+        syncMidiOutputs(for: documentModel)
 
         for bus in documentModel.buses {
             mainAudioGraph.setMixerBusMix(
@@ -1608,11 +1632,15 @@ final class EngineController: RouterDispatcher {
     ) {
         let previousTracks = Dictionary(uniqueKeysWithValues: previousDocument.tracks.map { ($0.id, $0) })
         let nextTracks = Dictionary(uniqueKeysWithValues: nextDocument.tracks.map { ($0.id, $0) })
+        let previousMuteState = Self.effectiveMixerMuteState(for: previousDocument)
+        let nextMuteState = Self.effectiveMixerMuteState(for: nextDocument)
         let midiOutBlocks = withStateLock { midiOutBlocksByTrackID }
 
         for (trackID, previousTrack) in previousTracks {
             let previousEffective = Self.effectiveDestination(for: trackID, in: previousDocument).destination
-            guard case .midi = previousEffective, !previousTrack.mix.isMuted else {
+            guard case .midi = previousEffective,
+                  !previousMuteState.mutedTrackIDs.contains(previousTrack.id)
+            else {
                 continue
             }
 
@@ -1621,6 +1649,9 @@ final class EngineController: RouterDispatcher {
                 Self.effectiveDestination(for: trackID, in: nextDocument).destination
             }
             let stillTargetsPrimaryMIDI = nextTrack?.mix.isMuted == false && {
+                guard !nextMuteState.mutedTrackIDs.contains(trackID) else {
+                    return false
+                }
                 if case .midi = nextEffective {
                     return true
                 }

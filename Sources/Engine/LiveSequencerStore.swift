@@ -33,6 +33,7 @@ enum LiveMutationImpact: Sendable {
 /// share copy-on-write storage with the store's resident fields until mutated.
 struct LiveSequencerStoreState {
     let tracks: [StepSequenceTrack]
+    let trackGroups: [TrackGroup]
     let generatorPool: [GeneratorPoolEntry]
     let clipPool: [ClipPoolEntry]
     let sliceSetPool: [SliceSet]
@@ -46,6 +47,7 @@ struct LiveSequencerStoreState {
     /// before any document is applied.
     static let empty = LiveSequencerStoreState(
         tracks: [],
+        trackGroups: [],
         generatorPool: [],
         clipPool: [],
         sliceSetPool: [],
@@ -619,6 +621,7 @@ final class LiveSequencerStore {
         let orderedPhrases = storePhraseOrder.compactMap { storePhrasesByID[$0] }
         return LiveSequencerStoreState(
             tracks: storeTracks,
+            trackGroups: storeTrackGroups,
             generatorPool: orderedGenerators,
             clipPool: orderedClips,
             sliceSetPool: orderedSliceSets,

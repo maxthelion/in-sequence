@@ -7,6 +7,11 @@ struct ResolvedTrackPlaybackStep: Equatable, Sendable {
     let macroValues: [UUID: Double]
 }
 
+struct ResolvedTrackDestination: Equatable, Sendable {
+    let destination: Destination
+    let pitchOffset: Int
+}
+
 struct PlaybackSnapshot: Equatable, Sendable {
     // NOTE: `project` has been removed. The tick path reads typed fields only.
     // Phase 1b of the live-store v2 remediation.
@@ -17,6 +22,7 @@ struct PlaybackSnapshot: Equatable, Sendable {
     /// Ordered track list, carried from `LiveSequencerStoreState.tracks`.
     /// The tick path iterates this instead of `currentDocumentModel.tracks` (Phase 1b).
     let tracks: [StepSequenceTrack]
+    let resolvedDestinationsByTrackID: [UUID: ResolvedTrackDestination]
     let trackOrder: [UUID]
     let clipBuffersByID: [UUID: ClipBuffer]
     let trackProgramsByTrackID: [UUID: TrackSourceProgram]
@@ -50,6 +56,10 @@ struct PlaybackSnapshot: Equatable, Sendable {
 
     func sourceProgram(for trackID: UUID) -> TrackSourceProgram? {
         trackProgramsByTrackID[trackID]
+    }
+
+    func resolvedDestination(for trackID: UUID) -> ResolvedTrackDestination {
+        resolvedDestinationsByTrackID[trackID] ?? ResolvedTrackDestination(destination: .none, pitchOffset: 0)
     }
 
     func resolvedStep(

@@ -4,6 +4,173 @@ import XCTest
 @testable import SequencerAI
 
 final class EngineControllerMuteTests: XCTestCase {
+    func test_trackSoloEffectiveMute_suppressesPrimaryAndRoutedMIDIForMutedSource() throws {
+        let primaryPackets = LockedMIDIPacketStore()
+        let routedPackets = LockedMIDIPacketStore()
+        let primaryObserver = try MIDIClient(name: "SequencerAI_EffectiveMute_Primary_Observer")
+        let primaryDestination = try primaryObserver.createVirtualInput(name: "SequencerAI Effective Mute Primary") { packetList in
+            primaryPackets.append(packetList)
+        }
+        let routedObserver = try MIDIClient(name: "SequencerAI_EffectiveMute_Routed_Observer")
+        let routedDestination = try routedObserver.createVirtualInput(name: "SequencerAI Effective Mute Routed") { packetList in
+            routedPackets.append(packetList)
+        }
+        let producer = try MIDIClient(name: "SequencerAI_EffectiveMute_Producer")
+        let controller = EngineController(client: producer, endpoint: primaryDestination)
+
+        let sourceTrack = StepSequenceTrack(
+            id: UUID(uuidString: "51515151-5151-5151-5151-515151515151")!,
+            name: "Muted Source",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            velocity: 100,
+            gateLength: 2
+        )
+        var soloedTrack = StepSequenceTrack(
+            id: UUID(uuidString: "52525252-5252-5252-5252-525252525252")!,
+            name: "Soloed Track",
+            pitches: [72],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .none,
+            velocity: 100,
+            gateLength: 2
+        )
+        soloedTrack.mix.isSoloed = true
+
+        let project = Self.routingProject(
+            tracks: [sourceTrack, soloedTrack],
+            routeDestination: .midi(
+                port: MIDIEndpointName(displayName: routedDestination.displayName, isVirtual: false),
+                channel: 0,
+                noteOffset: 0
+            )
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        waitForNoNoteOns(primaryPackets)
+        waitForNoNoteOns(routedPackets)
+        XCTAssertTrue(primaryPackets.noteOnPackets.isEmpty)
+        XCTAssertTrue(routedPackets.noteOnPackets.isEmpty)
+    }
+
+    func test_soloedBusEffectiveMute_suppressesPrimaryAndRoutedMIDIForMutedSource() throws {
+        let primaryPackets = LockedMIDIPacketStore()
+        let routedPackets = LockedMIDIPacketStore()
+        let primaryObserver = try MIDIClient(name: "SequencerAI_BusMute_Primary_Observer")
+        let primaryDestination = try primaryObserver.createVirtualInput(name: "SequencerAI Bus Mute Primary") { packetList in
+            primaryPackets.append(packetList)
+        }
+        let routedObserver = try MIDIClient(name: "SequencerAI_BusMute_Routed_Observer")
+        let routedDestination = try routedObserver.createVirtualInput(name: "SequencerAI Bus Mute Routed") { packetList in
+            routedPackets.append(packetList)
+        }
+        let producer = try MIDIClient(name: "SequencerAI_BusMute_Producer")
+        let controller = EngineController(client: producer, endpoint: primaryDestination)
+
+        let busID = UUID(uuidString: "53535353-5353-5353-5353-535353535353")!
+        let sourceTrack = StepSequenceTrack(
+            id: UUID(uuidString: "54545454-5454-5454-5454-545454545454")!,
+            name: "Muted Source",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            velocity: 100,
+            gateLength: 2
+        )
+        let busTrack = StepSequenceTrack(
+            id: UUID(uuidString: "55555555-5555-5555-5555-555555555555")!,
+            name: "Bus Member",
+            pitches: [72],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .none,
+            outputBusID: busID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let soloedBus = MixerBus(
+            id: busID,
+            name: "Solo Bus",
+            mix: BusMixSettings(level: 1, pan: 0, isMuted: false, isSoloed: true)
+        )
+        let project = Self.routingProject(
+            tracks: [sourceTrack, busTrack],
+            routeDestination: .midi(
+                port: MIDIEndpointName(displayName: routedDestination.displayName, isVirtual: false),
+                channel: 0,
+                noteOffset: 0
+            ),
+            buses: [soloedBus]
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        waitForNoNoteOns(primaryPackets)
+        waitForNoNoteOns(routedPackets)
+        XCTAssertTrue(primaryPackets.noteOnPackets.isEmpty)
+        XCTAssertTrue(routedPackets.noteOnPackets.isEmpty)
+    }
+
+    func test_routedVoicingDestinationUsesPlaybackSnapshotInsteadOfCurrentDocumentModel() throws {
+        let routedPackets = LockedMIDIPacketStore()
+        let routedObserver = try MIDIClient(name: "SequencerAI_SnapshotDestination_Routed_Observer")
+        let routedDestination = try routedObserver.createVirtualInput(name: "SequencerAI Snapshot Destination Routed") { packetList in
+            routedPackets.append(packetList)
+        }
+        let producer = try MIDIClient(name: "SequencerAI_SnapshotDestination_Producer")
+        let controller = EngineController(client: producer, endpoint: nil)
+
+        let sourceTrack = StepSequenceTrack(
+            id: UUID(uuidString: "56565656-5656-5656-5656-565656565656")!,
+            name: "Source",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .none,
+            velocity: 100,
+            gateLength: 2
+        )
+        let currentTarget = StepSequenceTrack(
+            id: UUID(uuidString: "57575757-5757-5757-5757-575757575757")!,
+            name: "Snapshot Target",
+            pitches: [72],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .none,
+            velocity: 100,
+            gateLength: 2
+        )
+        var snapshotTarget = currentTarget
+        snapshotTarget.destination = .midi(
+            port: MIDIEndpointName(displayName: routedDestination.displayName, isVirtual: false),
+            channel: 0,
+            noteOffset: 0
+        )
+
+        let currentProject = Self.routingProject(
+            tracks: [sourceTrack, currentTarget],
+            routeDestination: .voicing(currentTarget.id)
+        )
+        let snapshotProject = Self.routingProject(
+            tracks: [sourceTrack, snapshotTarget],
+            routeDestination: .voicing(currentTarget.id)
+        )
+
+        controller.apply(documentModel: currentProject)
+        controller.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(project: snapshotProject))
+        controller.processTick(tickIndex: 0, now: 0)
+
+        waitForNoteOnCount(routedPackets, expected: 1)
+        XCTAssertEqual(routedPackets.noteOnPackets.first, [0x90, 60, 100])
+    }
+
     func test_phraseMuteCell_suppresses_directAudioAndRoutedMIDIForMutedTrack() throws {
         let routedPackets = LockedMIDIPacketStore()
         let routedObserver = try MIDIClient(name: "SequencerAI_Mute_Routed_Observer")
@@ -114,6 +281,51 @@ final class EngineControllerMuteTests: XCTestCase {
         waitForNoteOnCount(routedPackets, expected: 0, timeout: 0.1)
         XCTAssertTrue(routedPackets.noteOnPackets.isEmpty)
     }
+
+    private static func routingProject(
+        tracks: [StepSequenceTrack],
+        routeDestination: RouteDestination,
+        buses: [MixerBus] = []
+    ) -> Project {
+        let generators = tracks.map { track in
+            monoGeneratorEntry(
+                id: UUID(),
+                name: "\(track.name) Program",
+                trackType: track.trackType,
+                pattern: track.stepPattern,
+                pitch: track.pitches.first ?? 60,
+                velocity: Int(track.velocity),
+                gateLength: track.gateLength
+            )
+        }
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(
+            tracks: tracks,
+            layers: layers,
+            generatorPool: generators,
+            clipPool: []
+        )
+        let patternBanks = zip(tracks, generators).map { track, generator in
+            TrackPatternBank(
+                trackID: track.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+            )
+        }
+
+        return Project(
+            version: 1,
+            tracks: tracks,
+            generatorPool: generators,
+            clipPool: [],
+            layers: layers,
+            routes: [Route(source: .track(tracks[0].id), destination: routeDestination)],
+            buses: buses,
+            patternBanks: patternBanks,
+            selectedTrackID: tracks[0].id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+    }
 }
 
 private final class CapturingAudioSink: TrackPlaybackSink {
@@ -191,6 +403,13 @@ private func waitForNoteOnCount(
     while store.noteOnPackets.count < expected && Date() < deadline {
         RunLoop.current.run(until: Date().addingTimeInterval(0.01))
     }
+}
+
+private func waitForNoNoteOns(
+    _ store: LockedMIDIPacketStore,
+    timeout: TimeInterval = 0.1
+) {
+    RunLoop.current.run(until: Date().addingTimeInterval(timeout))
 }
 
 private func monoGeneratorEntry(

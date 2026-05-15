@@ -10,6 +10,7 @@ enum SequencerSnapshotCompiler {
     /// this overload so that `exportToProject()` is NOT called on each mutation.
     static func compile(state: LiveSequencerStoreState) -> PlaybackSnapshot {
         let trackOrder = state.tracks.map(\.id)
+        let resolvedDestinations = compileResolvedDestinations(tracks: state.tracks, trackGroups: state.trackGroups)
         let clipOwnerByID = makeClipOwnerMap(patternBanks: state.patternBanksByTrackID)
         let clipBuffers = Dictionary(uniqueKeysWithValues: state.clipPool.map { clip in
             (clip.id, compileClipBuffer(for: clip, tracks: state.tracks, ownerTrackID: clipOwnerByID[clip.id]))
@@ -28,6 +29,7 @@ enum SequencerSnapshotCompiler {
             sliceSetPool: state.sliceSetPool,
             generatorPool: state.generatorPool,
             tracks: state.tracks,
+            resolvedDestinationsByTrackID: resolvedDestinations,
             trackOrder: trackOrder,
             clipBuffersByID: clipBuffers,
             trackProgramsByTrackID: trackPrograms,
@@ -48,6 +50,7 @@ enum SequencerSnapshotCompiler {
         }
 
         let tracks = replacingTracks(in: previous.tracks, from: state, changedTrackIDs: changed.trackIDs)
+        let resolvedDestinations = compileResolvedDestinations(tracks: tracks, trackGroups: state.trackGroups)
         let clipPool = replacingClips(in: previous.clipPool, from: state, changedClipIDs: changed.clipIDs)
         let generatorPool = replacingGenerators(in: previous.generatorPool, from: state, changedGeneratorIDs: changed.generatorIDs)
         let sliceSetPool = replacingSliceSets(in: previous.sliceSetPool, from: state, changedSliceSetIDs: changed.sliceSetIDs)
@@ -120,6 +123,7 @@ enum SequencerSnapshotCompiler {
             sliceSetPool: sliceSetPool,
             generatorPool: generatorPool,
             tracks: tracks,
+            resolvedDestinationsByTrackID: resolvedDestinations,
             trackOrder: previous.trackOrder,
             clipBuffersByID: clipBuffersByID,
             trackProgramsByTrackID: trackProgramsByTrackID,
@@ -143,6 +147,7 @@ enum SequencerSnapshotCompiler {
         let phrasesByID = Dictionary(uniqueKeysWithValues: project.phrases.map { ($0.id, $0) })
         let state = LiveSequencerStoreState(
             tracks: project.tracks,
+            trackGroups: project.trackGroups,
             generatorPool: project.generatorPool,
             clipPool: project.clipPool,
             sliceSetPool: project.sliceSetPool,
@@ -175,6 +180,32 @@ enum SequencerSnapshotCompiler {
             }
         }
         return result
+    }
+
+    private static func compileResolvedDestinations(
+        tracks: [StepSequenceTrack],
+        trackGroups: [TrackGroup]
+    ) -> [UUID: ResolvedTrackDestination] {
+        Dictionary(uniqueKeysWithValues: tracks.map { track in
+            if case .inheritGroup = track.destination {
+                guard let groupID = track.groupID,
+                      let group = trackGroups.first(where: { $0.id == groupID }),
+                      let sharedDestination = group.sharedDestination
+                else {
+                    return (track.id, ResolvedTrackDestination(destination: .none, pitchOffset: 0))
+                }
+
+                return (
+                    track.id,
+                    ResolvedTrackDestination(
+                        destination: sharedDestination,
+                        pitchOffset: group.noteMapping[track.id] ?? 0
+                    )
+                )
+            }
+
+            return (track.id, ResolvedTrackDestination(destination: track.destination, pitchOffset: 0))
+        })
     }
 
     private static func compileClipBuffer(
