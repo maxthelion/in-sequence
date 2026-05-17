@@ -77,6 +77,33 @@ final class SamplePlaybackEngineFilterWiringTests: XCTestCase {
         XCTAssertTrue(filter.avNode.engine === graph.engine)
     }
 
+    @MainActor
+    func test_sampleTrackSendTapRoutesAfterSamplerFilter() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        let trackID = UUID()
+        graph.installSendBuses([.sendA, .sendB])
+
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: -0.2)
+        engine.setTrackSends(trackID: trackID, sendA: 0.35, sendB: 0.65)
+
+        let filter = try XCTUnwrap(engine.filterNode(for: trackID) as? SamplerFilterNode)
+        let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(filter.avNode))
+        let sendA = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        let sendB = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendB))
+
+        XCTAssertTrue(readout.dryDestination === graph.preMasterMixer)
+        XCTAssertNotNil(readout.sendFanoutNode)
+        XCTAssertNotNil(readout.sendAGainNode)
+        XCTAssertNotNil(readout.sendBGainNode)
+        XCTAssertEqual(readout.sendAGain, 0.35, accuracy: 0.0001)
+        XCTAssertEqual(readout.sendBGain, 0.65, accuracy: 0.0001)
+        XCTAssertTrue(readout.sendADestination === sendA.inputMixer)
+        XCTAssertTrue(readout.sendBDestination === sendB.inputMixer)
+        XCTAssertTrue(readout.sendFanoutDestinations.contains { $0 === readout.sendAGainNode })
+        XCTAssertTrue(readout.sendFanoutDestinations.contains { $0 === readout.sendBGainNode })
+    }
+
     func test_twoTracks_hasTwoDistinctFilterNodes() throws {
         let engine = try makeEngine()
         defer { engine.stop() }

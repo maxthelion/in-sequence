@@ -711,7 +711,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return outputConnectionExists(from: voice, to: voiceFilter.avNode) &&
             outputConnectionExists(from: voiceFilter.avNode, to: mixer) &&
             outputConnectionExists(from: mixer, to: trackFilter.avNode) &&
-            outputConnectionExists(from: trackFilter.avNode, to: audioGraph.preMasterMixer)
+            audioGraph.trackOutputDestinationForTesting(trackFilter.avNode) != nil
     }
 
     @MainActor
@@ -745,7 +745,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
         audioGraph.attach(filter.avNode)
         connectOutputIfNeeded(mixer, to: filter.avNode)
-        connectOutputIfNeeded(filter.avNode, to: audioGraph.preMasterMixer)
+        if audioGraph.trackOutputDestinationForTesting(filter.avNode) == nil {
+            audioGraph.connectTrackOutput(
+                filter.avNode,
+                to: trackOutputBusIDs[trackID],
+                sends: trackSendLevels[trackID] ?? .zero
+            )
+        }
     }
 
     private func outputConnectionExists(from source: AVAudioNode, to destination: AVAudioNode) -> Bool {

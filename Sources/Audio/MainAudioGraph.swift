@@ -536,7 +536,7 @@ final class MainAudioGraph {
         let dryDestination = routing.busID.flatMap { mixerBusHosts[$0]?.destinationNode() } ?? preMasterMixer
         engine.disconnectNodeOutput(source)
 
-        var destinations = [AVAudioConnectionPoint(node: dryDestination, bus: 0)]
+        var destinations = [connectionPoint(for: dryDestination)]
         if sendBusHosts[.sendA]?.destinationNode() != nil,
            sendBusHosts[.sendB]?.destinationNode() != nil
         {
@@ -547,31 +547,62 @@ final class MainAudioGraph {
             engine.connect(
                 nodes.fanout,
                 to: [
-                    AVAudioConnectionPoint(node: nodes.sendA, bus: 0),
-                    AVAudioConnectionPoint(node: nodes.sendB, bus: 0),
+                    connectionPoint(for: nodes.sendA),
+                    connectionPoint(for: nodes.sendB),
                 ],
                 fromBus: 0,
                 format: nil
             )
             var sendDestinations = TrackSendDestinations(fanout: [nodes.sendA, nodes.sendB], sendA: nil, sendB: nil)
             if let sendADestination = sendBusHosts[.sendA]?.destinationNode() {
-                engine.connect(nodes.sendA, to: sendADestination, format: nil)
+                engine.connect(
+                    nodes.sendA,
+                    to: sendADestination,
+                    fromBus: 0,
+                    toBus: inputBus(for: sendADestination),
+                    format: nil
+                )
                 sendDestinations.sendA = sendADestination
             }
             if let sendBDestination = sendBusHosts[.sendB]?.destinationNode() {
-                engine.connect(nodes.sendB, to: sendBDestination, format: nil)
+                engine.connect(
+                    nodes.sendB,
+                    to: sendBDestination,
+                    fromBus: 0,
+                    toBus: inputBus(for: sendBDestination),
+                    format: nil
+                )
                 sendDestinations.sendB = sendBDestination
             }
             trackSendDestinationsForTesting[ObjectIdentifier(source)] = sendDestinations
-            destinations.append(AVAudioConnectionPoint(node: nodes.fanout, bus: 0))
+            destinations.append(connectionPoint(for: nodes.fanout))
         }
 
         if destinations.count == 1 {
-            engine.connect(source, to: dryDestination, format: nil)
+            engine.connect(
+                source,
+                to: dryDestination,
+                fromBus: 0,
+                toBus: inputBus(for: dryDestination),
+                format: nil
+            )
         } else {
             engine.connect(source, to: destinations, fromBus: 0, format: nil)
         }
         trackOutputDestinationsForTesting[ObjectIdentifier(source)] = dryDestination
+    }
+
+    @MainActor
+    private func connectionPoint(for destination: AVAudioNode) -> AVAudioConnectionPoint {
+        AVAudioConnectionPoint(node: destination, bus: inputBus(for: destination))
+    }
+
+    @MainActor
+    private func inputBus(for destination: AVAudioNode) -> AVAudioNodeBus {
+        if let mixer = destination as? AVAudioMixerNode {
+            return mixer.nextAvailableInputBus
+        }
+        return 0
     }
 
     @MainActor

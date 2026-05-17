@@ -67,6 +67,37 @@ final class EngineControllerSetMixScopedTests: XCTestCase {
         ])
     }
 
+    func test_setMix_for_muted_sample_track_cuts_level_and_preserves_sends() {
+        let sampleEngine = CapturingScopedSampleSink()
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: sampleEngine
+        )
+
+        let track = StepSequenceTrack(
+            name: "Muted Kick",
+            trackType: .monoMelodic,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .sample(sampleID: UUID(), settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        controller.apply(track: track)
+
+        let baselineCallCount = sampleEngine.calls.count
+        let mix = TrackMixSettings(level: 0.9, pan: 0.25, isMuted: true, sendA: 0.4, sendB: 0.7)
+
+        controller.setMix(trackID: track.id, mix: mix)
+
+        let newCalls = Array(sampleEngine.calls.dropFirst(baselineCallCount))
+        XCTAssertEqual(newCalls, [
+            .setTrackMix(trackID: track.id, level: 0, pan: 0.25),
+            .setTrackSends(trackID: track.id, sendA: 0.4, sendB: 0.7),
+        ])
+    }
+
     func test_setMix_for_unknown_track_is_noop() {
         let host = CapturingScopedAudioSink()
         let sampleEngine = CapturingScopedSampleSink()
