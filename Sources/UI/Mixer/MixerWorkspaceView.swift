@@ -32,7 +32,7 @@ struct MixerWorkspaceView: View {
                 }
             }
         }
-        .frame(minHeight: 640)
+        .frame(minHeight: 920)
         .sheet(item: $addSendFXRequest) { request in
             addSendFXSheet(for: request.busID)
         }
@@ -46,8 +46,9 @@ struct MixerWorkspaceView: View {
                         .frame(maxWidth: .infinity, minHeight: 420, alignment: .topLeading)
 
                     switch presentation {
-                    case .fullColumn:
-                        MasterOutputColumnView()
+                    case let .fullColumn(width):
+                        Color.clear
+                            .frame(width: width)
                     case let .compactStrip(width):
                         MasterOutputCompactStrip(
                             width: width,
@@ -60,6 +61,12 @@ struct MixerWorkspaceView: View {
                 }
 
                 sendBusDetails
+                    .padding(.trailing, sendBusTrailingReserve(for: presentation))
+            }
+
+            if case .fullColumn = presentation {
+                MasterOutputColumnView()
+                    .zIndex(1)
             }
 
             if presentation.usesCompactOverlay, isMasterOverlayPresented {
@@ -68,6 +75,15 @@ struct MixerWorkspaceView: View {
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                     .zIndex(2)
             }
+        }
+    }
+
+    private func sendBusTrailingReserve(for presentation: MasterOutputColumnPresentation) -> CGFloat {
+        switch presentation {
+        case let .fullColumn(width):
+            width + 14
+        case .compactStrip:
+            0
         }
     }
 
@@ -92,7 +108,7 @@ struct MixerWorkspaceView: View {
 
     private func sendBusDetail(_ sendBus: SendBusState, accent: Color) -> some View {
         let selectedInsert = selectedInsert(in: sendBus)
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(sendBus.name.uppercased())
@@ -123,7 +139,7 @@ struct MixerWorkspaceView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -246,7 +262,7 @@ struct MixerWorkspaceView: View {
     @ViewBuilder
     private func sendInsertEditor(_ insert: SendBusInsert?, bus: SendBusState, accent: Color) -> some View {
         if let insert {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 7) {
                 HStack {
                     Text("EDIT")
                         .studioText(.micro)
@@ -269,7 +285,7 @@ struct MixerWorkspaceView: View {
 
                 sendKindEditor(insert, busID: bus.id, accent: accent)
             }
-            .padding(12)
+            .padding(8)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
@@ -289,6 +305,7 @@ struct MixerWorkspaceView: View {
                 Text("High Pass").tag(MasterFilterSettings.Mode.highPass)
             }
             .pickerStyle(.segmented)
+            .controlSize(.small)
 
             sendSliderRow(
                 title: "Cutoff",
@@ -309,6 +326,7 @@ struct MixerWorkspaceView: View {
             Stepper("Bits: \(settings.bitDepth)", value: sendBitDepthBinding(insertID: insert.id, busID: busID, settings: settings), in: 4...16)
                 .studioText(.label)
                 .foregroundStyle(StudioTheme.text)
+                .controlSize(.small)
             sendSliderRow(
                 title: "Rate",
                 value: sendBitRateBinding(insertID: insert.id, busID: busID, settings: settings),
@@ -332,7 +350,7 @@ struct MixerWorkspaceView: View {
     }
 
     private func sendSliderRow(title: String, value: Binding<Double>, range: ClosedRange<Double>, label: String, accent: Color) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Text(title)
                 .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)
