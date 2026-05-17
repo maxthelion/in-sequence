@@ -56,13 +56,15 @@ final class EngineControllerSetMixScopedTests: XCTestCase {
         controller.apply(track: track)
 
         let baselineCallCount = sampleEngine.calls.count
-        let mix = TrackMixSettings(level: 0.25, pan: -0.5, isMuted: false)
+        let mix = TrackMixSettings(level: 0.25, pan: -0.5, isMuted: false, sendA: 0.35, sendB: 0.65)
 
         controller.setMix(trackID: track.id, mix: mix)
 
         let newCalls = Array(sampleEngine.calls.dropFirst(baselineCallCount))
-        XCTAssertEqual(newCalls.count, 1)
-        XCTAssertEqual(newCalls.first, .setTrackMix(trackID: track.id, level: 0.25, pan: -0.5))
+        XCTAssertEqual(newCalls, [
+            .setTrackMix(trackID: track.id, level: 0.25, pan: -0.5),
+            .setTrackSends(trackID: track.id, sendA: 0.35, sendB: 0.65),
+        ])
     }
 
     func test_setMix_for_unknown_track_is_noop() {
@@ -123,6 +125,7 @@ private final class CapturingScopedSampleSink: SamplePlaybackSink {
         case stop
         case play(trackID: UUID)
         case setTrackMix(trackID: UUID, level: Double, pan: Double)
+        case setTrackSends(trackID: UUID, sendA: Double, sendB: Double)
         case removeTrack(trackID: UUID)
         case audition
         case stopAudition
@@ -145,6 +148,10 @@ private final class CapturingScopedSampleSink: SamplePlaybackSink {
 
     func setTrackMix(trackID: UUID, level: Double, pan: Double) {
         calls.append(.setTrackMix(trackID: trackID, level: level, pan: pan))
+    }
+
+    func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {
+        calls.append(.setTrackSends(trackID: trackID, sendA: sendA, sendB: sendB))
     }
 
     func removeTrack(trackID: UUID) {

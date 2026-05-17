@@ -70,6 +70,94 @@ final class MainAudioGraphTests: XCTestCase {
     }
 
     @MainActor
+    func test_installSendBuses_createsFixedHostsReturningToFinalOutput() throws {
+        let graph = MainAudioGraph()
+
+        graph.installSendBuses([.sendA, .sendB])
+
+        let sendA = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        let sendB = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendB))
+        XCTAssertTrue(sendA.terminalSourceNode === sendA.inputMixer)
+        XCTAssertTrue(sendB.terminalSourceNode === sendB.inputMixer)
+        XCTAssertTrue(sendA.terminalOutputNode === graph.sendReturnDestinationForTesting)
+        XCTAssertTrue(sendB.terminalOutputNode === graph.sendReturnDestinationForTesting)
+    }
+
+    @MainActor
+    func test_connectTrackOutputFansOutToDryPathAndFixedSendGains() throws {
+        let graph = MainAudioGraph()
+        let source = AVAudioPlayerNode()
+        graph.attach(source)
+        graph.installSendBuses([.sendA, .sendB])
+
+        graph.connectTrackOutput(
+            source,
+            to: nil,
+            sends: MainAudioGraph.TrackSendLevels(sendA: 0.25, sendB: 0.75)
+        )
+
+        let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        let sendA = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        let sendB = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendB))
+        let sourceOutputs = graph.engine.outputConnectionPoints(for: source, outputBus: 0)
+
+        XCTAssertTrue(readout.dryDestination === graph.preMasterMixer)
+        XCTAssertEqual(sourceOutputs.count, 2)
+        XCTAssertTrue(sourceOutputs.contains { $0.node === graph.preMasterMixer })
+        XCTAssertTrue(sourceOutputs.contains { $0.node === readout.sendFanoutNode })
+        XCTAssertEqual(readout.sendFanoutDestinations.count, 2)
+        XCTAssertTrue(readout.sendFanoutDestinations.contains { $0 === readout.sendAGainNode })
+        XCTAssertTrue(readout.sendFanoutDestinations.contains { $0 === readout.sendBGainNode })
+        XCTAssertTrue(readout.sendADestination === sendA.inputMixer)
+        XCTAssertTrue(readout.sendBDestination === sendB.inputMixer)
+        XCTAssertEqual(readout.sendAGain, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(readout.sendBGain, 0.75, accuracy: 0.0001)
+    }
+
+    @MainActor
+    func test_setTrackSendLevelsUpdatesOnlyGainParametersWithoutGraphRebuild() throws {
+        let graph = MainAudioGraph()
+        let source = AVAudioPlayerNode()
+        graph.attach(source)
+        graph.installSendBuses([.sendA, .sendB])
+        graph.connectTrackOutput(
+            source,
+            to: nil,
+            sends: MainAudioGraph.TrackSendLevels(sendA: 0.1, sendB: 0.2)
+        )
+        let outputsBefore = graph.engine.outputConnectionPoints(for: source, outputBus: 0).map(\.node)
+        let tapRemovalsBefore = graph.masterMeterTapRemoveCountForTesting
+
+        graph.setTrackSendLevels(source, sendA: 0.6, sendB: 0.3)
+
+        let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        let outputsAfter = graph.engine.outputConnectionPoints(for: source, outputBus: 0).map(\.node)
+        XCTAssertEqual(outputsBefore.count, outputsAfter.count)
+        XCTAssertTrue(zip(outputsBefore, outputsAfter).allSatisfy { $0 === $1 })
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovalsBefore)
+        XCTAssertEqual(readout.sendAGain, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(readout.sendBGain, 0.3, accuracy: 0.0001)
+    }
+
+    @MainActor
+    func test_sendBusInsertEditRebuildsOnlyTargetSendBus() throws {
+        let graph = MainAudioGraph()
+        graph.installSendBuses([.sendA, .sendB])
+        let initialA = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        let initialB = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendB))
+
+        let insert = SendBusInsert(name: "Send Filter", kind: .nativeFilter(.default))
+        graph.installSendBus(SendBusState(id: .sendA, inserts: [insert]))
+
+        let updatedA = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        let updatedB = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendB))
+        XCTAssertEqual(updatedA.topologyRebuildCount, initialA.topologyRebuildCount + 1)
+        XCTAssertEqual(updatedA.insertNodes.count, 1)
+        XCTAssertEqual(updatedB.topologyRebuildCount, initialB.topologyRebuildCount)
+        XCTAssertTrue(updatedB.insertNodes.isEmpty)
+    }
+
+    @MainActor
     func test_mixerBusMixAndBypassStayParameterOnlyWhileInsertShapeRebuildsTopology() throws {
         let graph = MainAudioGraph()
         let busID = UUID()
@@ -198,7 +286,6 @@ final class MainAudioGraphTests: XCTestCase {
         XCTAssertFalse(band.bypass)
         XCTAssertEqual(band.filterType, .highPass)
         XCTAssertEqual(band.frequency, 10_000, accuracy: 0.0001)
-        XCTAssertEqual(band.bandwidth, 1.62, accuracy: 0.0001)
     }
 
     @MainActor

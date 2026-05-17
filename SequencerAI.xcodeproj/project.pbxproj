@@ -65,6 +65,7 @@
 		295A4BEED435806DC5E40E53 /* InspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BDE0286507605D92758E623 /* InspectorView.swift */; };
 		2987BC3A8BE7E469E498B535 /* SessionDestinationMacroTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC3216D89B7D3D550E597D4 /* SessionDestinationMacroTests.swift */; };
 		29E9B826109E864A16A899E8 /* ScalarCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A96D2E2F787B4A142F0A38 /* ScalarCellPreview.swift */; };
+		A1B2C3D4E5F60123456789AC /* AtomicInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60123456789AB /* AtomicInt.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
 		30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567FDBC3AA9E0A6F1D99AFBB /* AppSupportBootstrapTests.swift */; };
 		30ED3E0739DC51F020DBA586 /* TrackSourceEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5901836476E9360606315D /* TrackSourceEditorView.swift */; };
@@ -828,6 +829,7 @@
 		6499F1CCCCF8EE5AB0898E1B /* app-support-layout.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "app-support-layout.md"; sourceTree = "<group>"; };
 		6572CAEE677BBFE6FDDDDCDC /* mixer-routing-and-sends.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "mixer-routing-and-sends.md"; sourceTree = "<group>"; };
 		65B54A9AEBA9C055A2F6E0B8 /* MixerBusHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixerBusHost.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60123456789AB /* AtomicInt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicInt.swift; sourceTree = "<group>"; };
 		660205BB38EF38BDA7C43AC2 /* screen-capture.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "screen-capture.json"; sourceTree = "<group>"; };
 		661081930DE84546177D3DBC /* architecture.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = architecture.md; sourceTree = "<group>"; };
 		6632AE4A48A3DF93372F2284 /* review-write-p0-performance-overlay-build-plan-through-lenses-regenerated-2026-05-07T110047Z.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "review-write-p0-performance-overlay-build-plan-through-lenses-regenerated-2026-05-07T110047Z.md"; sourceTree = "<group>"; };
@@ -1693,6 +1695,7 @@
 			isa = PBXGroup;
 			children = (
 				09A9B06103BC536482F2F540 /* AUAudioUnitFactory.swift */,
+				A1B2C3D4E5F60123456789AB /* AtomicInt.swift */,
 				B42306CF6E1E7F890E90983C /* AudioEffectChoice.swift */,
 				C4976F7F2DD944611264495D /* AudioInstrumentChoice.swift */,
 				DE2A489F6B9AA95B180DF049 /* AudioInstrumentChoiceCache.swift */,
@@ -4441,6 +4444,7 @@
 				5A62F6A8B55ABD5D639A206A /* LiveSequencerStore+Accessors.swift in Sources */,
 				F98D02D44AE1C4B1C07C4832 /* LiveSequencerStore.swift in Sources */,
 				5ED966B375E561049D3CCFE8 /* LiveWorkspaceView.swift in Sources */,
+				A1B2C3D4E5F60123456789AC /* AtomicInt.swift in Sources */,
 				229B0B74F0D787F0F080BBA3 /* MIDIClient.swift in Sources */,
 				5CCF8B94538A8B9C6F1B9136 /* MIDIEndpoint.swift in Sources */,
 				4B7949C1B0F64DF9E6134757 /* MIDIPacketBuilder.swift in Sources */,

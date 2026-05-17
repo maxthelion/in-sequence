@@ -29,6 +29,9 @@ protocol SamplePlaybackSink: AnyObject {
     /// Apply the track's fader state to its mixer node. Takes effect live for
     /// in-flight voices as well as subsequent triggers.
     func setTrackMix(trackID: UUID, level: Double, pan: Double)
+    /// Apply the track's post-fader send tap gains. This is a parameter update,
+    /// not a topology rebuild.
+    func setTrackSends(trackID: UUID, sendA: Double, sendB: Double)
     /// Rewire the prepared track output to a user-created bus, or back to master
     /// when `busID` is nil.
     func setTrackOutputBus(trackID: UUID, busID: UUID?)
@@ -56,6 +59,8 @@ extension SamplePlaybackSink {
     func prepareTrack(trackID: UUID) {}
 
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {}
+
+    func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {}
 
     func playSlice(
         sampleURL: URL,
@@ -129,6 +134,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// Per-track filter nodes inserted between the track mixer and the main mixer.
     private var trackFilters: [UUID: SamplerFilterNode] = [:]
     private var trackOutputBusIDs: [UUID: UUID] = [:]
+    private var trackSendLevels: [UUID: MainAudioGraph.TrackSendLevels] = [:]
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
 
@@ -372,7 +378,23 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             lifecycleLock.withLock {
                 trackOutputBusIDs[trackID] = busID
                 guard let filter = trackFilters[trackID] else { return }
-                audioGraph.connectTrackOutput(filter.avNode, to: busID)
+                audioGraph.connectTrackOutput(
+                    filter.avNode,
+                    to: busID,
+                    sends: trackSendLevels[trackID] ?? .zero
+                )
+            }
+        }
+    }
+
+    func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {
+        prepareTrack(trackID: trackID)
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                let levels = MainAudioGraph.TrackSendLevels(sendA: sendA, sendB: sendB)
+                trackSendLevels[trackID] = levels
+                guard let filter = trackFilters[trackID] else { return }
+                audioGraph.setTrackSendLevels(filter.avNode, sendA: levels.sendA, sendB: levels.sendB)
             }
         }
     }
@@ -395,6 +417,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
             voiceParams.removeValue(forKey: trackID)
             trackOutputBusIDs.removeValue(forKey: trackID)
+            trackSendLevels.removeValue(forKey: trackID)
             guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
             audioGraph.disconnectOutput(mixer)
             audioGraph.detach(mixer)
@@ -435,7 +458,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let filter = SamplerFilterNode()
         audioGraph.attach(filter.avNode)
         audioGraph.connect(mixer, to: filter.avNode)
-        audioGraph.connectTrackOutput(filter.avNode, to: trackOutputBusIDs[trackID])
+        audioGraph.connectTrackOutput(
+            filter.avNode,
+            to: trackOutputBusIDs[trackID],
+            sends: trackSendLevels[trackID] ?? .zero
+        )
         trackFilters[trackID] = filter
 
         trackMixers[trackID] = mixer

@@ -244,7 +244,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
             self.currentOutputBusID = busID
             guard let outputMixer = self.outputMixer else { return }
-            self.audioGraph.connectTrackOutput(outputMixer, to: busID)
+            self.audioGraph.connectTrackOutput(outputMixer, to: busID, sends: self.currentMix.graphSendLevels)
         }
     }
 
@@ -475,7 +475,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             if self.outputMixer == nil {
                 self.outputMixer = mixer
                 self.audioGraph.attach(mixer)
-                self.audioGraph.connectTrackOutput(mixer, to: self.currentOutputBusID)
+                self.audioGraph.connectTrackOutput(mixer, to: self.currentOutputBusID, sends: self.currentMix.graphSendLevels)
             }
             if self.audioGraph.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
                 self.audioGraph.connect(nextInstrument, to: mixer)
@@ -561,6 +561,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         performOnMain { [currentMix] in
             outputMixer.pan = Float(currentMix.clampedPan)
             outputMixer.outputVolume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
+            self.audioGraph.setTrackSendLevels(
+                outputMixer,
+                sendA: currentMix.sendA,
+                sendB: currentMix.sendB
+            )
         }
     }
 

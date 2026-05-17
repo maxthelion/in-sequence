@@ -331,6 +331,7 @@ final class EngineController: RouterDispatcher {
             .sendA: documentModel.sendBusA.normalized(expectedID: .sendA),
             .sendB: documentModel.sendBusB.normalized(expectedID: .sendB),
         ]
+        mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
         syncMasterBusPerformanceOverlay(for: documentModel.masterBus)
         masterBusHost.apply(documentModel.masterBus)
         let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
@@ -440,6 +441,7 @@ final class EngineController: RouterDispatcher {
         currentDocumentModel.updateSendBus(id: normalized.id) { sendBus in
             sendBus = normalized
         }
+        mainAudioGraph.installSendBus(normalized)
     }
 
     var registeredKindIDs: [String] {
@@ -724,6 +726,7 @@ final class EngineController: RouterDispatcher {
         currentTrackMix = selectedTrack.mix
         router.applyRoutesSnapshot(documentModel.routes)
         installMixerBuses(for: documentModel)
+        mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
 
         do {
             if withStateLock({ pipelineShape != Self.pipelineShape(for: documentModel) || executor == nil }) {
@@ -1129,6 +1132,7 @@ final class EngineController: RouterDispatcher {
         }
 
         installMixerBuses(for: documentModel)
+        mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
         syncAudioOutputs(for: documentModel)
         currentDocumentModel = documentModel
         selectedOutput = Self.effectiveDestination(for: documentModel.selectedTrack.id, in: documentModel).destination.kind
@@ -1426,6 +1430,7 @@ final class EngineController: RouterDispatcher {
                     level: effectiveMix.isMuted ? 0 : effectiveMix.clampedLevel,
                     pan: effectiveMix.clampedPan
                 )
+                sampleEngine.setTrackSends(trackID: track.id, sendA: effectiveMix.sendA, sendB: effectiveMix.sendB)
             default:
                 continue
             }
@@ -1552,6 +1557,7 @@ final class EngineController: RouterDispatcher {
                 level: mix.isMuted ? 0 : mix.clampedLevel,
                 pan: mix.clampedPan
             )
+            sampleEngine.setTrackSends(trackID: track.id, sendA: mix.sendA, sendB: mix.sendB)
         }
 
         let previouslyLiveTrackIDs = withStateLock { liveSampleTrackIDs }

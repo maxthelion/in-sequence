@@ -8,9 +8,31 @@ final class MainAudioGraph {
         var gain: Double
     }
 
+    struct TrackSendLevels: Equatable {
+        var sendA: Double
+        var sendB: Double
+
+        static let zero = TrackSendLevels(sendA: 0, sendB: 0)
+
+        var clampedSendA: Float { Float(sendA.clamped(to: 0...1)) }
+        var clampedSendB: Float { Float(sendB.clamped(to: 0...1)) }
+    }
+
     struct MasterBranchReadout {
         var nodes: [AVAudioNode]
         var gain: Float
+    }
+
+    struct TrackSendReadout {
+        let dryDestination: AVAudioNode
+        let sendFanoutNode: AVAudioMixerNode?
+        let sendAGainNode: AVAudioMixerNode?
+        let sendBGainNode: AVAudioMixerNode?
+        let sendAGain: Float
+        let sendBGain: Float
+        let sendFanoutDestinations: [AVAudioNode]
+        let sendADestination: AVAudioNode?
+        let sendBDestination: AVAudioNode?
     }
 
     let engine: AVAudioEngine
@@ -29,10 +51,32 @@ final class MainAudioGraph {
     private var managedMasterNodes: [AVAudioNode] = []
     private var managedMasterGainMixers: [AVAudioMixerNode] = []
     private var mixerBusHosts: [UUID: MixerBusHost] = [:]
+    private var sendBusHosts: [SendBusID: SendBusHost] = [:]
     private var trackOutputDestinationsForTesting: [ObjectIdentifier: AVAudioNode] = [:]
+    private var trackOutputRoutings: [ObjectIdentifier: TrackOutputRouting] = [:]
+    private var trackSendNodes: [ObjectIdentifier: TrackSendNodes] = [:]
+    private var trackSendDestinationsForTesting: [ObjectIdentifier: TrackSendDestinations] = [:]
     private var isStarted = false
     private var isMasterMeterTapInstalled = false
     private let masterMeterTapGeneration = AtomicInt32(0)
+
+    private struct TrackOutputRouting {
+        let source: AVAudioNode
+        var busID: UUID?
+        var sendLevels: TrackSendLevels
+    }
+
+    private struct TrackSendNodes {
+        let fanout: AVAudioMixerNode
+        let sendA: AVAudioMixerNode
+        let sendB: AVAudioMixerNode
+    }
+
+    private struct TrackSendDestinations {
+        var fanout: [AVAudioNode]
+        var sendA: AVAudioNode?
+        var sendB: AVAudioNode?
+    }
 
     init(engine: AVAudioEngine = AVAudioEngine(), masterMeterPublisher: MasterMeterPublisher = MasterMeterPublisher()) {
         self.engine = engine
@@ -82,8 +126,13 @@ final class MainAudioGraph {
 
     func disconnectOutput(_ node: AVAudioNode) {
         performOnMain {
+            self.removeTrackSendNodes(for: node)
             self.engine.disconnectNodeOutput(node)
         }
+    }
+
+    var sendReturnDestinationForTesting: AVAudioNode {
+        finalOutputMixer
     }
 
     func installMixerBuses(_ buses: [MixerBus], effectiveMuteByBusID: [UUID: Bool] = [:]) {
@@ -129,7 +178,58 @@ final class MainAudioGraph {
         }
     }
 
-    func connectTrackOutput(_ source: AVAudioNode, to busID: UUID?) {
+    func installSendBuses(_ sendBuses: [SendBusState]) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            let wasRunning = self.engine.isRunning
+            self.removeMasterMeterTapIfNeeded()
+            if wasRunning {
+                self.engine.stop()
+            }
+
+            let busesByID = Dictionary(uniqueKeysWithValues: sendBuses.map { ($0.id, $0) })
+            for id in SendBusID.allCases {
+                let state = (busesByID[id] ?? SendBusState(id: id)).normalized(expectedID: id)
+                let host = self.sendBusHosts[id] ?? SendBusHost(id: id)
+                self.sendBusHosts[id] = host
+                host.install(sendBus: state, in: self)
+            }
+
+            for routing in self.trackOutputRoutings.values where routing.source.engine === self.engine {
+                self.reconnectTrackOutputOnMain(routing)
+            }
+
+            self.engine.prepare()
+            self.installMasterMeterTapIfNeeded()
+
+            if wasRunning {
+                try? self.engine.start()
+                self.isStarted = self.engine.isRunning
+            }
+        }
+    }
+
+    func installSendBus(_ sendBus: SendBusState) {
+        graphLock.lock()
+        let existing = performOnMainReturning {
+            SendBusID.allCases.map { id in
+                if id == sendBus.id {
+                    return sendBus
+                }
+                return self.sendBusHosts[id]?.appliedStateForTesting ?? SendBusState(id: id)
+            }
+        }
+        graphLock.unlock()
+        installSendBuses(existing)
+    }
+
+    func connectTrackOutput(
+        _ source: AVAudioNode,
+        to busID: UUID?,
+        sends sendLevels: TrackSendLevels = .zero
+    ) {
         graphLock.lock()
         defer { graphLock.unlock() }
 
@@ -141,10 +241,9 @@ final class MainAudioGraph {
                 self.engine.stop()
             }
 
-            self.engine.disconnectNodeOutput(source)
-            let destination = busID.flatMap { self.mixerBusHosts[$0]?.destinationNode() } ?? self.preMasterMixer
-            self.engine.connect(source, to: destination, format: nil)
-            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)] = destination
+            let routing = TrackOutputRouting(source: source, busID: busID, sendLevels: sendLevels)
+            self.trackOutputRoutings[ObjectIdentifier(source)] = routing
+            self.reconnectTrackOutputOnMain(routing)
             self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
 
@@ -152,6 +251,22 @@ final class MainAudioGraph {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
+        }
+    }
+
+    func setTrackSendLevels(_ source: AVAudioNode, sendA: Double, sendB: Double) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            let key = ObjectIdentifier(source)
+            let sendLevels = TrackSendLevels(sendA: sendA, sendB: sendB)
+            if var routing = self.trackOutputRoutings[key] {
+                routing.sendLevels = sendLevels
+                self.trackOutputRoutings[key] = routing
+            }
+            self.trackSendNodes[key]?.sendA.outputVolume = sendLevels.clampedSendA
+            self.trackSendNodes[key]?.sendB.outputVolume = sendLevels.clampedSendB
         }
     }
 
@@ -295,12 +410,56 @@ final class MainAudioGraph {
         }
     }
 
+    var sendBusReadoutsForTesting: [SendBusHost.Readout] {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            self.sendBusHosts.values.compactMap { $0.readout() }
+                .sorted { $0.busID.rawValue < $1.busID.rawValue }
+        }
+    }
+
+    func sendBusReadoutForTesting(busID: SendBusID) -> SendBusHost.Readout? {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            self.sendBusHosts[busID]?.readout()
+        }
+    }
+
     func trackOutputDestinationForTesting(_ source: AVAudioNode) -> AVAudioNode? {
         graphLock.lock()
         defer { graphLock.unlock() }
 
         return performOnMainReturning {
             self.trackOutputDestinationsForTesting[ObjectIdentifier(source)]
+        }
+    }
+
+    func trackSendReadoutForTesting(_ source: AVAudioNode) -> TrackSendReadout? {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            let key = ObjectIdentifier(source)
+            guard let dryDestination = self.trackOutputDestinationsForTesting[key] else {
+                return nil
+            }
+            let nodes = self.trackSendNodes[key]
+            let sendDestinations = self.trackSendDestinationsForTesting[key]
+            return TrackSendReadout(
+                dryDestination: dryDestination,
+                sendFanoutNode: nodes?.fanout,
+                sendAGainNode: nodes?.sendA,
+                sendBGainNode: nodes?.sendB,
+                sendAGain: nodes?.sendA.outputVolume ?? 0,
+                sendBGain: nodes?.sendB.outputVolume ?? 0,
+                sendFanoutDestinations: sendDestinations?.fanout ?? [],
+                sendADestination: sendDestinations?.sendA,
+                sendBDestination: sendDestinations?.sendB
+            )
         }
     }
 
@@ -371,6 +530,89 @@ final class MainAudioGraph {
         }
     }
 
+    @MainActor
+    private func reconnectTrackOutputOnMain(_ routing: TrackOutputRouting) {
+        let source = routing.source
+        let dryDestination = routing.busID.flatMap { mixerBusHosts[$0]?.destinationNode() } ?? preMasterMixer
+        engine.disconnectNodeOutput(source)
+
+        var destinations = [AVAudioConnectionPoint(node: dryDestination, bus: 0)]
+        if sendBusHosts[.sendA]?.destinationNode() != nil,
+           sendBusHosts[.sendB]?.destinationNode() != nil
+        {
+            let nodes = sendNodes(for: source, levels: routing.sendLevels)
+            engine.disconnectNodeOutput(nodes.fanout)
+            engine.disconnectNodeOutput(nodes.sendA)
+            engine.disconnectNodeOutput(nodes.sendB)
+            engine.connect(
+                nodes.fanout,
+                to: [
+                    AVAudioConnectionPoint(node: nodes.sendA, bus: 0),
+                    AVAudioConnectionPoint(node: nodes.sendB, bus: 0),
+                ],
+                fromBus: 0,
+                format: nil
+            )
+            var sendDestinations = TrackSendDestinations(fanout: [nodes.sendA, nodes.sendB], sendA: nil, sendB: nil)
+            if let sendADestination = sendBusHosts[.sendA]?.destinationNode() {
+                engine.connect(nodes.sendA, to: sendADestination, format: nil)
+                sendDestinations.sendA = sendADestination
+            }
+            if let sendBDestination = sendBusHosts[.sendB]?.destinationNode() {
+                engine.connect(nodes.sendB, to: sendBDestination, format: nil)
+                sendDestinations.sendB = sendBDestination
+            }
+            trackSendDestinationsForTesting[ObjectIdentifier(source)] = sendDestinations
+            destinations.append(AVAudioConnectionPoint(node: nodes.fanout, bus: 0))
+        }
+
+        if destinations.count == 1 {
+            engine.connect(source, to: dryDestination, format: nil)
+        } else {
+            engine.connect(source, to: destinations, fromBus: 0, format: nil)
+        }
+        trackOutputDestinationsForTesting[ObjectIdentifier(source)] = dryDestination
+    }
+
+    @MainActor
+    private func sendNodes(for source: AVAudioNode, levels: TrackSendLevels) -> TrackSendNodes {
+        let key = ObjectIdentifier(source)
+        if let nodes = trackSendNodes[key] {
+            nodes.sendA.outputVolume = levels.clampedSendA
+            nodes.sendB.outputVolume = levels.clampedSendB
+            return nodes
+        }
+
+        let nodes = TrackSendNodes(fanout: AVAudioMixerNode(), sendA: AVAudioMixerNode(), sendB: AVAudioMixerNode())
+        engine.attach(nodes.fanout)
+        engine.attach(nodes.sendA)
+        engine.attach(nodes.sendB)
+        nodes.sendA.outputVolume = levels.clampedSendA
+        nodes.sendB.outputVolume = levels.clampedSendB
+        trackSendNodes[key] = nodes
+        return nodes
+    }
+
+    @MainActor
+    private func removeTrackSendNodes(for source: AVAudioNode) {
+        let key = ObjectIdentifier(source)
+        guard let nodes = trackSendNodes.removeValue(forKey: key) else {
+            trackOutputRoutings.removeValue(forKey: key)
+            trackOutputDestinationsForTesting.removeValue(forKey: key)
+            trackSendDestinationsForTesting.removeValue(forKey: key)
+            return
+        }
+        engine.disconnectNodeOutput(nodes.fanout)
+        engine.disconnectNodeOutput(nodes.sendA)
+        engine.disconnectNodeOutput(nodes.sendB)
+        engine.detach(nodes.fanout)
+        engine.detach(nodes.sendA)
+        engine.detach(nodes.sendB)
+        trackOutputRoutings.removeValue(forKey: key)
+        trackOutputDestinationsForTesting.removeValue(forKey: key)
+        trackSendDestinationsForTesting.removeValue(forKey: key)
+    }
+
     private func performOnMain(_ work: @escaping @MainActor () -> Void) {
         if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -428,6 +670,18 @@ final class MainAudioGraph {
 
 enum MasterMeterTapPoint: Equatable {
     case finalOutputMixer
+}
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        min(max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+extension TrackMixSettings {
+    var graphSendLevels: MainAudioGraph.TrackSendLevels {
+        MainAudioGraph.TrackSendLevels(sendA: sendA, sendB: sendB)
+    }
 }
 
 struct MasterMeterDisplayState: Equatable {
@@ -692,84 +946,5 @@ private final class MasterMeterTransport {
 
     private static func shouldReplaceAmplitude(stored: Int64, next: Int64) -> Bool {
         amplitude(fromBits: stored) < amplitude(fromBits: next)
-    }
-}
-
-private final class AtomicInt64 {
-    private let storage: UnsafeMutablePointer<Int64>
-
-    init(_ value: Int64) {
-        storage = UnsafeMutablePointer<Int64>.allocate(capacity: 1)
-        storage.initialize(to: value)
-    }
-
-    deinit {
-        storage.deinitialize(count: 1)
-        storage.deallocate()
-    }
-
-    func load() -> Int64 {
-        OSAtomicAdd64Barrier(0, storage)
-    }
-
-    func store(_ value: Int64) {
-        while true {
-            let oldValue = load()
-            if OSAtomicCompareAndSwap64Barrier(oldValue, value, storage) {
-                return
-            }
-        }
-    }
-
-    func storeMaximum(_ value: Int64, shouldReplace: (Int64, Int64) -> Bool) {
-        while true {
-            let oldValue = load()
-            guard shouldReplace(oldValue, value) else { return }
-            if OSAtomicCompareAndSwap64Barrier(oldValue, value, storage) {
-                return
-            }
-        }
-    }
-
-    func exchange(_ value: Int64) -> Int64 {
-        while true {
-            let oldValue = load()
-            if OSAtomicCompareAndSwap64Barrier(oldValue, value, storage) {
-                return oldValue
-            }
-        }
-    }
-
-}
-
-private final class AtomicInt32 {
-    private let storage: UnsafeMutablePointer<Int32>
-
-    init(_ value: Int32) {
-        storage = UnsafeMutablePointer<Int32>.allocate(capacity: 1)
-        storage.initialize(to: value)
-    }
-
-    deinit {
-        storage.deinitialize(count: 1)
-        storage.deallocate()
-    }
-
-    func load() -> Int32 {
-        OSAtomicAdd32Barrier(0, storage)
-    }
-
-    func store(_ value: Int32) {
-        while true {
-            let oldValue = load()
-            if OSAtomicCompareAndSwap32Barrier(oldValue, value, storage) {
-                return
-            }
-        }
-    }
-
-    @discardableResult
-    func increment() -> Int32 {
-        OSAtomicIncrement32Barrier(storage)
     }
 }
