@@ -122,20 +122,27 @@ struct MixerWorkspaceView: View {
 
                 Spacer()
 
-                addSendFXButton(sendBus.id, accent: accent)
+                if !sendBus.inserts.isEmpty {
+                    addSendFXButton(sendBus.id, accent: accent)
+                }
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    sendInsertList(sendBus, accent: accent)
-                        .frame(minWidth: 280, maxWidth: 360, alignment: .topLeading)
-                    sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
+            if sendBus.inserts.isEmpty {
+                sendInsertList(sendBus, accent: accent)
+                    .frame(maxWidth: 360, alignment: .topLeading)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 12) {
+                        sendInsertList(sendBus, accent: accent)
+                            .frame(minWidth: 280, maxWidth: 360, alignment: .topLeading)
+                        sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    sendInsertList(sendBus, accent: accent)
-                    sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
+                    VStack(alignment: .leading, spacing: 12) {
+                        sendInsertList(sendBus, accent: accent)
+                        sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
+                    }
                 }
             }
         }
