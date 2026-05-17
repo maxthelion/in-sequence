@@ -9,6 +9,8 @@ final class MixerBusHost {
         let outputVolume: Float
         let pan: Float
         let isEffectivelyMuted: Bool
+        let terminalSourceNode: AVAudioNode?
+        let terminalOutputNode: AVAudioNode?
         let topologyRebuildCount: Int
         let parameterApplyCount: Int
     }
@@ -41,6 +43,8 @@ final class MixerBusHost {
     private var latestBus: MixerBus?
     private var inputMixer: AVAudioMixerNode?
     private var insertNodes: [AVAudioNode] = []
+    private var terminalSourceNode: AVAudioNode?
+    private var terminalOutputNode: AVAudioNode?
     private var nodesByInsertID: [UUID: AVAudioNode] = [:]
     private var cachedAUEffects: [UUID: CachedAUEffect] = [:]
     private var pendingAUEffectIDs: Set<UUID> = []
@@ -89,6 +93,8 @@ final class MixerBusHost {
         }
         inputMixer = nil
         insertNodes = []
+        terminalSourceNode = nil
+        terminalOutputNode = nil
         nodesByInsertID = [:]
         installedShape = nil
     }
@@ -108,6 +114,8 @@ final class MixerBusHost {
             outputVolume: inputMixer.outputVolume,
             pan: inputMixer.pan,
             isEffectivelyMuted: effectiveMute,
+            terminalSourceNode: terminalSourceNode,
+            terminalOutputNode: terminalOutputNode,
             topologyRebuildCount: topologyRebuildCount,
             parameterApplyCount: parameterApplyCount
         )
@@ -150,6 +158,8 @@ final class MixerBusHost {
         }
 
         insertNodes = nextNodes
+        terminalSourceNode = nextNodes.last ?? mixer
+        terminalOutputNode = audioGraph.preMasterMixer
         nodesByInsertID = nextNodesByInsertID
         installedShape = Self.graphShape(for: bus)
         topologyRebuildCount += 1

@@ -45,6 +45,31 @@ final class MainAudioGraphTests: XCTestCase {
     }
 
     @MainActor
+    func test_installMixerBuses_routesBusTerminalNodeToPreMasterMixer() throws {
+        let graph = MainAudioGraph()
+        let dryBusID = UUID()
+        let insertedBusID = UUID()
+        let filter = MixerBusInsert(
+            name: "Filter",
+            kind: .nativeFilter(MasterFilterSettings(mode: .lowPass, cutoffHz: 1_200, resonance: 0.2))
+        )
+
+        graph.installMixerBuses([
+            MixerBus(id: dryBusID, name: "Dry"),
+            MixerBus(id: insertedBusID, name: "Inserted", inserts: [filter]),
+        ])
+
+        let dryReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: dryBusID))
+        XCTAssertTrue(dryReadout.terminalSourceNode === dryReadout.inputMixer)
+        XCTAssertTrue(dryReadout.terminalOutputNode === graph.preMasterMixer)
+
+        let insertedReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: insertedBusID))
+        let terminalInsert = try XCTUnwrap(insertedReadout.insertNodes.last)
+        XCTAssertTrue(insertedReadout.terminalSourceNode === terminalInsert)
+        XCTAssertTrue(insertedReadout.terminalOutputNode === graph.preMasterMixer)
+    }
+
+    @MainActor
     func test_mixerBusMixAndBypassStayParameterOnlyWhileInsertShapeRebuildsTopology() throws {
         let graph = MainAudioGraph()
         let busID = UUID()
