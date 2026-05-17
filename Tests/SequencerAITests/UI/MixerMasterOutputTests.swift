@@ -75,4 +75,12 @@ final class MixerMasterOutputTests: XCTestCase {
             MasterOutputColumnLayout.fullColumnWidth * 0.2
         )
     }
+
+    func test_sendDisplayModelMakesZeroAndNonZeroStatesDistinct() {
+        XCTAssertEqual(MixerSendDisplayModel.percentLabel(for: 0), "0%")
+        XCTAssertEqual(MixerSendDisplayModel.percentLabel(for: 0.375), "38%")
+        XCTAssertEqual(MixerSendDisplayModel.percentLabel(for: 4), "100%")
+        XCTAssertFalse(MixerSendDisplayModel.isNonZero(0))
+        XCTAssertTrue(MixerSendDisplayModel.isNonZero(0.25))
+    }
 }

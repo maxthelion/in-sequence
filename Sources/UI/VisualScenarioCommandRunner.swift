@@ -81,6 +81,8 @@ enum VisualScenarioCommandRunner {
             engineController.masterMeterPublisher.clearClip()
         }
 
+        applySendEffects(command: command, session: session)
+
         switch command["transport"] {
         case "play":
             engineController.start()
@@ -89,6 +91,45 @@ enum VisualScenarioCommandRunner {
         default:
             break
         }
+    }
+
+    private static func applySendEffects(command: [String: String], session: SequencerDocumentSession) {
+        let tracks = session.store.tracks
+        for index in tracks.indices {
+            let track = tracks[index]
+            let sendARaw = command["track\(index)SendA"]
+            let sendBRaw = command["track\(index)SendB"]
+            guard sendARaw != nil || sendBRaw != nil else { continue }
+            session.setTrackSends(
+                trackID: track.id,
+                sendA: sendARaw.flatMap(Double.init) ?? track.mix.sendA,
+                sendB: sendBRaw.flatMap(Double.init) ?? track.mix.sendB
+            )
+        }
+
+        if let sendAInsert = command["sendAInserts"] {
+            session.setSendBusInserts(sendInserts(from: sendAInsert), busID: .sendA)
+        }
+        if let sendBInsert = command["sendBInserts"] {
+            session.setSendBusInserts(sendInserts(from: sendBInsert), busID: .sendB)
+        }
+    }
+
+    private static func sendInserts(from rawValue: String) -> [SendBusInsert] {
+        rawValue
+            .split(separator: ",")
+            .compactMap { token in
+                switch token.trimmingCharacters(in: .whitespacesAndNewlines) {
+                case "filter":
+                    return .filter()
+                case "bitcrusher":
+                    return .bitcrusher()
+                case "empty", "none", "":
+                    return nil
+                default:
+                    return nil
+                }
+            }
     }
 
     private static func writeStatus(
@@ -102,6 +143,10 @@ enum VisualScenarioCommandRunner {
         workspace=\(section.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
         masterGain=\(session.store.masterBus.masterOutputGain)
+        firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
+        firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
+        sendAInsertCount=\(session.store.sendBusA.inserts.count)
+        sendBInsertCount=\(session.store.sendBusB.inserts.count)
         clipLatched=\(meterState.isClipLatched)
         clearClipActionable=\(meterState.isClearClipActionable)
         leftPeakDBFS=\(meterState.leftPeakDBFS)

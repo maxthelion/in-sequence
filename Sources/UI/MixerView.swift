@@ -1,5 +1,21 @@
 import SwiftUI
 
+enum MixerSendDisplayModel {
+    static let activeThreshold = 0.005
+
+    static func clamped(_ value: Double) -> Double {
+        min(max(value, TrackMixSettings.sendRange.lowerBound), TrackMixSettings.sendRange.upperBound)
+    }
+
+    static func percentLabel(for value: Double) -> String {
+        "\(Int((clamped(value) * 100).rounded()))%"
+    }
+
+    static func isNonZero(_ value: Double) -> Bool {
+        clamped(value) > activeThreshold
+    }
+}
+
 struct MixerView: View {
     @Binding var document: SeqAIDocument
     var onEditTrack: ((UUID) -> Void)? = nil
@@ -52,6 +68,32 @@ struct MixerView: View {
 }
 
 private struct MixerChannelStrip: View {
+    private enum SendSlot: String, CaseIterable {
+        case a = "A"
+        case b = "B"
+
+        var title: String {
+            switch self {
+            case .a: return "Send A"
+            case .b: return "Send B"
+            }
+        }
+
+        var keyPath: WritableKeyPath<TrackMixSettings, Double> {
+            switch self {
+            case .a: return \.sendA
+            case .b: return \.sendB
+            }
+        }
+
+        var accent: Color {
+            switch self {
+            case .a: return StudioTheme.cyan
+            case .b: return StudioTheme.violet
+            }
+        }
+    }
+
     let track: StepSequenceTrack
     let destinationLabel: String
     let isSelected: Bool
@@ -62,6 +104,7 @@ private struct MixerChannelStrip: View {
 
     @StateObject private var levelControl = ThrottledMixValue()
     @StateObject private var panControl = ThrottledMixValue()
+    @State private var activeSendEditor: SendSlot?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -135,6 +178,47 @@ private struct MixerChannelStrip: View {
                     }
                     .padding(.bottom, 4)
                 }
+
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Sends")
+                            .studioText(.eyebrow)
+                            .tracking(0.8)
+                            .foregroundStyle(StudioTheme.mutedText)
+                        Spacer()
+                        if let activeSendEditor {
+                            Text("\(track.name) \(activeSendEditor.title) \(sendPercent(activeSendEditor))")
+                                .studioText(.micro)
+                                .monospacedDigit()
+                                .foregroundStyle(activeSendEditor.accent)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        } else {
+                            Text("Post fader")
+                                .studioText(.micro)
+                                .foregroundStyle(StudioTheme.mutedText)
+                        }
+                    }
+
+                    HStack(spacing: 10) {
+                        ForEach(SendSlot.allCases, id: \.self) { slot in
+                            SendAmountControl(
+                                slot: slot.rawValue,
+                                title: slot.title,
+                                trackName: track.name,
+                                value: sendValue(slot),
+                                accent: slot.accent,
+                                isEditing: Binding(
+                                    get: { activeSendEditor == slot },
+                                    set: { isPresented in
+                                        activeSendEditor = isPresented ? slot : nil
+                                    }
+                                ),
+                                onChange: { setSend(slot, value: $0) }
+                            )
+                        }
+                    }
+                }
             }
 
             HStack(spacing: 8) {
@@ -172,6 +256,20 @@ private struct MixerChannelStrip: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel)
                 .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
         )
+    }
+
+    private func sendValue(_ slot: SendSlot) -> Double {
+        track.mix[keyPath: slot.keyPath]
+    }
+
+    private func sendPercent(_ slot: SendSlot) -> String {
+        MixerSendDisplayModel.percentLabel(for: sendValue(slot))
+    }
+
+    private func setSend(_ slot: SendSlot, value: Double) {
+        var liveMix = track.mix
+        liveMix[keyPath: slot.keyPath] = min(max(value, 0), 1)
+        onSetMix(liveMix)
     }
 
     private var displayedLevel: Double {
@@ -241,6 +339,111 @@ private struct MixerChannelStrip: View {
     private func commitPan() {
         // commit() resets drag state; the final value was already written via updatePan.
         _ = panControl.commit()
+    }
+}
+
+private struct SendAmountControl: View {
+    let slot: String
+    let title: String
+    let trackName: String
+    let value: Double
+    let accent: Color
+    @Binding var isEditing: Bool
+    let onChange: (Double) -> Void
+
+    private var clampedValue: Double {
+        MixerSendDisplayModel.clamped(value)
+    }
+
+    private var percentLabel: String {
+        MixerSendDisplayModel.percentLabel(for: clampedValue)
+    }
+
+    private var isActive: Bool {
+        MixerSendDisplayModel.isNonZero(clampedValue)
+    }
+
+    var body: some View {
+        Button {
+            isEditing = true
+        } label: {
+            VStack(spacing: 5) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(isActive ? StudioOpacity.softStroke : StudioOpacity.borderFaint), lineWidth: 3)
+
+                    Circle()
+                        .trim(from: 0, to: clampedValue)
+                        .stroke(accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+
+                    Text(slot)
+                        .studioText(.labelBold)
+                        .foregroundStyle(isActive ? StudioTheme.text : StudioTheme.mutedText)
+                }
+                .frame(width: 34, height: 34)
+
+                Text(percentLabel)
+                    .studioText(.micro)
+                    .monospacedDigit()
+                    .foregroundStyle(isActive ? StudioTheme.text : StudioTheme.mutedText)
+                    .frame(width: 42)
+            }
+            .frame(width: 48, height: 58)
+            .background(
+                (isEditing ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(isActive ? StudioOpacity.subtleFill : 0.018)),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isEditing || isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .help("\(trackName) \(title)")
+        .accessibilityLabel("\(trackName) \(title)")
+        .accessibilityValue(percentLabel)
+        .accessibilityIdentifier("mixer-track-send-\(slot.lowercased())-\(trackName)")
+        .popover(isPresented: $isEditing, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .studioText(.title)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer()
+                    Text(percentLabel)
+                        .studioText(.eyebrowBold)
+                        .monospacedDigit()
+                        .foregroundStyle(accent)
+                }
+
+                Text(trackName)
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+
+                Slider(
+                    value: Binding(
+                        get: { clampedValue },
+                        set: onChange
+                    ),
+                    in: TrackMixSettings.sendRange,
+                    onEditingChanged: { editing in
+                        if editing {
+                            isEditing = true
+                        }
+                    }
+                )
+                .tint(accent)
+
+                Text("Automatic wet return to main mix")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .padding(16)
+            .frame(width: 280)
+            .background(StudioTheme.stageFill)
+        }
     }
 }
 
