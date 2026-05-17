@@ -14,6 +14,8 @@ struct Project: Codable, Equatable {
     var layers: [PhraseLayerDefinition]
     var routes: [Route]
     var buses: [MixerBus]
+    var sendBusA: SendBusState
+    var sendBusB: SendBusState
     var masterBus: MasterBusState
     var patternBanks: [TrackPatternBank]
     var sliceSetPool: [SliceSet]
@@ -30,6 +32,8 @@ struct Project: Codable, Equatable {
         layers: [PhraseLayerDefinition] = [],
         routes: [Route] = [],
         buses: [MixerBus] = [],
+        sendBusA: SendBusState = .sendA,
+        sendBusB: SendBusState = .sendB,
         masterBus: MasterBusState = .default,
         patternBanks: [TrackPatternBank] = [],
         sliceSetPool: [SliceSet] = [],
@@ -57,6 +61,8 @@ struct Project: Codable, Equatable {
         self.layers = normalized.layers
         self.routes = routes
         self.buses = normalizedBuses
+        self.sendBusA = sendBusA.normalized(expectedID: .sendA)
+        self.sendBusB = sendBusB.normalized(expectedID: .sendB)
         self.masterBus = masterBus.normalized()
         self.patternBanks = normalized.patternBanks
         self.sliceSetPool = sliceSetPool
@@ -133,6 +139,32 @@ extension Project {
 
     func mixerBus(id: UUID) -> MixerBus? {
         buses.first { $0.id == id }
+    }
+
+    func sendBus(id: SendBusID) -> SendBusState {
+        switch id {
+        case .sendA:
+            return sendBusA.normalized(expectedID: .sendA)
+        case .sendB:
+            return sendBusB.normalized(expectedID: .sendB)
+        }
+    }
+
+    mutating func updateSendBus(id: SendBusID, _ update: (inout SendBusState) -> Void) {
+        switch id {
+        case .sendA:
+            update(&sendBusA)
+            sendBusA = sendBusA.normalized(expectedID: .sendA)
+        case .sendB:
+            update(&sendBusB)
+            sendBusB = sendBusB.normalized(expectedID: .sendB)
+        }
+    }
+
+    mutating func setSendBusInserts(_ inserts: [SendBusInsert], id: SendBusID) {
+        updateSendBus(id: id) { sendBus in
+            sendBus = SendBusState(id: id, inserts: inserts)
+        }
     }
 
     static func tracksByClearingMissingOutputBuses(_ tracks: [StepSequenceTrack], buses: [MixerBus]) -> [StepSequenceTrack] {

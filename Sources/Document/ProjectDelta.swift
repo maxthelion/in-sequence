@@ -3,6 +3,7 @@ import Foundation
 enum ProjectDelta: Equatable, Hashable {
     case trackMixChanged(trackID: UUID, mix: TrackMixSettings)
     case mixerBusMixChanged(busID: UUID, mix: BusMixSettings)
+    case sendBusChanged(busID: SendBusID, bus: SendBusState)
     case selectedTrackChanged(trackID: UUID)
 
     case trackDestinationChanged(trackID: UUID, destination: Destination)
@@ -22,6 +23,7 @@ enum ProjectDelta: Equatable, Hashable {
         switch self {
         case .trackMixChanged,
              .mixerBusMixChanged,
+             .sendBusChanged,
              .selectedTrackChanged,
              .masterBusChanged,
              .patternBanksChanged,

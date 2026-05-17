@@ -15,6 +15,19 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertTrue(project.masterBus.masterInserts.isEmpty)
     }
 
+    func test_defaultProject_hasFixedEmptySendBuses() {
+        let project = Project.empty
+
+        XCTAssertEqual(project.sendBusA.id, .sendA)
+        XCTAssertEqual(project.sendBusA.name, "Send A")
+        XCTAssertTrue(project.sendBusA.inserts.isEmpty)
+        XCTAssertEqual(project.sendBusB.id, .sendB)
+        XCTAssertEqual(project.sendBusB.name, "Send B")
+        XCTAssertTrue(project.sendBusB.inserts.isEmpty)
+        XCTAssertEqual(project.selectedTrack.mix.sendA, 0)
+        XCTAssertEqual(project.selectedTrack.mix.sendB, 0)
+    }
+
     func test_oldProjectJSONDecodesWithDefaultMasterBus() throws {
         let encoded = try JSONEncoder().encode(Project.empty)
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
@@ -285,11 +298,15 @@ final class MasterBusStateTests: XCTestCase {
         let encoded = try JSONEncoder().encode(Project.empty)
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         object.removeValue(forKey: "buses")
+        object.removeValue(forKey: "sendBusA")
+        object.removeValue(forKey: "sendBusB")
         var tracks = try XCTUnwrap(object["tracks"] as? [[String: Any]])
         for index in tracks.indices {
             tracks[index].removeValue(forKey: "outputBusID")
             var mix = try XCTUnwrap(tracks[index]["mix"] as? [String: Any])
             mix.removeValue(forKey: "isSoloed")
+            mix.removeValue(forKey: "sendA")
+            mix.removeValue(forKey: "sendB")
             tracks[index]["mix"] = mix
         }
         object["tracks"] = tracks
@@ -298,8 +315,12 @@ final class MasterBusStateTests: XCTestCase {
         let decoded = try JSONDecoder().decode(Project.self, from: legacyData)
 
         XCTAssertTrue(decoded.buses.isEmpty)
+        XCTAssertEqual(decoded.sendBusA, .sendA)
+        XCTAssertEqual(decoded.sendBusB, .sendB)
         XCTAssertNil(decoded.selectedTrack.outputBusID)
         XCTAssertFalse(decoded.selectedTrack.mix.isSoloed)
+        XCTAssertEqual(decoded.selectedTrack.mix.sendA, 0)
+        XCTAssertEqual(decoded.selectedTrack.mix.sendB, 0)
     }
 
     func test_mixerBusRoutingAndSoloStateRoundTrips() throws {
@@ -307,6 +328,10 @@ final class MasterBusStateTests: XCTestCase {
         let busID = project.addMixerBus(name: " Drum Stem ", color: " blue ")
         project.setTrackOutputBus(trackID: project.selectedTrackID, busID: busID)
         project.setTrackSoloed(true, trackID: project.selectedTrackID)
+        project.tracks[project.selectedTrackIndex].mix.sendA = 0.35
+        project.tracks[project.selectedTrackIndex].mix.sendB = 1.4
+        project.setSendBusInserts([.filter()], id: .sendA)
+        project.setSendBusInserts([.bitcrusher()], id: .sendB)
         project.updateMixerBusMix(id: busID) { mix in
             mix.level = 0.62
             mix.pan = -0.25
@@ -325,6 +350,35 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(decoded.buses[0].inserts.count, 1)
         XCTAssertEqual(decoded.selectedTrack.outputBusID, busID)
         XCTAssertTrue(decoded.selectedTrack.mix.isSoloed)
+        XCTAssertEqual(decoded.selectedTrack.mix.sendA, 0.35)
+        XCTAssertEqual(decoded.selectedTrack.mix.sendB, 1)
+        XCTAssertEqual(decoded.sendBusA.id, .sendA)
+        XCTAssertEqual(decoded.sendBusA.name, "Send A")
+        XCTAssertEqual(decoded.sendBusA.inserts.count, 1)
+        XCTAssertEqual(decoded.sendBusB.id, .sendB)
+        XCTAssertEqual(decoded.sendBusB.name, "Send B")
+        XCTAssertEqual(decoded.sendBusB.inserts.count, 1)
+    }
+
+    func test_trackMixSendValuesClampOnAuthoredWritesAndDecode() throws {
+        var mix = TrackMixSettings.default
+        mix.sendA = -0.25
+        mix.sendB = 2
+
+        XCTAssertEqual(mix.sendA, 0)
+        XCTAssertEqual(mix.sendB, 1)
+
+        let encoded = try JSONEncoder().encode(TrackMixSettings.default)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object["sendA"] = 1.5
+        object["sendB"] = -0.2
+        let decoded = try JSONDecoder().decode(
+            TrackMixSettings.self,
+            from: try JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(decoded.sendA, 1)
+        XCTAssertEqual(decoded.sendB, 0)
     }
 
     private func decodePersisted(

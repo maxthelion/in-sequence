@@ -68,6 +68,14 @@ extension Project {
             deltas.append(.masterBusChanged)
         }
 
+        if sendBusA != previous.sendBusA {
+            deltas.append(.sendBusChanged(busID: .sendA, bus: sendBusA.normalized(expectedID: .sendA)))
+        }
+
+        if sendBusB != previous.sendBusB {
+            deltas.append(.sendBusChanged(busID: .sendB, bus: sendBusB.normalized(expectedID: .sendB)))
+        }
+
         if patternBanks != previous.patternBanks {
             deltas.append(.patternBanksChanged)
         }

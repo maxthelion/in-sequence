@@ -37,6 +37,7 @@
 		1297D30DD6B295C596BB62AB /* TracksMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0097C26CE717B68546B671EB /* TracksMatrixView.swift */; };
 		1509687785CD80E997F309DE /* GeneratedSourceEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B433910D2FD5A19E98CD11FC /* GeneratedSourceEvaluator.swift */; };
 		16163F2E83F6190EAE85C8DA /* SliceSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA48BEBA4D1C9B9469683BD5 /* SliceSet.swift */; };
+		16679621CC800C9444F4A96B /* SequencerDocumentSession+SendBusMutations.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98B1A82B412D3E96A590032 /* SequencerDocumentSession+SendBusMutations.swift */; };
 		181CFF71ABFDB7EA5FDEECF6 /* AudioInstrumentChoiceCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2A489F6B9AA95B180DF049 /* AudioInstrumentChoiceCache.swift */; };
 		184AC10DCE6120E4193D78AD /* StepSequenceTrackFilterDefaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBA61E7A26FA67A2B8E41AE1 /* StepSequenceTrackFilterDefaultTests.swift */; };
 		1935D9B8E383F31321D2BD12 /* TrackSourceModifierTabContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD69D1424D2DDE8EC261FB9 /* TrackSourceModifierTabContent.swift */; };
@@ -280,6 +281,7 @@
 		BACEF904A3AEB81E5BC505E7 /* ClipContentEmptyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D69E7F5964479E254C64568 /* ClipContentEmptyTests.swift */; };
 		BC4D77AEF8FC9502472339E8 /* AudioFileRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = B051F1394CFE5F589ED3EE8E /* AudioFileRef.swift */; };
 		BC581555FCF5B189869CB53E /* NoteShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE2E6B18CB11560E0791821 /* NoteShapeTests.swift */; };
+		BC6DCFEEA5CF7991A133A878 /* SendBusState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 426BB7B1DC148E456165AEBF /* SendBusState.swift */; };
 		BCDB32B74E1D08995B7C148C /* TrackGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A7C2A156C9AA0191029A381 /* TrackGroup.swift */; };
 		BCE8A3B6E41CDE4C7CE017E5 /* GeneratorAttachmentControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0DBE521F50BC3A91EC0A15 /* GeneratorAttachmentControl.swift */; };
 		BF6BD984EE3C278F08F86A04 /* ProjectAppendSliceTrackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 163A6523A76544076678A064 /* ProjectAppendSliceTrackTests.swift */; };
@@ -679,6 +681,7 @@
 		41EA154910A94FFAF5336404 /* 2026-05-07-p0-track-performance-overlay-model-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-07-p0-track-performance-overlay-model-review.md"; sourceTree = "<group>"; };
 		421B6400A2E9EAEE657B3683 /* screen-capture.err */ = {isa = PBXFileReference; path = "screen-capture.err"; sourceTree = "<group>"; };
 		4235F850CAAC73DF7772B374 /* validated-screen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "validated-screen.json"; sourceTree = "<group>"; };
+		426BB7B1DC148E456165AEBF /* SendBusState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendBusState.swift; sourceTree = "<group>"; };
 		42A96D2E2F787B4A142F0A38 /* ScalarCellPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScalarCellPreview.swift; sourceTree = "<group>"; };
 		42AFEBFF87BBD6454BB03F18 /* RecentVoicesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentVoicesStoreTests.swift; sourceTree = "<group>"; };
 		42D94B671AB39329D57A4A19 /* StepAlgo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepAlgo.swift; sourceTree = "<group>"; };
@@ -1353,6 +1356,7 @@
 		D91F1427F7CC02E5A94954A2 /* ux-ia.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-ia.md"; sourceTree = "<group>"; };
 		D967BF1258A68FD0FD147129 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
 		D97C0073585D0E373F57DE23 /* validated-window.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "validated-window.json"; sourceTree = "<group>"; };
+		D98B1A82B412D3E96A590032 /* SequencerDocumentSession+SendBusMutations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SequencerDocumentSession+SendBusMutations.swift"; sourceTree = "<group>"; };
 		D9B002FA4961043CAEAA68D4 /* spec.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = spec.md; sourceTree = "<group>"; };
 		D9BFCDCBC55FB192231D3973 /* 2026-05-07-p0-track-performance-overlay-model-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-07-p0-track-performance-overlay-model-review.md"; sourceTree = "<group>"; };
 		D9C05989F7D4106F578EBFED /* 2026-05-08T16-09-51Z-work-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T16-09-51Z-work-observer-cadence.md"; sourceTree = "<group>"; };
@@ -1570,6 +1574,7 @@
 				71C6645325A25EEC2912A8B2 /* Route.swift */,
 				E47991C72ED92062FA4C7B60 /* SamplerFilterSettings.swift */,
 				0323634862A85A4F878E6C2F /* SamplerSettings.swift */,
+				426BB7B1DC148E456165AEBF /* SendBusState.swift */,
 				726A0B95E8C4D84800FC746D /* SeqAIDocument.swift */,
 				A8D6E8D88966A1807311AD39 /* SliceMarker.swift */,
 				F1CB2C1E699DB70A8AC67E73 /* SlicerSettings.swift */,
@@ -3485,6 +3490,7 @@
 				2E66719376CD80E3250F1931 /* SequencerDocumentRootView.swift */,
 				F77CB755E9BDC045420902FC /* SequencerDocumentSession.swift */,
 				9BCE2D45E5C0442BDBB40D75 /* SequencerDocumentSession+Mutations.swift */,
+				D98B1A82B412D3E96A590032 /* SequencerDocumentSession+SendBusMutations.swift */,
 				BA410BB96AE3DBC3C2696FFD /* SequencerDocumentSession+TrackSourceSlotModifiers.swift */,
 				6A722A3FE340A068B514DB7E /* SequencerDocumentSessionRegistry.swift */,
 				B9F5315493DF8287EC5F7B71 /* SessionSnapshotPublisher.swift */,
@@ -4513,11 +4519,13 @@
 				C9777BCEAD988B928C7F7CD0 /* ScenesWorkspaceView+Perform.swift in Sources */,
 				F9B9CA4B718EC637611C7FE5 /* ScenesWorkspaceView.swift in Sources */,
 				10C28AF256596B11EE34B0FB /* ScheduledEvent.swift in Sources */,
+				BC6DCFEEA5CF7991A133A878 /* SendBusState.swift in Sources */,
 				710B658B41C2704648725560 /* SeqAIDocument.swift in Sources */,
 				FF0E1A8B761188143DF58D72 /* SequencerAIApp.swift in Sources */,
 				B34D8A2CBDD8F4719B64FA16 /* SequencerAIAppDelegate.swift in Sources */,
 				601677F0BC324E42A1D03833 /* SequencerDocumentRootView.swift in Sources */,
 				01EC6B69C4C6C3920A0A1908 /* SequencerDocumentSession+Mutations.swift in Sources */,
+				16679621CC800C9444F4A96B /* SequencerDocumentSession+SendBusMutations.swift in Sources */,
 				FA34FEB78C73F50663B33DBE /* SequencerDocumentSession+TrackSourceSlotModifiers.swift in Sources */,
 				9A128CC4D3BA0FFACD33E45C /* SequencerDocumentSession.swift in Sources */,
 				B6863061684526E1768461AF /* SequencerDocumentSessionRegistry.swift in Sources */,

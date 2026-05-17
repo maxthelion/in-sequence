@@ -294,6 +294,75 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_trackSendMutation_clampsAndUsesTrackMixPerformancePath() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        let trackID = session.store.selectedTrackID
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+        let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
+
+        assertNoExportDuring(session.store) {
+            session.setTrackSends(trackID: trackID, sendA: -0.5, sendB: 1.5)
+        }
+
+        XCTAssertEqual(session.store.selectedTrack.mix.sendA, 0)
+        XCTAssertEqual(session.store.selectedTrack.mix.sendB, 1)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore + 1)
+        XCTAssertEqual(documentBox.document.project.selectedTrack.mix.sendA, 0)
+        XCTAssertEqual(documentBox.document.project.selectedTrack.mix.sendB, 0)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.selectedTrack.mix.sendA, 0)
+        XCTAssertEqual(documentBox.document.project.selectedTrack.mix.sendB, 1)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_sendBusInsertMutation_updatesOnlyTargetBusAndScopedEnginePath() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+        let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
+        let sendBusApplyCallsBefore = engine.sendBusApplyCallCount
+        let insert = MasterBusInsert.filter()
+
+        assertNoExportDuring(session.store) {
+            session.addSendBusInsert(insert, to: .sendA)
+        }
+
+        XCTAssertEqual(session.store.sendBusA.inserts.map(\.id), [insert.id])
+        XCTAssertTrue(session.store.sendBusB.inserts.isEmpty)
+        XCTAssertEqual(engine.sendBusApplyCallCount, sendBusApplyCallsBefore + 1)
+        XCTAssertEqual(engine.sendBusStates[.sendA]?.inserts.map(\.id), [insert.id])
+        XCTAssertTrue(engine.sendBusStates[.sendB]?.inserts.isEmpty == true)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
+        XCTAssertTrue(documentBox.document.project.sendBusA.inserts.isEmpty)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.sendBusA.inserts.map(\.id), [insert.id])
+        XCTAssertTrue(documentBox.document.project.sendBusB.inserts.isEmpty)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_mixerBusPerformanceMutations_doNotExportOrApplyDocumentModel() {
         let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
         let engine = EngineController(client: nil, endpoint: nil)

@@ -14,6 +14,8 @@ enum ScopedRuntimeUpdate: Sendable {
     case mix(trackID: UUID, mix: TrackMixSettings)
     /// Update bus mix state without rebuilding the document-model pipeline.
     case mixerBusMix(busID: UUID, mix: BusMixSettings)
+    /// Update fixed send-bus authored state without rebuilding the document-model pipeline.
+    case sendBus(SendBusState)
     /// Update master bus scene/end-of-chain state without rebuilding playback.
     case masterBus(MasterBusState)
 }
@@ -110,6 +112,10 @@ final class LiveSequencerStore {
     /// User-created mixer busses, ordered as stored.
     private var storeBuses: [MixerBus] = []
 
+    /// Fixed global send effect buses.
+    private var storeSendBusA: SendBusState = .sendA
+    private var storeSendBusB: SendBusState = .sendB
+
     /// Master bus end-of-chain scenes and live draft state.
     private var storeMasterBus: MasterBusState = .default
 
@@ -142,6 +148,8 @@ final class LiveSequencerStore {
         storeLayers = project.layers
         storeRoutes = project.routes
         storeBuses = MixerBus.normalizedCollection(project.buses)
+        storeSendBusA = project.sendBusA.normalized(expectedID: .sendA)
+        storeSendBusB = project.sendBusB.normalized(expectedID: .sendB)
         storeMasterBus = project.masterBus.normalized()
         storeSelectedTrackID = project.selectedTrackID
         storeSelectedPhraseID = project.selectedPhraseID
@@ -198,6 +206,8 @@ final class LiveSequencerStore {
             layers: storeLayers,
             routes: storeRoutes,
             buses: storeBuses,
+            sendBusA: storeSendBusA,
+            sendBusB: storeSendBusB,
             masterBus: storeMasterBus,
             patternBanks: orderedBanks,
             sliceSetPool: orderedSliceSets,
@@ -488,6 +498,32 @@ final class LiveSequencerStore {
     }
 
     @discardableResult
+    func mutateSendBus(id: SendBusID, _ update: (inout SendBusState) -> Void) -> Bool {
+        switch id {
+        case .sendA:
+            var sendBus = storeSendBusA
+            let before = sendBus
+            update(&sendBus)
+            sendBus = sendBus.normalized(expectedID: .sendA)
+            guard sendBus != before else {
+                return false
+            }
+            storeSendBusA = sendBus
+        case .sendB:
+            var sendBus = storeSendBusB
+            let before = sendBus
+            update(&sendBus)
+            sendBus = sendBus.normalized(expectedID: .sendB)
+            guard sendBus != before else {
+                return false
+            }
+            storeSendBusB = sendBus
+        }
+        revision &+= 1
+        return true
+    }
+
+    @discardableResult
     func clearAllSolo() -> Bool {
         var changed = false
         for index in storeTracks.indices where storeTracks[index].mix.isSoloed {
@@ -586,6 +622,8 @@ final class LiveSequencerStore {
     var layers: [PhraseLayerDefinition] { storeLayers }
     var routes: [Route] { storeRoutes }
     var buses: [MixerBus] { storeBuses }
+    var sendBusA: SendBusState { storeSendBusA }
+    var sendBusB: SendBusState { storeSendBusB }
     var masterBus: MasterBusState { storeMasterBus }
     var selectedTrackID: UUID { storeSelectedTrackID }
     var selectedPhraseID: UUID { storeSelectedPhraseID }
@@ -601,6 +639,15 @@ final class LiveSequencerStore {
 
     var sliceSetPool: [SliceSet] {
         storeSliceSetOrder.compactMap { storeSliceSetsByID[$0] }
+    }
+
+    func sendBus(id: SendBusID) -> SendBusState {
+        switch id {
+        case .sendA:
+            return storeSendBusA
+        case .sendB:
+            return storeSendBusB
+        }
     }
 
     var phrases: [PhraseModel] {

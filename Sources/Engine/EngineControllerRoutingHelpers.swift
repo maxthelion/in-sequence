@@ -150,7 +150,9 @@ extension EngineController {
             level: mix.level,
             pan: mix.pan,
             isMuted: isMuted,
-            isSoloed: mix.isSoloed
+            isSoloed: mix.isSoloed,
+            sendA: mix.sendA,
+            sendB: mix.sendB
         )
     }
 

@@ -21,6 +21,19 @@ final class ProjectDeltaDiffTests: XCTestCase {
         )
     }
 
+    func test_send_amount_change_reuses_trackMixChanged() {
+        let before = Project.empty
+        var after = before
+        let trackID = after.selectedTrack.id
+        after.tracks[after.selectedTrackIndex].mix.sendA = 0.4
+        after.tracks[after.selectedTrackIndex].mix.sendB = 0.7
+
+        XCTAssertEqual(
+            after.deltas(from: before),
+            [.trackMixChanged(trackID: trackID, mix: after.selectedTrack.mix)]
+        )
+    }
+
     func test_selected_track_change_produces_selectedTrackChanged() {
         var before = Project.empty
         before.appendTrack(trackType: .monoMelodic)
@@ -75,6 +88,18 @@ final class ProjectDeltaDiffTests: XCTestCase {
 
         XCTAssertEqual(after.deltas(from: before), [.masterBusChanged])
         XCTAssertTrue(ProjectDelta.masterBusChanged.isPhaseOneHotPath)
+    }
+
+    func test_send_bus_change_produces_scoped_sendBusChanged() {
+        let before = Project.empty
+        var after = before
+        after.setSendBusInserts([.filter()], id: .sendA)
+
+        XCTAssertEqual(
+            after.deltas(from: before),
+            [.sendBusChanged(busID: .sendA, bus: after.sendBusA)]
+        )
+        XCTAssertTrue(ProjectDelta.sendBusChanged(busID: .sendA, bus: after.sendBusA).isPhaseOneHotPath)
     }
 
     func test_mixer_bus_change_produces_busesChanged() {

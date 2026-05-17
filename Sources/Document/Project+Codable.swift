@@ -18,6 +18,8 @@ struct NormalizedFields {
         case layers
         case routes
         case buses
+        case sendBusA
+        case sendBusB
         case masterBus
         case patternBanks
         case sliceSetPool
@@ -126,6 +128,10 @@ static func normalize(
         let resolvedBuses = MixerBus.normalizedCollection(
             try container.decodeIfPresent([MixerBus].self, forKey: .buses) ?? []
         )
+        let resolvedSendBusA = (try container.decodeIfPresent(SendBusState.self, forKey: .sendBusA) ?? .sendA)
+            .normalized(expectedID: .sendA)
+        let resolvedSendBusB = (try container.decodeIfPresent(SendBusState.self, forKey: .sendBusB) ?? .sendB)
+            .normalized(expectedID: .sendB)
         let resolvedMasterBus = try container.decodeIfPresent(MasterBusState.self, forKey: .masterBus)?.normalized() ?? .default
         let normalized = Self.normalize(
             tracks: resolvedTracks,
@@ -146,6 +152,8 @@ static func normalize(
         layers = normalized.layers
         routes = resolvedRoutes
         buses = resolvedBuses
+        sendBusA = resolvedSendBusA
+        sendBusB = resolvedSendBusB
         masterBus = resolvedMasterBus
         patternBanks = normalized.patternBanks
         sliceSetPool = try container.decodeIfPresent([SliceSet].self, forKey: .sliceSetPool) ?? []
@@ -165,6 +173,8 @@ static func normalize(
         try container.encode(layers, forKey: .layers)
         try container.encode(routes, forKey: .routes)
         try container.encode(buses, forKey: .buses)
+        try container.encode(sendBusA.normalized(expectedID: .sendA), forKey: .sendBusA)
+        try container.encode(sendBusB.normalized(expectedID: .sendB), forKey: .sendBusB)
         try container.encode(masterBus.normalized(), forKey: .masterBus)
         try container.encode(patternBanks, forKey: .patternBanks)
         try container.encode(sliceSetPool, forKey: .sliceSetPool)
@@ -207,6 +217,8 @@ static func normalize(
         }
         masterBus = masterBus.normalized()
         buses = MixerBus.normalizedCollection(buses)
+        sendBusA = sendBusA.normalized(expectedID: .sendA)
+        sendBusB = sendBusB.normalized(expectedID: .sendB)
         tracks = Self.tracksByClearingMissingOutputBuses(tracks, buses: buses)
     }
 

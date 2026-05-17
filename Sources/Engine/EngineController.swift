@@ -327,6 +327,10 @@ final class EngineController: RouterDispatcher {
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
+        sendBusStates = [
+            .sendA: documentModel.sendBusA.normalized(expectedID: .sendA),
+            .sendB: documentModel.sendBusB.normalized(expectedID: .sendB),
+        ]
         syncMasterBusPerformanceOverlay(for: documentModel.masterBus)
         masterBusHost.apply(documentModel.masterBus)
         let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
@@ -360,6 +364,15 @@ final class EngineController: RouterDispatcher {
 
     /// Counter for test observation of `apply(playbackSnapshot:)` invocations.
     var applyPlaybackSnapshotCallCount: Int = 0
+
+    /// Counter for test observation of scoped send-bus authored updates.
+    var sendBusApplyCallCount: Int = 0
+
+    /// Last fixed send-bus states seen through scoped authored updates.
+    private(set) var sendBusStates: [SendBusID: SendBusState] = [
+        .sendA: .sendA,
+        .sendB: .sendB,
+    ]
 
     /// Test hook: exposes whether the internal event queue is empty.
     /// Use to assert that prepared events were cleared after a snapshot swap.
@@ -418,6 +431,15 @@ final class EngineController: RouterDispatcher {
         }
         currentDocumentModel.buses[index].mix = mix.normalized()
         refreshEffectiveMixerState(for: currentDocumentModel)
+    }
+
+    func apply(sendBus: SendBusState) {
+        let normalized = sendBus.normalized(expectedID: sendBus.id)
+        sendBusStates[normalized.id] = normalized
+        sendBusApplyCallCount += 1
+        currentDocumentModel.updateSendBus(id: normalized.id) { sendBus in
+            sendBus = normalized
+        }
     }
 
     var registeredKindIDs: [String] {
@@ -644,6 +666,9 @@ final class EngineController: RouterDispatcher {
 
             case let .mixerBusMixChanged(busID, mix):
                 setMixerBusMix(busID: busID, mix: mix)
+
+            case let .sendBusChanged(_, bus):
+                apply(sendBus: bus)
 
             case let .selectedTrackChanged(trackID):
                 let selectedTrack = documentModel.tracks.first(where: { $0.id == trackID }) ?? documentModel.selectedTrack

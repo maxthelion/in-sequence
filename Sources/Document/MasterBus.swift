@@ -761,6 +761,7 @@ struct MasterBusABSelection: Codable, Equatable, Sendable {
 }
 
 typealias MixerBusInsert = MasterBusInsert
+typealias SendBusInsert = MasterBusInsert
 
 struct BusMixSettings: Codable, Equatable, Hashable, Sendable {
     var level: Double
@@ -850,7 +851,7 @@ struct MixerBus: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct MasterBusInsert: Codable, Equatable, Identifiable, Sendable {
+struct MasterBusInsert: Codable, Equatable, Hashable, Identifiable, Sendable {
     var id: UUID
     var name: String
     var isEnabled: Bool
@@ -896,7 +897,7 @@ struct MasterBusInsert: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-enum MasterBusInsertKind: Codable, Equatable, Sendable {
+enum MasterBusInsertKind: Codable, Equatable, Hashable, Sendable {
     case nativeFilter(MasterFilterSettings)
     case nativeBitcrusher(MasterBitcrusherSettings)
     case auEffect(componentID: AudioComponentID, stateBlob: Data?)
@@ -935,8 +936,8 @@ enum MasterBusInsertKind: Codable, Equatable, Sendable {
     }
 }
 
-struct MasterFilterSettings: Codable, Equatable, Sendable {
-    enum Mode: String, Codable, CaseIterable, Sendable {
+struct MasterFilterSettings: Codable, Equatable, Hashable, Sendable {
+    enum Mode: String, Codable, CaseIterable, Hashable, Sendable {
         case lowPass
         case highPass
     }
@@ -956,7 +957,7 @@ struct MasterFilterSettings: Codable, Equatable, Sendable {
     }
 }
 
-struct MasterBitcrusherSettings: Codable, Equatable, Sendable {
+struct MasterBitcrusherSettings: Codable, Equatable, Hashable, Sendable {
     var bitDepth: Int
     var sampleRateScale: Double
     var drive: Double

@@ -177,14 +177,17 @@ final class SequencerDocumentSession {
             engineController.setMix(trackID: trackID, mix: mix)
         case let .mixerBusMix(busID, mix):
             engineController.setMixerBusMix(busID: busID, mix: mix)
+        case let .sendBus(sendBus):
+            engineController.apply(sendBus: sendBus)
         case let .masterBus(masterBus):
             engineController.apply(masterBus: masterBus)
         }
     }
 
     func setTrackMix(trackID: UUID, mix: TrackMixSettings) {
+        let normalizedMix = mix.normalized()
         let changed = store.mutateTrack(id: trackID) { track in
-            track.mix = mix
+            track.mix = normalizedMix
         }
 
         guard changed else {
@@ -192,9 +195,33 @@ final class SequencerDocumentSession {
         }
 
         revision = store.revision
-        engineController.setMix(trackID: trackID, mix: mix)
+        engineController.setMix(trackID: trackID, mix: normalizedMix)
         publishSnapshot(changed: .track(trackID))
         scheduleFlushToDocument()
+    }
+
+    func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {
+        guard let track = store.tracks.first(where: { $0.id == trackID }) else {
+            return
+        }
+        var mix = track.mix
+        mix.sendA = sendA
+        mix.sendB = sendB
+        setTrackMix(trackID: trackID, mix: mix)
+    }
+
+    func setTrackSendA(_ value: Double, trackID: UUID) {
+        guard let track = store.tracks.first(where: { $0.id == trackID }) else {
+            return
+        }
+        setTrackSends(trackID: trackID, sendA: value, sendB: track.mix.sendB)
+    }
+
+    func setTrackSendB(_ value: Double, trackID: UUID) {
+        guard let track = store.tracks.first(where: { $0.id == trackID }) else {
+            return
+        }
+        setTrackSends(trackID: trackID, sendA: track.mix.sendA, sendB: value)
     }
 
     @discardableResult
