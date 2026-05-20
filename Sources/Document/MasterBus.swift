@@ -473,6 +473,36 @@ struct MasterSceneMacroBinding: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+struct AUParameterReference: Codable, Equatable, Sendable {
+    var insertID: UUID
+    var address: UInt64
+    var identifier: String
+    var displayName: String
+    var minValue: Double
+    var maxValue: Double
+    var defaultValue: Double
+    var unit: String?
+
+    var valueRange: ClosedRange<Double> {
+        let lower = min(minValue, maxValue)
+        let upper = max(minValue, maxValue)
+        return lower == upper ? (lower...(lower + 1)) : (lower...upper)
+    }
+
+    func remappedInsertIDs(_ insertIDMap: [UUID: UUID]) -> AUParameterReference {
+        AUParameterReference(
+            insertID: insertIDMap[insertID] ?? insertID,
+            address: address,
+            identifier: identifier,
+            displayName: displayName,
+            minValue: minValue,
+            maxValue: maxValue,
+            defaultValue: defaultValue,
+            unit: unit
+        )
+    }
+}
+
 enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
     case outputGain
     case insertWetDry(insertID: UUID)
@@ -502,17 +532,15 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
             return 0...1
         case .filterCutoff:
             return 20...20_000
-        case let .auParameter(_, _, _, _, minValue, maxValue, _, _):
-            let lower = min(minValue, maxValue)
-            let upper = max(minValue, maxValue)
-            return lower == upper ? (lower...(lower + 1)) : (lower...upper)
+        case .auParameter:
+            return auParameterReference?.valueRange ?? 0...1
         }
     }
 
     var authoredDefaultValue: Double? {
         switch self {
-        case let .auParameter(_, _, _, _, _, _, defaultValue, _):
-            return defaultValue
+        case .auParameter:
+            return auParameterReference?.defaultValue
         default:
             return nil
         }
@@ -579,17 +607,9 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
             return .bitcrusherRate(insertID: insertIDMap[insertID] ?? insertID)
         case let .bitcrusherDrive(insertID):
             return .bitcrusherDrive(insertID: insertIDMap[insertID] ?? insertID)
-        case let .auParameter(insertID, address, identifier, displayName, minValue, maxValue, defaultValue, unit):
-            return .auParameter(
-                insertID: insertIDMap[insertID] ?? insertID,
-                address: address,
-                identifier: identifier,
-                displayName: displayName,
-                minValue: minValue,
-                maxValue: maxValue,
-                defaultValue: defaultValue,
-                unit: unit
-            )
+        case .auParameter:
+            guard let reference = auParameterReference else { return self }
+            return Self.auParameter(reference.remappedInsertIDs(insertIDMap))
         }
     }
 
@@ -659,9 +679,39 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
             return "\(insertName(insertID, in: scene)) Rate"
         case let .bitcrusherDrive(insertID):
             return "\(insertName(insertID, in: scene)) Drive"
-        case let .auParameter(insertID, _, _, displayName, _, _, _, _):
-            return "\(insertName(insertID, in: scene)) \(displayName)"
+        case .auParameter:
+            guard let reference = auParameterReference else { return "Insert Parameter" }
+            return "\(insertName(reference.insertID, in: scene)) \(reference.displayName)"
         }
+    }
+
+    private var auParameterReference: AUParameterReference? {
+        guard case let .auParameter(insertID, address, identifier, displayName, minValue, maxValue, defaultValue, unit) = self else {
+            return nil
+        }
+        return AUParameterReference(
+            insertID: insertID,
+            address: address,
+            identifier: identifier,
+            displayName: displayName,
+            minValue: minValue,
+            maxValue: maxValue,
+            defaultValue: defaultValue,
+            unit: unit
+        )
+    }
+
+    private static func auParameter(_ reference: AUParameterReference) -> MasterSceneMacroTarget {
+        .auParameter(
+            insertID: reference.insertID,
+            address: reference.address,
+            identifier: reference.identifier,
+            displayName: reference.displayName,
+            minValue: reference.minValue,
+            maxValue: reference.maxValue,
+            defaultValue: reference.defaultValue,
+            unit: reference.unit
+        )
     }
 
     private func insertName(_ insertID: UUID, in scene: MasterBusScene) -> String {

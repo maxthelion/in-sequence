@@ -524,19 +524,14 @@ enum GeneratedSourceEvaluator {
 
         case let .randomInScale(root, scale, spread):
             let effectiveRoot = transposedRoot(seedPitch: seed.pitch, configuredRoot: root)
-            let adapted = PitchAlgo.randomInScale(
-                root: effectiveRoot,
-                scale: sidechain.scaleID ?? scale,
-                spread: spread
-            )
-            return [adapted.pick(
-                context: PitchContext(
-                    lastPitch: lastPitch,
-                    scaleRoot: effectiveRoot,
-                    scaleID: sidechain.scaleID ?? scale,
-                    currentChord: sidechain.chord,
-                    stepIndex: stepIndex
-                ),
+            let effectiveScale = sidechain.scaleID ?? scale
+            return [pickPitch(
+                using: .randomInScale(root: effectiveRoot, scale: effectiveScale, spread: spread),
+                lastPitch: lastPitch,
+                scaleRoot: effectiveRoot,
+                scaleID: effectiveScale,
+                chord: sidechain.chord,
+                stepIndex: stepIndex,
                 rng: &rng
             )]
 
@@ -544,20 +539,18 @@ enum GeneratedSourceEvaluator {
             if let chordContext = sidechain.chord,
                let chordID = ChordID(rawValue: chordContext.chordType)
             {
-                let adapted = PitchAlgo.randomInChord(
-                    root: Int(chordContext.root),
-                    chord: chordID,
-                    inverted: inverted,
-                    spread: spread
-                )
-                return [adapted.pick(
-                    context: PitchContext(
-                        lastPitch: lastPitch,
-                        scaleRoot: Int(chordContext.root),
-                        scaleID: sidechain.scaleID ?? .major,
-                        currentChord: chordContext,
-                        stepIndex: stepIndex
+                return [pickPitch(
+                    using: .randomInChord(
+                        root: Int(chordContext.root),
+                        chord: chordID,
+                        inverted: inverted,
+                        spread: spread
                     ),
+                    lastPitch: lastPitch,
+                    scaleRoot: Int(chordContext.root),
+                    scaleID: sidechain.scaleID ?? .major,
+                    chord: chordContext,
+                    stepIndex: stepIndex,
                     rng: &rng
                 )]
             }
@@ -573,44 +566,39 @@ enum GeneratedSourceEvaluator {
                 inverted: inverted,
                 spread: spread
             )
-            return [adapted.pick(
-                context: PitchContext(
-                    lastPitch: lastPitch,
-                    scaleRoot: effectiveRoot,
-                    scaleID: sidechain.scaleID ?? .major,
-                    currentChord: sidechain.chord,
-                    stepIndex: stepIndex
-                ),
+            return [pickPitch(
+                using: adapted,
+                lastPitch: lastPitch,
+                scaleRoot: effectiveRoot,
+                scaleID: sidechain.scaleID ?? .major,
+                chord: sidechain.chord,
+                stepIndex: stepIndex,
                 rng: &rng
             )]
 
         case let .intervalProb(root, scale, degreeWeights):
             let effectiveRoot = sidechain.chord.map { Int($0.root) } ?? transposedRoot(seedPitch: seed.pitch, configuredRoot: root)
             let effectiveScale = sidechain.scaleID ?? scale
-            let adapted = PitchAlgo.intervalProb(root: effectiveRoot, scale: effectiveScale, degreeWeights: degreeWeights)
-            return [adapted.pick(
-                context: PitchContext(
-                    lastPitch: lastPitch,
-                    scaleRoot: effectiveRoot,
-                    scaleID: effectiveScale,
-                    currentChord: sidechain.chord,
-                    stepIndex: stepIndex
-                ),
+            return [pickPitch(
+                using: .intervalProb(root: effectiveRoot, scale: effectiveScale, degreeWeights: degreeWeights),
+                lastPitch: lastPitch,
+                scaleRoot: effectiveRoot,
+                scaleID: effectiveScale,
+                chord: sidechain.chord,
+                stepIndex: stepIndex,
                 rng: &rng
             )]
 
         case let .markov(root, scale, styleID, leap, color):
             let effectiveRoot = sidechain.chord.map { Int($0.root) } ?? transposedRoot(seedPitch: seed.pitch, configuredRoot: root)
             let effectiveScale = sidechain.scaleID ?? scale
-            let adapted = PitchAlgo.markov(root: effectiveRoot, scale: effectiveScale, styleID: styleID, leap: leap, color: color)
-            return [adapted.pick(
-                context: PitchContext(
-                    lastPitch: lastPitch,
-                    scaleRoot: effectiveRoot,
-                    scaleID: effectiveScale,
-                    currentChord: sidechain.chord,
-                    stepIndex: stepIndex
-                ),
+            return [pickPitch(
+                using: .markov(root: effectiveRoot, scale: effectiveScale, styleID: styleID, leap: leap, color: color),
+                lastPitch: lastPitch,
+                scaleRoot: effectiveRoot,
+                scaleID: effectiveScale,
+                chord: sidechain.chord,
+                stepIndex: stepIndex,
                 rng: &rng
             )]
 
@@ -654,6 +642,27 @@ enum GeneratedSourceEvaluator {
             }
             return ResolvedHarmonicSidechain(chord: nil, pitches: clipPitchPool(for: clip))
         }
+    }
+
+    private static func pickPitch<R: RandomNumberGenerator>(
+        using algo: PitchAlgo,
+        lastPitch: Int?,
+        scaleRoot: Int,
+        scaleID: ScaleID,
+        chord: Chord?,
+        stepIndex: Int,
+        rng: inout R
+    ) -> Int {
+        algo.pick(
+            context: PitchContext(
+                lastPitch: lastPitch,
+                scaleRoot: scaleRoot,
+                scaleID: scaleID,
+                currentChord: chord,
+                stepIndex: stepIndex
+            ),
+            rng: &rng
+        )
     }
 
     private static func triggerCycleLength(
