@@ -1,0 +1,67 @@
+id: project
+kind: project
+status: active
+
+actors:
+  observe:
+    - actor: feature-readiness-observer
+      cadence: 2h
+      tick: >
+        Observe PM artifact readiness for promotion into build loops. Report
+        ready-for-promotion, not-ready, stale/already-handled, and evidence
+        freshness. Do not promote or schedule work directly; notify orienter
+        when promotion-candidate evidence changed.
+    - actor: work-observer
+      cadence: 2h
+      tick: >
+        Observe active work, completed actor outputs, and missing evidence.
+        Update current work state and notify orienter if the next decision is
+        unclear.
+    - actor: holistic-observer
+      cadence: 4h
+      tick: >
+        Observe whole-product coherence against the README, roadmap intent, and
+        recent observer outputs. Do not request product-owner attention unless
+        genuinely needed.
+    - actor: merge-observer
+      cadence: 4h
+      tick: >
+        Observe merge candidates, branch containment, and merge freshness.
+        Record facts only; orienter interprets them.
+    - actor: rebase-observer
+      cadence: 4h
+      tick: >
+        Observe branches and worktrees that are behind main or likely to need
+        rebase. Record facts only; orienter interprets them.
+    - actor: worktree-hygiene-observer
+      cadence: 8h
+      tick: >
+        Observe worktrees that are merged, abandoned, dirty, stale, or
+        ambiguous. Record cleanup candidates only; orienter interprets them.
+    - actor: log-observer
+      cadence: 2h
+      tick: >
+        Observe recent runtime logs and crash evidence. If a regression appears
+        tied to active work, notify orienter with the evidence.
+    - actor: process-health-observer
+      cadence: 4h
+      tick: >
+        Observe loop health, token/resource churn, repeated failures, missing
+        visibility, and brittle deterministic coupling. Write observations and
+        bounded repair requests only when there is useful evidence.
+  orient:
+    - actor: orienter
+      cadence: on_inbox
+  decide:
+    - actor: decider
+      cadence: on_inbox
+  act:
+    - actor: implementer
+      cadence: on_inbox
+      resource_keys: mutate:loop:project
+    - actor: integrator
+      cadence: on_inbox
+      resource_keys: mutate:loop:project
+    - actor: process-fixer
+      cadence: on_inbox
+      resource_keys: mutate:loop:project

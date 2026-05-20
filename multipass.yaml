@@ -1,0 +1,23 @@
+version: 2
+coordinator: /Users/maxwilliams/dev/multi-pass-coordinator
+
+project:
+  name: in-sequence
+  root: /Users/maxwilliams/dev/in-sequence
+  read_first:
+    - README.md
+    - docs/roadmap/context-pack.md
+    - docs/roadmap/AGENTS.md
+    - wiki/pages/application-overview.md
+    - wiki/pages/information-architecture-ux.md
+
+runtime:
+  inbox: .meta/multipass/inbox
+  runs: .meta/multipass/runs
+  state: .meta/multipass/state
+  activity: .meta/multipass/activity.ndjson
+  max_starts_per_tick: 1
+  actor_timeout_seconds: 1500
+
+loops:
+  registry: docs/multi-pass-coordinator/loops
