@@ -185,6 +185,7 @@
 		7E5B2AD63D3615F71AEDC0A8 /* WaveformDownsampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516D8F17D3FBB41335AAD779 /* WaveformDownsampler.swift */; };
 		7E644B5452556C45E95CE59E /* TrackSourceSourceDisplayStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED9814F4772023BA0FC68D /* TrackSourceSourceDisplayStateTests.swift */; };
 		7F6E2E9E21E78C0B6DC49184 /* TickStateBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57865C84C633D0EFCE676C5F /* TickStateBuffer.swift */; };
+		7F86F63242B34E3DA4825E65 /* RouterDispatchState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610DC2745D7F48A18E3D11D2 /* RouterDispatchState.swift */; };
 		7FCBEA8A63FB2A7CEB0623BC /* SourceRefNormalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7C2BD9B01666806D99ECB4 /* SourceRefNormalizationTests.swift */; };
 		808530F1DECBEDFD2A8B1EC1 /* TrackPatternBankDefaultSeedingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B550FDF4C884B75F74EB1BFB /* TrackPatternBankDefaultSeedingTests.swift */; };
 		80ABD317AEF70A8302FFA72D /* StepAlgoKindTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28FAE49744AFC33D02238A2D /* StepAlgoKindTests.swift */; };
@@ -853,6 +854,7 @@
 		6941B5D073485840F28B5E36 /* xcodebuild.log */ = {isa = PBXFileReference; path = xcodebuild.log; sourceTree = "<group>"; };
 		694DB0766DA513B3DADB7EA8 /* VisualScenarioCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualScenarioCommandRunner.swift; sourceTree = "<group>"; };
 		57865C84C633D0EFCE676C5F /* TickStateBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickStateBuffer.swift; sourceTree = "<group>"; };
+		610DC2745D7F48A18E3D11D2 /* RouterDispatchState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterDispatchState.swift; sourceTree = "<group>"; };
 		69807CDF39FA8147DC9A9461 /* SamplerFilterSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplerFilterSettingsTests.swift; sourceTree = "<group>"; };
 		69B11A28F75AB3A18C44E5D5 /* 2026-04-19-overnight-bt-extension.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-19-overnight-bt-extension.md"; sourceTree = "<group>"; };
 		6A18C50A2562ECAB17B9C491 /* 03-live-workspace-grid.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "03-live-workspace-grid.html"; sourceTree = "<group>"; };
@@ -2049,6 +2051,7 @@
 				18A42B9452FE5B613F4A8127 /* SequencerSnapshotCompiler.swift */,
 				B92739BDCFFF896AAD0A3A52 /* SnapshotChange.swift */,
 				97637E4515BD5143B0324852 /* Stream.swift */,
+				610DC2745D7F48A18E3D11D2 /* RouterDispatchState.swift */,
 				D14D36481855CDB4DD04A150 /* TickClock.swift */,
 				57865C84C633D0EFCE676C5F /* TickStateBuffer.swift */,
 				921E462AD4D705FF1D61E26C /* TrackRuntimeRegistry.swift */,
@@ -4586,6 +4589,7 @@
 				9C25B356ECA1D8F046FABF95 /* ThrottledMixControl.swift in Sources */,
 				59479499E4F42BE628B7EE30 /* TickClock.swift in Sources */,
 				7F6E2E9E21E78C0B6DC49184 /* TickStateBuffer.swift in Sources */,
+				7F86F63242B34E3DA4825E65 /* RouterDispatchState.swift in Sources */,
 				98F83A64276D544C66E703A2 /* TrackDestinationEditor.swift in Sources */,
 				BCDB32B74E1D08995B7C148C /* TrackGroup.swift in Sources */,
 				B1E9D2674C7F45983E382984 /* TrackMacroApplier.swift in Sources */,

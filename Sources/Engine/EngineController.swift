@@ -55,11 +55,7 @@ final class EngineController: RouterDispatcher {
     private var currentDocumentModel: Project = .empty
     private let tickState = TickStateBuffer(playbackSnapshot: SequencerSnapshotCompiler.compile(state: .empty))
     private let trackRuntime = TrackRuntimeRegistry()
-    private var routeMidiOutputs: [Destination: MidiOut] = [:]
-    private var routedNoteEvents: [RouteDestination: [NoteEvent]] = [:]
-    private var routedChords: [(RouteDestination, Chord, String?)] = []
-    private var routedMIDINotes: [Destination: [NoteEvent]] = [:]
-    private var routeDispatchNow: TimeInterval = 0
+    private let routerDispatch = RouterDispatchState()
     private(set) var chordContextByLane: [String: Chord] = [:]
 
     private func log(_ message: String) {
@@ -191,7 +187,7 @@ final class EngineController: RouterDispatcher {
 
             self.withStateLock {
                 self.trackRuntime.resetSinks()
-                self.routeMidiOutputs = [:]
+                self.routerDispatch.resetOutputs()
             }
             self.tickState.resetRuntimeState(clearCapture: true)
             self.log("shutdown complete")
@@ -850,10 +846,7 @@ final class EngineController: RouterDispatcher {
             }
         }
 
-        routeDispatchNow = now
-        routedNoteEvents = [:]
-        routedChords = []
-        routedMIDINotes = [:]
+        routerDispatch.beginTick(now: now)
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         let trackInputs = playbackSnapshot.tracks.compactMap { track -> RouterTickInput? in
             guard !effectiveMutedTrackIDs.contains(track.id),
@@ -948,12 +941,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func dispatch(_ event: RouterEvent) {
-        switch event {
-        case let .note(destination, noteEvent):
-            routedNoteEvents[destination, default: []].append(noteEvent)
-        case let .chord(destination, chord, lane):
-            routedChords.append((destination, chord, lane))
-        }
+        routerDispatch.record(event)
     }
 
     private func buildPipeline(for documentModel: Project) throws {
@@ -1035,7 +1023,7 @@ final class EngineController: RouterDispatcher {
         layerSnapshot: LayerSnapshot,
         effectiveMutedTrackIDs: Set<UUID>
     ) {
-        for (destination, notes) in routedNoteEvents where !notes.isEmpty {
+        for (destination, notes) in routerDispatch.noteEvents where !notes.isEmpty {
             flushRoutedNotes(
                 notes,
                 to: destination,
@@ -1046,7 +1034,7 @@ final class EngineController: RouterDispatcher {
             )
         }
 
-        let midiDestinationsToTick = Set(routeMidiOutputs.keys).union(routedMIDINotes.keys)
+        let midiDestinationsToTick = Set(routerDispatch.midiOutputs.keys).union(routerDispatch.midiNotes.keys)
         for destination in midiDestinationsToTick {
             guard case let .midi(port, channel, _) = destination,
                   let port,
@@ -1055,25 +1043,25 @@ final class EngineController: RouterDispatcher {
                 continue
             }
 
-            let notes = routedMIDINotes[destination] ?? []
+            let notes = routerDispatch.midiNotes[destination] ?? []
             _ = midiOut.tick(
                 context: TickContext(
                     tickIndex: tickState.currentClockThreadTickIndex(),
                     bpm: bpm,
                     inputs: ["notes": .notes(notes)],
-                    now: routeDispatchNow,
+                    now: routerDispatch.dispatchNow,
                     preparedNotesByBlockID: [:]
                 )
             )
         }
 
-        for (destination, chord, lane) in routedChords {
+        for (destination, chord, lane) in routerDispatch.chords {
             guard case let .chordContext(broadcastTag) = destination else {
                 continue
             }
             eventQueue.enqueue(
                 ScheduledEvent(
-                    scheduledHostTime: routeDispatchNow,
+                    scheduledHostTime: routerDispatch.dispatchNow,
                     payload: .chordContextBroadcast(
                         lane: broadcastTag ?? lane ?? "default",
                         chord: chord
@@ -1107,8 +1095,10 @@ final class EngineController: RouterDispatcher {
                     sliceParameters: note.sliceParameters
                 )
             }
-            routedMIDINotes[.midi(port: port, channel: channel, noteOffset: noteOffset), default: []]
-                .append(contentsOf: adjustedNotes)
+            routerDispatch.appendMIDINotes(
+                adjustedNotes,
+                to: .midi(port: port, channel: channel, noteOffset: noteOffset)
+            )
 
         case let .voicing(trackID):
             guard let track = snapshot.tracks.first(where: { $0.id == trackID }) else {
@@ -1167,8 +1157,10 @@ final class EngineController: RouterDispatcher {
                 return
             }
             let adjustedNotes = Self.shifted(notes, by: pitchOffset + noteOffset)
-            routedMIDINotes[.midi(port: port, channel: channel, noteOffset: noteOffset), default: []]
-                .append(contentsOf: adjustedNotes)
+            routerDispatch.appendMIDINotes(
+                adjustedNotes,
+                to: .midi(port: port, channel: channel, noteOffset: noteOffset)
+            )
 
         case .auInstrument:
             guard let track,
@@ -1180,7 +1172,7 @@ final class EngineController: RouterDispatcher {
             }
             eventQueue.enqueue(
                 ScheduledEvent(
-                    scheduledHostTime: routeDispatchNow,
+                    scheduledHostTime: routerDispatch.dispatchNow,
                     payload: .routedAU(
                         trackID: track.id,
                         destination: destination,
@@ -1208,7 +1200,7 @@ final class EngineController: RouterDispatcher {
                 sampleLibraryRoot: sampleLibraryRoot,
                 stepsPerBar: stepsPerBar,
                 bpm: bpm,
-                now: routeDispatchNow,
+                now: routerDispatch.dispatchNow,
                 eventQueue: eventQueue
             )
 
@@ -1226,13 +1218,13 @@ final class EngineController: RouterDispatcher {
             return nil
         }
 
-        let midiOut = routeMidiOutputs[destination] ?? {
+        let midiOut = routerDispatch.midiOutputs[destination] ?? {
             let block = MidiOut(
                 id: "route-\(destination.hashValue)",
                 client: midiClient,
                 endpoint: resolvedEndpoint
             )
-            routeMidiOutputs[destination] = block
+            routerDispatch.midiOutputs[destination] = block
             return block
         }()
 
@@ -1555,7 +1547,7 @@ final class EngineController: RouterDispatcher {
         let midiOutBlocks = withStateLock { Array(trackRuntime.midiOutBlocksByTrackID.values) }
         midiOutBlocks.forEach { $0.flushPendingNoteOffs(now: now) }
 
-        let routedOutputs = withStateLock { Array(routeMidiOutputs.values) }
+        let routedOutputs = withStateLock { Array(routerDispatch.midiOutputs.values) }
         routedOutputs.forEach { $0.flushPendingNoteOffs(now: now) }
     }
 
@@ -1600,15 +1592,13 @@ final class EngineController: RouterDispatcher {
         let nextRoutedMIDIDestinations = Set(nextDocument.routes.compactMap(Self.routedMIDIDestination(from:)))
         let detachedRoutedDestinations = previousRoutedMIDIDestinations.subtracting(nextRoutedMIDIDestinations)
 
-        let routedOutputs = withStateLock { routeMidiOutputs }
+        let routedOutputs = withStateLock { routerDispatch.midiOutputs }
         for destination in detachedRoutedDestinations {
             routedOutputs[destination]?.flushPendingNoteOffs(now: now)
         }
 
         withStateLock {
-            for destination in detachedRoutedDestinations {
-                routeMidiOutputs.removeValue(forKey: destination)
-            }
+            routerDispatch.removeOutputs(for: detachedRoutedDestinations)
         }
     }
 
