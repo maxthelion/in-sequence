@@ -146,6 +146,109 @@ struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+struct SliceTriggerStep: Equatable, Hashable, Sendable {
+    var isOn: Bool
+    var sliceIndex: Int
+    var mode: SliceTriggerStepMode
+    var parameters: SliceTriggerStepParameters
+
+    init(
+        isOn: Bool = false,
+        sliceIndex: Int = 0,
+        mode: SliceTriggerStepMode = .single,
+        parameters: SliceTriggerStepParameters = .default
+    ) {
+        self.isOn = isOn
+        self.sliceIndex = max(0, sliceIndex)
+        self.mode = mode
+        self.parameters = parameters.clamped
+    }
+}
+
+struct SliceTriggerSteps: Equatable, Sendable {
+    var steps: [SliceTriggerStep]
+
+    init(steps: [SliceTriggerStep]) {
+        self.steps = steps.isEmpty ? [SliceTriggerStep()] : steps
+    }
+
+    init(
+        stepPattern: [Bool],
+        sliceIndexes: [Int],
+        stepModes: [SliceTriggerStepMode],
+        stepParameters: [SliceTriggerStepParameters],
+        defaultSliceIndex: Int = 0
+    ) {
+        let count = max(1, stepPattern.count)
+        let fallbackIndex = max(0, defaultSliceIndex)
+        steps = (0..<count).map { index in
+            SliceTriggerStep(
+                isOn: stepPattern.indices.contains(index) ? stepPattern[index] : false,
+                sliceIndex: sliceIndexes.indices.contains(index) ? sliceIndexes[index] : fallbackIndex,
+                mode: stepModes.indices.contains(index) ? stepModes[index] : .single,
+                parameters: stepParameters.indices.contains(index) ? stepParameters[index] : .default
+            )
+        }
+    }
+
+    var count: Int { steps.count }
+
+    var stepPattern: [Bool] { steps.map(\.isOn) }
+    var sliceIndexes: [Int] { steps.map(\.sliceIndex) }
+    var stepModes: [SliceTriggerStepMode] { steps.map(\.mode) }
+    var stepParameters: [SliceTriggerStepParameters] { steps.map(\.parameters) }
+
+    func resized(to stepCount: Int, defaultSliceIndex: Int = 0) -> SliceTriggerSteps {
+        let resolvedCount = max(1, stepCount)
+        if steps.count == resolvedCount {
+            return self
+        }
+        if steps.count > resolvedCount {
+            return SliceTriggerSteps(steps: Array(steps.prefix(resolvedCount)))
+        }
+        let padding = Array(
+            repeating: SliceTriggerStep(sliceIndex: defaultSliceIndex),
+            count: resolvedCount - steps.count
+        )
+        return SliceTriggerSteps(steps: steps + padding)
+    }
+
+    subscript(index: Int) -> SliceTriggerStep? {
+        get {
+            guard steps.indices.contains(index) else { return nil }
+            return steps[index]
+        }
+        set {
+            guard steps.indices.contains(index), let newValue else { return }
+            steps[index] = newValue
+        }
+    }
+
+    mutating func toggleStep(at index: Int, defaultSliceIndex: Int, selectedSliceIndex: Int) {
+        guard steps.indices.contains(index) else { return }
+        steps[index].isOn.toggle()
+        if steps[index].isOn {
+            steps[index].sliceIndex = max(defaultSliceIndex, selectedSliceIndex)
+        }
+    }
+
+    mutating func assignSliceIndex(_ sliceIndex: Int, at index: Int) {
+        guard steps.indices.contains(index) else { return }
+        steps[index].sliceIndex = max(0, sliceIndex)
+        steps[index].isOn = true
+    }
+
+    mutating func assignMode(_ mode: SliceTriggerStepMode, at index: Int) {
+        guard steps.indices.contains(index) else { return }
+        steps[index].mode = mode
+    }
+
+    mutating func assignParameters(_ parameters: SliceTriggerStepParameters, at index: Int) {
+        guard steps.indices.contains(index) else { return }
+        steps[index].parameters = parameters.clamped
+    }
+}
+
 enum ClipContent: Equatable, Hashable, Sendable {
     case noteGrid(lengthSteps: Int, steps: [ClipStep])
     case sliceTriggers(

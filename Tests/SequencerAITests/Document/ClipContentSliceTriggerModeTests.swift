@@ -79,4 +79,41 @@ final class ClipContentSliceTriggerModeTests: XCTestCase {
         }
         XCTAssertEqual(parameters, [.default, .default])
     }
+
+    func test_sliceTriggerStepsCollectsParallelArraysIntoPerStepValues() {
+        let parameters = SliceTriggerStepParameters(gain: 3)
+        let steps = SliceTriggerSteps(
+            stepPattern: [true, false, true],
+            sliceIndexes: [2],
+            stepModes: [.runFromHere],
+            stepParameters: [parameters],
+            defaultSliceIndex: 1
+        )
+
+        XCTAssertEqual(steps.count, 3)
+        XCTAssertEqual(steps[0], SliceTriggerStep(isOn: true, sliceIndex: 2, mode: .runFromHere, parameters: parameters))
+        XCTAssertEqual(steps[1], SliceTriggerStep(isOn: false, sliceIndex: 1, mode: .single, parameters: .default))
+        XCTAssertEqual(steps[2], SliceTriggerStep(isOn: true, sliceIndex: 1, mode: .single, parameters: .default))
+    }
+
+    func test_sliceTriggerStepsMutationsExportParallelArraysForExistingStorage() {
+        var steps = SliceTriggerSteps(
+            stepPattern: [false, false],
+            sliceIndexes: [0, 0],
+            stepModes: [],
+            stepParameters: [],
+            defaultSliceIndex: 1
+        )
+
+        steps.toggleStep(at: 0, defaultSliceIndex: 1, selectedSliceIndex: 3)
+        steps.assignMode(.runFromHere, at: 0)
+        steps.assignParameters(SliceTriggerStepParameters(gain: 4, pitch: 2), at: 0)
+        steps.assignSliceIndex(5, at: 1)
+
+        XCTAssertEqual(steps.stepPattern, [true, true])
+        XCTAssertEqual(steps.sliceIndexes, [3, 5])
+        XCTAssertEqual(steps.stepModes, [.runFromHere, .single])
+        XCTAssertEqual(steps.stepParameters[0], SliceTriggerStepParameters(gain: 4, pitch: 2))
+        XCTAssertEqual(steps.stepParameters[1], .default)
+    }
 }

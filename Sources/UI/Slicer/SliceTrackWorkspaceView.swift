@@ -258,24 +258,24 @@ struct SliceTrackWorkspaceView: View {
 
     @ViewBuilder
     private var sliceStepEditor: some View {
-        switch sliceTriggerParts {
-        case let .some(parts):
+        switch sliceTriggerSteps {
+        case let .some(steps):
             VStack(alignment: .leading, spacing: 12) {
                 SliceStepStrip(
-                    stepStates: visibleStepStates(parts: parts),
+                    stepStates: visibleStepStates(steps: steps),
                     indexOffset: selectedPage * 16,
                     playingStepIndex: playingClipStepIndex,
                     selectedStepIndex: selectedStepIndex
                 ) { stepIndex in
-                    selectedStepIndex = min(max(stepIndex, 0), parts.stepPattern.count - 1)
+                    selectedStepIndex = min(max(stepIndex, 0), steps.count - 1)
                     if selectedLayer == .steps {
-                        toggleStep(at: selectedStepIndex, parts: parts)
+                        toggleStep(at: selectedStepIndex, steps: steps)
                     }
                 }
 
-                if pageCount(for: parts.stepPattern.count) > 1 {
+                if pageCount(for: steps.count) > 1 {
                     HStack(spacing: 8) {
-                        ForEach(0..<pageCount(for: parts.stepPattern.count), id: \.self) { page in
+                        ForEach(0..<pageCount(for: steps.count), id: \.self) { page in
                             Button {
                                 selectedPage = page
                             } label: {
@@ -445,44 +445,37 @@ struct SliceTrackWorkspaceView: View {
 }
 
 private extension SliceTrackWorkspaceView {
-    struct SliceTriggerParts {
-        var stepPattern: [Bool]
-        var sliceIndexes: [Int]
-        var stepModes: [SliceTriggerStepMode]
-        var stepParameters: [SliceTriggerStepParameters]
-    }
-
-    var sliceTriggerParts: SliceTriggerParts? {
+    var sliceTriggerSteps: SliceTriggerSteps? {
         guard case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters) = clipContent else {
             return nil
         }
-        let stepCount = max(1, stepPattern.count)
-        return SliceTriggerParts(
+        return SliceTriggerSteps(
             stepPattern: stepPattern,
-            sliceIndexes: synced(sliceIndexes, stepCount: stepCount, fallback: defaultSliceIndex),
-            stepModes: synced(stepModes, stepCount: stepCount, fallback: .single),
-            stepParameters: synced(stepParameters, stepCount: stepCount, fallback: .default)
+            sliceIndexes: sliceIndexes,
+            stepModes: stepModes,
+            stepParameters: stepParameters,
+            defaultSliceIndex: defaultSliceIndex
         )
     }
 
     var selectedMarker: SliceMarker? {
-        guard let parts = sliceTriggerParts,
+        guard let steps = sliceTriggerSteps,
               let sliceSet = displayedSliceSet
         else {
             return currentSliceSet?.markers.first
         }
-        return sliceSet.marker(at: selectedSliceIndex(parts: parts))
+        return sliceSet.marker(at: selectedSliceIndex(steps: steps))
     }
 
     var selectedAssignedMarker: SliceMarker? {
-        guard let parts = sliceTriggerParts,
-              parts.stepPattern.indices.contains(selectedStepIndex),
-              parts.stepPattern[selectedStepIndex],
+        guard let steps = sliceTriggerSteps,
+              let step = steps[selectedStepIndex],
+              step.isOn,
               let sliceSet = currentSliceSet
         else {
             return nil
         }
-        return sliceSet.marker(at: selectedSliceIndex(parts: parts))
+        return sliceSet.marker(at: selectedSliceIndex(steps: steps))
     }
 
     var selectedStepTitle: String {
@@ -490,21 +483,11 @@ private extension SliceTrackWorkspaceView {
     }
 
     var selectedStepMode: SliceTriggerStepMode {
-        guard let parts = sliceTriggerParts,
-              parts.stepModes.indices.contains(selectedStepIndex)
-        else {
-            return .single
-        }
-        return parts.stepModes[selectedStepIndex]
+        sliceTriggerSteps?[selectedStepIndex]?.mode ?? .single
     }
 
     var selectedStepParameters: SliceTriggerStepParameters {
-        guard let parts = sliceTriggerParts,
-              parts.stepParameters.indices.contains(selectedStepIndex)
-        else {
-            return .default
-        }
-        return parts.stepParameters[selectedStepIndex]
+        sliceTriggerSteps?[selectedStepIndex]?.parameters ?? .default
     }
 
     var defaultSliceIndex: Int {
@@ -526,14 +509,15 @@ private extension SliceTrackWorkspaceView {
         return playhead.clipStepIndex(clipStepCount: clip.content.stepCount)
     }
 
-    func visibleStepStates(parts: SliceTriggerParts) -> [SliceStepStrip.State] {
+    func visibleStepStates(steps: SliceTriggerSteps) -> [SliceStepStrip.State] {
         let pageStart = selectedPage * 16
-        let pageEnd = min(pageStart + 16, parts.stepPattern.count)
+        let pageEnd = min(pageStart + 16, steps.count)
         guard pageStart < pageEnd else {
             return []
         }
         return (pageStart..<pageEnd).map { index in
-            parts.stepPattern[index] ? .on(sliceIndex: parts.sliceIndexes[index], mode: parts.stepModes[index]) : .off
+            guard let step = steps[index], step.isOn else { return .off }
+            return .on(sliceIndex: step.sliceIndex, mode: step.mode)
         }
     }
 
@@ -580,11 +564,11 @@ private extension SliceTrackWorkspaceView {
         }
     }
 
-    func selectedSliceIndex(parts: SliceTriggerParts) -> Int {
-        guard parts.sliceIndexes.indices.contains(selectedStepIndex) else {
+    func selectedSliceIndex(steps: SliceTriggerSteps) -> Int {
+        guard let step = steps[selectedStepIndex] else {
             return 0
         }
-        return min(max(parts.sliceIndexes[selectedStepIndex], 0), max(0, (displayedSliceSet?.markers.count ?? 1) - 1))
+        return min(max(step.sliceIndex, 0), max(0, (displayedSliceSet?.markers.count ?? 1) - 1))
     }
 
     func waveformBuckets(sample: AudioSample) -> [Float] {
@@ -607,74 +591,49 @@ private extension SliceTrackWorkspaceView {
     }
 
     func resizeClip(to stepCount: Int) {
-        guard var parts = sliceTriggerParts else {
+        guard let steps = sliceTriggerSteps else {
             return
         }
-        parts.stepPattern = synced(parts.stepPattern, stepCount: stepCount, fallback: false)
-        parts.sliceIndexes = synced(parts.sliceIndexes, stepCount: stepCount, fallback: defaultSliceIndex)
-        parts.stepModes = synced(parts.stepModes, stepCount: stepCount, fallback: .single)
-        parts.stepParameters = synced(parts.stepParameters, stepCount: stepCount, fallback: .default)
-        commit(parts: parts)
+        commit(steps: steps.resized(to: stepCount, defaultSliceIndex: defaultSliceIndex))
     }
 
-    func toggleStep(at index: Int, parts: SliceTriggerParts) {
-        guard parts.stepPattern.indices.contains(index) else {
-            return
-        }
-        var next = parts
-        next.stepPattern[index].toggle()
-        if next.stepPattern[index] {
-            next.sliceIndexes[index] = max(defaultSliceIndex, selectedSliceIndex(parts: parts))
-        }
-        commit(parts: next)
+    func toggleStep(at index: Int, steps: SliceTriggerSteps) {
+        var next = steps
+        next.toggleStep(at: index, defaultSliceIndex: defaultSliceIndex, selectedSliceIndex: selectedSliceIndex(steps: steps))
+        commit(steps: next)
     }
 
-    func assignSliceIndex(_ sliceIndex: Int, parts: SliceTriggerParts) {
-        guard parts.sliceIndexes.indices.contains(selectedStepIndex) else {
-            return
-        }
-        var next = parts
-        next.sliceIndexes[selectedStepIndex] = sliceIndex
-        next.stepPattern[selectedStepIndex] = true
-        commit(parts: next)
+    func assignSliceIndex(_ sliceIndex: Int, steps: SliceTriggerSteps) {
+        var next = steps
+        next.assignSliceIndex(sliceIndex, at: selectedStepIndex)
+        commit(steps: next)
     }
 
     func assignStepMode(_ mode: SliceTriggerStepMode) {
-        guard var parts = sliceTriggerParts,
-              parts.stepModes.indices.contains(selectedStepIndex)
-        else {
+        guard var steps = sliceTriggerSteps else {
             return
         }
-        parts.stepModes[selectedStepIndex] = mode
-        commit(parts: parts)
+        steps.assignMode(mode, at: selectedStepIndex)
+        commit(steps: steps)
     }
 
     func assignStepParameters(_ parameters: SliceTriggerStepParameters) {
-        guard var parts = sliceTriggerParts,
-              parts.stepParameters.indices.contains(selectedStepIndex)
-        else {
+        guard var steps = sliceTriggerSteps else {
             return
         }
-        parts.stepParameters[selectedStepIndex] = parameters.clamped
-        commit(parts: parts)
+        steps.assignParameters(parameters, at: selectedStepIndex)
+        commit(steps: steps)
     }
 
-    func commit(parts: SliceTriggerParts) {
+    func commit(steps: SliceTriggerSteps) {
         session.ensureClipAndMutate(at: selectedPatternAddress) { _, entry in
             entry.content = .sliceTriggers(
-                stepPattern: parts.stepPattern,
-                sliceIndexes: parts.sliceIndexes,
-                stepModes: parts.stepModes,
-                stepParameters: parts.stepParameters
+                stepPattern: steps.stepPattern,
+                sliceIndexes: steps.sliceIndexes,
+                stepModes: steps.stepModes,
+                stepParameters: steps.stepParameters
             )
-            entry.macroLanes = entry.macroLanes.mapValues { $0.synced(stepCount: parts.stepPattern.count) }
-        }
-    }
-
-    func synced<T>(_ values: [T], stepCount: Int, fallback: T) -> [T] {
-        let resolvedCount = max(1, stepCount)
-        return (0..<resolvedCount).map { index in
-            values.indices.contains(index) ? values[index] : fallback
+            entry.macroLanes = entry.macroLanes.mapValues { $0.synced(stepCount: steps.count) }
         }
     }
 
@@ -684,11 +643,11 @@ private extension SliceTrackWorkspaceView {
             currentSliceSet: currentSliceSet,
             analysisDraft: analysisDraft
         ),
-              let parts = sliceTriggerParts
+              let steps = sliceTriggerSteps
         else {
             return
         }
-        assignSliceIndex(index, parts: parts)
+        assignSliceIndex(index, steps: steps)
     }
 
     func moveWholeBoundary(isStart: Bool, to frame: Int64, sample: AudioSample) {
