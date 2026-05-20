@@ -38,6 +38,12 @@ fi
 
 developer_dir="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 destination="platform=macOS,arch=arm64"
+git_commit="$(git -C "${repo_root}" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
+git_branch="$(git -C "${repo_root}" branch --show-current 2>/dev/null || printf 'unknown')"
+build_metadata_settings=(
+  "GIT_COMMIT=${git_commit}"
+  "GIT_BRANCH=${git_branch}"
+)
 
 xcodebuild_filtered() {
   DEVELOPER_DIR="${developer_dir}" \
@@ -55,6 +61,7 @@ if [[ "${build_before_open}" == "yes" ]]; then
     -project "${project_path}" \
     -scheme "${scheme_name}" \
     -destination "${destination}" \
+    "${build_metadata_settings[@]}" \
     build >/dev/null
 fi
 
@@ -63,6 +70,7 @@ build_settings="$(
     -project "${project_path}" \
     -scheme "${scheme_name}" \
     -destination "${destination}" \
+    "${build_metadata_settings[@]}" \
     -showBuildSettings
 )"
 

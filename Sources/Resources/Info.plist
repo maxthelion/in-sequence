@@ -39,6 +39,10 @@
 	<string>0.0.1</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>GitBranch</key>
+	<string>$(GIT_BRANCH)</string>
+	<key>GitCommit</key>
+	<string>$(GIT_COMMIT)</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>NSHighResolutionCapable</key>

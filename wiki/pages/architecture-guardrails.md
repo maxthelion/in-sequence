@@ -46,6 +46,45 @@ When a feature affects playback, the architecture pass should ask:
 
 The current canonical note-resolution path is documented in [[playback-data-path]].
 
+## Performance-Time Mutation Rule
+
+Treat user actions differently depending on how often they can happen during
+playback.
+
+Structural edits may use a broad document-model path when the user performs
+them occasionally:
+
+- add or delete a track, bus, route, or scene;
+- change a destination that rebuilds an AU/MIDI output shape;
+- commit a captured/recorded object into the document.
+
+Performance-time controls must not depend on wholesale `Project`
+export/import, `EngineController.apply(documentModel:)`, or broad sync on every
+gesture tick. Examples include:
+
+- fader, pan, mute, solo, crossfader, macro, filter, meter, and transport
+controls;
+- drag gestures that emit many intermediate values;
+- controls expected to respond instantly while audio is playing.
+
+For those controls, the preferred shape is:
+
+1. mutate the live/session owner;
+2. dispatch a scoped runtime update or narrow snapshot invalidation;
+3. publish only the UI/runtime state that changed;
+4. debounce persistence back to the document.
+
+`SequencerDocumentSession.setTrackMix(...)` is the current example: it updates
+`LiveSequencerStore`, calls a scoped engine mix update, publishes a narrow
+snapshot change, and schedules document flush. New performance-time controls
+should follow that pattern or explain why they cannot.
+
+Architecture review should fail, or request a focused correction, when a
+performance-time control requires full document export/apply per gesture.
+The review should include an explicit verdict for this rule whenever a slice
+touches session mutation, engine/runtime state, document persistence, playback,
+or performance UI.
+
 ## Array-Style Sequencer Data
 
 Step sequencer data should normally be represented as predictable arrays or array-like buffers indexed by step, track, lane, or pattern slot.

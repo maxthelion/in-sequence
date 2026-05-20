@@ -21,6 +21,23 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
         NSLog("[SequencerAIAppDelegate] \(message)")
     }
 
+    private func bundleValue(_ key: String, fallback: String = "unknown") -> String {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
+              !value.isEmpty,
+              !value.hasPrefix("$(") else {
+            return fallback
+        }
+        return value
+    }
+
+    private var buildMetadataSummary: String {
+        let version = bundleValue("CFBundleShortVersionString")
+        let build = bundleValue("CFBundleVersion")
+        let commit = bundleValue("GitCommit")
+        let branch = bundleValue("GitBranch")
+        return "version=\(version) build=\(build) gitCommit=\(commit) gitBranch=\(branch)"
+    }
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Start warming the AU component cache on a background queue.
         // This fires before SwiftUI begins constructing App/Scene/View objects, so by the
@@ -28,6 +45,7 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
         // scan is either already done (fast machines) or in-flight (slow machines; the first
         // actual read will block only until the background task finishes, not for a full
         // duplicate scan).
+        log("launch \(buildMetadataSummary)")
         NSLog("[U2] SequencerAIAppDelegate: beginWarmingIfNeeded")
         AudioInstrumentChoiceCache.shared.beginWarmingIfNeeded()
     }

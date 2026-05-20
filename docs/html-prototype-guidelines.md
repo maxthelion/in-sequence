@@ -45,6 +45,34 @@ Use these guidelines for Balsamiq-style HTML prototypes created during roadmap a
 - Provide reversibility where it matters, such as undo, cancel, or back.
 - Stub off-path behavior instead of faking interactivity that has not been designed.
 
+## Renderable State Contract
+
+Every important prototype state should be reachable by a stable JavaScript
+expression so a reviewer can render it with headless Chrome.
+
+- Expose a single state-setting function where practical, such as
+  `setPrototypeState("empty-source")` or `setState("empty-source")`.
+- Keep state names stable, lowercase, and descriptive.
+- Use the same state names in visible prototype controls, annotations, and the
+  render command.
+- Avoid hidden state that can only be reached by manual clicking if that state
+  is important for review.
+- If a state needs multiple steps, document the full expression, for example
+  `setState("source-loaded"); switchTab("modifier")`.
+
+When the repository includes
+`scripts/render-html-prototype-screenshots.mjs`, use it to render key states:
+
+```sh
+node scripts/render-html-prototype-screenshots.mjs \
+  docs/roadmap/<feature>/prototypes/<prototype>.html \
+  docs/roadmap/<feature>/prototypes/rendered/<prototype-slug> \
+  'state-name=setPrototypeState("state-name")'
+```
+
+Rendered PNGs are review artifacts. UX reviewers should compare these target
+images against built-app screenshots.
+
 ## Fixture Data
 
 - Use opinionated, adversarial fixtures: long names, empty lists, large lists, weird states, diacritics, and edge cases.
@@ -70,8 +98,25 @@ Use these guidelines for Balsamiq-style HTML prototypes created during roadmap a
 - Tailwind via CDN is acceptable, but vanilla CSS is preferred.
 - Keep files forkable so a variant can be copied and changed quickly.
 
+## Prototype Output Summary
+
+After creating or reworking prototypes, write or update
+`prototypes/README.md` with:
+
+- which prototype files exist and what each is testing;
+- the raw intent or user-story focus for each prototype;
+- the important state names and the JS expressions that render them;
+- the exact screenshot render command and output directory;
+- which areas are deliberate stubs;
+- any important edge assumptions around the prototype.
+
+Keep this summary short. It is a map for reviewers and implementers, not a
+second spec.
+
 ## Prototype Test
 
 - If a reviewer could mistake it for a production proposal, it is too polished.
 - If differences between variants are cosmetic rather than strategic, the variants are not useful.
 - Reviewers should be able to tell what is stubbed without being told.
+- If a reviewer cannot render the important states without reverse-engineering
+  the HTML, the prototype is not finished.
