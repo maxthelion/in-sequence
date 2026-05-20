@@ -17,6 +17,27 @@ Qualitative pass over the 10 biggest Swift source files. Looks at abstractions a
 | 9 | `Sources/Document/MasterBus.swift` | 824 | Mostly healthy — one tagged union to fix |
 | 10 | `Sources/Document/GeneratedSourceEvaluator.swift` | 716 | Switch-on-tag overload |
 
+## Progress
+
+Implementation passes now landed on `main`:
+
+- `f919040 refactor(engine): extract clip capture service` — moved rolling capture out of `EngineController`.
+- `19301bd refactor(document): add address helpers for phrase timeline` — added `PatternSlotAddress`, `PhraseCellAddress`, and `PhrasePlayhead`.
+- `44e3081 refactor(slicer): model slice trigger steps explicitly` — introduced `SliceTriggerStep` / `SliceTriggerSteps` and moved the slicer workspace onto the typed step model while preserving legacy Codable storage.
+- `fa6dcd4 refactor(session): centralize project writeback cascade` — added `writeBackProjectStructure(...)` and replaced several duplicated Project → store cascades.
+- `304ce07 refactor(engine): isolate tick state buffer` — introduced `TickStateBuffer` for playback snapshot, prepared tick, generated evaluation state, tick mirror, and capture state.
+- `d7691f0 refactor(engine): collect track runtime registry` — introduced `TrackRuntimeRegistry` for the parallel per-track runtime tables and sink identity state.
+- `5b0303a refactor(document): simplify macro and pitch targets` — introduced `AUParameterReference` and centralized pitch context construction in `GeneratedSourceEvaluator`.
+- `ce61374 fix(engine): serialize document model apply` — made broad document-model application single-flight after the full suite exposed concurrent audio-graph apply deadlock risk.
+
+Still open:
+
+- `EngineController` still needs the router/dispatch pipeline, transport lifecycle, and AU readiness/preset facade extractions.
+- `writeBackProjectStructure(...)` is a useful central helper, but not yet a full `ProjectMutation` / store diff abstraction.
+- `MasterSceneMacroTarget` still encodes as the legacy enum shape for compatibility; the AU parameter pack is now represented internally but the target is not fully polymorphic.
+- `GeneratedSourceEvaluator` still owns generator evaluation and pitch-stage adaptation; the pitch context duplication is reduced, not fully split into strategy objects.
+- The large SwiftUI files still need file-level splitting after the runtime/domain ownership is steadier.
+
 ## File-by-file
 
 ### 1. `EngineController.swift` (1693) — god object
