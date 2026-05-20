@@ -10,7 +10,7 @@ struct TrackSourceSourceTabContent: View {
     let accent: Color
     let previewClipContent: ClipContent
     let defaultClipNote: ClipStepNote
-    let clipMacroSlots: [ClipMacroSlot]
+    let clipMacroSlots: [MacroSlot]
     let macroLanes: [UUID: MacroLane]
     let macroFallbackValues: [UUID: Double]
     let canAssignAUMacros: Bool

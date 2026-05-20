@@ -82,17 +82,10 @@ private struct ClipStepInspectorTarget: Identifiable, Equatable {
     var id: Int { stepIndex }
 }
 
-struct ClipMacroSlot: Identifiable, Equatable {
-    let slotIndex: Int
-    let binding: TrackMacroBinding?
-
-    var id: Int { slotIndex }
-}
-
 struct ClipContentPreview: View {
     let content: ClipContent
     let defaultNote: ClipStepNote
-    let macroSlots: [ClipMacroSlot]
+    let macroSlots: [MacroSlot]
     let macroLanes: [UUID: MacroLane]
     let macroFallbackValues: [UUID: Double]
     let onAssignMacroSlot: ((Int) -> Void)?
@@ -109,7 +102,7 @@ struct ClipContentPreview: View {
     init(
         content: ClipContent,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4),
-        macroSlots: [ClipMacroSlot] = [],
+        macroSlots: [MacroSlot] = [],
         macroLanes: [UUID: MacroLane] = [:],
         macroFallbackValues: [UUID: Double] = [:],
         onAssignMacroSlot: ((Int) -> Void)? = nil,

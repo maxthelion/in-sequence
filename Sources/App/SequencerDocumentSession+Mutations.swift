@@ -695,15 +695,7 @@ extension SequencerDocumentSession {
                 }
             }
             for param in added {
-                let descriptor = TrackMacroDescriptor(
-                    id: UUID(),
-                    displayName: param.displayName,
-                    minValue: param.minValue,
-                    maxValue: param.maxValue,
-                    defaultValue: param.defaultValue,
-                    valueType: .scalar,
-                    source: .auParameter(address: param.address, identifier: param.identifier)
-                )
+                let descriptor = TrackMacroDescriptor(auParameter: param)
                 p.addAUMacro(descriptor: descriptor, to: trackID)
             }
             p.syncMacroLayers()

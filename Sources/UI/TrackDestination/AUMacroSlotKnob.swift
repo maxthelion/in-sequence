@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AUMacroSlot: Identifiable {
+struct MacroSlot: Identifiable, Equatable {
     let slotIndex: Int
     let binding: TrackMacroBinding?
 

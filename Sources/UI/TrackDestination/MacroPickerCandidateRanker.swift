@@ -19,6 +19,20 @@ struct AUParameterDescriptor: Equatable, Hashable, Sendable {
     let isWritable: Bool
 }
 
+extension TrackMacroDescriptor {
+    init(auParameter parameter: AUParameterDescriptor, id: UUID = UUID()) {
+        self.init(
+            id: id,
+            displayName: parameter.displayName,
+            minValue: parameter.minValue,
+            maxValue: parameter.maxValue,
+            defaultValue: parameter.defaultValue,
+            valueType: .scalar,
+            source: .auParameter(address: parameter.address, identifier: parameter.identifier)
+        )
+    }
+}
+
 // MARK: - MacroPickerCandidateRanker
 
 /// Ranks AU parameters into "likely candidates" and "rest" for the macro picker.

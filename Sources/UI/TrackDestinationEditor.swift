@@ -457,9 +457,9 @@ struct TrackDestinationEditor: View {
         .sorted { $0.slotIndex < $1.slotIndex }
     }
 
-    private var auMacroSlots: [AUMacroSlot] {
+    private var auMacroSlots: [MacroSlot] {
         (0..<8).map { slotIndex in
-            AUMacroSlot(
+            MacroSlot(
                 slotIndex: slotIndex,
                 binding: auMacroBindings.first(where: { $0.slotIndex == slotIndex })
             )
@@ -898,15 +898,7 @@ struct TrackDestinationEditor: View {
     }
 
     private func assignMacro(_ parameter: AUParameterDescriptor, to slotIndex: Int) {
-        let descriptor = TrackMacroDescriptor(
-            id: UUID(),
-            displayName: parameter.displayName,
-            minValue: parameter.minValue,
-            maxValue: parameter.maxValue,
-            defaultValue: parameter.defaultValue,
-            valueType: .scalar,
-            source: .auParameter(address: parameter.address, identifier: parameter.identifier)
-        )
+        let descriptor = TrackMacroDescriptor(auParameter: parameter)
         let accepted = session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
         if !accepted {
             macroSlotFull = true
@@ -945,4 +937,4 @@ private struct DestinationField<Content: View>: View {
     }
 }
 
-// AUMacroSlot and AUMacroSlotKnob live in Sources/UI/TrackDestination/AUMacroSlotKnob.swift
+// MacroSlot and AUMacroSlotKnob live in Sources/UI/TrackDestination/AUMacroSlotKnob.swift

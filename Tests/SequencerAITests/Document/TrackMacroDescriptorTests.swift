@@ -30,6 +30,34 @@ final class TrackMacroDescriptorTests: XCTestCase {
         XCTAssertEqual(decoded.source, .auParameter(address: 12345, identifier: "cutoff.main"))
     }
 
+    func test_auParameterInitializer_preservesDescriptorFields() {
+        let id = UUID()
+        let parameter = AUParameterDescriptor(
+            address: 12_345,
+            identifier: "filter.cutoff",
+            displayName: "Cutoff",
+            minValue: 20,
+            maxValue: 20_000,
+            defaultValue: 440,
+            unit: "Hz",
+            group: ["Filter"],
+            isWritable: true
+        )
+
+        let descriptor = TrackMacroDescriptor(auParameter: parameter, id: id)
+
+        XCTAssertEqual(descriptor.id, id)
+        XCTAssertEqual(descriptor.displayName, parameter.displayName)
+        XCTAssertEqual(descriptor.minValue, parameter.minValue)
+        XCTAssertEqual(descriptor.maxValue, parameter.maxValue)
+        XCTAssertEqual(descriptor.defaultValue, parameter.defaultValue)
+        XCTAssertEqual(descriptor.valueType, .scalar)
+        XCTAssertEqual(
+            descriptor.source,
+            .auParameter(address: parameter.address, identifier: parameter.identifier)
+        )
+    }
+
     // MARK: - Equality
 
     func test_sameID_areEqual() {

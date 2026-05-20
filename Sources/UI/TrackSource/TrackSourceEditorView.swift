@@ -130,9 +130,9 @@ struct TrackSourceEditorView: View {
         return result
     }
 
-    private var clipMacroSlots: [ClipMacroSlot] {
+    private var clipMacroSlots: [MacroSlot] {
         (0..<8).map { slotIndex in
-            ClipMacroSlot(
+            MacroSlot(
                 slotIndex: slotIndex,
                 binding: orderedMacros.first(where: { $0.slotIndex == slotIndex })
             )
@@ -332,15 +332,7 @@ struct TrackSourceEditorView: View {
     }
 
     private func assignMacro(_ parameter: AUParameterDescriptor, to slotIndex: Int) {
-        let descriptor = TrackMacroDescriptor(
-            id: UUID(),
-            displayName: parameter.displayName,
-            minValue: parameter.minValue,
-            maxValue: parameter.maxValue,
-            defaultValue: parameter.defaultValue,
-            valueType: .scalar,
-            source: .auParameter(address: parameter.address, identifier: parameter.identifier)
-        )
+        let descriptor = TrackMacroDescriptor(auParameter: parameter)
         session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
     }
 
