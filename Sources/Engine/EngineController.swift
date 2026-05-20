@@ -52,7 +52,7 @@ final class EngineController: RouterDispatcher {
 
     private var currentTrackMix = TrackMixSettings.default
     private var currentDocumentModel: Project = .empty
-    private var currentPlaybackSnapshot: PlaybackSnapshot = SequencerSnapshotCompiler.compile(state: .empty)
+    private let tickState = TickStateBuffer(playbackSnapshot: SequencerSnapshotCompiler.compile(state: .empty))
     private var generatorIDsByTrackID: [UUID: BlockID] = [:]
     private var midiOutBlocksByTrackID: [UUID: MidiOut] = [:]
     private var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
@@ -69,22 +69,6 @@ final class EngineController: RouterDispatcher {
     private var routedMIDINotes: [Destination: [NoteEvent]] = [:]
     private var routeDispatchNow: TimeInterval = 0
     private(set) var chordContextByLane: [String: Chord] = [:]
-    // Threading: written in prepareTick and read in flushConcreteDestination.
-    // Both currently run on the clock-callback thread within one processTick call.
-    // Do not read or mutate from other threads without revisiting this contract.
-    @ObservationIgnored
-    private var currentLayerSnapshot = LayerSnapshot.empty
-    private var generatedEvaluationStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:]
-    private var clipCaptureService = ClipCaptureService()
-
-    // Non-observable mirror of `transportTickIndex`, maintained on the clock thread.
-    // Tick-thread code that needs the current tick reads this instead of the
-    // @Observable `transportTickIndex` (which now lands on the main thread via
-    // `publishToMain`). Safe for tick-thread reads/writes without observer callbacks.
-    @ObservationIgnored
-    private var tickIndexOnClockThread: UInt64 = 0
-    @ObservationIgnored
-    private var preparedTickIndex: UInt64?
 
     private func log(_ message: String) {
         NSLog("[EngineController] \(message)")
@@ -159,9 +143,7 @@ final class EngineController: RouterDispatcher {
         try? sampleEngine.start()
 
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
-        withStateLock {
-            preparedTickIndex = 0
-        }
+        tickState.markPreparedTick(0)
         isRunning = true
         clock.start { [weak self] tickIndex, now in
             self?.processTick(tickIndex: tickIndex, now: now)
@@ -181,10 +163,7 @@ final class EngineController: RouterDispatcher {
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
         sampleEngine.stop()
-        withStateLock {
-            generatedEvaluationStatesByTrackID = [:]
-            preparedTickIndex = nil
-        }
+        tickState.resetRuntimeState()
     }
 
     /// Called at the start of every `shutdown()` / `shutdown(completion:)` invocation.
@@ -205,15 +184,12 @@ final class EngineController: RouterDispatcher {
             isRunning = false
             lastNoteTriggerUptime = 0
             lastNoteTriggerCount = 0
-        } else if preparedTickIndex != nil {
+        } else if tickState.hasPreparedTick() {
             clock.stop()
         }
 
         sampleEngine.stop()
-        withStateLock {
-            generatedEvaluationStatesByTrackID = [:]
-            preparedTickIndex = nil
-        }
+        tickState.resetRuntimeState()
 
         let finish: () -> Void = { [weak self] in
             guard let self else {
@@ -228,10 +204,8 @@ final class EngineController: RouterDispatcher {
                 self.audioTrackRuntimes = [:]
                 self.routeMidiOutputs = [:]
                 self.liveSampleTrackIDs = []
-                self.generatedEvaluationStatesByTrackID = [:]
-                self.clipCaptureService.removeAll()
-                self.preparedTickIndex = nil
             }
+            self.tickState.resetRuntimeState(clearCapture: true)
             self.log("shutdown complete")
             completion()
         }
@@ -278,29 +252,23 @@ final class EngineController: RouterDispatcher {
         syncMasterBusPerformanceOverlay(for: documentModel.masterBus)
         masterBusHost.apply(documentModel.masterBus)
         let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
-        withStateLock {
-            currentPlaybackSnapshot = compiledSnapshot
-            let trackIDs = Set(documentModel.tracks.map(\.id))
-            clipCaptureService.removeMissingTracks(trackIDs)
-            preparedTickIndex = nil
-        }
+        tickState.installPlaybackSnapshot(
+            compiledSnapshot,
+            currentTrackIDs: Set(documentModel.tracks.map(\.id))
+        )
         apply(deltas: deltas, documentModel: documentModel)
     }
 
     func apply(playbackSnapshot: PlaybackSnapshot) {
         applyPlaybackSnapshotCallCount += 1
-        withStateLock {
-            currentPlaybackSnapshot = playbackSnapshot
-            preparedTickIndex = nil
-            generatedEvaluationStatesByTrackID = [:]
-        }
+        tickState.installPlaybackSnapshot(playbackSnapshot, resetGeneratedStates: true)
         eventQueue.clear()
     }
 
     /// Exposes the current playback snapshot for test assertions.
     /// Do not use in production code — read the published observable state instead.
     var currentPlaybackSnapshotForTesting: PlaybackSnapshot {
-        withStateLock { currentPlaybackSnapshot }
+        tickState.currentPlaybackSnapshot()
     }
 
     /// Counter for test observation of `apply(documentModel:)` invocations.
@@ -564,9 +532,7 @@ final class EngineController: RouterDispatcher {
         trackID: UUID,
         lengthSteps: Int? = nil
     ) -> ClipContent? {
-        withStateLock {
-            clipCaptureService.capturedClipContent(trackID: trackID, lengthSteps: lengthSteps)
-        }
+        tickState.capturedClipContent(trackID: trackID, lengthSteps: lengthSteps)
     }
 
     @discardableResult
@@ -577,8 +543,7 @@ final class EngineController: RouterDispatcher {
         lengthSteps: Int? = nil,
         name: String? = nil
     ) -> UUID? {
-        let captureService = withStateLock { clipCaptureService }
-        return captureService.saveRollingCapture(
+        return tickState.saveRollingCapture(
             to: &project,
             trackID: trackID,
             destinationSlotIndex: destinationSlotIndex,
@@ -650,14 +615,7 @@ final class EngineController: RouterDispatcher {
         }
 
         if shouldInvalidatePreparedTick || shouldResetGeneratedStates {
-            withStateLock {
-                if shouldResetGeneratedStates {
-                    generatedEvaluationStatesByTrackID = [:]
-                }
-                if shouldInvalidatePreparedTick {
-                    preparedTickIndex = nil
-                }
-            }
+            tickState.invalidatePreparedTick(resetGeneratedStates: shouldResetGeneratedStates)
         }
     }
 
@@ -718,7 +676,7 @@ final class EngineController: RouterDispatcher {
             // TODO: Task 11 will wire sample dispatch
             return "Sample playback pending"
         case let .slicer(sliceSetID, _):
-            let sliceSet = currentPlaybackSnapshot.sliceSet(id: sliceSetID)
+            let sliceSet = tickState.currentPlaybackSnapshot().sliceSet(id: sliceSetID)
             let count = sliceSet?.displaySliceCount ?? 0
             return count > 0 ? "Slicer • \(count) slices" : "Slicer • Choose a loop"
         case .inheritGroup, .none:
@@ -727,15 +685,13 @@ final class EngineController: RouterDispatcher {
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
-        let needsBootstrap = withStateLock { preparedTickIndex != tickIndex }
+        let needsBootstrap = !tickState.isPrepared(for: tickIndex)
         if needsBootstrap {
             prepareTick(upcomingStep: tickIndex, now: now)
         }
         dispatchTick()
         prepareTick(upcomingStep: tickIndex &+ 1, now: now)
-        withStateLock {
-            preparedTickIndex = tickIndex &+ 1
-        }
+        tickState.markPreparedTick(tickIndex &+ 1)
     }
 
     private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
@@ -744,10 +700,7 @@ final class EngineController: RouterDispatcher {
             audioRuntimes,
             audioOutputs,
             generatorIDs,
-            generatedStates,
             chordContexts,
-            clipCaptureService,
-            playbackSnapshot,
             effectiveMutedTrackIDs
         ) = withStateLock {
             (
@@ -755,13 +708,14 @@ final class EngineController: RouterDispatcher {
                 self.audioTrackRuntimes,
                 self.audioOutputsByTrackID,
                 self.generatorIDsByTrackID,
-                self.generatedEvaluationStatesByTrackID,
                 self.chordContextByLane,
-                self.clipCaptureService,
-                self.currentPlaybackSnapshot,
                 self.effectiveMutedTrackIDs
             )
         }
+        let prepareInputs = tickState.readPrepareInputs()
+        let generatedStates = prepareInputs.generatedStates
+        let clipCaptureService = prepareInputs.clipCaptureService
+        let playbackSnapshot = prepareInputs.playbackSnapshot
 
         assert(executor != nil, "EngineController.prepareTick called without an executor.")
         guard let executor else {
@@ -769,7 +723,7 @@ final class EngineController: RouterDispatcher {
         }
         let phraseStepCount = playbackSnapshot.phraseBuffer(for: playbackSnapshot.selectedPhraseID)?.stepCount ?? 1
         let stepInPhrase = Int(upcomingStep % UInt64(max(1, phraseStepCount)))
-        currentLayerSnapshot = playbackSnapshot.layerSnapshot(
+        let currentLayerSnapshot = playbackSnapshot.layerSnapshot(
             phraseID: playbackSnapshot.selectedPhraseID,
             stepInPhrase: stepInPhrase
         )
@@ -803,18 +757,16 @@ final class EngineController: RouterDispatcher {
             nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
             preparedNotesByBlockID[generatorBlockID] = notes.map(Self.noteEvent(from:))
         }
-        withStateLock {
-            generatedEvaluationStatesByTrackID = nextGeneratedStates
-            self.clipCaptureService = nextClipCaptureService
-        }
-
         let outputs = executor.tick(now: now, preparedNotesByBlockID: preparedNotesByBlockID)
         let newCurrentBPM = executor.currentBPM
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
         let newTransportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
 
-        // Tick-thread mirror — tick-internal reads (e.g. MIDI routing context) use this.
-        tickIndexOnClockThread = completedStep
+        tickState.commitPrepareOutputs(
+            generatedStates: nextGeneratedStates,
+            clipCaptureService: nextClipCaptureService,
+            completedStep: completedStep
+        )
 
         let triggeredNoteCount = outputs.values.reduce(0) { partial, ports in
             partial + ports.values.reduce(0) { nested, stream in
@@ -924,7 +876,12 @@ final class EngineController: RouterDispatcher {
             return RouterTickInput(sourceTrack: track.id, notes: events, chordContext: nil)
         }
         router.tick(trackInputs)
-        flushRoutedEvents(bpm: executor.currentBPM, snapshot: playbackSnapshot, effectiveMutedTrackIDs: effectiveMutedTrackIDs)
+        flushRoutedEvents(
+            bpm: executor.currentBPM,
+            snapshot: playbackSnapshot,
+            layerSnapshot: currentLayerSnapshot,
+            effectiveMutedTrackIDs: effectiveMutedTrackIDs
+        )
     }
 
     private func dispatchTick() {
@@ -1064,11 +1021,12 @@ final class EngineController: RouterDispatcher {
             midiOutBlocksByTrackID = midiOutBlocks
             audioTrackRuntimes = audioRuntimes
             pipelineShape = Self.pipelineShape(for: documentModel)
-            generatedEvaluationStatesByTrackID = [:]
-            let trackIDs = Set(documentModel.tracks.map(\.id))
-            clipCaptureService.removeMissingTracks(trackIDs)
-            preparedTickIndex = nil
         }
+        tickState.installPlaybackSnapshot(
+            SequencerSnapshotCompiler.compile(project: documentModel),
+            currentTrackIDs: Set(documentModel.tracks.map(\.id)),
+            resetGeneratedStates: true
+        )
 
         installMixerBuses(for: documentModel)
         mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
@@ -1078,9 +1036,21 @@ final class EngineController: RouterDispatcher {
         currentTrackMix = documentModel.selectedTrack.mix
     }
 
-    private func flushRoutedEvents(bpm: Double, snapshot: PlaybackSnapshot, effectiveMutedTrackIDs: Set<UUID>) {
+    private func flushRoutedEvents(
+        bpm: Double,
+        snapshot: PlaybackSnapshot,
+        layerSnapshot: LayerSnapshot,
+        effectiveMutedTrackIDs: Set<UUID>
+    ) {
         for (destination, notes) in routedNoteEvents where !notes.isEmpty {
-            flushRoutedNotes(notes, to: destination, bpm: bpm, snapshot: snapshot, effectiveMutedTrackIDs: effectiveMutedTrackIDs)
+            flushRoutedNotes(
+                notes,
+                to: destination,
+                bpm: bpm,
+                snapshot: snapshot,
+                layerSnapshot: layerSnapshot,
+                effectiveMutedTrackIDs: effectiveMutedTrackIDs
+            )
         }
 
         let midiDestinationsToTick = Set(routeMidiOutputs.keys).union(routedMIDINotes.keys)
@@ -1095,7 +1065,7 @@ final class EngineController: RouterDispatcher {
             let notes = routedMIDINotes[destination] ?? []
             _ = midiOut.tick(
                 context: TickContext(
-                    tickIndex: tickIndexOnClockThread,
+                    tickIndex: tickState.currentClockThreadTickIndex(),
                     bpm: bpm,
                     inputs: ["notes": .notes(notes)],
                     now: routeDispatchNow,
@@ -1128,6 +1098,7 @@ final class EngineController: RouterDispatcher {
         to destination: RouteDestination,
         bpm: Double,
         snapshot: PlaybackSnapshot,
+        layerSnapshot: LayerSnapshot,
         effectiveMutedTrackIDs: Set<UUID>
     ) {
         switch destination {
@@ -1158,6 +1129,7 @@ final class EngineController: RouterDispatcher {
                 pitchOffset: resolved.pitchOffset,
                 track: track,
                 snapshot: snapshot,
+                layerSnapshot: layerSnapshot,
                 effectiveMutedTrackIDs: effectiveMutedTrackIDs
             )
 
@@ -1174,6 +1146,7 @@ final class EngineController: RouterDispatcher {
                 pitchOffset: resolved.pitchOffset,
                 track: track,
                 snapshot: snapshot,
+                layerSnapshot: layerSnapshot,
                 effectiveMutedTrackIDs: effectiveMutedTrackIDs
             )
 
@@ -1189,6 +1162,7 @@ final class EngineController: RouterDispatcher {
         pitchOffset: Int = 0,
         track: StepSequenceTrack?,
         snapshot: PlaybackSnapshot,
+        layerSnapshot: LayerSnapshot,
         effectiveMutedTrackIDs: Set<UUID>
     ) {
         switch destination {
@@ -1206,7 +1180,7 @@ final class EngineController: RouterDispatcher {
         case .auInstrument:
             guard let track,
                   !effectiveMutedTrackIDs.contains(track.id),
-                  !currentLayerSnapshot.isMuted(track.id),
+                  !layerSnapshot.isMuted(track.id),
                   audioOutputsByTrackID[track.id] != nil
             else {
                 return
@@ -1227,7 +1201,7 @@ final class EngineController: RouterDispatcher {
         case let .slicer(sliceSetID, settings):
             guard let track,
                   !effectiveMutedTrackIDs.contains(track.id),
-                  !currentLayerSnapshot.isMuted(track.id)
+                  !layerSnapshot.isMuted(track.id)
             else {
                 return
             }
@@ -1294,10 +1268,7 @@ final class EngineController: RouterDispatcher {
         // Note injection uses the typed preparedNotesByBlockID path only; no params to sync.
         // Reset generator evaluation state and prepared-tick index so the next prepareTick
         // re-evaluates from the new document model.
-        withStateLock {
-            generatedEvaluationStatesByTrackID = [:]
-            preparedTickIndex = nil
-        }
+        tickState.invalidatePreparedTick(resetGeneratedStates: true)
     }
 
     private func syncMidiOutputs(for documentModel: Project) {
