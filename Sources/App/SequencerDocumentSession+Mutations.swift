@@ -177,11 +177,7 @@ extension SequencerDocumentSession {
                 for: trackID
             )
             p.syncMacroLayers()
-            s.replaceTracks(p.tracks)
-            s.replaceTrackGroups(p.trackGroups)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            s.writeBackChangedClips(from: p)
+            s.writeBackProjectStructure(from: p, trackGroups: true, clips: true)
         }
     }
 
@@ -646,9 +642,7 @@ extension SequencerDocumentSession {
             accepted = p.addAUMacro(descriptor: descriptor, to: trackID, slotIndex: slotIndex)
             guard accepted else { return }
             p.syncMacroLayers()
-            s.replaceTracks(p.tracks)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+            s.writeBackProjectStructure(from: p)
             // addAUMacro does not touch clipPool — no clip diff loop needed here.
         }
         return accepted
@@ -664,10 +658,7 @@ extension SequencerDocumentSession {
             var p = s.exportToProject()
             p.removeMacro(id: bindingID, from: trackID)
             p.syncMacroLayers()
-            s.replaceTracks(p.tracks)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            s.writeBackChangedClips(from: p)
+            s.writeBackProjectStructure(from: p, clips: true)
         }
     }
 
@@ -700,10 +691,7 @@ extension SequencerDocumentSession {
             }
             p.syncMacroLayers()
             // Write back all affected fields.
-            s.replaceTracks(p.tracks)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            s.writeBackChangedClips(from: p)
+            s.writeBackProjectStructure(from: p, clips: true)
         }
     }
 
@@ -747,11 +735,7 @@ extension SequencerDocumentSession {
             var p = s.exportToProject()
             p.setDestinationWithMacros(destination, for: trackID)
             p.syncMacroLayers()
-            s.replaceTracks(p.tracks)
-            s.replaceTrackGroups(p.trackGroups)
-            s.setLayers(p.layers)
-            s.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
-            s.writeBackChangedClips(from: p)
+            s.writeBackProjectStructure(from: p, trackGroups: true, clips: true)
         }
     }
 
@@ -761,8 +745,7 @@ extension SequencerDocumentSession {
         batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.setEditedMIDIPort(port, for: trackID)
-            s.replaceTracks(p.tracks)
-            s.replaceTrackGroups(p.trackGroups)
+            s.writeBackProjectStructure(from: p, trackGroups: true)
         }
     }
 
@@ -771,8 +754,7 @@ extension SequencerDocumentSession {
         batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.setEditedMIDIChannel(channel, for: trackID)
-            s.replaceTracks(p.tracks)
-            s.replaceTrackGroups(p.trackGroups)
+            s.writeBackProjectStructure(from: p, trackGroups: true)
         }
     }
 
@@ -781,8 +763,7 @@ extension SequencerDocumentSession {
         batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.setEditedMIDINoteOffset(noteOffset, for: trackID)
-            s.replaceTracks(p.tracks)
-            s.replaceTrackGroups(p.trackGroups)
+            s.writeBackProjectStructure(from: p, trackGroups: true)
         }
     }
 
@@ -979,6 +960,25 @@ extension SequencerDocumentSession {
 }
 
 private extension LiveSequencerStore {
+    /// Apply the standard Project-side structural cascade back into the resident
+    /// store. This keeps callers from re-encoding which sub-collections a Project
+    /// helper may have touched.
+    func writeBackProjectStructure(
+        from project: Project,
+        trackGroups: Bool = false,
+        clips: Bool = false
+    ) {
+        replaceTracks(project.tracks)
+        if trackGroups {
+            replaceTrackGroups(project.trackGroups)
+        }
+        setLayers(project.layers)
+        replacePhrases(project.phrases, selectedPhraseID: project.selectedPhraseID)
+        if clips {
+            writeBackChangedClips(from: project)
+        }
+    }
+
     /// Write back any clips in `project` that differ from the live clip pool.
     /// Used after `Project`-side helpers (e.g. `removeMacro`, `setDestinationWithMacros`)
     /// that may mutate `clipPool[].macroLanes` so the cascade reaches the store.
