@@ -25,6 +25,7 @@ final class EngineController: RouterDispatcher {
     private let masterBusHost: MasterBusHosting
     private let stepsPerBar: Int
     private let stateLock = NSLock()
+    private let documentApplyLock = NSLock()
     @ObservationIgnored
     private lazy var router = MIDIRouter(dispatcher: self)
 
@@ -226,6 +227,9 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(documentModel: Project) {
+        documentApplyLock.lock()
+        defer { documentApplyLock.unlock() }
+
         applyDocumentModelCallCount += 1
         let previousDocumentModel = currentDocumentModel
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
