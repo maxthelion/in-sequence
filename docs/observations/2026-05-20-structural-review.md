@@ -29,10 +29,11 @@ Implementation passes now landed on `main`:
 - `d7691f0 refactor(engine): collect track runtime registry` — introduced `TrackRuntimeRegistry` for the parallel per-track runtime tables and sink identity state.
 - `5b0303a refactor(document): simplify macro and pitch targets` — introduced `AUParameterReference` and centralized pitch context construction in `GeneratedSourceEvaluator`.
 - `ce61374 fix(engine): serialize document model apply` — made broad document-model application single-flight after the full suite exposed concurrent audio-graph apply deadlock risk.
+- `1a6be04 refactor(engine): collect router dispatch state` — gathered routed notes, chords, routed MIDI notes, routed MIDI outputs, and route dispatch time behind `RouterDispatchState`.
 
 Still open:
 
-- `EngineController` still needs the router/dispatch pipeline, transport lifecycle, and AU readiness/preset facade extractions.
+- `EngineController` still needs deeper router/dispatch pipeline, transport lifecycle, and AU readiness/preset facade extractions.
 - `writeBackProjectStructure(...)` is a useful central helper, but not yet a full `ProjectMutation` / store diff abstraction.
 - `MasterSceneMacroTarget` still encodes as the legacy enum shape for compatibility; the AU parameter pack is now represented internally but the target is not fully polymorphic.
 - `GeneratedSourceEvaluator` still owns generator evaluation and pitch-stage adaptation; the pitch context duplication is reduced, not fully split into strategy objects.
