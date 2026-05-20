@@ -212,6 +212,7 @@
 		8FB9DFAB1FEE0349BD1376A6 /* MidiOutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BACF57D698D394A9516417B /* MidiOutTests.swift */; };
 		8FCC27A09C5C15A0209F162F /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16D79D625BD5365928D750F6 /* Block.swift */; };
 		8FD9738657BE81975D328519 /* Project+Destinations.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA4AB8938322081B3FF85AA /* Project+Destinations.swift */; };
+		91F82B4D776E12A44A67D2B7 /* TrackRuntimeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921E462AD4D705FF1D61E26C /* TrackRuntimeRegistry.swift */; };
 		9044F878F3912B1390BFEE9A /* SlicerWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBBE661BFC976779D2F2326 /* SlicerWaveformView.swift */; };
 		910E0C50B0167745C9EFC3C2 /* MIDIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5287FF85E53E1D764EC6FD /* MIDIRouter.swift */; };
 		9288FD7EF3B31BDBD796F0BE /* DestinationInheritGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E2B29F7D70977445686F711 /* DestinationInheritGroupTests.swift */; };
@@ -1239,6 +1240,7 @@
 		BF8D8C966EFDB82FD4711018 /* AudioInstrumentHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInstrumentHost.swift; sourceTree = "<group>"; };
 		BF9E0129232844600AD67E93 /* SliceAnalyzerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceAnalyzerTests.swift; sourceTree = "<group>"; };
 		BFA6774205802E8323E22386 /* TrackSourceProgram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSourceProgram.swift; sourceTree = "<group>"; };
+		921E462AD4D705FF1D61E26C /* TrackRuntimeRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackRuntimeRegistry.swift; sourceTree = "<group>"; };
 		BFA8CB4134EF3376B410E212 /* validated-window.err */ = {isa = PBXFileReference; path = "validated-window.err"; sourceTree = "<group>"; };
 		C04AEE099D6FB9303E4DCB83 /* UIReadsStoreDirectlyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIReadsStoreDirectlyTests.swift; sourceTree = "<group>"; };
 		C08F9E4FAA1BB38CB73D8C57 /* validated-capture-status.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "validated-capture-status.txt"; sourceTree = "<group>"; };
@@ -2049,6 +2051,7 @@
 				97637E4515BD5143B0324852 /* Stream.swift */,
 				D14D36481855CDB4DD04A150 /* TickClock.swift */,
 				57865C84C633D0EFCE676C5F /* TickStateBuffer.swift */,
+				921E462AD4D705FF1D61E26C /* TrackRuntimeRegistry.swift */,
 				BFA6774205802E8323E22386 /* TrackSourceProgram.swift */,
 				E2A202B9BFA28C84495F2909 /* TransportMode.swift */,
 				0B57E34E3AD72A4BEB8AE899 /* Blocks */,
@@ -4589,6 +4592,7 @@
 				7A3AD0D0C8286855B7F8932A /* TrackMacroDescriptor.swift in Sources */,
 				A30436CF980B2ADCFE36EC40 /* TrackMixSettings.swift in Sources */,
 				97291714B354CC84D3C90211 /* TrackPatternSlotPalette.swift in Sources */,
+				91F82B4D776E12A44A67D2B7 /* TrackRuntimeRegistry.swift in Sources */,
 				496DAD8342ECB5EA42572A49 /* TrackSourceActionButton.swift in Sources */,
 				DEE974187352B2C7D9A9F01A /* TrackSourceCatalog.swift in Sources */,
 				B313DFC38A9FC3F700D9D55F /* TrackSourceClipHistoryTabContent.swift in Sources */,
