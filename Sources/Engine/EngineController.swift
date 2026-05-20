@@ -9,63 +9,6 @@ final class EngineController: RouterDispatcher {
         let output: Destination.Kind
     }
 
-    private struct RollingCaptureStep: Equatable {
-        let absoluteStep: Int
-        let notes: [GeneratedNote]
-    }
-
-    private struct RollingCaptureBuffer: Equatable {
-        let maxSteps: Int
-        var steps: [RollingCaptureStep]
-
-        init(maxSteps: Int = 256, steps: [RollingCaptureStep] = []) {
-            self.maxSteps = max(1, maxSteps)
-            self.steps = Array(steps.suffix(max(1, maxSteps)))
-        }
-
-        mutating func append(stepIndex: Int, notes: [GeneratedNote]) {
-            let entry = RollingCaptureStep(absoluteStep: stepIndex, notes: notes)
-            if let lastIndex = steps.indices.last, steps[lastIndex].absoluteStep == stepIndex {
-                steps[lastIndex] = entry
-            } else {
-                steps.append(entry)
-            }
-
-            if steps.count > maxSteps {
-                steps.removeFirst(steps.count - maxSteps)
-            }
-        }
-
-        func clipContent(lengthSteps: Int? = nil) -> ClipContent? {
-            guard !steps.isEmpty else {
-                return nil
-            }
-
-            let resolvedLength = max(1, lengthSteps ?? min(maxSteps, steps.count))
-            let recent = Array(steps.suffix(resolvedLength))
-            let paddingCount = max(0, resolvedLength - recent.count)
-            let capturedSteps = recent.map { recordedStep -> ClipStep in
-                guard !recordedStep.notes.isEmpty else {
-                    return .empty
-                }
-
-                let notes = recordedStep.notes.map { note in
-                    ClipStepNote(
-                        pitch: note.pitch,
-                        velocity: note.velocity,
-                        lengthSteps: max(1, note.length)
-                    )
-                }
-                return ClipStep(main: ClipLane(chance: 1, notes: notes), fill: nil)
-            }
-
-            return .noteGrid(
-                lengthSteps: resolvedLength,
-                steps: Array(repeating: .empty, count: paddingCount) + capturedSteps
-            )
-        }
-    }
-
     private struct AudioTrackRuntime {
         let trackID: UUID
         let generatorBlockID: BlockID
@@ -132,7 +75,7 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var currentLayerSnapshot = LayerSnapshot.empty
     private var generatedEvaluationStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:]
-    private var rollingCaptureBuffersByTrackID: [UUID: RollingCaptureBuffer] = [:]
+    private var clipCaptureService = ClipCaptureService()
 
     // Non-observable mirror of `transportTickIndex`, maintained on the clock thread.
     // Tick-thread code that needs the current tick reads this instead of the
@@ -286,7 +229,7 @@ final class EngineController: RouterDispatcher {
                 self.routeMidiOutputs = [:]
                 self.liveSampleTrackIDs = []
                 self.generatedEvaluationStatesByTrackID = [:]
-                self.rollingCaptureBuffersByTrackID = [:]
+                self.clipCaptureService.removeAll()
                 self.preparedTickIndex = nil
             }
             self.log("shutdown complete")
@@ -338,7 +281,7 @@ final class EngineController: RouterDispatcher {
         withStateLock {
             currentPlaybackSnapshot = compiledSnapshot
             let trackIDs = Set(documentModel.tracks.map(\.id))
-            rollingCaptureBuffersByTrackID = rollingCaptureBuffersByTrackID.filter { trackIDs.contains($0.key) }
+            clipCaptureService.removeMissingTracks(trackIDs)
             preparedTickIndex = nil
         }
         apply(deltas: deltas, documentModel: documentModel)
@@ -622,7 +565,7 @@ final class EngineController: RouterDispatcher {
         lengthSteps: Int? = nil
     ) -> ClipContent? {
         withStateLock {
-            rollingCaptureBuffersByTrackID[trackID]?.clipContent(lengthSteps: lengthSteps)
+            clipCaptureService.capturedClipContent(trackID: trackID, lengthSteps: lengthSteps)
         }
     }
 
@@ -634,14 +577,12 @@ final class EngineController: RouterDispatcher {
         lengthSteps: Int? = nil,
         name: String? = nil
     ) -> UUID? {
-        guard let content = capturedClipContent(trackID: trackID, lengthSteps: lengthSteps) else {
-            return nil
-        }
-
-        return project.saveCapturedClip(
-            content,
+        let captureService = withStateLock { clipCaptureService }
+        return captureService.saveRollingCapture(
+            to: &project,
             trackID: trackID,
             destinationSlotIndex: destinationSlotIndex,
+            lengthSteps: lengthSteps,
             name: name
         )
     }
@@ -805,7 +746,7 @@ final class EngineController: RouterDispatcher {
             generatorIDs,
             generatedStates,
             chordContexts,
-            rollingCaptureBuffers,
+            clipCaptureService,
             playbackSnapshot,
             effectiveMutedTrackIDs
         ) = withStateLock {
@@ -816,7 +757,7 @@ final class EngineController: RouterDispatcher {
                 self.generatorIDsByTrackID,
                 self.generatedEvaluationStatesByTrackID,
                 self.chordContextByLane,
-                self.rollingCaptureBuffersByTrackID,
+                self.clipCaptureService,
                 self.currentPlaybackSnapshot,
                 self.effectiveMutedTrackIDs
             )
@@ -838,7 +779,7 @@ final class EngineController: RouterDispatcher {
         macroApplier.apply(currentLayerSnapshot.macroValues, tracks: playbackSnapshot.tracks)
 
         var nextGeneratedStates = generatedStates
-        var nextRollingCaptureBuffers = rollingCaptureBuffers
+        var nextClipCaptureService = clipCaptureService
         let harmonicSidechainChord = chordContexts["default"]
         var preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
@@ -859,14 +800,12 @@ final class EngineController: RouterDispatcher {
                 rng: &rng
             )
             nextGeneratedStates[track.id] = state
-            var captureBuffer = nextRollingCaptureBuffers[track.id] ?? RollingCaptureBuffer()
-            captureBuffer.append(stepIndex: Int(upcomingStep), notes: notes)
-            nextRollingCaptureBuffers[track.id] = captureBuffer
+            nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
             preparedNotesByBlockID[generatorBlockID] = notes.map(Self.noteEvent(from:))
         }
         withStateLock {
             generatedEvaluationStatesByTrackID = nextGeneratedStates
-            rollingCaptureBuffersByTrackID = nextRollingCaptureBuffers
+            self.clipCaptureService = nextClipCaptureService
         }
 
         let outputs = executor.tick(now: now, preparedNotesByBlockID: preparedNotesByBlockID)
@@ -1127,7 +1066,7 @@ final class EngineController: RouterDispatcher {
             pipelineShape = Self.pipelineShape(for: documentModel)
             generatedEvaluationStatesByTrackID = [:]
             let trackIDs = Set(documentModel.tracks.map(\.id))
-            rollingCaptureBuffersByTrackID = rollingCaptureBuffersByTrackID.filter { trackIDs.contains($0.key) }
+            clipCaptureService.removeMissingTracks(trackIDs)
             preparedTickIndex = nil
         }
 

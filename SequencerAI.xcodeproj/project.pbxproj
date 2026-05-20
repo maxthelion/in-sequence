@@ -294,6 +294,7 @@
 		C46061E0C47253F7AAE92A1C /* PhraseCellPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC5A175399F7E0F17A1089A /* PhraseCellPreviewTests.swift */; };
 		C5D27F7B0536FA36A92B5682 /* FullStateCoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA39C9D199E4D93A1F1EEDC /* FullStateCoderTests.swift */; };
 		C640534EF17D6C61D5A97851 /* RouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEC56AA6719CAB570D637520 /* RouteTests.swift */; };
+		C7F2E0C0D3C25068BC1062FC /* ClipCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A89185511AA5FA2CF82770A4 /* ClipCaptureService.swift */; };
 		C846AC278CE5037551F59604 /* Project+Diff.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB87BCC372BECFFFDA53634 /* Project+Diff.swift */; };
 		C91FB5C671AA6F8F0800FF70 /* AUWindowHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD640D179A56602EB2915A6 /* AUWindowHost.swift */; };
 		C9777BCEAD988B928C7F7CD0 /* ScenesWorkspaceView+Perform.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C31B96BF171AC5CF4AC7EF /* ScenesWorkspaceView+Perform.swift */; };
@@ -332,6 +333,7 @@
 		DF2370F27D9694B3498A6827 /* MultiDocumentEngineIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02F5350AA667365216279FB /* MultiDocumentEngineIsolationTests.swift */; };
 		E027CCBEA143ABC7990EC2BD /* WrapRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA068D16F4542EF4B0C01A5D /* WrapRow.swift */; };
 		E1D63DDCEB92046FA79054BC /* StyleProfilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEA6D90DE06F9CD1503FAF0 /* StyleProfilesTests.swift */; };
+		E244091D2C7F0EA480A18223 /* ClipCaptureServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921877FE74260A065D539C53 /* ClipCaptureServiceTests.swift */; };
 		E37A5DC0BED5FFB5F127AD4F /* SnapshotChangeTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B0CDDA72F08723E67F0244 /* SnapshotChangeTypeTests.swift */; };
 		E5D850D36A04C9A9F10EE2E8 /* StepAlgoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B57F2D76ACEE6E284F48C57 /* StepAlgoTests.swift */; };
 		E5DED0443CBBFBB090BFA6DF /* IncrementalCompileEquivalenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1093F2D07C44977D2CF6F55 /* IncrementalCompileEquivalenceTests.swift */; };
@@ -1028,6 +1030,7 @@
 		91BAD8E6707947E2D3AB8EFB /* architecture-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "architecture-review.md"; sourceTree = "<group>"; };
 		91FEC4A77F855A148863F930 /* validated-window.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "validated-window.png"; sourceTree = "<group>"; };
 		920BFB59D032D05E6E951A0B /* 2026-04-19-qa-infrastructure.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-19-qa-infrastructure.md"; sourceTree = "<group>"; };
+		921877FE74260A065D539C53 /* ClipCaptureServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipCaptureServiceTests.swift; sourceTree = "<group>"; };
 		922DF321651012CA6F9A08CC /* 2026-05-08T09-47-16Z-process-health-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T09-47-16Z-process-health-observer-cadence.md"; sourceTree = "<group>"; };
 		923E2CAD96E8B7AF7D5EF790 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		9240EFD2201F19FDF16A42C8 /* 02-issue-draft-review.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "02-issue-draft-review.html"; sourceTree = "<group>"; };
@@ -1114,6 +1117,7 @@
 		A87378B69966A3364A76F527 /* 2026-05-08T16-10Z-work-observer-p0-overlay-checkpoint-unchanged.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T16-10Z-work-observer-p0-overlay-checkpoint-unchanged.md"; sourceTree = "<group>"; };
 		A8752B906B0E0D6329775053 /* screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = screen.png; sourceTree = "<group>"; };
 		A87B6CA76F872C4FE7A941F8 /* prototype-approval.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "prototype-approval.md"; sourceTree = "<group>"; };
+		A89185511AA5FA2CF82770A4 /* ClipCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipCaptureService.swift; sourceTree = "<group>"; };
 		A8D69DCD712EE32FA6691DA6 /* existing-state.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "existing-state.md"; sourceTree = "<group>"; };
 		A8D6E8D88966A1807311AD39 /* SliceMarker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceMarker.swift; sourceTree = "<group>"; };
 		A8FB4647478EC3E9EF1B01CF /* existing-state.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "existing-state.md"; sourceTree = "<group>"; };
@@ -2024,6 +2028,7 @@
 				16D79D625BD5365928D750F6 /* Block.swift */,
 				ABD557FC4B40463E9A90BAA0 /* BlockRegistry.swift */,
 				647C9E860E3A67CF5CF389F8 /* ClipBuffer.swift */,
+				A89185511AA5FA2CF82770A4 /* ClipCaptureService.swift */,
 				A62DA60AD5603ED2570D4A35 /* CommandQueue.swift */,
 				0E31D7113289BE3CB828D500 /* EngineController.swift */,
 				34E2B8C3B8F4CD6E32222E0C /* EngineControllerRoutingHelpers.swift */,
@@ -3402,6 +3407,7 @@
 				8A327CD4562F4083893A9AF3 /* BlockProtocolTests.swift */,
 				1E225A96D4898185DBF25B36 /* BlockRegistryTests.swift */,
 				AE34362DA1EA96EE4A1D3112 /* ChordContextSinkTests.swift */,
+				921877FE74260A065D539C53 /* ClipCaptureServiceTests.swift */,
 				55BE9D6C71635DC7BA504BC2 /* CommandQueueTests.swift */,
 				096DCB8E4C9950DB95BF6F51 /* EngineControllerDeltaDispatchTests.swift */,
 				230F8F00147A645CF4E932F5 /* EngineControllerMixerBusTests.swift */,
@@ -4247,6 +4253,7 @@
 				3954C67E9442D97A96CBB5D7 /* ClipContentMacroLaneTests.swift in Sources */,
 				D0D635E76A2AC0D52E6B6BB7 /* ClipContentSliceTriggerModeTests.swift in Sources */,
 				0FD17A493F4B93986C03D344 /* ClipContentTestHelpers.swift in Sources */,
+				E244091D2C7F0EA480A18223 /* ClipCaptureServiceTests.swift in Sources */,
 				A961D7A68763CB55DACB2DFF /* CommandQueueTests.swift in Sources */,
 				960AB948B6AAE414394DA7A7 /* DebounceSemanticsTests.swift in Sources */,
 				9288FD7EF3B31BDBD796F0BE /* DestinationInheritGroupTests.swift in Sources */,
@@ -4411,6 +4418,7 @@
 				AEE65803BE8663826BD8B6F7 /* ChordID.swift in Sources */,
 				1BBE34751449D6BA8D733557 /* Chords.swift in Sources */,
 				9ADCA353B5CECEFE636AC229 /* ClipBuffer.swift in Sources */,
+				C7F2E0C0D3C25068BC1062FC /* ClipCaptureService.swift in Sources */,
 				50E662194D8A8C548C0881ED /* ClipContent+Empty.swift in Sources */,
 				85EBFB77A837286E5DD85C0D /* ClipContent.swift in Sources */,
 				D92007DBB0F991D44607AC0C /* ClipContentPreview.swift in Sources */,
