@@ -33,19 +33,23 @@ extension Project {
 
     @discardableResult
     mutating func ensureClipForCurrentPattern(trackID: UUID) -> UUID? {
-        let slotIndex = selectedPatternIndex(for: trackID)
-        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
-            NSLog("[Project] ensureClipForCurrentPattern missing pattern bank trackID=\(trackID)")
+        ensureClip(at: PatternSlotAddress(trackID: trackID, slotIndex: selectedPatternIndex(for: trackID)))
+    }
+
+    @discardableResult
+    mutating func ensureClip(at address: PatternSlotAddress) -> UUID? {
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == address.trackID }) else {
+            NSLog("[Project] ensureClip missing pattern bank trackID=\(address.trackID)")
             return nil
         }
 
         let bank = patternBanks[bankIndex]
-        let slot = bank.slot(at: slotIndex)
+        let slot = bank.slot(at: address.slotIndex)
         if let existing = slot.sourceRef.clipID {
             return existing
         }
 
-        return createBlankClipSource(trackID: trackID, slotIndex: slotIndex)
+        return createBlankClipSource(trackID: address.trackID, slotIndex: address.slotIndex)
     }
 
     mutating func removeSelectedSlotSource(trackID: UUID, slotIndex: Int) {
@@ -86,18 +90,22 @@ extension Project {
     }
 
     mutating func setPatternSourceRef(_ sourceRef: SourceRef, for trackID: UUID, slotIndex: Int) {
-        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
-              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        setPatternSourceRef(sourceRef, at: PatternSlotAddress(trackID: trackID, slotIndex: slotIndex))
+    }
+
+    mutating func setPatternSourceRef(_ sourceRef: SourceRef, at address: PatternSlotAddress) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == address.trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == address.trackID })
         else {
             return
         }
 
         let track = tracks[trackIndex]
         var bank = patternBanks[bankIndex]
-        let slot = bank.slot(at: slotIndex)
+        let slot = bank.slot(at: address.slotIndex)
         bank.setSlot(
             TrackPatternSlot(slotIndex: slot.slotIndex, name: slot.name, sourceRef: sourceRef),
-            at: slotIndex
+            at: address.slotIndex
         )
         patternBanks[bankIndex] = bank.synced(track: track, generatorPool: generatorPool, clipPool: clipPool)
     }
@@ -356,10 +364,22 @@ extension Project {
         for trackID: UUID,
         slotIndex: Int
     ) {
-        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
+        setPatternModifierGeneratorID(
+            modifierGeneratorID,
+            bypassed: bypassed,
+            at: PatternSlotAddress(trackID: trackID, slotIndex: slotIndex)
+        )
+    }
+
+    mutating func setPatternModifierGeneratorID(
+        _ modifierGeneratorID: UUID?,
+        bypassed: Bool = false,
+        at address: PatternSlotAddress
+    ) {
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == address.trackID }) else {
             return
         }
-        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        let slot = patternBanks[bankIndex].slot(at: address.slotIndex)
         let updated = SourceRef(
             mode: slot.sourceRef.mode,
             generatorID: slot.sourceRef.generatorID,
@@ -367,7 +387,7 @@ extension Project {
             modifierGeneratorID: modifierGeneratorID,
             modifierBypassed: modifierGeneratorID == nil ? false : bypassed
         )
-        setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
+        setPatternSourceRef(updated, at: address)
     }
 
     mutating func setPatternModifierBypassed(
@@ -375,10 +395,20 @@ extension Project {
         for trackID: UUID,
         slotIndex: Int
     ) {
-        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID }) else {
+        setPatternModifierBypassed(
+            bypassed,
+            at: PatternSlotAddress(trackID: trackID, slotIndex: slotIndex)
+        )
+    }
+
+    mutating func setPatternModifierBypassed(
+        _ bypassed: Bool,
+        at address: PatternSlotAddress
+    ) {
+        guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == address.trackID }) else {
             return
         }
-        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        let slot = patternBanks[bankIndex].slot(at: address.slotIndex)
         guard slot.sourceRef.modifierGeneratorID != nil else {
             return
         }
@@ -389,7 +419,7 @@ extension Project {
             modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
             modifierBypassed: bypassed
         )
-        setPatternSourceRef(updated, for: trackID, slotIndex: slotIndex)
+        setPatternSourceRef(updated, at: address)
     }
 
     @discardableResult

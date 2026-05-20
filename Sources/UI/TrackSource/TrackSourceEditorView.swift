@@ -39,6 +39,9 @@ struct TrackSourceEditorView: View {
     private var track: StepSequenceTrack { session.store.selectedTrack }
     private var bank: TrackPatternBank { session.store.patternBank(for: track.id) }
     private var selectedPatternIndex: Int { session.store.selectedPatternIndex(for: track.id) }
+    private var selectedPatternAddress: PatternSlotAddress {
+        PatternSlotAddress(trackID: track.id, slotIndex: selectedPatternIndex)
+    }
     private var selectedPattern: TrackPatternSlot { session.store.selectedPattern(for: track.id) }
     private var occupiedPatternSlots: Set<Int> {
         Set(bank.slots.compactMap { slot in
@@ -97,13 +100,12 @@ struct TrackSourceEditorView: View {
         }
 
         let phrase = session.store.selectedPhrase
-        let phraseStep = Int(engineController.transportTickIndex % UInt64(max(1, phrase.stepCount)))
-        let playingPatternIndex = resolvedPatternIndex(in: phrase, trackID: track.id, stepIndex: phraseStep)
-        guard playingPatternIndex == selectedPatternIndex else {
+        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
+        guard playhead.patternIndex(for: track.id, patternLayer: session.store.patternLayer) == selectedPatternIndex else {
             return nil
         }
 
-        return phraseStep % max(1, clip.content.stepCount)
+        return playhead.clipStepIndex(clipStepCount: clip.content.stepCount)
     }
 
     private var orderedMacros: [TrackMacroBinding] {
@@ -294,15 +296,13 @@ struct TrackSourceEditorView: View {
             onToggleBypassed: {
                 session.setPatternModifierBypassed(
                     !selectedPattern.sourceRef.modifierBypassed,
-                    for: track.id,
-                    slotIndex: selectedPatternIndex
+                    at: selectedPatternAddress
                 )
             },
             onRemoveModifier: {
                 session.setPatternModifierGeneratorID(
                     nil,
-                    for: track.id,
-                    slotIndex: selectedPatternIndex
+                    at: selectedPatternAddress
                 )
             },
             onUpdateGeneratorParams: updateModifierGeneratorParams
@@ -333,12 +333,11 @@ struct TrackSourceEditorView: View {
 
     private func assignMacro(_ parameter: AUParameterDescriptor, to slotIndex: Int) {
         let descriptor = TrackMacroDescriptor(auParameter: parameter)
-        session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
+        _ = session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
     }
 
     private func updateClipMacroLanes(_ updatedLanes: [UUID: MacroLane]) {
-        let trackID = track.id
-        session.ensureClipAndMutate(trackID: trackID) { _, entry in
+        session.ensureClipAndMutate(at: selectedPatternAddress) { _, entry in
             entry.macroLanes = updatedLanes
         }
     }
@@ -352,7 +351,7 @@ struct TrackSourceEditorView: View {
             details: "trackID=\(trackID.uuidString)"
         )
         #endif
-        session.ensureClipAndMutate(trackID: trackID) { _, entry in
+        session.ensureClipAndMutate(at: selectedPatternAddress) { _, entry in
             entry.content = updated
         }
         #if DEBUG
@@ -406,33 +405,18 @@ struct TrackSourceEditorView: View {
     }
 
     private func selectModifier(_ generator: GeneratorPoolEntry) {
-        session.assignModifierGenerator(generator.id, to: track.id, slotIndex: selectedPatternIndex)
+        session.assignModifierGenerator(generator.id, to: selectedPatternAddress)
         modifierPickerStep = nil
     }
 
     private func createBlankModifier() {
-        _ = session.createBlankModifierGenerator(trackID: track.id, slotIndex: selectedPatternIndex)
+        _ = session.createBlankModifierGenerator(at: selectedPatternAddress)
         modifierPickerStep = nil
     }
 
     private func removeSource() {
         session.removeSelectedSlotSource(trackID: track.id, slotIndex: selectedPatternIndex)
         sourcePickerStep = nil
-    }
-
-    private func resolvedPatternIndex(in phrase: PhraseModel, trackID: UUID, stepIndex: Int) -> Int {
-        guard let layer = session.store.patternLayer else {
-            return 0
-        }
-
-        switch phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex) {
-        case let .index(index):
-            return min(max(index, 0), TrackPatternBank.slotCount - 1)
-        case let .scalar(value):
-            return min(max(Int(value.rounded()), 0), TrackPatternBank.slotCount - 1)
-        case let .bool(isOn):
-            return isOn ? 1 : 0
-        }
     }
 
     private var selectedPatternIndexBinding: Binding<Int> {

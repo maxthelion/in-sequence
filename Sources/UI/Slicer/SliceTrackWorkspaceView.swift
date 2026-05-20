@@ -32,6 +32,10 @@ struct SliceTrackWorkspaceView: View {
         session.store.selectedPatternIndex(for: track.id)
     }
 
+    private var selectedPatternAddress: PatternSlotAddress {
+        PatternSlotAddress(trackID: track.id, slotIndex: selectedPatternIndex)
+    }
+
     private var selectedPattern: TrackPatternSlot {
         session.store.selectedPattern(for: track.id)
     }
@@ -515,11 +519,11 @@ private extension SliceTrackWorkspaceView {
             return nil
         }
         let phrase = session.store.selectedPhrase
-        let phraseStep = Int(engineController.transportTickIndex % UInt64(max(1, phrase.stepCount)))
-        guard resolvedPatternIndex(in: phrase, trackID: track.id, stepIndex: phraseStep) == selectedPatternIndex else {
+        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
+        guard playhead.patternIndex(for: track.id, patternLayer: session.store.patternLayer) == selectedPatternIndex else {
             return nil
         }
-        return phraseStep % max(1, clip.content.stepCount)
+        return playhead.clipStepIndex(clipStepCount: clip.content.stepCount)
     }
 
     func visibleStepStates(parts: SliceTriggerParts) -> [SliceStepStrip.State] {
@@ -656,7 +660,7 @@ private extension SliceTrackWorkspaceView {
     }
 
     func commit(parts: SliceTriggerParts) {
-        session.ensureClipAndMutate(trackID: track.id) { _, entry in
+        session.ensureClipAndMutate(at: selectedPatternAddress) { _, entry in
             entry.content = .sliceTriggers(
                 stepPattern: parts.stepPattern,
                 sliceIndexes: parts.sliceIndexes,
@@ -818,17 +822,4 @@ private extension SliceTrackWorkspaceView {
         )
     }
 
-    func resolvedPatternIndex(in phrase: PhraseModel, trackID: UUID, stepIndex: Int) -> Int {
-        guard let layer = session.store.patternLayer else {
-            return 0
-        }
-        switch phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex) {
-        case let .index(index):
-            return min(max(index, 0), TrackPatternBank.slotCount - 1)
-        case let .scalar(value):
-            return min(max(Int(value.rounded()), 0), TrackPatternBank.slotCount - 1)
-        case let .bool(isOn):
-            return isOn ? 1 : 0
-        }
-    }
 }

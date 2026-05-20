@@ -870,40 +870,6 @@ extension SequencerDocumentSession {
         dispatchImpact(.fullEngineApply)
     }
 
-    // MARK: - Pattern modifier
-
-    /// Set the modifier bypassed state for a pattern slot.
-    func setPatternModifierBypassed(_ bypassed: Bool, for trackID: UUID, slotIndex: Int) {
-        mutatePatternBank(trackID: trackID) { bank in
-            let slot = bank.slot(at: slotIndex)
-            guard slot.sourceRef.modifierGeneratorID != nil else { return }
-            let updated = SourceRef(
-                mode: slot.sourceRef.mode,
-                generatorID: slot.sourceRef.generatorID,
-                clipID: slot.sourceRef.clipID,
-                modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
-                modifierBypassed: bypassed
-            )
-            bank.setSlot(TrackPatternSlot(slotIndex: slot.slotIndex, name: slot.name, sourceRef: updated), at: slotIndex)
-        }
-    }
-
-    /// Set the modifier generator ID for a pattern slot.
-    func setPatternModifierGeneratorID(_ modifierGeneratorID: UUID?, for trackID: UUID, slotIndex: Int) {
-        mutatePatternBank(trackID: trackID) { bank in
-            let slot = bank.slot(at: slotIndex)
-            let updated = SourceRef(
-                mode: slot.sourceRef.mode,
-                generatorID: slot.sourceRef.generatorID,
-                clipID: slot.sourceRef.clipID,
-                modifierGeneratorID: modifierGeneratorID,
-                modifierBypassed: modifierGeneratorID == nil ? false : slot.sourceRef.modifierBypassed
-            )
-            bank.setSlot(TrackPatternSlot(slotIndex: slot.slotIndex, name: slot.name, sourceRef: updated), at: slotIndex)
-        }
-    }
-
-    /// Set the selected pattern index for a track (writes phrase cell via project round-trip).
     func setSelectedPatternIndex(_ index: Int, for trackID: UUID) {
         var p = store.exportToProject()
         p.setSelectedPatternIndex(index, for: trackID)
@@ -914,7 +880,6 @@ extension SequencerDocumentSession {
     }
 
     /// Update a generator entry by ID and dispatch impact, using a project round-trip
-    /// so that pattern bank sync (which depends on the generator pool) is preserved.
     func updateGeneratorEntry(id: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (inout GeneratorPoolEntry) -> Void) {
         let changed = store.mutateGenerator(id: id, update)
         guard changed else { return }
@@ -925,29 +890,13 @@ extension SequencerDocumentSession {
         dispatchImpact(impact, changed: .generator(id))
     }
 
-    /// Ensure a clip exists for the current pattern slot, creating it if necessary,
-    /// then run the clip update. Returns the clip ID used.
     @discardableResult
     func ensureClipAndMutate(trackID: UUID, impact: LiveMutationImpact = .snapshotOnly, _ update: (UUID, inout ClipPoolEntry) -> Void) -> UUID? {
-        let existingClipID = store.selectedPattern(for: trackID).sourceRef.clipID
-        let initialChange = existingClipID.map { SnapshotChange.clip($0).union(.patternBank(trackID)) } ?? .full
-        batch(impact: impact, changed: initialChange) { s in
-            var p = s.exportToProject()
-            guard let clipID = p.ensureClipForCurrentPattern(trackID: trackID) else { return }
-            // If a new clip was created, it's in p.clipPool but not yet in the store.
-            for clip in p.clipPool where s.exportToProject().clipPool.first(where: { $0.id == clip.id }) == nil {
-                s.appendClip(clip)
-            }
-            // Update pattern banks if source ref changed.
-            for bank in p.patternBanks {
-                s.setPatternBank(trackID: bank.trackID, bank: bank)
-            }
-            // Now mutate the clip.
-            s.mutateClip(id: clipID) { entry in
-                update(clipID, &entry)
-            }
-        }
-        return nil // Caller doesn't need the clip ID; used for side-effect chaining.
+        ensureClipAndMutate(
+            at: PatternSlotAddress(trackID: trackID, slotIndex: store.selectedPatternIndex(for: trackID)),
+            impact: impact,
+            update
+        )
     }
 
     // MARK: - Track add / remove

@@ -14,6 +14,10 @@ extension Project {
         return TrackPatternBank.default(for: track, initialClipID: fallbackClipID)
     }
 
+    func patternSlot(at address: PatternSlotAddress) -> TrackPatternSlot {
+        patternBank(for: address.trackID).slot(at: address.slotIndex)
+    }
+
     func layer(id: String) -> PhraseLayerDefinition? {
         layers.first(where: { $0.id == id })
     }
@@ -21,6 +25,11 @@ extension Project {
     func cell(for trackID: UUID, layerID: String, phraseID: UUID? = nil) -> PhraseCell {
         let phrase = phrases.first(where: { $0.id == phraseID }) ?? selectedPhrase
         return phrase.cell(for: layerID, trackID: trackID)
+    }
+
+    func cell(at address: PhraseCellAddress) -> PhraseCell {
+        let phrase = phrases.first(where: { $0.id == address.phraseID }) ?? selectedPhrase
+        return phrase.cell(at: address)
     }
 
     func selectedPatternIndex(for trackID: UUID) -> Int {

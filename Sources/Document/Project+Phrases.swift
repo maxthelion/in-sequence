@@ -25,6 +25,15 @@ extension Project {
         }
     }
 
+    mutating func setPhraseCell(_ cell: PhraseCell, at address: PhraseCellAddress) {
+        setPhraseCell(
+            cell,
+            layerID: address.layerID,
+            trackIDs: [address.trackID],
+            phraseID: address.phraseID
+        )
+    }
+
     mutating func setPhraseCellMode(
         _ mode: PhraseCellEditMode,
         layer: PhraseLayerDefinition,

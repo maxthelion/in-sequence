@@ -154,6 +154,46 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(sampled, .scalar(1.0))
     }
 
+    func test_phrase_cell_address_reads_and_writes_cell_values() {
+        let track = StepSequenceTrack.default
+        let layer = PhraseLayerDefinition.defaultSet(for: [track]).first(where: { $0.id == "intensity" })!
+        var phrase = PhraseModel.default(tracks: [track], layers: [layer])
+        let address = PhraseCellAddress(layerID: layer.id, trackID: track.id, stepIndex: 3)
+
+        phrase.setCell(.single(.scalar(0.42)), at: address)
+
+        XCTAssertEqual(phrase.cell(at: address), .single(.scalar(0.42)))
+        XCTAssertEqual(phrase.resolvedValue(for: layer, at: address), .scalar(0.42))
+    }
+
+    func test_phrase_playhead_resolves_step_bar_pattern_and_song_phrase_index() {
+        let track = StepSequenceTrack.default
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let patternLayer = layers.first(where: { $0.id == "pattern" })!
+        var phraseA = PhraseModel.default(tracks: [track], layers: layers)
+        phraseA.lengthBars = 2
+        phraseA.stepsPerBar = 4
+        phraseA.setCell(.bars([.index(1), .index(3)]), for: patternLayer.id, trackID: track.id)
+        var phraseB = phraseA
+        phraseB.id = UUID()
+        phraseB.lengthBars = 1
+
+        let playhead = PhrasePlayhead(phrase: phraseA, transportTickIndex: 5)
+
+        XCTAssertEqual(playhead.stepIndex, 5)
+        XCTAssertEqual(playhead.barIndex, 1)
+        XCTAssertEqual(playhead.patternIndex(for: track.id, patternLayer: patternLayer), 3)
+        XCTAssertEqual(playhead.clipStepIndex(clipStepCount: 4), 1)
+        XCTAssertEqual(
+            PhrasePlayhead.playbackPhraseIndex(
+                transportTickIndex: 8,
+                phrases: [phraseA, phraseB],
+                stepsPerBar: phraseA.stepsPerBar
+            ),
+            1
+        )
+    }
+
     func test_add_drum_kit_creates_group_and_inherit_cells() throws {
         var model = Project.empty
 

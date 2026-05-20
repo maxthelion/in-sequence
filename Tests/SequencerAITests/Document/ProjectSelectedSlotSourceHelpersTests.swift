@@ -130,6 +130,7 @@ final class ProjectSelectedSlotSourceHelpersTests: XCTestCase {
     func test_assignModifierGenerator_updates_only_selected_slot_without_creating_source_material() throws {
         var (project, trackID, sourceGeneratorID, _, _, siblingBaseline) = try makeProject()
         let baselineClipCount = project.clipPool.count
+        let address = PatternSlotAddress(trackID: trackID, slotIndex: slotIndex)
         let alternateModifier = GeneratorPoolEntry(
             id: UUID(),
             name: "Alternate Modifier",
@@ -140,7 +141,7 @@ final class ProjectSelectedSlotSourceHelpersTests: XCTestCase {
         project.generatorPool.append(alternateModifier)
         project.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex)
 
-        project.assignModifierGenerator(alternateModifier.id, to: trackID, slotIndex: slotIndex)
+        project.setPatternModifierGeneratorID(alternateModifier.id, at: address)
 
         let slot = project.patternBank(for: trackID).slot(at: slotIndex)
         XCTAssertEqual(project.clipPool.count, baselineClipCount)
@@ -149,6 +150,33 @@ final class ProjectSelectedSlotSourceHelpersTests: XCTestCase {
         XCTAssertEqual(slot.sourceRef.generatorID, sourceGeneratorID)
         XCTAssertEqual(slot.sourceRef.modifierGeneratorID, alternateModifier.id)
         XCTAssertFalse(slot.sourceRef.modifierBypassed)
+        XCTAssertEqual(project.patternBank(for: trackID).slot(at: siblingSlotIndex).sourceRef, siblingBaseline)
+    }
+
+    func test_patternSlotAddress_overloads_preserve_slot_locality() throws {
+        var (project, trackID, sourceGeneratorID, modifierGeneratorID, alternateClipID, siblingBaseline) = try makeProject()
+        let address = PatternSlotAddress(trackID: trackID, slotIndex: slotIndex)
+        let baselineClipCount = project.clipPool.count
+
+        project.setPatternSourceRef(
+            SourceRef(
+                mode: .clip,
+                generatorID: sourceGeneratorID,
+                clipID: alternateClipID,
+                modifierGeneratorID: modifierGeneratorID,
+                modifierBypassed: false
+            ),
+            at: address
+        )
+        project.setPatternModifierBypassed(true, at: address)
+
+        let slot = project.patternSlot(at: address)
+        XCTAssertEqual(project.clipPool.count, baselineClipCount)
+        XCTAssertEqual(slot.sourceRef.mode, .clip)
+        XCTAssertEqual(slot.sourceRef.clipID, alternateClipID)
+        XCTAssertEqual(slot.sourceRef.generatorID, sourceGeneratorID)
+        XCTAssertEqual(slot.sourceRef.modifierGeneratorID, modifierGeneratorID)
+        XCTAssertTrue(slot.sourceRef.modifierBypassed)
         XCTAssertEqual(project.patternBank(for: trackID).slot(at: siblingSlotIndex).sourceRef, siblingBaseline)
     }
 

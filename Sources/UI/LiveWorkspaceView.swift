@@ -44,28 +44,15 @@ struct LiveWorkspaceView: View {
     }
 
     private var playbackPhraseIndex: Int? {
-        let phrases = session.store.phrases
-        guard engineController.isRunning, !phrases.isEmpty else {
+        guard engineController.isRunning else {
             return nil
         }
 
-        let totalBars = phrases.reduce(0) { $0 + max(1, $1.lengthBars) }
-        guard totalBars > 0 else {
-            return nil
-        }
-
-        let absoluteBar = Int(engineController.transportTickIndex) / max(1, session.store.selectedPhrase.stepsPerBar)
-        var cycleBar = absoluteBar % totalBars
-
-        for (index, phrase) in phrases.enumerated() {
-            let phraseBars = max(1, phrase.lengthBars)
-            if cycleBar < phraseBars {
-                return index
-            }
-            cycleBar -= phraseBars
-        }
-
-        return nil
+        return PhrasePlayhead.playbackPhraseIndex(
+            transportTickIndex: engineController.transportTickIndex,
+            phrases: session.store.phrases,
+            stepsPerBar: session.store.selectedPhrase.stepsPerBar
+        )
     }
 
     private var visibleScopes: [LiveLaneScope] {

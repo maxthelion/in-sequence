@@ -1,5 +1,98 @@
 import Foundation
 
+struct PatternSlotAddress: Equatable, Hashable, Sendable {
+    var trackID: UUID
+    var slotIndex: Int
+}
+
+struct PhraseCellAddress: Equatable, Hashable, Sendable {
+    var phraseID: UUID?
+    var layerID: String
+    var trackID: UUID
+    var stepIndex: Int
+
+    init(
+        phraseID: UUID? = nil,
+        layerID: String,
+        trackID: UUID,
+        stepIndex: Int = 0
+    ) {
+        self.phraseID = phraseID
+        self.layerID = layerID
+        self.trackID = trackID
+        self.stepIndex = stepIndex
+    }
+}
+
+struct PhrasePlayhead: Equatable, Sendable {
+    var phrase: PhraseModel
+    var stepIndex: Int
+
+    init(phrase: PhraseModel, transportTickIndex: UInt64) {
+        self.phrase = phrase
+        self.stepIndex = Int(transportTickIndex % UInt64(max(1, phrase.stepCount)))
+    }
+
+    var barIndex: Int {
+        min(max(0, stepIndex / max(1, phrase.stepsPerBar)), max(phrase.lengthBars - 1, 0))
+    }
+
+    func patternIndex(for trackID: UUID, patternLayer: PhraseLayerDefinition?) -> Int {
+        guard let patternLayer else {
+            return 0
+        }
+        return Self.patternIndex(in: phrase, layer: patternLayer, trackID: trackID, stepIndex: stepIndex)
+    }
+
+    func clipStepIndex(clipStepCount: Int) -> Int {
+        stepIndex % max(1, clipStepCount)
+    }
+
+    static func patternIndex(
+        in phrase: PhraseModel,
+        layer: PhraseLayerDefinition,
+        trackID: UUID,
+        stepIndex: Int
+    ) -> Int {
+        switch phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex) {
+        case let .index(index):
+            return min(max(index, 0), TrackPatternBank.slotCount - 1)
+        case let .scalar(value):
+            return min(max(Int(value.rounded()), 0), TrackPatternBank.slotCount - 1)
+        case let .bool(isOn):
+            return isOn ? 1 : 0
+        }
+    }
+
+    static func playbackPhraseIndex(
+        transportTickIndex: UInt64,
+        phrases: [PhraseModel],
+        stepsPerBar: Int
+    ) -> Int? {
+        guard !phrases.isEmpty else {
+            return nil
+        }
+
+        let totalBars = phrases.reduce(0) { $0 + max(1, $1.lengthBars) }
+        guard totalBars > 0 else {
+            return nil
+        }
+
+        let absoluteBar = Int(transportTickIndex) / max(1, stepsPerBar)
+        var cycleBar = absoluteBar % totalBars
+
+        for (index, phrase) in phrases.enumerated() {
+            let phraseBars = max(1, phrase.lengthBars)
+            if cycleBar < phraseBars {
+                return index
+            }
+            cycleBar -= phraseBars
+        }
+
+        return nil
+    }
+}
+
 struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
     var id: UUID
     var name: String
@@ -52,12 +145,20 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         cells.first(where: { $0.trackID == trackID && $0.layerID == layerID })?.cell ?? .inheritDefault
     }
 
+    func cell(at address: PhraseCellAddress) -> PhraseCell {
+        cell(for: address.layerID, trackID: address.trackID)
+    }
+
     mutating func setCell(_ cell: PhraseCell, for layerID: String, trackID: UUID) {
         if let index = cells.firstIndex(where: { $0.trackID == trackID && $0.layerID == layerID }) {
             cells[index].cell = cell
         } else {
             cells.append(PhraseCellAssignment(trackID: trackID, layerID: layerID, cell: cell))
         }
+    }
+
+    mutating func setCell(_ cell: PhraseCell, at address: PhraseCellAddress) {
+        setCell(cell, for: address.layerID, trackID: address.trackID)
     }
 
     func cellMode(for layerID: String, trackID: UUID) -> PhraseCellEditMode {
@@ -110,19 +211,19 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         }
     }
 
+    func resolvedValue(
+        for layer: PhraseLayerDefinition,
+        at address: PhraseCellAddress
+    ) -> PhraseCellValue {
+        resolvedValue(for: layer, trackID: address.trackID, stepIndex: address.stepIndex)
+    }
+
     func patternIndex(for trackID: UUID, layers: [PhraseLayerDefinition]) -> Int {
         guard let layer = layers.first(where: { $0.target == .patternIndex }) else {
             return 0
         }
 
-        switch resolvedValue(for: layer, trackID: trackID, stepIndex: 0) {
-        case let .index(index):
-            return min(max(index, 0), TrackPatternBank.slotCount - 1)
-        case let .scalar(value):
-            return min(max(Int(value.rounded()), 0), TrackPatternBank.slotCount - 1)
-        case let .bool(isOn):
-            return isOn ? 1 : 0
-        }
+        return PhrasePlayhead.patternIndex(in: self, layer: layer, trackID: trackID, stepIndex: 0)
     }
 
     func usedPatternIndexes(for trackID: UUID, layers: [PhraseLayerDefinition]) -> Set<Int> {

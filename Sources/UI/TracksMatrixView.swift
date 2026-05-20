@@ -87,28 +87,15 @@ struct TracksMatrixView: View {
     }
 
     private var playbackPhraseIndex: Int? {
-        let phrases = session.store.phrases
-        guard engineController.isRunning, !phrases.isEmpty else {
+        guard engineController.isRunning else {
             return nil
         }
 
-        let totalBars = phrases.reduce(0) { $0 + max(1, $1.lengthBars) }
-        guard totalBars > 0 else {
-            return nil
-        }
-
-        let absoluteBar = Int(engineController.transportTickIndex) / max(1, session.store.selectedPhrase.stepsPerBar)
-        var cycleBar = absoluteBar % totalBars
-
-        for (index, phrase) in phrases.enumerated() {
-            let phraseBars = max(1, phrase.lengthBars)
-            if cycleBar < phraseBars {
-                return index
-            }
-            cycleBar -= phraseBars
-        }
-
-        return nil
+        return PhrasePlayhead.playbackPhraseIndex(
+            transportTickIndex: engineController.transportTickIndex,
+            phrases: session.store.phrases,
+            stepsPerBar: session.store.selectedPhrase.stepsPerBar
+        )
     }
 
     private var groupedSections: [GroupedTrackSection] {
@@ -346,12 +333,9 @@ struct TracksMatrixView: View {
     private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?, selectedTrackID: UUID) -> some View {
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(tracks, id: \.id) { track in
-                let cell = editableCell(for: track.id)
-                let resolvedValue = editingPhrase.resolvedValue(
-                    for: selectedLayer,
-                    trackID: track.id,
-                    stepIndex: currentStepIndexInPhrase
-                )
+                let address = phraseCellAddress(for: track.id)
+                let cell = editingPhrase.cell(at: address)
+                let resolvedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
                 TrackMatrixCard(
                     track: track,
                     group: group,
@@ -375,36 +359,28 @@ struct TracksMatrixView: View {
     }
 
     private var currentStepIndexInPhrase: Int {
-        let stepCount = max(1, editingPhrase.stepCount)
-        return Int(engineController.transportTickIndex) % stepCount
+        PhrasePlayhead(phrase: editingPhrase, transportTickIndex: engineController.transportTickIndex).stepIndex
     }
 
     private var currentBarIndexInPhrase: Int {
-        min(max(0, currentStepIndexInPhrase / max(1, editingPhrase.stepsPerBar)), max(editingPhrase.lengthBars - 1, 0))
+        PhrasePlayhead(phrase: editingPhrase, transportTickIndex: engineController.transportTickIndex).barIndex
     }
 
     private func performPrimaryAction(trackID: UUID) {
-        let cell = editableCell(for: trackID)
+        let address = phraseCellAddress(for: trackID)
+        let cell = editingPhrase.cell(at: address)
 
         switch cell {
         case .inheritDefault:
-            let seedValue = editingPhrase.resolvedValue(
-                for: selectedLayer,
-                trackID: trackID,
-                stepIndex: currentStepIndexInPhrase
-            )
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
             session.setPhraseCell(
                 .single(cycledValue(seedValue, for: selectedLayer)),
-                layerID: selectedLayer.id,
-                trackIDs: [trackID],
-                phraseID: editingPhraseID
+                at: address
             )
         case let .single(value):
             session.setPhraseCell(
                 .single(cycledValue(value, for: selectedLayer)),
-                layerID: selectedLayer.id,
-                trackIDs: [trackID],
-                phraseID: editingPhraseID
+                at: address
             )
         case let .bars(values):
             guard !values.isEmpty else { return }
@@ -413,9 +389,7 @@ struct TracksMatrixView: View {
             nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
             session.setPhraseCell(
                 .bars(nextValues),
-                layerID: selectedLayer.id,
-                trackIDs: [trackID],
-                phraseID: editingPhraseID
+                at: address
             )
         case let .steps(values):
             guard !values.isEmpty else { return }
@@ -424,27 +398,24 @@ struct TracksMatrixView: View {
             nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
             session.setPhraseCell(
                 .steps(nextValues),
-                layerID: selectedLayer.id,
-                trackIDs: [trackID],
-                phraseID: editingPhraseID
+                at: address
             )
         case .curve:
-            let seedValue = editingPhrase.resolvedValue(
-                for: selectedLayer,
-                trackID: trackID,
-                stepIndex: currentStepIndexInPhrase
-            )
+            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
             session.setPhraseCell(
                 .single(cycledValue(seedValue, for: selectedLayer)),
-                layerID: selectedLayer.id,
-                trackIDs: [trackID],
-                phraseID: editingPhraseID
+                at: address
             )
         }
     }
 
-    private func editableCell(for trackID: UUID) -> PhraseCell {
-        editingPhrase.cell(for: selectedLayer.id, trackID: trackID)
+    private func phraseCellAddress(for trackID: UUID) -> PhraseCellAddress {
+        PhraseCellAddress(
+            phraseID: editingPhraseID,
+            layerID: selectedLayer.id,
+            trackID: trackID,
+            stepIndex: currentStepIndexInPhrase
+        )
     }
 
 }
