@@ -43,7 +43,11 @@ struct MixerWorkspaceView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 14) {
                     MixerView(document: $document, onEditTrack: onSelectTrack)
-                        .frame(maxWidth: .infinity, minHeight: 420, alignment: .topLeading)
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: MixerWorkspaceLayout.primaryMixerLaneHeight,
+                            alignment: .topLeading
+                        )
 
                     switch presentation {
                     case let .fullColumn(width):
@@ -644,6 +648,10 @@ struct MixerWorkspaceView: View {
             return "slider.horizontal.3"
         }
     }
+}
+
+private enum MixerWorkspaceLayout {
+    static let primaryMixerLaneHeight: CGFloat = 580
 }
 
 private struct MasterOutputCompactStrip: View {
