@@ -67,7 +67,7 @@ struct MixerView<TrailingContent: View>: View {
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 14) {
+                HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
                     ForEach(tracks, id: \.id) { track in
                         MixerChannelStrip(
                             track: track,
@@ -606,7 +606,7 @@ private struct MixerBusZone: View {
                 )
             }
 
-            HStack(alignment: .top, spacing: 14) {
+            HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
                 ForEach(Array(buses.enumerated()), id: \.element.id) { index, bus in
                     MixerBusStrip(
                         bus: bus,
@@ -666,7 +666,7 @@ private struct MixerAddBusTile: View {
                     .studioText(.labelBold)
             }
             .foregroundStyle(StudioTheme.text)
-            .frame(width: 150, height: 170)
+            .frame(width: MixerWorkspaceLayout.addBusTileWidth, height: 170)
             .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)

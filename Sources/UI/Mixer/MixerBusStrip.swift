@@ -142,7 +142,7 @@ struct MixerBusStrip: View {
             }
         }
         .padding(16)
-        .frame(width: 210, alignment: .topLeading)
+        .frame(width: MixerWorkspaceLayout.busStripWidth, alignment: .topLeading)
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)

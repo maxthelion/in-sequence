@@ -42,7 +42,7 @@ struct MixerWorkspaceView: View {
     private func masterAwareMixer(presentation: MasterOutputColumnPresentation) -> some View {
         ZStack(alignment: .trailing) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 14) {
+                HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
                     MixerView(document: $document, onEditTrack: onSelectTrack) {
                         sendReturnStrips
                     }
@@ -83,7 +83,7 @@ struct MixerWorkspaceView: View {
     }
 
     private var sendReturnStrips: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
             sendReturnStrip(sendBus(.sendA), accent: StudioTheme.cyan)
             sendReturnStrip(sendBus(.sendB), accent: StudioTheme.violet)
         }
@@ -736,6 +736,9 @@ struct MixerWorkspaceView: View {
 
 enum MixerWorkspaceLayout {
     static let primaryMixerLaneHeight: CGFloat = 580
+    static let laneSpacing: CGFloat = 10
+    static let busStripWidth: CGFloat = 200
+    static let addBusTileWidth: CGFloat = 116
     static let sendReturnStripWidth: CGFloat = 190
 }
 
