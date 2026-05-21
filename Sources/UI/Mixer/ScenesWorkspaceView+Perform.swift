@@ -25,9 +25,9 @@ extension ScenesWorkspaceView {
                 performSlot(title: "Slot A", scene: sceneA, isA: true, isDominant: dominance.isADominant)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
 
-                crossfaderColumn(value: effectiveCrossfader)
-                    .frame(width: 120)
-                    .padding(.horizontal, 14)
+                crossfaderBridge(value: effectiveCrossfader)
+                    .frame(width: 176)
+                    .padding(.horizontal, 12)
 
                 performSlot(title: "Slot B", scene: sceneB, isA: false, isDominant: dominance.isBDominant)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -35,26 +35,30 @@ extension ScenesWorkspaceView {
         }
     }
 
-    private func crossfaderColumn(value: Double) -> some View {
-        VStack(spacing: 12) {
-            Text("A")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.amber)
-
-            ScenePerformCrossfaderTrack(value: value) { nextValue in
-                engineController.setLiveMasterCrossfader(nextValue)
-            }
-            .frame(width: 48, height: 220)
-
+    private func crossfaderBridge(value: Double) -> some View {
+        VStack(spacing: 10) {
             Text("\(Int((value * 100).rounded()))%")
                 .studioText(.eyebrowBold)
                 .monospacedDigit()
                 .foregroundStyle(StudioTheme.text)
-                .frame(width: 52, alignment: .center)
+                .frame(width: 56, alignment: .center)
 
-            Text("B")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.amber)
+            HStack(spacing: 8) {
+                Text("A")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.amber)
+                    .frame(width: 14, alignment: .leading)
+
+                ScenePerformCrossfaderTrack(value: value) { nextValue in
+                    engineController.setLiveMasterCrossfader(nextValue)
+                }
+                .frame(height: 42)
+
+                Text("B")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.amber)
+                    .frame(width: 14, alignment: .trailing)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity)
@@ -293,20 +297,20 @@ private struct ScenePerformCrossfaderTrack: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let height = max(proxy.size.height, 1)
-            let thumbY = height * clampedValue
+            let width = max(proxy.size.width, 1)
+            let thumbX = width * clampedValue
 
-            ZStack(alignment: .top) {
+            ZStack(alignment: .leading) {
                 Capsule()
                     .fill(StudioTheme.border.opacity(0.8))
-                    .frame(width: 10)
-                    .frame(maxHeight: .infinity)
+                    .frame(height: 10)
                     .frame(maxWidth: .infinity)
+                    .frame(maxHeight: .infinity)
 
                 Capsule()
                     .fill(StudioTheme.amber.opacity(0.28))
-                    .frame(width: 10, height: thumbY)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(width: thumbX, height: 10)
+                    .frame(maxHeight: .infinity, alignment: .center)
 
                 Circle()
                     .fill(StudioTheme.amber)
@@ -316,15 +320,15 @@ private struct ScenePerformCrossfaderTrack: View {
                             .stroke(Color.white.opacity(0.65), lineWidth: 2)
                     )
                     .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
-                    .offset(y: min(max(thumbY - 14, 0), height - 28))
+                    .offset(x: min(max(thumbX - 14, 0), width - 28))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
-                        let y = min(max(drag.location.y, 0), height)
-                        onChange(Double(y / height))
+                        let x = min(max(drag.location.x, 0), width)
+                        onChange(Double(x / width))
                     }
             )
         }
