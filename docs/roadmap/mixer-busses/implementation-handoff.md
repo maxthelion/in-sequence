@@ -23,6 +23,7 @@
 | [ux-review.md](ux-review.md) | Accepted mixer-lane UX review for the three-zone layout and routing-in-flight treatment. |
 | [prototype-approval.md](prototype-approval.md) | User approval and the three locked product decisions for v1. |
 | [prototypes/mixer-busses-variant-a.html](prototypes/mixer-busses-variant-a.html) | Selected prototype for the bus lane, strip anatomy, add-bus affordances, and route-change feedback. |
+| [../mixer-style-guide.md](../mixer-style-guide.md) | Shared mixer visual grammar for tracks, busses, send returns, and master. Use this when implementing or reviewing the mixer surface. |
 | [decisions.md](decisions.md) | Settled product decisions the build must not reopen. |
 | [notes.md](notes.md) | Original product framing and the cross-links to Mixer Main Out and Send Effects. |
 
@@ -90,7 +91,9 @@ prototype pass unless later feedback explicitly invalidates the approved lane.
 4. Use [architecture.md](architecture.md) and
    [architecture-review.md](architecture-review.md) as hard guardrails for
    persistence, graph ownership, solo semantics, and shared-surface extraction.
-5. Read [existing-state.md](existing-state.md) before changing document model,
+5. Use [../mixer-style-guide.md](../mixer-style-guide.md) as the shared mixer
+   UI authority when composing track, bus, send-return, and master surfaces.
+6. Read [existing-state.md](existing-state.md) before changing document model,
    mixer routing, insert-host code, or mixer UI structure.
 
 Do not reopen decisions already settled in [decisions.md](decisions.md) or

@@ -6,10 +6,6 @@ project:
   root: /Users/maxwilliams/dev/in-sequence
   read_first:
     - README.md
-    - docs/roadmap/context-pack.md
-    - docs/roadmap/AGENTS.md
-    - wiki/pages/application-overview.md
-    - wiki/pages/information-architecture-ux.md
 
 runtime:
   inbox: .meta/multipass/inbox
