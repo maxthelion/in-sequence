@@ -48,6 +48,14 @@ actors:
         Observe loop health, token/resource churn, repeated failures, missing
         visibility, and brittle deterministic coupling. Write observations
         only; orienter/decider route any repair.
+    - actor: holistic-ux-observer
+      cadence: 24h
+      tick: >
+        Capture production screenshots of the main app surfaces using the
+        project-local Peekaboo visual scenario, then observe wasted space,
+        alignment/grid issues, unreadable controls, default styling leaks,
+        screen-level user-story fit, and cross-screen design patterns. Write
+        observations only; orienter/decider route any follow-up.
   orient:
     - actor: orienter
       cadence: 30m

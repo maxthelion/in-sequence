@@ -13,8 +13,6 @@
       "Bash(mkdir:*)",
       "Bash(rm -f /tmp/*)",
       "Bash(rm -rf /tmp/*)",
-      "Bash(rm .claude/state/review-queue/*)",
-      "Bash(rm .claude/state/inbox/*)",
       "Bash(cp:*)",
       "Bash(mv:*)",
       "Bash(chmod:*)",

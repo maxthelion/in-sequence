@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/peekaboo-common.sh"
 
-output_dir="${PEEKABOO_OUTPUT_DIR:-.claude/state/visual-review}"
-command_file="${SEQUENCER_AI_VISUAL_COMMAND_FILE:-$PWD/.claude/state/visual-review/mixer-main-out-command.env}"
+output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}"
+command_file="${SEQUENCER_AI_VISUAL_COMMAND_FILE:-$PWD/.meta/multipass/visual-review/mixer-main-out-command.env}"
 status_file="${command_file}.status"
 scenario_status="started; no captures completed yet"
 write_notes() {

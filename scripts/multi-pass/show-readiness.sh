@@ -10,9 +10,6 @@ else
   echo "missing"
 fi
 echo
-echo "## Ready For User Signals"
-find .worktrees -path '*/.claude/state/ready-for-user.md' -print 2>/dev/null | sort || true
-echo
 echo "## Product Owner Attention"
 for file in docs/multi-pass-coordinator/product-owner-attention.md docs/roadmap/user-attention.md; do
   echo "### $file"

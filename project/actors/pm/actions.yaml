@@ -1,5 +1,0 @@
-actions:
-  - id: refine-lane
-  - id: prepare-implementation-handoff
-  - id: reduce-product-question
-  - id: diagnose-loop-blocker

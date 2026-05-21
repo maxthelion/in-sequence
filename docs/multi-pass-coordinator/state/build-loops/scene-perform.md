@@ -10,7 +10,483 @@ This is the durable build-loop summary. Transient inboxes, runs, and evidence li
 
 ## Current Decision
 
-- 2026-05-21T07:49:00Z: first builder action scheduled.
-- Current output state: branch is clean at `4ebbc44` and already contains a Scene Perform source/test slice, but it is behind current `main`.
-- Merge-tree conflicts to handle before gates: `SequencerAI.xcodeproj/project.pbxproj`, `Sources/Engine/EngineController.swift`, `Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift`, `docs/roadmap/next-actions.md`.
-- Next action: builder should rebase or replay the bounded production slice onto current `main`, preserve the approved Scene Perform behaviour, run focused/full checks as feasible, and capture UI evidence.
+- Current output state: Scene Perform is accepted as a merge/integration
+  candidate and has been rebased from accepted commit
+  `ab6206004edd4d0b35c917e53ef85f147df47723` to current head
+  `1b69d29e58edcc327f4f4996d10a90e13e480741` on
+  `auto/roadmap-2-scene-perform`.
+- Worktree `.worktrees/roadmap-2-scene-perform` is clean in tracked files, with
+  only untracked transient evidence under `.claude/state/scene-perform-rework/`
+  and `.claude/state/visual-economy-scene-perform/`.
+- Gate pairing: testing, UX/IA, and visual economy are current exact-state
+  passes at `ab62060` and are inherited to `1b69d29` because the Scene Perform
+  production/test/project files are identical across the rebase; architecture is
+  accepted as scoped inherited advisory evidence from the prior
+  `e5fe9eaea038e268369fd2b812e177b374a26f8d` PASS, then inherited through the
+  rebased head for the same unchanged product-output reason. Integrator evidence
+  adds current-state `xcodebuild` coverage at `1b69d29`.
+- Current decision evidence:
+  `.meta/multipass/loops/build/scene-perform/decide/2026-05-21T15-54Z-merge-candidate-ab62060.md`,
+  reaffirmed by
+  `.meta/multipass/loops/build/scene-perform/decide/2026-05-21T20-10Z-cadence-no-build-loop-action.md`
+  and the latest orientation at
+  `.meta/multipass/loops/build/scene-perform/orient/2026-05-21T20-25Z-cadence-evidence-pairing.md`.
+- Current integration evidence:
+  `.meta/multipass/loops/project/act/2026-05-21T18-38Z-scene-perform-integration-evidence.md`.
+  The candidate is mechanically merge-ready after rebase, but root `main` dirty
+  coordination/migration state blocks the actual merge/fast-forward. The later
+  Mixer Busses integration request is now the only pending project-level
+  integrator request and remains downstream of clearing root merge hygiene.
+- Remaining risk: filled macro-label screenshot coverage is absent, SwiftUI
+  drag/card hard-switch lacks automated UI coverage, and root `main` has broad
+  pre-existing coordination/migration dirt for the project integrator/process to
+  resolve. No build-loop rework or product-owner attention is indicated.
+
+## 2026-05-21T08:48Z Continuation
+
+The first builder run failed with `usage_rate_limit` before final artifact.
+Orientation says the branch now appears clean at `e5fe9ea`, but exact-state
+output is still missing. A builder continuation is pending at
+`.meta/multipass/inbox/pending/2026-05-21T08-48-30-606Z-scene-perform-builder-continuation-after-rate-limit.md`.
+
+Reviews remain blocked until that continuation reports exact commit, clean
+state, checks, and evidence paths.
+
+## 2026-05-21T10:43Z Crossfader Orientation
+
+The branch remains at `e5fe9eaea038e268369fd2b812e177b374a26f8d` on
+`auto/roadmap-2-scene-perform`. Formal exact-state gates had architecture,
+testing, UX/IA, and visual-economy passes, but the newer product-owner
+observation at
+`.meta/multipass/loops/build/scene-perform/observe/2026-05-21-product-owner-crossfader-orientation.md`
+supersedes the UX/IA and visual-economy interpretation for the crossfader.
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21-crossfader-observation.md`.
+
+Lowest unmet layer: UX/IA. The current Scene Perform output uses a vertical
+center fader, which reads more like a mixer/volume strip than the intended
+horizontal A-to-B crossfader between the two scene cards. The next action kind
+for the build decider appears to be focused builder rework, followed by
+refreshed UX/IA and visual-economy evidence. Product-owner attention is not
+needed for that routing decision.
+
+## 2026-05-21T12:08Z Horizontal Crossfader Rework Orientation
+
+The feature worktree is now at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`. The tracked tree is clean; untracked transient
+evidence remains under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21-horizontal-crossfader-rework.md`.
+
+The latest builder final reports a single-file UI rework in
+`Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift`, preserving the
+`EngineController.effectiveCrossfader` read path and
+`setLiveMasterCrossfader` overlay behavior. Focused
+`EngineControllerScenePerformTests` passed with 3 tests and 0 failures, and
+`git diff --check` passed. The fresh screenshot at
+`.worktrees/roadmap-2-scene-perform/.claude/state/scene-perform-rework/scene-perform-horizontal.png`
+shows the center control as a compact horizontal A-to-B bridge between readable
+Scene A and Scene B cards.
+
+Lowest unmet layer: exact-state evidence freshness. Strictly, architecture is
+the lowest stale gate because all formal gate passes target `e5fe9ea`, not
+`ab62060`. Practically, the remaining product risk is UX/IA and visual-economy:
+the product-owner crossfader correction appears implemented, but it has not yet
+been independently reviewed against the new commit. The next action kind for
+the build decider appears to be refreshed gate evidence, at minimum UX/IA and
+visual-economy, with architecture/testing reruns only if exact-state gate policy
+requires every gate to attach to the final commit. Product-owner attention is
+not needed.
+
+## 2026-05-21T12:14Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T12-14Z-cadence-evidence-pairing.md`.
+
+No newer observer final exists after the 12:08 orientation. The feature
+worktree remains at `ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence directories under `.claude/state/`.
+
+Lowest unmet layer remains exact-state evidence freshness. Strictly,
+architecture is the first stale formal gate because all independent gate passes
+still target `e5fe9eaea038e268369fd2b812e177b374a26f8d`, not `ab62060`.
+Practically, UX/IA and visual-economy are the highest-value refreshed gates
+because the new output changes the user-facing crossfader layout. More evidence
+/ another review remains the next action kind for the decider; no builder
+rework or product-owner attention appears needed before those reviews.
+
+## 2026-05-21T13:25Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T13-25Z-cadence-evidence-pairing.md`.
+
+The feature worktree remains clean at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with only untracked transient evidence under
+`.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Newer UX/IA evidence now passes at exact commit `ab62060`:
+`.meta/multipass/loops/build/scene-perform/observe/2026-05-21T12-28Z-ux-ia-horizontal-crossfader-exact-state.md`.
+It verifies the horizontal A-to-B blend model, readable Scene A/B cards, visible
+blend readout, coherent macro grids, and absence of descoped controls.
+
+Architecture is accepted as inherited advisory evidence from the prior fully
+reviewed `e5fe9eaea038e268369fd2b812e177b374a26f8d` pass because the only
+changed file is `Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift`; the diff
+is a SwiftUI presentation/control-direction change and preserves the centralized
+`EngineController.effectiveCrossfader` read path plus
+`setLiveMasterCrossfader` overlay write path. Testing has current
+builder-reported focused `EngineControllerScenePerformTests` success at
+`ab62060`, but not a fresh independent testing-review final.
+
+Lowest unmet layer: visual-economy evidence freshness for exact commit
+`ab62060`. The prior visual-economy pass targets the superseded vertical-control
+output at `e5fe9ea`; the horizontal output still needs independent
+visual-economy review. Filled macro label text-fit remains an evidence gap
+because screenshots cover empty/default macro slots only.
+
+The next action kind for the build decider appears to be more evidence / another
+review, focused on visual economy. No builder rework or product-owner attention
+appears needed before that review.
+
+## 2026-05-21T13:59Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T13-59Z-cadence-evidence-pairing.md`.
+
+The feature worktree remains clean at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with only untracked transient evidence under
+`.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Newer visual-economy evidence now passes at exact commit `ab62060`:
+`.meta/multipass/runs/actors/visual-economy-review/2026-05-21T13-34-42-500Z-visual-economy-review.final.md`.
+The reviewer verified HEAD, inspected the fresh `1500 x 960` builder screenshot,
+and explicitly did not inherit the stale `e5fe9ea` visual-economy pass.
+
+Current gate pairing: UX/IA and visual economy are current and passing for
+`ab62060`; architecture remains explicitly inherited as advisory evidence from
+the prior fully reviewed `e5fe9ea` pass because the only changed production file
+is the Scene Perform SwiftUI view and the engine read/write ownership remains
+unchanged; testing has current builder-reported focused
+`EngineControllerScenePerformTests` success, but no fresh independent
+testing-review final at `ab62060`.
+
+Lowest unmet formal layer: testing evidence freshness, if the loop requires
+every gate actor to attach to the exact final commit. If scoped architecture
+inheritance and builder-reported focused tests are accepted as sufficient for
+this UI-only rework, the next action kind moves toward merge/integration
+readiness. No builder rework or product-owner attention is indicated.
+
+## 2026-05-21T14:39Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T14-39Z-cadence-evidence-pairing.md`.
+
+The feature worktree remains at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Newer testing evidence now passes at exact commit `ab62060`:
+`.meta/multipass/runs/actors/testing-review/2026-05-21T14-15-23-310Z-Scene-Perform-exact-state-testing-review-ab62060.final.md`.
+The reviewer verified HEAD, inspected the UI-only diff from `e5fe9ea` to
+`ab62060`, and independently reran
+`xcodebuild test -scheme SequencerAI -only-testing:SequencerAITests/EngineControllerScenePerformTests`
+with 3 tests and 0 failures. The uncovered SwiftUI horizontal drag/header
+hard-switch interaction is recorded as acceptable residual risk, not builder
+rework.
+
+Current gate pairing: testing, UX/IA, and visual economy are current exact-state
+passes for `ab62060`. Architecture remains explicitly inherited as advisory
+evidence from the prior fully reviewed `e5fe9ea` pass because the only changed
+production file is `Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift` and the
+engine read/write ownership remains unchanged.
+
+Lowest unmet layer: none if scoped architecture inheritance is accepted. Under a
+strict no-inheritance policy, architecture freshness is the only remaining
+formal gap. The next action kind for the build decider appears to be
+merge/integration readiness if inheritance is accepted, or a narrow exact-state
+architecture review if policy requires it. No builder rework or product-owner
+attention is indicated.
+
+## 2026-05-21T15:34Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T15-34Z-cadence-evidence-pairing.md`.
+
+No new scene-perform observer evidence exists after the 14:39Z orientation. The
+feature worktree remains clean at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with only untracked transient evidence under
+`.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Current gate pairing is unchanged: testing, UX/IA, and visual economy are
+current exact-state passes for `ab62060`; architecture remains explicitly
+inherited as advisory evidence from the prior fully reviewed `e5fe9ea` pass
+because the only changed production file is
+`Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift` and the engine read/write
+ownership remains unchanged. No project-local scoped-gate-invalidation report
+artifact or executable helper exists, so this inheritance remains an explicit
+build-orienter interpretation.
+
+Lowest unmet layer: none if scoped architecture inheritance is accepted. Under
+a strict no-inheritance policy, architecture freshness is the only remaining
+formal gap. A build-decider cadence request is already pending at
+`.meta/multipass/inbox/pending/2026-05-21T14-49-16-062Z-build-decider-cadence.md`;
+the next action kind remains merge/integration readiness if inheritance is
+accepted, or a narrow exact-state architecture review if policy rejects it. No
+builder rework or product-owner attention is indicated.
+
+## 2026-05-21T16:10Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T16-10Z-cadence-evidence-pairing.md`.
+
+No newer scene-perform observer evidence exists after the current exact-state
+passes. The feature worktree remains at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+The build decider accepted the gate pairing as a merge candidate in
+`.meta/multipass/loops/build/scene-perform/decide/2026-05-21T15-54Z-merge-candidate-ab62060.md`.
+The project decider then routed the candidate to integration through
+`.meta/multipass/inbox/pending/2026-05-21T16-05-36-139Z-integrator.md`.
+
+Current gate pairing remains: testing, UX/IA, and visual economy are current
+exact-state passes for `ab62060`; architecture is explicitly inherited as
+advisory evidence from the prior fully reviewed `e5fe9ea` pass because the only
+changed production file is `Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift`
+and the engine read/write ownership remains unchanged. No
+`scoped-gate-invalidation` helper/report exists, so this remains explicit
+orienter/decider interpretation.
+
+Lowest unmet layer: none for the build loop with scoped architecture
+inheritance accepted. Under a strict no-inheritance policy, architecture
+freshness would be the only formal gap, but the build decider has already
+accepted inheritance for integration routing. No builder rework, additional
+build-loop review, or product-owner attention is indicated. The remaining work
+is integration/merge-prep against `main`, with dirty-root mechanics handled by
+the integrator.
+
+## 2026-05-21T16:45Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T16-45Z-cadence-evidence-pairing.md`.
+
+No new scene-perform observer batch or gate evidence exists after the current
+exact-state passes. The feature worktree remains at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Current gate pairing remains accepted: testing, UX/IA, and visual economy are
+current exact-state passes for `ab62060`; architecture is inherited advisory
+evidence from the prior fully reviewed `e5fe9ea` pass because the only changed
+production file is `Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift` and the
+engine read/write ownership remains unchanged. No scoped-gate-invalidation
+executable/report exists, so inheritance remains explicit orienter/decider
+judgment.
+
+The build-decider merge-candidate decision remains authoritative:
+`.meta/multipass/loops/build/scene-perform/decide/2026-05-21T15-54Z-merge-candidate-ab62060.md`.
+The project-level integrator request remains pending at
+`.meta/multipass/inbox/pending/2026-05-21T16-05-36-139Z-integrator.md`.
+
+Lowest unmet layer: none for the build loop with scoped architecture
+inheritance accepted. Under a strict no-inheritance policy, architecture
+freshness would be the only formal gap, but that policy question has already
+been resolved for this candidate by the build decider. No builder rework,
+additional build-loop review, or product-owner attention is indicated.
+
+## 2026-05-21T17:41Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T17-41Z-cadence-evidence-pairing.md`.
+
+No new scene-perform observer batch or gate evidence exists after the accepted
+exact-state pairings. The feature worktree remains at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Current gate pairing remains accepted: testing, UX/IA, and visual economy are
+current exact-state passes for `ab62060`; architecture is inherited advisory
+evidence from the prior fully reviewed `e5fe9ea` pass because the only changed
+production file is `Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift` and the
+engine read/write ownership remains unchanged. The reusable coordinator
+`scoped-gate-invalidation` helper was run against `e5fe9ea..ab62060`; it found
+the same one changed file but no configured project scope hints or discoverable
+prior passing evidence, so its advisory status defaults to full review. That
+does not supersede the build-decider decision; it records that architecture
+inheritance remains an explicit orienter/decider judgment.
+
+The build-decider merge-candidate decision remains authoritative:
+`.meta/multipass/loops/build/scene-perform/decide/2026-05-21T15-54Z-merge-candidate-ab62060.md`.
+The project-level integrator request remains pending at
+`.meta/multipass/inbox/pending/2026-05-21T16-05-36-139Z-integrator.md`.
+
+Lowest unmet layer: none for the build loop with scoped architecture
+inheritance accepted. Under a strict no-inheritance policy, architecture
+freshness would be the only formal gap, and the advisory helper also defaults
+to full review because project scope hints are not configured. No builder
+rework, additional build-loop review, or product-owner attention is indicated.
+
+## 2026-05-21T18:15Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T18-15Z-cadence-evidence-pairing.md`.
+
+No new scene-perform observer batch or gate evidence exists after the accepted
+exact-state pairings. The feature worktree remains at
+`ab6206004edd4d0b35c917e53ef85f147df47723` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Current gate pairing remains accepted: testing, UX/IA, and visual economy are
+current exact-state passes for `ab62060`; architecture is inherited advisory
+evidence from the prior fully reviewed `e5fe9ea` pass because the only changed
+production file is `Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift` and the
+engine read/write ownership remains unchanged. The reusable coordinator
+`scoped-gate-invalidation` helper was rerun at 2026-05-21T18:16:21Z against
+`e5fe9ea..ab62060`; it found the same one changed file but no configured
+project scope hints or discoverable prior passing evidence, so its advisory
+status defaults to full review. That does not supersede the build-decider
+decision; it records that architecture inheritance remains an explicit
+orienter/decider judgment.
+
+The build-decider no-op cadence decision says no new build-loop action is
+needed:
+`.meta/multipass/loops/build/scene-perform/decide/2026-05-21T17-55Z-cadence-no-build-loop-action.md`.
+The project-level integrator request remains pending at
+`.meta/multipass/inbox/pending/2026-05-21T16-05-36-139Z-integrator.md`, and the
+newer Mixer Busses integrator request is explicitly queued behind it.
+
+Lowest unmet layer: none for the build loop with scoped architecture
+inheritance accepted. Under a strict no-inheritance policy, architecture
+freshness would be the only formal gap, and the advisory helper also defaults
+to full review because project scope hints are not configured. No builder
+rework, additional build-loop review, or product-owner attention is indicated.
+
+## 2026-05-21T18:50Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T18-50Z-cadence-evidence-pairing.md`.
+
+The feature worktree is now at
+`1b69d29e58edcc327f4f4996d10a90e13e480741` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+The project integrator handled the previously pending Scene Perform integration
+request and cleanly rebased the accepted candidate from
+`ab6206004edd4d0b35c917e53ef85f147df47723` to `1b69d29`. Integration evidence:
+`.meta/multipass/loops/project/act/2026-05-21T18-38Z-scene-perform-integration-evidence.md`.
+The stable patch id for the horizontal crossfader commit is identical across
+`ab62060` and `1b69d29`, and `git diff ab62060..1b69d29` is empty for the Scene
+Perform production/test/project files:
+`SequencerAI.xcodeproj/project.pbxproj`,
+`Sources/Engine/EngineController.swift`,
+`Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift`, and
+`Tests/SequencerAITests/Engine/EngineControllerScenePerformTests.swift`.
+
+Current gate pairing remains accepted: testing, UX/IA, and visual economy pass
+evidence at `ab62060` is inherited to `1b69d29` because product output is
+unchanged; architecture remains scoped inherited advisory evidence from
+`e5fe9ea`, inherited through `ab62060` to `1b69d29` for the same unchanged
+product-output reason. The integrator also supplied current-state build/test
+coverage at `1b69d29`; focused `EngineControllerScenePerformTests` passed with
+3 tests and 0 failures.
+
+The reusable `scoped-gate-invalidation` helper was run against both
+`ab62060..1b69d29` and `e5fe9ea..1b69d29`; it defaults to full review because
+project scope hints are not configured. The `ab62060..1b69d29` report sees only
+upstream documentation/coordinator files from the rebase, not Scene Perform
+product files, so the helper remains advisory and does not override explicit
+inheritance.
+
+Lowest unmet layer: none for the build loop with scoped evidence inheritance
+accepted and current-state integrator tests passing at `1b69d29`. Under a
+strict no-inheritance policy, architecture freshness at `1b69d29` would be the
+only build-loop formal gap. No build-loop builder or observer action appears
+needed; the remaining blocker is project-level root `main` dirty-state hygiene
+before the candidate can be merged/fast-forwarded. Product-owner attention is
+not indicated.
+
+## 2026-05-21T19:50Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T19-50Z-cadence-evidence-pairing.md`.
+
+No new Scene Perform build-loop observer evidence exists after the accepted
+gate pairings and the 18:50Z orientation. The feature worktree remains at
+`1b69d29e58edcc327f4f4996d10a90e13e480741` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+Fresh project rebase evidence in
+`docs/multi-pass-coordinator/state/rebase-status.md` confirms Scene Perform is
+now 0 behind / 4 ahead of `main`, contains current `main`, has no merge-tree
+conflict hints, and remains an accepted integration candidate. The
+`ab62060..1b69d29` diff remains empty for the Scene Perform
+production/test/project files, so testing, UX/IA, and visual economy evidence
+from `ab62060` remains inherited to `1b69d29`; architecture remains inherited
+advisory evidence from `e5fe9ea` through the accepted pairing. The integrator's
+focused `EngineControllerScenePerformTests` pass at `1b69d29` keeps
+build/compile evidence current.
+
+Lowest unmet layer: none for the build loop with scoped evidence inheritance
+accepted and current-state integrator tests passing at `1b69d29`. Under a
+strict no-inheritance policy, architecture freshness at `1b69d29` would be the
+only build-loop formal gap. No Scene Perform builder or observer action appears
+needed. The live blocker is project-level root `main` dirty-state hygiene,
+already represented by the pending process-fixer request at
+`.meta/multipass/inbox/pending/2026-05-21T19-11-16-835Z-process-fixer.md`.
+Product-owner attention is not indicated.
+
+## 2026-05-21T20:25Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T20-25Z-cadence-evidence-pairing.md`.
+
+No new Scene Perform build-loop observer evidence exists after the accepted
+gate pairings and the 19:50Z orientation. The feature worktree remains at
+`1b69d29e58edcc327f4f4996d10a90e13e480741` on
+`auto/roadmap-2-scene-perform`, with no tracked production dirt and only
+untracked transient evidence under `.claude/state/scene-perform-rework/` and
+`.claude/state/visual-economy-scene-perform/`.
+
+The newer build-decider cadence decision at
+`.meta/multipass/loops/build/scene-perform/decide/2026-05-21T20-10Z-cadence-no-build-loop-action.md`
+schedules no new Scene Perform build-loop action. The current evidence pairing
+is unchanged: testing, UX/IA, and visual economy evidence from `ab62060`
+remains inherited to `1b69d29` because the Scene Perform production/test/project
+files are unchanged across the rebase; architecture remains inherited advisory
+evidence from `e5fe9ea` through the accepted pairing; and the integrator's
+focused `EngineControllerScenePerformTests` pass at `1b69d29` keeps
+build/compile evidence current.
+
+Lowest unmet layer: none for the build loop with scoped evidence inheritance
+accepted and current-state integrator tests passing at `1b69d29`. Under a
+strict no-inheritance policy, architecture freshness at `1b69d29` would be the
+only build-loop formal gap. No Scene Perform builder or observer action appears
+needed. The live blocker remains project-level root `main` dirty-state hygiene,
+already represented by the pending process-fixer request at
+`.meta/multipass/inbox/pending/2026-05-21T19-11-16-835Z-process-fixer.md`.
+Product-owner attention is not indicated.

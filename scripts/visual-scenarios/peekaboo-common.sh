@@ -6,7 +6,7 @@ PEEKABOO_BIN="${PEEKABOO_BIN:-peekaboo}"
 PEEKABOO_ACTION_TIMEOUT_SECONDS="${PEEKABOO_ACTION_TIMEOUT_SECONDS:-8}"
 
 action_log() {
-  local output_dir="${PEEKABOO_OUTPUT_DIR:-.claude/state/visual-review}"
+  local output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}"
   mkdir -p "$output_dir"
   printf '%s\n' "$*" >> "$output_dir/scenario-actions.log"
 }
@@ -133,7 +133,7 @@ click_point() {
   local y="$3"
   local status
   if run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" \
-    "$PEEKABOO_BIN" click --coords "${x},${y}" --pid "$pid" --no-remote --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.claude/state/visual-review}/peekaboo-actions.err"; then
+    "$PEEKABOO_BIN" click --coords "${x},${y}" --pid "$pid" --no-remote --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}/peekaboo-actions.err"; then
     return 0
   else
     status="$?"
@@ -157,7 +157,7 @@ drag_point() {
     --steps 14 \
     --pid "$pid" \
     --no-remote \
-    --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.claude/state/visual-review}/peekaboo-actions.err"; then
+    --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}/peekaboo-actions.err"; then
     return 0
   else
     status="$?"

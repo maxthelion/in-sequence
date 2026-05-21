@@ -1,7 +1,7 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-21T05:42:39Z
-Repo HEAD: c47c2dc
+Generated: 2026-05-21T12:53:23Z
+Repo HEAD: e5a388f
 Branch:    main
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
@@ -61,8 +61,8 @@ For each feature, terminal completion status wins first, then deferred status, u
 - **Blocked by:** `[]`
 - **Next action:** `ready-for-build-queue`
 - **Role:** `pm`
-- **Reason:** Planning artifacts are present.
-- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
+- **Reason:** Feature is already marked `ready-for-build`/`inventory`; PM artifacts have been handed off or are ready to hand off.
+- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
 
 ### 2. Scene Perform
 

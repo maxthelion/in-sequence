@@ -149,10 +149,9 @@ Bare `[[Story 3]]` is sugar for `[[story:3]]`. Heading slugs are lowercase
 with non-word characters replaced by hyphens. Wikilinks are resolved against
 the current feature's directory unless an absolute reference is needed.
 
-The full agent contract for atomicity + wikilinks lives in
-`.claude/agents/pm-assistant.md`. Implementations of artefact templates
-(concerns, open-questions, ux-review, architecture-review) follow that
-format.
+The current PM actor contract lives in the central Multi-Pass actor library.
+Implementations of artifact templates (concerns, open-questions, ux-review,
+architecture-review) should preserve this atomicity and wikilink format.
 
 If feedback invalidates a previous artifact, make that invalidation structured. Do not only add prose that says "redo this". For prototype feedback, revise `ux-review.md` front matter to:
 
@@ -547,25 +546,21 @@ Promotion means:
 - Acceptance criteria and non-goals are clear enough for an implementation worker to execute without re-litigating the product direction.
 - The feature `README.md` front matter can move to `status: ready-for-build`.
 
-Use the deterministic promotion helper:
+The current automation is Multi-Pass/OODA. A feature-readiness observer records readiness evidence, the top-level orienter explains what it means, and the top-level decider promotes work into a build loop when it should enter implementation.
+
+Manual promotion, when needed, should use the central Multi-Pass runtime:
 
 ```bash
-scripts/roadmap/promote-ready-item-to-worktree.sh <item-id>
+bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/promote-build.ts \
+  --project /Users/maxwilliams/dev/in-sequence \
+  --feature <feature-slug> \
+  --worktree .worktrees/<feature-worktree> \
+  --branch auto/<feature-branch>
 ```
 
-The helper creates a dedicated implementation worktree under `.worktrees/`, creates an `auto/roadmap-<id>-<slug>` branch, and writes a normalized `docs/plans/*roadmap-*.md` build plan inside that worktree. It does not build production code.
+The promotion should create or update a build loop instance under `docs/multi-pass-coordinator/loops/build/`. Once the loop exists, Meta ticks the project through `project/scripts/tick.sh`, and the central runtime schedules the loop's observe, orient, decide, and act phases.
 
-After promotion, start the implementation loop from the printed worktree:
-
-```bash
-cd .worktrees/roadmap-<id>-<slug>
-.claude/hooks/setup-next-action.sh
-/loop /next-action
-```
-
-The original implementation behaviour tree has a special worktree-only bridge: promoted `docs/plans/*roadmap-*.md` plans outrank the generic candidates backlog, so agents keep advancing the promoted feature in slices. The normal implementation gates still apply: tests, inbox, review queue, partial work, adversarial review, work items, and commits remain owned by the implementation loop.
-
-Do not run implementation agents from the PM worktree. Do not let the PM loop write `.claude/state/`, `docs/specs/`, `docs/plans/`, production code, tests, or wiki pages.
+Do not run implementation agents from the PM loop. Do not let the PM loop write production code or tests. Its job is to preserve intent, create artifacts, and mark readiness; the build loop owns implementation and evidence gates.
 
 ## Parallel Work
 
@@ -573,16 +568,16 @@ Workers can help while the main roadmap discussion continues, but only on bounde
 
 ### PM Assistant Role
 
-Use the `pm-assistant` role for roadmap behaviour-tree work.
+Use the PM assistant role for roadmap planning work.
 
-The role lives at `.claude/agents/pm-assistant.md`. It may edit `docs/roadmap/**` only, and it must not build production code. If the agent is not registered in the current session, dispatch a general-purpose Sonnet agent with the contents of `.claude/agents/pm-assistant.md` as the preamble.
+It may edit `docs/roadmap/**` only, and it must not build production code. Prefer the central Multi-Pass PM actor and its current prompt over project-local historical roles.
 
 ### Two Separate Loops
 
-There are two kinds of elves:
+There are two kinds of work:
 
-- **Roadmap / PM elves:** operate on `docs/roadmap/**`; clarify intent, draft stories, inspect existing state, review prototypes, write specs/plans, and surface questions. They do not build product code.
-- **Implementation elves:** operate on the normal build loop after work is specced out; they may edit production code, tests, wiki, and state only according to the existing implementation permissions and review gates.
+- **Roadmap / PM work:** operates on `docs/roadmap/**`; clarifies intent, drafts stories, inspects existing state, reviews prototypes, writes specs/plans, and surfaces questions. It does not build product code.
+- **Implementation work:** operates through a build loop after work is specced out; it may edit production code, tests, wiki, and state according to the build-loop permissions and review gates.
 
 Do not let the PM loop quietly become an implementation loop. When a roadmap item is ready to build, promote it through an explicit handoff instead.
 

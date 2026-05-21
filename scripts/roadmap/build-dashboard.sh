@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Build a static roadmap dashboard from deterministic roadmap and BT state.
+# Build a static roadmap dashboard from deterministic roadmap state and current
+# worktree hygiene signals. The retired /next-action behaviour tree is not
+# refreshed or used here.
 
 set -euo pipefail
 
@@ -131,14 +133,6 @@ mtime_badge() {
 
 refresh_selectors() {
   "$REPO/scripts/roadmap/next-roadmap-actions.sh" >/dev/null
-
-  git worktree list --porcelain | awk '
-    /^worktree / { sub(/^worktree /, ""); print }
-  ' | while IFS= read -r wt; do
-    if [ -x "$wt/.claude/hooks/setup-next-action.sh" ]; then
-      (cd "$wt" && ./.claude/hooks/setup-next-action.sh >/dev/null) || true
-    fi
-  done
 }
 
 prototype_groups_html() {
@@ -184,50 +178,28 @@ worktree_rows_html() {
   ' | while IFS=$'\t' read -r wt head branch; do
     local rel
     local short_head
-    local action
-    local generated
-    local inbox_count
-    local review_count
     local dirty_count
-    local state_file
     local status_class
     local detail
-    local inbox_items
 
     rel="${wt#$REPO/}"
     if [ "$rel" = "$wt" ]; then
       rel="."
     fi
     short_head="$(git -C "$wt" rev-parse --short HEAD 2>/dev/null || printf '%s' "${head:0:7}")"
-    state_file="$wt/.claude/state/next-action.md"
-    action="$(awk -F': ' '/^## Action:/ { print $2; exit }' "$state_file" 2>/dev/null || true)"
-    generated="$(sed -n 's/^Generated: //p' "$state_file" 2>/dev/null | head -1)"
-    inbox_count="$(count_files "$wt/.claude/state/inbox")"
-    review_count="$(count_files "$wt/.claude/state/review-queue")"
     dirty_count="$(git -C "$wt" status --short 2>/dev/null | wc -l | tr -d ' ')"
 
     status_class="ok"
-    detail="No blocking inbox message found."
-    if [ "$action" = "handle-inbox" ] || [ "$inbox_count" != "0" ]; then
+    detail="Clean."
+    if [ "$dirty_count" != "0" ]; then
       status_class="attention"
-      inbox_items="$(find "$wt/.claude/state/inbox" -maxdepth 1 -type f -print 2>/dev/null | sort | while IFS= read -r item; do
-        printf '<a href="%s">%s</a> ' "$(file_url "$item")" "$(basename "$item" | html_escape)"
-      done)"
-      detail="Inbox: $inbox_items"
-    elif [ "$action" = "verify-tests" ]; then
-      status_class="attention"
-      detail="Tests need verification before critique or implementation work."
-    elif [ "$review_count" != "0" ]; then
-      status_class="attention"
-      detail="$review_count review-queue item(s) remain after current gate."
+      detail="$dirty_count dirty file(s)."
     fi
 
     printf '          <tr>\n'
     printf '            <td><strong>%s</strong><br><span class="muted">%s</span></td>\n' "$(printf '%s' "$rel" | html_escape)" "$(printf '%s' "$branch" | html_escape)"
     printf '            <td><code>%s</code></td>\n' "$(printf '%s' "$short_head" | html_escape)"
-    printf '            <td><span class="%s"><code>%s</code></span><br><span class="muted">%s</span></td>\n' "$status_class" "$(printf '%s' "${action:-unknown}" | html_escape)" "$(printf '%s' "$generated" | html_escape)"
-    printf '            <td>%s</td>\n' "$inbox_count"
-    printf '            <td>%s</td>\n' "$review_count"
+    printf '            <td><span class="%s">%s</span></td>\n' "$status_class" "$status_class"
     printf '            <td>%s</td>\n' "$dirty_count"
     printf '            <td>%s</td>\n' "$detail"
     printf '          </tr>\n'
@@ -273,14 +245,12 @@ recent_commits_html() {
   done
 }
 
-inbox_messages_html() {
+runtime_messages_html() {
   local files
-  files="$(git worktree list --porcelain | awk '/^worktree / { sub(/^worktree /, ""); print }' | while IFS= read -r wt; do
-    find "$wt/.claude/state/inbox" -maxdepth 1 -type f -print 2>/dev/null
-  done | sort)"
+  files="$(find "$REPO/.meta/multipass/inbox/pending" -maxdepth 1 -type f -print 2>/dev/null | sort || true)"
 
   if [ -z "$files" ]; then
-    printf '%s\n' '          <li><span class="ok">No inbox messages found across worktrees.</span></li>'
+    printf '%s\n' '          <li><span class="ok">No pending Multi-Pass runtime messages.</span></li>'
     return
   fi
 
@@ -296,14 +266,10 @@ refresh_selectors
 
 prototype_count="$(find "$ROADMAP_DIR" -path '*/prototypes/*.html' -type f | wc -l | tr -d ' ')"
 new_prototype_count="$(find "$ROADMAP_DIR" -path '*/prototypes/*.html' -type f -mtime -1 | wc -l | tr -d ' ')"
-main_inbox_count="$(count_files "$REPO/.claude/state/inbox")"
-all_inbox_count="$(git worktree list --porcelain | awk '/^worktree / { sub(/^worktree /, ""); print }' | while IFS= read -r wt; do count_files "$wt/.claude/state/inbox"; done | awk '{ sum += $1 } END { print sum + 0 }')"
 open_question_count="$(find "$ROADMAP_DIR" -maxdepth 3 -type f -name 'open-questions.md' | wc -l | tr -d ' ')"
-review_queue_total="$(git worktree list --porcelain | awk '/^worktree / { sub(/^worktree /, ""); print }' | while IFS= read -r wt; do count_files "$wt/.claude/state/review-queue"; done | awk '{ sum += $1 } END { print sum + 0 }')"
-all_inbox_class="$(count_class "$all_inbox_count")"
-main_inbox_class="$(count_class "$main_inbox_count")"
 open_question_class="$(count_class "$open_question_count")"
-review_queue_class="$(count_class "$review_queue_total")"
+runtime_pending_count="$(count_files "$REPO/.meta/multipass/inbox/pending")"
+runtime_pending_class="$(count_class "$runtime_pending_count")"
 
 next_user_item="$(section_value "Next User Item" "Item" | html_escape)"
 next_user_feature="$(section_value "Next User Item" "Feature" | html_escape)"
@@ -426,20 +392,12 @@ cat > "$OUT" <<HTML
         <div class="value">${new_prototype_count}</div>
       </div>
       <div class="summary-item">
-        <div class="label">Inbox Across Worktrees</div>
-        <div class="value ${all_inbox_class}">${all_inbox_count}</div>
-      </div>
-      <div class="summary-item">
-        <div class="label">Main Inbox</div>
-        <div class="value ${main_inbox_class}">${main_inbox_count}</div>
-      </div>
-      <div class="summary-item">
         <div class="label">Open Questions</div>
         <div class="value ${open_question_class}">${open_question_count}</div>
       </div>
       <div class="summary-item">
-        <div class="label">Review Files Across Worktrees</div>
-        <div class="value ${review_queue_class}">${review_queue_total}</div>
+        <div class="label">Runtime Pending</div>
+        <div class="value ${runtime_pending_class}">${runtime_pending_count}</div>
       </div>
     </section>
 
@@ -457,23 +415,21 @@ cat > "$OUT" <<HTML
         <p class="muted">${next_agent_why}</p>
       </div>
       <div class="panel">
-        <h2>Inbox Messages</h2>
+        <h2>Runtime Messages</h2>
         <ul>
-$(inbox_messages_html)
+$(runtime_messages_html)
         </ul>
       </div>
     </section>
 
     <section class="panel wide">
-      <h2>Worktree Loop State</h2>
+      <h2>Worktree State</h2>
       <table>
         <thead>
           <tr>
             <th>Worktree</th>
             <th>HEAD</th>
-            <th>BT Action</th>
-            <th>Inbox</th>
-            <th>Reviews</th>
+            <th>State</th>
             <th>Dirty</th>
             <th>Detail</th>
           </tr>
@@ -502,8 +458,6 @@ $(recent_commits_html)
         <h2>Source Files</h2>
         <ul>
           <li><a href="$(file_url "$ROADMAP_DIR/next-actions.md")">Roadmap next actions</a></li>
-          <li><a href="$(file_url "$REPO/.claude/state/next-action.md")">Main BT next action</a></li>
-          <li><a href="$(file_url "$REPO/.worktrees/overnight-simplification-2026-04-29/.claude/state/next-action.md")">Overnight BT next action</a></li>
         </ul>
       </div>
     </section>
