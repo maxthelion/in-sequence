@@ -38,7 +38,7 @@ PseudoClipState
 
 Ownership: the modal view-model or a lightweight session object scoped to the modal's lifetime. It must not be stored on the document or any long-lived controller.
 
-Lifetime: created when the modal opens, discarded when the modal closes (cancel or save). On save, the `noteGrid` is written to a pattern slot via the existing `saveRollingCapture` API.
+Lifetime: created when the modal opens, discarded when the modal closes (cancel or save). On save, the selected materialized `noteGrid` is written to a pattern slot. Do not re-read latest rolling capture during save.
 
 Thread/actor boundary: `noteGrid` materialization reads from the capture buffer, which is owned by the engine. This read must be dispatched safely, following the same thread contract as the existing `capturedClipContent(trackID:lengthSteps:)` call.
 
@@ -57,7 +57,7 @@ This flag is cleared when the modal closes. It must never propagate to the docum
 | Rolling capture buffer | No | Memory only; cleared on transport stop |
 | Pseudo-clip state | No | Modal session only; discarded on close |
 | Pattern slot assignment | Yes | Only on explicit user save action |
-| New clip content | Yes | Created in the document at save time via existing `saveRollingCapture` API |
+| New clip content | Yes | Created in the document at save time from the selected materialized virtual clip |
 
 The save action is the only moment anything crosses from transient to persisted. Audition, length changes, and region selection are all pre-persistence operations.
 
@@ -73,7 +73,7 @@ Migration concerns: none from persisting new document types. The feature creates
 
 4. **Empty and partial history states.** The modal may open when the buffer contains fewer steps than the requested window (transport just started, or history was cleared). The engine returns no `ClipContent` in this case. The modal must handle this explicitly; it is not safe to assume the buffer is always full.
 
-5. **Overwrite semantics are unresolved.** User story 6 requires that overwrite of an occupied slot is explicit. The current `saveRollingCapture` API does not enforce this. Whether the modal shows a confirmation prompt or prevents saving over occupied slots needs a product decision before spec. This is a blocker for the save-flow spec.
+5. **Overwrite semantics are explicit.** User story 6 requires that overwrite of an occupied slot is explicit. The modal shows an inline `Replace` confirmation row and keeps footer save disabled until replacement is confirmed.
 
 6. **Modifier chain inclusion scope.** The existing-state report notes that capture stores resolved note events after the modifier chain. This should be confirmed against the actual `capturedClipContent` implementation before the spec states it as a fact.
 

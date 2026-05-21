@@ -2,15 +2,27 @@
 
 ## Status
 
-PM plan — ready for build queue. No production code has been written.
+PM plan — ready for a fresh build-loop pass.
 
-Advisory: [feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md) reopens the UI direction. The engine prerequisites remain relevant, but do not start or resume UI implementation from this plan until the Clip History prototypes and downstream spec are updated to the revised 4x4 source/destination interaction model.
+This plan was reconciled on 2026-05-21. The authoritative UI target is
+[`prototypes/clip-history-dual-grid-v4.html`](prototypes/clip-history-dual-grid-v4.html).
+The earlier merged modal on `main` and `clip-history-modal-v1.html` are
+historical references only. Future implementation must build the v4
+source-to-destination transfer model, not the rejected "save latest capture"
+flow.
 
 ---
 
 ## Overview
 
 This plan sequences the Clip History feature from engine prerequisites through UI shipping. The feature is built in four phases. Two prerequisites carry explicit go/no-go gates that must be resolved before downstream phases begin. Each phase lists the concrete tasks, artifacts touched, and acceptance signals that close it.
+
+Resume strategy: the stale branch `auto/roadmap-1-clip-history` contains useful
+work (`CaptureSnapshot`, `PseudoClipState`, frozen modal state, overwrite
+confirmation, tests), but it is behind current `main` and contains legacy
+build-loop artifacts. A new v2 build loop should harvest concepts and tests
+from that branch onto a fresh current-main worktree rather than treating the old
+branch as merge-ready.
 
 ---
 
@@ -212,13 +224,13 @@ PseudoClipState
 
 **Prerequisite.** Can run in parallel with Phase 1, or immediately before Phase 3. No engine dependency.
 
-**What it is.** Resolve the open product detail in spec section 9.1: the exact label on the destructive action in the overwrite confirmation row ("Overwrite" vs "Replace" vs "Save anyway") and whether the main "Save to slot" footer button is hidden or merely disabled while the overwrite confirmation is visible.
+**What it is.** Resolved on 2026-05-21 in spec section 9.1.
 
 **Tasks.**
 
-1. PM reviews the prototype's inline overwrite confirmation row in `prototypes/clip-history-modal-v1.html`.
-2. PM decides the label and footer button behavior and records the decision in `docs/roadmap/clip-history/spec.md` section 9.1 (the open question).
-3. Implementation team should not build the save flow until this decision is recorded.
+1. Use `Replace` as the destructive confirmation label.
+2. Keep the footer "Save to slot" button visible but disabled while replacement is unconfirmed.
+3. Cancel clears the destination selection and hides the confirmation row.
 
 **Artifacts touched (roadmap only).**
 
@@ -240,7 +252,10 @@ Phase 3 begins after Phase 1 is complete and Phase 2 is resolved.
 
 #### 3-A. Generator-Source Panel Entry Point
 
-**What it is.** Add the "Clip History..." button to `GeneratorParamsEditorView` inside `Sources/UI/TrackSource/TrackSourceEditorView.swift` (approximate location: line 240).
+**What it is.** Add or preserve the Clip History entry point in the track-source
+editor. In the current app this may be a peer tab/action rather than a button
+inside `GeneratorParamsEditorView`; preserve the app's current tabbed source
+well direction if it remains the surrounding IA.
 
 **Tasks.**
 
@@ -259,14 +274,15 @@ Phase 3 begins after Phase 1 is complete and Phase 2 is resolved.
 
 #### 3-B. Clip History Modal — Core Structure
 
-**What it is.** Build the modal shell and the four stacked regions described in spec section 3.2.
+**What it is.** Build the modal shell and v4 source-to-destination transfer
+regions described in spec section 3.2.
 
 **Subcomponents to build.**
 
 - Modal title bar with track name and close button.
-- `HistoryStripView`: 16-bar grid, bar selection, in-range highlight for multi-bar clip lengths, playhead marker at the frozen position, note blobs derived from the capture snapshot. Empty bars use a dashed outline.
+- `HistoryMatrixView`: 4x4 frozen recent-history source matrix, history-cell selection, in-range highlight for multi-bar clip lengths, note/activity previews derived from the capture snapshot. Empty cells use quiet/dashed treatment.
 - `VirtualClipPreviewView`: note-blob display for the materialized pseudo-clip; length selector (½ bar, 1 bar, 2 bars, 4 bars); Audition / Stop buttons (or absent if audition was descoped); playback state badge.
-- `PatternSlotPickerView`: 16-chip grid, occupied / empty visual states, selected-save highlight, inline overwrite confirmation row (triggered only for occupied slots).
+- `PatternSlotDestinationView`: matching 4x4 destination matrix, occupied / empty visual states, selected-save highlight, inline overwrite confirmation row (triggered only for occupied slots).
 - Modal footer: Cancel button and "Save to slot" button (disabled until bar and slot are selected and any overwrite is confirmed).
 
 **Tasks.**
@@ -276,7 +292,7 @@ Phase 3 begins after Phase 1 is complete and Phase 2 is resolved.
 3. Implement bar selection: clicking a bar sets the `PseudoClipState` start step and triggers rematerialization.
 4. Implement length control: changing length triggers rematerialization and updates the range highlight.
 5. Implement the overwrite confirmation row: visible when an occupied slot is selected, hidden otherwise. Confirmation required before "Save to slot" enables.
-6. Implement the save action: calls `saveRollingCapture(to:trackID:destinationSlotIndex:lengthSteps:name:)`, closes the modal, shows a toast.
+6. Implement the save action: write the selected materialized virtual clip to the chosen slot, close the modal, and show a toast. Do not re-read latest rolling capture at save time.
 7. Implement modal close (Cancel and close button): clears audition override if active, discards `PseudoClipState`, leaves document unchanged.
 8. Implement empty history state: all bars show as empty, Audition and Save buttons disabled.
 
@@ -386,9 +402,9 @@ Spec section 10 defers undo/redo for the save action. Before shipping, the imple
 The following items are explicitly out of scope for the first version and should not be built during this plan's execution. They are candidates for follow-on roadmap items.
 
 - Configurable history window length (fixed at 16 bars).
-- Live-follow mode (history strip updates while modal is open).
+- Live-follow mode (history matrix updates while modal is open).
 - Audition feature, if Phase 0-B produces a NO-GO.
-- Scrollable or paginated history strip (fixed 16-column view only).
+- Scrollable or paginated history browser (fixed 4x4 source matrix only).
 - Capturing parameter automation, pitch-bend, or non-note events.
 - Persisting the capture buffer to disk.
 - Surfacing clip history from non-generator tracks.
@@ -417,7 +433,7 @@ The following questions from the spec are unresolved and must be answered before
 
 | Question | Phase When It Blocks | Owner |
 |----------|---------------------|-------|
-| Overwrite confirmation copy ("Overwrite" vs "Replace" vs "Save anyway") and footer button state during overwrite flow | Phase 2 (before Phase 3 save flow is built) | PM / UX |
+| Overwrite confirmation copy and footer button state during overwrite flow | Resolved 2026-05-21: label `Replace`; footer save remains visible but disabled until replacement is confirmed | PM / UX |
 | Pseudo-clip audition override interface — confirmed thin or requires broad refactoring | Phase 0-B gate | Implementation team |
 | Capture semantics — post-modifier confirmed or discrepancy found | Phase 0-C (before Phase 3 UI is built) | Implementation team |
 

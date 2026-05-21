@@ -54,7 +54,7 @@ Missing coverage includes:
 The first prototypes should focus on the generator-source panel and modal flow:
 
 - one button in the generator view opens Clip History;
-- the modal shows recent generated output as a 16-bar history strip;
+- the modal shows recent generated output as a 4x4 frozen history source matrix;
 - the selected one-bar virtual clip is visually distinct and drives the modal's audition state;
 - a length control changes the captured clip window;
 - pattern slots are shown at the bottom as save targets, with occupied slots unmistakably marked;

@@ -4,14 +4,29 @@ title: Clip History
 status: inventory
 priority: unset
 blocked_by: []
-stage: review-prototypes
+stage: ready-for-build
 owner: pm
-updated: 2026-05-04
+updated: 2026-05-21
 ux_review_archived: docs/roadmap/clip-history/ux-reviews/ux-review-2026-05-04-needs-rework.md
 ---
 
 # Clip History
 
-Status: Reworked prototype pass completed on 2026-05-04 after built-modal UX feedback. `prototypes/clip-history-dual-grid-v4.html` is now the replacement artifact to review, and the prior rework critique has been archived under `ux-reviews/`.
+Status: ready for a fresh build-loop pass. The authoritative UI target is
+[`prototypes/clip-history-dual-grid-v4.html`](./prototypes/clip-history-dual-grid-v4.html),
+approved in [`prototype-approval.md`](./prototype-approval.md).
 
-The roadmap artifact set still exists, but the current build feedback invalidated the previous build-ready UI assumptions in the spec, plan, and implementation handoff. The latest prototype pass is [`clip-history-dual-grid-v4.html`](./prototypes/clip-history-dual-grid-v4.html), which keeps the modal pattern, mirrors source and destination as symmetrical 4x4 matrices, freezes the capture snapshot at modal open, and makes save-disabled, occupied-slot, and empty-history states reviewable before downstream artifacts are reconciled.
+The earlier merged modal on `main` is not accepted as the finished feature. It
+implemented a "save latest capture" flow and caused the UX review in
+[`feedback/2026-05-04-built-modal-ux-review.md`](./feedback/2026-05-04-built-modal-ux-review.md).
+Future work should preserve any useful engine/model pieces, but it must build
+the v4 source-to-destination transfer model: frozen 16-bar history as a 4x4
+source matrix, pattern slots as a matching 4x4 destination matrix, explicit
+history-region selection, temporary virtual-clip preview/audition, save disabled
+until source and destination are selected, and occupied-slot replacement gated
+by confirmation.
+
+An older branch, `auto/roadmap-1-clip-history`, contains salvageable work
+(`CaptureSnapshot`, `PseudoClipState`, frozen-snapshot modal pieces, and tests)
+but is stale relative to current `main`. Treat it as implementation reference,
+not as build authority.

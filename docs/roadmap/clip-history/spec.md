@@ -2,9 +2,14 @@
 
 ## Status
 
-Approved for build planning. Architecture review approved 2026-04-29 with one product decision still open (overwrite interaction detail, see section 9).
+Ready for build. Architecture review approved 2026-04-29. The build target was
+reconciled on 2026-05-21 after the rejected merged modal UX review.
 
-Advisory: [feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md) invalidates the current UI structure in sections 2.2, 3, 6, and their related acceptance criteria. Do not treat this spec as authoritative for new UI implementation until the prototype rework loop completes and this document is reconciled to the revised 4x4 source/destination modal direction.
+Authoritative UI direction:
+[`prototypes/clip-history-dual-grid-v4.html`](prototypes/clip-history-dual-grid-v4.html).
+The earlier merged modal on `main` is explicitly not accepted as complete
+because it saved the latest buffer rather than letting the user choose a frozen
+history region and commit it to a destination slot.
 
 ---
 
@@ -28,7 +33,7 @@ Clip History lets a musician running a generator-driven track capture generated 
 - **As a:** musician deciding whether generated material is worth keeping
 - **I want:** to see notes produced by the track's generator chain over the recent 16 bars
 - **So that:** I can choose from what actually played rather than guessing from memory
-- **Accepted when:** the modal presents the 16-bar history as a scrollable strip with note blobs visible per bar, and the view does not drift while the modal is open
+- **Accepted when:** the modal presents the frozen 16-bar history as a 4x4 source matrix with enough activity preview to choose a musical moment, and the view does not drift while the modal is open
 
 ### 2.3 Audition History As A Predictable Clip
 
@@ -62,18 +67,22 @@ Clip History lets a musician running a generator-driven track capture generated 
 
 ## 3. Chosen UX Direction
 
-The selected prototype is `prototypes/clip-history-modal-v1.html`. The modal approach was chosen over the inline approach in the UX review.
+The selected prototype is
+[`prototypes/clip-history-dual-grid-v4.html`](prototypes/clip-history-dual-grid-v4.html).
+The modal approach remains correct, but the accepted interaction is the v4
+source-to-destination transfer model. `clip-history-modal-v1.html` and the
+merged 2026-05-04 modal are historical references only.
 
 ### 3.1 Click Path
 
 1. User is viewing the generator-source panel for a track with an active generator.
 2. User presses "Clip History..." button in the generator-source panel (one action).
-3. The Clip History modal opens, showing the frozen 16-bar history strip for that track.
-4. User clicks a bar in the history strip to select it (one action). The virtual clip preview populates.
+3. The Clip History modal opens, showing the frozen 16-bar history as a 4x4 source matrix for that track.
+4. User clicks a history cell to select it (one action). The virtual clip preview populates.
 5. User optionally changes the length control. The range highlight and preview update.
 6. User presses "Audition" to hear the virtual clip looping (one action). The track plays the pseudo-clip instead of the live generator.
 7. User presses "Stop" or clicks another bar to end audition.
-8. User clicks a pattern slot chip in the slot picker (one action).
+8. User clicks a matching pattern-slot cell in the destination matrix (one action).
    - If the slot is empty: "Save to slot" button enables; user presses it.
    - If the slot is occupied: overwrite confirmation row appears; user presses "Replace" or cancels.
 9. The clip is written to the chosen pattern slot. The modal closes with a toast.
@@ -82,12 +91,13 @@ Maximum click depth for the happy path (empty slot): 4 actions from the generato
 
 ### 3.2 Modal Structure
 
-The modal has four visual regions stacked top-to-bottom:
+The modal has four conceptual regions:
 
 - **Modal title bar**: track name, close button.
-- **History strip**: 16-bar grid with note blobs, bar labels, and a frozen playhead marker showing where playback was when the modal opened. Empty bars are distinguished by dashed outline; bars with content show note blobs. Clicking a bar selects it and marks any in-range bars if clip length exceeds one bar.
-- **Virtual clip preview row**: left side shows the materialized virtual clip as note blobs; right side has the length control (options: ½ bar, 1 bar, 2 bars, 4 bars) and Audition / Stop buttons. When no bar is selected, a placeholder message occupies the left side.
-- **Save-to-pattern-slot picker**: chip grid showing all 16 pattern slots. Occupied slots display a distinct color and a "USED" label. Clicking an occupied slot triggers the overwrite confirmation row inline. The modal footer has Cancel and "Save to slot" buttons; "Save to slot" is disabled until a bar and a slot are both selected and (if occupied) the replace action has been confirmed.
+- **Recent History source matrix**: 16 frozen history regions in a 4x4 grid. Empty regions are distinguished by dashed/quiet treatment; populated regions show note/activity previews. Selecting a cell marks the selected source and any in-range cells if clip length exceeds one bar.
+- **Pattern Slots destination matrix**: 16 destination slots in a matching 4x4 grid with equal visual weight to the source matrix. Occupied slots display a distinct color and used/clip-name state.
+- **Virtual clip preview**: shows the materialized temporary clip, length control (`8 steps`, `1 bar`, `2 bars`, `4 bars`), and Audition / Stop if the engine gate supports audition. It must clearly read as temporary and non-mutating until save.
+- **Footer / confirmation**: Cancel and "Save to slot" controls. Save is disabled until a history source and destination slot are both selected and, for an occupied slot, replacement has been confirmed.
 
 ### 3.3 History Freeze Behavior
 
@@ -99,7 +109,9 @@ When the Clip History modal opens, the engine takes a snapshot of the current st
 
 ### 4.1 No New Document Model Types
 
-The feature does not introduce new document schema types. The feature creates standard `ClipContent.noteGrid` clips in existing pattern slots using the existing `saveRollingCapture` API. No document migration is required.
+The feature does not introduce new document schema types. The feature creates
+standard `ClipContent.noteGrid` clips in existing pattern slots from the
+selected frozen virtual clip. No document migration is required.
 
 ### 4.2 Pseudo-Clip Runtime State (New)
 
@@ -161,7 +173,11 @@ This capability is architecturally unconfirmed. The implementation team must ver
 
 ### 5.4 No Changes To Save API
 
-`saveRollingCapture(to:trackID:destinationSlotIndex:lengthSteps:name:)` is used as-is. The modal calls this method with the chosen slot index and virtual clip parameters when the user confirms save.
+The save path must persist the materialized virtual clip chosen from the frozen
+snapshot. It must not re-read "latest" rolling capture at save time. If the
+existing `saveRollingCapture(...)` API only saves the latest buffer window, add
+or reuse a session/document mutation that writes the selected `ClipContent`
+into the chosen pattern slot.
 
 ---
 
@@ -173,15 +189,16 @@ Add a "Clip History..." button to the generator-source panel inside `GeneratorPa
 
 ### 6.2 Clip History Modal (New)
 
-A new modal view must be built according to the structure described in section 3.2.
+A new modal view must be built according to the v4 structure described in
+section 3.2.
 
 The modal is scoped to a single track and displays that track's frozen history snapshot.
 
 Subcomponents:
 
-- **HistoryStripView**: 16-bar grid, bar selection, in-range highlight, playhead marker, note blobs derived from the capture snapshot.
+- **HistoryMatrixView**: 4x4 frozen source matrix, history-cell selection, in-range highlight, and note/activity previews derived from the capture snapshot.
 - **VirtualClipPreviewView**: note-blob display for the materialized pseudo-clip, length selector, Audition / Stop buttons, playback state badge.
-- **PatternSlotPickerView**: chip grid for all pattern slots, occupied / empty visual states, selected-save highlight, inline overwrite confirmation row.
+- **PatternSlotDestinationView**: matching 4x4 destination matrix, occupied / empty visual states, selected-save highlight, inline overwrite confirmation row.
 - **Modal footer**: Cancel and Save actions.
 
 ### 6.3 Occupied-Slot Visual Treatment
@@ -218,7 +235,7 @@ No new document schema. No migration required. The feature creates standard clip
 - Requesting a snapshot on a track with no capture history returns an empty snapshot without crashing.
 - Requesting a snapshot when fewer than 256 steps have been captured returns a partial snapshot.
 - Setting and clearing the audition override for a track causes the engine to play the pseudo-clip and to return to the live generator respectively, without touching the document.
-- `saveRollingCapture` called from a modal save path writes the expected `ClipContent` to the chosen destination slot.
+- The modal save path writes the selected materialized `ClipContent` to the chosen destination slot.
 
 ### 8.2 Model Layer
 
@@ -238,8 +255,8 @@ No new document schema. No migration required. The feature creates standard clip
 - Closing the modal with Cancel or the close button clears audition state and leaves the document unchanged.
 - Saving to an empty slot creates the clip, closes the modal, and shows a toast.
 - Saving via the overwrite path replaces the clip in the occupied slot, closes the modal, and shows a toast.
-- The history strip does not update while the modal is open (frozen snapshot behavior).
-- Empty history state is handled: all bars show as empty, history strip is still displayed, Audition and Save buttons remain disabled.
+- The history matrix does not update while the modal is open (frozen snapshot behavior).
+- Empty history state is handled: all source cells show as empty, the matrix is still displayed, Audition and Save buttons remain disabled.
 
 ### 8.4 Missing Coverage From Existing-State Report
 
@@ -256,19 +273,23 @@ The following coverage is absent and must be added:
 
 ## 9. Open Questions And Unresolved Decisions
 
-### 9.1 Overwrite Semantics (Partially Resolved, Interaction Detail Pending)
+### 9.1 Overwrite Semantics
 
 The architecture review approved the following policy:
 - empty slots save immediately on "Save to slot";
 - occupied slots require an explicit replace action.
 
-The prototype shows an inline overwrite confirmation row that appears when an occupied slot is selected. This row presents a "Overwrite" / "Replace" button and a Cancel button, plus the name of the existing clip.
+The destructive confirmation label is **Replace**. When an occupied slot is
+selected, show an inline confirmation row identifying the existing clip where
+possible. Keep the footer "Save to slot" button visible but disabled until the
+user confirms replacement. Cancel clears the destination selection and hides the
+confirmation row.
 
-**Open detail:** the exact label on the destructive action ("Overwrite" vs "Replace" vs "Save anyway") and whether the main "Save to slot" footer button is hidden or merely disabled during the overwrite confirmation have not been confirmed by the user. The implementation should treat the prototype's inline row as the structural direction but may need a final UX pass on copy and button state before shipping.
+### 9.2 Pseudo-Clip Audition Override Interface
 
-### 9.2 Pseudo-Clip Audition Override Interface (Unconfirmed)
-
-The proposed `setAuditionOverride` engine interface has not been reviewed by the implementation team. The architecture flags this as potentially requiring broad changes to the playback dispatch path if a thin runtime flag is insufficient. The implementation must confirm or replace this interface before building the audition feature. If the cost is high, this may need to be descoped from the first version.
+The old `auto/roadmap-1-clip-history` branch reports a thin runtime override as
+feasible and has tests for it. A fresh build loop should re-validate this
+against current `main` before wiring production UI.
 
 ### 9.3 Default Selected Bar
 
@@ -295,7 +316,7 @@ The architecture questions list whether the 16-bar history region selector shoul
 - Capturing parameter automation, pitch-bend, or non-note events.
 - A new document model type for virtual clips requiring schema migration.
 - Surfacing clip history outside the generator-view entry point.
-- Live-follow mode: history strip does not refresh while the modal is open.
+- Live-follow mode: history matrix does not refresh while the modal is open.
 - Configurable history window length (16 bars is fixed).
 - Undo/redo for the save action in the first version (deferred to be assessed in the build plan).
 

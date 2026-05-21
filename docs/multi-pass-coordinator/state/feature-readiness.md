@@ -1,6 +1,6 @@
 # Feature Readiness State
 
-- updated: 2026-05-21T08:02:10Z
+- updated: 2026-05-21T09:55:00Z
 - request: `.meta/multipass/inbox/claimed/2026-05-21T08-02-10-020Z-feature-readiness-observer-cadence.md`
 - loop-local copy: `.meta/multipass/loops/project/observe/feature-readiness.md`
 - scope: PM readiness evidence only; no promotion, scheduling, or inbox write performed.
@@ -25,22 +25,23 @@
   promotion and still reports `.worktrees/roadmap-3-step-sequencer` behind
   `main` with merge-tree conflict hints.
 
-## not-ready
-
 - `clip-history` / Lane A / item 1:
-  `docs/roadmap/next-actions.md` reports `ready-for-build-queue`, and
-  `docs/roadmap/clip-history/prototype-approval.md` approves the repaired
-  `clip-history-dual-grid-v4.html` direction. Mixed evidence remains in
-  `docs/roadmap/clip-history/README.md`, which keeps `stage: review-prototypes`
-  and says previous build-ready UI assumptions in the spec, plan, and handoff
-  were invalidated by built-modal UX feedback. The current
-  `docs/roadmap/clip-history/implementation-handoff.md` still points at the
-  older modal-v1/inline-v2 artifacts and contains an advisory not to use the
-  handoff as build-authoritative for modal IA, click path, or save gating until
-  the rework loop updates downstream artifacts. Pairing state: repaired
-  prototype approval exists; build-authoritative handoff status is ambiguous.
-  Active state: no current build-loop manifest observed; older branch evidence
-  reports `.worktrees/roadmap-1-clip-history` dirty/stale with conflict hints.
+  PM ambiguity was reconciled manually on 2026-05-21. Evidence paths are
+  `docs/roadmap/clip-history/README.md`,
+  `docs/roadmap/clip-history/prototype-approval.md`,
+  `docs/roadmap/clip-history/spec.md`,
+  `docs/roadmap/clip-history/plan.md`,
+  `docs/roadmap/clip-history/implementation-handoff.md`, and
+  `docs/roadmap/clip-history/build-resume-handoff.md`. The authoritative UI
+  target is `docs/roadmap/clip-history/prototypes/clip-history-dual-grid-v4.html`.
+  Pairing state: v4 prototype approval exists, the rejected merged modal is
+  explicitly marked incomplete, overwrite copy is resolved as `Replace`, and
+  the fresh build-loop handoff tells implementers to harvest the stale
+  `auto/roadmap-1-clip-history` branch deliberately rather than merging it.
+  Active state: no current build-loop manifest observed; promotion should wait
+  for build capacity or an explicit top-level priority swap.
+
+## not-ready
 
 - Prototype-review/user-attention group:
   `docs/roadmap/next-actions.md` reports `human-review-prototypes` for

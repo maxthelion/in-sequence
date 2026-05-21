@@ -1,5 +1,20 @@
 # Clip History — Implementation Handoff
 
+## Current Build Authority
+
+Reconciled on 2026-05-21. The authoritative UI target is
+[`prototypes/clip-history-dual-grid-v4.html`](prototypes/clip-history-dual-grid-v4.html).
+
+The earlier merged modal on `main` and the older `clip-history-modal-v1.html`
+prototype are historical references only. Do not rebuild the "save latest
+capture" flow. Build the v4 transfer workflow: frozen recent-history source
+matrix -> temporary virtual clip preview/audition -> matching pattern-slot
+destination matrix -> explicit save/replace.
+
+The old branch `auto/roadmap-1-clip-history` contains salvageable engine/model
+and test work, but it is stale relative to current `main`; harvest deliberately
+onto a fresh worktree rather than merging it as-is.
+
 ## Authoritative Context
 
 | Artifact | When to open it |
@@ -9,13 +24,17 @@
 | [architecture.md](architecture.md) | Invariants and guardrails the implementation must preserve. Non-negotiable. |
 | [architecture-review.md](architecture-review.md) | User-approved decisions. Overrides any ambiguity in architecture.md where the two differ. |
 | [ux-review.md](ux-review.md) | UX direction summary — modal variant chosen, what failed. |
-| [prototypes/clip-history-modal-v1.html](prototypes/clip-history-modal-v1.html) | The chosen prototype. Reference for modal structure and visual treatment. |
+| [prototypes/clip-history-dual-grid-v4.html](prototypes/clip-history-dual-grid-v4.html) | The chosen prototype. Reference for modal structure and visual treatment. |
 | [prototypes/clip-history-inline-v2.html](prototypes/clip-history-inline-v2.html) | Rejected direction. Do not use as a reference. |
 | [existing-state.md](existing-state.md) | What the engine already provides, where the code lives, and what coverage already exists. |
+| [build-resume-handoff.md](build-resume-handoff.md) | Fresh build-loop handoff for salvaging the old branch without inheriting stale assumptions. |
 
 ---
 
-Advisory: [feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md) reopens the Clip History UI direction. Treat the engine prerequisites below as still informative, but do not use this handoff as build-authoritative for the modal IA, click path, or save gating until the prototype rework loop updates the spec and handoff.
+The rejected built-modal UX review is preserved at
+[feedback/2026-05-04-built-modal-ux-review.md](feedback/2026-05-04-built-modal-ux-review.md).
+Its finding has now been applied: the v4 dual-grid prototype is build
+authority.
 
 ---
 
@@ -27,9 +46,15 @@ Clip History lets a musician running a generator-driven track capture generated 
 
 ## Chosen UX Direction
 
-The modal variant (`prototypes/clip-history-modal-v1.html`) was chosen. The inline variant was rejected.
+The modal pattern is chosen, expressed by
+`prototypes/clip-history-dual-grid-v4.html`. The inline variant remains
+rejected.
 
-The modal has four stacked regions: title bar, 16-bar history strip, virtual clip preview row (with length selector and Audition/Stop), and a 16-slot pattern slot picker. The save action is in the modal footer. See spec section 3.2 for the full structural definition.
+The modal has four conceptual regions: title bar, 4x4 Recent History source
+matrix, matching 4x4 Pattern Slots destination matrix, and a virtual clip
+preview/length/audition area. The save action stays gated until source,
+destination, and any required replacement confirmation are explicit. See spec
+section 3.2 for the full structural definition.
 
 The click path from open to committed save for an empty slot is four actions. See spec section 3.1.
 
@@ -113,9 +138,9 @@ Do not build any of the following:
 - Capturing parameter automation, pitch-bend, or non-note events.
 - A new document model type for virtual clips requiring schema migration.
 - Surfacing clip history outside the generator-view entry point.
-- Live-follow mode (history strip refreshes while modal is open).
+- Live-follow mode (history matrix refreshes while modal is open).
 - Configurable history window length (16 bars is fixed in the first version).
-- Scrollable or paginated history strip (fixed 16-column view only).
+- Scrollable or paginated history browser (fixed 4x4 source matrix only).
 - Undo/redo for the save action (assess in Phase 4-C; defer if not trivial).
 
 ---
@@ -148,8 +173,8 @@ Condensed from spec section 2.
 
 - [ ] Generator-source panel has a clearly labelled "Clip History..." button visible only on generator-driven tracks.
 - [ ] Pressing the button opens the history modal for the current track.
-- [ ] Modal shows a 16-bar history strip frozen at the moment the modal opened.
-- [ ] The history strip does not update while the modal is open.
+- [ ] Modal shows a 16-bar history matrix frozen at the moment the modal opened.
+- [ ] The history matrix does not update while the modal is open.
 - [ ] Empty bars display with a dashed outline; bars with content show note blobs.
 - [ ] Clicking a bar selects it and populates the virtual clip preview.
 - [ ] Length control exposes ½ bar, 1 bar, 2 bars, and 4 bars options. Changing it updates the range highlight and preview.
@@ -178,7 +203,7 @@ Condensed from spec section 2.
 - `captureSnapshot` when fewer than 256 steps are captured returns a partial snapshot.
 - `setAuditionOverride` set: engine plays pseudo-clip note-grid instead of running the live generator.
 - `setAuditionOverride` cleared: track returns to live generator output; no document mutation.
-- `saveRollingCapture` called from the modal save path writes the expected `ClipContent` to the chosen slot.
+- The modal save path writes the selected materialized `ClipContent` to the chosen slot.
 
 ### Model Layer (Phase 1)
 - `materialize(from:startStep:lengthSteps:)` with a full snapshot produces the expected step range.
@@ -186,7 +211,7 @@ Condensed from spec section 2.
 - Rematerialization on length change produces the correct updated grid.
 
 ### UI Layer (Phase 3)
-All items in spec section 8.3. Key cases: modal opens only for generator tracks; bar selection updates preview; length control updates range and preview; audition button disabled until bar selected; save button disabled until bar and slot both selected and overwrite confirmed; occupied-slot confirmation row shows and hides correctly; Cancel leaves document unchanged; save to empty slot and save via overwrite both create/replace clip and show toast; history strip frozen during modal.
+All items in spec section 8.3. Key cases: modal opens only for generator tracks; history-cell selection updates preview; length control updates range and preview; audition button disabled until a source cell is selected; save button disabled until source and destination are both selected and overwrite confirmed; occupied-slot confirmation row shows and hides correctly; Cancel leaves document unchanged; save to empty slot and save via overwrite both create/replace clip and show toast; history matrix frozen during modal.
 
 ### Missing Coverage to Add (Phase 4-A)
 - Rolling window size holds 256 steps.
@@ -208,7 +233,7 @@ See spec section 8.4 for the full list.
 | Capture buffer constant (64 → 256) | `Sources/Engine/EngineController.swift:21` |
 | Capture step collection | `Sources/Engine/EngineController.swift:39` |
 | `capturedClipContent(trackID:lengthSteps:)` | `Sources/Engine/EngineController.swift:607` |
-| `saveRollingCapture(to:trackID:destinationSlotIndex:lengthSteps:name:)` | `Sources/Engine/EngineController.swift:617` |
+| Save captured material / selected virtual clip | Existing save APIs in `EngineController` / `SequencerDocumentSession`; add a selected-`ClipContent` save path if latest-buffer save is insufficient |
 | Capture destination slot selection | `Sources/Document/Project+CapturedClips.swift:4` |
 | Pattern slot palette (existing UI reference) | `Sources/UI/TrackSource/TrackSourceEditorView.swift:154` |
 | Generator-source panel / entry point location | `Sources/UI/TrackSource/TrackSourceEditorView.swift:240` |
