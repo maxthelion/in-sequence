@@ -9,8 +9,7 @@ actors:
       tick: >
         Observe PM artifact readiness for promotion into build loops. Report
         ready-for-promotion, not-ready, stale/already-handled, and evidence
-        freshness. Do not promote or schedule work directly; notify orienter
-        when promotion-candidate evidence changed.
+        freshness. Do not promote, schedule work, or write inbox messages.
     - actor: work-observer
       cadence: 2h
       tick: >
