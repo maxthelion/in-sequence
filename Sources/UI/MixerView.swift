@@ -33,14 +33,25 @@ enum MixerRoutingDisplayModel {
     }
 }
 
-struct MixerView: View {
+struct MixerView<TrailingContent: View>: View {
     @Binding var document: SeqAIDocument
     var onEditTrack: ((UUID) -> Void)? = nil
+    let trailingContent: TrailingContent
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
     @State private var routingTrackIDs: Set<UUID> = []
     @State private var renamingBusID: UUID?
     @State private var deleteRequest: MixerBusDeleteRequest?
+
+    init(
+        document: Binding<SeqAIDocument>,
+        onEditTrack: ((UUID) -> Void)? = nil,
+        @ViewBuilder trailingContent: () -> TrailingContent
+    ) {
+        self._document = document
+        self.onEditTrack = onEditTrack
+        self.trailingContent = trailingContent()
+    }
 
     var body: some View {
         let tracks = session.store.tracks
@@ -114,6 +125,8 @@ struct MixerView: View {
                         },
                         onDelete: requestDelete
                     )
+
+                    trailingContent
                 }
                 .padding(4)
             }
@@ -378,21 +391,29 @@ private struct MixerChannelStrip: View {
             }
 
             HStack(spacing: 8) {
-                Button(track.mix.isMuted ? "Unmute" : "Mute") {
+                MixerStripActionButton(
+                    title: track.mix.isMuted ? "Unmute" : "Mute",
+                    accent: StudioTheme.amber,
+                    isActive: track.mix.isMuted
+                ) {
                     onToggleMute()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(track.mix.isMuted ? StudioTheme.amber : StudioTheme.chrome)
 
-                Button(track.mix.isSoloed ? "Unsolo" : "Solo") {
+                MixerStripActionButton(
+                    title: track.mix.isSoloed ? "Unsolo" : "Solo",
+                    accent: StudioTheme.amber,
+                    isActive: track.mix.isSoloed
+                ) {
                     onToggleSolo()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(track.mix.isSoloed ? StudioTheme.amber : StudioTheme.chrome)
 
-                Button("Edit", action: onSelect)
-                    .buttonStyle(.borderedProminent)
-                    .tint(StudioTheme.cyan)
+                MixerStripActionButton(
+                    title: "Edit",
+                    systemName: "slider.horizontal.3",
+                    accent: StudioTheme.cyan,
+                    minWidth: 46,
+                    action: onSelect
+                )
             }
 
             trackOutputSelector
@@ -576,10 +597,13 @@ private struct MixerBusZone: View {
 
                 Spacer()
 
-                Button("Add Bus", action: onAddBus)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .tint(StudioTheme.violet)
+                MixerStripActionButton(
+                    title: "Add Bus",
+                    systemName: "plus",
+                    accent: StudioTheme.violet,
+                    minWidth: 72,
+                    action: onAddBus
+                )
             }
 
             HStack(alignment: .top, spacing: 14) {
@@ -611,13 +635,8 @@ private struct MixerBusZone: View {
                 MixerAddBusTile(onAddBus: onAddBus)
             }
         }
-        .padding(12)
+        .padding(.vertical, 12)
         .frame(minWidth: 250, alignment: .topLeading)
-        .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.accentStroke), lineWidth: 1)
-        )
         .accessibilityIdentifier("mixer-busses-zone")
     }
 

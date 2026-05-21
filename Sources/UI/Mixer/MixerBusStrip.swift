@@ -101,13 +101,19 @@ struct MixerBusStrip: View {
             }
 
             HStack(spacing: 8) {
-                Button(bus.mix.isMuted ? "Unmute" : "Mute", action: onToggleMute)
-                    .buttonStyle(.borderedProminent)
-                    .tint(bus.mix.isMuted ? StudioTheme.amber : StudioTheme.chrome)
+                MixerStripActionButton(
+                    title: bus.mix.isMuted ? "Unmute" : "Mute",
+                    accent: StudioTheme.amber,
+                    isActive: bus.mix.isMuted,
+                    action: onToggleMute
+                )
 
-                Button(bus.mix.isSoloed ? "Unsolo" : "Solo", action: onToggleSolo)
-                    .buttonStyle(.borderedProminent)
-                    .tint(bus.mix.isSoloed ? StudioTheme.amber : StudioTheme.chrome)
+                MixerStripActionButton(
+                    title: bus.mix.isSoloed ? "Unsolo" : "Solo",
+                    accent: StudioTheme.amber,
+                    isActive: bus.mix.isSoloed,
+                    action: onToggleSolo
+                )
             }
 
             VStack(alignment: .leading, spacing: 5) {
