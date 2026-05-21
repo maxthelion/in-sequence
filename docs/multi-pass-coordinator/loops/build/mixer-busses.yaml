@@ -5,9 +5,18 @@ feature: mixer-busses
 worktree: .worktrees/roadmap-5-mixer-busses-ui-finish
 branch: auto/roadmap-5-mixer-busses-ui-finish
 actors:
+  orient:
+    - actor: build-orienter
+      cadence: 30m
+      tick: >
+        Interpret build-loop evidence pairings for mixer-busses. Record what
+        the evidence means; do not schedule work.
   decide:
     - actor: build-decider
-      cadence: on_inbox
+      cadence: 30m
+      tick: >
+        Decide the next build-loop action for mixer-busses from fresh
+        orientation and evidence pairings.
   act:
     - actor: builder
       cadence: on_inbox

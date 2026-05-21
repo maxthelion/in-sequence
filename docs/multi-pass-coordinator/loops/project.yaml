@@ -14,8 +14,8 @@ actors:
       cadence: 2h
       tick: >
         Observe active work, completed actor outputs, and missing evidence.
-        Update current work state and notify orienter if the next decision is
-        unclear.
+        Update current work state. Do not write inbox messages; orienter
+        interprets observations.
     - actor: holistic-observer
       cadence: 4h
       tick: >
@@ -41,16 +41,20 @@ actors:
       cadence: 2h
       tick: >
         Observe recent runtime logs and crash evidence. If a regression appears
-        tied to active work, notify orienter with the evidence.
+        tied to active work, record the attribution evidence for orientation.
     - actor: process-health-observer
       cadence: 4h
       tick: >
         Observe loop health, token/resource churn, repeated failures, missing
-        visibility, and brittle deterministic coupling. Write observations and
-        bounded repair requests only when there is useful evidence.
+        visibility, and brittle deterministic coupling. Write observations
+        only; orienter/decider route any repair.
   orient:
     - actor: orienter
-      cadence: on_inbox
+      cadence: 30m
+      tick: >
+        Interpret project observations, evidence pairings, build capacity,
+        merge/rebase facts, and current intent. Record what the state means;
+        do not schedule work.
   decide:
     - actor: decider
       cadence: 30m
