@@ -3,6 +3,43 @@
 Compact current-shape decision notes. Legacy coordinator logs are historical
 context only.
 
+## 2026-05-21T22:17Z
+
+Used fresh orientation, feature-readiness observations, work status, latest
+Scene Perform integration evidence, current root status, and the v2
+build-capacity CLI as context. Kept capacity closed: active build loops remain
+`build/mixer-busses` and `build/scene-perform`, available build slots are `0`,
+and unpromoted ready candidates remain `step-sequencer` and `clip-history`.
+Did not promote either candidate. Routed the next project-level action to the
+`process-fixer`:
+`.meta/multipass/inbox/pending/2026-05-21T22-16-58-530Z-process-fixer.md`.
+The request is bounded to classify and resolve current root coordination-state
+dirt so a follow-up Scene Perform integrator can proceed for
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078`. Mixer Busses remains accepted at
+`1eaebf3d6226f39a2438143b192493f54739352d` and waiting behind Scene Perform.
+Recorded the routing decision at
+`.meta/multipass/loops/project/decide/2026-05-21T22-17Z-root-coordination-hygiene.md`.
+No product-owner attention is needed.
+
+## 2026-05-21T21:17Z
+
+Used fresh orientation, feature-readiness observations, build-loop state, live
+inbox state, root hygiene evidence, current root/worktree status, and the v2
+build-capacity CLI as context. Kept capacity closed: active build loops remain
+`build/mixer-busses` and `build/scene-perform`, available build slots are `0`,
+and unpromoted ready candidates remain `step-sequencer` and `clip-history`.
+Did not promote either candidate. Routed the next project-level action to the
+`integrator`: follow-up Scene Perform merge-prep/integration against current
+`main` via
+`.meta/multipass/inbox/pending/2026-05-21T21-17-03-330Z-integrator.md`.
+Scene Perform remains first after root hygiene commit
+`27610940ef76125ca41317f846a5aefd7f831406`; Mixer Busses remains accepted at
+`1eaebf3d6226f39a2438143b192493f54739352d` and waiting behind Scene Perform.
+The integrator request says to stop rather than merge across uncommitted root
+coordination-state dirt. Recorded the routing decision at
+`.meta/multipass/loops/project/decide/2026-05-21T21-17Z-route-scene-perform-integration.md`.
+No product-owner attention is needed.
+
 ## 2026-05-21T20:40Z
 
 Used fresh orientation, feature-readiness observations, holistic/work status,
