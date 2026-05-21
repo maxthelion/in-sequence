@@ -53,7 +53,13 @@ actors:
       cadence: on_inbox
   decide:
     - actor: decider
-      cadence: on_inbox
+      cadence: 30m
+      tick: >
+        Decide the next useful project-level action from fresh orientation,
+        feature-readiness observations, active build-loop state, and build
+        capacity. Use the v2 build-capacity CLI as context, not as a decision
+        engine. Promote at most one ready feature into a build loop when there
+        is capacity and the product priority is clear.
   act:
     - actor: implementer
       cadence: on_inbox

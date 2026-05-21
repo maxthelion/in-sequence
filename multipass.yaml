@@ -18,6 +18,9 @@ runtime:
   activity: .meta/multipass/activity.ndjson
   max_starts_per_tick: 1
   actor_timeout_seconds: 1500
+  concurrency:
+    max_active_loops:
+      build: 2
 
 loops:
   registry: docs/multi-pass-coordinator/loops
