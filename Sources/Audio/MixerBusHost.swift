@@ -82,6 +82,19 @@ final class MixerBusHost {
     }
 
     @MainActor
+    func applyParameters(bus: MixerBus, effectiveMute: Bool) {
+        let normalized = bus.normalized(fallbackName: bus.name)
+        latestBus = normalized
+        guard inputMixer != nil,
+              installedShape == Self.graphShape(for: normalized)
+        else {
+            return
+        }
+        configureInstalledNodes(for: normalized)
+        applyMix(normalized.mix, effectiveMute: effectiveMute)
+    }
+
+    @MainActor
     func teardown(from audioGraph: MainAudioGraph) {
         if let inputMixer {
             audioGraph.disconnectOutput(inputMixer)

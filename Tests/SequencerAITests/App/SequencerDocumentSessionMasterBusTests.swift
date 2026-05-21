@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import XCTest
 @testable import SequencerAI
@@ -360,6 +361,56 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
 
         session.flushToDocument()
         XCTAssertEqual(documentBox.document.project.buses.first?.inserts.map(\.id), [bitcrusher.id])
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_mixerBusInsertBypassMutation_updatesHostWithoutDocumentApplyOrTopologyRebuild() throws {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let graph = MainAudioGraph()
+        let engine = EngineController(client: nil, endpoint: nil, mainAudioGraph: graph)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        let busID = session.addMixerBus(name: "Bus")
+        let insert = MasterBusInsert(
+            id: UUID(),
+            name: "Filter",
+            isEnabled: true,
+            kind: .nativeFilter(MasterFilterSettings(mode: .lowPass, cutoffHz: 1_000, resonance: 0.1))
+        )
+        session.addMixerBusInsert(insert, busID: busID)
+        session.flushToDocument()
+
+        let initialReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+        let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
+        let exportCallsBefore = session.store.exportToProjectCallCount
+
+        assertNoExportDuring(session.store) {
+            session.updateMixerBusInsert(insert.id, busID: busID) { updated in
+                updated.isEnabled = false
+            }
+        }
+
+        let afterBypass = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+        let eq = try XCTUnwrap(afterBypass.insertNodes.first as? AVAudioUnitEQ)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
+        XCTAssertEqual(session.store.exportToProjectCallCount, exportCallsBefore)
+        XCTAssertEqual(afterBypass.topologyRebuildCount, initialReadout.topologyRebuildCount)
+        XCTAssertGreaterThan(afterBypass.parameterApplyCount, initialReadout.parameterApplyCount)
+        XCTAssertTrue(eq.bands[0].bypass)
+        XCTAssertFalse(session.store.buses[0].inserts[0].isEnabled)
+        XCTAssertTrue(documentBox.document.project.buses[0].inserts[0].isEnabled)
+
+        session.flushToDocument()
+        XCTAssertFalse(documentBox.document.project.buses[0].inserts[0].isEnabled)
 
         SequencerDocumentSessionRegistry.unregister(session)
     }
