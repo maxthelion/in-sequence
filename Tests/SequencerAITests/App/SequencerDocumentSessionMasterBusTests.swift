@@ -327,6 +327,43 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_mixerBusInsertMutations_updateTargetBusAndApplyDocumentModel() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        let busID = session.addMixerBus(name: "Bus")
+        let filter = MasterBusInsert.filter()
+        let bitcrusher = MasterBusInsert.bitcrusher()
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+
+        session.addMixerBusInsert(filter, busID: busID)
+        session.addMixerBusInsert(bitcrusher, busID: busID)
+        session.updateMixerBusInsert(filter.id, busID: busID) { insert in
+            insert.isEnabled = false
+        }
+        session.reorderMixerBusInserts([bitcrusher.id, filter.id], busID: busID)
+
+        XCTAssertEqual(session.store.buses[0].inserts.map(\.id), [bitcrusher.id, filter.id])
+        XCTAssertFalse(session.store.buses[0].inserts[1].isEnabled)
+        XCTAssertGreaterThan(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertTrue(documentBox.document.project.buses.isEmpty)
+
+        session.removeMixerBusInsert(filter.id, busID: busID)
+        XCTAssertEqual(session.store.buses[0].inserts.map(\.id), [bitcrusher.id])
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.buses.first?.inserts.map(\.id), [bitcrusher.id])
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_sendBusInsertMutation_updatesOnlyTargetBusAndScopedEnginePath() {
         let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
         let engine = EngineController(client: nil, endpoint: nil)

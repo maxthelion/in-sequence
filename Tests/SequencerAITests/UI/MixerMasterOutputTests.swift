@@ -83,4 +83,37 @@ final class MixerMasterOutputTests: XCTestCase {
         XCTAssertFalse(MixerSendDisplayModel.isNonZero(0))
         XCTAssertTrue(MixerSendDisplayModel.isNonZero(0.25))
     }
+
+    func test_mixerRoutingDisplayUsesMasterFallbackAndBusName() {
+        let busID = UUID()
+        var track = StepSequenceTrack.default
+        let bus = MixerBus(id: busID, name: "Drums")
+
+        XCTAssertEqual(MixerRoutingDisplayModel.outputTitle(for: track, buses: [bus]), "Master")
+
+        track.outputBusID = busID
+
+        XCTAssertEqual(MixerRoutingDisplayModel.outputTitle(for: track, buses: [bus]), "Drums")
+        XCTAssertEqual(MixerRoutingDisplayModel.outputTitle(for: track, buses: []), "Master")
+    }
+
+    func test_mixerRoutingDisplayListsAffectedTracksForBusDeleteConfirmation() {
+        let busID = UUID()
+        var kick = StepSequenceTrack.default
+        kick.id = UUID()
+        kick.name = "Kick"
+        kick.outputBusID = busID
+        var lead = StepSequenceTrack.default
+        lead.id = UUID()
+        lead.name = "Lead"
+        var snare = StepSequenceTrack.default
+        snare.id = UUID()
+        snare.name = "Snare"
+        snare.outputBusID = busID
+
+        XCTAssertEqual(
+            MixerRoutingDisplayModel.affectedTrackNames(for: busID, tracks: [kick, lead, snare]),
+            ["Kick", "Snare"]
+        )
+    }
 }

@@ -271,6 +271,43 @@ final class SequencerDocumentSession {
         updateMixerBusMix(busID: busID) { $0.isSoloed = soloed }
     }
 
+    func addMixerBusInsert(_ insert: MixerBusInsert, busID: UUID) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            bus.inserts.append(insert.normalized())
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func updateMixerBusInsert(_ insertID: UUID, busID: UUID, edit: (inout MixerBusInsert) -> Void) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            guard let index = bus.inserts.firstIndex(where: { $0.id == insertID }) else { return }
+            edit(&bus.inserts[index])
+            bus.inserts[index] = bus.inserts[index].normalized()
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func removeMixerBusInsert(_ insertID: UUID, busID: UUID) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            bus.inserts.removeAll { $0.id == insertID }
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func reorderMixerBusInserts(_ ids: [UUID], busID: UUID) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            let byID = Dictionary(uniqueKeysWithValues: bus.inserts.map { ($0.id, $0) })
+            let reordered = ids.compactMap { byID[$0] }
+            guard reordered.count == bus.inserts.count else { return }
+            bus.inserts = reordered
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {
         guard busID == nil || store.buses.contains(where: { $0.id == busID }) else {
             return
