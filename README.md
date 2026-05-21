@@ -88,3 +88,42 @@ In each case, the general principle is that changing values modifies a new versi
 The input and output of different tracks can be sent to each other as midi sidechains - so a chord progression can run on one track and effect the generated melody on another.
 
 Layers in the phrase view can change this too. Factors like intensity can be fed through to influence the probability of things happening.
+
+## Agentic development loop
+
+This repo is currently a Multi-Pass v2 client. Meta ticks it through:
+
+```sh
+bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/tick.ts --project /Users/maxwilliams/dev/in-sequence --write
+```
+
+The product truth still lives here: this README, roadmap artifacts, wiki pages,
+feature worktrees, and durable state summaries under
+`docs/multi-pass-coordinator/state/`.
+
+The reusable runtime and default actor prompts live in
+`/Users/maxwilliams/dev/multi-pass-coordinator`. `multipass.yaml` points there
+and configures:
+
+* a frontmatter-routed runtime inbox under `.meta/multipass/inbox`;
+* actor run logs under `.meta/multipass/runs`;
+* loop-local OODA artifacts under `.meta/multipass/loops/<loop-id>/`;
+* active loop manifests under `docs/multi-pass-coordinator/loops`;
+* a current build-loop capacity of two active build loops.
+
+Feature implementation should happen in build-loop worktrees, not by leaving
+product-code dirt on `main`. Main may contain compact durable coordination
+state, such as loop manifests and summaries, when the top loop promotes or
+completes work.
+
+The intended shape is OODA:
+
+* observers write observations;
+* the orienter explains what those observations mean for the project;
+* the decider schedules the next build, review, rework, merge, or focused
+  question;
+* builders, reviewers, integrators, and process fixers do one bounded job and
+  stop.
+
+Human attention should be represented as a loop-scoped lock or compact
+product-owner question. It should not block unrelated build or review loops.
