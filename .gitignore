@@ -28,6 +28,10 @@ Pods/
 *.tmp
 .meta/
 
+# Durable multipass loop manifests may include a loop kind named `build`.
+!docs/multi-pass-coordinator/loops/build/
+!docs/multi-pass-coordinator/loops/build/*.yaml
+
 # Editor
 .vscode/
 .idea/

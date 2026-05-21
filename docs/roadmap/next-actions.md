@@ -1,8 +1,8 @@
 # Roadmap Next Actions
 
-Generated: 2026-05-08T16:14:52Z
-Repo HEAD: 2abcdc6
-Branch:    codex/tracks-perform-scenes-workspace
+Generated: 2026-05-21T05:42:39Z
+Repo HEAD: c47c2dc
+Branch:    main
 
 This is an experimental deterministic project-management scan. It does not build anything; it only infers the likely next planning action from files under `docs/roadmap/<feature-slug>/`.
 
@@ -12,28 +12,29 @@ Planning actions after `clarify-feature` are intended for the `pm-assistant` rol
 
 ## Selector
 
-For each feature, deferred status wins first, then unresolved feedback, then open concerns, then blocked metadata or open questions, then review-document verdicts requesting rework, then ready-for-build state, then human prototype approval; otherwise the first missing artifact wins:
+For each feature, terminal completion status wins first, then deferred status, unresolved feedback, open concerns, blocked metadata or open questions, review-document verdicts requesting rework, ready-for-build state, and human prototype approval; otherwise the first missing artifact wins:
 
-1. `status: deferred` -> deferred
-2. unresolved `feedback/*.md` -> address-feedback
-3. open `concerns.md` -> review-concerns
-4. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
-5. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
-6. `status: ready-for-build` or `stage: ready-for-build(-queue)` -> ready-for-build-queue
-7. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
-8. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
-9. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
-10. `notes.md` -> clarify-feature
-11. `user-stories.md` -> draft-user-stories
-12. `existing-state.md` -> inspect-existing-state
-13. `prototypes/*` -> build-prototypes
-14. `ux-review.md` -> review-prototypes
-15. `architecture.md` -> write-architecture
-16. `architecture-review.md` -> review-architecture
-17. `spec.md` -> write-spec
-18. `plan.md` -> write-plan
-19. `implementation-handoff.md` -> write-implementation-handoff
-20. all present -> ready-for-build-queue
+1. terminal `status` or `stage` (`complete`, `merged`, `built`, `finished`) -> complete
+2. `status: deferred` -> deferred
+3. unresolved `feedback/*.md` -> address-feedback
+4. open `concerns.md` -> review-concerns
+5. `status: blocked`, non-empty `blocked_by`, or `open-questions.md` -> blocked
+6. `ux-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `build-prototypes`)
+7. `status: ready-for-build` or `stage: ready-for-build(-queue)` -> ready-for-build-queue
+8. accepted `ux-review.md` without approved `prototype-approval.md` -> human-review-prototypes
+9. `prototype-approval.md` with `status: changes-requested`/`rejected` -> build-prototypes
+10. `architecture-review.md` with `verdict: needs-rework`/`rejected` -> `redirect_to` (default `write-architecture`)
+11. `notes.md` -> clarify-feature
+12. `user-stories.md` -> draft-user-stories
+13. `existing-state.md` -> inspect-existing-state
+14. `prototypes/*` -> build-prototypes
+15. `ux-review.md` -> review-prototypes
+16. `architecture.md` -> write-architecture
+17. `architecture-review.md` -> review-architecture
+18. `spec.md` -> write-spec
+19. `plan.md` -> write-plan
+20. `implementation-handoff.md` -> write-implementation-handoff
+21. all present -> ready-for-build-queue
 
 ## Next User Item
 
@@ -88,13 +89,13 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 4. Mixer Main Out
 
 - **Directory:** `docs/roadmap/mixer-main-out/`
-- **Status:** `inventory`
+- **Status:** `complete`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Feature is already marked `ready-for-build-queue`/`inventory`; PM artifacts have been handed off or are ready to hand off.
-- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
+- **Next action:** `complete`
+- **Role:** `none`
+- **Reason:** Feature is marked terminal with status `complete` and stage `merged`.
+- **Suggested output:** No PM/build promotion needed unless new feedback reopens this feature.
 
 ### 5. Mixer Busses
 
@@ -110,13 +111,13 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 6. Send Effects
 
 - **Directory:** `docs/roadmap/send-effects/`
-- **Status:** `inventory`
+- **Status:** `complete`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Planning artifacts are present.
-- **Suggested output:** Promote the implementation handoff into the normal build queue when the user chooses.
+- **Next action:** `complete`
+- **Role:** `none`
+- **Reason:** Feature is marked terminal with status `complete` and stage `merged`.
+- **Suggested output:** No PM/build promotion needed unless new feedback reopens this feature.
 
 ### 7. Input Audio
 
@@ -143,13 +144,13 @@ For each feature, deferred status wins first, then unresolved feedback, then ope
 ### 9. Modifier Chain Placement
 
 - **Directory:** `docs/roadmap/modifier-chain-placement/`
-- **Status:** `inventory`
+- **Status:** `complete`
 - **Priority:** `unset`
 - **Blocked by:** `[]`
-- **Next action:** `ready-for-build-queue`
-- **Role:** `pm`
-- **Reason:** Feature is already marked `ready-for-build-queue`/`inventory`; PM artifacts have been handed off or are ready to hand off.
-- **Suggested output:** Do not reopen PM prototype approval unless new feedback invalidates the approved direction. Let the build loop or promotion flow own this item.
+- **Next action:** `complete`
+- **Role:** `none`
+- **Reason:** Feature is marked terminal with status `complete` and stage `merged`.
+- **Suggested output:** No PM/build promotion needed unless new feedback reopens this feature.
 
 ### 10. Phrase Features
 
