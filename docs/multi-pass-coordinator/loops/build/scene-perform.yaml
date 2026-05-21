@@ -1,0 +1,37 @@
+id: build/scene-perform
+kind: build
+status: active
+feature: scene-perform
+worktree: .worktrees/roadmap-2-scene-perform
+branch: auto/roadmap-2-scene-perform
+actors:
+  decide:
+    - actor: build-decider
+      cadence: on_inbox
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+    - actor: ux-ia-review
+      cadence: on_inbox
+    - actor: visual-economy-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing
+  - id: ux
+    actor: ux-ia-review
+    checklist: ux
+    when: user_facing
+  - id: visual-economy
+    actor: visual-economy-review
+    checklist: visual-economy
+    when: persistent_surface
