@@ -192,6 +192,107 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .chord), .chordLabel(name: "Rest"))
     }
 
+    func test_slicerStepCellContentConvertsSupportedLayers() {
+        let clipID = UUID()
+        let parameters = SliceTriggerStepParameters(gain: -6)
+        let mutator = RecordingClipMutator(
+            clip: Self.makeSliceClip(
+                id: clipID,
+                stepPattern: [true, false, true, false],
+                sliceIndexes: [2, 0, 5, 1],
+                stepModes: [.runFromHere, .single, .single, .runFromHere],
+                stepParameters: [parameters, .default, .default, .default]
+            )
+        )
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .trigger), .sliceLabel(index: 2, label: "S3"))
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .sliceIndex), .sliceLabel(index: 2, label: "S3"))
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .sliceMode), .optionLabel(text: "Run"))
+        XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .sliceMode), .optionLabel(text: "One"))
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .velocity), .valueBar(fraction: 0.5))
+        XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .velocity), .valueBar(fraction: 0))
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .chance), .valueBar(fraction: 1))
+        XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .chance), .valueBar(fraction: 0))
+    }
+
+    func test_selectedSlicerWritesUseOneMutationAndPreserveParallelArrays() {
+        let clipID = UUID()
+        let mutator = RecordingClipMutator(clip: Self.makeSliceClip(id: clipID))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [1, 3].forEach { coordinator.toggleSelection(at: $0) }
+
+        coordinator.writeAbsoluteValue(7, stepIndex: 1, layer: .sliceIndex)
+
+        XCTAssertEqual(mutator.mutationCount, 1)
+        XCTAssertEqual(Self.sliceStepPattern(in: mutator.clip), [true, false, true, false])
+        XCTAssertEqual(Self.sliceIndexes(in: mutator.clip), [0, 7, 2, 7])
+        XCTAssertEqual(Self.sliceStepModes(in: mutator.clip), [.single, .runFromHere, .single, .single])
+
+        coordinator.writeAbsoluteValue(1, stepIndex: 3, layer: .sliceMode)
+
+        XCTAssertEqual(mutator.mutationCount, 2)
+        XCTAssertEqual(Self.sliceStepPattern(in: mutator.clip), [true, false, true, false])
+        XCTAssertEqual(Self.sliceIndexes(in: mutator.clip), [0, 7, 2, 7])
+        XCTAssertEqual(Self.sliceStepModes(in: mutator.clip), [.single, .runFromHere, .single, .runFromHere])
+
+        coordinator.writeAbsoluteValue(0.75, stepIndex: 1, layer: .velocity)
+
+        XCTAssertEqual(mutator.mutationCount, 3)
+        XCTAssertEqual(Self.sliceStepPattern(in: mutator.clip), [true, true, true, true])
+        XCTAssertEqual(Self.sliceIndexes(in: mutator.clip), [0, 7, 2, 7])
+        XCTAssertEqual(Self.sliceStepModes(in: mutator.clip), [.single, .runFromHere, .single, .runFromHere])
+        XCTAssertEqual(Self.sliceGains(in: mutator.clip, at: [1, 3]), [3, 3])
+
+        coordinator.writeAbsoluteValue(0.25, stepIndex: 3, layer: .chance)
+
+        XCTAssertEqual(mutator.mutationCount, 4)
+        XCTAssertEqual(Self.sliceStepPattern(in: mutator.clip), [true, false, true, false])
+        XCTAssertEqual(Self.sliceIndexes(in: mutator.clip), [0, 7, 2, 7])
+        XCTAssertEqual(Self.sliceStepModes(in: mutator.clip), [.single, .runFromHere, .single, .runFromHere])
+        XCTAssertEqual(Self.sliceGains(in: mutator.clip, at: [1, 3]), [3, 3])
+    }
+
+    func test_slicerCopyClearPastePreservesSliceIndexAndMode() throws {
+        let clipID = UUID()
+        let track = Self.makeTrack()
+        let mutator = RecordingClipMutator(
+            clip: Self.makeSliceClip(
+                id: clipID,
+                stepPattern: [true, false, true, false],
+                sliceIndexes: [3, 1, 6, 2],
+                stepModes: [.runFromHere, .single, .single, .runFromHere]
+            )
+        )
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [0, 3].forEach { coordinator.toggleSelection(at: $0) }
+
+        coordinator.copySelectedSteps(from: mutator.clip, track: track)
+
+        let clipboard = try XCTUnwrap(coordinator.clipboard)
+        let first = try XCTUnwrap(clipboard.steps[0])
+        XCTAssertTrue(first.active)
+        XCTAssertEqual(first.sliceIndex, 3)
+        XCTAssertEqual(first.sliceMode, 1)
+        let second = try XCTUnwrap(clipboard.steps[3])
+        XCTAssertFalse(second.active)
+        XCTAssertEqual(second.sliceIndex, 2)
+        XCTAssertEqual(second.sliceMode, 1)
+
+        coordinator.clearSelectedSteps(track: track)
+
+        XCTAssertEqual(mutator.mutationCount, 1)
+        XCTAssertEqual(Self.sliceStepPattern(in: mutator.clip), [false, false, true, false])
+        XCTAssertFalse(coordinator.isSelectionActive)
+
+        coordinator.pasteClipboard(track: track)
+
+        XCTAssertEqual(mutator.mutationCount, 2)
+        XCTAssertEqual(Self.sliceStepPattern(in: mutator.clip), [true, false, true, false])
+        XCTAssertEqual(Self.sliceIndexes(in: mutator.clip), [3, 1, 6, 2])
+        XCTAssertEqual(Self.sliceStepModes(in: mutator.clip), [.runFromHere, .single, .single, .runFromHere])
+    }
+
     func test_workspaceCoordinatorClearsSelectionButKeepsClipboardOnActiveClipChange() {
         let firstClipID = UUID()
         let secondClipID = UUID()
@@ -243,6 +344,26 @@ final class StepGridCoordinatorTests: XCTestCase {
         )
     }
 
+    private static func makeSliceClip(
+        id: UUID,
+        stepPattern: [Bool] = [true, false, true, false],
+        sliceIndexes: [Int] = [0, 1, 2, 3],
+        stepModes: [SliceTriggerStepMode] = [.single, .runFromHere, .single, .single],
+        stepParameters: [SliceTriggerStepParameters] = Array(repeating: .default, count: 4)
+    ) -> ClipPoolEntry {
+        ClipPoolEntry(
+            id: id,
+            name: "Slice Clip",
+            trackType: .slice,
+            content: .sliceTriggers(
+                stepPattern: stepPattern,
+                sliceIndexes: sliceIndexes,
+                stepModes: stepModes,
+                stepParameters: stepParameters
+            )
+        )
+    }
+
     private static func activeIndexes(in clip: ClipPoolEntry) -> [Int] {
         guard case let .noteGrid(_, steps) = clip.content.normalized else { return [] }
         return steps.enumerated().compactMap { index, step in
@@ -285,6 +406,26 @@ final class StepGridCoordinatorTests: XCTestCase {
             updated[index].main = nil
         }
         clip.content = .noteGrid(lengthSteps: lengthSteps, steps: updated)
+    }
+
+    private static func sliceStepPattern(in clip: ClipPoolEntry) -> [Bool] {
+        guard case let .sliceTriggers(stepPattern, _, _, _) = clip.content.normalized else { return [] }
+        return stepPattern
+    }
+
+    private static func sliceIndexes(in clip: ClipPoolEntry) -> [Int] {
+        guard case let .sliceTriggers(_, sliceIndexes, _, _) = clip.content.normalized else { return [] }
+        return sliceIndexes
+    }
+
+    private static func sliceStepModes(in clip: ClipPoolEntry) -> [SliceTriggerStepMode] {
+        guard case let .sliceTriggers(_, _, stepModes, _) = clip.content.normalized else { return [] }
+        return stepModes
+    }
+
+    private static func sliceGains(in clip: ClipPoolEntry, at indexes: [Int]) -> [Double] {
+        guard case let .sliceTriggers(_, _, _, stepParameters) = clip.content.normalized else { return [] }
+        return indexes.compactMap { stepParameters[$0].gain }
     }
 
     private static func makeTrack(macros: [TrackMacroBinding] = []) -> StepSequenceTrack {
