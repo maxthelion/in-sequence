@@ -56,6 +56,18 @@ struct ClipCaptureService: Equatable {
                 steps: Array(repeating: .empty, count: paddingCount) + capturedSteps
             )
         }
+
+        func captureSnapshot() -> CaptureSnapshot {
+            CaptureSnapshot(
+                maxSteps: maxSteps,
+                steps: steps.map { step in
+                    CaptureSnapshot.Step(
+                        absoluteStep: step.absoluteStep,
+                        notes: step.notes.map(CaptureSnapshot.Note.init)
+                    )
+                }
+            )
+        }
     }
 
     private let maxSteps: Int
@@ -74,6 +86,10 @@ struct ClipCaptureService: Equatable {
 
     func capturedClipContent(trackID: UUID, lengthSteps: Int? = nil) -> ClipContent? {
         buffersByTrackID[trackID]?.clipContent(lengthSteps: lengthSteps)
+    }
+
+    func captureSnapshot(trackID: UUID) -> CaptureSnapshot {
+        buffersByTrackID[trackID]?.captureSnapshot() ?? CaptureSnapshot(maxSteps: maxSteps)
     }
 
     @discardableResult

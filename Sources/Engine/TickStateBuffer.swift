@@ -102,6 +102,12 @@ final class TickStateBuffer {
         }
     }
 
+    func captureSnapshot(trackID: UUID) -> CaptureSnapshot {
+        withLock {
+            clipCaptureService.captureSnapshot(trackID: trackID)
+        }
+    }
+
     @discardableResult
     func saveRollingCapture(
         to project: inout Project,

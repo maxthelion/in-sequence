@@ -541,6 +541,10 @@ final class EngineController: RouterDispatcher {
         tickState.capturedClipContent(trackID: trackID, lengthSteps: lengthSteps)
     }
 
+    func captureSnapshot(trackID: UUID) -> CaptureSnapshot {
+        tickState.captureSnapshot(trackID: trackID)
+    }
+
     @discardableResult
     func saveRollingCapture(
         to project: inout Project,

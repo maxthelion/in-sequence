@@ -27,6 +27,23 @@ final class ClipCaptureServiceTests: XCTestCase {
         XCTAssertEqual(steps?.compactMap { $0.main?.notes.first?.pitch }, [61, 62])
     }
 
+    func test_defaultCaptureWindow_retainsMostRecent256Steps() {
+        let trackID = UUID()
+        var service = ClipCaptureService()
+
+        for step in 0..<300 {
+            service.append(trackID: trackID, stepIndex: step, notes: [note(pitch: step)])
+        }
+
+        let snapshot = service.captureSnapshot(trackID: trackID)
+        XCTAssertEqual(snapshot.maxSteps, 256)
+        XCTAssertEqual(snapshot.steps.count, 256)
+        XCTAssertEqual(snapshot.steps.first?.absoluteStep, 44)
+        XCTAssertEqual(snapshot.steps.last?.absoluteStep, 299)
+        XCTAssertEqual(snapshot.steps.first?.notes.map(\.pitch), [44])
+        XCTAssertEqual(snapshot.steps.last?.notes.map(\.pitch), [299])
+    }
+
     func test_capturedClipContent_returnsNilWhenTrackHasNoCapture() {
         let service = ClipCaptureService()
 
@@ -52,6 +69,56 @@ final class ClipCaptureServiceTests: XCTestCase {
         XCTAssertEqual(steps[2].main?.notes.map(\.lengthSteps), [1])
     }
 
+    func test_captureSnapshot_returnsStableCopiedNotes() {
+        let trackID = UUID()
+        var service = ClipCaptureService(maxSteps: 4)
+
+        service.append(trackID: trackID, stepIndex: 10, notes: [
+            note(pitch: 60, velocity: 80, length: 0, voiceTag: "kick")
+        ])
+        let snapshot = service.captureSnapshot(trackID: trackID)
+
+        service.append(trackID: trackID, stepIndex: 10, notes: [note(pitch: 72, velocity: 110)])
+        service.append(trackID: trackID, stepIndex: 11, notes: [note(pitch: 73)])
+
+        XCTAssertEqual(snapshot.steps.count, 1)
+        XCTAssertEqual(snapshot.steps[0].absoluteStep, 10)
+        XCTAssertEqual(snapshot.steps[0].notes, [
+            CaptureSnapshot.Note(
+                pitch: 60,
+                velocity: 80,
+                lengthSteps: 1,
+                voiceTag: "kick"
+            )
+        ])
+    }
+
+    func test_captureSnapshot_returnsEmptySnapshotWhenTrackHasNoHistory() {
+        let service = ClipCaptureService(maxSteps: 16)
+
+        let snapshot = service.captureSnapshot(trackID: UUID())
+
+        XCTAssertEqual(snapshot.maxSteps, 16)
+        XCTAssertTrue(snapshot.isEmpty)
+    }
+
+    func test_captureSnapshot_returnsPartialSnapshotForShortHistory() {
+        let trackID = UUID()
+        var service = ClipCaptureService(maxSteps: 16)
+
+        service.append(trackID: trackID, stepIndex: 7, notes: [])
+        service.append(trackID: trackID, stepIndex: 8, notes: [note(pitch: 61)])
+        service.append(trackID: trackID, stepIndex: 9, notes: [note(pitch: 62)])
+
+        let snapshot = service.captureSnapshot(trackID: trackID)
+
+        XCTAssertEqual(snapshot.maxSteps, 16)
+        XCTAssertEqual(snapshot.steps.map(\.absoluteStep), [7, 8, 9])
+        XCTAssertEqual(snapshot.steps[0].notes, [])
+        XCTAssertEqual(snapshot.steps[1].notes.map(\.pitch), [61])
+        XCTAssertEqual(snapshot.steps[2].notes.map(\.pitch), [62])
+    }
+
     func test_removeMissingTracks_prunesCaptureBuffersForRemovedTracks() {
         let keptTrackID = UUID()
         let removedTrackID = UUID()
@@ -66,12 +133,17 @@ final class ClipCaptureServiceTests: XCTestCase {
         XCTAssertNil(service.capturedClipContent(trackID: removedTrackID))
     }
 
-    private func note(pitch: Int, velocity: Int = 100, length: Int = 2) -> GeneratedNote {
+    private func note(
+        pitch: Int,
+        velocity: Int = 100,
+        length: Int = 2,
+        voiceTag: VoiceTag? = nil
+    ) -> GeneratedNote {
         GeneratedNote(
             pitch: pitch,
             velocity: velocity,
             length: length,
-            voiceTag: nil
+            voiceTag: voiceTag
         )
     }
 
