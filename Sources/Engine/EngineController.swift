@@ -364,6 +364,12 @@ final class EngineController: RouterDispatcher {
         mainAudioGraph.masterMeterPublisher
     }
 
+    var effectiveCrossfader: Double {
+        masterBusPerformanceOverlay.crossfaderOverride
+            ?? currentDocumentModel.masterBus.abSelection?.crossfader
+            ?? 0
+    }
+
     var masterBusApplyCallCount: Int {
         masterBusHost.applyCallCount
     }
