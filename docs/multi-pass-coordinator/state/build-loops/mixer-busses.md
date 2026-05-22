@@ -352,3 +352,103 @@ Lowest unmet layer remains project-level integration state, not a build-loop
 product gate: handle current root coordination-state dirt, integrate Scene
 Perform first, then rerun Mixer Busses merge-prep against the then-current
 `main`. Product-owner attention is not needed.
+
+## 2026-05-21T22:36Z Build Orientation
+
+The feature worktree remains clean at
+`1eaebf3d6226f39a2438143b192493f54739352d` on
+`auto/roadmap-5-mixer-busses-ui-finish`.
+
+Current orientation:
+`.meta/multipass/loops/build/mixer-busses/orient/2026-05-21T22-36Z-cadence-evidence-pairing.md`.
+
+Architecture, testing/build, UX/IA, and visual economy remain current
+exact-state PASS evidence for `1eaebf3`. No inherited gate evidence is needed,
+and no Mixer Busses builder rework or duplicate exact-state review is
+indicated.
+
+The project integration blocker has changed. Root coordination-state dirt has
+now been committed on `main` as
+`cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, and root status is clean.
+Scene Perform is still first in integration order and is not contained in
+`main`; its worktree is at
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078`, now `1` behind / `4` ahead of
+current `main`. Mixer Busses is also not contained in `main` and is currently
+`11` behind / `5` ahead; advisory `git merge-tree --write-tree main HEAD`
+still produces a tree with no conflict output.
+
+Lowest unmet layer remains project-level integration order, not a build-loop
+product gate: integrate Scene Perform first against current clean `main`, then
+rerun Mixer Busses merge-prep against the then-current `main`. Fresh inventory
+reports no pending inbox messages other than the claimed orienter cadence, so
+there is no queued follow-up integrator request yet. Product-owner attention is
+not needed.
+
+## 2026-05-21T23:11Z Build Orientation
+
+The feature worktree remains clean at
+`1eaebf3d6226f39a2438143b192493f54739352d` on
+`auto/roadmap-5-mixer-busses-ui-finish`.
+
+Current orientation:
+`.meta/multipass/loops/build/mixer-busses/orient/2026-05-21T23-11Z-cadence-evidence-pairing.md`.
+
+Architecture, testing/build, UX/IA, and visual economy remain current
+exact-state PASS evidence for `1eaebf3`. No inherited gate evidence is needed,
+and no Mixer Busses builder rework or duplicate exact-state review is
+indicated.
+
+Project-level evidence changed since 22:36Z: root `main` remains at
+`cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, but fresh coordination-state
+summary writes made root dirty again. The project decider routed pending
+process-fixer work at
+`.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`
+to classify and settle that root dirt before a follow-up Scene Perform
+integrator proceeds.
+
+Scene Perform remains first in integration order at
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078`, `1` behind / `4` ahead of current
+`main`, and not contained in `main`. Mixer Busses is also not contained in
+`main`, remains `11` behind / `5` ahead, and advisory
+`git merge-tree --write-tree main HEAD` still produces a tree with no conflict
+output.
+
+Lowest unmet layer remains project-level integration hygiene/order, not a
+build-loop product gate: settle current root coordination-state dirt, integrate
+Scene Perform first, then rerun Mixer Busses merge-prep against the
+then-current `main`. Product-owner attention is not needed.
+
+## 2026-05-22T00:06Z Build Orientation
+
+The feature worktree remains clean at
+`1eaebf3d6226f39a2438143b192493f54739352d` on
+`auto/roadmap-5-mixer-busses-ui-finish`.
+
+Current orientation:
+`.meta/multipass/loops/build/mixer-busses/orient/2026-05-22T00-06Z-cadence-evidence-pairing.md`.
+
+Architecture, testing/build, UX/IA, and visual economy remain current
+exact-state PASS evidence for `1eaebf3`. No inherited gate evidence is needed,
+and no Mixer Busses builder rework or duplicate exact-state review is
+indicated.
+
+Fresh inventory and project decision evidence show the same project-level
+blocker as the prior orientation. Root `main` remains at
+`cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, but current root status is dirty
+with coordination/state summaries. The pending process-fixer request at
+`.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`
+already owns classifying and settling that root dirt. The latest project
+decider recorded no duplicate action at
+`.meta/multipass/loops/project/decide/2026-05-21T23-41Z-decider-cadence.md`.
+
+Scene Perform remains first in integration order at
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078` and is not contained in `main`.
+Mixer Busses remains `11` behind / `5` ahead of current `main`, not contained
+in `main`; advisory `git merge-tree --write-tree main HEAD` still produces a
+tree with no conflict output. This is not a substitute for a fresh project
+integrator run after Scene Perform lands.
+
+Lowest unmet layer remains project-level integration hygiene/order, not a
+build-loop product gate: settle current root coordination-state dirt, integrate
+Scene Perform first, then rerun Mixer Busses merge-prep against the
+then-current `main`. Product-owner attention is not needed.

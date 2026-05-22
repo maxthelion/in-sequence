@@ -10,12 +10,20 @@ This is the durable build-loop summary. Transient inboxes, runs, and evidence li
 
 ## Current Decision
 
-- Current output state: Scene Perform is accepted as a merge/integration
-  candidate at current head
+- Current output state: Scene Perform remains accepted as a merge/integration
+  candidate at
   `d5b47500f4c7c08d704b89b30b2e27ceb0a00078` on
-  `auto/roadmap-2-scene-perform`, after being rebased from accepted commit
-  `ab6206004edd4d0b35c917e53ef85f147df47723` through prior rebased head
-  `1b69d29e58edcc327f4f4996d10a90e13e480741`.
+  `auto/roadmap-2-scene-perform`, after being accepted at
+  `ab6206004edd4d0b35c917e53ef85f147df47723`, rebased through
+  `1b69d29e58edcc327f4f4996d10a90e13e480741`, and then rebased onto root
+  hygiene commit `27610940ef76125ca41317f846a5aefd7f831406`.
+- Current root `main` has since advanced to coordination-only commit
+  `cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, so the candidate is now
+  `1` behind / `4` ahead of `main`. Fresh merge-tree remains conflict-free and
+  `git diff --check main...HEAD` passes. The follow-up integrator should account
+  for `cec6d59` and pair final build/compile checks to the exact landed state.
+  Root `main` is currently dirty again, but fresh status shows only
+  coordination-state files, not product code.
 - Worktree `.worktrees/roadmap-2-scene-perform` is clean in tracked files, with
   only untracked transient evidence under `.claude/state/scene-perform-rework/`
   and `.claude/state/visual-economy-scene-perform/`.
@@ -24,30 +32,59 @@ This is the durable build-loop summary. Transient inboxes, runs, and evidence li
   production/test/project files are identical across the rebase; architecture is
   accepted as scoped inherited advisory evidence from the prior
   `e5fe9eaea038e268369fd2b812e177b374a26f8d` PASS, then inherited through the
-  rebased head for the same unchanged product-output reason. Integrator evidence
-  adds current-state `xcodebuild` coverage at `d5b4750`.
+  rebased head for the same unchanged product-output reason. Current `main`
+  advanced only in coordination-state docs, so no new build-loop gate appears
+  invalidated by `cec6d59`.
 - Current decision evidence:
   `.meta/multipass/loops/build/scene-perform/decide/2026-05-21T15-54Z-merge-candidate-ab62060.md`,
   reaffirmed by
-  `.meta/multipass/loops/build/scene-perform/decide/2026-05-21T20-45Z-cadence-no-build-loop-action.md`
+  `.meta/multipass/loops/build/scene-perform/decide/2026-05-21T23-21Z-cadence-no-build-loop-action.md`
   and the latest orientation at
-  `.meta/multipass/loops/build/scene-perform/orient/2026-05-21T22-11Z-cadence-evidence-pairing.md`.
-- Current integration evidence:
-  `.meta/multipass/loops/project/act/2026-05-21T21-33Z-scene-perform-integration-evidence.md`.
-  Root hygiene evidence:
-  `.meta/multipass/loops/project/act/2026-05-21T20-58Z-root-hygiene-process-fixer.md`.
-  The old root dirty-state blocker was cleared by commit
-  `27610940ef76125ca41317f846a5aefd7f831406` on `main`; the integrator then
-  rebased Scene Perform onto that commit as `d5b4750`. The candidate is now
-  0 behind / 4 ahead of `main`, merge-tree reports no conflict output, and
-  `git diff --check main...HEAD` passes. The integrator did not merge because
-  root `main` again has uncommitted coordination-state edits; current root dirt
-  has expanded with ongoing observer/orienter summary updates, but remains
-  project coordination hygiene rather than Scene Perform product evidence.
+  `.meta/multipass/loops/build/scene-perform/orient/2026-05-22T00-16Z-cadence-evidence-pairing.md`.
+- Current integration/process evidence:
+  `.meta/multipass/loops/project/act/2026-05-21T21-33Z-scene-perform-integration-evidence.md`
+  and
+  `.meta/multipass/loops/project/act/2026-05-21T22-32Z-root-coordination-state-process-fixer.md`.
+  The remaining blocker is maintainable integration state on `main`, now
+  represented by pending process-fixer request
+  `.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`,
+  not Scene Perform product behavior.
 - Remaining risk: filled macro-label screenshot coverage is absent, SwiftUI
   drag/card hard-switch lacks automated UI coverage, and architecture at
   `d5b4750` is inherited advisory evidence rather than a rerun architecture
   review. No build-loop rework or product-owner attention is indicated.
+
+## 2026-05-22T00:16Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-22T00-16Z-cadence-evidence-pairing.md`.
+
+No new Scene Perform build-loop observer evidence exists after the prior
+accepted pairings, and no observation batch exists under
+`.meta/multipass/loops/build/scene-perform/observe/batches/`. Fresh checks keep
+the candidate at `d5b47500f4c7c08d704b89b30b2e27ceb0a00078`, with the worktree
+clean in tracked files and only the known untracked transient evidence
+directories under `.claude/state/`. Against current root `main`
+`cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, the candidate remains `1` behind /
+`4` ahead; `merge-tree --write-tree main HEAD` is conflict-free and
+`git diff --check main...HEAD` passes.
+
+Gate pairing is unchanged: testing, UX/IA, and visual economy are exact-state
+passes from `ab62060` and inherited to `d5b4750` because the Scene Perform
+production/test/project files are unchanged across the rebase. Architecture is
+accepted as scoped inherited advisory evidence from the prior `e5fe9ea` pass,
+with the strict-policy caveat that an exact-state architecture rerun would still
+be the only formal build-loop gap.
+
+Root `main` is dirty again, but fresh status shows only coordination-state
+files, now including `feature-readiness.md`, `runtime-problems.md`, and
+`work/current-work.md` in addition to the prior coordination summaries. The
+pending project process-fixer request
+`.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`
+already targets this blocker class. Lowest unmet layer remains maintainable
+integration state on `main`; no Scene Perform builder, observer, or
+product-owner action appears useful before project-level process/integration
+handling.
 
 ## 2026-05-21T08:48Z Continuation
 
@@ -608,3 +645,68 @@ only build-loop formal gap. No Scene Perform builder or observer action appears
 needed; the next useful action kind remains project-level root coordination
 hygiene followed by integration/merge handling. Product-owner attention is not
 indicated.
+
+## 2026-05-21T22:56Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T22-56Z-cadence-evidence-pairing.md`.
+
+No Scene Perform observe batch exists, and no new Scene Perform build-loop
+observer evidence supersedes the accepted gate pairings. The material new
+evidence is project-level process repair:
+`.meta/multipass/loops/project/act/2026-05-21T22-32Z-root-coordination-state-process-fixer.md`.
+It committed root coordination-state updates on `main` as
+`cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, leaving Scene Perform at
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078`.
+
+Because `main` advanced after the accepted rebase, Scene Perform is now
+`1` behind / `4` ahead of current `main`, but the new main commit is
+coordination-state docs only. Fresh checks for this orientation show
+merge-tree conflict-free output, `git diff --check main...HEAD` passing, and no
+Scene Perform production/test/project diff from accepted `ab62060` to current
+`d5b4750`.
+
+Gate pairing remains accepted: testing, UX/IA, and visual economy pass evidence
+at `ab62060` is inherited to `d5b4750`; architecture remains scoped inherited
+advisory evidence from `e5fe9ea`. The inherited evidence is still visible as an
+orienter/decider judgment, not a helper-generated decision.
+
+Lowest unmet layer: maintainable integration state on `main`. No Scene Perform
+builder or observer action appears needed; the useful next kind of action is
+project-level integration that accounts for `cec6d59`, keeps or clears current
+coordination dirt deliberately, and pairs final build/compile checks to the
+exact landed state. Product-owner attention is not indicated.
+
+## 2026-05-21T23:36Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-21T23-36Z-cadence-evidence-pairing.md`.
+
+No Scene Perform observe batch exists, and no new Scene Perform build-loop
+observer evidence supersedes the accepted gate pairings. The feature worktree
+remains clean in tracked files at
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078` on
+`auto/roadmap-2-scene-perform`, with only the known untracked transient
+evidence directories under `.claude/state/`.
+
+Fresh checks keep the integration interpretation unchanged: Scene Perform is
+`1` behind / `4` ahead of current `main`
+`cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`; merge-tree remains
+conflict-free; `git diff --check main...HEAD` passes; and
+`ab62060..d5b4750` has no diff in the Scene Perform production/test/project
+files. Testing, UX/IA, and visual economy pass evidence at `ab62060` therefore
+remains inherited to `d5b4750`, and architecture remains scoped inherited
+advisory evidence from `e5fe9ea`.
+
+Fresh root `main` status shows only coordination-state dirt, now including
+orientation, build-loop summaries, decision log, holistic status, process
+health, rebase status, and worktree hygiene status. The pending project
+process-fixer request
+`.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`
+already targets this blocker class, though its initial dirty-path list is now
+slightly stale.
+
+Lowest unmet layer: maintainable integration state on `main`. No Scene Perform
+builder or observer action appears needed; the useful next action kind remains
+project-level process/integration handling before the final exact-state
+build/compile checks. Product-owner attention is not indicated.

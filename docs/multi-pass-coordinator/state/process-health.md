@@ -1,8 +1,9 @@
 # Process Health
 
-- updated: 2026-05-21T18:46:00Z
-- request: `.meta/multipass/inbox/claimed/2026-05-21T18-40-19-764Z-process-health-observer-cadence.md`
+- updated: 2026-05-21T22:47:21Z
+- request: `.meta/multipass/inbox/claimed/2026-05-21T22-46-15-961Z-process-health-observer-cadence.md`
 - loop-local copy: `.meta/multipass/loops/project/observe/process-health.md`
+- observation artifact: `.meta/multipass/loops/project/observe/2026-05-21T22-47Z-process-health-observation.md`
 - scope: observation only; no inbox messages, decisions, lifecycle changes, merge, push, cleanup, or build-loop actions performed.
 
 ## Checklist
@@ -19,58 +20,39 @@
 
 | Area | Evidence | Health read |
 | --- | --- | --- |
-| Product progress | Mixer Busses recovered from the Send B / Master Out clipping failure, produced exact commit `1eaebf3d6226f39a2438143b192493f54739352d`, passed exact-state architecture, testing/build, UX/IA, and visual-economy gates, and was routed to project integration. Scene Perform was accepted at `ab6206004edd4d0b35c917e53ef85f147df47723`; the integrator rebased it cleanly onto `main` as `1b69d29e58edcc327f4f4996d10a90e13e480741` with focused tests passing. | The loop is producing useful product work through build, review, rework, and integration-prep, not just coordination churn. |
-| Review follow-through | Earlier Mixer Busses visual-economy failures became a focused builder continuation; the successor state passed all four exact-state gates. Scene Perform product-owner crossfader correction became a focused SwiftUI rework, then current testing, UX/IA, and visual-economy passes plus accepted scoped architecture inheritance. | Review failures are being converted into bounded work and refreshed evidence. |
-| Integration blocker | `.meta/multipass/loops/project/act/2026-05-21T18-38Z-scene-perform-integration-evidence.md` says Scene Perform is mechanically merge-ready after rebase but not merged because root `main` has broad pre-existing coordination/migration dirt. Mixer Busses integration is queued behind Scene Perform. | Root dirt has become a concrete integration blocker. This is process/repository hygiene, not product uncertainty. |
-| Resource/runtime churn | `.meta/multipass/state/actor-failures.md` lists eleven 2026-05-21 failures: ten `usage_rate_limit` failures and one missing final artifact. No compact failure evidence appears after 2026-05-21T13:54:45Z; later Mixer Busses continuation, reviews, decisions, and Scene Perform integration-prep completed. | Resource churn remains the biggest historical reliability tax, but recent recovery shows the loop can finish when work is checkpointed and bounded. |
-| Inbox/status noise | Inventory now reports only two pending messages, but blocked still mixes 2026-05-20 cadence/orienter files, superseded build/review attempts, and real runtime failures. A `build/mixer-busses` build-decider cadence is pending even though the loop has already accepted and routed its integration candidate. | Current-state inference is possible, but stale lifecycle signals still cost tokens and can route redundant no-op cadence work. |
-| Missing or stale visibility helpers | `scripts/multi-pass/inbox-status.sh` and `scripts/multi-pass/evidence-inboxes.sh` still scan legacy `docs/multi-pass-coordinator/inbox/*` paths. Observers continue to cite absent `pairing-state.sh`, `feature-state.sh`, `runtime-log-scan.sh`, `merge-status.sh`, `rebase-status.sh`, and worktree-hygiene status helpers. Inventory emits Ruby gem extension warnings before useful output. | The v2 runtime works, but deterministic visibility is still split across old and new control paths, driving fallback scans and noisy evidence collection. |
-| Visual/runtime evidence brittleness | Current visual gates inspected exact commits and screenshots, but runtime-log scanning depends on git-history fallback content; app launches still log `gitCommit=unknown gitBranch=unknown`; CoreAudio HAL errors remain unattributed. | Visual review quality is acceptable for active gates, but app-window/runtime-log attribution remains too brittle for fast regression routing. |
-| Evidence packaging | Mixer Busses architecture PASS exists as an actor final rather than loop-local observe markdown, and `.meta/multipass/loops/build/mixer-busses/observe/batches/1eaebf3d6226f39a2438143b192493f54739352d/batch.yaml` still says `status: open` despite all expected requests being done and passing. | This did not block routing, but it is a recurring small mismatch between runtime facts and loop-local artifact shape. |
-| Product-owner attention | Active risks are root dirt, stale helpers, lifecycle noise, evidence packaging, and queued integration. | Product-owner attention is not needed. These are agent/process issues. |
+| Product progress | Active build loops remain `build/scene-perform` and `build/mixer-busses`. Scene Perform is accepted and rebased at `d5b47500f4c7c08d704b89b30b2e27ceb0a00078`. Mixer Busses is accepted at `1eaebf3d6226f39a2438143b192493f54739352d` with exact-state architecture, testing/build, UX/IA, and visual-economy PASS evidence. | The loop is still producing real product work and review-disposition evidence, not only coordination churn. |
+| Review follow-through | Scene Perform's product-owner crossfader observation became focused SwiftUI rework and refreshed tests/reviews. Mixer Busses visual-economy failures became the Master Out clipping continuation and exact-state review gates. | Review failures are feeding into bounded rework and refreshed evidence. This part of the loop is healthy. |
+| Integration blocker | Process-fixer committed root coordination-state cleanup as `cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, but the latest orienter reports root `main` is dirty again with coordination-summary edits. Fresh `git status --short` shows `docs/multi-pass-coordinator/ooda/orientation.md` and `docs/multi-pass-coordinator/state/build-loops/mixer-busses.md` modified before this observation update. | The repeated blocker is narrower than the earlier broad root dirt, but the pattern remains: coordination-state writes can re-dirty `main` between hygiene repair and integration, delaying merge-ready product work. |
+| Integration order | Latest orientation and build-loop summaries keep Scene Perform first; Mixer Busses waits behind it. The only pending message observed by inventory was a `build/scene-perform` build-orienter cadence, while this process-health request was claimed. | The ordering is clear. The loop needs a clean or explicitly accounted-for root before a follow-up Scene Perform integrator, then Mixer Busses merge-prep. |
+| Resource/runtime churn | `.meta/multipass/state/actor-failures.md` still lists eleven 2026-05-21 failures: ten `usage_rate_limit` and one missing final artifact. No compact actor failure appears after 2026-05-21T13:54:45Z; later builders, reviewers, orienters, process-fixers, and integrators completed. | Rate-limit churn is historical for this pass, but still a real reliability tax for high-context UI actors. Checkpointed exact commits and compact evidence are enabling recovery. |
+| Cadence churn | Activity shows many post-acceptance build-orienter/build-decider cadences completing no-op or disposition-preserving work after both build loops had accepted candidates. | Cadence work is mostly benign, but it burns tokens and can create fresh coordination-state dirt that blocks integration. |
+| Inbox/status noise | Blocked inbox still mixes old 2026-05-20 cadence files, superseded build/review attempts, and real runtime failures. Done has a long useful history, but live status requires manual filtering. | Lifecycle preservation is useful evidence, but current-state inference remains noisy without a compact active-blocker view. |
+| Deterministic visibility | `scripts/multi-pass/inbox-status.sh` and `scripts/multi-pass/evidence-inboxes.sh` still scan retired `docs/multi-pass-coordinator/inbox/*` paths. Observers still report missing or absent helpers such as `pairing-state.sh`, `feature-state.sh`, `runtime-log-scan.sh`, `merge-status.sh`, `rebase-status.sh`, and worktree hygiene status. Inventory/build-capacity emit Ruby gem extension warnings before useful output. | The v2 runtime is usable, but observation still pays a token and accuracy tax from stale helper paths and missing small state scripts. |
+| Visual/runtime evidence | Active visual gates for Scene Perform and Mixer Busses had exact screenshots and passed. The latest runtime-log observation found no fresh crash/fatal app evidence, but had to recover the absent `runtime-log-scan.sh` from git history and still had no app launch commit/branch metadata. | Visual review quality is acceptable for current gates. Runtime-log attribution and app-surface helper reproducibility remain low-severity process debt. |
+| Evidence packaging | Mixer Busses architecture PASS remains an actor final rather than loop-local observe markdown, and the `1eaebf3` batch manifest still says `status: open` despite completed PASS gates. | This did not block routing, but weakens fast machine-readable readiness and contributes to repeated manual evidence reconstruction. |
+| Product-owner attention | Active issues are coordination-state hygiene, cadence/status noise, helper drift, and evidence packaging. | No product-owner attention is needed. These are agent/process issues. |
 
 ## Suspected Causes
 
-- UI-heavy actor runs previously mixed code edits, checks, app launch,
-  screenshots, review routing, and final evidence in high-context sessions,
-  making them vulnerable to `usage_rate_limit` interruption.
-- The runtime preserves blocked lifecycle files conservatively, which is useful
-  evidence, but there is no compact current blocker view separating live
-  blockers from superseded or historical blocked files.
-- Some project-local scripts and prompts still straddle retired
-  `docs/multi-pass-coordinator/inbox` paths and live `.meta/multipass` runtime
-  paths.
-- Build-loop cadence actors can still run after a merge candidate has already
-  been accepted and routed, creating redundant status churn.
-- Root `main` coordination/migration dirt has been tolerated as observation
-  noise long enough that it now blocks a clean product merge.
+- Durable coordination summaries are being edited on `main` by cadence actors while integrators require a clean root before landing product branches.
+- Cadence actors keep running after a build candidate has been accepted and routed, which is useful for freshness but can produce new state dirt faster than integration consumes it.
+- Project-local helper scripts still straddle retired coordinator paths and live `.meta/multipass` v2 runtime paths.
+- High-context UI actors previously mixed implementation, app launch, screenshots, reviews, and evidence packaging, making them prone to `usage_rate_limit`; later exact-commit checkpointing reduced the impact.
+- Runtime lifecycle state keeps all blocked evidence in one directory without a compact current-blocker classification.
 
 ## Suggested Repair Shape
 
-- Treat root `main` coordination/migration dirt as the immediate process repair
-  pressure because it now blocks otherwise merge-ready product work.
-- Prefer prompt/actor-contract repair for post-disposition cadences: after a
-  build loop has accepted and routed a merge candidate, later build-decider
-  cadence actors should record no-op/stale evidence rather than reopen product
-  routing.
-- Keep the successful builder checkpointing pattern: exact commit, clean
-  worktree, focused checks, and screenshots before longer review/disposition
-  work.
-- Replace or update legacy inbox helpers with a compact runtime-inbox/current
-  blocker summary that marks active blockers, superseded failures, and
-  historical blocked lifecycle files without deleting evidence.
-- Restore only repeatedly needed observation helpers, especially
-  `pairing-state.sh` and runtime-log/app-window readiness. Avoid a broad
-  deterministic state machine for product judgment.
-- Normalize review-batch bookkeeping after expected observer requests are done,
-  or make the actor contract explicit that actor finals can satisfy batch
-  evidence when no loop-local observe markdown was produced.
+- Treat recurring root coordination-state dirt as the immediate process risk because it repeatedly blocks otherwise merge-ready Scene Perform integration.
+- Prefer actor-contract repair over a brittle state machine: after a merge candidate is accepted and routed, cadence actors should write compact no-op/freshness evidence and avoid unnecessary durable state churn unless facts changed materially.
+- Add or restore a small v2 runtime-inbox/current-blocker summary helper that separates active blockers, superseded failures, and historical blocked lifecycle files without deleting evidence.
+- Update legacy inbox helpers to read `.meta/multipass/inbox`, or clearly mark them retired so observers stop paying fallback-scan costs.
+- Restore only repeatedly needed observation helpers, especially pairing/build-loop current state and checked-in runtime-log/app-window readiness.
+- Normalize review-batch bookkeeping after all expected observer requests finish, or document that actor finals can satisfy batch evidence when loop-local observe markdown is absent.
 
 ## Current Disposition
 
-The loop is product-productive and integration-bound. Scene Perform is
-mechanically merge-ready but blocked by broad root dirt. Mixer Busses is queued
-behind Scene Perform with accepted exact-state PASS evidence. The active
-process risks are repository hygiene, stale visibility helpers, redundant
-cadence/lifecycle noise, and residual runtime-log attribution gaps. No
-product-owner attention is needed.
+The loop is product-productive and integration-bound. Scene Perform remains the
+first integration candidate at `d5b4750`; Mixer Busses remains accepted at
+`1eaebf3` and queued behind it. The strongest process risk is not product
+quality but repeated coordination-state dirt on `main` between cleanup and
+integration. Product-owner attention is not needed.

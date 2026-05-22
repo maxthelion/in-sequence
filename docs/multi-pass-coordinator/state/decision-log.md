@@ -3,6 +3,62 @@
 Compact current-shape decision notes. Legacy coordinator logs are historical
 context only.
 
+## 2026-05-22T00:31Z
+
+Used fresh orientation, feature-readiness and work summaries, current
+build-loop decisions, live inbox state, root `git status`, and the v2
+build-capacity CLI as context. Kept capacity closed: active build loops remain
+`build/mixer-busses` and `build/scene-perform`, available build slots are `0`,
+and unpromoted ready candidates remain `step-sequencer` and `clip-history`.
+Did not promote either candidate. Did not write a duplicate actor request
+because the correct next project-level action is already pending:
+`.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`.
+That request remains scoped to classify and resolve current root
+coordination-state dirt so a follow-up Scene Perform integrator can proceed for
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078` without mixing unaccounted state.
+Mixer Busses remains accepted at
+`1eaebf3d6226f39a2438143b192493f54739352d` and waiting behind Scene Perform.
+Recorded the no-duplicate decision at
+`.meta/multipass/loops/project/decide/2026-05-22T00-31Z-decider-cadence.md`.
+No product-owner attention is needed.
+
+## 2026-05-21T23:41Z
+
+Used fresh orientation, feature-readiness state, active build-loop summaries,
+live inbox state, root `git status`, and the v2 build-capacity CLI as context.
+Kept capacity closed: active build loops remain `build/mixer-busses` and
+`build/scene-perform`, available build slots are `0`, and unpromoted ready
+candidates remain `step-sequencer` and `clip-history`. Did not promote either
+candidate. Did not write a duplicate actor request because the correct next
+project-level action is already pending:
+`.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`.
+That request is still scoped to classify and resolve current root
+coordination-state dirt so a follow-up Scene Perform integrator can proceed for
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078` without mixing unaccounted state.
+Mixer Busses remains accepted at
+`1eaebf3d6226f39a2438143b192493f54739352d` and waiting behind Scene Perform.
+Recorded the no-duplicate decision at
+`.meta/multipass/loops/project/decide/2026-05-21T23-41Z-decider-cadence.md`.
+No product-owner attention is needed.
+
+## 2026-05-21T23:07Z
+
+Used fresh orientation, holistic/work/process observations, feature-readiness
+state, live inbox state, root `git status`, and the v2 build-capacity CLI as
+context. Kept capacity closed: active build loops remain `build/mixer-busses`
+and `build/scene-perform`, available build slots are `0`, and unpromoted ready
+candidates remain `step-sequencer` and `clip-history`. Did not promote either
+candidate. Routed the next project-level action to the `process-fixer`:
+`.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`.
+The request is bounded to classify and resolve current root coordination-state
+dirt so a follow-up Scene Perform integrator can proceed for
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078` without mixing unaccounted state.
+Mixer Busses remains accepted at
+`1eaebf3d6226f39a2438143b192493f54739352d` and waiting behind Scene Perform.
+Recorded the routing decision at
+`.meta/multipass/loops/project/decide/2026-05-21T23-07Z-root-coordination-hygiene.md`.
+No product-owner attention is needed.
+
 ## 2026-05-21T22:17Z
 
 Used fresh orientation, feature-readiness observations, work status, latest
