@@ -178,6 +178,15 @@ final class MainAudioGraph {
         }
     }
 
+    func setMixerBusParameters(bus: MixerBus, effectiveMute: Bool) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            self.mixerBusHosts[bus.id]?.applyParameters(bus: bus, effectiveMute: effectiveMute)
+        }
+    }
+
     func installSendBuses(_ sendBuses: [SendBusState]) {
         graphLock.lock()
         defer { graphLock.unlock() }

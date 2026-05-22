@@ -332,6 +332,19 @@ final class EngineController: RouterDispatcher {
         refreshEffectiveMixerState(for: currentDocumentModel)
     }
 
+    func setMixerBusParameters(busID: UUID, bus: MixerBus) {
+        guard let index = currentDocumentModel.buses.firstIndex(where: { $0.id == busID }) else {
+            return
+        }
+        let normalized = bus.normalized(fallbackName: currentDocumentModel.buses[index].name)
+        currentDocumentModel.buses[index] = normalized
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: currentDocumentModel)
+        mainAudioGraph.setMixerBusParameters(
+            bus: normalized,
+            effectiveMute: effectiveMuteState.mutedBusIDs.contains(busID)
+        )
+    }
+
     func apply(sendBus: SendBusState) {
         let normalized = sendBus.normalized(expectedID: sendBus.id)
         sendBusStates[normalized.id] = normalized

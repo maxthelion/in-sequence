@@ -177,6 +177,8 @@ final class SequencerDocumentSession {
             engineController.setMix(trackID: trackID, mix: mix)
         case let .mixerBusMix(busID, mix):
             engineController.setMixerBusMix(busID: busID, mix: mix)
+        case let .mixerBusParameters(busID, bus):
+            engineController.setMixerBusParameters(busID: busID, bus: bus)
         case let .sendBus(sendBus):
             engineController.apply(sendBus: sendBus)
         case let .masterBus(masterBus):
@@ -271,6 +273,54 @@ final class SequencerDocumentSession {
         updateMixerBusMix(busID: busID) { $0.isSoloed = soloed }
     }
 
+    func addMixerBusInsert(_ insert: MixerBusInsert, busID: UUID) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            bus.inserts.append(insert.normalized())
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func updateMixerBusInsert(_ insertID: UUID, busID: UUID, edit: (inout MixerBusInsert) -> Void) {
+        var beforeInsert: MixerBusInsert?
+        var afterInsert: MixerBusInsert?
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            guard let index = bus.inserts.firstIndex(where: { $0.id == insertID }) else { return }
+            beforeInsert = bus.inserts[index].normalized()
+            edit(&bus.inserts[index])
+            bus.inserts[index] = bus.inserts[index].normalized()
+            afterInsert = bus.inserts[index]
+        }
+        guard changed else { return }
+        if let beforeInsert,
+           let afterInsert,
+           Self.isMixerBusInsertBypassOnlyChange(from: beforeInsert, to: afterInsert)
+        {
+            applyMixerBusInsertPerformanceMutation(busID: busID)
+            return
+        }
+        applyDocumentModelMutation()
+    }
+
+    func removeMixerBusInsert(_ insertID: UUID, busID: UUID) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            bus.inserts.removeAll { $0.id == insertID }
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
+    func reorderMixerBusInserts(_ ids: [UUID], busID: UUID) {
+        let changed = store.mutateMixerBus(id: busID) { bus in
+            let byID = Dictionary(uniqueKeysWithValues: bus.inserts.map { ($0.id, $0) })
+            let reordered = ids.compactMap { byID[$0] }
+            guard reordered.count == bus.inserts.count else { return }
+            bus.inserts = reordered
+        }
+        guard changed else { return }
+        applyDocumentModelMutation()
+    }
+
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {
         guard busID == nil || store.buses.contains(where: { $0.id == busID }) else {
             return
@@ -321,6 +371,13 @@ final class SequencerDocumentSession {
         scheduleFlushToDocument()
     }
 
+    private func applyMixerBusInsertPerformanceMutation(busID: UUID) {
+        guard let bus = store.buses.first(where: { $0.id == busID }) else { return }
+        revision = store.revision
+        dispatchScopedRuntimeUpdate(.mixerBusParameters(busID: busID, bus: bus))
+        scheduleFlushToDocument()
+    }
+
     private func applyTrackMixPerformanceMutation(trackID: UUID) {
         guard let track = store.tracks.first(where: { $0.id == trackID }) else { return }
         revision = store.revision
@@ -355,5 +412,16 @@ final class SequencerDocumentSession {
         engineController.apply(documentModel: store.exportToProject())
         snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
         scheduleFlushToDocument()
+    }
+
+    private static func isMixerBusInsertBypassOnlyChange(
+        from previous: MixerBusInsert,
+        to current: MixerBusInsert
+    ) -> Bool {
+        previous.id == current.id &&
+        previous.name == current.name &&
+        previous.wetDry == current.wetDry &&
+        previous.kind == current.kind &&
+        previous.isEnabled != current.isEnabled
     }
 }

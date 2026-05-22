@@ -81,15 +81,22 @@ struct MasterOutputColumnView: View {
                 .studioText(.micro)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            VStack(spacing: 6) {
-                ForEach(masterBus.masterInserts) { insert in
-                    masterInsertRow(insert)
+            MixerInsertChainView(
+                inserts: masterBus.masterInserts,
+                accent: StudioTheme.amber,
+                emptySlotCount: emptySlotCount,
+                addLabel: "Add FX",
+                addAction: { isAddFXPresented = true },
+                updateInsert: { insertID, edit in
+                    session.updateMasterOutputInsert(insertID, edit: edit)
+                },
+                removeInsert: { insertID in
+                    session.removeMasterOutputInsert(insertID)
+                },
+                reorderInserts: { ids in
+                    session.reorderMasterOutputInserts(ids)
                 }
-
-                ForEach(0..<emptySlotCount, id: \.self) { _ in
-                    emptyInsertSlot
-                }
-            }
+            )
         }
     }
 

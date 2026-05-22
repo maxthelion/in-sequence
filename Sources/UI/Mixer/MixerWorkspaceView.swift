@@ -7,6 +7,7 @@ struct MixerWorkspaceView: View {
     @Environment(EngineController.self) private var engineController
     @State private var isMasterOverlayPresented = false
     @State private var selectedSendInsertIDs: [SendBusID: UUID] = [:]
+    @State private var editingSendBusID: SendBusID?
     @State private var addSendFXRequest: SendBusAddFXRequest?
 
     var body: some View {
@@ -41,9 +42,15 @@ struct MixerWorkspaceView: View {
     private func masterAwareMixer(presentation: MasterOutputColumnPresentation) -> some View {
         ZStack(alignment: .trailing) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 14) {
-                    MixerView(document: $document, onEditTrack: onSelectTrack)
-                        .frame(maxWidth: .infinity, minHeight: 420, alignment: .topLeading)
+                HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
+                    MixerView(document: $document, onEditTrack: onSelectTrack) {
+                        sendReturnStrips
+                    }
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: MixerWorkspaceLayout.primaryMixerLaneHeight,
+                            alignment: .topLeading
+                        )
 
                     switch presentation {
                     case let .fullColumn(width):
@@ -59,9 +66,6 @@ struct MixerWorkspaceView: View {
                         }
                     }
                 }
-
-                sendBusDetails
-                    .padding(.trailing, sendBusTrailingReserve(for: presentation))
             }
 
             if case .fullColumn = presentation {
@@ -78,13 +82,102 @@ struct MixerWorkspaceView: View {
         }
     }
 
-    private func sendBusTrailingReserve(for presentation: MasterOutputColumnPresentation) -> CGFloat {
-        switch presentation {
-        case let .fullColumn(width):
-            width + 14
-        case .compactStrip:
-            0
+    private var sendReturnStrips: some View {
+        HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
+            sendReturnStrip(sendBus(.sendA), accent: StudioTheme.cyan)
+            sendReturnStrip(sendBus(.sendB), accent: StudioTheme.violet)
         }
+        .accessibilityIdentifier("mixer-send-return-strips")
+    }
+
+    private func sendReturnStrip(_ sendBus: SendBusState, accent: Color) -> some View {
+        let selectedInsert = selectedInsert(in: sendBus)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(accent)
+                    .frame(width: 10, height: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(sendBus.name.uppercased())
+                        .studioText(.eyebrowBold)
+                        .tracking(1.0)
+                        .foregroundStyle(StudioTheme.text)
+                    Text("Return -> Master")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("FX")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Spacer()
+                    Text("\(sendBus.inserts.count)")
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(accent)
+                }
+                sendInsertList(sendBus, accent: accent)
+            }
+
+            HStack(alignment: .bottom, spacing: 12) {
+                VStack(alignment: .center, spacing: 8) {
+                    VerticalLevelFader(level: 1, isMuted: false, onBegin: {}, onChange: { _ in }, onEnd: {})
+                        .allowsHitTesting(false)
+                        .frame(width: 32, height: 128)
+                    Text("AUTO")
+                        .studioText(.eyebrow)
+                        .foregroundStyle(StudioTheme.text)
+                }
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Wet return")
+                        .studioText(.eyebrow)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Text("Post fader send sum")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(2)
+                    if selectedInsert != nil {
+                        MixerStripActionButton(
+                            title: "Edit FX",
+                            systemName: "slider.horizontal.3",
+                            accent: accent,
+                            minWidth: 82
+                        ) {
+                            editingSendBusID = sendBus.id
+                        }
+                        .popover(isPresented: editingBinding(for: sendBus.id), arrowEdge: Edge.bottom) {
+                            sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
+                                .padding(14)
+                                .frame(width: 360)
+                                .background(StudioTheme.stageFill)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: MixerWorkspaceLayout.sendReturnStripWidth, alignment: .topLeading)
+        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: 1)
+        )
+        .accessibilityIdentifier("mixer-\(sendBus.id.rawValue)-return-strip")
+    }
+
+    private func editingBinding(for busID: SendBusID) -> Binding<Bool> {
+        Binding(
+            get: { editingSendBusID == busID },
+            set: { isPresented in
+                editingSendBusID = isPresented ? busID : nil
+            }
+        )
     }
 
     private var sendBusDetails: some View {
@@ -373,14 +466,9 @@ struct MixerWorkspaceView: View {
     }
 
     private func addSendFXButton(_ busID: SendBusID, accent: Color) -> some View {
-        Button {
+        MixerStripActionButton(title: "Add", systemName: "plus", accent: accent, minWidth: 56) {
             addSendFXRequest = SendBusAddFXRequest(busID: busID)
-        } label: {
-            Label("Add", systemImage: "plus")
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-        .tint(accent)
     }
 
     private func addSendFXSheet(for busID: SendBusID) -> some View {
@@ -643,6 +731,50 @@ struct MixerWorkspaceView: View {
         case .auEffect:
             return "slider.horizontal.3"
         }
+    }
+}
+
+enum MixerWorkspaceLayout {
+    static let primaryMixerLaneHeight: CGFloat = 580
+    static let laneSpacing: CGFloat = 10
+    static let busStripWidth: CGFloat = 200
+    static let addBusTileWidth: CGFloat = 116
+    static let sendReturnStripWidth: CGFloat = 190
+}
+
+struct MixerStripActionButton: View {
+    let title: String
+    var systemName: String?
+    var accent: Color = StudioTheme.cyan
+    var isActive = false
+    var minWidth: CGFloat = 52
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if let systemName {
+                    Image(systemName: systemName)
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                Text(title)
+                    .studioText(.microEmphasis)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+            .foregroundStyle(StudioTheme.text)
+            .frame(minWidth: minWidth, minHeight: 26)
+            .padding(.horizontal, 7)
+            .background(
+                (isActive ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
