@@ -44,7 +44,9 @@
 		F43201A8167FFD01A80AA72D /* StepClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C136AB7EFF159887C7C171AB /* StepClipboard.swift */; };
 		AB4F73DD6140C7006961B57A /* StepCellContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0667D382D9EB128D0714E8BB /* StepCellContent.swift */; };
 		D7B5D7AB2A0F50127D7E80F2 /* StepGridCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A057AD1AD1E74C66BF16BB0A /* StepGridCoordinator.swift */; };
+		B93544D5789E9D83F02F5162 /* UnifiedStepCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C46520D81D54147A7CB6C6A /* UnifiedStepCell.swift */; };
 		9047ABCFD6409B1CA3174E1B /* StepGridCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE42D3ACFAE2259727D1C463 /* StepGridCoordinatorTests.swift */; };
+		73B67EA8D19A040669F174B2 /* UnifiedStepCellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CEFFB094A152D32D977C0F2 /* UnifiedStepCellTests.swift */; };
 		1935D9B8E383F31321D2BD12 /* TrackSourceModifierTabContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD69D1424D2DDE8EC261FB9 /* TrackSourceModifierTabContent.swift */; };
 		197FDA7857E19639AF2249B8 /* ProjectSliceSetPoolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE79EF03E5A9AF235CA0AC31 /* ProjectSliceSetPoolTests.swift */; };
 		19D34BAFEC000DF2096A929C /* StoreTestSpyHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A9706F7A479D94365444A8C /* StoreTestSpyHelpers.swift */; };
@@ -1547,7 +1549,9 @@
 		C136AB7EFF159887C7C171AB /* StepClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepClipboard.swift; sourceTree = "<group>"; };
 		0667D382D9EB128D0714E8BB /* StepCellContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCellContent.swift; sourceTree = "<group>"; };
 		A057AD1AD1E74C66BF16BB0A /* StepGridCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridCoordinator.swift; sourceTree = "<group>"; };
+		3C46520D81D54147A7CB6C6A /* UnifiedStepCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedStepCell.swift; sourceTree = "<group>"; };
 		CE42D3ACFAE2259727D1C463 /* StepGridCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridCoordinatorTests.swift; sourceTree = "<group>"; };
+		5CEFFB094A152D32D977C0F2 /* UnifiedStepCellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedStepCellTests.swift; sourceTree = "<group>"; };
 		FF5197A07B8E2737EA42E25B /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		FF95FD5D0F87AC613ADF391E /* screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = screen.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -3274,6 +3278,7 @@
 				0667D382D9EB128D0714E8BB /* StepCellContent.swift */,
 				A057AD1AD1E74C66BF16BB0A /* StepGridCoordinator.swift */,
 				BE0F994B4C649E2EE5AB7B5F /* StepSelectionModel.swift */,
+				3C46520D81D54147A7CB6C6A /* UnifiedStepCell.swift */,
 			);
 			path = StepGrid;
 			sourceTree = "<group>";
@@ -3282,6 +3287,7 @@
 			isa = PBXGroup;
 			children = (
 				CE42D3ACFAE2259727D1C463 /* StepGridCoordinatorTests.swift */,
+				5CEFFB094A152D32D977C0F2 /* UnifiedStepCellTests.swift */,
 			);
 			path = StepGrid;
 			sourceTree = "<group>";
@@ -4409,6 +4415,7 @@
 				E5D850D36A04C9A9F10EE2E8 /* StepAlgoTests.swift in Sources */,
 				AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */,
 				9047ABCFD6409B1CA3174E1B /* StepGridCoordinatorTests.swift in Sources */,
+				73B67EA8D19A040669F174B2 /* UnifiedStepCellTests.swift in Sources */,
 				184AC10DCE6120E4193D78AD /* StepSequenceTrackFilterDefaultTests.swift in Sources */,
 				EC11C7CD4E29613131F89F90 /* StoreAccessorHelpersTests.swift in Sources */,
 				19D34BAFEC000DF2096A929C /* StoreTestSpyHelpers.swift in Sources */,
@@ -4617,6 +4624,7 @@
 				D7B5D7AB2A0F50127D7E80F2 /* StepGridCoordinator.swift in Sources */,
 				F86135C6DD3E41946DBD7990 /* StepGridView.swift in Sources */,
 				B1997E1D094021FD28AA155E /* StepSelectionModel.swift in Sources */,
+				B93544D5789E9D83F02F5162 /* UnifiedStepCell.swift in Sources */,
 				4E48323C5C212B196D58D534 /* StepSequenceTrack.swift in Sources */,
 				93D66B65020831B6627FBD8A /* Stream.swift in Sources */,
 				5C8C3DC81B0F7D3F08F0772F /* StudioMetricPill.swift in Sources */,
