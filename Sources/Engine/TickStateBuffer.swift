@@ -5,12 +5,14 @@ final class TickStateBuffer {
         let generatedStates: [UUID: GeneratedSourceEvaluationState]
         let clipCaptureService: ClipCaptureService
         let playbackSnapshot: PlaybackSnapshot
+        let auditionOverridesByTrackID: [UUID: PseudoClipState]
     }
 
     private let lock = NSLock()
     private var playbackSnapshot: PlaybackSnapshot
     private var generatedStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:]
     private var clipCaptureService = ClipCaptureService()
+    private var auditionOverridesByTrackID: [UUID: PseudoClipState] = [:]
     private var preparedTickIndex: UInt64?
     private var tickIndexOnClockThread: UInt64 = 0
 
@@ -21,12 +23,17 @@ final class TickStateBuffer {
     func installPlaybackSnapshot(
         _ snapshot: PlaybackSnapshot,
         currentTrackIDs: Set<UUID>? = nil,
-        resetGeneratedStates: Bool = false
+        resetGeneratedStates: Bool = false,
+        clearAuditionOverrides: Bool = false
     ) {
         withLock {
             playbackSnapshot = snapshot
             if let currentTrackIDs {
                 clipCaptureService.removeMissingTracks(currentTrackIDs)
+                auditionOverridesByTrackID = auditionOverridesByTrackID.filter { currentTrackIDs.contains($0.key) }
+            }
+            if clearAuditionOverrides {
+                auditionOverridesByTrackID = [:]
             }
             if resetGeneratedStates {
                 generatedStatesByTrackID = [:]
@@ -52,6 +59,7 @@ final class TickStateBuffer {
         withLock {
             generatedStatesByTrackID = [:]
             preparedTickIndex = nil
+            auditionOverridesByTrackID = [:]
             if clearCapture {
                 clipCaptureService.removeAll()
             }
@@ -75,7 +83,8 @@ final class TickStateBuffer {
             PrepareInputs(
                 generatedStates: generatedStatesByTrackID,
                 clipCaptureService: clipCaptureService,
-                playbackSnapshot: playbackSnapshot
+                playbackSnapshot: playbackSnapshot,
+                auditionOverridesByTrackID: auditionOverridesByTrackID
             )
         }
     }
@@ -105,6 +114,17 @@ final class TickStateBuffer {
     func captureSnapshot(trackID: UUID) -> CaptureSnapshot {
         withLock {
             clipCaptureService.captureSnapshot(trackID: trackID)
+        }
+    }
+
+    func setAuditionOverride(_ state: PseudoClipState?, for trackID: UUID) {
+        withLock {
+            if let state {
+                auditionOverridesByTrackID[trackID] = state
+            } else {
+                auditionOverridesByTrackID.removeValue(forKey: trackID)
+            }
+            preparedTickIndex = nil
         }
     }
 

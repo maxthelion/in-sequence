@@ -241,14 +241,19 @@ final class EngineController: RouterDispatcher {
         let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
         tickState.installPlaybackSnapshot(
             compiledSnapshot,
-            currentTrackIDs: Set(documentModel.tracks.map(\.id))
+            currentTrackIDs: Set(documentModel.tracks.map(\.id)),
+            clearAuditionOverrides: true
         )
         apply(deltas: deltas, documentModel: documentModel)
     }
 
     func apply(playbackSnapshot: PlaybackSnapshot) {
         applyPlaybackSnapshotCallCount += 1
-        tickState.installPlaybackSnapshot(playbackSnapshot, resetGeneratedStates: true)
+        tickState.installPlaybackSnapshot(
+            playbackSnapshot,
+            currentTrackIDs: Set(playbackSnapshot.tracks.map(\.id)),
+            resetGeneratedStates: true
+        )
         eventQueue.clear()
     }
 
@@ -545,6 +550,11 @@ final class EngineController: RouterDispatcher {
         tickState.captureSnapshot(trackID: trackID)
     }
 
+    func setAuditionOverride(_ state: PseudoClipState?, for trackID: UUID) {
+        tickState.setAuditionOverride(state, for: trackID)
+        eventQueue.clear()
+    }
+
     @discardableResult
     func saveRollingCapture(
         to project: inout Project,
@@ -726,6 +736,7 @@ final class EngineController: RouterDispatcher {
         let generatedStates = prepareInputs.generatedStates
         let clipCaptureService = prepareInputs.clipCaptureService
         let playbackSnapshot = prepareInputs.playbackSnapshot
+        let auditionOverridesByTrackID = prepareInputs.auditionOverridesByTrackID
 
         assert(executor != nil, "EngineController.prepareTick called without an executor.")
         guard let executor else {
@@ -754,17 +765,28 @@ final class EngineController: RouterDispatcher {
 
             var rng = SystemRandomNumberGenerator()
             var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
-            let notes = Self.resolvedStepNotes(
-                for: track.id,
-                in: playbackSnapshot,
-                phraseID: playbackSnapshot.selectedPhraseID,
-                stepIndex: stepInPhrase,
-                chordContext: harmonicSidechainChord,
-                state: &state,
-                rng: &rng
-            )
-            nextGeneratedStates[track.id] = state
-            nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
+            let override = auditionOverridesByTrackID[track.id]
+            let notes: [GeneratedNote]
+            if let override {
+                notes = Self.resolvedAuditionOverrideNotes(
+                    for: override,
+                    trackType: track.trackType,
+                    stepIndex: stepInPhrase,
+                    rng: &rng
+                )
+            } else {
+                notes = Self.resolvedStepNotes(
+                    for: track.id,
+                    in: playbackSnapshot,
+                    phraseID: playbackSnapshot.selectedPhraseID,
+                    stepIndex: stepInPhrase,
+                    chordContext: harmonicSidechainChord,
+                    state: &state,
+                    rng: &rng
+                )
+                nextGeneratedStates[track.id] = state
+                nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
+            }
             preparedNotesByBlockID[generatorBlockID] = notes.map(Self.noteEvent(from:))
         }
         let outputs = executor.tick(now: now, preparedNotesByBlockID: preparedNotesByBlockID)
@@ -1564,6 +1586,26 @@ final class EngineController: RouterDispatcher {
         case .empty:
             return []
         }
+    }
+
+    private static func resolvedAuditionOverrideNotes<R: RandomNumberGenerator>(
+        for state: PseudoClipState,
+        trackType: TrackType,
+        stepIndex: Int,
+        rng: inout R
+    ) -> [GeneratedNote] {
+        let clip = ClipPoolEntry(
+            id: state.sourceTrackID,
+            name: "Audition Override",
+            trackType: trackType,
+            content: state.noteGrid
+        )
+        return GeneratedSourceEvaluator.resolveClipStep(
+            for: clip,
+            stepIndex: stepIndex,
+            fillEnabled: false,
+            rng: &rng
+        )
     }
 
     private func flushAllPendingMIDINoteOffs(now: TimeInterval) {

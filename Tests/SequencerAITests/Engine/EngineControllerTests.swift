@@ -565,6 +565,140 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(steps[0].main?.notes.map(\.lengthSteps), [3])
     }
 
+    func test_setAuditionOverride_playsPseudoClipInsteadOfLiveSourceAndLoops() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let (document, track) = makeAuditionOverrideDocument()
+        let override = PseudoClipState(
+            sourceTrackID: track.id,
+            startStep: 0,
+            lengthSteps: 2,
+            noteGrid: .noteGrid(
+                lengthSteps: 2,
+                steps: [
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 110, lengthSteps: 2)]), fill: nil),
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 74, velocity: 112, lengthSteps: 3)]), fill: nil)
+                ]
+            )
+        )
+
+        controller.apply(documentModel: document)
+        controller.setAuditionOverride(override, for: track.id)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.processTick(tickIndex: 1, now: 0.1)
+        controller.processTick(tickIndex: 2, now: 0.2)
+
+        let events = audioSink.receivedEvents.flatMap { $0 }
+        XCTAssertEqual(events.map(\.pitch), [72, 74, 72])
+        XCTAssertEqual(events.map(\.velocity), [110, 112, 110])
+        XCTAssertEqual(events.map(\.length), [2, 3, 2])
+    }
+
+    func test_clearingAuditionOverrideRestoresLiveSourceOutput() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let (document, track) = makeAuditionOverrideDocument()
+        let override = PseudoClipState(
+            sourceTrackID: track.id,
+            startStep: 0,
+            lengthSteps: 1,
+            noteGrid: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 110, lengthSteps: 2)]), fill: nil)
+                ]
+            )
+        )
+
+        controller.apply(documentModel: document)
+        controller.setAuditionOverride(override, for: track.id)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.setAuditionOverride(nil, for: track.id)
+        controller.processTick(tickIndex: 1, now: 0.1)
+
+        let events = audioSink.receivedEvents.flatMap { $0 }
+        XCTAssertEqual(events.map(\.pitch), [72, 60])
+        XCTAssertEqual(events.map(\.velocity), [110, 90])
+        XCTAssertEqual(events.map(\.length), [2, 4])
+    }
+
+    func test_setAndClearAuditionOverrideLeavesDocumentClipSlotsUnchanged() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let (document, track) = makeAuditionOverrideDocument()
+        let originalPatternBanks = document.patternBanks
+        let originalClipPool = document.clipPool
+        let override = PseudoClipState(
+            sourceTrackID: track.id,
+            startStep: 0,
+            lengthSteps: 1,
+            noteGrid: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 110, lengthSteps: 2)]), fill: nil)
+                ]
+            )
+        )
+
+        controller.apply(documentModel: document)
+        controller.setAuditionOverride(override, for: track.id)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.setAuditionOverride(nil, for: track.id)
+
+        XCTAssertEqual(document.patternBanks, originalPatternBanks)
+        XCTAssertEqual(document.clipPool, originalClipPool)
+    }
+
+    func test_auditionOverrideDoesNotAppendToRollingCapture() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let (document, track) = makeAuditionOverrideDocument()
+        let override = PseudoClipState(
+            sourceTrackID: track.id,
+            startStep: 0,
+            lengthSteps: 1,
+            noteGrid: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 110, lengthSteps: 2)]), fill: nil)
+                ]
+            )
+        )
+
+        controller.apply(documentModel: document)
+        controller.setAuditionOverride(override, for: track.id)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.processTick(tickIndex: 1, now: 0.1)
+
+        XCTAssertTrue(controller.captureSnapshot(trackID: track.id).isEmpty)
+    }
+
+    func test_documentApplyClearsAuditionOverride() {
+        let audioSink = CapturingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        let (document, track) = makeAuditionOverrideDocument()
+        let override = PseudoClipState(
+            sourceTrackID: track.id,
+            startStep: 0,
+            lengthSteps: 1,
+            noteGrid: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 110, lengthSteps: 2)]), fill: nil)
+                ]
+            )
+        )
+
+        controller.apply(documentModel: document)
+        controller.setAuditionOverride(override, for: track.id)
+        controller.apply(documentModel: document)
+        controller.processTick(tickIndex: 0, now: 0)
+
+        let events = audioSink.receivedEvents.flatMap { $0 }
+        XCTAssertEqual(events.map(\.pitch), [60])
+        XCTAssertEqual(events.map(\.velocity), [90])
+    }
+
     func test_process_tick_marks_recent_note_trigger_when_selected_source_emits_notes() {
         let controller = EngineController(client: nil, endpoint: nil)
         let track = StepSequenceTrack(
@@ -957,6 +1091,47 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(playedPitches, [60, 72])
         XCTAssertEqual(createdSinks[0].selectedInstrument, .testInstrument)
     }
+}
+
+private func makeAuditionOverrideDocument() -> (Project, StepSequenceTrack) {
+    let track = StepSequenceTrack(
+        id: UUID(uuidString: "01010101-aaaa-bbbb-cccc-010101010101") ?? UUID(),
+        name: "Audition Source",
+        pitches: [60],
+        stepPattern: [true],
+        stepAccents: [false],
+        destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+        velocity: 90,
+        gateLength: 4
+    )
+    let generator = monoGeneratorEntry(
+        id: UUID(uuidString: "02020202-aaaa-bbbb-cccc-020202020202")!,
+        name: "Live Source",
+        trackType: track.trackType,
+        pattern: [true],
+        pitch: 60,
+        velocity: 90,
+        gateLength: 4
+    )
+    let layers = PhraseLayerDefinition.defaultSet(for: [track])
+    let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [])
+    let patternBank = TrackPatternBank(
+        trackID: track.id,
+        slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+    )
+    let document = Project(
+        version: 1,
+        tracks: [track],
+        generatorPool: [generator],
+        clipPool: [],
+        layers: layers,
+        routes: [],
+        patternBanks: [patternBank],
+        selectedTrackID: track.id,
+        phrases: [phrase],
+        selectedPhraseID: phrase.id
+    )
+    return (document, track)
 }
 
 private func monoGeneratorEntry(
