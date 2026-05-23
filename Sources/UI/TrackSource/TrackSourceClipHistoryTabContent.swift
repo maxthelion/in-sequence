@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TrackSourceClipHistoryTabContent: View {
     let accent: Color
+    let isAvailable: Bool
     let onPresentClipHistory: () -> Void
 
     var body: some View {
@@ -21,11 +22,17 @@ struct TrackSourceClipHistoryTabContent: View {
 
                 Spacer(minLength: 0)
 
-                TrackSourceActionButton(
-                    title: "Open Capture",
-                    accent: accent,
-                    action: onPresentClipHistory
-                )
+                if isAvailable {
+                    TrackSourceActionButton(
+                        title: "Clip History...",
+                        accent: accent,
+                        action: onPresentClipHistory
+                    )
+                } else {
+                    Text("Generator source required")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
             }
             .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
             .padding(.vertical, 13)

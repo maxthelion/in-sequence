@@ -30,6 +30,7 @@ struct TrackSourceSourceTabContent: View {
     let onAssignClipSource: (ClipPoolEntry) -> Void
     let onRemoveSource: () -> Void
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
+    let onPresentClipHistory: () -> Void
 
     private var displayState: TrackSourceSourceDisplayState {
         TrackSourceSourceDisplayState.resolve(
@@ -67,15 +68,26 @@ struct TrackSourceSourceTabContent: View {
                 sourceSection
 
                 if sourcePickerStep == nil, let selectedGenerator {
-                    GeneratorParamsEditorView(
-                        generator: selectedGenerator,
-                        inputClipChoices: generatedSourceInputClips,
-                        harmonicSidechainClipChoices: harmonicSidechainClips,
-                        sourceMode: .generator,
-                        accent: accent,
-                        layout: .sourceContained,
-                        onUpdate: onUpdateGeneratorParams
-                    )
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Spacer(minLength: 0)
+                            TrackSourceActionButton(
+                                title: "Clip History...",
+                                accent: StudioTheme.success,
+                                action: onPresentClipHistory
+                            )
+                        }
+
+                        GeneratorParamsEditorView(
+                            generator: selectedGenerator,
+                            inputClipChoices: generatedSourceInputClips,
+                            harmonicSidechainClipChoices: harmonicSidechainClips,
+                            sourceMode: .generator,
+                            accent: accent,
+                            layout: .sourceContained,
+                            onUpdate: onUpdateGeneratorParams
+                        )
+                    }
                     .padding(.horizontal, 14)
                     .padding(.bottom, 14)
                     .padding(.top, 12)

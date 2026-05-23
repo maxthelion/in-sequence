@@ -115,6 +115,30 @@ extension SequencerDocumentSession {
         return clipID
     }
 
+    @discardableResult
+    func saveMaterializedClipToPatternSlot(
+        trackID: UUID,
+        slotIndex: Int,
+        content: ClipContent,
+        name: String? = nil
+    ) -> UUID? {
+        var project = store.exportToProject()
+        guard let clipID = project.saveCapturedClip(
+            content,
+            trackID: trackID,
+            destinationSlotIndex: slotIndex,
+            name: name
+        ) else {
+            return nil
+        }
+
+        guard store.replaceProject(project) else {
+            return clipID
+        }
+        dispatchImpact(.fullEngineApply, changed: .full)
+        return clipID
+    }
+
     // MARK: - Track mutations
 
     /// Mutate a track by ID, then dispatch impact.
