@@ -16,6 +16,10 @@ struct ClipCaptureService: Equatable {
         }
 
         mutating func append(stepIndex: Int, notes: [GeneratedNote]) {
+            if let lastStep = steps.last?.absoluteStep, stepIndex < lastStep {
+                steps.removeAll()
+            }
+
             let entry = RollingCaptureStep(absoluteStep: stepIndex, notes: notes)
             if let lastIndex = steps.indices.last, steps[lastIndex].absoluteStep == stepIndex {
                 steps[lastIndex] = entry

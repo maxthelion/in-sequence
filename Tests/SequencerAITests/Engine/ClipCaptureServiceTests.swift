@@ -27,6 +27,20 @@ final class ClipCaptureServiceTests: XCTestCase {
         XCTAssertEqual(steps?.compactMap { $0.main?.notes.first?.pitch }, [61, 62])
     }
 
+    func test_append_clearsCaptureWhenStepIndexMovesBackward() {
+        let trackID = UUID()
+        var service = ClipCaptureService(maxSteps: 4)
+
+        service.append(trackID: trackID, stepIndex: 8, notes: [note(pitch: 60)])
+        service.append(trackID: trackID, stepIndex: 9, notes: [note(pitch: 61)])
+
+        service.append(trackID: trackID, stepIndex: 0, notes: [note(pitch: 72)])
+
+        let snapshot = service.captureSnapshot(trackID: trackID)
+        XCTAssertEqual(snapshot.steps.map(\.absoluteStep), [0])
+        XCTAssertEqual(snapshot.steps[0].notes.map(\.pitch), [72])
+    }
+
     func test_defaultCaptureWindow_retainsMostRecent256Steps() {
         let trackID = UUID()
         var service = ClipCaptureService()
@@ -72,13 +86,41 @@ final class ClipCaptureServiceTests: XCTestCase {
     func test_captureSnapshot_returnsStableCopiedNotes() {
         let trackID = UUID()
         var service = ClipCaptureService(maxSteps: 4)
+        let sliceParameters = SliceTriggerStepParameters(
+            gain: 3,
+            pitch: -5,
+            startTrim: 0.2,
+            endTrim: 0.4,
+            pan: 0.5,
+            filter: 0.65,
+            attackMs: 10,
+            releaseMs: 90,
+            reverse: true,
+            choke: false
+        )
 
         service.append(trackID: trackID, stepIndex: 10, notes: [
-            note(pitch: 60, velocity: 80, length: 0, voiceTag: "kick")
+            note(
+                pitch: 60,
+                velocity: 80,
+                length: 0,
+                voiceTag: "kick",
+                sliceParameters: sliceParameters
+            )
         ])
         let snapshot = service.captureSnapshot(trackID: trackID)
 
-        service.append(trackID: trackID, stepIndex: 10, notes: [note(pitch: 72, velocity: 110)])
+        service.append(
+            trackID: trackID,
+            stepIndex: 10,
+            notes: [
+                note(
+                    pitch: 72,
+                    velocity: 110,
+                    sliceParameters: SliceTriggerStepParameters(gain: -8)
+                )
+            ]
+        )
         service.append(trackID: trackID, stepIndex: 11, notes: [note(pitch: 73)])
 
         XCTAssertEqual(snapshot.steps.count, 1)
@@ -88,7 +130,8 @@ final class ClipCaptureServiceTests: XCTestCase {
                 pitch: 60,
                 velocity: 80,
                 lengthSteps: 1,
-                voiceTag: "kick"
+                voiceTag: "kick",
+                sliceParameters: sliceParameters
             )
         ])
     }
@@ -137,13 +180,15 @@ final class ClipCaptureServiceTests: XCTestCase {
         pitch: Int,
         velocity: Int = 100,
         length: Int = 2,
-        voiceTag: VoiceTag? = nil
+        voiceTag: VoiceTag? = nil,
+        sliceParameters: SliceTriggerStepParameters? = nil
     ) -> GeneratedNote {
         GeneratedNote(
             pitch: pitch,
             velocity: velocity,
             length: length,
-            voiceTag: voiceTag
+            voiceTag: voiceTag,
+            sliceParameters: sliceParameters
         )
     }
 
