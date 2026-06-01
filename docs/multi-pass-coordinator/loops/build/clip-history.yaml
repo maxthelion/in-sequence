@@ -1,21 +1,21 @@
-id: build/scene-perform
+id: build/clip-history
 kind: build
-status: complete
-feature: scene-perform
-worktree: .worktrees/roadmap-2-scene-perform
-branch: auto/roadmap-2-scene-perform
+status: active
+feature: clip-history
+worktree: .worktrees/roadmap-1-clip-history-v2
+branch: auto/roadmap-1-clip-history-v2
 actors:
   orient:
     - actor: build-orienter
       cadence: 30m
       tick: >
-        Interpret build-loop evidence pairings for scene-perform. Record what
+        Interpret build-loop evidence pairings for clip-history. Record what
         the evidence means; do not schedule work.
   decide:
     - actor: build-decider
       cadence: 30m
       tick: >
-        Decide the next build-loop action for scene-perform from fresh
+        Decide the next build-loop action for clip-history from fresh
         orientation and evidence pairings.
   act:
     - actor: builder

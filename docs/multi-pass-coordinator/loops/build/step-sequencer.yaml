@@ -1,21 +1,21 @@
-id: build/scene-perform
+id: build/step-sequencer
 kind: build
-status: complete
-feature: scene-perform
-worktree: .worktrees/roadmap-2-scene-perform
-branch: auto/roadmap-2-scene-perform
+status: active
+feature: step-sequencer
+worktree: .worktrees/roadmap-3-step-sequencer
+branch: auto/roadmap-3-step-sequencer
 actors:
   orient:
     - actor: build-orienter
       cadence: 30m
       tick: >
-        Interpret build-loop evidence pairings for scene-perform. Record what
+        Interpret build-loop evidence pairings for step-sequencer. Record what
         the evidence means; do not schedule work.
   decide:
     - actor: build-decider
       cadence: 30m
       tick: >
-        Decide the next build-loop action for scene-perform from fresh
+        Decide the next build-loop action for step-sequencer from fresh
         orientation and evidence pairings.
   act:
     - actor: builder

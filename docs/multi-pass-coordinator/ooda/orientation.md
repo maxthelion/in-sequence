@@ -1,62 +1,77 @@
 ---
-updated: 2026-05-22T00:11:36Z
+updated: 2026-05-23T16:21:00Z
 phase: orient
-source_request: .meta/multipass/inbox/claimed/2026-05-21T23-51-30-859Z-orienter-cadence.md
+source_request: .meta/multipass/inbox/claimed/2026-05-23T16-00-57-202Z-orienter-cadence.md
 status: current
+loop_local_copy: .meta/multipass/loops/project/orient/2026-05-23T16-21Z-orienter-cadence.md
 ---
 
 # Project Orientation
 
-Current interpretation: the project is still integration-bound, not
-product-intent-bound. Scene Perform and Mixer Busses both remain accepted
-outputs with enough product evidence for their intended stories, build capacity
-is full, and the live blocker is narrow root coordination-state hygiene before
-Scene Perform can land. That blocker is already routed to a pending
-process-fixer, so the useful project posture is to preserve merge order, avoid
-duplicate build-loop work, and keep product-owner attention out of the active
-integration path.
+Current interpretation: the project remains product-coherent and not
+product-owner blocked. It is also not merge/rebase blocked: both active
+feature branches are current-main-based and pass diff checks for their
+committed heads. The active risk is exact-output acceptance. Step Sequencer has
+accepted Phase 2-A primitive evidence, but Phase 2-B clip-editor wiring is only
+dirty partial implementation material after a `usage_rate_limit` failure. Clip
+History has a committed Phase 3 transfer workflow, but exact review found a
+required `Replace` behavior defect and rendered UX/visual evidence is still
+insufficient.
+
+Fresh inputs consumed: claimed 16:00Z orienter request, README product intent,
+runtime inventory, build capacity, inbox status, direct root and active
+worktree git checks, 16:17Z holistic observation, 16:08Z process-health
+observation, 16:02Z merge observation, 15:58Z feature-readiness observation,
+15:48Z Step Sequencer build decision, 15:43Z project decision, 15:37Z Clip
+History build orientation, 15:32Z Step Sequencer build orientation, actor
+failure evidence, roadmap next-actions scan, durable build-loop summaries, and
+the previous 15:27Z project orientation. `scripts/multi-pass/pairing-state.sh`
+is absent or not executable, so pairing state is reconstructed from loop
+artifacts, actor finals/failures, runtime inventory, and direct git facts.
 
 ## Current State Matrix
 
-| Slice / lane | Lowest unmet layer | Status and evidence | Loop / lock | Orientation |
+| Slice / lane | Lowest unmet layer | Evidence | Loop / lock | Orientation |
 |---|---|---|---|---|
-| Scene Perform | 5. Maintainable integration state | Active build loop `build/scene-perform`; accepted at `ab6206004edd4d0b35c917e53ef85f147df47723`, rebased through `1b69d29`, then refreshed at `d5b47500f4c7c08d704b89b30b2e27ceb0a00078`. Latest build orientation `.meta/multipass/loops/build/scene-perform/orient/2026-05-21T23-36Z-cadence-evidence-pairing.md` reports `main` at `cec6d59`, Scene Perform `1` behind / `4` ahead, conflict-free `merge-tree`, passing `git diff --check main...HEAD`, and no Scene Perform product/test/project-file changes from accepted `ab62060` to `d5b4750`. | Agent/process integration lock. Root `main` is dirty again with coordination-state docs after `cec6d59`; pending process-fixer `.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md` already owns classifying and settling that dirt. | P0 and still first in integration order. No Scene Perform builder, observer, or product-owner action is indicated. After root hygiene is settled, the next project-level integration attempt should account for `cec6d59` and pair final build/compile checks to the exact landed state. Residual accepted risks remain inherited architecture evidence, missing filled macro-label screenshots, and no automated SwiftUI drag/card hard-switch coverage. |
-| Mixer Routing And Sends / Mixer Busses UI | 5. Maintainable integration order | Active build loop `build/mixer-busses`; exact accepted output `1eaebf3d6226f39a2438143b192493f54739352d`. Latest build orientation `.meta/multipass/loops/build/mixer-busses/orient/2026-05-22T00-06Z-cadence-evidence-pairing.md` reports clean worktree, `11` behind / `5` ahead of `main`, conflict-free advisory `merge-tree`, and direct PASS pairings for architecture, testing/build, UX/IA, and visual economy. | Agent/process ordering lock. Scene Perform is not contained in `main`, and project routing keeps Mixer Busses behind it. | P0 after Scene Perform. No Mixer Busses product gate is currently unmet. Wait for Scene Perform to land, then rerun Mixer Busses merge-prep against the then-current `main`. Duplicate reviews or builder work are churn unless integration changes output or creates a concrete blocker. |
-| Step Sequencer | 1. Intended thing not built from current main | PM artifacts are ready-for-build; feature-readiness reports `ready-for-promotion`. `.worktrees/roadmap-3-step-sequencer` is clean at `3e77689`, far behind current `main`, and has merge-tree conflict hints. | No active build lock; build capacity is full. | P1 once a build slot opens. Promotion remains reasonable after active loop closure, but the future build should budget rebase/conflict effort. |
-| Clip History | 1. Intended thing not built from current main | PM artifacts are reconciled and ready-for-build; `clip-history-dual-grid-v4.html` plus `build-resume-handoff.md` are future build authority. The old `auto/roadmap-1-clip-history` branch is salvage/reference only, far behind `main`, and conflict-prone. | No active build lock; build capacity is full. | P2 behind Step Sequencer unless priority is deliberately changed. Future build should harvest the stale branch deliberately, not merge it wholesale. |
-| Holistic UX / current main | 3. Understandable and efficient | Holistic status says active slices are coherent with the README performance/mixer workbench direction and are integration-bound. Runtime scan at `.meta/multipass/loops/project/observe/2026-05-22T00-02Z-runtime-log-observation.md` found no fresh app crash/fatal evidence. Current `main` still does not contain accepted Scene Perform or Mixer Busses outputs. | Observation only; no product lock. | Broad lens review is premature until accepted integrations land or integration changes visible output. Runtime visibility debt is process risk, not a merge hold by itself. |
-| Prototype-review backlog | Product-owner prototype approval | `docs/roadmap/next-actions.md` lists many `human-review-prototypes` items, while feature-readiness treats them as not-ready rather than build candidates. | Human-attention backlog, not an active build lock. | Do not escalate the raw backlog from this cadence. Agent-side integration and loop closure are more useful. |
-| P0 Track Performance Overlay | Product-owner checkpoint acceptance | Historical checkpoint `d36c78b` remains show-ready with prior UX/IA, visual, architecture, focused test, and full test evidence. Rebase/worktree evidence still shows conflict risk because the branch is far behind `main`. | Human lock scoped only to this checkpoint. | Product-owner attention remains valid but separate. It should not block current integration ordering or future build promotion. |
-| Runtime/process hygiene | 5. Maintainability | `pairing-state.sh`, `feature-state.sh`, and `runtime-log-scan.sh` remain absent or unavailable; inventory/build-capacity still emit Ruby gem extension warnings before useful output. Root dirt has recurred after cleanup and now includes coordination summaries such as orientation, current-work, build-loop summaries, decision/readiness/status files, runtime problems, and worktree hygiene. | Agent/process-side. | This is the active project risk. The process-fixer request is already pending, so orientation should make urgency clear without creating duplicate routing. Cadence actors should avoid durable state churn unless facts materially change. |
+| Step Sequencer | 1. Users still cannot do the intended integrated step-editing workflow; Phase 2-B is failed/partial output | Accepted evidence remains scoped to Phase 2-A `UnifiedStepCell` primitive at `26d858eab164a7e00e95df05fddb3babb5a19ad1`: architecture pass, testing pass, UX/IA pass, and visual-economy pass all cover the isolated primitive/state PNG only. The Phase 2-B builder request is blocked at `.meta/multipass/inbox/blocked/2026-05-23T13-32-34-090Z-Step-Sequencer-Phase-2-B-clip-editor-UnifiedStepCell-wiring.md` after `usage_rate_limit`. Direct worktree check shows dirty uncommitted edits in `Sources/UI/StepGridView.swift`, `Sources/UI/TrackSource/Clip/ClipContentPreview.swift`, and `Tests/SequencerAITests/StepGrid/UnifiedStepCellTests.swift` with 154 insertions / 110 deletions. No Phase 2-B commit, act artifact, focused passing checks, or review batch exists. | Active build loop. Agent/process recovery state; no human or external lock. Project process-fixer cleanup for stuck Phase 2-B `xcodebuild` processes is pending at `.meta/multipass/inbox/pending/2026-05-23T15-42-30-037Z-Clean-up-stuck-Phase-2-B-xcodebuild-processes.md`. | Treat the dirty Phase 2-B diff as salvageable implementation material only. Do not credit clip-editor wiring, value-layer cells, broader `StepGridView` integration, slicer, macro lane, chord-generator, persistence, document model, rotary row, selection ranges, or batch action-bar behavior until a continuation/retry produces a clean exact commit, checks, act evidence, and fresh gates. |
+| Clip History | 1. Intended transfer workflow is present but behavior-correctness and rendered evidence are unmet | Worktree `.worktrees/roadmap-1-clip-history-v2` is clean at `337aa5cbaadf8c427581dde5f02c1c569d5fd80a`. Phase 3 act evidence exists and testing is sufficient for the uncorrected output. Architecture is `needs-correction`: frozen destination occupancy checks `clipID != nil`, so generator-backed occupied pattern slots can bypass required inline `Replace`. UX/IA is `evidence-insufficient` because exact rendered modal screenshots are missing after capture attempts hung. Visual economy is missing/blocked by `usage_rate_limit`. Focused correction remains pending at `.meta/multipass/inbox/pending/2026-05-23T15-01-55-168Z-Clip-History-Phase-3-occupied-slot-Replace-correction.md`. | Active build loop. Pending builder rework; no product-owner lock. | Treat `337aa5c` as useful rejected output, not accepted or merge-ready. The next meaningful product state is a corrected exact commit deriving frozen destination occupancy from full `SourceRef`, proving generator-backed occupied slots require `Replace`, then refreshing architecture/testing and producing credible rendered UX/visual evidence for the modal states. |
+| Mixer Busses / routing grammar | Residual evidence debt only | Product output landed on `main` at `be465d6faab86a4dbd040efe2080c1efe11f6e8b`; accepted feature commit `1eaebf3d6226f39a2438143b192493f54739352d`; build loop is terminal `complete`; branch is contained by `main`. | No product/build lock. | Keep closed. Focused-test breadth, desktop-biased screenshot evidence, and normalized review-packaging gaps remain evidence debt, not active product work. |
+| Scene Perform | Terminal residue only | Product output landed on `main` at `a61344f07c2bd0145222d9522d311756236d957e`; build loop is terminal `complete`; branch is contained by `main`. One stale pending `build/scene-perform` build-orienter cadence remains isolated as terminal-loop residue. | Process-side residue only. | Keep closed. The stale request must not consume product capacity or reopen Scene Perform; runtime owns lifecycle cleanup. |
+| P0 Track Performance Overlay | Product-owner checkpoint remains scoped | Historical checkpoint `d36c78b41e9a8b5639c13e1c7e188538044222bb` is stale and conflict-prone relative to current `main`. | Human lock scoped only to that checkpoint. | Keep isolated. It should not block active Step Sequencer or Clip History work. |
+| Prototype-review backlog | Product-owner prototype approvals | `docs/roadmap/next-actions.md` still lists many `human-review-prototypes`, but feature-readiness reports no unhandled promotion candidate; capacity is full and direct PM scan found no newer ready item beyond active, landed, terminal, deferred, or approval-needed rows. | Human-attention backlog outside active throughput. | Do not escalate raw backlog from this cadence. No PM promotion is useful while both active build slots are occupied and below acceptance. |
+| Process / runtime visibility | 5. Maintainability and evidence visibility | Inbox status now reports `8` pending, `1` claimed, `36` blocked, and `612` done. Build capacity reports max `2`, active `2`, available `0`, ready candidates `none`, unpromoted ready candidates `none`. Recent process evidence includes Step Sequencer builder usage limit with dirty partial work, Clip History visual-economy usage limit, project log/work observer usage limits, hung Xcode/visual probes, missing pairing/feature/merge/rebase/runtime helper scripts, Ruby gem-extension warning noise, stale/open batch metadata, and actor-final-only review evidence. | Process-side, not product lock. | Process health is yellow/red. Recovery is working, but acceptance-critical actors keep failing before compact finals, forcing reconstruction across summaries, loop artifacts, failures, direct git, and process checks. |
 
 ## Pattern Read
 
 | Pattern | Meaning |
 |---|---|
-| Root hygiene repair is being overtaken by cadence writes. | `cec6d59` settled the previous coordination-state dirt, but observer/orienter/build-loop summary writes have dirtied root again. The dirt is narrow coordination state, not product code, but it still blocks clean integration discipline. |
-| The immediate repair is already routed. | `.meta/multipass/loops/project/decide/2026-05-21T23-07Z-root-coordination-hygiene.md` and pending `.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md` remain the current action path. |
-| Active build loops have passed product gates. | Scene Perform and Mixer Busses are both beyond build-loop product disposition. More cadence review is low value unless a rebase or merge changes output. |
-| Merge order remains the main constraint. | Scene Perform should land first after root hygiene is settled. Mixer Busses should wait, then revalidate against the post-Scene-Perform base. |
-| Build capacity remains full. | Build-capacity reports active loops `build/mixer-busses` and `build/scene-perform`, zero available slots, and unpromoted ready candidates `step-sequencer` and `clip-history`. |
-| Product-owner attention should stay scoped. | Current active blockers are agent/process integration issues. Human attention remains only for the separate P0 Track Performance Overlay checkpoint and prototype-review backlog. |
+| Capacity is full and correctly scoped. | Active loops are `build/step-sequencer` and `build/clip-history`; no unpromoted ready candidate exists. |
+| Both active loops are below acceptance for user-facing workflow reasons. | Step Sequencer lacks a committed Phase 2-B exact output; Clip History needs a correctness fix plus rendered evidence. |
+| Merge mechanics are not the immediate blocker. | Active committed heads contain current `main`, have no advisory merge-tree conflicts in latest merge observation, and pass `git diff --check`; acceptance evidence is the blocker. |
+| Visual evidence remains the weakest user-surface proof. | Step Sequencer Phase 2-A has primitive PNG evidence, but Phase 2-B has no rendered state; Clip History lacks credible exact modal screenshots and visual-economy verdict. |
+| Landed loops should stay landed. | Mixer Busses and Scene Perform are terminal `complete`; stale PM rows or terminal-loop inbox residue should not reopen them. |
+| Human attention should stay scoped. | Current blockers are agent-side recovery, exact-output correction, reviews, visual evidence, and tooling hygiene. No active-loop blocker is an unresolved product decision. |
 
 ## Decider Urgency
 
 | Need | Urgency | Reason |
 |---|---|---|
-| Let the pending root coordination-state process-fixer run | High | It is already routed to classify and settle current root dirt before Scene Perform integration. Duplicating the request would add noise and more coordination churn. |
-| Preserve Scene Perform before Mixer Busses | High | Decision log, build-loop orientations, and integration waiting evidence all keep Scene Perform first. |
-| Run Scene Perform integration after root hygiene | High | Scene Perform is mechanically merge-ready against current `main`, but needs a clean or explicitly accounted-for root and exact landed-state checks. |
-| Keep Mixer Busses waiting until Scene Perform lands | High | Mixer Busses has exact-state PASS evidence, but project order says it should not merge ahead of Scene Perform. |
-| Suppress duplicate active build-loop work | Medium | Pending build-decider/build-orienter cadences exist, while latest build orientations indicate no builder/review action unless new evidence appears. |
-| Promote Step Sequencer or Clip History | Low while capacity is full | Both remain future candidates, but active loops still occupy both slots and have not closed. |
-| Ask product owner a new question | Not useful now | No active blocker is a product-intent decision. |
+| Let Step Sequencer process cleanup finish, then recover Phase 2-B from dirty partial work | Highest | Dirty UI/test implementation material exists without final evidence, commit, passing checks, or review gates; stale `xcodebuild` cleanup is already pending. |
+| Let Clip History occupied-slot `Replace` correction run | Highest | `337aa5c` can overwrite generator-backed occupied destination slots without required `Replace`; the focused builder request is already pending. |
+| Re-pair corrected Clip History with architecture/testing and rendered UX/visual evidence | High | Current testing does not cover the architecture defect; UX/IA and visual economy cannot pass without credible exact modal captures. |
+| Avoid merge-ready labels for active loops | High | Neither active loop has accepted exact output for the intended user workflow. |
+| Keep Mixer Busses and Scene Perform closed | High | Both are landed; reopening would be stale-state churn. |
+| Keep process debt visible | Medium | Helper absence, warning noise, usage-limit failures, hung Xcode/visual commands, stale batch metadata, and scattered evidence remain recurring orientation/review costs. |
+| Ask product owner a new question | Not useful now | No current blocker is a product choice; the existing P0 and prototype-review human locks are scoped outside current throughput. |
 
 ## Change Notes
 
-- Refreshed orientation for the 2026-05-21T23:51:30Z orienter cadence request.
-- Incorporated work observation at 2026-05-21T23:55Z, runtime-log observation at 2026-05-22T00:02Z, and Mixer Busses build orientation at 2026-05-22T00:06Z.
-- Kept Scene Perform first at `d5b4750`, currently `1` behind / `4` ahead of `main` at `cec6d59`.
-- Kept Mixer Busses accepted-but-waiting at `1eaebf3`, currently `11` behind / `5` ahead of `main`.
-- Kept build capacity closed: two active build loops, zero available slots, ready candidates `step-sequencer` and `clip-history`.
-- Reaffirmed that product-owner attention is not useful for the active integration path.
+- Refreshed orientation for the 2026-05-23T16:00:57Z orienter cadence request.
+- Consumed fresh 15:58Z feature-readiness, 16:02Z merge, 16:08Z process-health,
+  and 16:17Z holistic observations plus live inventory/capacity/inbox checks.
+- Kept Step Sequencer classified as accepted Phase 2-A primitive plus failed
+  dirty Phase 2-B implementation material.
+- Kept Clip History classified as useful rejected Phase 3 output with a pending
+  occupied-slot `Replace` correction and missing rendered evidence.
+- Wrote no inbox messages, made no request lifecycle changes, performed no
+  merge/rebase/cleanup, and identified no useful product-owner question.

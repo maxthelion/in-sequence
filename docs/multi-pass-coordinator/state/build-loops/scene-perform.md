@@ -1,7 +1,7 @@
 # scene-perform
 
 - loop: `build/scene-perform`
-- status: active
+- status: complete
 - branch: `auto/roadmap-2-scene-perform`
 - worktree: `.worktrees/roadmap-2-scene-perform`
 - created: 2026-05-21T07:44:09.809Z
@@ -10,49 +10,190 @@ This is the durable build-loop summary. Transient inboxes, runs, and evidence li
 
 ## Current Decision
 
-- Current output state: Scene Perform remains accepted as a merge/integration
-  candidate at
-  `d5b47500f4c7c08d704b89b30b2e27ceb0a00078` on
-  `auto/roadmap-2-scene-perform`, after being accepted at
-  `ab6206004edd4d0b35c917e53ef85f147df47723`, rebased through
-  `1b69d29e58edcc327f4f4996d10a90e13e480741`, and then rebased onto root
-  hygiene commit `27610940ef76125ca41317f846a5aefd7f831406`.
-- Current root `main` has since advanced to coordination-only commit
-  `cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, so the candidate is now
-  `1` behind / `4` ahead of `main`. Fresh merge-tree remains conflict-free and
-  `git diff --check main...HEAD` passes. The follow-up integrator should account
-  for `cec6d59` and pair final build/compile checks to the exact landed state.
-  Root `main` is currently dirty again, but fresh status shows only
-  coordination-state files, not product code.
-- Worktree `.worktrees/roadmap-2-scene-perform` is clean in tracked files, with
+- Current output state: Scene Perform has landed on root `main` at
+  `a61344f07c2bd0145222d9522d311756236d957e`
+  (`Merge branch 'auto/roadmap-2-scene-perform'`). The feature branch
+  `auto/roadmap-2-scene-perform` remains at
+  `d5b47500f4c7c08d704b89b30b2e27ceb0a00078` and is now contained in `main`
+  (`3` behind / `0` ahead).
+- Current orientation:
+  `.meta/multipass/loops/build/scene-perform/orient/2026-05-22T02-59Z-cadence-evidence-pairing.md`.
+- Current integration evidence:
+  `.meta/multipass/loops/project/act/2026-05-22T01-14Z-scene-perform-integration.md`.
+  The merge commit contains only the intended Scene Perform product/test/project
+  files, and the landed-state focused
+  `EngineControllerScenePerformTests` passed at `a61344f` with 3 tests and 0
+  failures.
+- Lifecycle closeout:
+  `.meta/multipass/loops/project/act/2026-05-22T03-35Z-scene-perform-loop-closeout.md`
+  marks the build-loop registry and loop-local manifest `complete`, using a
+  runtime-supported terminal status filtered out by `loadLoops` and
+  `build-capacity.ts`.
+- Worktree `.worktrees/roadmap-2-scene-perform` remains clean in tracked files, with
   only untracked transient evidence under `.claude/state/scene-perform-rework/`
-  and `.claude/state/visual-economy-scene-perform/`.
-- Gate pairing: testing, UX/IA, and visual economy are current exact-state
-  passes at `ab62060` and are inherited to `d5b4750` because the Scene Perform
-  production/test/project files are identical across the rebase; architecture is
-  accepted as scoped inherited advisory evidence from the prior
-  `e5fe9eaea038e268369fd2b812e177b374a26f8d` PASS, then inherited through the
-  rebased head for the same unchanged product-output reason. Current `main`
-  advanced only in coordination-state docs, so no new build-loop gate appears
-  invalidated by `cec6d59`.
-- Current decision evidence:
-  `.meta/multipass/loops/build/scene-perform/decide/2026-05-21T15-54Z-merge-candidate-ab62060.md`,
-  reaffirmed by
-  `.meta/multipass/loops/build/scene-perform/decide/2026-05-21T23-21Z-cadence-no-build-loop-action.md`
-  and the latest orientation at
-  `.meta/multipass/loops/build/scene-perform/orient/2026-05-22T00-16Z-cadence-evidence-pairing.md`.
-- Current integration/process evidence:
-  `.meta/multipass/loops/project/act/2026-05-21T21-33Z-scene-perform-integration-evidence.md`
-  and
-  `.meta/multipass/loops/project/act/2026-05-21T22-32Z-root-coordination-state-process-fixer.md`.
-  The remaining blocker is maintainable integration state on `main`, now
-  represented by pending process-fixer request
-  `.meta/multipass/inbox/pending/2026-05-21T23-07-40-982Z-process-fixer.md`,
-  not Scene Perform product behavior.
+  and `.claude/state/visual-economy-scene-perform/`. Root `main` remains dirty
+  only in coordination docs, now including current work, feature readiness,
+  merge-status, process-health, and runtime-problems summaries in addition to
+  the prior orientation, loop-summary, and decision-log files; no product code
+  dirt is present.
+- Gate pairing: testing is current for landed `a61344f` via the integrator's
+  focused post-merge test. UX/IA and visual economy are inherited from their
+  exact-state `ab62060` passes through `d5b4750` to landed `a61344f` because the
+  Scene Perform UI/product files are unchanged from accepted candidate to merge.
+  Architecture remains scoped inherited advisory evidence from the prior
+  `e5fe9eaea038e268369fd2b812e177b374a26f8d` PASS, accepted through the same
+  unchanged product-output reasoning.
+- Current disposition: Scene Perform product work is landed and the build loop
+  is terminal. No Scene Perform builder, reviewer, observer, decider, or
+  product-owner action is indicated.
 - Remaining risk: filled macro-label screenshot coverage is absent, SwiftUI
   drag/card hard-switch lacks automated UI coverage, and architecture at
-  `d5b4750` is inherited advisory evidence rather than a rerun architecture
-  review. No build-loop rework or product-owner attention is indicated.
+  `d5b4750`/`a61344f` is inherited advisory evidence rather than a rerun
+  architecture review.
+
+## 2026-05-22T02:59Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-22T02-59Z-cadence-evidence-pairing.md`.
+
+No new Scene Perform build-loop observer evidence exists after the prior
+accepted pairings, and no observation batch exists under
+`.meta/multipass/loops/build/scene-perform/observe/batches/`. Fresh checks keep
+root `main` at landed merge commit
+`a61344f07c2bd0145222d9522d311756236d957e`; feature branch
+`auto/roadmap-2-scene-perform` remains at
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078`, is contained in `main`, and is
+`3` behind / `0` ahead. The feature worktree has no tracked dirt, with only the
+known untracked transient evidence directories.
+
+The landed Scene Perform product/test/project files remain identical to the
+accepted candidate: `git diff --name-status d5b4750..a61344f --` scoped to
+`SequencerAI.xcodeproj/project.pbxproj`,
+`Sources/Engine/EngineController.swift`,
+`Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift`, and
+`Tests/SequencerAITests/Engine/EngineControllerScenePerformTests.swift`
+produced no output. `git diff --check HEAD^1..HEAD` also passed with no output.
+
+Gate pairing is unchanged for product behavior: testing has landed focused test
+coverage at `a61344f`; UX/IA and visual economy remain inherited from
+exact-state `ab62060` passes; architecture remains inherited advisory evidence
+from `e5fe9ea`. A fresh scoped-gate-invalidation run against
+`d5b4750..a61344f` again reports only coordination-state files but defaults to
+full review because project scope hints are not configured, so it remains
+advisory only.
+
+Lowest unmet layer remains maintainable loop/integration lifecycle state, not
+Scene Perform product behavior. The active build-loop registry still lags the
+landed product state; no Scene Perform builder, observer, or product-owner
+action appears useful from this build-loop cadence. The pending project
+integrator request for Mixer Busses owns the next product integration path.
+
+## 2026-05-22T02:17Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-22T02-17Z-cadence-evidence-pairing.md`.
+
+No new Scene Perform build-loop observer evidence exists after the prior
+accepted pairings, and no observation batch exists under
+`.meta/multipass/loops/build/scene-perform/observe/batches/`. Fresh checks keep
+root `main` at landed merge commit
+`a61344f07c2bd0145222d9522d311756236d957e`; feature branch
+`auto/roadmap-2-scene-perform` remains at
+`d5b47500f4c7c08d704b89b30b2e27ceb0a00078`, is contained in `main`, and is
+`3` behind / `0` ahead. The feature worktree has no tracked dirt, with only the
+known untracked transient evidence directories.
+
+The landed Scene Perform product/test/project files remain identical to the
+accepted candidate: `git diff --name-status d5b4750..a61344f --` scoped to
+`SequencerAI.xcodeproj/project.pbxproj`,
+`Sources/Engine/EngineController.swift`,
+`Sources/UI/Mixer/ScenesWorkspaceView+Perform.swift`, and
+`Tests/SequencerAITests/Engine/EngineControllerScenePerformTests.swift`
+produced no output. `git diff --check HEAD^1..HEAD` also passed with no output.
+
+Gate pairing is unchanged for product behavior: testing has landed focused test
+coverage at `a61344f`; UX/IA and visual economy remain inherited from
+exact-state `ab62060` passes; architecture remains inherited advisory evidence
+from `e5fe9ea`. A fresh scoped-gate-invalidation run against `d5b4750..a61344f`
+again reports only coordination-state files but defaults to full review because
+project scope hints are not configured, so it remains advisory only.
+
+Lowest unmet layer remains maintainable loop/integration lifecycle state, not
+Scene Perform product behavior. The active build-loop registry still lags the
+landed product state; no Scene Perform builder, observer, or product-owner
+action appears useful from this build-loop cadence.
+
+## 2026-05-22T01:28Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-22T01-28Z-cadence-evidence-pairing.md`.
+
+Scene Perform has landed on `main` at merge commit
+`a61344f07c2bd0145222d9522d311756236d957e`. The project-level integration
+artifact
+`.meta/multipass/loops/project/act/2026-05-22T01-14Z-scene-perform-integration.md`
+records the requested candidate `d5b4750`, target base `57fba75`, clean
+feature worktree state, preflight, and focused post-merge test pass at
+`a61344f` with 3 tests and 0 failures.
+
+No new Scene Perform build-loop observer evidence exists after the prior
+accepted pairings, and no observation batch exists under
+`.meta/multipass/loops/build/scene-perform/observe/batches/`. Fresh checks show
+the feature branch is contained in `main` (`3` behind / `0` ahead), the feature
+worktree has no tracked dirt, and there is no product/test/project diff between
+accepted candidate `d5b4750` and landed merge `a61344f` for the Scene Perform
+files.
+
+Gate pairing is therefore unchanged for product behavior: testing has landed
+focused test coverage at `a61344f`; UX/IA and visual economy remain inherited
+from exact-state `ab62060` passes; architecture remains inherited advisory
+evidence from `e5fe9ea`. A fresh scoped-gate-invalidation run against
+`d5b4750..a61344f` reports only coordination-state files but still defaults to
+full review because project scope hints are not configured, so it remains
+advisory only.
+
+Lowest unmet layer is maintainable loop/integration lifecycle state, not Scene
+Perform product behavior. The active build-loop registry now lags the landed
+product state; no Scene Perform builder, observer, or product-owner action
+appears useful from this build-loop cadence.
+
+## 2026-05-22T00:53Z Cadence Evidence Pairing
+
+Current orientation:
+`.meta/multipass/loops/build/scene-perform/orient/2026-05-22T00-53Z-cadence-evidence-pairing.md`.
+
+No new Scene Perform build-loop observer evidence exists after the prior
+accepted pairings, and no observation batch exists under
+`.meta/multipass/loops/build/scene-perform/observe/batches/`. Fresh checks keep
+the candidate at `d5b47500f4c7c08d704b89b30b2e27ceb0a00078`, with the worktree
+clean in tracked files and only the known untracked transient evidence
+directories under `.claude/state/`. Against current root `main`
+`57fba754819fd465ef0344b8bee16aadcf182ef0`, the candidate is now `2` behind /
+`4` ahead; `merge-tree --write-tree main HEAD` is conflict-free and
+`git diff --check main...HEAD` passes.
+
+Gate pairing is unchanged: testing, UX/IA, and visual economy are exact-state
+passes from `ab62060` and inherited to `d5b4750` because the Scene Perform
+production/test/project files are unchanged across the rebase. Architecture is
+accepted as scoped inherited advisory evidence from the prior `e5fe9ea` pass,
+with the strict-policy caveat that an exact-state architecture rerun would still
+be the only formal build-loop gap.
+
+The reusable scoped-gate-invalidation CLI was run at 2026-05-22T00:53:20Z
+against `ab62060..d5b4750`. It still defaults to full review because project
+scope hints and discoverable prior passing evidence are not configured, so it
+remains advisory only and does not replace the explicit orienter/decider
+inheritance judgment.
+
+Root hygiene did run after the prior orientation:
+`.meta/multipass/loops/project/act/2026-05-22T00-37Z-root-coordination-state-process-fixer.md`
+committed coordination state as `57fba75` and left root clean. Later cadence
+writers recreated only small coordination-summary dirt:
+`docs/multi-pass-coordinator/ooda/orientation.md` and
+`docs/multi-pass-coordinator/state/build-loops/mixer-busses.md` before this
+summary update. Lowest unmet layer remains maintainable integration state on
+`main`; no Scene Perform builder, observer, or product-owner action appears
+useful before project-level integration/preflight handling.
 
 ## 2026-05-22T00:16Z Cadence Evidence Pairing
 

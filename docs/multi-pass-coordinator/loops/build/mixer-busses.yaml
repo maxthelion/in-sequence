@@ -1,6 +1,6 @@
 id: build/mixer-busses
 kind: build
-status: active
+status: complete
 feature: mixer-busses
 worktree: .worktrees/roadmap-5-mixer-busses-ui-finish
 branch: auto/roadmap-5-mixer-busses-ui-finish

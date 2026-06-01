@@ -1,58 +1,88 @@
 # Process Health
 
-- updated: 2026-05-21T22:47:21Z
-- request: `.meta/multipass/inbox/claimed/2026-05-21T22-46-15-961Z-process-health-observer-cadence.md`
+- updated: 2026-05-23T16:08Z
+- request: `.meta/multipass/inbox/claimed/2026-05-23T16-05-58-300Z-process-health-observer-cadence.md`
 - loop-local copy: `.meta/multipass/loops/project/observe/process-health.md`
-- observation artifact: `.meta/multipass/loops/project/observe/2026-05-21T22-47Z-process-health-observation.md`
-- scope: observation only; no inbox messages, decisions, lifecycle changes, merge, push, cleanup, or build-loop actions performed.
+- observation artifact: `.meta/multipass/loops/project/observe/2026-05-23T16-08Z-process-health-observation.md`
+- scope: observation only; no inbox messages, decisions, lifecycle changes,
+  merge, push, cleanup, product-code edits, or build-loop actions performed.
 
 ## Checklist
 
-- [x] Builders are doing real product work, not only coordination bookkeeping.
-- [x] Review failures are feeding back into focused rework, refreshed gates, or integration disposition.
-- [ ] Builder and high-context actor runs are completing reliably without repeated resource/runtime interruption.
-- [ ] Runtime inbox status is low-noise and not carrying stale blocked or duplicate signals.
+- [x] Builders/integrators are doing real product work, not only coordination
+  bookkeeping.
+- [x] Review failures are feeding back into focused rework, refreshed gates, or
+  integration disposition.
+- [ ] Recent high-context actor runs are stable enough to avoid repeated
+  recovery/reconstruction load.
+- [ ] Runtime inbox status is low-noise and free of stale terminal-loop or
+  blocked-request churn.
 - [ ] Deterministic observation scripts cover the state actors repeatedly need.
-- [ ] Visual/UX review evidence is consistently backed by reproducible app-surface and runtime-log tooling.
-- [x] Product-owner attention is not being used for agent-detectable process problems.
+- [ ] Visual/runtime review evidence is consistently backed by reproducible
+  checked-in app-surface and runtime-log tooling.
+- [x] Product-owner attention is not being used for agent-detectable process
+  problems.
 
 ## Observations
 
 | Area | Evidence | Health read |
 | --- | --- | --- |
-| Product progress | Active build loops remain `build/scene-perform` and `build/mixer-busses`. Scene Perform is accepted and rebased at `d5b47500f4c7c08d704b89b30b2e27ceb0a00078`. Mixer Busses is accepted at `1eaebf3d6226f39a2438143b192493f54739352d` with exact-state architecture, testing/build, UX/IA, and visual-economy PASS evidence. | The loop is still producing real product work and review-disposition evidence, not only coordination churn. |
-| Review follow-through | Scene Perform's product-owner crossfader observation became focused SwiftUI rework and refreshed tests/reviews. Mixer Busses visual-economy failures became the Master Out clipping continuation and exact-state review gates. | Review failures are feeding into bounded rework and refreshed evidence. This part of the loop is healthy. |
-| Integration blocker | Process-fixer committed root coordination-state cleanup as `cec6d59ebb43fa8ec6fcb4a086ea3bc0bca4bf29`, but the latest orienter reports root `main` is dirty again with coordination-summary edits. Fresh `git status --short` shows `docs/multi-pass-coordinator/ooda/orientation.md` and `docs/multi-pass-coordinator/state/build-loops/mixer-busses.md` modified before this observation update. | The repeated blocker is narrower than the earlier broad root dirt, but the pattern remains: coordination-state writes can re-dirty `main` between hygiene repair and integration, delaying merge-ready product work. |
-| Integration order | Latest orientation and build-loop summaries keep Scene Perform first; Mixer Busses waits behind it. The only pending message observed by inventory was a `build/scene-perform` build-orienter cadence, while this process-health request was claimed. | The ordering is clear. The loop needs a clean or explicitly accounted-for root before a follow-up Scene Perform integrator, then Mixer Busses merge-prep. |
-| Resource/runtime churn | `.meta/multipass/state/actor-failures.md` still lists eleven 2026-05-21 failures: ten `usage_rate_limit` and one missing final artifact. No compact actor failure appears after 2026-05-21T13:54:45Z; later builders, reviewers, orienters, process-fixers, and integrators completed. | Rate-limit churn is historical for this pass, but still a real reliability tax for high-context UI actors. Checkpointed exact commits and compact evidence are enabling recovery. |
-| Cadence churn | Activity shows many post-acceptance build-orienter/build-decider cadences completing no-op or disposition-preserving work after both build loops had accepted candidates. | Cadence work is mostly benign, but it burns tokens and can create fresh coordination-state dirt that blocks integration. |
-| Inbox/status noise | Blocked inbox still mixes old 2026-05-20 cadence files, superseded build/review attempts, and real runtime failures. Done has a long useful history, but live status requires manual filtering. | Lifecycle preservation is useful evidence, but current-state inference remains noisy without a compact active-blocker view. |
-| Deterministic visibility | `scripts/multi-pass/inbox-status.sh` and `scripts/multi-pass/evidence-inboxes.sh` still scan retired `docs/multi-pass-coordinator/inbox/*` paths. Observers still report missing or absent helpers such as `pairing-state.sh`, `feature-state.sh`, `runtime-log-scan.sh`, `merge-status.sh`, `rebase-status.sh`, and worktree hygiene status. Inventory/build-capacity emit Ruby gem extension warnings before useful output. | The v2 runtime is usable, but observation still pays a token and accuracy tax from stale helper paths and missing small state scripts. |
-| Visual/runtime evidence | Active visual gates for Scene Perform and Mixer Busses had exact screenshots and passed. The latest runtime-log observation found no fresh crash/fatal app evidence, but had to recover the absent `runtime-log-scan.sh` from git history and still had no app launch commit/branch metadata. | Visual review quality is acceptable for current gates. Runtime-log attribution and app-surface helper reproducibility remain low-severity process debt. |
-| Evidence packaging | Mixer Busses architecture PASS remains an actor final rather than loop-local observe markdown, and the `1eaebf3` batch manifest still says `status: open` despite completed PASS gates. | This did not block routing, but weakens fast machine-readable readiness and contributes to repeated manual evidence reconstruction. |
-| Product-owner attention | Active issues are coordination-state hygiene, cadence/status noise, helper drift, and evidence packaging. | No product-owner attention is needed. These are agent/process issues. |
+| Product progress | Since the 12:01Z process-health pass, Step Sequencer Phase 2-A reached bounded exact-output acceptance for `26d858e` with architecture/testing/UX/visual evidence scoped to the isolated `UnifiedStepCell` primitive. Clip History Phase 3 committed real visible transfer workflow output at `337aa5c`, with act evidence and testing-sufficient review. Step Sequencer Phase 2-B also attempted real clip-editor wiring and left salvageable dirty implementation material. | The loop is producing product work, not just markdown. Health remains yellow because neither active loop has a currently accepted/showable next workflow output. |
+| Review follow-through | Clip History architecture review rejected `337aa5c` because generator-backed occupied pattern slots can bypass inline `Replace`; build-decider routed `.meta/multipass/inbox/pending/2026-05-23T15-01-55-168Z-Clip-History-Phase-3-occupied-slot-Replace-correction.md`. Step Sequencer Phase 2-B failure was oriented as dirty partial work, and build-decider waited for process cleanup instead of duplicating a retry. | Review/rework discipline is still working. The loop is not over-crediting either a committed rejected output or an uncommitted dirty partial diff. |
+| Actor reliability | Compact failure evidence since noon includes project work-observer `usage_rate_limit`, Step Sequencer build-orienter `usage_rate_limit`, project log-observer `usage_rate_limit`, Clip History visual-economy `usage_rate_limit`, and Step Sequencer Phase 2-B builder `usage_rate_limit`. | Reliability has worsened from yellow to yellow/red. Recovery is functioning, but too many acceptance-critical actors now fail before final artifacts and force later actors to reconstruct state. |
+| Environment/tooling | Direct process check during this pass still shows two long-running orphaned Phase 2-B `xcodebuild` processes, one over 48 minutes and one over 45 minutes. Clip History UX/IA screenshot attempts hung in `xcodebuild`/app-surface tooling; testing review also hit a DerivedData `build.db` lock before serial rerun passed. `inventory.ts` and `build-capacity.ts` still emit Ruby gem-extension warnings before useful output. | The current process bottleneck is tooling/runtime hygiene, not product ambiguity. Hung Xcode work and noisy CLI output are concrete token and resource churn sources. |
+| Inbox/resource churn | `scripts/multi-pass/inbox-status.sh` reports `6` pending, `1` claimed, `36` blocked, and `610` done. Active pending work is coherent: Clip History correction, Clip History build-decider cadence, project process-fixer cleanup, project orienter cadence, and Step Sequencer build-orienter cadence. One stale Scene Perform cadence remains isolated under terminal-loop residue. | Primary routing is low-noise, but the blocked pile is growing and terminal-loop residue still exists. Actors that ignore the helper split can still misread stale state. |
+| Deterministic visibility | Present helpers include `project-status.sh`, `review-status.sh`, `inbox-status.sh`, and the visual scenario shell entrypoint. Missing helpers remain `pairing-state.sh`, `feature-state.sh`, `merge-status.sh`, `rebase-status.sh`, and `runtime-log-scan.sh`. `app-surfaces.sh` exists but did not produce Clip History screenshots for the exact commit. | Deterministic visibility is still incomplete. The loop repeatedly spends high-context actor time reconstructing pairing, feature, merge, rebase, and runtime facts that should be cheap reads. |
+| Visual evidence | Step Sequencer Phase 2-A has a usable rendered PNG for the primitive. Clip History Phase 3 does not have credible rendered modal evidence: UX/IA is `evidence-insufficient`, visual-economy failed before final artifact, and the smallest satisfying evidence is a deterministic scenario that can seed capture history and show entry, empty, source-selected, occupied-Replace, and enabled-save states. | Visual review discipline is correct, but the tooling gap blocks acceptance and burns reviewer time. |
+| Evidence packaging | Some acceptance evidence still lives as actor finals rather than normalized loop-local observe artifacts, including architecture reviews. The Clip History visual-economy failure artifact is large and stderr-heavy without a concise final verdict. Review batch lifecycle metadata remains uneven around superseded/failed exact outputs. | Evidence remains interpretable but costly. Later actors can recover, but they must read across durable summaries, loop artifacts, finals, failures, direct git, and process state. |
+| Product-owner attention | Current blockers are agent-side: process cleanup for stuck `xcodebuild`, Step Sequencer Phase 2-B continuation after cleanup, Clip History occupied-slot correction, fresh exact-state reviews, rendered modal evidence, helper gaps, CLI warning noise, and evidence normalization. | No product-owner attention is needed. Human attention should remain scoped to actual prototype/product checkpoints. |
 
 ## Suspected Causes
 
-- Durable coordination summaries are being edited on `main` by cadence actors while integrators require a clean root before landing product branches.
-- Cadence actors keep running after a build candidate has been accepted and routed, which is useful for freshness but can produce new state dirt faster than integration consumes it.
-- Project-local helper scripts still straddle retired coordinator paths and live `.meta/multipass` v2 runtime paths.
-- High-context UI actors previously mixed implementation, app launch, screenshots, reviews, and evidence packaging, making them prone to `usage_rate_limit`; later exact-commit checkpointing reduced the impact.
-- Runtime lifecycle state keeps all blocked evidence in one directory without a compact current-blocker classification.
+- High-context builder and review actors run long enough to hit usage limits
+  before writing a final artifact or compact partial checkpoint.
+- Xcode and visual-scenario commands are not consistently bounded by timeouts,
+  cleanup, per-run DerivedData isolation, and branch/commit attribution.
+- State remains scattered across durable summaries, loop artifacts, actor
+  finals/failures, inbox status, activity logs, direct git facts, and direct
+  process checks because small read-only helpers are missing.
+- Visual review requires exact built-surface evidence, but Clip History lacks a
+  deterministic scenario that can seed and capture the relevant modal states.
+- Runtime-owned stale requests can be hidden from primary views, but there is
+  still no supported cleanup/archive path for terminal-loop residue.
+- Local Ruby environment warnings pollute otherwise successful coordinator CLI
+  output.
 
 ## Suggested Repair Shape
 
-- Treat recurring root coordination-state dirt as the immediate process risk because it repeatedly blocks otherwise merge-ready Scene Perform integration.
-- Prefer actor-contract repair over a brittle state machine: after a merge candidate is accepted and routed, cadence actors should write compact no-op/freshness evidence and avoid unnecessary durable state churn unless facts changed materially.
-- Add or restore a small v2 runtime-inbox/current-blocker summary helper that separates active blockers, superseded failures, and historical blocked lifecycle files without deleting evidence.
-- Update legacy inbox helpers to read `.meta/multipass/inbox`, or clearly mark them retired so observers stop paying fallback-scan costs.
-- Restore only repeatedly needed observation helpers, especially pairing/build-loop current state and checked-in runtime-log/app-window readiness.
-- Normalize review-batch bookkeeping after all expected observer requests finish, or document that actor finals can satisfy batch evidence when loop-local observe markdown is absent.
+- Let the already-pending process-fixer request clean up stuck Phase 2-B
+  `xcodebuild` processes before Step Sequencer retries or continues Phase 2-B.
+- Tighten actor contracts for heavy builders/reviewers: write compact partial
+  evidence before long tests or visual commands, and record exact dirty/commit
+  state when a run becomes partial.
+- Add bounded Xcode/visual command conventions: explicit timeout, per-run
+  DerivedData where useful, cleanup on failure, and app launch commit/branch
+  attribution before accepting runtime or screenshot evidence.
+- Add or restore small read-only helpers for pairing/build-loop state, feature
+  readiness, merge facts, rebase/worktree facts, and runtime-log scans.
+- Add a Clip History visual scenario that can seed a generator-source track,
+  inject or populate recent capture history, open the transfer sheet, select
+  source and destination cells, show occupied-slot `Replace`, and show enabled
+  save state.
+- Normalize architecture/review finals into loop-local observe artifacts when
+  they are acceptance evidence, and add a clear close/supersede convention for
+  review batches.
+- Keep terminal-loop residue split out of primary inventory/capacity/inbox
+  reads until a runtime-owned cleanup command exists.
+- Repair or filter Ruby gem-extension warning noise for coordinator CLI
+  commands.
 
 ## Current Disposition
 
-The loop is product-productive and integration-bound. Scene Perform remains the
-first integration candidate at `d5b4750`; Mixer Busses remains accepted at
-`1eaebf3` and queued behind it. The strongest process risk is not product
-quality but repeated coordination-state dirt on `main` between cleanup and
-integration. Product-owner attention is not needed.
+The loop is product-progressing and review-disciplined, but process health is
+yellow/red. Builders are landing or attempting real product slices, and review
+failures are becoming bounded rework. The weak point is resource churn:
+usage-limit failures, hung `xcodebuild`/visual probes, orphaned build
+processes, missing helper scripts, and uneven evidence packaging are forcing
+repeated reconstruction. No product-owner attention is needed from this
+observation.
