@@ -16,6 +16,12 @@ actors:
         Observe active work, completed actor outputs, and missing evidence.
         Update current work state. Do not write inbox messages; orienter
         interprets observations.
+    - actor: loop-lifecycle-observer
+      cadence: 1h
+      tick: >
+        Observe loop lifecycle facts: active branches already contained in
+        main, terminal loops with open-message residue, missing worktrees, and
+        blocked closeout. Record facts only; orienter interprets them.
     - actor: holistic-observer
       cadence: 4h
       tick: >
