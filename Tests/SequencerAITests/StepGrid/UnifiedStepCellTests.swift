@@ -44,6 +44,36 @@ final class UnifiedStepCellTests: XCTestCase {
         XCTAssertEqual(geometry.size(for: .optionLabel(text: "Run")), geometry.size(for: .toggle))
     }
 
+    func test_stepGridViewCanSwitchTriggerToValueContentWithoutChangingCellGeometry() {
+        let triggerGrid = StepGridView(
+            stepStates: [.on, .off],
+            advanceStep: { _ in }
+        )
+        var draggedStep: Int?
+        var draggedValue: Double?
+        let valueGrid = StepGridView(
+            stepStates: [.on, .off],
+            contentProvider: { index, _ in .valueBar(fraction: index == 0 ? 0.5 : 0) },
+            onValueDrag: { index, value in
+                draggedStep = index
+                draggedValue = value
+            },
+            advanceStep: { _ in }
+        )
+        let geometry = UnifiedStepCellGeometry()
+
+        let triggerContent = triggerGrid.contentProvider(0, .on)
+        let valueContent = valueGrid.contentProvider(0, .on)
+
+        XCTAssertEqual(triggerContent, .toggle)
+        XCTAssertEqual(valueContent, .valueBar(fraction: 0.5))
+        XCTAssertEqual(geometry.size(for: triggerContent), geometry.size(for: valueContent))
+
+        valueGrid.onValueDrag?(3, 0.75)
+        XCTAssertEqual(draggedStep, 3)
+        XCTAssertEqual(draggedValue ?? -1, 0.75, accuracy: 0.0001)
+    }
+
     func test_valueFractionsClampToUnitRange() {
         let low = UnifiedStepCellVisualConfiguration(
             visualState: .off,

@@ -12,6 +12,8 @@ struct StepGridView: View {
     let stepStates: [StepVisualState]
     let indexOffset: Int
     let playingStepIndex: Int?
+    let contentProvider: (Int, StepVisualState) -> StepCellContent
+    let onValueDrag: ((Int, Double) -> Void)?
     let onDoubleTap: ((Int) -> Void)?
     let advanceStep: (Int) -> Void
 
@@ -19,12 +21,16 @@ struct StepGridView: View {
         stepStates: [StepVisualState],
         indexOffset: Int = 0,
         playingStepIndex: Int? = nil,
+        contentProvider: @escaping (Int, StepVisualState) -> StepCellContent = { _, _ in .toggle },
+        onValueDrag: ((Int, Double) -> Void)? = nil,
         onDoubleTap: ((Int) -> Void)? = nil,
         advanceStep: @escaping (Int) -> Void
     ) {
         self.stepStates = stepStates
         self.indexOffset = indexOffset
         self.playingStepIndex = playingStepIndex
+        self.contentProvider = contentProvider
+        self.onValueDrag = onValueDrag
         self.onDoubleTap = onDoubleTap
         self.advanceStep = advanceStep
     }
@@ -39,6 +45,10 @@ struct StepGridView: View {
                     index: absoluteIndex,
                     state: state,
                     isPlaying: playingStepIndex == absoluteIndex,
+                    content: contentProvider(absoluteIndex, state),
+                    valueDragAction: onValueDrag.map { drag in
+                        { value in drag(absoluteIndex, value) }
+                    },
                     action: { advanceStep(absoluteIndex) },
                     inspectAction: onDoubleTap.map { inspect in
                         { inspect(absoluteIndex) }
@@ -53,6 +63,8 @@ private struct StepGridCell: View {
     let index: Int
     let state: StepVisualState
     let isPlaying: Bool
+    let content: StepCellContent
+    let valueDragAction: ((Double) -> Void)?
     let action: () -> Void
     let inspectAction: (() -> Void)?
 
@@ -63,20 +75,15 @@ private struct StepGridCell: View {
                 .tracking(0.8)
                 .foregroundStyle(labelStyle)
 
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .fill(fillColor)
-                .frame(height: 44)
-                .overlay {
-                    Image(systemName: symbolName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(iconStyle)
-                }
-                .overlay(alignment: .top) {
-                    Capsule()
-                        .fill(edgeGlow)
-                        .frame(width: 26, height: 3)
-                        .padding(.top, 5)
-                }
+            UnifiedStepCell(
+                visualState: state,
+                isPlaying: isPlaying,
+                isSelected: false,
+                content: content,
+                onTap: action,
+                onDrag: valueDragAction,
+                onSelect: { inspectAction?() }
+            )
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
@@ -85,10 +92,6 @@ private struct StepGridCell: View {
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(outlineColor, lineWidth: 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(isPlaying ? StudioTheme.success.opacity(0.95) : .clear, lineWidth: 2)
         )
         .background {
             #if DEBUG
@@ -129,28 +132,6 @@ private struct StepGridCell: View {
         }
     }
 
-    private var fillColor: Color {
-        switch state {
-        case .off:
-            return Color.white.opacity(StudioOpacity.borderSubtle)
-        case .on:
-            return StudioTheme.cyan.opacity(0.82)
-        case .accented:
-            return StudioTheme.amber.opacity(0.92)
-        }
-    }
-
-    private var symbolName: String {
-        switch state {
-        case .off:
-            return "circle"
-        case .on:
-            return "circle.fill"
-        case .accented:
-            return "bolt.fill"
-        }
-    }
-
     private var accessibilityText: String {
         switch state {
         case .off:
@@ -164,21 +145,6 @@ private struct StepGridCell: View {
 
     private var labelStyle: AnyShapeStyle {
         state == .off ? AnyShapeStyle(StudioTheme.mutedText) : AnyShapeStyle(StudioTheme.text)
-    }
-
-    private var iconStyle: AnyShapeStyle {
-        state == .off ? AnyShapeStyle(StudioTheme.mutedText) : AnyShapeStyle(StudioTheme.text)
-    }
-
-    private var edgeGlow: Color {
-        switch state {
-        case .off:
-            return .clear
-        case .on:
-            return StudioTheme.cyan
-        case .accented:
-            return StudioTheme.amber
-        }
     }
 
     private var outlineColor: Color {
