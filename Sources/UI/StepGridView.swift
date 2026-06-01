@@ -80,7 +80,7 @@ private struct StepGridCell: View {
                 isPlaying: isPlaying,
                 isSelected: false,
                 content: content,
-                onTap: action,
+                onTap: performAction,
                 onDrag: valueDragAction,
                 onSelect: { inspectAction?() }
             )
@@ -101,16 +101,6 @@ private struct StepGridCell: View {
             #endif
         }
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .onTapGesture {
-            #if DEBUG
-            StepGridTapDiagnostics.log(
-                "singleTapRecognized",
-                stepIndex: index,
-                details: "state=\(state.diagnosticName)"
-            )
-            #endif
-            action()
-        }
         .onChange(of: state) { oldValue, newValue in
             #if DEBUG
             StepGridTapDiagnostics.log(
@@ -130,6 +120,17 @@ private struct StepGridCell: View {
                 Button("Inspect Step", action: inspectAction)
             }
         }
+    }
+
+    private func performAction() {
+        #if DEBUG
+        StepGridTapDiagnostics.log(
+            "singleTapRecognized",
+            stepIndex: index,
+            details: "state=\(state.diagnosticName)"
+        )
+        #endif
+        action()
     }
 
     private var accessibilityText: String {
