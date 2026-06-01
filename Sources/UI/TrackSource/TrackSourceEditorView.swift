@@ -542,7 +542,7 @@ final class ClipHistoryTransferViewModel {
             let clipID = slot.sourceRef.clipID
             return DestinationSlot(
                 slotIndex: index,
-                isOccupied: clipID != nil,
+                isOccupied: !slot.sourceRef.isEmpty,
                 clipName: clipID.flatMap(clipName) ?? slot.name
             )
         }

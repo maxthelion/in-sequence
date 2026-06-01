@@ -48,6 +48,47 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
     }
 
     @MainActor
+    func test_clipHistoryTransferGeneratorBackedOccupiedSlotRequiresReplaceConfirmation() throws {
+        let trackID = UUID(uuidString: "10000000-0000-0000-0000-000000000411")!
+        let generatorID = UUID(uuidString: "10000000-0000-0000-0000-000000000412")!
+        let slotIndex = 4
+        let bank = TrackPatternBank(
+            trackID: trackID,
+            slots: [
+                TrackPatternSlot(
+                    slotIndex: slotIndex,
+                    name: "Generated Pattern",
+                    sourceRef: .generator(generatorID)
+                )
+            ]
+        )
+        let destinationSlots = ClipHistoryTransferViewModel.destinationSlots(
+            from: bank,
+            clipName: { _ in nil }
+        )
+        let destinationSlot = try XCTUnwrap(destinationSlots.first(where: { $0.slotIndex == slotIndex }))
+
+        XCTAssertTrue(destinationSlot.isOccupied)
+        XCTAssertEqual(destinationSlot.clipName, "Generated Pattern")
+
+        let model = makeClipHistoryTransferViewModel(
+            noteOffsets: [0: 60],
+            destinationSlots: destinationSlots
+        )
+
+        model.selectSource(0)
+        model.selectDestination(slotIndex)
+
+        XCTAssertTrue(model.requiresReplaceConfirmation)
+        XCTAssertFalse(model.canSave)
+
+        model.confirmReplace()
+
+        XCTAssertFalse(model.requiresReplaceConfirmation)
+        XCTAssertTrue(model.canSave)
+    }
+
+    @MainActor
     func test_clipHistoryTransferCancelClearsAuditionWithoutSaving() {
         var overrideStates: [PseudoClipState?] = []
         var didSave = false
@@ -376,6 +417,7 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
     private func makeClipHistoryTransferViewModel(
         noteOffsets: [Int: Int],
         occupiedSlots: Set<Int> = [],
+        destinationSlots: [ClipHistoryTransferViewModel.DestinationSlot]? = nil,
         setAuditionOverride: @escaping (PseudoClipState?) -> Void = { _ in }
     ) -> ClipHistoryTransferViewModel {
         let trackID = UUID(uuidString: "10000000-0000-0000-0000-000000000401")!
@@ -401,7 +443,7 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         return ClipHistoryTransferViewModel(
             trackID: trackID,
             snapshot: CaptureSnapshot(maxSteps: maxSteps, steps: steps),
-            destinationSlots: (0..<TrackPatternBank.slotCount).map { index in
+            destinationSlots: destinationSlots ?? (0..<TrackPatternBank.slotCount).map { index in
                 ClipHistoryTransferViewModel.DestinationSlot(
                     slotIndex: index,
                     isOccupied: occupiedSlots.contains(index),
