@@ -393,7 +393,32 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .velocity), .valueBar(fraction: 100.0 / 127.0))
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .chance), .valueBar(fraction: 0.5))
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .macro(index: 0), track: track), .valueBar(fraction: 0.5))
-        XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .chord), .chordLabel(name: "Rest"))
+        XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .chord), .chordLabel(name: "\u{2014}"))
+    }
+
+    func test_chordGeneratorTriggerLayerReturnsPitchClassChordLabel() {
+        let clipID = UUID()
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [0], trackType: .polyMelodic)
+        Self.setNoteStep(in: &clip, at: 0, velocity: 96, chance: 0.8, pitch: 66)
+        let mutator = RecordingClipMutator(clip: clip)
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+
+        let content = coordinator.cellContent(for: 0, in: mutator.clip, layer: .trigger)
+
+        XCTAssertEqual(content, .chordLabel(name: "F#"))
+        guard case let .chordLabel(name) = content else {
+            XCTFail("Expected chord label content")
+            return
+        }
+        XCTAssertFalse(name.isEmpty)
+    }
+
+    func test_chordGeneratorTriggerLayerUsesDefaultLabelForEmptyNoteGridStep() {
+        let clipID = UUID()
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID, trackType: .polyMelodic))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .trigger), .chordLabel(name: "\u{2014}"))
     }
 
     func test_slicerStepCellContentConvertsSupportedLayers() {
@@ -559,7 +584,11 @@ final class StepGridCoordinatorTests: XCTestCase {
         type is any Codable.Type
     }
 
-    private static func makeNoteClip(id: UUID, activeIndexes: Set<Int> = []) -> ClipPoolEntry {
+    private static func makeNoteClip(
+        id: UUID,
+        activeIndexes: Set<Int> = [],
+        trackType: TrackType = .monoMelodic
+    ) -> ClipPoolEntry {
         let steps = (0..<8).map { index in
             activeIndexes.contains(index)
                 ? ClipStep(
@@ -574,7 +603,7 @@ final class StepGridCoordinatorTests: XCTestCase {
         return ClipPoolEntry(
             id: id,
             name: "Test Clip",
-            trackType: .monoMelodic,
+            trackType: trackType,
             content: .noteGrid(lengthSteps: steps.count, steps: steps)
         )
     }

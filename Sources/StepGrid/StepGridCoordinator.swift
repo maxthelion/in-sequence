@@ -788,7 +788,7 @@ private extension StepGridCoordinator {
         guard case let .noteGrid(_, steps) = content.normalized,
               let pitch = steps[safe: index].flatMap({ noteLane.lane(in: $0) })?.notes.first?.pitch
         else {
-            return "Rest"
+            return "\u{2014}"
         }
         let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
         return names[((pitch % 12) + 12) % 12]
