@@ -144,7 +144,7 @@ final class UnifiedStepCellTests: XCTestCase {
         let outputPath = ProcessInfo.processInfo.environment["SLICER_STEP_STRIP_VISUAL_EVIDENCE_PATH"]
             ?? "\(NSHomeDirectory())/tmp/sequencer-visual-review/2026-06-02T10-45Z-phase2c-slicer-selection-batch.png"
 
-        let targetSize = CGSize(width: 760, height: 132)
+        let targetSize = CGSize(width: 1180, height: 290)
         let outputURL = URL(fileURLWithPath: outputPath)
         let host = NSHostingView(rootView: SliceStepStripVisualEvidenceView())
         host.appearance = NSAppearance(named: .darkAqua)
@@ -230,38 +230,104 @@ private struct UnifiedStepCellVisualEvidenceView: View {
 }
 
 private struct SliceStepStripVisualEvidenceView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SliceStepStrip(
-                stepStates: [
-                    .on(sliceIndex: 0, mode: .single),
-                    .on(sliceIndex: 3, mode: .runFromHere),
-                    .off,
-                    .on(sliceIndex: 5, mode: .single)
-                ],
-                indexOffset: 0,
-                playingStepIndex: 1,
-                selectedStepIndex: 1,
-                selectedStepIndexes: [1],
-                activeLayer: .velocity,
-                contentProvider: { index, _ in
-                    .valueBar(fraction: [0.35, 0.82, 0, 0.55][index])
-                },
-                onValueDrag: { _, _ in },
-                onSelect: { _ in },
-                onTap: { _ in }
-            )
+    private let stepStates: [SliceStepStrip.State] = [
+        .on(sliceIndex: 0, mode: .single),
+        .on(sliceIndex: 3, mode: .runFromHere),
+        .off,
+        .on(sliceIndex: 5, mode: .single),
+        .on(sliceIndex: 2, mode: .single),
+        .on(sliceIndex: 7, mode: .single),
+        .off,
+        .on(sliceIndex: 1, mode: .runFromHere),
+        .off,
+        .on(sliceIndex: 4, mode: .single),
+        .on(sliceIndex: 6, mode: .single),
+        .off,
+        .on(sliceIndex: 2, mode: .runFromHere),
+        .off,
+        .on(sliceIndex: 5, mode: .single),
+        .on(sliceIndex: 0, mode: .single)
+    ]
 
-            SliceStepBatchActionBar(
-                isVisible: true,
-                canPaste: true,
-                onClear: {},
-                onCopy: {},
-                onPaste: {}
-            )
+    private let values = [
+        0.35,
+        0.82,
+        0.0,
+        0.55,
+        0.64,
+        0.92,
+        0.0,
+        0.48,
+        0.0,
+        0.72,
+        0.57,
+        0.0,
+        0.88,
+        0.0,
+        0.43,
+        0.76
+    ]
+
+    var body: some View {
+        StudioPanel(title: "Step Layers", accent: StudioTheme.cyan) {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Layer")
+                        .studioText(.eyebrowBold)
+                        .foregroundStyle(StudioTheme.mutedText)
+
+                    HStack(spacing: 8) {
+                        ForEach(SliceTrackClipLayer.allCases) { layer in
+                            layerPill(layer)
+                        }
+                    }
+                }
+
+                SliceStepStrip(
+                    stepStates: stepStates,
+                    indexOffset: 0,
+                    playingStepIndex: 9,
+                    selectedStepIndex: 5,
+                    selectedStepIndexes: [5],
+                    activeLayer: .velocity,
+                    contentProvider: { index, _ in
+                        .valueBar(fraction: values[index])
+                    },
+                    onValueDrag: { _, _ in },
+                    onSelect: { _ in },
+                    onTap: { _ in }
+                )
+
+                SliceStepBatchActionBar(
+                    isVisible: true,
+                    canPaste: true,
+                    onClear: {},
+                    onCopy: {},
+                    onPaste: {}
+                )
+            }
         }
-        .padding(16)
-        .frame(width: 760, height: 132, alignment: .topLeading)
+        .padding(18)
+        .frame(width: 1180, height: 290, alignment: .topLeading)
         .background(StudioTheme.background)
+    }
+
+    private func layerPill(_ layer: SliceTrackClipLayer) -> some View {
+        Text(layer.title)
+            .studioText(.labelBold)
+            .foregroundStyle(StudioTheme.text)
+            .frame(minWidth: 78)
+            .padding(.vertical, 7)
+            .padding(.horizontal, 12)
+            .background(
+                layer == .velocity
+                    ? StudioTheme.cyan.opacity(StudioOpacity.selectedFill)
+                    : Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(layer == .velocity ? StudioTheme.cyan.opacity(0.75) : StudioTheme.border, lineWidth: 1)
+            )
     }
 }
