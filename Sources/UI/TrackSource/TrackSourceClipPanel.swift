@@ -4,6 +4,7 @@ struct TrackSourceClipPanel: View {
     let previewClipContent: ClipContent
     let defaultClipNote: ClipStepNote
     let clipMacroSlots: [MacroSlot]
+    let macroBindings: [TrackMacroBinding]
     let macroLanes: [UUID: MacroLane]
     let macroFallbackValues: [UUID: Double]
     let canAssignAUMacros: Bool
@@ -17,6 +18,7 @@ struct TrackSourceClipPanel: View {
             content: previewClipContent,
             defaultNote: defaultClipNote,
             macroSlots: clipMacroSlots,
+            macroBindings: macroBindings,
             macroLanes: macroLanes,
             macroFallbackValues: macroFallbackValues,
             onAssignMacroSlot: canAssignAUMacros ? onAssignMacroSlot : nil,

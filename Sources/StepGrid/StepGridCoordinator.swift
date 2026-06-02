@@ -20,6 +20,32 @@ enum StepGridLayer: Equatable, Sendable {
     }
 }
 
+struct StepGridRotaryControl: Equatable, Identifiable, Sendable {
+    let layer: StepGridLayer
+    let title: String
+    let normalizedValue: Double
+    let displayValue: String
+
+    var id: String {
+        switch layer {
+        case .trigger:
+            return "trigger"
+        case .velocity:
+            return "velocity"
+        case .chance:
+            return "chance"
+        case let .macro(index):
+            return "macro-\(index)"
+        case .sliceIndex:
+            return "slice-index"
+        case .sliceMode:
+            return "slice-mode"
+        case .chord:
+            return "chord"
+        }
+    }
+}
+
 enum StepGridNoteLane: Equatable, Sendable {
     case main
     case fill
@@ -86,6 +112,22 @@ final class StepGridCoordinator {
         isSelectionActive && editableLayers.contains(where: \.isEditableValueLayer)
     }
 
+    var selectedRotarySeedStepIndex: Int? {
+        selection.selectedStepIndexes.min()
+    }
+
+    var rotaryEditableLayers: [StepGridLayer] {
+        let editableValueLayers = editableLayers.filter(\.isEditableValueLayer)
+        guard activeLayer == .trigger else {
+            return editableValueLayers
+        }
+
+        let triggerLayerRotaries = editableValueLayers.filter { layer in
+            layer == .velocity || layer == .chance
+        }
+        return triggerLayerRotaries.isEmpty ? editableValueLayers : triggerLayerRotaries
+    }
+
     func updateActiveClip(_ clipID: ClipID) {
         selection.updateActiveClip(clipID)
     }
@@ -110,14 +152,53 @@ final class StepGridCoordinator {
         selection.selectedStepIndexes.contains(stepIndex)
     }
 
+    func rotaryControls(
+        in clip: ClipPoolEntry,
+        track: StepSequenceTrack? = nil,
+        noteLane: StepGridNoteLane = .main
+    ) -> [StepGridRotaryControl] {
+        guard let seedStepIndex = selectedRotarySeedStepIndex else {
+            return []
+        }
+
+        return rotaryEditableLayers.map { layer in
+            Self.rotaryControl(
+                for: layer,
+                seedStepIndex: seedStepIndex,
+                clip: clip,
+                track: track,
+                noteLane: noteLane
+            )
+        }
+    }
+
     func cellContent(
         for stepIndex: Int,
         in clip: ClipPoolEntry,
         layer: StepGridLayer? = nil,
         track: StepSequenceTrack? = nil,
+        macroBindings: [TrackMacroBinding]? = nil,
         noteLane: StepGridNoteLane = .main
     ) -> StepCellContent {
-        switch layer ?? activeLayer {
+        Self.cellContent(
+            for: stepIndex,
+            in: clip,
+            layer: layer ?? activeLayer,
+            track: track,
+            macroBindings: macroBindings,
+            noteLane: noteLane
+        )
+    }
+
+    static func cellContent(
+        for stepIndex: Int,
+        in clip: ClipPoolEntry,
+        layer: StepGridLayer,
+        track: StepSequenceTrack? = nil,
+        macroBindings: [TrackMacroBinding]? = nil,
+        noteLane: StepGridNoteLane = .main
+    ) -> StepCellContent {
+        switch layer {
         case .trigger:
             if clip.trackType == .polyMelodic {
                 return .chordLabel(name: Self.chordLabel(at: stepIndex, in: clip.content, noteLane: noteLane))
@@ -135,7 +216,7 @@ final class StepGridCoordinator {
             return .valueBar(fraction: Self.chanceFraction(at: stepIndex, in: clip.content, noteLane: noteLane))
 
         case let .macro(index):
-            guard let binding = track?.macros[safe: index] else {
+            guard let binding = (macroBindings ?? track?.macros)?[safe: index] else {
                 return .valueBar(fraction: 0)
             }
             return .valueBar(fraction: Self.macroFraction(at: stepIndex, in: clip, binding: binding))
@@ -309,6 +390,35 @@ final class TrackStepGridWorkspaceModel {
 }
 
 private extension StepGridCoordinator {
+    static func rotaryControl(
+        for layer: StepGridLayer,
+        seedStepIndex: Int,
+        clip: ClipPoolEntry,
+        track: StepSequenceTrack?,
+        noteLane: StepGridNoteLane
+    ) -> StepGridRotaryControl {
+        let value = rotaryFraction(
+            at: seedStepIndex,
+            layer: layer,
+            in: clip,
+            track: track,
+            noteLane: noteLane
+        )
+        return StepGridRotaryControl(
+            layer: layer,
+            title: rotaryTitle(for: layer, track: track),
+            normalizedValue: value,
+            displayValue: rotaryDisplayValue(
+                for: layer,
+                normalizedValue: value,
+                seedStepIndex: seedStepIndex,
+                clip: clip,
+                track: track,
+                noteLane: noteLane
+            )
+        )
+    }
+
     static func applyTap(
         at index: Int,
         layer: StepGridLayer,
@@ -678,7 +788,7 @@ private extension StepGridCoordinator {
         guard case let .noteGrid(_, steps) = content.normalized,
               let pitch = steps[safe: index].flatMap({ noteLane.lane(in: $0) })?.notes.first?.pitch
         else {
-            return "Rest"
+            return "\u{2014}"
         }
         let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
         return names[((pitch % 12) + 12) % 12]
@@ -692,6 +802,96 @@ private extension StepGridCoordinator {
             return 0
         }
         return clampedUnit((value - binding.descriptor.minValue) / range)
+    }
+
+    static func rotaryFraction(
+        at index: Int,
+        layer: StepGridLayer,
+        in clip: ClipPoolEntry,
+        track: StepSequenceTrack?,
+        noteLane: StepGridNoteLane
+    ) -> Double {
+        switch layer {
+        case .velocity:
+            return velocityFraction(at: index, in: clip.content, noteLane: noteLane)
+        case .chance:
+            return chanceFraction(at: index, in: clip.content, noteLane: noteLane)
+        case let .macro(macroIndex):
+            guard let binding = track?.macros[safe: macroIndex] else {
+                return 0
+            }
+            return macroFraction(at: index, in: clip, binding: binding)
+        case .sliceIndex:
+            guard case let .sliceTriggers(_, sliceIndexes, _, _) = clip.content.normalized,
+                  let sliceIndex = sliceIndexes[safe: index]
+            else {
+                return 0
+            }
+            let maxIndex = max(sliceIndexes.max() ?? 0, 1)
+            return clampedUnit(Double(sliceIndex) / Double(maxIndex))
+        case .sliceMode:
+            guard case let .sliceTriggers(_, _, stepModes, _) = clip.content.normalized,
+                  let stepMode = stepModes[safe: index]
+            else {
+                return 0
+            }
+            return stepMode == .runFromHere ? 1 : 0
+        case .chord, .trigger:
+            return 0
+        }
+    }
+
+    static func rotaryTitle(for layer: StepGridLayer, track: StepSequenceTrack?) -> String {
+        switch layer {
+        case .trigger:
+            return "Steps"
+        case .velocity:
+            return "Velocity"
+        case .chance:
+            return "Chance"
+        case let .macro(index):
+            return track?.macros[safe: index]?.displayName ?? "Macro \(index + 1)"
+        case .sliceIndex:
+            return "Slice"
+        case .sliceMode:
+            return "Mode"
+        case .chord:
+            return "Chord"
+        }
+    }
+
+    static func rotaryDisplayValue(
+        for layer: StepGridLayer,
+        normalizedValue: Double,
+        seedStepIndex: Int,
+        clip: ClipPoolEntry,
+        track: StepSequenceTrack?,
+        noteLane: StepGridNoteLane
+    ) -> String {
+        switch layer {
+        case .velocity:
+            return "\(Int((clampedUnit(normalizedValue) * 127).rounded()))"
+        case .chance, .macro:
+            return "\(Int((clampedUnit(normalizedValue) * 100).rounded()))%"
+        case .sliceIndex:
+            guard case let .sliceTriggers(_, sliceIndexes, _, _) = clip.content.normalized,
+                  let sliceIndex = sliceIndexes[safe: seedStepIndex]
+            else {
+                return "-"
+            }
+            return "\(sliceIndex + 1)"
+        case .sliceMode:
+            guard case let .sliceTriggers(_, _, stepModes, _) = clip.content.normalized,
+                  let stepMode = stepModes[safe: seedStepIndex]
+            else {
+                return "One"
+            }
+            return stepMode == .runFromHere ? "Run" : "One"
+        case .chord:
+            return chordLabel(at: seedStepIndex, in: clip.content, noteLane: noteLane)
+        case .trigger:
+            return ""
+        }
     }
 
     static func clampedUnit(_ value: Double) -> Double {

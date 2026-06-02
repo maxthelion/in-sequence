@@ -4,6 +4,7 @@ struct TrackWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Environment(SequencerDocumentSession.self) private var session
     @State private var editingTrackID: UUID?
+    @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
     @State private var draftTrackName = ""
     @FocusState private var trackNameFieldFocused: Bool
 
@@ -33,7 +34,11 @@ struct TrackWorkspaceView: View {
             trackHeader
 
             if track.trackType == .slice {
-                SliceTrackWorkspaceView(document: $document, accent: sourceAccent)
+                SliceTrackWorkspaceView(
+                    document: $document,
+                    accent: sourceAccent,
+                    stepGridWorkspaceModel: stepGridWorkspaceModel
+                )
             } else {
                 HStack(alignment: .top, spacing: 18) {
                     TrackSourceEditorView(document: $document, accent: sourceAccent)
@@ -56,6 +61,7 @@ struct TrackWorkspaceView: View {
                 self.editingTrackID = nil
                 draftTrackName = ""
             }
+            stepGridWorkspaceModel.reset()
         }
     }
 

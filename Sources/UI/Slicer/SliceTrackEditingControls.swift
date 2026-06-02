@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum SliceTrackLane: String, CaseIterable, Identifiable {
@@ -30,6 +31,230 @@ enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
     }
 }
 
+struct SliceLayerTabRow: View {
+    let selectedLayer: SliceTrackClipLayer
+    let accent: Color
+    let onSelectLayer: (SliceTrackClipLayer) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(SliceTrackClipLayer.allCases) { layer in
+                Button {
+                    onSelectLayer(layer)
+                } label: {
+                    Text(layer.title)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 8)
+                        .background(
+                            selectedLayer == layer
+                                ? accent.opacity(StudioOpacity.selectedFill)
+                                : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    selectedLayer == layer
+                                        ? accent.opacity(0.8)
+                                        : StudioTheme.border.opacity(0.8),
+                                    lineWidth: 1
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+struct StepLayerRotaryRow: View {
+    let controls: [StepGridRotaryControl]
+    let activeLayer: StepGridLayer
+    let suppressActiveLayerHighlight: Bool
+    let accent: Color
+    let onSelectLayer: (StepGridLayer) -> Void
+    let onWriteValue: (StepGridLayer, Double) -> Void
+
+    private let minimumRotaryWidth: CGFloat = 56
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("STEP EDIT")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.amber)
+
+                Text("\(controls.count) layer\(controls.count == 1 ? "" : "s")")
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            if controls.count >= 5 {
+                ZStack(alignment: .trailing) {
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        HStack(spacing: 8) {
+                            rotaryControls(fixedWidth: true)
+                        }
+                        .padding(.trailing, 20)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(StudioTheme.text.opacity(0.8))
+                        .padding(.horizontal, 4)
+                        .frame(maxHeight: .infinity)
+                        .background(
+                            LinearGradient(
+                                colors: [StudioTheme.background.opacity(0), StudioTheme.background.opacity(0.96)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .accessibilityHidden(true)
+                }
+                .frame(height: 94)
+            } else {
+                HStack(spacing: 8) {
+                    rotaryControls(fixedWidth: false)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rotaryControls(fixedWidth: Bool) -> some View {
+        ForEach(controls) { control in
+            StepLayerRotaryDial(
+                control: control,
+                isActiveLayer: !suppressActiveLayerHighlight && control.layer == activeLayer,
+                accent: accent,
+                onSelectLayer: {
+                    onSelectLayer(control.layer)
+                },
+                onWriteValue: { value in
+                    onWriteValue(control.layer, value)
+                }
+            )
+            .frame(minWidth: minimumRotaryWidth)
+            .frame(width: fixedWidth ? minimumRotaryWidth : nil)
+            .frame(maxWidth: fixedWidth ? nil : .infinity)
+        }
+    }
+}
+
+struct StepLayerRotaryEmptyState: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("STEP EDIT")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.amber)
+
+            Text("No editable layers")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(minHeight: 44, alignment: .leading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+        )
+    }
+}
+
+private struct StepLayerRotaryDial: View {
+    let control: StepGridRotaryControl
+    let isActiveLayer: Bool
+    let accent: Color
+    let onSelectLayer: () -> Void
+    let onWriteValue: (Double) -> Void
+
+    @State private var dragStartValue: Double?
+
+    private let dragFullRange: CGFloat = 80
+    private let dialSize: CGFloat = 44
+
+    var body: some View {
+        VStack(spacing: 5) {
+            ZStack {
+                Circle()
+                    .stroke(StudioTheme.border.opacity(0.55), lineWidth: 3)
+                    .frame(width: dialSize, height: dialSize)
+
+                StepLayerRotaryArc(progress: control.normalizedValue)
+                    .stroke(accent.opacity(0.94), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .frame(width: dialSize, height: dialSize)
+
+                Text(control.displayValue)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .frame(width: dialSize - 10)
+            }
+
+            Text(control.title)
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 6)
+        .frame(minHeight: 84)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(isActiveLayer ? StudioTheme.amber.opacity(0.95) : StudioTheme.border.opacity(0.8), lineWidth: isActiveLayer ? 2 : 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .onTapGesture(perform: onSelectLayer)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let start = dragStartValue ?? control.normalizedValue
+                    dragStartValue = start
+                    let next = Self.clampedUnit(start - Double(value.translation.height / dragFullRange))
+                    onWriteValue(next)
+                }
+                .onEnded { _ in
+                    dragStartValue = nil
+                }
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(control.title) rotary")
+        .accessibilityValue(control.displayValue)
+    }
+
+    private static func clampedUnit(_ value: Double) -> Double {
+        min(max(value, 0), 1)
+    }
+}
+
+private struct StepLayerRotaryArc: Shape {
+    let progress: Double
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let clampedProgress = min(max(progress, 0), 1)
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = min(rect.width, rect.height) / 2
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: .degrees(135),
+            endAngle: .degrees(135 + (270 * clampedProgress)),
+            clockwise: false
+        )
+        return path
+    }
+}
+
 struct SliceStepStrip: View {
     enum State: Equatable {
         case off
@@ -40,39 +265,71 @@ struct SliceStepStrip: View {
     let indexOffset: Int
     let playingStepIndex: Int?
     let selectedStepIndex: Int
+    let selectedStepIndexes: Set<Int>
+    let activeLayer: SliceTrackClipLayer
+    let contentProvider: (Int, State) -> StepCellContent
+    let onValueDrag: ((Int, Double) -> Void)?
+    let onBackgroundTap: (() -> Void)?
+    let onSelect: (Int) -> Void
     let onTap: (Int) -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 16)
 
+    init(
+        stepStates: [State],
+        indexOffset: Int,
+        playingStepIndex: Int?,
+        selectedStepIndex: Int,
+        selectedStepIndexes: Set<Int>,
+        activeLayer: SliceTrackClipLayer,
+        contentProvider: @escaping (Int, State) -> StepCellContent,
+        onValueDrag: ((Int, Double) -> Void)?,
+        onBackgroundTap: (() -> Void)? = nil,
+        onSelect: @escaping (Int) -> Void,
+        onTap: @escaping (Int) -> Void
+    ) {
+        self.stepStates = stepStates
+        self.indexOffset = indexOffset
+        self.playingStepIndex = playingStepIndex
+        self.selectedStepIndex = selectedStepIndex
+        self.selectedStepIndexes = selectedStepIndexes
+        self.activeLayer = activeLayer
+        self.contentProvider = contentProvider
+        self.onValueDrag = onValueDrag
+        self.onBackgroundTap = onBackgroundTap
+        self.onSelect = onSelect
+        self.onTap = onTap
+    }
+
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(Array(stepStates.enumerated()), id: \.offset) { localIndex, state in
-                let absoluteIndex = indexOffset + localIndex
-                Button {
-                    onTap(absoluteIndex)
-                } label: {
+        ZStack {
+            if let onBackgroundTap {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onBackgroundTap)
+            }
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(Array(stepStates.enumerated()), id: \.offset) { localIndex, state in
+                    let absoluteIndex = indexOffset + localIndex
                     VStack(spacing: 7) {
                         Text("\(absoluteIndex + 1)")
                             .studioText(.eyebrow)
                             .foregroundStyle(state == .off ? StudioTheme.mutedText : StudioTheme.text)
 
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                            .fill(fill(for: state))
-                            .frame(height: 42)
-                            .overlay {
-                                VStack(spacing: 2) {
-                                    Text(label(for: state))
-                                        .studioText(.labelBold)
-                                        .foregroundStyle(StudioTheme.text)
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.7)
-                                    Text(modeLabel(for: state))
-                                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(StudioTheme.text.opacity(0.82))
-                                        .lineLimit(1)
-                                }
-                            }
+                        UnifiedStepCell(
+                            visualState: visualState(for: state),
+                            isPlaying: playingStepIndex == absoluteIndex,
+                            isSelected: selectedStepIndexes.contains(absoluteIndex),
+                            content: contentProvider(absoluteIndex, state),
+                            onTap: { onTap(absoluteIndex) },
+                            onDrag: activeLayer == .steps ? nil : { value in
+                                onValueDrag?(absoluteIndex, value)
+                            },
+                            onSelect: { onSelect(absoluteIndex) }
+                        )
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(.vertical, 7)
                     .padding(.horizontal, 3)
                     .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
@@ -80,45 +337,24 @@ struct SliceStepStrip: View {
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                             .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : 1)
                     )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(playingStepIndex == absoluteIndex ? StudioTheme.success.opacity(0.95) : .clear, lineWidth: 2)
-                    )
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Slice step \(absoluteIndex + 1)")
                 }
-                .buttonStyle(.plain)
             }
         }
     }
 
-    private func label(for state: State) -> String {
+    private func visualState(for state: State) -> StepVisualState {
         switch state {
         case .off:
-            return ""
-        case let .on(sliceIndex, _):
-            return sliceIndex == 0 ? "All" : "S\(sliceIndex)"
-        }
-    }
-
-    private func modeLabel(for state: State) -> String {
-        switch state {
-        case .off:
-            return ""
+            return .off
         case let .on(_, mode):
-            return mode == .runFromHere ? "Run" : "One"
-        }
-    }
-
-    private func fill(for state: State) -> Color {
-        switch state {
-        case .off:
-            return Color.white.opacity(StudioOpacity.borderSubtle)
-        case .on:
-            return StudioTheme.cyan.opacity(0.82)
+            return mode == .runFromHere ? .accented : .on
         }
     }
 
     private func border(for state: State, absoluteIndex: Int) -> Color {
-        if selectedStepIndex == absoluteIndex {
+        if selectedStepIndexes.contains(absoluteIndex) || selectedStepIndex == absoluteIndex {
             return StudioTheme.amber
         }
         switch state {
@@ -127,6 +363,106 @@ struct SliceStepStrip: View {
         case .on:
             return StudioTheme.cyan.opacity(0.4)
         }
+    }
+}
+
+struct StepGridEscapeKeyHandler: NSViewRepresentable {
+    let isEnabled: Bool
+    let onEscape: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isEnabled: isEnabled, onEscape: onEscape)
+    }
+
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        context.coordinator.view = view
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onEscape = onEscape
+        context.coordinator.installMonitor()
+        return view
+    }
+
+    func updateNSView(_ nsView: ProbeView, context: Context) {
+        context.coordinator.view = nsView
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onEscape = onEscape
+        context.coordinator.installMonitor()
+    }
+
+    static func dismantleNSView(_ nsView: ProbeView, coordinator: Coordinator) {
+        _ = nsView
+        coordinator.removeMonitor()
+    }
+
+    final class ProbeView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            _ = point
+            return nil
+        }
+    }
+
+    final class Coordinator {
+        var isEnabled: Bool
+        var onEscape: () -> Void
+        weak var view: ProbeView?
+        private var monitor: Any?
+
+        init(isEnabled: Bool, onEscape: @escaping () -> Void) {
+            self.isEnabled = isEnabled
+            self.onEscape = onEscape
+        }
+
+        deinit {
+            removeMonitor()
+        }
+
+        func installMonitor() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+                guard let self,
+                      isEnabled,
+                      event.keyCode == 53,
+                      let view,
+                      event.window === view.window
+                else {
+                    return event
+                }
+
+                onEscape()
+                return nil
+            }
+        }
+
+        func removeMonitor() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
+    }
+}
+
+struct SliceStepBatchActionBar: View {
+    let isVisible: Bool
+    let canPaste: Bool
+    let onClear: () -> Void
+    let onCopy: () -> Void
+    let onPaste: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button("Clear", action: onClear)
+            Button("Copy", action: onCopy)
+            Button("Paste", action: onPaste)
+                .disabled(!canPaste)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .leading)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .accessibilityLabel("Step batch actions")
     }
 }
 

@@ -280,6 +280,7 @@ struct TrackSourceEditorView: View {
             previewClipContent: previewClipContent,
             defaultClipNote: defaultClipNote,
             clipMacroSlots: clipMacroSlots,
+            macroBindings: track.macros,
             macroLanes: currentClip?.macroLanes ?? [:],
             macroFallbackValues: macroFallbackValues,
             canAssignAUMacros: canAssignAUMacros,
