@@ -84,7 +84,7 @@ struct TrackSourceClipHistoryTabContent: View {
                 }
 
                 Spacer(minLength: 0)
-                lengthPicker
+                selectionLengthPicker
             }
 
             ClipHistoryPianoRollPreview(
@@ -102,26 +102,45 @@ struct TrackSourceClipHistoryTabContent: View {
         )
     }
 
-    private var lengthPicker: some View {
-        HStack(spacing: 6) {
-            ForEach(ClipHistoryTransferViewModel.lengthOptions, id: \.self) { option in
-                Button {
-                    model.setLengthSteps(option)
-                } label: {
-                    Text(ClipHistoryTransferViewModel.lengthLabel(for: option))
-                        .studioText(.micro)
-                        .foregroundStyle(model.lengthSteps == option ? StudioTheme.text : StudioTheme.mutedText)
-                        .padding(.vertical, 5)
-                        .padding(.horizontal, 8)
-                        .background(
-                            (model.lengthSteps == option ? accent.opacity(StudioOpacity.selectedFill) : Color.clear),
-                            in: Capsule()
-                        )
-                        .overlay(Capsule().stroke(model.lengthSteps == option ? accent : StudioTheme.border, lineWidth: 1))
+    private var selectionLengthPicker: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text("Selection Length")
+                .studioText(.microEmphasis)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 6) {
+                ForEach(ClipHistoryTransferViewModel.lengthOptions, id: \.self) { option in
+                    Button {
+                        model.setLengthSteps(option)
+                    } label: {
+                        Text(ClipHistoryTransferViewModel.lengthLabel(for: option))
+                            .studioText(.micro)
+                            .foregroundStyle(lengthOptionTextColor(option))
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, 8)
+                            .background(lengthOptionBackground(option), in: Capsule())
+                            .overlay(Capsule().stroke(lengthOptionBorder(option), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
+    }
+
+    private func lengthOptionIsActive(_ option: Int) -> Bool {
+        model.selectedPseudoClip != nil && model.lengthSteps == option
+    }
+
+    private func lengthOptionTextColor(_ option: Int) -> Color {
+        lengthOptionIsActive(option) ? StudioTheme.text : StudioTheme.mutedText
+    }
+
+    private func lengthOptionBackground(_ option: Int) -> Color {
+        lengthOptionIsActive(option) ? accent.opacity(StudioOpacity.selectedFill) : Color.clear
+    }
+
+    private func lengthOptionBorder(_ option: Int) -> Color {
+        lengthOptionIsActive(option) ? accent : StudioTheme.border
     }
 
     private var historyStrip: some View {
