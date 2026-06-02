@@ -64,6 +64,28 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(second.macroOverrides[track.macros[1].id]), 0.75)
     }
 
+    func test_copySelectedStepsDoesNotMutateClipData() throws {
+        let clipID = UUID()
+        let track = Self.makeTrack(macros: [Self.makeBinding(kind: .sampleStart)])
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [1, 3])
+        Self.setNoteStep(in: &clip, at: 1, velocity: 48, chance: 0.35)
+        clip.macroLanes[track.macros[0].id] = MacroLane(values: [nil, 0.4, nil, 0.8, nil, nil, nil, nil])
+        let mutator = RecordingClipMutator(clip: clip)
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [1, 3].forEach { coordinator.toggleSelection(at: $0) }
+
+        coordinator.copySelectedSteps(from: mutator.clip, track: track)
+
+        XCTAssertEqual(mutator.mutationCount, 0)
+        XCTAssertEqual(mutator.clip, clip)
+        let clipboard = try XCTUnwrap(coordinator.clipboard)
+        XCTAssertEqual(Set(clipboard.steps.keys), [1, 3])
+        XCTAssertEqual(try XCTUnwrap(clipboard.steps[1]?.velocity), 48.0 / 127.0, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(clipboard.steps[1]?.chance), 0.35, accuracy: 0.0001)
+        let macroOverride = try XCTUnwrap(try XCTUnwrap(clipboard.steps[1]?.macroOverrides[track.macros[0].id]))
+        XCTAssertEqual(macroOverride, 0.4, accuracy: 0.0001)
+    }
+
     func test_singleStepTap_dispatchesOneMutationAndMutatesOnlyTappedStep() {
         let clipID = UUID()
         let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID))
@@ -152,6 +174,63 @@ final class StepGridCoordinatorTests: XCTestCase {
         let pastedLane = try XCTUnwrap(mutator.clip.macroLanes[binding.id])
         XCTAssertEqual(try XCTUnwrap(pastedLane.values[1]), 0.12, accuracy: 0.0001)
         XCTAssertEqual(try XCTUnwrap(pastedLane.values[4]), 0.88, accuracy: 0.0001)
+    }
+
+    func test_clearSelectedStepsTurnsAllSelectedStepsOffInOneMutationAndClearsSelection() {
+        let clipID = UUID()
+        let binding = Self.makeBinding(kind: .sampleStart)
+        let track = Self.makeTrack(macros: [binding])
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [1, 4, 6])
+        clip.macroLanes[binding.id] = MacroLane(values: [nil, 0.12, nil, nil, 0.88, nil, 0.4, nil])
+        let mutator = RecordingClipMutator(clip: clip)
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [1, 4].forEach { coordinator.toggleSelection(at: $0) }
+
+        let didClear = coordinator.clearSelectedSteps(track: track)
+
+        XCTAssertTrue(didClear)
+        XCTAssertEqual(mutator.mutationCount, 1)
+        XCTAssertEqual(mutator.impacts.count, 1)
+        XCTAssertEqual(Self.activeIndexes(in: mutator.clip), [6])
+        XCTAssertFalse(coordinator.isSelectionActive)
+        XCTAssertNil(mutator.clip.macroLanes[binding.id]?.values[1] ?? nil)
+        XCTAssertNil(mutator.clip.macroLanes[binding.id]?.values[4] ?? nil)
+        XCTAssertEqual(mutator.clip.macroLanes[binding.id]?.values[6] ?? nil, 0.4)
+    }
+
+    func test_pasteClipboardRoundTripsVelocityChanceAndMacroOverrideInOneMutationSkippingOutOfBounds() throws {
+        let clipID = UUID()
+        let binding = Self.makeBinding(kind: .sampleStart)
+        let track = Self.makeTrack(macros: [binding])
+        var sourceClip = Self.makeNoteClip(id: clipID, activeIndexes: [1, 4])
+        Self.setNoteStep(in: &sourceClip, at: 1, velocity: 32, chance: 0.25)
+        Self.setNoteStep(in: &sourceClip, at: 4, velocity: 96, chance: 0.85)
+        sourceClip.macroLanes[binding.id] = MacroLane(values: [nil, 0.12, nil, nil, 0.88, nil, nil, nil])
+
+        let sourceMutator = RecordingClipMutator(clip: sourceClip)
+        let sourceCoordinator = StepGridCoordinator(clipID: clipID, clipMutator: sourceMutator)
+        [1, 4].forEach { sourceCoordinator.toggleSelection(at: $0) }
+        sourceCoordinator.copySelectedSteps(from: sourceMutator.clip, track: track)
+
+        var clipboard = try XCTUnwrap(sourceCoordinator.clipboard)
+        clipboard.steps[99] = try XCTUnwrap(clipboard.steps[1])
+
+        let destinationMutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID))
+        let destinationCoordinator = StepGridCoordinator(clipID: clipID, clipMutator: destinationMutator)
+        destinationCoordinator.clipboard = clipboard
+
+        let didPaste = destinationCoordinator.pasteClipboard(track: track)
+
+        XCTAssertTrue(didPaste)
+        XCTAssertEqual(destinationMutator.mutationCount, 1)
+        XCTAssertEqual(destinationMutator.impacts.count, 1)
+        XCTAssertEqual(Self.activeIndexes(in: destinationMutator.clip), [1, 4])
+        XCTAssertEqual(Self.velocities(in: destinationMutator.clip, at: [1, 4]), [32, 96])
+        XCTAssertEqual(Self.chances(in: destinationMutator.clip, at: [1, 4]), [0.25, 0.85])
+        let pastedLane = try XCTUnwrap(destinationMutator.clip.macroLanes[binding.id])
+        XCTAssertEqual(try XCTUnwrap(pastedLane.values[1]), 0.12, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(pastedLane.values[4]), 0.88, accuracy: 0.0001)
+        XCTAssertEqual(pastedLane.values.count, 8)
     }
 
     func test_derivedFlagsMatchSelectionAndEditableLayerState() {

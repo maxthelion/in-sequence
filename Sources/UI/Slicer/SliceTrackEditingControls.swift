@@ -346,7 +346,7 @@ struct SliceStepBatchActionBar: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .frame(height: 30, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .leading)
         .opacity(isVisible ? 1 : 0)
         .allowsHitTesting(isVisible)
         .accessibilityLabel("Step batch actions")

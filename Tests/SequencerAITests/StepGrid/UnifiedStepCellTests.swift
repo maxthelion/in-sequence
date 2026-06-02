@@ -206,6 +206,36 @@ final class UnifiedStepCellTests: XCTestCase {
 
         XCTAssertGreaterThan(pngData.count, 1_000)
     }
+
+    @MainActor
+    func test_batchActionBarVisibilityDoesNotShiftStepGridFrame() {
+        let hiddenFrame = Self.measuredStepStripFrame(batchActionBarVisible: false)
+        let visibleFrame = Self.measuredStepStripFrame(batchActionBarVisible: true)
+
+        XCTAssertEqual(hiddenFrame.minX, visibleFrame.minX, accuracy: 0.5)
+        XCTAssertEqual(hiddenFrame.minY, visibleFrame.minY, accuracy: 0.5)
+        XCTAssertEqual(hiddenFrame.width, visibleFrame.width, accuracy: 0.5)
+        XCTAssertEqual(hiddenFrame.height, visibleFrame.height, accuracy: 0.5)
+    }
+
+    @MainActor
+    private static func measuredStepStripFrame(batchActionBarVisible: Bool) -> CGRect {
+        let recorder = StepStripFrameRecorder()
+        let targetSize = CGSize(width: 1180, height: 290)
+        let host = NSHostingView(
+            rootView: BatchActionLayoutProbeView(
+                batchActionBarVisible: batchActionBarVisible,
+                frameRecorder: recorder
+            )
+        )
+        host.appearance = NSAppearance(named: .darkAqua)
+        host.frame = CGRect(origin: .zero, size: targetSize)
+        host.setFrameSize(targetSize)
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        host.layoutSubtreeIfNeeded()
+        return recorder.frame
+    }
 }
 
 private struct UnifiedStepCellVisualEvidenceView: View {
@@ -435,5 +465,96 @@ private struct StepLayerRotaryRowVisualEvidenceView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
         )
+    }
+}
+
+@MainActor
+private final class StepStripFrameRecorder {
+    var frame: CGRect = .null
+}
+
+private struct BatchActionLayoutProbeView: View {
+    let batchActionBarVisible: Bool
+    let frameRecorder: StepStripFrameRecorder
+
+    private let stepStates: [SliceStepStrip.State] = [
+        .on(sliceIndex: 1, mode: .single),
+        .off,
+        .on(sliceIndex: 3, mode: .runFromHere),
+        .off,
+        .on(sliceIndex: 2, mode: .single),
+        .on(sliceIndex: 5, mode: .single),
+        .off,
+        .on(sliceIndex: 8, mode: .runFromHere),
+        .on(sliceIndex: 4, mode: .single),
+        .off,
+        .on(sliceIndex: 7, mode: .single),
+        .off,
+        .on(sliceIndex: 6, mode: .single),
+        .off,
+        .on(sliceIndex: 9, mode: .single),
+        .off
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SliceStepStrip(
+                stepStates: stepStates,
+                indexOffset: 0,
+                playingStepIndex: 9,
+                selectedStepIndex: 5,
+                selectedStepIndexes: batchActionBarVisible ? [5] : [],
+                activeLayer: .velocity,
+                contentProvider: { index, _ in .valueBar(fraction: Double(index % 8) / 7.0) },
+                onValueDrag: { _, _ in },
+                onSelect: { _ in },
+                onTap: { _ in }
+            )
+            .background(StepStripFrameProbe(recorder: frameRecorder))
+
+            SliceStepBatchActionBar(
+                isVisible: batchActionBarVisible,
+                canPaste: true,
+                onClear: {},
+                onCopy: {},
+                onPaste: {}
+            )
+        }
+        .padding(18)
+        .frame(width: 1180, height: 290, alignment: .topLeading)
+        .background(StudioTheme.background)
+    }
+}
+
+private struct StepStripFrameProbe: NSViewRepresentable {
+    let recorder: StepStripFrameRecorder
+
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.recorder = recorder
+        return view
+    }
+
+    func updateNSView(_ nsView: ProbeView, context: Context) {
+        nsView.recorder = recorder
+        DispatchQueue.main.async {
+            nsView.recordFrame()
+        }
+    }
+
+    final class ProbeView: NSView {
+        weak var recorder: StepStripFrameRecorder?
+
+        override func layout() {
+            super.layout()
+            recordFrame()
+        }
+
+        func recordFrame() {
+            guard let superview else {
+                return
+            }
+            recorder?.frame = convert(bounds, to: superview)
+        }
     }
 }
