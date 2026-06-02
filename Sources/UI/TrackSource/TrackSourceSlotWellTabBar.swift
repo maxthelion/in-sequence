@@ -52,10 +52,52 @@ struct TrackSourceSlotWellTabAccentPresentation: Equatable {
     }
 }
 
+enum TrackSourceHistoryDisplayState: Equatable {
+    case liveCapture
+    case unavailable(reason: String)
+
+    var badgeTitle: String {
+        switch self {
+        case .liveCapture:
+            return "Live"
+        case .unavailable:
+            return "N/A"
+        }
+    }
+
+    var isAvailable: Bool {
+        switch self {
+        case .liveCapture:
+            return true
+        case .unavailable:
+            return false
+        }
+    }
+
+    static func resolve(
+        trackType: TrackType,
+        sourceState: TrackSourceSourceDisplayState
+    ) -> TrackSourceHistoryDisplayState {
+        guard trackType != .slice else {
+            return .unavailable(reason: "History is unavailable for slice tracks.")
+        }
+
+        switch sourceState {
+        case .occupiedGenerator:
+            return .liveCapture
+        case .occupiedClip:
+            return .unavailable(reason: "Clip playback history needs capture support before it can be saved from History.")
+        case .empty:
+            return .unavailable(reason: "Assign a generator source to build live history.")
+        }
+    }
+}
+
 struct TrackSourceSlotWellTabBar: View {
     @Binding var selectedTab: TrackSourceEditorTab
     let sourceState: TrackSourceSourceDisplayState
     let modifierState: TrackSourceModifierDisplayState
+    let historyState: TrackSourceHistoryDisplayState
     let accent: Color
 
     var body: some View {
@@ -77,8 +119,8 @@ struct TrackSourceSlotWellTabBar: View {
             slotButton(
                 tab: .history,
                 title: "History",
-                badgeTitle: "Capture",
-                accentPresentation: TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
+                badgeTitle: historyState.badgeTitle,
+                accentPresentation: historyAccentPresentation
             )
         }
         .padding(.horizontal, 10)
@@ -138,6 +180,12 @@ struct TrackSourceSlotWellTabBar: View {
 
     private var modifierAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
         TrackSourceSlotWellTabAccentPresentation.modifier(for: modifierState)
+    }
+
+    private var historyAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
+        historyState.isAvailable
+            ? TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
+            : TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .border)
     }
 
     private func badge(title: String, accent: Color) -> some View {

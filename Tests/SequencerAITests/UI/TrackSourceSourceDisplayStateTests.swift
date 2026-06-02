@@ -18,9 +18,130 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
 
         model.selectSource(0)
         XCTAssertFalse(model.canSave)
+        XCTAssertNil(model.selectedDestinationIndex)
 
         model.selectDestination(2)
         XCTAssertTrue(model.canSave)
+    }
+
+    @MainActor
+    func test_clipHistoryLivePreviewUsesCurrentBarWhenNoSelection() throws {
+        let trackID = UUID(uuidString: "10000000-0000-0000-0000-000000000401")!
+        let model = ClipHistoryTransferViewModel(
+            trackID: trackID,
+            snapshot: CaptureSnapshot(
+                maxSteps: 16,
+                steps: [
+                    CaptureSnapshot.Step(
+                        absoluteStep: 0,
+                        notes: [
+                            CaptureSnapshot.Note(pitch: 60, velocity: 100, lengthSteps: 1, voiceTag: nil)
+                        ]
+                    ),
+                    CaptureSnapshot.Step(
+                        absoluteStep: 5,
+                        notes: [
+                            CaptureSnapshot.Note(pitch: 72, velocity: 100, lengthSteps: 1, voiceTag: nil)
+                        ]
+                    )
+                ]
+            ),
+            destinationSlots: [],
+            setAuditionOverride: { _ in }
+        )
+
+        XCTAssertNil(model.selectedSourceIndex)
+        XCTAssertEqual(model.previewLengthSteps, 6)
+
+        let steps = try XCTUnwrap(model.previewContent?.normalized.noteGridSteps)
+        XCTAssertEqual(steps.count, 6)
+        XCTAssertEqual(steps[0].main?.notes.first?.pitch, 60)
+        XCTAssertEqual(steps[5].main?.notes.first?.pitch, 72)
+    }
+
+    @MainActor
+    func test_clipHistorySelectedPreviewFreezesUntilDeselected() throws {
+        let model = makeClipHistoryTransferViewModel(noteOffsets: [192: 60])
+        let updatedSnapshot = makeCaptureSnapshot(noteOffsets: [240: 72])
+
+        model.selectSource(12)
+        model.setLengthSteps(32)
+        model.updateLiveSnapshot(updatedSnapshot)
+
+        var selectedSteps = try XCTUnwrap(model.previewContent?.normalized.noteGridSteps)
+        XCTAssertEqual(model.previewLengthSteps, 32)
+        XCTAssertEqual(model.previewLengthLabel, "2 bars")
+        XCTAssertEqual(selectedSteps.first?.main?.notes.first?.pitch, 60)
+        XCTAssertTrue(model.isAuditioning)
+
+        model.selectSource(12)
+        model.updateLiveSnapshot(updatedSnapshot)
+
+        selectedSteps = try XCTUnwrap(model.previewContent?.normalized.noteGridSteps)
+        XCTAssertEqual(model.previewLengthSteps, 16)
+        XCTAssertEqual(model.previewLengthLabel, "1 bar")
+        XCTAssertEqual(selectedSteps.first?.main?.notes.first?.pitch, 72)
+        XCTAssertFalse(model.isAuditioning)
+    }
+
+    @MainActor
+    func test_clipHistoryCurrentLiveBarIsNotSelectableHistory() {
+        let model = makeClipHistoryTransferViewModel(noteOffsets: [240: 60])
+        let liveCell = model.sourceCells[15]
+
+        XCTAssertFalse(liveCell.isEmpty)
+        XCTAssertFalse(liveCell.isSelectable)
+
+        model.selectSource(15)
+
+        XCTAssertNil(model.selectedSourceIndex)
+        XCTAssertFalse(model.isAuditioning)
+    }
+
+    @MainActor
+    func test_clipHistorySelectionCannotSpillIntoCurrentLiveBar() {
+        let model = makeClipHistoryTransferViewModel(noteOffsets: [224: 60])
+
+        XCTAssertTrue(model.sourceCells[14].isSelectable)
+
+        model.setLengthSteps(32)
+
+        XCTAssertFalse(model.sourceCells[14].isSelectable)
+        model.selectSource(14)
+        XCTAssertNil(model.selectedSourceIndex)
+        XCTAssertFalse(model.isAuditioning)
+    }
+
+    func test_historyDisplayStateUsesTruthfulBadges() {
+        let generator = TrackSourceHistoryDisplayState.resolve(
+            trackType: .monoMelodic,
+            sourceState: .occupiedGenerator
+        )
+        let clip = TrackSourceHistoryDisplayState.resolve(
+            trackType: .monoMelodic,
+            sourceState: .occupiedClip
+        )
+        let empty = TrackSourceHistoryDisplayState.resolve(
+            trackType: .monoMelodic,
+            sourceState: .empty
+        )
+        let slice = TrackSourceHistoryDisplayState.resolve(
+            trackType: .slice,
+            sourceState: .occupiedGenerator
+        )
+
+        XCTAssertEqual(generator.badgeTitle, "Live")
+        XCTAssertEqual(clip.badgeTitle, "N/A")
+        XCTAssertEqual(empty.badgeTitle, "N/A")
+        XCTAssertEqual(slice.badgeTitle, "N/A")
+        XCTAssertTrue(generator.isAvailable)
+        XCTAssertFalse(clip.isAvailable)
+        XCTAssertFalse(empty.isAvailable)
+        XCTAssertFalse(slice.isAvailable)
+        XCTAssertEqual(
+            clip,
+            .unavailable(reason: "Clip playback history needs capture support before it can be saved from History.")
+        )
     }
 
     @MainActor
@@ -177,6 +298,24 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         let latestPitch = try XCTUnwrap(latestSteps.first?.main?.notes.first?.pitch)
         XCTAssertEqual(savedPitch, 72)
         XCTAssertNotEqual(savedPitch, latestPitch)
+    }
+
+    @MainActor
+    func test_clipHistoryAuditionUsesCapturedTrackIdentity() throws {
+        let trackID = UUID(uuidString: "10000000-0000-0000-0000-000000000431")!
+        var overrideStates: [PseudoClipState?] = []
+        let model = ClipHistoryTransferViewModel(
+            trackID: trackID,
+            snapshot: makeCaptureSnapshot(noteOffsets: [0: 60]),
+            destinationSlots: [],
+            setAuditionOverride: { overrideStates.append($0) }
+        )
+
+        model.selectSource(0)
+
+        let override = try XCTUnwrap(overrideStates.last!)
+        XCTAssertEqual(model.trackID, trackID)
+        XCTAssertEqual(override.sourceTrackID, trackID)
     }
 
     func test_selectedWellBodyKeepsEmptyStateAsActiveSection() {
@@ -456,7 +595,22 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         setAuditionOverride: @escaping (PseudoClipState?) -> Void = { _ in }
     ) -> ClipHistoryTransferViewModel {
         let trackID = UUID(uuidString: "10000000-0000-0000-0000-000000000401")!
-        let maxSteps = 256
+
+        return ClipHistoryTransferViewModel(
+            trackID: trackID,
+            snapshot: makeCaptureSnapshot(noteOffsets: noteOffsets),
+            destinationSlots: destinationSlots ?? (0..<TrackPatternBank.slotCount).map { index in
+                ClipHistoryTransferViewModel.DestinationSlot(
+                    slotIndex: index,
+                    isOccupied: occupiedSlots.contains(index),
+                    clipName: occupiedSlots.contains(index) ? "Existing P\(index + 1)" : nil
+                )
+            },
+            setAuditionOverride: setAuditionOverride
+        )
+    }
+
+    private func makeCaptureSnapshot(noteOffsets: [Int: Int], maxSteps: Int = 256) -> CaptureSnapshot {
         var steps = noteOffsets.map { offset, pitch in
             CaptureSnapshot.Step(
                 absoluteStep: offset,
@@ -474,18 +628,6 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
             steps.append(CaptureSnapshot.Step(absoluteStep: maxSteps - 1, notes: []))
         }
         steps.sort { $0.absoluteStep < $1.absoluteStep }
-
-        return ClipHistoryTransferViewModel(
-            trackID: trackID,
-            snapshot: CaptureSnapshot(maxSteps: maxSteps, steps: steps),
-            destinationSlots: destinationSlots ?? (0..<TrackPatternBank.slotCount).map { index in
-                ClipHistoryTransferViewModel.DestinationSlot(
-                    slotIndex: index,
-                    isOccupied: occupiedSlots.contains(index),
-                    clipName: occupiedSlots.contains(index) ? "Existing P\(index + 1)" : nil
-                )
-            },
-            setAuditionOverride: setAuditionOverride
-        )
+        return CaptureSnapshot(maxSteps: maxSteps, steps: steps)
     }
 }

@@ -5,7 +5,6 @@ struct TrackSourceClipHistoryTabContent: View {
     let accent: Color
     let sourceSummary: String
     let isDestinationMode: Bool
-    let onRefresh: () -> Void
     let onSaveClip: () -> Void
 
     var body: some View {
@@ -40,13 +39,6 @@ struct TrackSourceClipHistoryTabContent: View {
 
             Spacer(minLength: 0)
 
-            Button("Refresh") {
-                onRefresh()
-            }
-            .buttonStyle(.plain)
-            .studioText(.labelBold)
-            .foregroundStyle(StudioTheme.mutedText)
-
             Button {
                 onSaveClip()
             } label: {
@@ -69,11 +61,11 @@ struct TrackSourceClipHistoryTabContent: View {
     private var virtualClipPreview: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 10) {
-                Text("Virtual Preview")
+                Text("Live Buffer")
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.text)
 
-                Text(model.selectedLengthLabel)
+                Text(model.previewLengthLabel)
                     .studioText(.microEmphasis)
                     .foregroundStyle(StudioTheme.text)
                     .padding(.vertical, 4)
@@ -85,6 +77,10 @@ struct TrackSourceClipHistoryTabContent: View {
                     Text("Auditioning")
                         .studioText(.microEmphasis)
                         .foregroundStyle(StudioTheme.success)
+                } else {
+                    Text("Rolling")
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(StudioTheme.mutedText)
                 }
 
                 Spacer(minLength: 0)
@@ -93,10 +89,10 @@ struct TrackSourceClipHistoryTabContent: View {
 
             ClipHistoryPianoRollPreview(
                 content: model.previewContent,
-                lengthSteps: model.lengthSteps,
+                lengthSteps: model.previewLengthSteps,
                 accent: accent
             )
-            .frame(minHeight: 250)
+            .frame(minHeight: 190)
         }
         .padding(12)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
@@ -145,7 +141,7 @@ struct TrackSourceClipHistoryTabContent: View {
                     ClipHistoryMinibarCell(
                         cell: cell,
                         content: thumbnailContent(for: cell),
-                        lengthLabel: cell.isEmpty ? "empty" : model.selectedLengthLabel,
+                        lengthLabel: historyCellLengthLabel(for: cell),
                         isSelected: model.selectedSourceIndex == cell.index,
                         isInRange: model.isSourceInSelectedRange(cell.index),
                         accent: accent
@@ -165,7 +161,7 @@ struct TrackSourceClipHistoryTabContent: View {
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.amber)
             } else if model.selectedPseudoClip == nil {
-                Text("Choose a history region before saving.")
+                Text("Rolling preview updates continuously. Select a region to audition and save.")
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
             } else {
@@ -186,6 +182,9 @@ struct TrackSourceClipHistoryTabContent: View {
         guard !cell.isEmpty else {
             return nil
         }
+        guard cell.isSelectable else {
+            return nil
+        }
 
         return PseudoClipState.materialize(
             sourceTrackID: model.trackID,
@@ -193,6 +192,16 @@ struct TrackSourceClipHistoryTabContent: View {
             startStep: cell.startStep,
             lengthSteps: ClipHistoryTransferViewModel.stepsPerCell
         ).noteGrid
+    }
+
+    private func historyCellLengthLabel(for cell: ClipHistoryTransferViewModel.SourceCell) -> String {
+        if cell.isEmpty {
+            return "empty"
+        }
+        if !cell.isSelectable {
+            return "live"
+        }
+        return model.selectedLengthLabel
     }
 }
 
@@ -232,8 +241,18 @@ private struct ClipHistoryMinibarCell: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(cell.isEmpty)
-        .accessibilityLabel(cell.isEmpty ? "History region \(cell.index + 1), empty" : "History region \(cell.index + 1), \(lengthLabel)")
+        .disabled(!cell.isSelectable)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        if cell.isEmpty {
+            return "History region \(cell.index + 1), empty"
+        }
+        if !cell.isSelectable {
+            return "History region \(cell.index + 1), live buffer"
+        }
+        return "History region \(cell.index + 1), \(lengthLabel)"
     }
 
     private var backgroundFill: Color {
@@ -310,7 +329,7 @@ private struct ClipHistoryPianoRollPreview: View {
                 }
 
                 if notes.isEmpty {
-                    Text("Select a history region.")
+                    Text("Waiting for live notes.")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)

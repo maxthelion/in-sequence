@@ -83,6 +83,12 @@ struct TrackSourceEditorView: View {
             isBypassed: selectedPattern.sourceRef.modifierBypassed
         )
     }
+    private var historyDisplayState: TrackSourceHistoryDisplayState {
+        TrackSourceHistoryDisplayState.resolve(
+            trackType: track.trackType,
+            sourceState: sourceDisplayState
+        )
+    }
     private var previewClipContent: ClipContent {
         currentClip?.content
             ?? .emptyNoteGrid(lengthSteps: 16)
@@ -187,6 +193,7 @@ struct TrackSourceEditorView: View {
                     selectedTab: $selectedTab,
                     sourceState: sourceDisplayState,
                     modifierState: modifierDisplayState,
+                    historyState: historyDisplayState,
                     accent: accent
                 )
 
@@ -230,6 +237,9 @@ struct TrackSourceEditorView: View {
             sourcePickerStep = nil
             modifierPickerStep = nil
             resetClipHistoryDestinationMode()
+            if selectedTab == .history {
+                resetClipHistoryModel()
+            }
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue != .source {
@@ -238,12 +248,22 @@ struct TrackSourceEditorView: View {
             if newValue != .modifiers {
                 modifierPickerStep = nil
             }
-            if newValue == .history {
+            if newValue == .history, historyDisplayState.isAvailable {
                 refreshClipHistoryModel()
             } else {
-                resetClipHistoryDestinationMode()
-                clipHistoryModel?.stopAudition()
+                resetClipHistoryModel()
             }
+        }
+        .onChange(of: track.id) { _, _ in
+            if selectedTab == .history {
+                resetClipHistoryModel()
+                if historyDisplayState.isAvailable {
+                    refreshClipHistoryModel()
+                }
+            }
+        }
+        .task(id: clipHistoryLiveRefreshKey) {
+            await refreshClipHistoryWhileVisible()
         }
     }
 
@@ -323,13 +343,28 @@ struct TrackSourceEditorView: View {
 
     @ViewBuilder
     private var clipHistoryTab: some View {
-        if let clipHistoryModel {
+        if !historyDisplayState.isAvailable {
+            TrackSourceSelectedWellBody(accent: StudioTheme.success, isEmpty: false) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("History")
+                        .studioText(.bodyBold)
+                        .foregroundStyle(StudioTheme.text)
+                    Text(clipHistoryUnavailableReason)
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+            }
+            .onAppear {
+                resetClipHistoryModel()
+            }
+        } else if let clipHistoryModel {
             TrackSourceClipHistoryTabContent(
                 model: clipHistoryModel,
                 accent: StudioTheme.success,
                 sourceSummary: clipHistorySourceSummary,
                 isDestinationMode: clipHistoryDestinationMode,
-                onRefresh: refreshClipHistoryModel,
                 onSaveClip: enterClipHistoryDestinationMode
             )
             .onAppear {
@@ -339,17 +374,15 @@ struct TrackSourceEditorView: View {
             }
         } else {
             TrackSourceSelectedWellBody(accent: StudioTheme.success, isEmpty: false) {
-                HStack {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("History")
                         .studioText(.bodyBold)
                         .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    TrackSourceActionButton(
-                        title: "Load History",
-                        accent: StudioTheme.success,
-                        action: refreshClipHistoryModel
-                    )
+                    Text("Listening to the rolling history buffer.")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
             }
             .onAppear(perform: refreshClipHistoryModel)
@@ -361,10 +394,17 @@ struct TrackSourceEditorView: View {
         case .occupiedClip:
             return currentClip.map { "Clip source: \($0.name)" } ?? "Clip source"
         case .occupiedGenerator:
-            return selectedSourceGenerator.map { "Generator source: \($0.name)" } ?? "Generator source"
+            return selectedSourceGenerator.map { "Generator live history: \($0.name)" } ?? "Generator live history"
         case .empty:
             return "No source assigned"
         }
+    }
+
+    private var clipHistoryUnavailableReason: String {
+        if case let .unavailable(reason) = historyDisplayState {
+            return reason
+        }
+        return "History is unavailable for this source."
     }
 
     @ViewBuilder
@@ -477,7 +517,7 @@ struct TrackSourceEditorView: View {
 
     private func refreshClipHistoryModel() {
         let trackID = track.id
-        let frozenBank = bank
+        let frozenBank = session.store.patternBank(for: trackID)
         clipHistoryModel?.stopAudition()
         clipHistoryModel = ClipHistoryTransferViewModel(
             trackID: trackID,
@@ -493,10 +533,61 @@ struct TrackSourceEditorView: View {
         resetClipHistoryDestinationMode()
     }
 
+    private var clipHistoryLiveRefreshKey: String {
+        guard selectedTab == .history, historyDisplayState.isAvailable else {
+            return "history-inactive"
+        }
+        return "history-\(track.id.uuidString)-\(selectedPatternIndex)"
+    }
+
+    @MainActor
+    private func refreshClipHistoryWhileVisible() async {
+        guard selectedTab == .history, historyDisplayState.isAvailable else {
+            return
+        }
+
+        if clipHistoryModel?.trackID != track.id {
+            refreshClipHistoryModel()
+        }
+
+        while !Task.isCancelled {
+            updateClipHistoryLiveSnapshot()
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+    }
+
+    private func updateClipHistoryLiveSnapshot() {
+        guard selectedTab == .history, historyDisplayState.isAvailable else {
+            return
+        }
+
+        guard let model = clipHistoryModel else {
+            refreshClipHistoryModel()
+            return
+        }
+
+        guard model.trackID == track.id else {
+            refreshClipHistoryModel()
+            return
+        }
+
+        guard model.selectedSourceIndex == nil else {
+            return
+        }
+
+        model.updateLiveSnapshot(engineController.captureSnapshot(trackID: model.trackID))
+    }
+
     private func enterClipHistoryDestinationMode() {
         guard let model = clipHistoryModel else {
             refreshClipHistoryModel()
             clipHistoryModel?.saveError = "Choose a history cell first."
+            return
+        }
+        guard model.trackID == track.id else {
+            resetClipHistoryModel()
+            refreshClipHistoryModel()
+            clipHistoryModel?.saveError = "History reloaded for the selected track."
             return
         }
         guard model.selectedPseudoClip != nil else {
@@ -510,7 +601,8 @@ struct TrackSourceEditorView: View {
 
     private func selectClipHistoryDestination(_ slotIndex: Int) {
         guard clipHistoryDestinationMode,
-              let model = clipHistoryModel
+              let model = clipHistoryModel,
+              model.trackID == track.id
         else {
             return
         }
@@ -526,7 +618,8 @@ struct TrackSourceEditorView: View {
 
     private func confirmClipHistoryReplace() {
         guard let slotIndex = pendingClipHistoryReplaceSlot,
-              let model = clipHistoryModel
+              let model = clipHistoryModel,
+              model.trackID == track.id
         else {
             return
         }
@@ -536,6 +629,7 @@ struct TrackSourceEditorView: View {
 
     private func saveSelectedClipHistory(to slotIndex: Int) {
         guard let model = clipHistoryModel,
+              model.trackID == track.id,
               let content = model.selectedPseudoClip?.noteGrid
         else {
             clipHistoryModel?.saveError = "Choose a history cell first."
@@ -544,7 +638,7 @@ struct TrackSourceEditorView: View {
 
         model.stopAudition()
         let clipID = session.saveMaterializedClipToPatternSlot(
-            trackID: track.id,
+            trackID: model.trackID,
             slotIndex: slotIndex,
             content: content,
             name: "Capture P\(slotIndex + 1)"
@@ -557,6 +651,12 @@ struct TrackSourceEditorView: View {
         showClipHistoryToast("Saved capture to P\(slotIndex + 1)")
         resetClipHistoryDestinationMode()
         refreshClipHistoryModel()
+    }
+
+    private func resetClipHistoryModel() {
+        resetClipHistoryDestinationMode()
+        clipHistoryModel?.stopAudition()
+        clipHistoryModel = nil
     }
 
     private func resetClipHistoryDestinationMode() {
@@ -636,13 +736,14 @@ final class ClipHistoryTransferViewModel {
         let index: Int
         let startStep: Int
         let noteCount: Int
+        let isSelectable: Bool
 
         var id: Int { index }
         var isEmpty: Bool { noteCount == 0 }
     }
 
     let trackID: UUID
-    let snapshot: CaptureSnapshot
+    var snapshot: CaptureSnapshot
     let destinationSlots: [DestinationSlot]
     var selectedSourceIndex: Int?
     var selectedDestinationIndex: Int?
@@ -693,14 +794,19 @@ final class ClipHistoryTransferViewModel {
             let noteCount = start < end
                 ? (start..<end).reduce(0) { $0 + (counts[$1] ?? 0) }
                 : 0
-            return SourceCell(index: index, startStep: start, noteCount: noteCount)
+            return SourceCell(
+                index: index,
+                startStep: start,
+                noteCount: noteCount,
+                isSelectable: noteCount > 0 && isSelectableSourceRange(startStep: start, lengthSteps: lengthSteps)
+            )
         }
     }
 
     var selectedPseudoClip: PseudoClipState? {
         guard let selectedSourceIndex,
               sourceCells.indices.contains(selectedSourceIndex),
-              !sourceCells[selectedSourceIndex].isEmpty
+              sourceCells[selectedSourceIndex].isSelectable
         else {
             return nil
         }
@@ -713,7 +819,18 @@ final class ClipHistoryTransferViewModel {
     }
 
     var previewContent: ClipContent? {
-        selectedPseudoClip?.noteGrid
+        previewPseudoClip?.noteGrid
+    }
+
+    var previewLengthSteps: Int {
+        previewPseudoClip?.lengthSteps ?? Self.stepsPerCell
+    }
+
+    var previewLengthLabel: String {
+        if selectedPseudoClip != nil {
+            return selectedLengthLabel
+        }
+        return Self.lengthLabel(for: previewLengthSteps)
     }
 
     var selectedLengthBars: Int {
@@ -749,13 +866,16 @@ final class ClipHistoryTransferViewModel {
         guard let selectedSourceIndex else {
             return false
         }
+        guard selectedPseudoClip != nil else {
+            return false
+        }
         let coveredCells = max(1, Int(ceil(Double(lengthSteps) / Double(Self.stepsPerCell))))
         return index >= selectedSourceIndex && index < selectedSourceIndex + coveredCells
     }
 
     func selectSource(_ index: Int) {
         guard let cell = sourceCells.first(where: { $0.index == index }),
-              !cell.isEmpty
+              cell.isSelectable
         else {
             selectedSourceIndex = nil
             stopAudition()
@@ -785,6 +905,13 @@ final class ClipHistoryTransferViewModel {
         } else {
             audition()
         }
+    }
+
+    func updateLiveSnapshot(_ updatedSnapshot: CaptureSnapshot) {
+        guard selectedSourceIndex == nil else {
+            return
+        }
+        snapshot = updatedSnapshot
     }
 
     func selectDestination(_ index: Int) {
@@ -867,6 +994,51 @@ final class ClipHistoryTransferViewModel {
             result[step.absoluteStep - windowStartAbsoluteStep] = step.notes.count
         }
         return result
+    }
+
+    private var previewPseudoClip: PseudoClipState? {
+        selectedPseudoClip ?? livePseudoClip
+    }
+
+    private var livePseudoClip: PseudoClipState? {
+        guard let livePreviewRange else {
+            return nil
+        }
+
+        return PseudoClipState.materialize(
+            sourceTrackID: trackID,
+            from: snapshot,
+            startStep: livePreviewRange.startOffset,
+            lengthSteps: livePreviewRange.lengthSteps
+        )
+    }
+
+    private var livePreviewRange: (startOffset: Int, lengthSteps: Int)? {
+        guard let lastAbsoluteStep = snapshot.steps.last?.absoluteStep else {
+            return nil
+        }
+
+        let currentBarPosition = lastAbsoluteStep % Self.stepsPerCell
+        let currentBarStartAbsoluteStep = lastAbsoluteStep - currentBarPosition
+        let windowStartAbsoluteStep = lastAbsoluteStep - snapshot.maxSteps + 1
+        return (
+            startOffset: currentBarStartAbsoluteStep - windowStartAbsoluteStep,
+            lengthSteps: currentBarPosition + 1
+        )
+    }
+
+    private func isSelectableSourceRange(startStep: Int, lengthSteps: Int) -> Bool {
+        let endStep = startStep + lengthSteps
+        guard endStep <= snapshot.maxSteps else {
+            return false
+        }
+        guard let livePreviewRange else {
+            return true
+        }
+
+        let liveStart = livePreviewRange.startOffset
+        let liveEnd = liveStart + livePreviewRange.lengthSteps
+        return endStep <= liveStart || startStep >= liveEnd
     }
 }
 
