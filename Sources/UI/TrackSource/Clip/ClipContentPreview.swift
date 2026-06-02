@@ -225,65 +225,107 @@ struct ClipContentPreview: View {
             } else {
                 switch selectedMode {
                 case .trigger:
-                StepGridView(
-                    stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
-                    indexOffset: pageStart,
-                    playingStepIndex: playingStepIndex,
-                    onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
-                ) { index in
-                    #if DEBUG
-                    let beforeState = steps.indices.contains(index)
-                        ? stepVisualState(for: steps[index], lane: selectedLane).diagnosticName
-                        : "missing"
-                    StepGridTapDiagnostics.log(
-                        "clipTriggerTapHandler",
-                        stepIndex: index,
-                        details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
-                    )
-                    #endif
-                    commit(togglingStep(at: index, lengthSteps: lengthSteps, steps: steps, lane: selectedLane))
-                }
-                .allowsHitTesting(onCommit != nil)
-
-            case .velocity:
-                GridEditor(
-                    values: visibleSteps.map { velocityValue(for: $0, lane: selectedLane) },
-                    allowedValues: [0, 24, 48, 72, 96, 127],
-                    accent: selectedLane.accent,
-                    indexOffset: pageStart,
-                    onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
-                ) { nextValues in
-                    commit(
-                        updatingLaneVelocities(
-                            lane: selectedLane,
-                            values: nextValues,
-                            visibleIndices: visibleIndices,
-                            lengthSteps: lengthSteps,
-                            steps: steps
+                    StepGridView(
+                        stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                        indexOffset: pageStart,
+                        playingStepIndex: playingStepIndex,
+                        onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
+                    ) { index in
+                        #if DEBUG
+                        let beforeState = steps.indices.contains(index)
+                            ? stepVisualState(for: steps[index], lane: selectedLane).diagnosticName
+                            : "missing"
+                        StepGridTapDiagnostics.log(
+                            "clipTriggerTapHandler",
+                            stepIndex: index,
+                            details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
                         )
-                    )
-                }
-                .allowsHitTesting(onCommit != nil)
+                        #endif
+                        commit(togglingStep(at: index, lengthSteps: lengthSteps, steps: steps, lane: selectedLane))
+                    }
+                    .allowsHitTesting(onCommit != nil)
 
-            case .probability:
-                GridEditor(
-                    values: visibleSteps.map { chanceValue(for: $0, lane: selectedLane) },
-                    allowedValues: [0, 0.25, 0.5, 0.75, 1],
-                    accent: selectedLane.accent,
-                    indexOffset: pageStart,
-                    onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
-                ) { nextValues in
-                    commit(
-                        updatingLaneChances(
-                            lane: selectedLane,
-                            values: nextValues,
-                            visibleIndices: visibleIndices,
-                            lengthSteps: lengthSteps,
-                            steps: steps
+                case .velocity:
+                    StepGridView(
+                        stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                        indexOffset: pageStart,
+                        playingStepIndex: playingStepIndex,
+                        contentProvider: { index, _ in
+                            guard steps.indices.contains(index) else {
+                                return .valueBar(fraction: 0)
+                            }
+                            return .valueBar(fraction: velocityValue(for: steps[index], lane: selectedLane) / 127.0)
+                        },
+                        onValueDrag: { index, fraction in
+                            commit(
+                                updatingLaneVelocities(
+                                    lane: selectedLane,
+                                    values: [fraction * 127.0],
+                                    visibleIndices: [index],
+                                    lengthSteps: lengthSteps,
+                                    steps: steps
+                                )
+                            )
+                        },
+                        onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
+                    ) { index in
+                        guard steps.indices.contains(index) else { return }
+                        let nextValue = cycledValue(
+                            after: velocityValue(for: steps[index], lane: selectedLane),
+                            allowedValues: [0, 24, 48, 72, 96, 127]
                         )
-                    )
-                }
-                .allowsHitTesting(onCommit != nil)
+                        commit(
+                            updatingLaneVelocities(
+                                lane: selectedLane,
+                                values: [nextValue],
+                                visibleIndices: [index],
+                                lengthSteps: lengthSteps,
+                                steps: steps
+                            )
+                        )
+                    }
+                    .allowsHitTesting(onCommit != nil)
+
+                case .probability:
+                    StepGridView(
+                        stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                        indexOffset: pageStart,
+                        playingStepIndex: playingStepIndex,
+                        contentProvider: { index, _ in
+                            guard steps.indices.contains(index) else {
+                                return .valueBar(fraction: 0)
+                            }
+                            return .valueBar(fraction: chanceValue(for: steps[index], lane: selectedLane))
+                        },
+                        onValueDrag: { index, fraction in
+                            commit(
+                                updatingLaneChances(
+                                    lane: selectedLane,
+                                    values: [fraction],
+                                    visibleIndices: [index],
+                                    lengthSteps: lengthSteps,
+                                    steps: steps
+                                )
+                            )
+                        },
+                        onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
+                    ) { index in
+                        guard steps.indices.contains(index) else { return }
+                        let nextValue = cycledValue(
+                            after: chanceValue(for: steps[index], lane: selectedLane),
+                            allowedValues: [0, 0.25, 0.5, 0.75, 1]
+                        )
+                        commit(
+                            updatingLaneChances(
+                                lane: selectedLane,
+                                values: [nextValue],
+                                visibleIndices: [index],
+                                lengthSteps: lengthSteps,
+                                steps: steps
+                            )
+                        )
+                    }
+                    .allowsHitTesting(onCommit != nil)
                 }
             }
 
@@ -796,6 +838,12 @@ struct ClipContentPreview: View {
 
     private func velocityValue(for step: ClipStep, lane: ClipEditorLane) -> Double {
         Double(lane.lane(in: step)?.notes.first?.velocity ?? 0)
+    }
+
+    private func cycledValue(after value: Double, allowedValues: [Double]) -> Double {
+        guard !allowedValues.isEmpty else { return value }
+        let currentIndex = allowedValues.firstIndex { abs($0 - value) < 0.01 } ?? 0
+        return allowedValues[(currentIndex + 1) % allowedValues.count]
     }
 
     private func togglingStep(
