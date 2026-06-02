@@ -303,6 +303,9 @@ struct SliceTrackWorkspaceView: View {
                     onValueDrag: { stepIndex, value in
                         writeSliceStepValue(value, at: stepIndex, coordinator: coordinator)
                     },
+                    onBackgroundTap: {
+                        coordinator?.clearSelection()
+                    },
                     onSelect: { stepIndex in
                         selectedStepIndex = min(max(stepIndex, 0), steps.count - 1)
                         coordinator?.toggleSelection(at: stepIndex)
@@ -311,6 +314,11 @@ struct SliceTrackWorkspaceView: View {
                     selectedStepIndex = min(max(stepIndex, 0), steps.count - 1)
                     if selectedLayer == .steps {
                         toggleStep(at: selectedStepIndex, steps: steps)
+                    }
+                }
+                .background {
+                    StepGridEscapeKeyHandler(isEnabled: coordinator?.isSelectionActive ?? false) {
+                        coordinator?.clearSelection()
                     }
                 }
 

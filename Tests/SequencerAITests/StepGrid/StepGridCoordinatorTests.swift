@@ -26,6 +26,20 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.selection.selectedStepIndexes, [1, 5])
     }
 
+    func test_clearSelectionEmptiesSelectedStepIndexes() {
+        let clipID = UUID()
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [0, 3, 7].forEach { coordinator.toggleSelection(at: $0) }
+
+        coordinator.clearSelection()
+
+        XCTAssertTrue(coordinator.selection.selectedStepIndexes.isEmpty)
+        XCTAssertFalse(coordinator.isSelectionActive)
+        XCTAssertFalse(coordinator.shouldShowRotaryRow)
+        XCTAssertFalse(coordinator.shouldShowBatchActionBar)
+    }
+
     func test_selectionModel_acceptsNonContiguousStepIndexes() {
         let clipID = UUID()
         let model = StepSelectionModel(clipID: clipID, selectedStepIndexes: [0, 3, 7])
@@ -478,6 +492,20 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.isSelectionActive)
         XCTAssertNotNil(coordinator.clipboard)
         XCTAssertEqual(coordinator.editableLayers, [.velocity])
+    }
+
+    func test_workspaceResetDiscardsCoordinatorSelectionAndClipboard() {
+        let clipID = UUID()
+        let track = Self.makeTrack()
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID, activeIndexes: [1]))
+        let workspace = TrackStepGridWorkspaceModel()
+        let coordinator = workspace.coordinator(for: clipID, clipMutator: mutator, editableLayers: [.velocity, .chance])
+        coordinator.toggleSelection(at: 1)
+        coordinator.copySelectedSteps(from: mutator.clip, track: track)
+
+        workspace.reset()
+
+        XCTAssertNil(workspace.coordinator)
     }
 
     func test_transientStepGridTypesAreNotCodable() {

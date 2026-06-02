@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum SliceTrackLane: String, CaseIterable, Identifiable {
@@ -268,42 +269,77 @@ struct SliceStepStrip: View {
     let activeLayer: SliceTrackClipLayer
     let contentProvider: (Int, State) -> StepCellContent
     let onValueDrag: ((Int, Double) -> Void)?
+    let onBackgroundTap: (() -> Void)?
     let onSelect: (Int) -> Void
     let onTap: (Int) -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 16)
 
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(Array(stepStates.enumerated()), id: \.offset) { localIndex, state in
-                let absoluteIndex = indexOffset + localIndex
-                VStack(spacing: 7) {
-                    Text("\(absoluteIndex + 1)")
-                        .studioText(.eyebrow)
-                        .foregroundStyle(state == .off ? StudioTheme.mutedText : StudioTheme.text)
+    init(
+        stepStates: [State],
+        indexOffset: Int,
+        playingStepIndex: Int?,
+        selectedStepIndex: Int,
+        selectedStepIndexes: Set<Int>,
+        activeLayer: SliceTrackClipLayer,
+        contentProvider: @escaping (Int, State) -> StepCellContent,
+        onValueDrag: ((Int, Double) -> Void)?,
+        onBackgroundTap: (() -> Void)? = nil,
+        onSelect: @escaping (Int) -> Void,
+        onTap: @escaping (Int) -> Void
+    ) {
+        self.stepStates = stepStates
+        self.indexOffset = indexOffset
+        self.playingStepIndex = playingStepIndex
+        self.selectedStepIndex = selectedStepIndex
+        self.selectedStepIndexes = selectedStepIndexes
+        self.activeLayer = activeLayer
+        self.contentProvider = contentProvider
+        self.onValueDrag = onValueDrag
+        self.onBackgroundTap = onBackgroundTap
+        self.onSelect = onSelect
+        self.onTap = onTap
+    }
 
-                    UnifiedStepCell(
-                        visualState: visualState(for: state),
-                        isPlaying: playingStepIndex == absoluteIndex,
-                        isSelected: selectedStepIndexes.contains(absoluteIndex),
-                        content: contentProvider(absoluteIndex, state),
-                        onTap: { onTap(absoluteIndex) },
-                        onDrag: activeLayer == .steps ? nil : { value in
-                            onValueDrag?(absoluteIndex, value)
-                        },
-                        onSelect: { onSelect(absoluteIndex) }
+    var body: some View {
+        ZStack {
+            if let onBackgroundTap {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onBackgroundTap)
+            }
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(Array(stepStates.enumerated()), id: \.offset) { localIndex, state in
+                    let absoluteIndex = indexOffset + localIndex
+                    VStack(spacing: 7) {
+                        Text("\(absoluteIndex + 1)")
+                            .studioText(.eyebrow)
+                            .foregroundStyle(state == .off ? StudioTheme.mutedText : StudioTheme.text)
+
+                        UnifiedStepCell(
+                            visualState: visualState(for: state),
+                            isPlaying: playingStepIndex == absoluteIndex,
+                            isSelected: selectedStepIndexes.contains(absoluteIndex),
+                            content: contentProvider(absoluteIndex, state),
+                            onTap: { onTap(absoluteIndex) },
+                            onDrag: activeLayer == .steps ? nil : { value in
+                                onValueDrag?(absoluteIndex, value)
+                            },
+                            onSelect: { onSelect(absoluteIndex) }
+                        )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .padding(.horizontal, 3)
+                    .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                            .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : 1)
                     )
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Slice step \(absoluteIndex + 1)")
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
-                .padding(.horizontal, 3)
-                .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                        .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : 1)
-                )
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Slice step \(absoluteIndex + 1)")
             }
         }
     }
@@ -326,6 +362,83 @@ struct SliceStepStrip: View {
             return Color.white.opacity(StudioOpacity.borderSubtle)
         case .on:
             return StudioTheme.cyan.opacity(0.4)
+        }
+    }
+}
+
+struct StepGridEscapeKeyHandler: NSViewRepresentable {
+    let isEnabled: Bool
+    let onEscape: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isEnabled: isEnabled, onEscape: onEscape)
+    }
+
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        context.coordinator.view = view
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onEscape = onEscape
+        context.coordinator.installMonitor()
+        return view
+    }
+
+    func updateNSView(_ nsView: ProbeView, context: Context) {
+        context.coordinator.view = nsView
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onEscape = onEscape
+        context.coordinator.installMonitor()
+    }
+
+    static func dismantleNSView(_ nsView: ProbeView, coordinator: Coordinator) {
+        _ = nsView
+        coordinator.removeMonitor()
+    }
+
+    final class ProbeView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            _ = point
+            return nil
+        }
+    }
+
+    final class Coordinator {
+        var isEnabled: Bool
+        var onEscape: () -> Void
+        weak var view: ProbeView?
+        private var monitor: Any?
+
+        init(isEnabled: Bool, onEscape: @escaping () -> Void) {
+            self.isEnabled = isEnabled
+            self.onEscape = onEscape
+        }
+
+        deinit {
+            removeMonitor()
+        }
+
+        func installMonitor() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+                guard let self,
+                      isEnabled,
+                      event.keyCode == 53,
+                      let view,
+                      event.window === view.window
+                else {
+                    return event
+                }
+
+                onEscape()
+                return nil
+            }
+        }
+
+        func removeMonitor() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
         }
     }
 }
