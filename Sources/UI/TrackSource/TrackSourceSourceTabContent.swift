@@ -11,6 +11,7 @@ struct TrackSourceSourceTabContent: View {
     let previewClipContent: ClipContent
     let defaultClipNote: ClipStepNote
     let clipMacroSlots: [MacroSlot]
+    let macroBindings: [TrackMacroBinding]
     let macroLanes: [UUID: MacroLane]
     let macroFallbackValues: [UUID: Double]
     let canAssignAUMacros: Bool
@@ -50,6 +51,7 @@ struct TrackSourceSourceTabContent: View {
                         previewClipContent: previewClipContent,
                         defaultClipNote: defaultClipNote,
                         clipMacroSlots: clipMacroSlots,
+                        macroBindings: macroBindings,
                         macroLanes: macroLanes,
                         macroFallbackValues: macroFallbackValues,
                         canAssignAUMacros: canAssignAUMacros,

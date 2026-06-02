@@ -177,9 +177,28 @@ final class StepGridCoordinator {
         in clip: ClipPoolEntry,
         layer: StepGridLayer? = nil,
         track: StepSequenceTrack? = nil,
+        macroBindings: [TrackMacroBinding]? = nil,
         noteLane: StepGridNoteLane = .main
     ) -> StepCellContent {
-        switch layer ?? activeLayer {
+        Self.cellContent(
+            for: stepIndex,
+            in: clip,
+            layer: layer ?? activeLayer,
+            track: track,
+            macroBindings: macroBindings,
+            noteLane: noteLane
+        )
+    }
+
+    static func cellContent(
+        for stepIndex: Int,
+        in clip: ClipPoolEntry,
+        layer: StepGridLayer,
+        track: StepSequenceTrack? = nil,
+        macroBindings: [TrackMacroBinding]? = nil,
+        noteLane: StepGridNoteLane = .main
+    ) -> StepCellContent {
+        switch layer {
         case .trigger:
             if clip.trackType == .polyMelodic {
                 return .chordLabel(name: Self.chordLabel(at: stepIndex, in: clip.content, noteLane: noteLane))
@@ -197,7 +216,7 @@ final class StepGridCoordinator {
             return .valueBar(fraction: Self.chanceFraction(at: stepIndex, in: clip.content, noteLane: noteLane))
 
         case let .macro(index):
-            guard let binding = track?.macros[safe: index] else {
+            guard let binding = (macroBindings ?? track?.macros)?[safe: index] else {
                 return .valueBar(fraction: 0)
             }
             return .valueBar(fraction: Self.macroFraction(at: stepIndex, in: clip, binding: binding))

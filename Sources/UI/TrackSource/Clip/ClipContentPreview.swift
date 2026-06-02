@@ -73,7 +73,33 @@ private enum ClipEditorMode: String, CaseIterable, Identifiable {
 
 private enum ClipEditorLayer: Equatable {
     case mode(ClipEditorMode)
-    case macro(slotIndex: Int)
+    case macro(index: Int)
+}
+
+struct ClipMacroLayerTab: Equatable, Identifiable {
+    let slotIndex: Int
+    let macroIndex: Int
+    let binding: TrackMacroBinding
+
+    var id: UUID { binding.id }
+
+    static func tabs(
+        macroSlots: [MacroSlot],
+        macroBindings: [TrackMacroBinding]
+    ) -> [ClipMacroLayerTab] {
+        macroSlots.compactMap { slot in
+            guard let binding = slot.binding,
+                  let macroIndex = macroBindings.firstIndex(where: { $0.id == binding.id })
+            else {
+                return nil
+            }
+            return ClipMacroLayerTab(
+                slotIndex: slot.slotIndex,
+                macroIndex: macroIndex,
+                binding: binding
+            )
+        }
+    }
 }
 
 private struct ClipStepInspectorTarget: Identifiable, Equatable {
@@ -86,6 +112,7 @@ struct ClipContentPreview: View {
     let content: ClipContent
     let defaultNote: ClipStepNote
     let macroSlots: [MacroSlot]
+    let macroBindings: [TrackMacroBinding]
     let macroLanes: [UUID: MacroLane]
     let macroFallbackValues: [UUID: Double]
     let onAssignMacroSlot: ((Int) -> Void)?
@@ -103,6 +130,7 @@ struct ClipContentPreview: View {
         content: ClipContent,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4),
         macroSlots: [MacroSlot] = [],
+        macroBindings: [TrackMacroBinding] = [],
         macroLanes: [UUID: MacroLane] = [:],
         macroFallbackValues: [UUID: Double] = [:],
         onAssignMacroSlot: ((Int) -> Void)? = nil,
@@ -114,6 +142,7 @@ struct ClipContentPreview: View {
         self.content = normalizedContent
         self.defaultNote = defaultNote.normalized
         self.macroSlots = macroSlots.sorted { $0.slotIndex < $1.slotIndex }
+        self.macroBindings = macroBindings
         self.macroLanes = macroLanes
         self.macroFallbackValues = macroFallbackValues
         self.onAssignMacroSlot = onAssignMacroSlot
@@ -195,29 +224,41 @@ struct ClipContentPreview: View {
                 editorLayerStrip
             }
 
-            if let selectedMacroBinding {
-                GridEditor(
-                    values: visibleMacroValues(
-                        binding: selectedMacroBinding,
-                        visibleIndices: visibleIndices,
-                        stepCount: lengthSteps
-                    ),
-                    allowedValues: macroAllowedValues(for: selectedMacroBinding),
-                    accent: StudioTheme.cyan,
-                    valueRange: macroValueRange(for: selectedMacroBinding),
+            if let selectedMacroLayer {
+                let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
+                let previewClip = macroPreviewClip(lengthSteps: lengthSteps, steps: steps)
+
+                StepGridView(
+                    stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                     indexOffset: pageStart,
-                    onLongPress: { stepIndex in
+                    playingStepIndex: playingStepIndex,
+                    contentProvider: { index, _ in
+                        StepGridCoordinator.cellContent(
+                            for: index,
+                            in: previewClip,
+                            layer: layer,
+                            macroBindings: macroBindings
+                        )
+                    },
+                    onValueDrag: { index, fraction in
+                        updateMacroLaneFraction(
+                            fraction,
+                            binding: selectedMacroLayer.binding,
+                            stepIndex: index,
+                            stepCount: lengthSteps
+                        )
+                    },
+                    onDoubleTap: { stepIndex in
                         clearMacroLaneValue(
-                            binding: selectedMacroBinding,
+                            binding: selectedMacroLayer.binding,
                             stepIndex: stepIndex,
                             stepCount: lengthSteps
                         )
                     }
-                ) { nextValues in
-                    updateMacroLaneValues(
-                        binding: selectedMacroBinding,
-                        values: nextValues,
-                        visibleIndices: visibleIndices,
+                ) { index in
+                    cycleMacroLaneValue(
+                        binding: selectedMacroLayer.binding,
+                        stepIndex: index,
                         stepCount: lengthSteps
                     )
                 }
@@ -359,10 +400,11 @@ struct ClipContentPreview: View {
             }
         }
         .onChange(of: macroSlots) { _, slots in
-            guard case let .macro(slotIndex) = selectedLayer else {
+            guard case let .macro(index) = selectedLayer else {
                 return
             }
-            if !slots.contains(where: { $0.slotIndex == slotIndex && $0.binding != nil }) {
+            let tabs = ClipMacroLayerTab.tabs(macroSlots: slots, macroBindings: macroBindings)
+            if !tabs.contains(where: { $0.macroIndex == index }) {
                 selectedLayer = .mode(.trigger)
             }
         }
@@ -480,7 +522,8 @@ struct ClipContentPreview: View {
             }
 
             ForEach(macroSlots.prefix(layerGridColumnCount)) { slot in
-                let isSelected = selectedLayer == .macro(slotIndex: slot.slotIndex) && slot.binding != nil
+                let tab = macroLayerTab(for: slot)
+                let isSelected = tab.map { selectedLayer == .macro(index: $0.macroIndex) } ?? false
                 layerButton(
                     eyebrow: "M\(slot.slotIndex + 1)",
                     title: slot.binding?.displayName ?? "Assign",
@@ -489,8 +532,8 @@ struct ClipContentPreview: View {
                     isPlaceholder: slot.binding == nil,
                     isEnabled: slot.binding != nil || onAssignMacroSlot != nil
                 ) {
-                    if slot.binding != nil {
-                        selectedLayer = .macro(slotIndex: slot.slotIndex)
+                    if let tab {
+                        selectedLayer = .macro(index: tab.macroIndex)
                     } else {
                         onAssignMacroSlot?(slot.slotIndex)
                     }
@@ -570,45 +613,50 @@ struct ClipContentPreview: View {
     }
 
     private var selectedMacroBinding: TrackMacroBinding? {
-        guard case let .macro(slotIndex) = selectedLayer else {
+        selectedMacroLayer?.binding
+    }
+
+    private var selectedMacroLayer: ClipMacroLayerTab? {
+        guard case let .macro(index) = selectedLayer else {
             return nil
         }
-        return macroSlots.first(where: { $0.slotIndex == slotIndex })?.binding
+        return macroLayerTabs.first { $0.macroIndex == index }
+    }
+
+    private var macroLayerTabs: [ClipMacroLayerTab] {
+        ClipMacroLayerTab.tabs(macroSlots: macroSlots, macroBindings: macroBindings)
+    }
+
+    private func macroLayerTab(for slot: MacroSlot) -> ClipMacroLayerTab? {
+        macroLayerTabs.first { $0.slotIndex == slot.slotIndex }
     }
 
     private func syncedMacroLanes(stepCount: Int) -> [UUID: MacroLane] {
         macroLanes.mapValues { $0.synced(stepCount: stepCount) }
     }
 
-    private func visibleMacroValues(
-        binding: TrackMacroBinding,
-        visibleIndices: [Int],
-        stepCount: Int
-    ) -> [Double] {
-        let lane = macroLanes[binding.id]?.synced(stepCount: stepCount)
-        let fallback = macroFallbackValue(for: binding)
-        return visibleIndices.map { index in
-            guard let lane, lane.values.indices.contains(index) else {
-                return fallback
-            }
-            return lane.values[index] ?? fallback
-        }
-    }
-
-    private func updateMacroLaneValues(
-        binding: TrackMacroBinding,
-        values: [Double],
-        visibleIndices: [Int],
-        stepCount: Int
-    ) {
+    private func updateMacroLaneValue(_ value: Double?, binding: TrackMacroBinding, stepIndex: Int, stepCount: Int) {
         guard let onUpdateMacroLanes else { return }
         var updatedLanes = syncedMacroLanes(stepCount: stepCount)
         var lane = updatedLanes[binding.id] ?? MacroLane(stepCount: stepCount)
-        for (stepIndex, value) in zip(visibleIndices, values) where lane.values.indices.contains(stepIndex) {
-            lane.values[stepIndex] = clampedMacroValue(value, for: binding)
-        }
+        guard lane.values.indices.contains(stepIndex) else { return }
+        lane.values[stepIndex] = value.map { clampedMacroValue($0, for: binding) }
         updatedLanes[binding.id] = lane
         onUpdateMacroLanes(updatedLanes)
+    }
+
+    private func updateMacroLaneFraction(_ fraction: Double, binding: TrackMacroBinding, stepIndex: Int, stepCount: Int) {
+        let range = binding.descriptor.maxValue - binding.descriptor.minValue
+        let value = binding.descriptor.minValue + (min(max(fraction, 0), 1) * range)
+        updateMacroLaneValue(value, binding: binding, stepIndex: stepIndex, stepCount: stepCount)
+    }
+
+    private func cycleMacroLaneValue(binding: TrackMacroBinding, stepIndex: Int, stepCount: Int) {
+        let values = macroAllowedValues(for: binding)
+        let laneValues = macroLanes[binding.id]?.synced(stepCount: stepCount).values
+        let current = laneValues?.indices.contains(stepIndex) == true ? laneValues?[stepIndex] ?? nil : nil
+        let next = cycledValue(after: current ?? macroFallbackValue(for: binding), allowedValues: values)
+        updateMacroLaneValue(next, binding: binding, stepIndex: stepIndex, stepCount: stepCount)
     }
 
     private func clearMacroLaneValue(
@@ -616,13 +664,17 @@ struct ClipContentPreview: View {
         stepIndex: Int,
         stepCount: Int
     ) {
-        guard let onUpdateMacroLanes else { return }
-        var updatedLanes = syncedMacroLanes(stepCount: stepCount)
-        var lane = updatedLanes[binding.id] ?? MacroLane(stepCount: stepCount)
-        guard lane.values.indices.contains(stepIndex) else { return }
-        lane.values[stepIndex] = nil
-        updatedLanes[binding.id] = lane
-        onUpdateMacroLanes(updatedLanes)
+        updateMacroLaneValue(nil, binding: binding, stepIndex: stepIndex, stepCount: stepCount)
+    }
+
+    private func macroPreviewClip(lengthSteps: Int, steps: [ClipStep]) -> ClipPoolEntry {
+        ClipPoolEntry(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID(),
+            name: "Preview",
+            trackType: .monoMelodic,
+            content: .noteGrid(lengthSteps: lengthSteps, steps: steps),
+            macroLanes: macroLanes
+        )
     }
 
     private func macroFallbackValue(for binding: TrackMacroBinding) -> Double {
@@ -631,15 +683,6 @@ struct ClipContentPreview: View {
 
     private func clampedMacroValue(_ value: Double, for binding: TrackMacroBinding) -> Double {
         min(max(value, binding.descriptor.minValue), binding.descriptor.maxValue)
-    }
-
-    private func macroValueRange(for binding: TrackMacroBinding) -> ClosedRange<Double> {
-        let minValue = binding.descriptor.minValue
-        let maxValue = binding.descriptor.maxValue
-        guard maxValue > minValue else {
-            return minValue...(minValue + 1)
-        }
-        return minValue...maxValue
     }
 
     private func macroAllowedValues(for binding: TrackMacroBinding) -> [Double] {

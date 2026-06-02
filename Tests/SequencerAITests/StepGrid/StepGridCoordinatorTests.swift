@@ -158,6 +158,45 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(lane.values[1]), 0.42, accuracy: 0.0001)
     }
 
+    func test_macroLayerTabsResolveToTrackMacroArrayIndexNotVisualSlotPosition() throws {
+        let firstBinding = Self.makeBinding(kind: .sampleStart, slotIndex: 7)
+        let secondBinding = Self.makeBinding(kind: .sampleLength, slotIndex: 0)
+        let macroBindings = [firstBinding, secondBinding]
+        let macroSlots = [
+            MacroSlot(slotIndex: 0, binding: secondBinding),
+            MacroSlot(slotIndex: 7, binding: firstBinding)
+        ]
+
+        let tabs = ClipMacroLayerTab.tabs(macroSlots: macroSlots, macroBindings: macroBindings)
+
+        let firstSlotTab = try XCTUnwrap(tabs.first { $0.slotIndex == 0 })
+        XCTAssertEqual(firstSlotTab.binding.id, secondBinding.id)
+        XCTAssertEqual(firstSlotTab.macroIndex, 1)
+
+        let seventhSlotTab = try XCTUnwrap(tabs.first { $0.slotIndex == 7 })
+        XCTAssertEqual(seventhSlotTab.binding.id, firstBinding.id)
+        XCTAssertEqual(seventhSlotTab.macroIndex, 0)
+    }
+
+    func test_staticCellContentUsesMacroBindingArrayIndexAndBindingIDStorage() {
+        let clipID = UUID()
+        let firstBinding = Self.makeBinding(kind: .sampleStart, slotIndex: 7)
+        let secondBinding = Self.makeBinding(kind: .sampleLength, slotIndex: 0)
+        let macroBindings = [firstBinding, secondBinding]
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [1])
+        clip.macroLanes[secondBinding.id] = MacroLane(values: [nil, 0.75, nil, nil, nil, nil, nil, nil])
+        clip.macroLanes[firstBinding.id] = MacroLane(values: [nil, 0.25, nil, nil, nil, nil, nil, nil])
+
+        let content = StepGridCoordinator.cellContent(
+            for: 1,
+            in: clip,
+            layer: .macro(index: 1),
+            macroBindings: macroBindings
+        )
+
+        XCTAssertEqual(content, .valueBar(fraction: 0.75))
+    }
+
     func test_clearAndPasteUseOneMutationAndMacroBindingIDStorage() throws {
         let clipID = UUID()
         let binding = Self.makeBinding(kind: .sampleStart)
