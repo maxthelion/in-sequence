@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import XCTest
 @testable import SequencerAI
 
@@ -588,6 +590,162 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
     }
 
     @MainActor
+    func test_renderClipHistoryInlineHistoryTabVisualEvidence() throws {
+        guard let outputPath = clipHistoryVisualEvidenceOutputPath(),
+              !outputPath.isEmpty
+        else {
+            throw XCTSkip("Set SEQUENCERAI_CLIP_HISTORY_VISUAL_EVIDENCE_DIR or .clip-history-visual-evidence-output to render clip-history visual evidence.")
+        }
+
+        let outputDirectory = URL(fileURLWithPath: outputPath, isDirectory: true)
+        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+
+        let liveModel = makeClipHistoryTransferViewModel(
+            noteOffsets: [
+                48: 55,
+                64: 62,
+                96: 67,
+                160: 72,
+                176: 64,
+                240: 59,
+                244: 71
+            ]
+        )
+        try renderEvidence(
+            ClipHistoryEvidenceSurface(model: liveModel),
+            to: outputDirectory.appendingPathComponent("01-generator-live-current-bar-nonselectable.png")
+        )
+
+        let selectedModel = makeClipHistoryTransferViewModel(
+            noteOffsets: [
+                48: 55,
+                64: 62,
+                96: 67,
+                160: 72,
+                176: 64,
+                240: 59,
+                244: 71
+            ]
+        )
+        selectedModel.selectSource(10)
+        selectedModel.setLengthSteps(32)
+        try renderEvidence(
+            ClipHistoryEvidenceSurface(model: selectedModel),
+            to: outputDirectory.appendingPathComponent("02-selected-prior-region-2-bars-audition-save-enabled.png")
+        )
+
+        selectedModel.selectSource(10)
+        try renderEvidence(
+            ClipHistoryEvidenceSurface(model: selectedModel),
+            to: outputDirectory.appendingPathComponent("03-deselected-rolling-live-preview.png")
+        )
+
+        let armedModel = makeClipHistoryTransferViewModel(
+            noteOffsets: [
+                48: 55,
+                64: 62,
+                96: 67,
+                160: 72,
+                176: 64,
+                240: 59,
+                244: 71
+            ]
+        )
+        armedModel.selectSource(10)
+        armedModel.setLengthSteps(32)
+        try renderEvidence(
+            ClipHistoryDestinationEvidenceSurface(
+                model: armedModel,
+                occupiedSlots: [0, 4],
+                pendingReplaceSlot: nil
+            ),
+            to: outputDirectory.appendingPathComponent("04-save-clip-destination-arm-pattern-row.png")
+        )
+
+        let replaceModel = makeClipHistoryTransferViewModel(
+            noteOffsets: [
+                48: 55,
+                64: 62,
+                96: 67,
+                160: 72,
+                176: 64,
+                240: 59,
+                244: 71
+            ],
+            occupiedSlots: [3]
+        )
+        replaceModel.selectSource(10)
+        replaceModel.setLengthSteps(32)
+        replaceModel.selectDestination(3)
+        try renderEvidence(
+            ClipHistoryDestinationEvidenceSurface(
+                model: replaceModel,
+                occupiedSlots: [3],
+                pendingReplaceSlot: 3
+            ),
+            to: outputDirectory.appendingPathComponent("05-occupied-destination-inline-replace.png")
+        )
+
+        try renderEvidence(
+            ClipHistoryUnavailableEvidenceSurface(
+                sourceState: .occupiedClip,
+                historyState: TrackSourceHistoryDisplayState.resolve(
+                    trackType: .monoMelodic,
+                    sourceState: .occupiedClip
+                )
+            ),
+            to: outputDirectory.appendingPathComponent("06-clip-source-history-na.png")
+        )
+        try renderEvidence(
+            ClipHistoryUnavailableEvidenceSurface(
+                sourceState: .empty,
+                historyState: TrackSourceHistoryDisplayState.resolve(
+                    trackType: .monoMelodic,
+                    sourceState: .empty
+                )
+            ),
+            to: outputDirectory.appendingPathComponent("07-empty-source-history-na.png")
+        )
+        try renderEvidence(
+            ClipHistoryUnavailableEvidenceSurface(
+                sourceState: .occupiedGenerator,
+                historyState: TrackSourceHistoryDisplayState.resolve(
+                    trackType: .slice,
+                    sourceState: .occupiedGenerator
+                )
+            ),
+            to: outputDirectory.appendingPathComponent("08-slice-source-history-na.png")
+        )
+
+        let renderedFiles = try FileManager.default.contentsOfDirectory(
+            at: outputDirectory,
+            includingPropertiesForKeys: [.fileSizeKey]
+        ).filter { $0.pathExtension == "png" }
+
+        XCTAssertEqual(renderedFiles.count, 8)
+        for file in renderedFiles {
+            let values = try file.resourceValues(forKeys: [.fileSizeKey])
+            XCTAssertGreaterThan(values.fileSize ?? 0, 10_000, "Expected non-empty visual evidence for \(file.lastPathComponent)")
+        }
+    }
+
+    private func clipHistoryVisualEvidenceOutputPath() -> String? {
+        if let outputPath = ProcessInfo.processInfo.environment["SEQUENCERAI_CLIP_HISTORY_VISUAL_EVIDENCE_DIR"] {
+            return outputPath
+        }
+
+        let testFile = URL(fileURLWithPath: #filePath)
+        let worktreeRoot = testFile
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sentinel = worktreeRoot.appendingPathComponent(".clip-history-visual-evidence-output")
+        return try? String(contentsOf: sentinel, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    @MainActor
     private func makeClipHistoryTransferViewModel(
         noteOffsets: [Int: Int],
         occupiedSlots: Set<Int> = [],
@@ -629,5 +787,188 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         }
         steps.sort { $0.absoluteStep < $1.absoluteStep }
         return CaptureSnapshot(maxSteps: maxSteps, steps: steps)
+    }
+
+    @MainActor
+    private func renderEvidence<Content: View>(_ content: Content, to url: URL) throws {
+        let size = CGSize(width: 1180, height: 720)
+        let renderer = ImageRenderer(
+            content: content
+                .frame(width: size.width, height: size.height)
+        )
+        renderer.proposedSize = ProposedViewSize(size)
+        renderer.scale = 2
+
+        guard let cgImage = renderer.cgImage else {
+            XCTFail("Could not render \(url.lastPathComponent)")
+            return
+        }
+
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        guard let data = bitmap.representation(using: .png, properties: [:]) else {
+            XCTFail("Could not encode \(url.lastPathComponent)")
+            return
+        }
+        try data.write(to: url, options: .atomic)
+    }
+}
+
+private struct ClipHistoryEvidenceSurface: View {
+    let model: ClipHistoryTransferViewModel
+
+    var body: some View {
+        ClipHistoryEvidenceShell {
+            TrackSourceSlotWellTabBar(
+                selectedTab: .constant(.history),
+                sourceState: .occupiedGenerator,
+                modifierState: .empty,
+                historyState: .liveCapture,
+                accent: StudioTheme.cyan
+            )
+
+            TrackSourceClipHistoryTabContent(
+                model: model,
+                accent: StudioTheme.success,
+                sourceSummary: "Generator live history: Euclidean Mono",
+                isDestinationMode: false,
+                onSaveClip: {}
+            )
+        }
+    }
+}
+
+private struct ClipHistoryDestinationEvidenceSurface: View {
+    let model: ClipHistoryTransferViewModel
+    let occupiedSlots: Set<Int>
+    let pendingReplaceSlot: Int?
+
+    var body: some View {
+        ClipHistoryEvidenceShell {
+            StudioPanel(title: "Pattern", accent: StudioTheme.success) {
+                VStack(alignment: .leading, spacing: 10) {
+                    TrackPatternSlotPalette(
+                        selectedSlot: .constant(0),
+                        occupiedSlots: occupiedSlots,
+                        bypassState: .notApplicable,
+                        onBypassToggle: { _ in },
+                        destinationMode: TrackPatternSlotPalette.DestinationMode(
+                            pendingReplaceSlot: pendingReplaceSlot,
+                            accent: StudioTheme.success
+                        ),
+                        onDestinationSelect: { _ in }
+                    )
+
+                    destinationRow
+                }
+            }
+
+            TrackSourceSlotWellTabBar(
+                selectedTab: .constant(.history),
+                sourceState: .occupiedGenerator,
+                modifierState: .empty,
+                historyState: .liveCapture,
+                accent: StudioTheme.cyan
+            )
+
+            TrackSourceClipHistoryTabContent(
+                model: model,
+                accent: StudioTheme.success,
+                sourceSummary: "Generator live history: Euclidean Mono",
+                isDestinationMode: true,
+                onSaveClip: {}
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var destinationRow: some View {
+        HStack(spacing: 10) {
+            if let pendingReplaceSlot {
+                Text("P\(pendingReplaceSlot + 1) is occupied.")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.amber)
+                Spacer(minLength: 0)
+                Button("Replace") {}
+                    .buttonStyle(.plain)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                Button("Cancel") {}
+                    .buttonStyle(.plain)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+            } else {
+                Text("Choose a pulsing pattern slot to save the selected history clip.")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Spacer(minLength: 0)
+                Button("Cancel") {}
+                    .buttonStyle(.plain)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(
+            StudioTheme.success.opacity(StudioOpacity.selectedFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+        )
+    }
+}
+
+private struct ClipHistoryUnavailableEvidenceSurface: View {
+    let sourceState: TrackSourceSourceDisplayState
+    let historyState: TrackSourceHistoryDisplayState
+
+    var body: some View {
+        ClipHistoryEvidenceShell {
+            TrackSourceSlotWellTabBar(
+                selectedTab: .constant(.history),
+                sourceState: sourceState,
+                modifierState: .empty,
+                historyState: historyState,
+                accent: StudioTheme.cyan
+            )
+
+            TrackSourceSelectedWellBody(accent: StudioTheme.success, isEmpty: false) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("History")
+                        .studioText(.bodyBold)
+                        .foregroundStyle(StudioTheme.text)
+                    Text(unavailableReason)
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+            }
+        }
+    }
+
+    private var unavailableReason: String {
+        if case let .unavailable(reason) = historyState {
+            return reason
+        }
+        return "History is unavailable for this source."
+    }
+}
+
+private struct ClipHistoryEvidenceShell<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        ZStack {
+            StudioTheme.stageFill
+
+            VStack(alignment: .leading, spacing: 0) {
+                content
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
     }
 }
