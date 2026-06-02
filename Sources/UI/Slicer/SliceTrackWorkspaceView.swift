@@ -253,16 +253,34 @@ struct SliceTrackWorkspaceView: View {
     private var clipControls: some View {
         VStack(alignment: .leading, spacing: 12) {
             controlGroup(title: "Layer") {
-                HStack(spacing: 8) {
-                    ForEach(SliceTrackClipLayer.allCases) { layer in
-                        layerButton(title: layer.title, isSelected: selectedLayer == layer, isEnabled: true) {
-                            selectedLayer = layer
-                        }
-                    }
-                }
+                layerRow
             }
 
             sliceStepEditor
+        }
+    }
+
+    @ViewBuilder
+    private var layerRow: some View {
+        if let coordinator = stepGridCoordinator,
+           coordinator.shouldShowRotaryRow,
+           let currentClip {
+            StepLayerRotaryRow(
+                controls: coordinator.rotaryControls(in: currentClip, track: track),
+                activeLayer: selectedLayer.stepGridLayer,
+                suppressActiveLayerHighlight: selectedLayer == .steps,
+                accent: accent,
+                onSelectLayer: selectRotaryLayer,
+                onWriteValue: { layer, value in
+                    writeRotaryValue(value, layer: layer, coordinator: coordinator)
+                }
+            )
+        } else if stepGridCoordinator?.isSelectionActive == true {
+            StepLayerRotaryEmptyState()
+        } else {
+            SliceLayerTabRow(selectedLayer: selectedLayer, accent: accent) { layer in
+                selectedLayer = layer
+            }
         }
     }
 
@@ -601,6 +619,26 @@ private extension SliceTrackWorkspaceView {
         )
     }
 
+    func writeRotaryValue(_ value: Double, layer: StepGridLayer, coordinator: StepGridCoordinator) {
+        guard let seedStepIndex = coordinator.selectedRotarySeedStepIndex else {
+            return
+        }
+        selectedStepIndex = min(max(seedStepIndex, 0), max(0, clipContent.stepCount - 1))
+        _ = coordinator.writeAbsoluteValue(
+            value,
+            stepIndex: seedStepIndex,
+            layer: layer,
+            track: track
+        )
+    }
+
+    func selectRotaryLayer(_ layer: StepGridLayer) {
+        guard let clipLayer = SliceTrackClipLayer(stepGridLayer: layer) else {
+            return
+        }
+        selectedLayer = clipLayer
+    }
+
     func syncStepGridCoordinator() {
         guard let clipID = currentClip?.id else {
             stepGridWorkspaceModel.reset()
@@ -877,6 +915,19 @@ private extension SliceTrackWorkspaceView {
 }
 
 private extension SliceTrackClipLayer {
+    init?(stepGridLayer: StepGridLayer) {
+        switch stepGridLayer {
+        case .trigger:
+            self = .steps
+        case .velocity:
+            self = .velocity
+        case .chance:
+            self = .chance
+        case .macro, .sliceIndex, .sliceMode, .chord:
+            return nil
+        }
+    }
+
     var stepGridLayer: StepGridLayer {
         switch self {
         case .steps:

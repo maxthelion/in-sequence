@@ -176,6 +176,78 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.shouldShowRotaryRow)
     }
 
+    func test_rotaryControlsInitializeFromLowestSelectedStep() throws {
+        let clipID = UUID()
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [1, 4])
+        Self.setNoteStep(in: &clip, at: 1, velocity: 32, chance: 0.25)
+        Self.setNoteStep(in: &clip, at: 4, velocity: 96, chance: 0.85)
+        let mutator = RecordingClipMutator(clip: clip)
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator, editableLayers: [.velocity, .chance])
+        coordinator.toggleSelection(at: 4)
+        coordinator.toggleSelection(at: 1)
+
+        let controls = coordinator.rotaryControls(in: mutator.clip)
+
+        XCTAssertEqual(coordinator.selectedRotarySeedStepIndex, 1)
+        XCTAssertEqual(controls.map(\.layer), [.velocity, .chance])
+        let velocity = try XCTUnwrap(controls.first(where: { $0.layer == .velocity }))
+        let chance = try XCTUnwrap(controls.first(where: { $0.layer == .chance }))
+        XCTAssertEqual(velocity.normalizedValue, 32.0 / 127.0, accuracy: 0.0001)
+        XCTAssertEqual(velocity.displayValue, "32")
+        XCTAssertEqual(chance.normalizedValue, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(chance.displayValue, "25%")
+    }
+
+    func test_rotaryAbsoluteWriteUsesOneMutationForSelectedSteps() {
+        let clipID = UUID()
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID, activeIndexes: [1, 4]))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator, editableLayers: [.velocity, .chance])
+        coordinator.toggleSelection(at: 4)
+        coordinator.toggleSelection(at: 1)
+
+        guard let seedStepIndex = coordinator.selectedRotarySeedStepIndex else {
+            XCTFail("Expected selected rotary seed step")
+            return
+        }
+        coordinator.writeAbsoluteValue(0.75, stepIndex: seedStepIndex, layer: .velocity)
+
+        XCTAssertEqual(mutator.mutationCount, 1)
+        XCTAssertEqual(Self.velocities(in: mutator.clip, at: [1, 4]), [95, 95])
+    }
+
+    func test_rotaryControlsAreEmptyWithoutSelectionOrEditableLayers() {
+        let clipID = UUID()
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator, editableLayers: [])
+
+        XCTAssertEqual(coordinator.rotaryControls(in: mutator.clip), [])
+
+        coordinator.toggleSelection(at: 0)
+
+        XCTAssertFalse(coordinator.shouldShowRotaryRow)
+        XCTAssertEqual(coordinator.rotaryControls(in: mutator.clip), [])
+    }
+
+    func test_triggerLayerRotaryControlsPreferVelocityAndChance() {
+        let clipID = UUID()
+        let binding = Self.makeBinding(kind: .sampleStart)
+        let track = Self.makeTrack(macros: [binding])
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID, activeIndexes: [0]))
+        let coordinator = StepGridCoordinator(
+            clipID: clipID,
+            clipMutator: mutator,
+            activeLayer: .trigger,
+            editableLayers: [.velocity, .macro(index: 0), .chance]
+        )
+        coordinator.toggleSelection(at: 0)
+
+        XCTAssertEqual(coordinator.rotaryControls(in: mutator.clip, track: track).map(\.layer), [.velocity, .chance])
+
+        coordinator.updateEditableLayers([.macro(index: 0)])
+
+        XCTAssertEqual(coordinator.rotaryControls(in: mutator.clip, track: track).map(\.layer), [.macro(index: 0)])
+    }
+
     func test_stepCellContentConvertsSupportedLayers() {
         let clipID = UUID()
         let binding = Self.makeBinding(kind: .sampleStart)

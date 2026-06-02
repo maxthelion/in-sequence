@@ -172,6 +172,40 @@ final class UnifiedStepCellTests: XCTestCase {
 
         XCTAssertGreaterThan(pngData.count, 1_000)
     }
+
+    @MainActor
+    func test_writesPhase2DRotaryLayerRowVisualEvidence() throws {
+        let outputPath = ProcessInfo.processInfo.environment["ROTARY_LAYER_ROW_VISUAL_EVIDENCE_PATH"]
+            ?? "\(NSHomeDirectory())/tmp/sequencer-visual-review/2026-06-02T15-15Z-phase2d-rotary-layer-row.png"
+
+        let targetSize = CGSize(width: 760, height: 390)
+        let outputURL = URL(fileURLWithPath: outputPath)
+        let host = NSHostingView(rootView: StepLayerRotaryRowVisualEvidenceView())
+        host.appearance = NSAppearance(named: .darkAqua)
+        host.frame = CGRect(origin: .zero, size: targetSize)
+        host.setFrameSize(targetSize)
+        host.layoutSubtreeIfNeeded()
+
+        guard let representation = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+            XCTFail("Could not allocate bitmap representation for rotary layer-row visual evidence capture.")
+            return
+        }
+
+        host.cacheDisplay(in: host.bounds, to: representation)
+
+        guard let pngData = representation.representation(using: .png, properties: [:]) else {
+            XCTFail("Could not encode rotary layer-row visual evidence capture as PNG.")
+            return
+        }
+
+        try FileManager.default.createDirectory(
+            at: outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try pngData.write(to: outputURL, options: .atomic)
+
+        XCTAssertGreaterThan(pngData.count, 1_000)
+    }
 }
 
 private struct UnifiedStepCellVisualEvidenceView: View {
@@ -329,5 +363,77 @@ private struct SliceStepStripVisualEvidenceView: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                     .stroke(layer == .velocity ? StudioTheme.cyan.opacity(0.75) : StudioTheme.border, lineWidth: 1)
             )
+    }
+}
+
+private struct StepLayerRotaryRowVisualEvidenceView: View {
+    private let valueLayerControls = [
+        StepGridRotaryControl(layer: .velocity, title: "Velocity", normalizedValue: 0.5, displayValue: "64"),
+        StepGridRotaryControl(layer: .chance, title: "Chance", normalizedValue: 0.73, displayValue: "73%")
+    ]
+
+    private let triggerLayerControls = [
+        StepGridRotaryControl(layer: .velocity, title: "Velocity", normalizedValue: 0.82, displayValue: "104"),
+        StepGridRotaryControl(layer: .chance, title: "Chance", normalizedValue: 0.36, displayValue: "36%")
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            evidencePanel(title: "Plain Tabs", subtitle: "No Selection") {
+                SliceLayerTabRow(selectedLayer: .steps, accent: StudioTheme.cyan) { _ in }
+            }
+
+            evidencePanel(title: "Rotary Row", subtitle: "Velocity Layer Selection") {
+                StepLayerRotaryRow(
+                    controls: valueLayerControls,
+                    activeLayer: .velocity,
+                    suppressActiveLayerHighlight: false,
+                    accent: StudioTheme.cyan,
+                    onSelectLayer: { _ in },
+                    onWriteValue: { _, _ in }
+                )
+            }
+
+            evidencePanel(title: "Trigger Selection", subtitle: "Velocity + Chance") {
+                StepLayerRotaryRow(
+                    controls: triggerLayerControls,
+                    activeLayer: .trigger,
+                    suppressActiveLayerHighlight: true,
+                    accent: StudioTheme.cyan,
+                    onSelectLayer: { _ in },
+                    onWriteValue: { _, _ in }
+                )
+            }
+        }
+        .padding(18)
+        .frame(width: 760, height: 390, alignment: .topLeading)
+        .background(StudioTheme.background)
+    }
+
+    private func evidencePanel<Content: View>(
+        title: String,
+        subtitle: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                Text(subtitle)
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .frame(width: 138, alignment: .leading)
+
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+        )
     }
 }

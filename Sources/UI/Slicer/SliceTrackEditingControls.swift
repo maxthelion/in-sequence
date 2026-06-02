@@ -30,6 +30,230 @@ enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
     }
 }
 
+struct SliceLayerTabRow: View {
+    let selectedLayer: SliceTrackClipLayer
+    let accent: Color
+    let onSelectLayer: (SliceTrackClipLayer) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(SliceTrackClipLayer.allCases) { layer in
+                Button {
+                    onSelectLayer(layer)
+                } label: {
+                    Text(layer.title)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 8)
+                        .background(
+                            selectedLayer == layer
+                                ? accent.opacity(StudioOpacity.selectedFill)
+                                : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: Capsule()
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    selectedLayer == layer
+                                        ? accent.opacity(0.8)
+                                        : StudioTheme.border.opacity(0.8),
+                                    lineWidth: 1
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+struct StepLayerRotaryRow: View {
+    let controls: [StepGridRotaryControl]
+    let activeLayer: StepGridLayer
+    let suppressActiveLayerHighlight: Bool
+    let accent: Color
+    let onSelectLayer: (StepGridLayer) -> Void
+    let onWriteValue: (StepGridLayer, Double) -> Void
+
+    private let minimumRotaryWidth: CGFloat = 56
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("STEP EDIT")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.amber)
+
+                Text("\(controls.count) layer\(controls.count == 1 ? "" : "s")")
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            if controls.count >= 5 {
+                ZStack(alignment: .trailing) {
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        HStack(spacing: 8) {
+                            rotaryControls(fixedWidth: true)
+                        }
+                        .padding(.trailing, 20)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(StudioTheme.text.opacity(0.8))
+                        .padding(.horizontal, 4)
+                        .frame(maxHeight: .infinity)
+                        .background(
+                            LinearGradient(
+                                colors: [StudioTheme.background.opacity(0), StudioTheme.background.opacity(0.96)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .accessibilityHidden(true)
+                }
+                .frame(height: 94)
+            } else {
+                HStack(spacing: 8) {
+                    rotaryControls(fixedWidth: false)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rotaryControls(fixedWidth: Bool) -> some View {
+        ForEach(controls) { control in
+            StepLayerRotaryDial(
+                control: control,
+                isActiveLayer: !suppressActiveLayerHighlight && control.layer == activeLayer,
+                accent: accent,
+                onSelectLayer: {
+                    onSelectLayer(control.layer)
+                },
+                onWriteValue: { value in
+                    onWriteValue(control.layer, value)
+                }
+            )
+            .frame(minWidth: minimumRotaryWidth)
+            .frame(width: fixedWidth ? minimumRotaryWidth : nil)
+            .frame(maxWidth: fixedWidth ? nil : .infinity)
+        }
+    }
+}
+
+struct StepLayerRotaryEmptyState: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("STEP EDIT")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.amber)
+
+            Text("No editable layers")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(minHeight: 44, alignment: .leading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+        )
+    }
+}
+
+private struct StepLayerRotaryDial: View {
+    let control: StepGridRotaryControl
+    let isActiveLayer: Bool
+    let accent: Color
+    let onSelectLayer: () -> Void
+    let onWriteValue: (Double) -> Void
+
+    @State private var dragStartValue: Double?
+
+    private let dragFullRange: CGFloat = 80
+    private let dialSize: CGFloat = 44
+
+    var body: some View {
+        VStack(spacing: 5) {
+            ZStack {
+                Circle()
+                    .stroke(StudioTheme.border.opacity(0.55), lineWidth: 3)
+                    .frame(width: dialSize, height: dialSize)
+
+                StepLayerRotaryArc(progress: control.normalizedValue)
+                    .stroke(accent.opacity(0.94), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .frame(width: dialSize, height: dialSize)
+
+                Text(control.displayValue)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .frame(width: dialSize - 10)
+            }
+
+            Text(control.title)
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 6)
+        .frame(minHeight: 84)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(isActiveLayer ? StudioTheme.amber.opacity(0.95) : StudioTheme.border.opacity(0.8), lineWidth: isActiveLayer ? 2 : 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .onTapGesture(perform: onSelectLayer)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let start = dragStartValue ?? control.normalizedValue
+                    dragStartValue = start
+                    let next = Self.clampedUnit(start - Double(value.translation.height / dragFullRange))
+                    onWriteValue(next)
+                }
+                .onEnded { _ in
+                    dragStartValue = nil
+                }
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(control.title) rotary")
+        .accessibilityValue(control.displayValue)
+    }
+
+    private static func clampedUnit(_ value: Double) -> Double {
+        min(max(value, 0), 1)
+    }
+}
+
+private struct StepLayerRotaryArc: Shape {
+    let progress: Double
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let clampedProgress = min(max(progress, 0), 1)
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = min(rect.width, rect.height) / 2
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: .degrees(135),
+            endAngle: .degrees(135 + (270 * clampedProgress)),
+            clockwise: false
+        )
+        return path
+    }
+}
+
 struct SliceStepStrip: View {
     enum State: Equatable {
         case off
