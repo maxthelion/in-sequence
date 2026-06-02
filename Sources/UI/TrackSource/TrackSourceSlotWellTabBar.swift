@@ -75,8 +75,8 @@ struct TrackSourceSlotWellTabBar: View {
             )
 
             slotButton(
-                tab: .clipHistory,
-                title: "Clip History",
+                tab: .history,
+                title: "History",
                 badgeTitle: "Capture",
                 accentPresentation: TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
             )

@@ -3,7 +3,7 @@ import SwiftUI
 enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
     case source
     case modifiers
-    case clipHistory
+    case history
 
     var id: String { rawValue }
 
@@ -13,8 +13,8 @@ enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
             return "Source"
         case .modifiers:
             return "Modifier"
-        case .clipHistory:
-            return "Clip History"
+        case .history:
+            return "History"
         }
     }
 }
@@ -29,20 +29,14 @@ struct TrackSourceEditorView: View {
     @State private var sourcePickerStep: TrackSourceContainedSourcePickerStep?
     @State private var modifierPickerStep: TrackSourceContainedModifierPickerStep?
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
-    @State private var clipHistoryRequest: ClipHistoryPresentationRequest?
+    @State private var clipHistoryModel: ClipHistoryTransferViewModel?
+    @State private var clipHistoryDestinationMode = false
+    @State private var pendingClipHistoryReplaceSlot: Int?
     @State private var clipHistoryToast: String?
 
     private struct MacroSlotPickerRequest: Identifiable {
         let slotIndex: Int
         var id: Int { slotIndex }
-    }
-
-    private struct ClipHistoryPresentationRequest: Identifiable {
-        let id = UUID()
-        let trackID: UUID
-        let trackName: String
-        let snapshot: CaptureSnapshot
-        let destinationSlots: [ClipHistoryTransferViewModel.DestinationSlot]
     }
 
     private var track: StepSequenceTrack { session.store.selectedTrack }
@@ -74,9 +68,6 @@ struct TrackSourceEditorView: View {
     }
     private var selectedModifierGenerator: GeneratorPoolEntry? {
         session.store.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID)
-    }
-    private var canPresentClipHistory: Bool {
-        selectedSourceMode == .generator && selectedSourceGenerator != nil
     }
     private var sourceDisplayState: TrackSourceSourceDisplayState {
         TrackSourceSourceDisplayState.resolve(
@@ -172,12 +163,23 @@ struct TrackSourceEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(title: "Pattern", accent: accent) {
-                TrackPatternSlotPalette(
-                    selectedSlot: selectedPatternIndexBinding,
-                    occupiedSlots: occupiedPatternSlots,
-                    bypassState: .notApplicable,
-                    onBypassToggle: { _ in }
-                )
+                VStack(alignment: .leading, spacing: 10) {
+                    TrackPatternSlotPalette(
+                        selectedSlot: selectedPatternIndexBinding,
+                        occupiedSlots: occupiedPatternSlots,
+                        bypassState: .notApplicable,
+                        onBypassToggle: { _ in },
+                        destinationMode: clipHistoryDestinationMode
+                            ? TrackPatternSlotPalette.DestinationMode(
+                                pendingReplaceSlot: pendingClipHistoryReplaceSlot,
+                                accent: StudioTheme.success
+                            )
+                            : nil,
+                        onDestinationSelect: selectClipHistoryDestination
+                    )
+
+                    clipHistoryDestinationRow
+                }
             }
 
             VStack(alignment: .leading, spacing: 0) {
@@ -194,7 +196,7 @@ struct TrackSourceEditorView: View {
                         sourceTab
                     case .modifiers:
                         modifiersTab
-                    case .clipHistory:
+                    case .history:
                         clipHistoryTab
                     }
                 }
@@ -212,32 +214,6 @@ struct TrackSourceEditorView: View {
             }
             .presentationBackground(.ultraThinMaterial)
         }
-        .sheet(item: $clipHistoryRequest) { request in
-            ClipHistoryTransferSheet(
-                trackID: request.trackID,
-                trackName: request.trackName,
-                snapshot: request.snapshot,
-                destinationSlots: request.destinationSlots,
-                accent: accent,
-                setAuditionOverride: { state in
-                    engineController.setAuditionOverride(state, for: request.trackID)
-                },
-                onSave: { slotIndex, content in
-                    let clipID = session.saveMaterializedClipToPatternSlot(
-                        trackID: request.trackID,
-                        slotIndex: slotIndex,
-                        content: content,
-                        name: "Capture P\(slotIndex + 1)"
-                    )
-                    if clipID != nil {
-                        showClipHistoryToast("Saved capture to P\(slotIndex + 1)")
-                    }
-                    return clipID != nil
-                }
-            )
-            .presentationDetents([.large])
-            .presentationBackground(.clear)
-        }
         .overlay(alignment: .bottomTrailing) {
             if let clipHistoryToast {
                 Text(clipHistoryToast)
@@ -253,6 +229,7 @@ struct TrackSourceEditorView: View {
         .onChange(of: selectedPatternIndex) { _, _ in
             sourcePickerStep = nil
             modifierPickerStep = nil
+            resetClipHistoryDestinationMode()
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue != .source {
@@ -260,6 +237,12 @@ struct TrackSourceEditorView: View {
             }
             if newValue != .modifiers {
                 modifierPickerStep = nil
+            }
+            if newValue == .history {
+                refreshClipHistoryModel()
+            } else {
+                resetClipHistoryDestinationMode()
+                clipHistoryModel?.stopAudition()
             }
         }
     }
@@ -295,8 +278,7 @@ struct TrackSourceEditorView: View {
             onCreateBlankClipSource: createBlankClipSource,
             onAssignClipSource: assignClipSource,
             onRemoveSource: removeSource,
-            onUpdateGeneratorParams: updateSourceGeneratorParams,
-            onPresentClipHistory: presentClipHistory
+            onUpdateGeneratorParams: updateSourceGeneratorParams
         )
     }
 
@@ -339,12 +321,94 @@ struct TrackSourceEditorView: View {
         )
     }
 
+    @ViewBuilder
     private var clipHistoryTab: some View {
-        TrackSourceClipHistoryTabContent(
-            accent: StudioTheme.success,
-            isAvailable: canPresentClipHistory,
-            onPresentClipHistory: presentClipHistory
-        )
+        if let clipHistoryModel {
+            TrackSourceClipHistoryTabContent(
+                model: clipHistoryModel,
+                accent: StudioTheme.success,
+                sourceSummary: clipHistorySourceSummary,
+                isDestinationMode: clipHistoryDestinationMode,
+                onRefresh: refreshClipHistoryModel,
+                onSaveClip: enterClipHistoryDestinationMode
+            )
+            .onAppear {
+                if clipHistoryModel.trackID != track.id {
+                    refreshClipHistoryModel()
+                }
+            }
+        } else {
+            TrackSourceSelectedWellBody(accent: StudioTheme.success, isEmpty: false) {
+                HStack {
+                    Text("History")
+                        .studioText(.bodyBold)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer()
+                    TrackSourceActionButton(
+                        title: "Load History",
+                        accent: StudioTheme.success,
+                        action: refreshClipHistoryModel
+                    )
+                }
+                .padding(14)
+            }
+            .onAppear(perform: refreshClipHistoryModel)
+        }
+    }
+
+    private var clipHistorySourceSummary: String {
+        switch sourceDisplayState {
+        case .occupiedClip:
+            return currentClip.map { "Clip source: \($0.name)" } ?? "Clip source"
+        case .occupiedGenerator:
+            return selectedSourceGenerator.map { "Generator source: \($0.name)" } ?? "Generator source"
+        case .empty:
+            return "No source assigned"
+        }
+    }
+
+    @ViewBuilder
+    private var clipHistoryDestinationRow: some View {
+        if clipHistoryDestinationMode {
+            HStack(spacing: 10) {
+                if let pendingClipHistoryReplaceSlot {
+                    Text("P\(pendingClipHistoryReplaceSlot + 1) is occupied.")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.amber)
+                    Spacer(minLength: 0)
+                    Button("Replace") {
+                        confirmClipHistoryReplace()
+                    }
+                    .buttonStyle(.plain)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    Button("Cancel") {
+                        resetClipHistoryDestinationMode()
+                    }
+                    .buttonStyle(.plain)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+                } else {
+                    Text("Choose a pulsing pattern slot to save the selected history clip.")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Spacer(minLength: 0)
+                    Button("Cancel") {
+                        resetClipHistoryDestinationMode()
+                    }
+                    .buttonStyle(.plain)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+            )
+        }
     }
 
     private func updateModifierPickerStep(_ action: TrackSourceContainedModifierPickerNavigationAction) {
@@ -411,21 +475,94 @@ struct TrackSourceEditorView: View {
         }
     }
 
-    private func presentClipHistory() {
-        guard canPresentClipHistory else {
-            return
-        }
+    private func refreshClipHistoryModel() {
         let trackID = track.id
         let frozenBank = bank
-        clipHistoryRequest = ClipHistoryPresentationRequest(
+        clipHistoryModel?.stopAudition()
+        clipHistoryModel = ClipHistoryTransferViewModel(
             trackID: trackID,
-            trackName: track.name,
             snapshot: engineController.captureSnapshot(trackID: trackID),
             destinationSlots: ClipHistoryTransferViewModel.destinationSlots(
                 from: frozenBank,
                 clipName: { clipID in session.store.clipEntry(id: clipID)?.name }
-            )
+            ),
+            setAuditionOverride: { state in
+                engineController.setAuditionOverride(state, for: trackID)
+            }
         )
+        resetClipHistoryDestinationMode()
+    }
+
+    private func enterClipHistoryDestinationMode() {
+        guard let model = clipHistoryModel else {
+            refreshClipHistoryModel()
+            clipHistoryModel?.saveError = "Choose a history cell first."
+            return
+        }
+        guard model.selectedPseudoClip != nil else {
+            model.saveError = "Choose a history cell first."
+            return
+        }
+        model.saveError = nil
+        pendingClipHistoryReplaceSlot = nil
+        clipHistoryDestinationMode = true
+    }
+
+    private func selectClipHistoryDestination(_ slotIndex: Int) {
+        guard clipHistoryDestinationMode,
+              let model = clipHistoryModel
+        else {
+            return
+        }
+
+        model.selectDestination(slotIndex)
+        if model.requiresReplaceConfirmation {
+            pendingClipHistoryReplaceSlot = slotIndex
+            return
+        }
+
+        saveSelectedClipHistory(to: slotIndex)
+    }
+
+    private func confirmClipHistoryReplace() {
+        guard let slotIndex = pendingClipHistoryReplaceSlot,
+              let model = clipHistoryModel
+        else {
+            return
+        }
+        model.confirmReplace()
+        saveSelectedClipHistory(to: slotIndex)
+    }
+
+    private func saveSelectedClipHistory(to slotIndex: Int) {
+        guard let model = clipHistoryModel,
+              let content = model.selectedPseudoClip?.noteGrid
+        else {
+            clipHistoryModel?.saveError = "Choose a history cell first."
+            return
+        }
+
+        model.stopAudition()
+        let clipID = session.saveMaterializedClipToPatternSlot(
+            trackID: track.id,
+            slotIndex: slotIndex,
+            content: content,
+            name: "Capture P\(slotIndex + 1)"
+        )
+        if clipID == nil {
+            model.saveError = "Could not save this capture."
+            return
+        }
+
+        showClipHistoryToast("Saved capture to P\(slotIndex + 1)")
+        resetClipHistoryDestinationMode()
+        refreshClipHistoryModel()
+    }
+
+    private func resetClipHistoryDestinationMode() {
+        clipHistoryDestinationMode = false
+        pendingClipHistoryReplaceSlot = nil
+        clipHistoryModel?.cancelReplace()
     }
 
     private func showClipHistoryToast(_ message: String) {
@@ -579,6 +716,14 @@ final class ClipHistoryTransferViewModel {
         selectedPseudoClip?.noteGrid
     }
 
+    var selectedLengthBars: Int {
+        max(1, Int(ceil(Double(lengthSteps) / Double(Self.stepsPerCell))))
+    }
+
+    var selectedLengthLabel: String {
+        Self.lengthLabel(for: lengthSteps)
+    }
+
     var canAudition: Bool {
         selectedPseudoClip != nil
     }
@@ -616,9 +761,16 @@ final class ClipHistoryTransferViewModel {
             stopAudition()
             return
         }
+
+        if selectedSourceIndex == index {
+            selectedSourceIndex = nil
+            stopAudition()
+            return
+        }
+
         selectedSourceIndex = index
         saveError = nil
-        stopAudition()
+        audition()
     }
 
     func setLengthSteps(_ steps: Int) {
@@ -629,8 +781,10 @@ final class ClipHistoryTransferViewModel {
         saveError = nil
         if selectedPseudoClip == nil {
             selectedSourceIndex = nil
+            stopAudition()
+        } else {
+            audition()
         }
-        stopAudition()
     }
 
     func selectDestination(_ index: Int) {
@@ -688,279 +842,10 @@ final class ClipHistoryTransferViewModel {
         return didSave
     }
 
-    private func noteCountsBySnapshotOffset() -> [Int: Int] {
-        guard let lastAbsoluteStep = snapshot.steps.last?.absoluteStep else {
-            return [:]
-        }
-        let windowStartAbsoluteStep = lastAbsoluteStep - snapshot.maxSteps + 1
-        var result: [Int: Int] = [:]
-        for step in snapshot.steps {
-            result[step.absoluteStep - windowStartAbsoluteStep] = step.notes.count
-        }
-        return result
-    }
-}
-
-private struct ClipHistoryTransferSheet: View {
-    let trackName: String
-    let accent: Color
-    let onSave: (Int, ClipContent) -> Bool
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var model: ClipHistoryTransferViewModel
-
-    init(
-        trackID: UUID,
-        trackName: String,
-        snapshot: CaptureSnapshot,
-        destinationSlots: [ClipHistoryTransferViewModel.DestinationSlot],
-        accent: Color,
-        setAuditionOverride: @escaping (PseudoClipState?) -> Void,
-        onSave: @escaping (Int, ClipContent) -> Bool
-    ) {
-        self.trackName = trackName
-        self.accent = accent
-        self.onSave = onSave
-        _model = State(
-            initialValue: ClipHistoryTransferViewModel(
-                trackID: trackID,
-                snapshot: snapshot,
-                destinationSlots: destinationSlots,
-                setAuditionOverride: setAuditionOverride
-            )
-        )
-    }
-
-    var body: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            StudioPanel(title: "Clip History", eyebrow: trackName, accent: accent) {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Frozen recent output")
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.violet)
-                        Spacer()
-                        Button("Close") {
-                            model.cancel()
-                            dismiss()
-                        }
-                        .buttonStyle(.plain)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    }
-
-                    HStack(alignment: .top, spacing: 16) {
-                        matrixPanel(title: "Recent History", subtitle: "Select a captured source") {
-                            historyMatrix
-                        }
-
-                        matrixPanel(title: "Pattern Slots", subtitle: "Choose where to save") {
-                            destinationMatrix
-                        }
-                    }
-
-                    virtualClipPreview
-                    replacementRow
-                    footer
-                }
-            }
-            .padding(24)
-            .frame(minWidth: 960, minHeight: 680)
-        }
-        .onDisappear {
-            model.cancel()
-        }
-    }
-
-    private func matrixPanel<Content: View>(
-        title: String,
-        subtitle: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                Spacer()
-                Text(subtitle)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(12)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-        )
-    }
-
-    private var matrixColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
-    }
-
-    private var historyMatrix: some View {
-        LazyVGrid(columns: matrixColumns, spacing: 8) {
-            ForEach(model.sourceCells) { cell in
-                ClipHistorySourceCellButton(
-                    cell: cell,
-                    isSelected: model.selectedSourceIndex == cell.index,
-                    isInRange: model.isSourceInSelectedRange(cell.index),
-                    accent: accent
-                ) {
-                    model.selectSource(cell.index)
-                }
-            }
-        }
-    }
-
-    private var destinationMatrix: some View {
-        LazyVGrid(columns: matrixColumns, spacing: 8) {
-            ForEach(model.destinationSlots) { slot in
-                ClipHistoryDestinationCellButton(
-                    slot: slot,
-                    isSelected: model.selectedDestinationIndex == slot.slotIndex,
-                    accent: accent
-                ) {
-                    model.selectDestination(slot.slotIndex)
-                }
-            }
-        }
-    }
-
-    private var virtualClipPreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
-                Text("Virtual Clip Preview")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                lengthPicker
-                Spacer()
-                Button(model.isAuditioning ? "Auditioning" : "Audition") {
-                    model.audition()
-                }
-                .buttonStyle(.plain)
-                .studioText(.labelBold)
-                .foregroundStyle(model.canAudition ? StudioTheme.text : StudioTheme.mutedText)
-                .disabled(!model.canAudition)
-
-                Button("Stop") {
-                    model.stopAudition()
-                }
-                .buttonStyle(.plain)
-                .studioText(.labelBold)
-                .foregroundStyle(model.isAuditioning ? StudioTheme.amber : StudioTheme.mutedText)
-                .disabled(!model.isAuditioning)
-            }
-
-            ClipHistoryPreviewStrip(content: model.previewContent, accent: accent)
-        }
-        .padding(12)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-        )
-    }
-
-    private var lengthPicker: some View {
-        HStack(spacing: 6) {
-            ForEach(ClipHistoryTransferViewModel.lengthOptions, id: \.self) { option in
-                Button {
-                    model.setLengthSteps(option)
-                } label: {
-                    Text(lengthLabel(option))
-                        .studioText(.micro)
-                        .foregroundStyle(model.lengthSteps == option ? StudioTheme.text : StudioTheme.mutedText)
-                        .padding(.vertical, 5)
-                        .padding(.horizontal, 8)
-                        .background(
-                            (model.lengthSteps == option ? accent.opacity(StudioOpacity.selectedFill) : Color.clear),
-                            in: Capsule()
-                        )
-                        .overlay(Capsule().stroke(model.lengthSteps == option ? accent : StudioTheme.border, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var replacementRow: some View {
-        if model.requiresReplaceConfirmation {
-            HStack(spacing: 10) {
-                Text("P\(model.selectedDestination!.slotIndex + 1) is occupied.")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.amber)
-                Spacer()
-                Button("Replace") {
-                    model.confirmReplace()
-                }
-                .buttonStyle(.plain)
-                .studioText(.labelBold)
-                .foregroundStyle(model.replaceConfirmed ? StudioTheme.success : StudioTheme.text)
-                Button("Cancel") {
-                    model.cancelReplace()
-                }
-                .buttonStyle(.plain)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.mutedText)
-            }
-            .padding(10)
-            .background(StudioTheme.amber.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.amber.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
-            )
-        }
-    }
-
-    private var footer: some View {
-        HStack(spacing: 10) {
-            if let saveError = model.saveError {
-                Text(saveError)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.amber)
-            }
-            Spacer()
-            Button("Cancel") {
-                model.cancel()
-                dismiss()
-            }
-            .buttonStyle(.plain)
-            .studioText(.labelBold)
-            .foregroundStyle(StudioTheme.mutedText)
-
-            Button("Save to Slot") {
-                guard model.save(using: onSave) else {
-                    return
-                }
-                dismiss()
-            }
-            .buttonStyle(.plain)
-            .studioText(.labelBold)
-            .foregroundStyle(model.canSave ? StudioTheme.text : StudioTheme.mutedText)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(
-                (model.canSave ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)),
-                in: Capsule()
-            )
-            .overlay(Capsule().stroke(model.canSave ? accent : StudioTheme.border, lineWidth: 1))
-            .disabled(!model.canSave)
-        }
-    }
-
-    private func lengthLabel(_ steps: Int) -> String {
+    static func lengthLabel(for steps: Int) -> String {
         switch steps {
         case 8:
-            return "8 steps"
+            return "1/2 bar"
         case 16:
             return "1 bar"
         case 32:
@@ -971,193 +856,17 @@ private struct ClipHistoryTransferSheet: View {
             return "\(steps) steps"
         }
     }
-}
 
-private struct ClipHistorySourceCellButton: View {
-    let cell: ClipHistoryTransferViewModel.SourceCell
-    let isSelected: Bool
-    let isInRange: Bool
-    let accent: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("B\(cell.index + 1)")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    Text(cell.isEmpty ? "empty" : "\(cell.noteCount)")
-                        .studioText(.micro)
-                        .foregroundStyle(cell.isEmpty ? StudioTheme.mutedText : StudioTheme.text)
-                }
-
-                HStack(spacing: 3) {
-                    ForEach(0..<8, id: \.self) { index in
-                        Capsule()
-                            .fill(blobFill(index: index))
-                            .frame(width: 7, height: blobHeight(index: index))
-                    }
-                }
-                .frame(maxWidth: .infinity, minHeight: 26, alignment: .bottomLeading)
-            }
-            .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-            .padding(8)
-            .background(backgroundFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(borderFill, style: StrokeStyle(lineWidth: isSelected ? 2 : 1, dash: cell.isEmpty ? [4, 4] : []))
-            )
+    private func noteCountsBySnapshotOffset() -> [Int: Int] {
+        guard let lastAbsoluteStep = snapshot.steps.last?.absoluteStep else {
+            return [:]
         }
-        .buttonStyle(.plain)
-        .disabled(cell.isEmpty)
-    }
-
-    private var backgroundFill: Color {
-        if isSelected {
-            return accent.opacity(StudioOpacity.selectedFill)
+        let windowStartAbsoluteStep = lastAbsoluteStep - snapshot.maxSteps + 1
+        var result: [Int: Int] = [:]
+        for step in snapshot.steps {
+            result[step.absoluteStep - windowStartAbsoluteStep] = step.notes.count
         }
-        if isInRange {
-            return accent.opacity(StudioOpacity.subtleFill)
-        }
-        return Color.white.opacity(StudioOpacity.subtleFill)
-    }
-
-    private var borderFill: Color {
-        if isSelected || isInRange {
-            return accent
-        }
-        return StudioTheme.border
-    }
-
-    private func blobFill(index: Int) -> Color {
-        guard !cell.isEmpty else {
-            return StudioTheme.border
-        }
-        return index < min(cell.noteCount, 8) ? accent : StudioTheme.border
-    }
-
-    private func blobHeight(index: Int) -> CGFloat {
-        CGFloat(8 + ((cell.index + index) % 4) * 4)
-    }
-}
-
-private struct ClipHistoryDestinationCellButton: View {
-    let slot: ClipHistoryTransferViewModel.DestinationSlot
-    let isSelected: Bool
-    let accent: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text("P\(slot.slotIndex + 1)")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    if slot.isOccupied {
-                        Text("USED")
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.success)
-                    }
-                }
-                Text(slot.clipName ?? "empty")
-                    .studioText(.micro)
-                    .foregroundStyle(slot.isOccupied ? StudioTheme.text : StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-            .padding(8)
-            .background(backgroundFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(borderFill, lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var backgroundFill: Color {
-        if isSelected {
-            return accent.opacity(StudioOpacity.selectedFill)
-        }
-        if slot.isOccupied {
-            return StudioTheme.success.opacity(StudioOpacity.subtleFill)
-        }
-        return Color.white.opacity(StudioOpacity.subtleFill)
-    }
-
-    private var borderFill: Color {
-        if isSelected {
-            return accent
-        }
-        if slot.isOccupied {
-            return StudioTheme.success
-        }
-        return StudioTheme.border
-    }
-}
-
-private struct ClipHistoryPreviewStrip: View {
-    let content: ClipContent?
-    let accent: Color
-
-    private var steps: [ClipStep] {
-        content?.normalized.noteGridSteps ?? []
-    }
-
-    var body: some View {
-        if steps.isEmpty {
-            Text("Select a recent-history source.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(maxWidth: .infinity, minHeight: 82, alignment: .center)
-        } else {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 5) {
-                ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
-                    ClipHistoryPreviewStepCell(index: index, step: step, accent: accent)
-                }
-            }
-        }
-    }
-
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.fixed(30), spacing: 5), count: 16)
-    }
-}
-
-private struct ClipHistoryPreviewStepCell: View {
-    let index: Int
-    let step: ClipStep
-    let accent: Color
-
-    private var notes: [ClipStepNote] {
-        step.main?.notes ?? []
-    }
-
-    var body: some View {
-        VStack(spacing: 3) {
-            Text("\(index + 1)")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-            Text(notes.first.map { "\($0.pitch)" } ?? "-")
-                .studioText(.micro)
-                .foregroundStyle(notes.isEmpty ? StudioTheme.mutedText : StudioTheme.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-        }
-        .frame(width: 30, height: 42)
-        .background(
-            (notes.isEmpty ? Color.white.opacity(StudioOpacity.subtleFill) : accent.opacity(StudioOpacity.selectedFill)),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(notes.isEmpty ? StudioTheme.border : accent, lineWidth: 1)
-        )
+        return result
     }
 }
 

@@ -2,12 +2,12 @@ import XCTest
 @testable import SequencerAI
 
 final class TrackSourceSourceDisplayStateTests: XCTestCase {
-    func test_editorTabsKeepClipHistoryAsTabPeer() {
+    func test_editorTabsKeepHistoryAsTabPeer() {
         XCTAssertEqual(
             TrackSourceEditorTab.allCases.map(\.title),
-            ["Source", "Modifier", "Clip History"]
+            ["Source", "Modifier", "History"]
         )
-        XCTAssertEqual(TrackSourceEditorTab.clipHistory.id, "clipHistory")
+        XCTAssertEqual(TrackSourceEditorTab.history.id, "history")
     }
 
     @MainActor
@@ -21,6 +21,42 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
 
         model.selectDestination(2)
         XCTAssertTrue(model.canSave)
+    }
+
+    @MainActor
+    func test_clipHistorySelectionStartsAndClearsAudition() {
+        var overrideStates: [PseudoClipState?] = []
+        let model = makeClipHistoryTransferViewModel(
+            noteOffsets: [0: 60],
+            setAuditionOverride: { overrideStates.append($0) }
+        )
+
+        model.selectSource(0)
+
+        XCTAssertTrue(model.isAuditioning)
+        XCTAssertNotNil(overrideStates.last!)
+
+        model.selectSource(0)
+
+        XCTAssertNil(model.selectedSourceIndex)
+        XCTAssertFalse(model.isAuditioning)
+        XCTAssertNil(overrideStates.last!)
+    }
+
+    @MainActor
+    func test_clipHistorySelectionUpdatesAuditionWhenLengthChanges() throws {
+        var overrideStates: [PseudoClipState?] = []
+        let model = makeClipHistoryTransferViewModel(
+            noteOffsets: [0: 60, 16: 62],
+            setAuditionOverride: { overrideStates.append($0) }
+        )
+
+        model.selectSource(0)
+        model.setLengthSteps(32)
+
+        let override = try XCTUnwrap(overrideStates.last!)
+        XCTAssertEqual(override.noteGrid.stepCount, 32)
+        XCTAssertTrue(model.isAuditioning)
     }
 
     @MainActor
@@ -98,7 +134,6 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         )
 
         model.selectSource(0)
-        model.audition()
         XCTAssertTrue(model.isAuditioning)
         XCTAssertNotNil(overrideStates.last!)
 

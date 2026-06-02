@@ -6,10 +6,19 @@ struct TrackPatternSlotPalette: View {
         case applicable(bypassed: Set<Int>)
     }
 
+    struct DestinationMode: Equatable {
+        let pendingReplaceSlot: Int?
+        let accent: Color
+    }
+
     @Binding var selectedSlot: Int
     let occupiedSlots: Set<Int>
     let bypassState: BypassState
     let onBypassToggle: (Int) -> Void
+    var destinationMode: DestinationMode?
+    var onDestinationSelect: (Int) -> Void = { _ in }
+
+    @State private var destinationPulse = false
 
     var body: some View {
         HStack(spacing: 6) {
@@ -17,6 +26,16 @@ struct TrackPatternSlotPalette: View {
                 slotButton(at: slotIndex)
             }
         }
+        .onAppear {
+            destinationPulse = destinationMode != nil
+        }
+        .onChange(of: destinationMode != nil) { _, isActive in
+            destinationPulse = isActive
+        }
+        .animation(
+            destinationMode == nil ? nil : .easeInOut(duration: 0.75).repeatForever(autoreverses: true),
+            value: destinationPulse
+        )
     }
 
     @ViewBuilder
@@ -32,7 +51,11 @@ struct TrackPatternSlotPalette: View {
 
         ZStack(alignment: .topTrailing) {
             Button {
-                selectedSlot = slotIndex
+                if destinationMode != nil {
+                    onDestinationSelect(slotIndex)
+                } else {
+                    selectedSlot = slotIndex
+                }
             } label: {
                 HStack(spacing: 6) {
                     Text("\(slotIndex + 1)")
@@ -51,17 +74,25 @@ struct TrackPatternSlotPalette: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(borderColor(for: slotIndex, isBypassed: isBypassed), lineWidth: 1)
+                        .stroke(borderColor(for: slotIndex, isBypassed: isBypassed), lineWidth: borderWidth(for: slotIndex))
+                )
+                .shadow(
+                    color: destinationShadowColor(for: slotIndex),
+                    radius: destinationPulse ? 9 : 2,
+                    x: 0,
+                    y: 0
                 )
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
-                bypassApplicable
+                destinationMode != nil
+                    ? "Save capture to slot \(slotIndex + 1)"
+                    : bypassApplicable
                     ? (isBypassed ? "Slot \(slotIndex + 1), clip source" : "Slot \(slotIndex + 1), generator source")
                     : "Slot \(slotIndex + 1)"
             )
 
-            if bypassApplicable {
+            if bypassApplicable && destinationMode == nil {
                 Button {
                     onBypassToggle(slotIndex)
                 } label: {
@@ -80,6 +111,12 @@ struct TrackPatternSlotPalette: View {
     }
 
     private func backgroundFill(for slotIndex: Int, isBypassed: Bool) -> Color {
+        if let destinationMode {
+            if destinationMode.pendingReplaceSlot == slotIndex {
+                return StudioTheme.amber.opacity(StudioOpacity.selectedFill)
+            }
+            return destinationMode.accent.opacity(destinationPulse ? StudioOpacity.softStroke : StudioOpacity.selectedFill)
+        }
         if isBypassed {
             return selectedSlot == slotIndex
                 ? StudioTheme.violet.opacity(StudioOpacity.softStroke)
@@ -95,6 +132,12 @@ struct TrackPatternSlotPalette: View {
     }
 
     private func borderColor(for slotIndex: Int, isBypassed: Bool) -> Color {
+        if let destinationMode {
+            if destinationMode.pendingReplaceSlot == slotIndex {
+                return StudioTheme.amber
+            }
+            return destinationMode.accent.opacity(destinationPulse ? 0.9 : 0.45)
+        }
         if isBypassed {
             return selectedSlot == slotIndex
                 ? StudioTheme.violet.opacity(0.7)
@@ -110,6 +153,12 @@ struct TrackPatternSlotPalette: View {
     }
 
     private func indicatorFill(for slotIndex: Int, isBypassed: Bool) -> Color {
+        if let destinationMode {
+            if destinationMode.pendingReplaceSlot == slotIndex {
+                return StudioTheme.amber
+            }
+            return occupiedSlots.contains(slotIndex) ? StudioTheme.success : destinationMode.accent
+        }
         if isBypassed {
             return selectedSlot == slotIndex
                 ? StudioTheme.violet
@@ -126,5 +175,19 @@ struct TrackPatternSlotPalette: View {
 
     private func bypassBadgeFill(_ isBypassed: Bool) -> Color {
         isBypassed ? StudioTheme.violet.opacity(StudioOpacity.accentFill) : StudioTheme.cyan.opacity(StudioOpacity.accentFill)
+    }
+
+    private func borderWidth(for slotIndex: Int) -> CGFloat {
+        destinationMode?.pendingReplaceSlot == slotIndex ? 2 : 1
+    }
+
+    private func destinationShadowColor(for slotIndex: Int) -> Color {
+        guard let destinationMode else {
+            return Color.clear
+        }
+        if destinationMode.pendingReplaceSlot == slotIndex {
+            return StudioTheme.amber.opacity(destinationPulse ? 0.38 : 0.12)
+        }
+        return destinationMode.accent.opacity(destinationPulse ? 0.32 : 0.08)
     }
 }
