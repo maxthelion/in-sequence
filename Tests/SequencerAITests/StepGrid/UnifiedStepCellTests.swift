@@ -138,6 +138,40 @@ final class UnifiedStepCellTests: XCTestCase {
 
         XCTAssertGreaterThan(pngData.count, 1_000)
     }
+
+    @MainActor
+    func test_writesPhase2CSlicerSelectionBatchVisualEvidence() throws {
+        let outputPath = ProcessInfo.processInfo.environment["SLICER_STEP_STRIP_VISUAL_EVIDENCE_PATH"]
+            ?? "\(NSHomeDirectory())/tmp/sequencer-visual-review/2026-06-02T10-45Z-phase2c-slicer-selection-batch.png"
+
+        let targetSize = CGSize(width: 760, height: 132)
+        let outputURL = URL(fileURLWithPath: outputPath)
+        let host = NSHostingView(rootView: SliceStepStripVisualEvidenceView())
+        host.appearance = NSAppearance(named: .darkAqua)
+        host.frame = CGRect(origin: .zero, size: targetSize)
+        host.setFrameSize(targetSize)
+        host.layoutSubtreeIfNeeded()
+
+        guard let representation = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+            XCTFail("Could not allocate bitmap representation for slicer visual evidence capture.")
+            return
+        }
+
+        host.cacheDisplay(in: host.bounds, to: representation)
+
+        guard let pngData = representation.representation(using: .png, properties: [:]) else {
+            XCTFail("Could not encode slicer visual evidence capture as PNG.")
+            return
+        }
+
+        try FileManager.default.createDirectory(
+            at: outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try pngData.write(to: outputURL, options: .atomic)
+
+        XCTAssertGreaterThan(pngData.count, 1_000)
+    }
 }
 
 private struct UnifiedStepCellVisualEvidenceView: View {
@@ -191,6 +225,43 @@ private struct UnifiedStepCellVisualEvidenceView: View {
         }
         .padding(16)
         .frame(width: 280, height: 92)
+        .background(StudioTheme.background)
+    }
+}
+
+private struct SliceStepStripVisualEvidenceView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SliceStepStrip(
+                stepStates: [
+                    .on(sliceIndex: 0, mode: .single),
+                    .on(sliceIndex: 3, mode: .runFromHere),
+                    .off,
+                    .on(sliceIndex: 5, mode: .single)
+                ],
+                indexOffset: 0,
+                playingStepIndex: 1,
+                selectedStepIndex: 1,
+                selectedStepIndexes: [1],
+                activeLayer: .velocity,
+                contentProvider: { index, _ in
+                    .valueBar(fraction: [0.35, 0.82, 0, 0.55][index])
+                },
+                onValueDrag: { _, _ in },
+                onSelect: { _ in },
+                onTap: { _ in }
+            )
+
+            SliceStepBatchActionBar(
+                isVisible: true,
+                canPaste: true,
+                onClear: {},
+                onCopy: {},
+                onPaste: {}
+            )
+        }
+        .padding(16)
+        .frame(width: 760, height: 132, alignment: .topLeading)
         .background(StudioTheme.background)
     }
 }

@@ -40,6 +40,11 @@ struct SliceStepStrip: View {
     let indexOffset: Int
     let playingStepIndex: Int?
     let selectedStepIndex: Int
+    let selectedStepIndexes: Set<Int>
+    let activeLayer: SliceTrackClipLayer
+    let contentProvider: (Int, State) -> StepCellContent
+    let onValueDrag: ((Int, Double) -> Void)?
+    let onSelect: (Int) -> Void
     let onTap: (Int) -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 16)
@@ -48,77 +53,48 @@ struct SliceStepStrip: View {
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(Array(stepStates.enumerated()), id: \.offset) { localIndex, state in
                 let absoluteIndex = indexOffset + localIndex
-                Button {
-                    onTap(absoluteIndex)
-                } label: {
-                    VStack(spacing: 7) {
-                        Text("\(absoluteIndex + 1)")
-                            .studioText(.eyebrow)
-                            .foregroundStyle(state == .off ? StudioTheme.mutedText : StudioTheme.text)
+                VStack(spacing: 7) {
+                    Text("\(absoluteIndex + 1)")
+                        .studioText(.eyebrow)
+                        .foregroundStyle(state == .off ? StudioTheme.mutedText : StudioTheme.text)
 
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                            .fill(fill(for: state))
-                            .frame(height: 42)
-                            .overlay {
-                                VStack(spacing: 2) {
-                                    Text(label(for: state))
-                                        .studioText(.labelBold)
-                                        .foregroundStyle(StudioTheme.text)
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.7)
-                                    Text(modeLabel(for: state))
-                                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(StudioTheme.text.opacity(0.82))
-                                        .lineLimit(1)
-                                }
-                            }
-                    }
-                    .padding(.vertical, 7)
-                    .padding(.horizontal, 3)
-                    .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : 1)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(playingStepIndex == absoluteIndex ? StudioTheme.success.opacity(0.95) : .clear, lineWidth: 2)
+                    UnifiedStepCell(
+                        visualState: visualState(for: state),
+                        isPlaying: playingStepIndex == absoluteIndex,
+                        isSelected: selectedStepIndexes.contains(absoluteIndex),
+                        content: contentProvider(absoluteIndex, state),
+                        onTap: { onTap(absoluteIndex) },
+                        onDrag: activeLayer == .steps ? nil : { value in
+                            onValueDrag?(absoluteIndex, value)
+                        },
+                        onSelect: { onSelect(absoluteIndex) }
                     )
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .padding(.horizontal, 3)
+                .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                        .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : 1)
+                )
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Slice step \(absoluteIndex + 1)")
             }
         }
     }
 
-    private func label(for state: State) -> String {
+    private func visualState(for state: State) -> StepVisualState {
         switch state {
         case .off:
-            return ""
-        case let .on(sliceIndex, _):
-            return sliceIndex == 0 ? "All" : "S\(sliceIndex)"
-        }
-    }
-
-    private func modeLabel(for state: State) -> String {
-        switch state {
-        case .off:
-            return ""
+            return .off
         case let .on(_, mode):
-            return mode == .runFromHere ? "Run" : "One"
-        }
-    }
-
-    private func fill(for state: State) -> Color {
-        switch state {
-        case .off:
-            return Color.white.opacity(StudioOpacity.borderSubtle)
-        case .on:
-            return StudioTheme.cyan.opacity(0.82)
+            return mode == .runFromHere ? .accented : .on
         }
     }
 
     private func border(for state: State, absoluteIndex: Int) -> Color {
-        if selectedStepIndex == absoluteIndex {
+        if selectedStepIndexes.contains(absoluteIndex) || selectedStepIndex == absoluteIndex {
             return StudioTheme.amber
         }
         switch state {
@@ -127,6 +103,29 @@ struct SliceStepStrip: View {
         case .on:
             return StudioTheme.cyan.opacity(0.4)
         }
+    }
+}
+
+struct SliceStepBatchActionBar: View {
+    let isVisible: Bool
+    let canPaste: Bool
+    let onClear: () -> Void
+    let onCopy: () -> Void
+    let onPaste: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button("Clear", action: onClear)
+            Button("Copy", action: onCopy)
+            Button("Paste", action: onPaste)
+                .disabled(!canPaste)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .frame(height: 30, alignment: .leading)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .accessibilityLabel("Step batch actions")
     }
 }
 

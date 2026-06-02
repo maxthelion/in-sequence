@@ -216,6 +216,23 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .chance), .valueBar(fraction: 0))
     }
 
+    func test_slicerVelocityLayerReturnsValueBarForClipStep() {
+        let clipID = UUID()
+        let parameters = SliceTriggerStepParameters(gain: 3)
+        let mutator = RecordingClipMutator(
+            clip: Self.makeSliceClip(
+                id: clipID,
+                stepPattern: [true, false, false, false],
+                stepParameters: [parameters, .default, .default, .default]
+            )
+        )
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator, activeLayer: .velocity)
+
+        let content = coordinator.cellContent(for: 0, in: mutator.clip)
+
+        XCTAssertEqual(content, .valueBar(fraction: 0.75))
+    }
+
     func test_selectedSlicerWritesUseOneMutationAndPreserveParallelArrays() {
         let clipID = UUID()
         let mutator = RecordingClipMutator(clip: Self.makeSliceClip(id: clipID))
