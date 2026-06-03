@@ -22,7 +22,16 @@ extension EngineController {
         let trackID: UUID
         var armState: AudioInputArmState
         var monitorMode: AudioInputMonitorMode
+        var activeMonitorMode: AudioInputMonitorMode
         var pendingStartTick: UInt64?
+        var pendingStopTick: UInt64?
+        var pendingLoopStartTick: UInt64?
+        var captureStartTick: UInt64?
+        var captureEndTick: UInt64?
+        var recordBarLength: Int
+        var armedRecordBarLength: Int?
+        var recordedLoopID: UUID?
+        var recordedLoopBarLength: Int?
         var selectedInputChannel: AudioInputChannel
         var routeState: AudioInputRouteState
         var transientFrameCount: Int
@@ -30,22 +39,36 @@ extension EngineController {
 
         init(
             trackID: UUID,
+            recordBarLength: Int,
             selectedInputChannel: AudioInputChannel,
             routeState: AudioInputRouteState
         ) {
             self.trackID = trackID
             self.armState = .idle
             self.monitorMode = .input
+            self.activeMonitorMode = .input
             self.pendingStartTick = nil
+            self.pendingStopTick = nil
+            self.pendingLoopStartTick = nil
+            self.captureStartTick = nil
+            self.captureEndTick = nil
+            self.recordBarLength = StepSequenceTrack.normalizedRecordBarLength(recordBarLength)
+            self.armedRecordBarLength = nil
+            self.recordedLoopID = nil
+            self.recordedLoopBarLength = nil
             self.selectedInputChannel = selectedInputChannel
             self.routeState = routeState
             self.transientFrameCount = 0
             self.waveformBuckets = []
         }
 
+        var hasRecordedLoop: Bool {
+            recordedLoopID != nil
+        }
+
         var isSilent: Bool {
             routeState == .silentUnavailable ||
-                (monitorMode == .loop && armState != .hasLoop)
+                (activeMonitorMode == .loop && !hasRecordedLoop)
         }
     }
 

@@ -185,9 +185,15 @@ final class EngineController: RouterDispatcher {
 
     @discardableResult
     func armAudioInput(trackID: UUID, pendingStartTick: UInt64? = nil) -> Bool {
+        let scheduledStartTick = pendingStartTick ?? nextAudioInputBarBoundary(after: transportTickIndex)
         let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.armState = .armed
-            runtime.pendingStartTick = pendingStartTick
+            runtime.pendingStartTick = scheduledStartTick
+            runtime.pendingStopTick = nil
+            runtime.pendingLoopStartTick = nil
+            runtime.captureStartTick = nil
+            runtime.captureEndTick = nil
+            runtime.armedRecordBarLength = runtime.recordBarLength
             runtime.transientFrameCount = 0
             runtime.routeState = audioInputRouteState(for: runtime.selectedInputChannel)
         }
@@ -200,11 +206,18 @@ final class EngineController: RouterDispatcher {
         let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             switch runtime.armState {
             case .armed, .recording:
-                runtime.armState = runtime.waveformBuckets.isEmpty ? .idle : .hasLoop
+                runtime.armState = runtime.hasRecordedLoop ? .hasLoop : .idle
                 runtime.pendingStartTick = nil
+                runtime.pendingStopTick = nil
+                runtime.pendingLoopStartTick = nil
+                runtime.captureStartTick = nil
+                runtime.captureEndTick = nil
+                runtime.armedRecordBarLength = nil
                 runtime.transientFrameCount = 0
             case .idle, .hasLoop:
                 runtime.pendingStartTick = nil
+                runtime.pendingStopTick = nil
+                runtime.pendingLoopStartTick = nil
             }
         }
         syncAudioInputRouting(for: currentDocumentModel)
@@ -215,6 +228,20 @@ final class EngineController: RouterDispatcher {
     func setAudioInputMonitorMode(trackID: UUID, mode: AudioInputMonitorMode) -> Bool {
         let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.monitorMode = mode
+            switch mode {
+            case .input:
+                runtime.activeMonitorMode = .input
+                runtime.pendingLoopStartTick = nil
+            case .loop:
+                if runtime.hasRecordedLoop {
+                    if runtime.activeMonitorMode != .loop {
+                        runtime.pendingLoopStartTick = nextAudioInputBarBoundary(after: transportTickIndex)
+                    }
+                } else {
+                    runtime.activeMonitorMode = .loop
+                    runtime.pendingLoopStartTick = nil
+                }
+            }
         }
         syncAudioInputRouting(for: currentDocumentModel)
         return didUpdate
@@ -235,6 +262,12 @@ final class EngineController: RouterDispatcher {
         let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.armState = .hasLoop
             runtime.pendingStartTick = nil
+            runtime.pendingStopTick = nil
+            runtime.captureStartTick = nil
+            runtime.captureEndTick = nil
+            runtime.armedRecordBarLength = nil
+            runtime.recordedLoopID = UUID()
+            runtime.recordedLoopBarLength = runtime.recordBarLength
             runtime.transientFrameCount = 0
             runtime.waveformBuckets = waveformBuckets
         }
@@ -799,6 +832,10 @@ final class EngineController: RouterDispatcher {
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
+        if advanceAudioInputScheduling(at: tickIndex) {
+            syncAudioInputRouting(for: currentDocumentModel)
+        }
+
         let needsBootstrap = !tickState.isPrepared(for: tickIndex)
         if needsBootstrap {
             prepareTick(upcomingStep: tickIndex, now: now)
@@ -1605,9 +1642,11 @@ final class EngineController: RouterDispatcher {
                 var runtime = next[track.id]
                     ?? AudioInputTrackRuntime(
                         trackID: track.id,
+                        recordBarLength: track.recordBarLength,
                         selectedInputChannel: track.inputChannel,
                         routeState: audioInputRouteState(for: track.inputChannel)
                     )
+                runtime.recordBarLength = StepSequenceTrack.normalizedRecordBarLength(track.recordBarLength)
                 runtime.selectedInputChannel = track.inputChannel
                 runtime.routeState = audioInputRouteState(for: track.inputChannel)
                 next[track.id] = runtime
@@ -1649,11 +1688,90 @@ final class EngineController: RouterDispatcher {
 
     private static func audioInputMonitorSource(for runtime: AudioInputTrackRuntime) -> MainAudioGraph.AudioInputMonitorSource {
         guard runtime.routeState == .available else { return .silent }
-        switch runtime.monitorMode {
+        switch runtime.activeMonitorMode {
         case .input:
             return .input
         case .loop:
-            return runtime.armState == .hasLoop ? .loop : .silent
+            return runtime.hasRecordedLoop ? .loop : .silent
+        }
+    }
+
+    private func advanceAudioInputScheduling(at tickIndex: UInt64) -> Bool {
+        withStateLock {
+            var didChange = false
+            for trackID in trackRuntime.audioInputRuntimes.keys {
+                guard var runtime = trackRuntime.audioInputRuntimes[trackID] else {
+                    continue
+                }
+                let original = runtime
+
+                if runtime.armState == .recording,
+                   let endTick = runtime.captureEndTick,
+                   tickIndex >= endTick,
+                   isAudioInputBarBoundary(tickIndex)
+                {
+                    completeAudioInputCapture(&runtime, at: tickIndex)
+                }
+
+                if runtime.armState == .armed,
+                   let startTick = runtime.pendingStartTick,
+                   tickIndex >= startTick,
+                   isAudioInputBarBoundary(tickIndex)
+                {
+                    beginAudioInputCapture(&runtime, at: tickIndex)
+                }
+
+                if let loopStartTick = runtime.pendingLoopStartTick,
+                   tickIndex >= loopStartTick,
+                   isAudioInputBarBoundary(tickIndex)
+                {
+                    runtime.activeMonitorMode = .loop
+                    runtime.pendingLoopStartTick = nil
+                }
+
+                if runtime != original {
+                    trackRuntime.audioInputRuntimes[trackID] = runtime
+                    didChange = true
+                }
+            }
+
+            if didChange {
+                audioInputRuntimeRevision &+= 1
+            }
+            return didChange
+        }
+    }
+
+    private func beginAudioInputCapture(_ runtime: inout AudioInputTrackRuntime, at tickIndex: UInt64) {
+        let bars = StepSequenceTrack.normalizedRecordBarLength(runtime.armedRecordBarLength ?? runtime.recordBarLength)
+        let endTick = tickIndex &+ UInt64(bars * stepsPerBar)
+        runtime.armState = .recording
+        runtime.pendingStartTick = nil
+        runtime.pendingStopTick = endTick
+        runtime.captureStartTick = tickIndex
+        runtime.captureEndTick = endTick
+        runtime.armedRecordBarLength = bars
+        runtime.transientFrameCount = 0
+        runtime.activeMonitorMode = .input
+        runtime.pendingLoopStartTick = nil
+    }
+
+    private func completeAudioInputCapture(_ runtime: inout AudioInputTrackRuntime, at tickIndex: UInt64) {
+        let bars = StepSequenceTrack.normalizedRecordBarLength(runtime.armedRecordBarLength ?? runtime.recordBarLength)
+        let startTick = runtime.captureStartTick ?? tickIndex
+        runtime.armState = .hasLoop
+        runtime.pendingStartTick = nil
+        runtime.pendingStopTick = nil
+        runtime.captureStartTick = nil
+        runtime.captureEndTick = nil
+        runtime.armedRecordBarLength = nil
+        runtime.recordedLoopID = UUID()
+        runtime.recordedLoopBarLength = bars
+        runtime.transientFrameCount = Int(tickIndex &- startTick)
+        runtime.waveformBuckets = []
+        if runtime.monitorMode == .loop {
+            runtime.pendingLoopStartTick = nil
+            runtime.activeMonitorMode = .loop
         }
     }
 
@@ -1681,6 +1799,17 @@ final class EngineController: RouterDispatcher {
             return max(0, audioInputAvailableChannelCountOverrideForTesting)
         }
         return mainAudioGraph.availableInputChannelCount
+    }
+
+    private func isAudioInputBarBoundary(_ tickIndex: UInt64) -> Bool {
+        tickIndex % UInt64(stepsPerBar) == 0
+    }
+
+    private func nextAudioInputBarBoundary(after tickIndex: UInt64) -> UInt64 {
+        let barLength = UInt64(stepsPerBar)
+        let ticksIntoBar = tickIndex % barLength
+        let ticksUntilNextBar = ticksIntoBar == 0 ? barLength : barLength - ticksIntoBar
+        return tickIndex &+ ticksUntilNextBar
     }
 
     static func audioInputRouteState(

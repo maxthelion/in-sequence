@@ -1205,6 +1205,136 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertFalse(runtime.isSilent)
     }
 
+    func test_audioInputCapture_armStartsOnNextBarBoundary() throws {
+        let (controller, _, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID))
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .armed)
+        XCTAssertEqual(runtime.pendingStartTick, 4)
+
+        controller.processTick(tickIndex: 3, now: 0.3)
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .armed)
+        XCTAssertEqual(runtime.pendingStartTick, 4)
+
+        controller.processTick(tickIndex: 4, now: 0.4)
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .recording)
+        XCTAssertEqual(runtime.captureStartTick, 4)
+        XCTAssertEqual(runtime.captureEndTick, 8)
+    }
+
+    func test_audioInputCapture_cancelBeforeStartPreventsRecording() throws {
+        let (controller, _, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID))
+        XCTAssertTrue(controller.cancelAudioInputArm(trackID: trackID))
+        controller.processTick(tickIndex: 4, now: 0.4)
+
+        let runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .idle)
+        XCTAssertNil(runtime.pendingStartTick)
+        XCTAssertNil(runtime.captureStartTick)
+        XCTAssertNil(runtime.recordedLoopID)
+    }
+
+    func test_audioInputCapture_autoStopsAllSupportedBarLengths() throws {
+        for bars in [1, 2, 4, 8] {
+            let (controller, _, trackID) = makeAudioInputSchedulingFixture(recordBarLength: bars)
+
+            XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
+            controller.processTick(tickIndex: 4, now: 0.4)
+            var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+            XCTAssertEqual(runtime.armState, .recording)
+            XCTAssertEqual(runtime.captureEndTick, UInt64(4 + bars * 4))
+
+            controller.processTick(tickIndex: UInt64(4 + bars * 4), now: Double(bars))
+            runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+            XCTAssertEqual(runtime.armState, .hasLoop)
+            XCTAssertEqual(runtime.recordedLoopBarLength, bars)
+            XCTAssertEqual(runtime.transientFrameCount, bars * 4)
+            XCTAssertNotNil(runtime.recordedLoopID)
+            XCTAssertNil(runtime.captureEndTick)
+        }
+    }
+
+    func test_audioInputCapture_completionDestructivelyReplacesPreviousLoopBuffer() throws {
+        let (controller, project, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
+        controller.processTick(tickIndex: 4, now: 0.4)
+        controller.processTick(tickIndex: 8, now: 0.8)
+        let firstRuntime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        let firstLoopID = try XCTUnwrap(firstRuntime.recordedLoopID)
+
+        var updatedProject = project
+        updatedProject.tracks[updatedProject.selectedTrackIndex].recordBarLength = 2
+        controller.apply(documentModel: updatedProject)
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 12))
+        controller.processTick(tickIndex: 12, now: 1.2)
+        controller.processTick(tickIndex: 20, now: 2.0)
+
+        let secondRuntime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(secondRuntime.armState, .hasLoop)
+        XCTAssertEqual(secondRuntime.recordedLoopBarLength, 2)
+        XCTAssertNotEqual(secondRuntime.recordedLoopID, firstLoopID)
+    }
+
+    func test_audioInputCapture_continuesAcrossWorkspaceSelectionChanges() throws {
+        let (controller, project, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
+        var navigatedProject = project
+        let nonInputTrackID = try XCTUnwrap(navigatedProject.tracks.first { $0.id != trackID }?.id)
+        navigatedProject.selectedTrackID = nonInputTrackID
+        controller.apply(documentModel: navigatedProject)
+
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .armed)
+        XCTAssertEqual(runtime.pendingStartTick, 4)
+
+        controller.processTick(tickIndex: 4, now: 0.4)
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .recording)
+
+        navigatedProject.selectedTrackID = trackID
+        controller.apply(documentModel: navigatedProject)
+        controller.processTick(tickIndex: 8, now: 0.8)
+
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .hasLoop)
+        XCTAssertEqual(runtime.recordedLoopBarLength, 1)
+        XCTAssertNotNil(runtime.recordedLoopID)
+    }
+
+    func test_audioInputLoopModeWithRecordedLoopEntersOnNextBarBoundary() throws {
+        let (controller, _, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
+        controller.processTick(tickIndex: 4, now: 0.4)
+        controller.processTick(tickIndex: 8, now: 0.8)
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
+
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(runtime.monitorMode, .loop)
+        XCTAssertEqual(runtime.activeMonitorMode, .input)
+        XCTAssertEqual(runtime.pendingLoopStartTick, 12)
+        XCTAssertEqual(readout.requestedSource, .input)
+
+        controller.processTick(tickIndex: 11, now: 1.1)
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.activeMonitorMode, .input)
+
+        controller.processTick(tickIndex: 12, now: 1.2)
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(runtime.activeMonitorMode, .loop)
+        XCTAssertNil(runtime.pendingLoopStartTick)
+        XCTAssertEqual(readout.requestedSource, .loop)
+    }
+
     func test_audioInputRouting_inputModeUsesLiveInputRequestThroughMixerPath() throws {
         let controller = EngineController(client: nil, endpoint: nil)
         controller.audioInputAvailableChannelCountOverrideForTesting = 2
@@ -1523,7 +1653,7 @@ final class EngineControllerTests: XCTestCase {
     }
 
     func test_audioInputRouting_loopPlaceholderUsesPlayerAndExcludesInputPath() throws {
-        let controller = EngineController(client: nil, endpoint: nil)
+        let controller = EngineController(client: nil, endpoint: nil, stepsPerBar: 4)
         controller.audioInputAvailableChannelCountOverrideForTesting = 2
         var project = Project.empty
         project.appendTrack(trackType: .audioInput)
@@ -1534,6 +1664,10 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
 
         var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.requestedSource, .input)
+
+        controller.processTick(tickIndex: 4, now: 0.4)
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         XCTAssertEqual(readout.requestedSource, .loop)
         XCTAssertEqual(readout.connectedSource, .loop)
         XCTAssertTrue(
@@ -1609,6 +1743,19 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertNil(controller.audioInputRuntime(for: trackID))
         XCTAssertNil(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
     }
+}
+
+private func makeAudioInputSchedulingFixture(
+    recordBarLength: Int
+) -> (controller: EngineController, project: Project, trackID: UUID) {
+    let controller = EngineController(client: nil, endpoint: nil, stepsPerBar: 4)
+    controller.audioInputAvailableChannelCountOverrideForTesting = 2
+    var project = Project.empty
+    project.appendTrack(trackType: .audioInput)
+    let trackID = project.selectedTrackID
+    project.tracks[project.selectedTrackIndex].recordBarLength = recordBarLength
+    controller.apply(documentModel: project)
+    return (controller, project, trackID)
 }
 
 private func makeAuditionOverrideDocument() -> (Project, StepSequenceTrack) {
