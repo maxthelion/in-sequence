@@ -807,12 +807,12 @@ final class MainAudioGraph {
             }
         }
 
-        if destinations.count == 1 {
+        if let destination = destinations.first, destinations.count == 1, let node = destination.node {
             engine.connect(
                 source,
-                to: dryDestination,
+                to: node,
                 fromBus: 0,
-                toBus: inputBus(for: dryDestination),
+                toBus: destination.bus,
                 format: nil
             )
         } else {
