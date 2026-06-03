@@ -1,4 +1,5 @@
 import AVFoundation
+import SwiftUI
 import XCTest
 @testable import SequencerAI
 
@@ -1269,7 +1270,8 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(graph.masterMeterTapGenerationForTesting, tapGenerationBefore)
     }
 
-    func test_audioInputRouting_targetsAuthoredBusAndPreservesSendFanoutAcrossMixMutation() throws {
+    @MainActor
+    func test_audioInputRouting_targetsAuthoredBusAndPreservesSendFanoutAcrossDocumentOutputBusMutation() throws {
         let graph = MainAudioGraph()
         let controller = EngineController(client: nil, endpoint: nil, mainAudioGraph: graph)
         controller.audioInputAvailableChannelCountOverrideForTesting = 2
@@ -1292,6 +1294,16 @@ final class EngineControllerTests: XCTestCase {
         )
 
         controller.apply(documentModel: project)
+        let documentBox = DocumentBox(document: SeqAIDocument(project: project))
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: controller,
+            debounceInterval: .seconds(100)
+        )
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
 
         let initialReadout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         let initialSendReadout = try XCTUnwrap(controller.audioInputTrackSendReadoutForTesting(trackID: trackID))
@@ -1308,20 +1320,44 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(initialSendReadout.sendBGain, 0.25, accuracy: 0.0001)
 
         let fullSyncsBeforeMutation = graph.audioInputFullRoutingSyncCountForTesting
-        project.setTrackOutputBus(trackID: trackID, busID: mutatedBusID)
-        project.tracks[project.selectedTrackIndex].mix = TrackMixSettings(
-            level: 0.9,
-            pan: 0.35,
-            isMuted: true,
-            sendA: 0.1,
-            sendB: 0.75
-        )
+        let scopedUpdatesBeforeMutation = graph.audioInputScopedRoutingUpdateCountForTesting
+        let tapInstallsBeforeMutation = graph.masterMeterTapInstallCountForTesting
+        let tapRemovesBeforeMutation = graph.masterMeterTapRemoveCountForTesting
+        let tapGenerationBeforeMutation = graph.masterMeterTapGenerationForTesting
 
-        controller.apply(documentModel: project)
+        session.setTrackOutputBus(trackID: trackID, busID: mutatedBusID)
+
+        let outputBusReadout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        let outputBusSendReadout = try XCTUnwrap(controller.audioInputTrackSendReadoutForTesting(trackID: trackID))
+        let mutatedBus = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: mutatedBusID))
+        XCTAssertTrue(outputBusReadout.dryDestination === mutatedBus.inputMixer)
+        XCTAssertTrue(outputBusSendReadout.dryDestination === mutatedBus.inputMixer)
+        XCTAssertTrue(outputBusSendReadout.sendADestination === sendA.inputMixer)
+        XCTAssertTrue(outputBusSendReadout.sendBDestination === sendB.inputMixer)
+        XCTAssertEqual(outputBusReadout.outputVolume, 0.7, accuracy: 0.0001)
+        XCTAssertEqual(outputBusReadout.pan, -0.2, accuracy: 0.0001)
+        XCTAssertEqual(outputBusSendReadout.sendAGain, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(outputBusSendReadout.sendBGain, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(graph.audioInputFullRoutingSyncCountForTesting, fullSyncsBeforeMutation)
+        XCTAssertEqual(graph.audioInputScopedRoutingUpdateCountForTesting, scopedUpdatesBeforeMutation + 1)
+        XCTAssertEqual(graph.masterMeterTapInstallCountForTesting, tapInstallsBeforeMutation)
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovesBeforeMutation)
+        XCTAssertEqual(graph.masterMeterTapGenerationForTesting, tapGenerationBeforeMutation)
+        XCTAssertFalse(graph.engine.isRunning)
+
+        controller.setMix(
+            trackID: trackID,
+            mix: TrackMixSettings(
+                level: 0.9,
+                pan: 0.35,
+                isMuted: true,
+                sendA: 0.1,
+                sendB: 0.75
+            )
+        )
 
         let mutatedReadout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         let mutatedSendReadout = try XCTUnwrap(controller.audioInputTrackSendReadoutForTesting(trackID: trackID))
-        let mutatedBus = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: mutatedBusID))
         XCTAssertTrue(mutatedReadout.dryDestination === mutatedBus.inputMixer)
         XCTAssertTrue(mutatedSendReadout.dryDestination === mutatedBus.inputMixer)
         XCTAssertTrue(mutatedSendReadout.sendADestination === sendA.inputMixer)
@@ -1331,6 +1367,65 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(mutatedSendReadout.sendAGain, 0.1, accuracy: 0.0001)
         XCTAssertEqual(mutatedSendReadout.sendBGain, 0.75, accuracy: 0.0001)
         XCTAssertEqual(graph.audioInputFullRoutingSyncCountForTesting, fullSyncsBeforeMutation)
+    }
+
+    @MainActor
+    func test_audioInputRouting_documentOutputBusMutationKeepsRunningGraphWhenSendsAreInactive() throws {
+        let graph = MainAudioGraph()
+        let controller = EngineController(client: nil, endpoint: nil, mainAudioGraph: graph)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        let dryBusID = UUID(uuidString: "12121212-3434-5656-7878-909090909090")!
+        let mutatedBusID = UUID(uuidString: "abababab-cdcd-efef-1212-343434343434")!
+        var project = Project.empty
+        project.buses = [
+            MixerBus(id: dryBusID, name: "Input Dry"),
+            MixerBus(id: mutatedBusID, name: "Input Alt"),
+        ]
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        project.setTrackOutputBus(trackID: trackID, busID: dryBusID)
+        project.tracks[project.selectedTrackIndex].mix = TrackMixSettings(
+            level: 0.7,
+            pan: -0.2,
+            isMuted: false,
+            sendA: 0,
+            sendB: 0
+        )
+
+        controller.apply(documentModel: project)
+        let documentBox = DocumentBox(document: SeqAIDocument(project: project))
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: controller,
+            debounceInterval: .seconds(100)
+        )
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        try graph.start()
+        defer { graph.stop() }
+        XCTAssertTrue(graph.engine.isRunning)
+        let fullSyncsBeforeMutation = graph.audioInputFullRoutingSyncCountForTesting
+        let scopedUpdatesBeforeMutation = graph.audioInputScopedRoutingUpdateCountForTesting
+        let tapInstallsBeforeMutation = graph.masterMeterTapInstallCountForTesting
+        let tapRemovesBeforeMutation = graph.masterMeterTapRemoveCountForTesting
+        let tapGenerationBeforeMutation = graph.masterMeterTapGenerationForTesting
+
+        session.setTrackOutputBus(trackID: trackID, busID: mutatedBusID)
+
+        let readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        let mutatedBus = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: mutatedBusID))
+        XCTAssertTrue(readout.dryDestination === mutatedBus.inputMixer)
+        XCTAssertEqual(readout.outputVolume, 0.7, accuracy: 0.0001)
+        XCTAssertEqual(readout.pan, -0.2, accuracy: 0.0001)
+        XCTAssertEqual(graph.audioInputFullRoutingSyncCountForTesting, fullSyncsBeforeMutation)
+        XCTAssertEqual(graph.audioInputScopedRoutingUpdateCountForTesting, scopedUpdatesBeforeMutation + 1)
+        XCTAssertEqual(graph.masterMeterTapInstallCountForTesting, tapInstallsBeforeMutation)
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovesBeforeMutation)
+        XCTAssertEqual(graph.masterMeterTapGenerationForTesting, tapGenerationBeforeMutation)
+        XCTAssertTrue(graph.engine.isRunning)
     }
 
     func test_audioInputRouting_loopModeWithoutLoopStaysSilent() throws {
@@ -1501,6 +1596,14 @@ private func monoGeneratorEntry(
             shape: NoteShape(velocity: velocity, gateLength: gateLength, accent: false)
         )
     )
+}
+
+private final class DocumentBox {
+    var document: SeqAIDocument
+
+    init(document: SeqAIDocument) {
+        self.document = document
+    }
 }
 
 private final class CapturingAudioSink: TrackPlaybackSink {

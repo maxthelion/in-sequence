@@ -328,9 +328,6 @@ final class EngineController: RouterDispatcher {
             .sendA: documentModel.sendBusA.normalized(expectedID: .sendA),
             .sendB: documentModel.sendBusB.normalized(expectedID: .sendB),
         ]
-        mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
-        syncMasterBusPerformanceOverlay(for: documentModel.masterBus)
-        masterBusHost.apply(documentModel.masterBus)
         let compiledSnapshot = SequencerSnapshotCompiler.compile(project: documentModel)
         tickState.installPlaybackSnapshot(
             compiledSnapshot,
@@ -486,10 +483,8 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(masterBus: MasterBusState) {
-        let normalized = masterBus.normalized()
-        syncMasterBusPerformanceOverlay(for: normalized)
-        masterBusHost.apply(normalized)
-        currentDocumentModel.masterBus = normalized
+        applyMasterBusIfChanged(masterBus)
+        currentDocumentModel.masterBus = masterBus.normalized()
     }
 
     func setMasterSceneMacroOverride(sceneID: UUID, macroID: UUID, value: Double) {
@@ -696,6 +691,9 @@ final class EngineController: RouterDispatcher {
                 selectedOutput = Self.effectiveDestination(for: trackID, in: documentModel).destination.kind
                 currentTrackMix = selectedTrack.mix
 
+            case let .trackOutputBusChanged(trackID, busID):
+                setTrackOutputBus(trackID: trackID, busID: busID, documentModel: documentModel)
+
             case let .trackDestinationChanged(trackID, _):
                 // Invalidate macro applier cache for this track so the next
                 // prepared step re-resolves AUParameter references against
@@ -737,6 +735,7 @@ final class EngineController: RouterDispatcher {
         selectedOutput = Self.effectiveDestination(for: selectedTrack.id, in: documentModel).destination.kind
         currentTrackMix = selectedTrack.mix
         router.applyRoutesSnapshot(documentModel.routes)
+        applyMasterBusIfChanged(documentModel.masterBus)
         installMixerBuses(for: documentModel)
         mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
 
@@ -1053,6 +1052,30 @@ final class EngineController: RouterDispatcher {
                     stepParameters: stepParameters
                 )
             }
+        }
+    }
+
+    private func setTrackOutputBus(trackID: UUID, busID: UUID?, documentModel: Project) {
+        guard let track = documentModel.tracks.first(where: { $0.id == trackID }) else {
+            return
+        }
+
+        if documentModel.selectedTrackID == trackID {
+            selectedOutput = Self.effectiveDestination(for: trackID, in: documentModel).destination.kind
+        }
+
+        if track.trackType == .audioInput {
+            updateAudioInputRoutingParameters(for: documentModel)
+        }
+
+        let host = withStateLock { trackRuntime.audioOutputsByTrackID[trackID] }
+        host?.setOutputBusID(busID)
+
+        switch track.destination {
+        case .sample, .slicer:
+            sampleEngine.setTrackOutputBus(trackID: trackID, busID: busID)
+        default:
+            break
         }
     }
 
@@ -1878,6 +1901,15 @@ final class EngineController: RouterDispatcher {
         if normalizedOverlay != masterBusPerformanceOverlay {
             masterBusPerformanceOverlay = normalizedOverlay
         }
+    }
+
+    private func applyMasterBusIfChanged(_ masterBus: MasterBusState) {
+        let normalized = masterBus.normalized()
+        syncMasterBusPerformanceOverlay(for: normalized)
+        guard masterBusHost.appliedState != normalized else {
+            return
+        }
+        masterBusHost.apply(normalized)
     }
 }
 

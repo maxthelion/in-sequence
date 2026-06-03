@@ -739,23 +739,46 @@ final class MainAudioGraph {
         engine.disconnectNodeOutput(source)
 
         var destinations = [connectionPoint(for: dryDestination)]
-        if sendBusHosts[.sendA]?.destinationNode() != nil,
+        let hasActiveSends = routing.sendLevels.clampedSendA > 0 || routing.sendLevels.clampedSendB > 0
+        if !hasActiveSends {
+            let key = ObjectIdentifier(source)
+            if let nodes = trackSendNodes.removeValue(forKey: key) {
+                engine.disconnectNodeOutput(nodes.fanout)
+                engine.disconnectNodeInput(nodes.fanout)
+                engine.disconnectNodeOutput(nodes.sendA)
+                engine.disconnectNodeInput(nodes.sendA)
+                engine.disconnectNodeOutput(nodes.sendB)
+                engine.disconnectNodeInput(nodes.sendB)
+                engine.detach(nodes.fanout)
+                engine.detach(nodes.sendA)
+                engine.detach(nodes.sendB)
+            }
+            trackSendDestinationsForTesting.removeValue(forKey: key)
+        } else if sendBusHosts[.sendA]?.destinationNode() != nil,
            sendBusHosts[.sendB]?.destinationNode() != nil
         {
             let nodes = sendNodes(for: source, levels: routing.sendLevels)
             engine.disconnectNodeOutput(nodes.fanout)
+            engine.disconnectNodeInput(nodes.fanout)
             engine.disconnectNodeOutput(nodes.sendA)
+            engine.disconnectNodeInput(nodes.sendA)
             engine.disconnectNodeOutput(nodes.sendB)
-            engine.connect(
-                nodes.fanout,
-                to: [
-                    connectionPoint(for: nodes.sendA),
-                    connectionPoint(for: nodes.sendB),
-                ],
-                fromBus: 0,
-                format: nil
+            engine.disconnectNodeInput(nodes.sendB)
+            let routesDryThroughFanout = engine.isRunning
+            var fanoutDestinations = routesDryThroughFanout
+                ? [connectionPoint(for: dryDestination)]
+                : []
+            fanoutDestinations.append(contentsOf: [
+                connectionPoint(for: nodes.sendA),
+                connectionPoint(for: nodes.sendB),
+            ])
+            engine.connect(nodes.fanout, to: fanoutDestinations, fromBus: 0, format: nil)
+
+            var sendDestinations = TrackSendDestinations(
+                fanout: routesDryThroughFanout ? [dryDestination, nodes.sendA, nodes.sendB] : [nodes.sendA, nodes.sendB],
+                sendA: nil,
+                sendB: nil
             )
-            var sendDestinations = TrackSendDestinations(fanout: [nodes.sendA, nodes.sendB], sendA: nil, sendB: nil)
             if let sendADestination = sendBusHosts[.sendA]?.destinationNode() {
                 engine.connect(
                     nodes.sendA,
@@ -777,7 +800,11 @@ final class MainAudioGraph {
                 sendDestinations.sendB = sendBDestination
             }
             trackSendDestinationsForTesting[ObjectIdentifier(source)] = sendDestinations
-            destinations.append(connectionPoint(for: nodes.fanout))
+            if routesDryThroughFanout {
+                destinations = [connectionPoint(for: nodes.fanout)]
+            } else {
+                destinations.append(connectionPoint(for: nodes.fanout))
+            }
         }
 
         if destinations.count == 1 {

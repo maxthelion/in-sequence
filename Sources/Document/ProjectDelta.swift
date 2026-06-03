@@ -5,6 +5,7 @@ enum ProjectDelta: Equatable, Hashable {
     case mixerBusMixChanged(busID: UUID, mix: BusMixSettings)
     case sendBusChanged(busID: SendBusID, bus: SendBusState)
     case selectedTrackChanged(trackID: UUID)
+    case trackOutputBusChanged(trackID: UUID, busID: UUID?)
 
     case trackDestinationChanged(trackID: UUID, destination: Destination)
     case trackParameterChanged(trackID: UUID)
@@ -25,6 +26,7 @@ enum ProjectDelta: Equatable, Hashable {
              .mixerBusMixChanged,
              .sendBusChanged,
              .selectedTrackChanged,
+             .trackOutputBusChanged,
              .masterBusChanged,
              .patternBanksChanged,
              .clipPoolChanged,

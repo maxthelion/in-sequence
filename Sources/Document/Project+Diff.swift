@@ -27,6 +27,10 @@ extension Project {
                 deltas.append(.trackDestinationChanged(trackID: track.id, destination: track.destination))
             }
 
+            if track.outputBusID != previousTrack.outputBusID {
+                deltas.append(.trackOutputBusChanged(trackID: track.id, busID: track.outputBusID))
+            }
+
             if track.changedOutsideMixAndDestination(comparedTo: previousTrack) {
                 deltas.append(.trackParameterChanged(trackID: track.id))
             }
@@ -105,7 +109,6 @@ private extension StepSequenceTrack {
         stepPattern != previous.stepPattern ||
         stepAccents != previous.stepAccents ||
         groupID != previous.groupID ||
-        outputBusID != previous.outputBusID ||
         velocity != previous.velocity ||
         gateLength != previous.gateLength ||
         recordBarLength != previous.recordBarLength ||
