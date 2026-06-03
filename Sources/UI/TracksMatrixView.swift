@@ -208,6 +208,12 @@ struct TracksMatrixView: View {
             }
             .buttonStyle(.bordered)
 
+            Button("Add Input") {
+                session.appendTrack(trackType: .audioInput)
+                onOpenTrack()
+            }
+            .buttonStyle(.bordered)
+
             Button("New Slice Track") {
                 isPresentingAddSliceTrack = true
             }

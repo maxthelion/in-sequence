@@ -77,4 +77,84 @@ final class TrackPatternBankSyncedTests: XCTestCase {
 
         XCTAssertNil(synced.attachedGeneratorID, "attachedGeneratorID pointing at an incompatible-trackType entry should be dropped")
     }
+
+    func test_synced_audioInputGeneratorSourceFallsBackToEmptyClipRef() {
+        let track = audioInputTrack()
+        let generatorID = UUID()
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generatorID))],
+            attachedGeneratorID: generatorID
+        )
+
+        let synced = bank.synced(
+            track: track,
+            generatorPool: [monoGenerator(id: generatorID)],
+            clipPool: []
+        )
+
+        assertEmptyClipRef(synced.slot(at: 0).sourceRef)
+        XCTAssertNil(synced.attachedGeneratorID)
+    }
+
+    func test_synced_audioInputClipSourceDropsIncompatibleGeneratorAndClipMetadata() {
+        let track = audioInputTrack()
+        let generatorID = UUID()
+        let clipID = UUID()
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [
+                TrackPatternSlot(
+                    slotIndex: 0,
+                    sourceRef: SourceRef(
+                        mode: .clip,
+                        generatorID: generatorID,
+                        clipID: clipID,
+                        modifierGeneratorID: generatorID,
+                        modifierBypassed: true
+                    )
+                )
+            ],
+            attachedGeneratorID: generatorID
+        )
+        let incompatibleClip = ClipPoolEntry(
+            id: clipID,
+            name: "Mono Clip",
+            trackType: .monoMelodic,
+            content: .emptyNoteGrid(lengthSteps: 16)
+        )
+
+        let synced = bank.synced(
+            track: track,
+            generatorPool: [monoGenerator(id: generatorID)],
+            clipPool: [incompatibleClip]
+        )
+
+        assertEmptyClipRef(synced.slot(at: 0).sourceRef)
+        XCTAssertNil(synced.attachedGeneratorID)
+    }
+
+    private func audioInputTrack() -> StepSequenceTrack {
+        StepSequenceTrack(
+            name: "Input",
+            trackType: .audioInput,
+            pitches: [60],
+            stepPattern: Array(repeating: false, count: 16),
+            destination: .none,
+            velocity: 100,
+            gateLength: 4
+        )
+    }
+
+    private func assertEmptyClipRef(
+        _ sourceRef: SourceRef,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(sourceRef.mode, .clip, file: file, line: line)
+        XCTAssertNil(sourceRef.generatorID, file: file, line: line)
+        XCTAssertNil(sourceRef.clipID, file: file, line: line)
+        XCTAssertNil(sourceRef.modifierGeneratorID, file: file, line: line)
+        XCTAssertFalse(sourceRef.modifierBypassed, file: file, line: line)
+    }
 }

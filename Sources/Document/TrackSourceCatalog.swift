@@ -358,6 +358,9 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         clipPool: [ClipPoolEntry]
     ) -> SourceRef {
         let compatibleSourceGeneratorID: UUID? = {
+            guard trackType != .audioInput else {
+                return nil
+            }
             switch mode {
             case .generator:
                 return generatorPool.first(where: { $0.id == generatorID && $0.trackType == trackType })?.id

@@ -68,6 +68,31 @@ final class ProjectEnsureClipForCurrentPatternTests: XCTestCase {
         XCTAssertTrue(noteGridPitches(clip.content).isEmpty)
     }
 
+    func test_ensureClip_doesNotLazyAllocateSequencerClip_forAudioInputTrack() throws {
+        var project = makeAudioInputProject()
+        let trackID = try XCTUnwrap(project.tracks.first?.id)
+        let baselineClipCount = project.clipPool.count
+        let address = PatternSlotAddress(trackID: trackID, slotIndex: 2)
+
+        let clipID = project.ensureClip(at: address)
+
+        XCTAssertNil(clipID)
+        XCTAssertEqual(project.clipPool.count, baselineClipCount)
+        assertEmptyClipRef(project.patternBank(for: trackID).slot(at: 2).sourceRef)
+    }
+
+    func test_createBlankClipSource_doesNotCreateSequencerClip_forAudioInputTrack() throws {
+        var project = makeAudioInputProject()
+        let trackID = try XCTUnwrap(project.tracks.first?.id)
+        let baselineClipCount = project.clipPool.count
+
+        let clipID = project.createBlankClipSource(trackID: trackID, slotIndex: 3)
+
+        XCTAssertNil(clipID)
+        XCTAssertEqual(project.clipPool.count, baselineClipCount)
+        assertEmptyClipRef(project.patternBank(for: trackID).slot(at: 3).sourceRef)
+    }
+
     private func makeProject() -> Project {
         let track = StepSequenceTrack(
             name: "Lead",
@@ -104,5 +129,49 @@ final class ProjectEnsureClipForCurrentPatternTests: XCTestCase {
             phrases: [phrase],
             selectedPhraseID: phrase.id
         )
+    }
+
+    private func makeAudioInputProject() -> Project {
+        let track = StepSequenceTrack(
+            name: "Input",
+            trackType: .audioInput,
+            pitches: [60],
+            stepPattern: Array(repeating: false, count: 16),
+            destination: .none,
+            velocity: 100,
+            gateLength: 4
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(
+            tracks: [track],
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: []
+        )
+
+        return Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [TrackPatternBank.default(for: track, initialClipID: nil)],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+    }
+
+    private func assertEmptyClipRef(
+        _ sourceRef: SourceRef,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(sourceRef.mode, .clip, file: file, line: line)
+        XCTAssertNil(sourceRef.generatorID, file: file, line: line)
+        XCTAssertNil(sourceRef.clipID, file: file, line: line)
+        XCTAssertNil(sourceRef.modifierGeneratorID, file: file, line: line)
+        XCTAssertFalse(sourceRef.modifierBypassed, file: file, line: line)
     }
 }
