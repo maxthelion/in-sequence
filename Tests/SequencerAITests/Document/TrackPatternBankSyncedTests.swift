@@ -134,6 +134,35 @@ final class TrackPatternBankSyncedTests: XCTestCase {
         XCTAssertNil(synced.attachedGeneratorID)
     }
 
+    func test_synced_audioInputClipSourceDropsSameTypeAudioInputClipPoolEntry() {
+        let track = audioInputTrack()
+        let clipID = UUID()
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [
+                TrackPatternSlot(
+                    slotIndex: 0,
+                    sourceRef: SourceRef(mode: .clip, clipID: clipID)
+                )
+            ],
+            attachedGeneratorID: nil
+        )
+        let audioInputClip = ClipPoolEntry(
+            id: clipID,
+            name: "Input Clip",
+            trackType: .audioInput,
+            content: .emptyNoteGrid(lengthSteps: 16)
+        )
+
+        let synced = bank.synced(
+            track: track,
+            generatorPool: [],
+            clipPool: [audioInputClip]
+        )
+
+        assertEmptyClipRef(synced.slot(at: 0).sourceRef)
+    }
+
     private func audioInputTrack() -> StepSequenceTrack {
         StepSequenceTrack(
             name: "Input",
