@@ -1091,6 +1091,92 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(playedPitches, [60, 72])
         XCTAssertEqual(createdSinks[0].selectedInstrument, .testInstrument)
     }
+
+    func test_audioInputRuntime_setupIsLimitedToOneTrackAndTearsDownOnRemoval() {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let firstInputID = project.selectedTrackID
+        project.appendTrack(trackType: .audioInput)
+        let secondInputID = project.selectedTrackID
+
+        controller.apply(documentModel: project)
+
+        XCTAssertEqual(controller.audioInputRuntimeTrackIDs, [firstInputID])
+        XCTAssertNil(controller.audioInputRuntime(for: secondInputID))
+
+        project.removeSelectedTrack()
+        project.selectedTrackID = firstInputID
+        project.removeSelectedTrack()
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.audioInputRuntimeTrackIDs.isEmpty)
+    }
+
+    func test_audioInputRuntime_acceptsArmAndCancelCommands() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 128))
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .armed)
+        XCTAssertEqual(runtime.pendingStartTick, 128)
+
+        XCTAssertTrue(controller.cancelAudioInputArm(trackID: trackID))
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .idle)
+        XCTAssertNil(runtime.pendingStartTick)
+    }
+
+    func test_audioInputRuntime_acceptsMonitorModeAndInputChannelCommands() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.monitorMode, .loop)
+        XCTAssertTrue(runtime.isSilent)
+
+        XCTAssertTrue(controller.markAudioInputLoopPlaceholder(trackID: trackID, waveformBuckets: [0, 0.5, 0.25]))
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .hasLoop)
+        XCTAssertEqual(runtime.waveformBuckets, [0, 0.5, 0.25])
+        XCTAssertFalse(runtime.isSilent)
+
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono2))
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.selectedInputChannel, .mono2)
+        XCTAssertEqual(runtime.routeState, .available)
+    }
+
+    func test_audioInputRuntime_invalidRouteStaysSilentAndNonCrashing() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 1
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID))
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.selectedInputChannel, .stereo)
+        XCTAssertEqual(runtime.routeState, .silentUnavailable)
+        XCTAssertTrue(runtime.isSilent)
+
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.routeState, .available)
+        XCTAssertFalse(runtime.isSilent)
+    }
 }
 
 private func makeAuditionOverrideDocument() -> (Project, StepSequenceTrack) {

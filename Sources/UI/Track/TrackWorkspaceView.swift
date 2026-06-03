@@ -3,6 +3,7 @@ import SwiftUI
 struct TrackWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Environment(SequencerDocumentSession.self) private var session
+    @Environment(EngineController.self) private var engineController
     @State private var editingTrackID: UUID?
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
     @State private var draftTrackName = ""
@@ -36,9 +37,9 @@ struct TrackWorkspaceView: View {
             trackHeader
 
             if track.trackType == .audioInput {
-                StudioPlaceholderTile(
-                    title: "Audio Input",
-                    detail: "Track model is ready. Recording, monitoring, waveform, and routing controls are deferred to the audio input workspace slice.",
+                AudioInputRuntimePanel(
+                    track: track,
+                    runtime: engineController.audioInputRuntime(for: track.id),
                     accent: sourceAccent
                 )
             } else if track.trackType == .slice {
@@ -130,5 +131,101 @@ struct TrackWorkspaceView: View {
         }
         self.editingTrackID = nil
         draftTrackName = ""
+    }
+}
+
+private struct AudioInputRuntimePanel: View {
+    @Environment(SequencerDocumentSession.self) private var session
+    let track: StepSequenceTrack
+    let runtime: EngineController.AudioInputTrackRuntime?
+    let accent: Color
+
+    private var armStateLabel: String {
+        switch runtime?.armState ?? .idle {
+        case .idle:
+            return "Idle"
+        case .armed:
+            return "Armed"
+        case .recording:
+            return "Recording"
+        case .hasLoop:
+            return "Loop Ready"
+        }
+    }
+
+    private var monitorMode: EngineController.AudioInputMonitorMode {
+        runtime?.monitorMode ?? .input
+    }
+
+    private var routeLabel: String {
+        guard let runtime else {
+            return "Runtime unavailable"
+        }
+        return runtime.routeState == .available ? "Input route ready" : "Silent input route"
+    }
+
+    var body: some View {
+        StudioPanel(title: "Audio Input", eyebrow: routeLabel, accent: accent) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    StudioMetricPill(title: "State", value: armStateLabel, accent: accent)
+                    StudioMetricPill(title: "Monitor", value: monitorMode == .input ? "Input" : "Loop", accent: StudioTheme.amber)
+                    StudioMetricPill(title: "Channel", value: (runtime?.selectedInputChannel ?? track.inputChannel).label, accent: StudioTheme.cyan)
+                    Spacer()
+                }
+
+                HStack(spacing: 12) {
+                    if runtime?.armState == .armed || runtime?.armState == .recording {
+                        Button {
+                            session.cancelAudioInputArm(trackID: track.id)
+                        } label: {
+                            Label("Cancel ARM", systemImage: "xmark.circle")
+                        }
+                    } else {
+                        Button {
+                            session.armAudioInputTrack(trackID: track.id)
+                        } label: {
+                            Label("ARM", systemImage: "record.circle")
+                        }
+                    }
+
+                    Picker("Monitor", selection: monitorBinding) {
+                        Text("Input").tag(EngineController.AudioInputMonitorMode.input)
+                        Text("Loop").tag(EngineController.AudioInputMonitorMode.loop)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+
+                    Picker("Input", selection: channelBinding) {
+                        ForEach(AudioInputChannel.allCases, id: \.self) { channel in
+                            Text(channel.label).tag(channel)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
+                }
+                .disabled(runtime == nil)
+
+                StudioPlaceholderTile(
+                    title: runtime?.isSilent == true ? "Silent" : "Ready",
+                    detail: "Runtime commands are active. Audio tap wiring, bar-locked capture, loop playback, and waveform publication are still deferred.",
+                    accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent
+                )
+            }
+        }
+    }
+
+    private var monitorBinding: Binding<EngineController.AudioInputMonitorMode> {
+        Binding(
+            get: { monitorMode },
+            set: { session.setAudioInputMonitorMode(trackID: track.id, mode: $0) }
+        )
+    }
+
+    private var channelBinding: Binding<AudioInputChannel> {
+        Binding(
+            get: { runtime?.selectedInputChannel ?? track.inputChannel },
+            set: { session.setAudioInputChannel(trackID: track.id, channel: $0) }
+        )
     }
 }

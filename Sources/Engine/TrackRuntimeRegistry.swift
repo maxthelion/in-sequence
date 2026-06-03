@@ -1,10 +1,59 @@
 import Foundation
 
 extension EngineController {
+    enum AudioInputArmState: Equatable, Sendable {
+        case idle
+        case armed
+        case recording
+        case hasLoop
+    }
+
+    enum AudioInputMonitorMode: Equatable, Sendable {
+        case input
+        case loop
+    }
+
+    enum AudioInputRouteState: Equatable, Sendable {
+        case available
+        case silentUnavailable
+    }
+
+    struct AudioInputTrackRuntime: Equatable, Sendable {
+        let trackID: UUID
+        var armState: AudioInputArmState
+        var monitorMode: AudioInputMonitorMode
+        var pendingStartTick: UInt64?
+        var selectedInputChannel: AudioInputChannel
+        var routeState: AudioInputRouteState
+        var transientFrameCount: Int
+        var waveformBuckets: [Float]
+
+        init(
+            trackID: UUID,
+            selectedInputChannel: AudioInputChannel,
+            routeState: AudioInputRouteState
+        ) {
+            self.trackID = trackID
+            self.armState = .idle
+            self.monitorMode = .input
+            self.pendingStartTick = nil
+            self.selectedInputChannel = selectedInputChannel
+            self.routeState = routeState
+            self.transientFrameCount = 0
+            self.waveformBuckets = []
+        }
+
+        var isSilent: Bool {
+            routeState == .silentUnavailable ||
+                (monitorMode == .loop && armState != .hasLoop)
+        }
+    }
+
     final class TrackRuntimeRegistry {
         var generatorIDsByTrackID: [UUID: BlockID] = [:]
         var midiOutBlocksByTrackID: [UUID: MidiOut] = [:]
         var audioTrackRuntimes: [UUID: AudioTrackRuntime] = [:]
+        var audioInputRuntimes: [UUID: AudioInputTrackRuntime] = [:]
         var audioOutputsByTrackID: [UUID: TrackPlaybackSink] = [:]
         var audioOutputKeysByTrackID: [UUID: AudioOutputKey] = [:]
         var effectiveMutedTrackIDs: Set<UUID> = []
@@ -18,6 +67,7 @@ extension EngineController {
             audioOutputKeysByTrackID = [:]
             lastDestinationByOutputKey = [:]
             audioTrackRuntimes = [:]
+            audioInputRuntimes = [:]
             liveSampleTrackIDs = []
         }
 

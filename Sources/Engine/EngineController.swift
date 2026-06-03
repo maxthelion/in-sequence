@@ -50,6 +50,7 @@ final class EngineController: RouterDispatcher {
     private(set) var executor: Executor?
     private(set) var selectedOutput: Destination.Kind
     private(set) var masterBusPerformanceOverlay = MasterBusPerformanceOverlayState()
+    private(set) var audioInputRuntimeRevision = 0
 
     private var currentTrackMix = TrackMixSettings.default
     private var currentDocumentModel: Project = .empty
@@ -161,6 +162,65 @@ final class EngineController: RouterDispatcher {
         return try mainAudioGraph.applyAudioDeviceUIDs(inputUID: inputUID, outputUID: outputUID)
     }
 
+    func audioInputRuntime(for trackID: UUID) -> AudioInputTrackRuntime? {
+        _ = audioInputRuntimeRevision
+        return withStateLock { trackRuntime.audioInputRuntimes[trackID] }
+    }
+
+    var audioInputRuntimeTrackIDs: Set<UUID> {
+        _ = audioInputRuntimeRevision
+        return withStateLock { Set(trackRuntime.audioInputRuntimes.keys) }
+    }
+
+    @discardableResult
+    func armAudioInput(trackID: UUID, pendingStartTick: UInt64? = nil) -> Bool {
+        updateAudioInputRuntime(trackID: trackID) { runtime in
+            runtime.armState = .armed
+            runtime.pendingStartTick = pendingStartTick
+            runtime.transientFrameCount = 0
+            runtime.routeState = audioInputRouteState(for: runtime.selectedInputChannel)
+        }
+    }
+
+    @discardableResult
+    func cancelAudioInputArm(trackID: UUID) -> Bool {
+        updateAudioInputRuntime(trackID: trackID) { runtime in
+            switch runtime.armState {
+            case .armed, .recording:
+                runtime.armState = runtime.waveformBuckets.isEmpty ? .idle : .hasLoop
+                runtime.pendingStartTick = nil
+                runtime.transientFrameCount = 0
+            case .idle, .hasLoop:
+                runtime.pendingStartTick = nil
+            }
+        }
+    }
+
+    @discardableResult
+    func setAudioInputMonitorMode(trackID: UUID, mode: AudioInputMonitorMode) -> Bool {
+        updateAudioInputRuntime(trackID: trackID) { runtime in
+            runtime.monitorMode = mode
+        }
+    }
+
+    @discardableResult
+    func rerouteAudioInput(trackID: UUID, channel: AudioInputChannel) -> Bool {
+        updateAudioInputRuntime(trackID: trackID) { runtime in
+            runtime.selectedInputChannel = channel
+            runtime.routeState = audioInputRouteState(for: channel)
+        }
+    }
+
+    @discardableResult
+    func markAudioInputLoopPlaceholder(trackID: UUID, waveformBuckets: [Float] = []) -> Bool {
+        updateAudioInputRuntime(trackID: trackID) { runtime in
+            runtime.armState = .hasLoop
+            runtime.pendingStartTick = nil
+            runtime.transientFrameCount = 0
+            runtime.waveformBuckets = waveformBuckets
+        }
+    }
+
     /// Called at the start of every `shutdown()` / `shutdown(completion:)` invocation.
     /// Intended for test observation only — do not use in production code paths.
     var shutdownObserver: (() -> Void)?
@@ -168,6 +228,7 @@ final class EngineController: RouterDispatcher {
     /// Test-only hook for session/registry audio-device preference behavior.
     /// Production applies through `mainAudioGraph`.
     var audioDeviceApplyOverrideForTesting: ((_ inputUID: String?, _ outputUID: String?) throws -> AudioDeviceApplyResult)?
+    var audioInputAvailableChannelCountOverrideForTesting: Int?
 
     func shutdown() {
         shutdown(completion: {})
@@ -665,6 +726,7 @@ final class EngineController: RouterDispatcher {
                 syncTrackParams(for: documentModel)
                 syncMidiOutputs(for: documentModel)
                 syncAudioOutputs(for: documentModel)
+                syncAudioInputRuntimes(for: documentModel)
             }
         } catch {
             NSLog("EngineController apply failed: \(error)")
@@ -1068,6 +1130,7 @@ final class EngineController: RouterDispatcher {
         installMixerBuses(for: documentModel)
         mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
         syncAudioOutputs(for: documentModel)
+        syncAudioInputRuntimes(for: documentModel)
         currentDocumentModel = documentModel
         selectedOutput = Self.effectiveDestination(for: documentModel.selectedTrack.id, in: documentModel).destination.kind
         currentTrackMix = documentModel.selectedTrack.mix
@@ -1483,6 +1546,71 @@ final class EngineController: RouterDispatcher {
         removedHosts.forEach { $0.stop() }
 
         syncSampleMixers(for: documentModel)
+    }
+
+    private func syncAudioInputRuntimes(for documentModel: Project) {
+        let desiredTracks = Array(documentModel.tracks.filter { $0.trackType == .audioInput }.prefix(1))
+        let desiredIDs = Set(desiredTracks.map(\.id))
+
+        withStateLock {
+            var next = trackRuntime.audioInputRuntimes.filter { desiredIDs.contains($0.key) }
+            for track in desiredTracks {
+                var runtime = next[track.id]
+                    ?? AudioInputTrackRuntime(
+                        trackID: track.id,
+                        selectedInputChannel: track.inputChannel,
+                        routeState: audioInputRouteState(for: track.inputChannel)
+                    )
+                runtime.selectedInputChannel = track.inputChannel
+                runtime.routeState = audioInputRouteState(for: track.inputChannel)
+                next[track.id] = runtime
+            }
+
+            if next != trackRuntime.audioInputRuntimes {
+                trackRuntime.audioInputRuntimes = next
+                audioInputRuntimeRevision &+= 1
+            }
+        }
+    }
+
+    private func updateAudioInputRuntime(
+        trackID: UUID,
+        update: (inout AudioInputTrackRuntime) -> Void
+    ) -> Bool {
+        withStateLock {
+            guard var runtime = trackRuntime.audioInputRuntimes[trackID] else {
+                return false
+            }
+            update(&runtime)
+            trackRuntime.audioInputRuntimes[trackID] = runtime
+            audioInputRuntimeRevision &+= 1
+            return true
+        }
+    }
+
+    private func audioInputRouteState(for channel: AudioInputChannel) -> AudioInputRouteState {
+        Self.audioInputRouteState(for: channel, availableChannelCount: availableAudioInputChannelCount)
+    }
+
+    private var availableAudioInputChannelCount: Int {
+        if let audioInputAvailableChannelCountOverrideForTesting {
+            return max(0, audioInputAvailableChannelCountOverrideForTesting)
+        }
+        return mainAudioGraph.availableInputChannelCount
+    }
+
+    static func audioInputRouteState(
+        for channel: AudioInputChannel,
+        availableChannelCount: Int
+    ) -> AudioInputRouteState {
+        let requiredChannels: Int
+        switch channel {
+        case .mono1:
+            requiredChannels = 1
+        case .mono2, .stereo:
+            requiredChannels = 2
+        }
+        return availableChannelCount >= requiredChannels ? .available : .silentUnavailable
     }
 
     /// Push per-track fader state to `sampleEngine`. Called from `syncAudioOutputs`

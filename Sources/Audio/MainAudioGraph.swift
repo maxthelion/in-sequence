@@ -141,6 +141,10 @@ final class MainAudioGraph {
         finalOutputMixer
     }
 
+    var availableInputChannelCount: Int {
+        Int(engine.inputNode.inputFormat(forBus: 0).channelCount)
+    }
+
     func installMixerBuses(_ buses: [MixerBus], effectiveMuteByBusID: [UUID: Bool] = [:]) {
         graphLock.lock()
         defer { graphLock.unlock() }

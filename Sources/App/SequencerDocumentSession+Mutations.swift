@@ -912,6 +912,10 @@ extension SequencerDocumentSession {
     /// a pattern bank, and calls `syncPhrasesWithTracks` — all of which are inter-
     /// dependent and not individually decomposed into store typed methods yet.
     func appendTrack(trackType: TrackType = .monoMelodic) {
+        if trackType == .audioInput, store.tracks.contains(where: { $0.trackType == .audioInput }) {
+            return
+        }
+
         batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.appendTrack(trackType: trackType)
@@ -939,6 +943,30 @@ extension SequencerDocumentSession {
             p.removeSelectedTrack()
             s.importFromProject(p)
         }
+    }
+
+    @discardableResult
+    func armAudioInputTrack(trackID: UUID) -> Bool {
+        engineController.armAudioInput(trackID: trackID)
+    }
+
+    @discardableResult
+    func cancelAudioInputArm(trackID: UUID) -> Bool {
+        engineController.cancelAudioInputArm(trackID: trackID)
+    }
+
+    @discardableResult
+    func setAudioInputMonitorMode(trackID: UUID, mode: EngineController.AudioInputMonitorMode) -> Bool {
+        engineController.setAudioInputMonitorMode(trackID: trackID, mode: mode)
+    }
+
+    @discardableResult
+    func setAudioInputChannel(trackID: UUID, channel: AudioInputChannel) -> Bool {
+        let changed = mutateTrack(id: trackID) { track in
+            track.inputChannel = channel
+        }
+        let accepted = engineController.rerouteAudioInput(trackID: trackID, channel: channel)
+        return changed || accepted
     }
 
     /// Add a drum group using the given plan.
