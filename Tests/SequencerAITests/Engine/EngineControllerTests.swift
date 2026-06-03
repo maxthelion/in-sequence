@@ -1229,6 +1229,110 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertTrue(readout.connectedSource == .input || readout.connectedSource == .silent)
     }
 
+    func test_audioInputRouting_mixUpdateUsesScopedParameterPathWithoutTapChurn() throws {
+        let graph = MainAudioGraph()
+        let controller = EngineController(client: nil, endpoint: nil, mainAudioGraph: graph)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        project.tracks[project.selectedTrackIndex].mix = TrackMixSettings(
+            level: 0.8,
+            pan: -0.1,
+            isMuted: false,
+            sendA: 0.15,
+            sendB: 0.25
+        )
+
+        controller.apply(documentModel: project)
+        let fullSyncsBefore = graph.audioInputFullRoutingSyncCountForTesting
+        let scopedUpdatesBefore = graph.audioInputScopedRoutingUpdateCountForTesting
+        let tapInstallsBefore = graph.masterMeterTapInstallCountForTesting
+        let tapRemovesBefore = graph.masterMeterTapRemoveCountForTesting
+        let tapGenerationBefore = graph.masterMeterTapGenerationForTesting
+
+        controller.setMix(
+            trackID: trackID,
+            mix: TrackMixSettings(level: 0.35, pan: 0.45, isMuted: false, sendA: 0.6, sendB: 0.05)
+        )
+
+        let readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        let sendReadout = try XCTUnwrap(controller.audioInputTrackSendReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.outputVolume, 0.35, accuracy: 0.0001)
+        XCTAssertEqual(readout.pan, 0.45, accuracy: 0.0001)
+        XCTAssertEqual(sendReadout.sendAGain, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(sendReadout.sendBGain, 0.05, accuracy: 0.0001)
+        XCTAssertEqual(graph.audioInputFullRoutingSyncCountForTesting, fullSyncsBefore)
+        XCTAssertEqual(graph.audioInputScopedRoutingUpdateCountForTesting, scopedUpdatesBefore + 1)
+        XCTAssertEqual(graph.masterMeterTapInstallCountForTesting, tapInstallsBefore)
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovesBefore)
+        XCTAssertEqual(graph.masterMeterTapGenerationForTesting, tapGenerationBefore)
+    }
+
+    func test_audioInputRouting_targetsAuthoredBusAndPreservesSendFanoutAcrossMixMutation() throws {
+        let graph = MainAudioGraph()
+        let controller = EngineController(client: nil, endpoint: nil, mainAudioGraph: graph)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        let dryBusID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+        let mutatedBusID = UUID(uuidString: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")!
+        var project = Project.empty
+        project.buses = [
+            MixerBus(id: dryBusID, name: "Input Dry"),
+            MixerBus(id: mutatedBusID, name: "Input Alt"),
+        ]
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        project.setTrackOutputBus(trackID: trackID, busID: dryBusID)
+        project.tracks[project.selectedTrackIndex].mix = TrackMixSettings(
+            level: 0.7,
+            pan: -0.2,
+            isMuted: false,
+            sendA: 0.4,
+            sendB: 0.25
+        )
+
+        controller.apply(documentModel: project)
+
+        let initialReadout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        let initialSendReadout = try XCTUnwrap(controller.audioInputTrackSendReadoutForTesting(trackID: trackID))
+        let dryBus = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: dryBusID))
+        let sendA = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        let sendB = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendB))
+        XCTAssertTrue(initialReadout.dryDestination === dryBus.inputMixer)
+        XCTAssertTrue(initialSendReadout.dryDestination === dryBus.inputMixer)
+        XCTAssertTrue(initialSendReadout.sendADestination === sendA.inputMixer)
+        XCTAssertTrue(initialSendReadout.sendBDestination === sendB.inputMixer)
+        XCTAssertEqual(initialReadout.outputVolume, 0.7, accuracy: 0.0001)
+        XCTAssertEqual(initialReadout.pan, -0.2, accuracy: 0.0001)
+        XCTAssertEqual(initialSendReadout.sendAGain, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(initialSendReadout.sendBGain, 0.25, accuracy: 0.0001)
+
+        let fullSyncsBeforeMutation = graph.audioInputFullRoutingSyncCountForTesting
+        project.setTrackOutputBus(trackID: trackID, busID: mutatedBusID)
+        project.tracks[project.selectedTrackIndex].mix = TrackMixSettings(
+            level: 0.9,
+            pan: 0.35,
+            isMuted: true,
+            sendA: 0.1,
+            sendB: 0.75
+        )
+
+        controller.apply(documentModel: project)
+
+        let mutatedReadout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        let mutatedSendReadout = try XCTUnwrap(controller.audioInputTrackSendReadoutForTesting(trackID: trackID))
+        let mutatedBus = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: mutatedBusID))
+        XCTAssertTrue(mutatedReadout.dryDestination === mutatedBus.inputMixer)
+        XCTAssertTrue(mutatedSendReadout.dryDestination === mutatedBus.inputMixer)
+        XCTAssertTrue(mutatedSendReadout.sendADestination === sendA.inputMixer)
+        XCTAssertTrue(mutatedSendReadout.sendBDestination === sendB.inputMixer)
+        XCTAssertEqual(mutatedReadout.outputVolume, 0, accuracy: 0.0001)
+        XCTAssertEqual(mutatedReadout.pan, 0.35, accuracy: 0.0001)
+        XCTAssertEqual(mutatedSendReadout.sendAGain, 0.1, accuracy: 0.0001)
+        XCTAssertEqual(mutatedSendReadout.sendBGain, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(graph.audioInputFullRoutingSyncCountForTesting, fullSyncsBeforeMutation)
+    }
+
     func test_audioInputRouting_loopModeWithoutLoopStaysSilent() throws {
         let controller = EngineController(client: nil, endpoint: nil)
         controller.audioInputAvailableChannelCountOverrideForTesting = 2

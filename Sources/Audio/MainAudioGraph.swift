@@ -71,6 +71,8 @@ final class MainAudioGraph {
     private(set) var masterMeterTapPointForTesting: MasterMeterTapPoint?
     private(set) var masterMeterTapInstallCountForTesting = 0
     private(set) var masterMeterTapRemoveCountForTesting = 0
+    private(set) var audioInputFullRoutingSyncCountForTesting = 0
+    private(set) var audioInputScopedRoutingUpdateCountForTesting = 0
 
     private let graphLock = NSLock()
     private let postBlendMixer = AVAudioMixerNode()
@@ -191,6 +193,12 @@ final class MainAudioGraph {
         defer { graphLock.unlock() }
 
         performOnMain {
+            if self.canUpdateAudioInputRoutingParametersOnMain(requests) {
+                self.applyAudioInputRoutingParametersOnMain(requests)
+                self.audioInputScopedRoutingUpdateCountForTesting += 1
+                return
+            }
+
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
@@ -206,6 +214,7 @@ final class MainAudioGraph {
                 self.installAudioInputRoutingOnMain(request)
             }
 
+            self.audioInputFullRoutingSyncCountForTesting += 1
             self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
 
@@ -213,6 +222,16 @@ final class MainAudioGraph {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
+        }
+    }
+
+    func updateAudioInputRoutingParameters(_ requests: [AudioInputRoutingRequest]) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            self.applyAudioInputRoutingParametersOnMain(requests)
+            self.audioInputScopedRoutingUpdateCountForTesting += 1
         }
     }
 
@@ -788,20 +807,59 @@ final class MainAudioGraph {
         }
 
         host.selectedChannel = request.selectedChannel
-        host.outputBusID = request.outputBusID
         host.requestedSource = request.source
+
+        reconnectAudioInputSourceOnMain(host: host, requestedSource: request.source)
+        applyAudioInputRoutingParametersOnMain(request)
+    }
+
+    @MainActor
+    private func canUpdateAudioInputRoutingParametersOnMain(_ requests: [AudioInputRoutingRequest]) -> Bool {
+        let requestedIDs = Set(requests.map(\.trackID))
+        guard requestedIDs == Set(audioInputRoutingHosts.keys) else { return false }
+        return requests.allSatisfy { request in
+            guard let host = audioInputRoutingHosts[request.trackID] else { return false }
+            return host.requestedSource == request.source
+                && host.selectedChannel == request.selectedChannel
+        }
+    }
+
+    @MainActor
+    private func applyAudioInputRoutingParametersOnMain(_ requests: [AudioInputRoutingRequest]) {
+        for request in requests {
+            applyAudioInputRoutingParametersOnMain(request)
+        }
+    }
+
+    @MainActor
+    private func applyAudioInputRoutingParametersOnMain(_ request: AudioInputRoutingRequest) {
+        guard let host = audioInputRoutingHosts[request.trackID],
+              host.requestedSource == request.source,
+              host.selectedChannel == request.selectedChannel
+        else {
+            return
+        }
+
+        host.outputBusID = request.outputBusID
         host.outputMixer.outputVolume = request.source == .silent || request.mix.isMuted ? 0 : Float(request.mix.clampedLevel)
         host.outputMixer.pan = Float(request.mix.clampedPan)
 
-        reconnectAudioInputSourceOnMain(host: host, requestedSource: request.source)
-
+        let sendLevels = request.mix.graphSendLevels
         let routing = TrackOutputRouting(
             source: host.outputMixer,
             busID: request.outputBusID,
-            sendLevels: request.mix.graphSendLevels
+            sendLevels: sendLevels
         )
-        trackOutputRoutings[ObjectIdentifier(host.outputMixer)] = routing
-        reconnectTrackOutputOnMain(routing)
+        let key = ObjectIdentifier(host.outputMixer)
+        let currentRouting = trackOutputRoutings[key]
+        trackOutputRoutings[key] = routing
+
+        if currentRouting?.busID != request.outputBusID || currentRouting?.sendLevels != sendLevels {
+            reconnectTrackOutputOnMain(routing)
+        } else {
+            trackSendNodes[key]?.sendA.outputVolume = sendLevels.clampedSendA
+            trackSendNodes[key]?.sendB.outputVolume = sendLevels.clampedSendB
+        }
     }
 
     @MainActor

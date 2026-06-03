@@ -171,6 +171,13 @@ final class EngineController: RouterDispatcher {
         mainAudioGraph.audioInputRoutingReadoutForTesting(trackID: trackID)
     }
 
+    func audioInputTrackSendReadoutForTesting(trackID: UUID) -> MainAudioGraph.TrackSendReadout? {
+        guard let readout = mainAudioGraph.audioInputRoutingReadoutForTesting(trackID: trackID) else {
+            return nil
+        }
+        return mainAudioGraph.trackSendReadoutForTesting(readout.outputMixer)
+    }
+
     var audioInputRuntimeTrackIDs: Set<UUID> {
         _ = audioInputRuntimeRevision
         return withStateLock { Set(trackRuntime.audioInputRuntimes.keys) }
@@ -674,7 +681,6 @@ final class EngineController: RouterDispatcher {
             switch delta {
             case let .trackMixChanged(trackID, mix):
                 setMix(trackID: trackID, mix: mix)
-                syncAudioInputRouting(for: documentModel)
                 if trackID == documentModel.selectedTrackID {
                     currentTrackMix = mix
                 }
@@ -1465,7 +1471,7 @@ final class EngineController: RouterDispatcher {
             }
         }
         syncMidiOutputs(for: documentModel)
-        syncAudioInputRouting(for: documentModel)
+        updateAudioInputRoutingParameters(for: documentModel)
 
         for bus in documentModel.buses {
             mainAudioGraph.setMixerBusMix(
@@ -1592,9 +1598,17 @@ final class EngineController: RouterDispatcher {
     }
 
     private func syncAudioInputRouting(for documentModel: Project) {
+        mainAudioGraph.syncAudioInputRoutings(audioInputRoutingRequests(for: documentModel))
+    }
+
+    private func updateAudioInputRoutingParameters(for documentModel: Project) {
+        mainAudioGraph.updateAudioInputRoutingParameters(audioInputRoutingRequests(for: documentModel))
+    }
+
+    private func audioInputRoutingRequests(for documentModel: Project) -> [MainAudioGraph.AudioInputRoutingRequest] {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
         let runtimes = withStateLock { trackRuntime.audioInputRuntimes }
-        let requests = documentModel.tracks.compactMap { track -> MainAudioGraph.AudioInputRoutingRequest? in
+        return documentModel.tracks.compactMap { track -> MainAudioGraph.AudioInputRoutingRequest? in
             guard let runtime = runtimes[track.id] else { return nil }
             let mix = Self.effectiveMix(
                 for: track.mix,
@@ -1608,7 +1622,6 @@ final class EngineController: RouterDispatcher {
                 mix: mix
             )
         }
-        mainAudioGraph.syncAudioInputRoutings(requests)
     }
 
     private static func audioInputMonitorSource(for runtime: AudioInputTrackRuntime) -> MainAudioGraph.AudioInputMonitorSource {
