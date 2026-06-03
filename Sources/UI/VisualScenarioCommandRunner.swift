@@ -4,15 +4,19 @@ import SwiftUI
 @MainActor
 enum VisualScenarioCommandRunner {
     private static let commandFileEnvironmentKey = "SEQUENCER_AI_VISUAL_COMMAND_FILE"
+    private static let commandFileDefaultsKey = "VisualScenarioCommandFile"
 
     static func runIfConfigured(
         section: Binding<WorkspaceSection>,
         session: SequencerDocumentSession,
         engineController: EngineController
     ) async {
-        guard let rawPath = ProcessInfo.processInfo.environment[commandFileEnvironmentKey],
+        let configuredPath = ProcessInfo.processInfo.environment[commandFileEnvironmentKey]
+            ?? UserDefaults.standard.string(forKey: commandFileDefaultsKey)
+        guard let rawPath = configuredPath,
               !rawPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return }
+        NSLog("[VisualScenarioCommandRunner] watching command file %@", rawPath)
 
         let commandURL = URL(fileURLWithPath: (rawPath as NSString).expandingTildeInPath)
         let statusURL = commandURL.appendingPathExtension("status")
@@ -63,6 +67,12 @@ enum VisualScenarioCommandRunner {
         if let workspace = command["workspace"],
            let requestedSection = WorkspaceSection(rawValue: workspace) {
             section.wrappedValue = requestedSection
+        }
+
+        if let addTrack = command["addTrack"],
+           let trackType = TrackType(rawValue: addTrack) {
+            session.appendTrack(trackType: trackType)
+            section.wrappedValue = .track
         }
 
         if let gainRaw = command["masterGain"],
@@ -145,6 +155,9 @@ enum VisualScenarioCommandRunner {
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
+        trackCount=\(session.store.tracks.count)
+        selectedTrackName=\(session.store.selectedTrack.name)
+        selectedTrackType=\(session.store.selectedTrack.trackType.rawValue)
         sendAInsertCount=\(session.store.sendBusA.inserts.count)
         sendBInsertCount=\(session.store.sendBusB.inserts.count)
         clipLatched=\(meterState.isClipLatched)

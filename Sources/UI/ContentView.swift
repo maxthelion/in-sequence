@@ -4,6 +4,7 @@ struct ContentView: View {
     @Binding var document: SeqAIDocument
     @State private var section: WorkspaceSection = .tracks
     @State private var scenesResetToken = 0
+    @State private var visualScenarioCommandTask: Task<Void, Never>?
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
 
@@ -30,12 +31,19 @@ struct ContentView: View {
             }
             .padding(18)
         }
-        .task {
-            await VisualScenarioCommandRunner.runIfConfigured(
-                section: sectionBinding,
-                session: session,
-                engineController: engineController
-            )
+        .onAppear {
+            guard visualScenarioCommandTask == nil else { return }
+            visualScenarioCommandTask = Task {
+                await VisualScenarioCommandRunner.runIfConfigured(
+                    section: sectionBinding,
+                    session: session,
+                    engineController: engineController
+                )
+            }
+        }
+        .onDisappear {
+            visualScenarioCommandTask?.cancel()
+            visualScenarioCommandTask = nil
         }
     }
 }
