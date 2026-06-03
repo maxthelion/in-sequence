@@ -73,6 +73,11 @@
 		2987BC3A8BE7E469E498B535 /* SessionDestinationMacroTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC3216D89B7D3D550E597D4 /* SessionDestinationMacroTests.swift */; };
 		29E9B826109E864A16A899E8 /* ScalarCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A96D2E2F787B4A142F0A38 /* ScalarCellPreview.swift */; };
 		A1B2C3D4E5F60123456789AC /* AtomicInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60123456789AB /* AtomicInt.swift */; };
+		D10100000000000000000007 /* AudioDeviceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000002 /* AudioDeviceCatalog.swift */; };
+		D10100000000000000000008 /* AudioDeviceSwitchCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000003 /* AudioDeviceSwitchCoordinator.swift */; };
+		D10100000000000000000009 /* AudioDevicePreferenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000004 /* AudioDevicePreferenceStore.swift */; };
+		D1010000000000000000000A /* AudioDeviceSwitchCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */; };
+		D1010000000000000000000B /* MainAudioGraphDeviceSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
 		30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567FDBC3AA9E0A6F1D99AFBB /* AppSupportBootstrapTests.swift */; };
 		30ED3E0739DC51F020DBA586 /* TrackSourceEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5901836476E9360606315D /* TrackSourceEditorView.swift */; };
@@ -674,6 +679,11 @@
 		3C114D217DAC9085F526BE33 /* window-capture.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "window-capture.json"; sourceTree = "<group>"; };
 		3C7CC8EC46E9A4BBE9160BA9 /* 2026-05-08T11-44-00Z-build-p0-track-performance-overlay-legibility-complete.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T11-44-00Z-build-p0-track-performance-overlay-legibility-complete.md"; sourceTree = "<group>"; };
 		3C92D949114A66DC7C85946B /* AppSupportBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSupportBootstrap.swift; sourceTree = "<group>"; };
+		D10100000000000000000002 /* AudioDeviceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceCatalog.swift; sourceTree = "<group>"; };
+		D10100000000000000000003 /* AudioDeviceSwitchCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceSwitchCoordinator.swift; sourceTree = "<group>"; };
+		D10100000000000000000004 /* AudioDevicePreferenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDevicePreferenceStore.swift; sourceTree = "<group>"; };
+		D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceSwitchCoordinatorTests.swift; sourceTree = "<group>"; };
+		D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAudioGraphDeviceSwitchTests.swift; sourceTree = "<group>"; };
 		3CBBE661BFC976779D2F2326 /* SlicerWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlicerWaveformView.swift; sourceTree = "<group>"; };
 		3D2B37E3ABA39D512CDEA526 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		3D5DAA79C924F4223888B858 /* validated-screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "validated-screen.png"; sourceTree = "<group>"; };
@@ -1659,6 +1669,7 @@
 			isa = PBXGroup;
 			children = (
 				3C92D949114A66DC7C85946B /* AppSupportBootstrap.swift */,
+				D10100000000000000000004 /* AudioDevicePreferenceStore.swift */,
 				255779684CA651C528349FA5 /* RecentVoicesStore.swift */,
 			);
 			path = Platform;
@@ -1730,6 +1741,8 @@
 			children = (
 				09A9B06103BC536482F2F540 /* AUAudioUnitFactory.swift */,
 				A1B2C3D4E5F60123456789AB /* AtomicInt.swift */,
+				D10100000000000000000002 /* AudioDeviceCatalog.swift */,
+				D10100000000000000000003 /* AudioDeviceSwitchCoordinator.swift */,
 				B42306CF6E1E7F890E90983C /* AudioEffectChoice.swift */,
 				C4976F7F2DD944611264495D /* AudioInstrumentChoice.swift */,
 				DE2A489F6B9AA95B180DF049 /* AudioInstrumentChoiceCache.swift */,
@@ -2132,6 +2145,7 @@
 			isa = PBXGroup;
 			children = (
 				BF8BFF74542FD45AD9EC93D0 /* AUAudioUnitFactoryTests.swift */,
+				D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */,
 				94A1A57D4113E76D994A46D2 /* AudioInstrumentChoicesCacheTests.swift */,
 				BED2EDC78355F6AD45C38484 /* AudioInstrumentChoiceTests.swift */,
 				2778BA85FAEAD67BA4092E1C /* AudioInstrumentHostPresetsTests.swift */,
@@ -2139,6 +2153,7 @@
 				550816EA6A0A5FF2E9425922 /* AUWindowHostCloseAllTests.swift */,
 				ADA7D1B99C2C2B4C14463B28 /* AUWindowHostTests.swift */,
 				8DA39C9D199E4D93A1F1EEDC /* FullStateCoderTests.swift */,
+				D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */,
 				C28D5ECF8458D17E12C59FEE /* MainAudioGraphTests.swift */,
 				0D21CB82446FEAD2695BCB35 /* MasterBusHostTests.swift */,
 				4EB50C344C4F57C7B75FFCF9 /* SampleLibraryBootstrapTests.swift */,
@@ -4297,6 +4312,7 @@
 				206025C0357E927751E86C9C /* AUWindowHostTests.swift in Sources */,
 				0F225722430E197B529F33E7 /* AlgoPreviewTests.swift in Sources */,
 				30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */,
+				D1010000000000000000000A /* AudioDeviceSwitchCoordinatorTests.swift in Sources */,
 				F54D9D8F20798C23823EA28F /* AudioFileRefTests.swift in Sources */,
 				4B2D1B510D591955388F3BC0 /* AudioInstrumentChoiceTests.swift in Sources */,
 				355B1BA8787A8D09DAE1D532 /* AudioInstrumentChoicesCacheTests.swift in Sources */,
@@ -4356,6 +4372,7 @@
 				02E79C95A18009B62DB67FFE /* MIDIRouterTests.swift in Sources */,
 				3350ABB9D0463C2F27D2E901 /* MacroKnobRowViewModelTests.swift in Sources */,
 				9ADFC1FA60F7EA3950C1E814 /* MacroPickerCandidateRankerTests.swift in Sources */,
+				D1010000000000000000000B /* MainAudioGraphDeviceSwitchTests.swift in Sources */,
 				602B77BBF36E1656BC5ABFED /* MainAudioGraphTests.swift in Sources */,
 				D99D24F8B1E3093ADFA8FD36 /* MasterBusHostTests.swift in Sources */,
 				2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */,
@@ -4467,6 +4484,9 @@
 				0070528B27D72E54D9AF6181 /* AlgoPreview.swift in Sources */,
 				56F1C4D87E10B591B22F20A2 /* AlgorithmSummaryCard.swift in Sources */,
 				D7026E29D862915C2B3D0E97 /* AppSupportBootstrap.swift in Sources */,
+				D10100000000000000000007 /* AudioDeviceCatalog.swift in Sources */,
+				D10100000000000000000009 /* AudioDevicePreferenceStore.swift in Sources */,
+				D10100000000000000000008 /* AudioDeviceSwitchCoordinator.swift in Sources */,
 				264E28E6E0BAF90F46E45187 /* AudioEffectChoice.swift in Sources */,
 				BC4D77AEF8FC9502472339E8 /* AudioFileRef.swift in Sources */,
 				F2873CBFB0F90A9D00B19847 /* AudioInstrumentChoice.swift in Sources */,

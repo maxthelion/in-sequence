@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 struct PreferencesView: View {
@@ -88,10 +89,163 @@ private struct MIDIPreferences: View {
 }
 
 private struct AudioPreferences: View {
+    @State private var model = AudioPreferencesModel()
+
     var body: some View {
         Form {
-            Text("Audio device selection placeholder")
-        }.padding()
+            if let missingDeviceMessage = model.missingDeviceMessage {
+                Text(missingDeviceMessage)
+                    .foregroundStyle(.orange)
+            }
+
+            Section("Input Device") {
+                Picker("Input", selection: $model.selectedInputDeviceUID) {
+                    ForEach(model.inputDevices) { device in
+                        Text(model.label(for: device)).tag(Optional(device.uid))
+                    }
+                }
+                .disabled(model.isApplying || model.inputDevices.isEmpty)
+            }
+
+            Section("Output Device") {
+                Picker("Output", selection: $model.selectedOutputDeviceUID) {
+                    ForEach(model.outputDevices) { device in
+                        Text(model.label(for: device)).tag(Optional(device.uid))
+                    }
+                }
+                .disabled(model.isApplying || model.outputDevices.isEmpty)
+            }
+
+            if let statusMessage = model.statusMessage {
+                Text(statusMessage)
+                    .foregroundStyle(model.statusColor)
+            }
+
+            HStack {
+                Spacer()
+                Button {
+                    model.refresh()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .disabled(model.isApplying)
+
+                Button {
+                    model.applySelection()
+                } label: {
+                    if model.isApplying {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("Apply", systemImage: "checkmark.circle")
+                    }
+                }
+                .disabled(model.isApplying || !model.canApply)
+            }
+        }
+        .padding()
+        .onAppear {
+            model.refresh()
+        }
+    }
+}
+
+@MainActor
+@Observable
+private final class AudioPreferencesModel {
+    private enum ApplyState: Equatable {
+        case idle
+        case applying
+        case success
+        case failure(String)
+    }
+
+    private let coordinator: AudioDeviceSwitchCoordinator
+    var inputDevices: [AudioDeviceDescriptor] = []
+    var outputDevices: [AudioDeviceDescriptor] = []
+    var selectedInputDeviceUID: String?
+    var selectedOutputDeviceUID: String?
+    var missingInputDeviceUID: String?
+    var missingOutputDeviceUID: String?
+    private var applyState: ApplyState = .idle
+
+    init(coordinator: AudioDeviceSwitchCoordinator = AudioDeviceSwitchCoordinator { inputUID, outputUID in
+        try SequencerDocumentSessionRegistry.applyAudioDeviceUIDsToActiveSessions(
+            inputUID: inputUID,
+            outputUID: outputUID
+        )
+    }) {
+        self.coordinator = coordinator
+    }
+
+    var isApplying: Bool {
+        applyState == .applying
+    }
+
+    var canApply: Bool {
+        selectedInputDeviceUID != nil || selectedOutputDeviceUID != nil
+    }
+
+    var missingDeviceMessage: String? {
+        let missing = [missingInputDeviceUID, missingOutputDeviceUID].compactMap(\.self)
+        guard !missing.isEmpty else { return nil }
+        return "Previously selected device missing; using system default."
+    }
+
+    var statusMessage: String? {
+        switch applyState {
+        case .idle:
+            nil
+        case .applying:
+            "Applying audio device selection..."
+        case .success:
+            "Audio devices applied."
+        case let .failure(message):
+            message
+        }
+    }
+
+    var statusColor: Color {
+        switch applyState {
+        case .failure:
+            .red
+        case .success:
+            .green
+        default:
+            .secondary
+        }
+    }
+
+    func refresh() {
+        inputDevices = coordinator.devices(direction: .input)
+        outputDevices = coordinator.devices(direction: .output)
+        let startup = coordinator.loadStartupPreference()
+        selectedInputDeviceUID = startup.resolvedInputDeviceUID ?? inputDevices.first?.uid
+        selectedOutputDeviceUID = startup.resolvedOutputDeviceUID ?? outputDevices.first?.uid
+        missingInputDeviceUID = startup.missingInputDeviceUID
+        missingOutputDeviceUID = startup.missingOutputDeviceUID
+    }
+
+    func applySelection() {
+        applyState = .applying
+        do {
+            let result = try coordinator.apply(
+                inputUID: selectedInputDeviceUID,
+                outputUID: selectedOutputDeviceUID
+            )
+            selectedInputDeviceUID = result.appliedInputDeviceUID
+            selectedOutputDeviceUID = result.appliedOutputDeviceUID
+            missingInputDeviceUID = nil
+            missingOutputDeviceUID = nil
+            applyState = .success
+        } catch {
+            applyState = .failure(error.localizedDescription)
+            refresh()
+        }
+    }
+
+    func label(for device: AudioDeviceDescriptor) -> String {
+        "\(device.displayName) (\(device.channelCount) ch)"
     }
 }
 

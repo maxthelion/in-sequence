@@ -53,6 +53,32 @@ enum SequencerDocumentSessionRegistry {
         }
     }
 
+    static func applyAudioDeviceUIDsToActiveSessions(
+        inputUID: String?,
+        outputUID: String?
+    ) throws -> AudioDeviceApplyResult {
+        prune()
+        let sessions = entries.values.compactMap(\.value)
+        guard !sessions.isEmpty else {
+            let validationGraph = MainAudioGraph()
+            return try validationGraph.applyAudioDeviceUIDs(inputUID: inputUID, outputUID: outputUID)
+        }
+
+        var lastResult: AudioDeviceApplyResult?
+        for session in sessions {
+            lastResult = try session.engineController.applyAudioDeviceUIDs(
+                inputUID: inputUID,
+                outputUID: outputUID
+            )
+        }
+        return lastResult ?? AudioDeviceApplyResult(
+            appliedInputDeviceUID: nil,
+            appliedOutputDeviceUID: nil,
+            wasRunningBeforeApply: false,
+            restartedEngine: false
+        )
+    }
+
     private static func prune() {
         entries = entries.filter { $0.value.value != nil }
     }

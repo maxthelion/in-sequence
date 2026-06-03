@@ -154,9 +154,20 @@ final class EngineController: RouterDispatcher {
         tickState.resetRuntimeState()
     }
 
+    func applyAudioDeviceUIDs(inputUID: String?, outputUID: String?) throws -> AudioDeviceApplyResult {
+        if let audioDeviceApplyOverrideForTesting {
+            return try audioDeviceApplyOverrideForTesting(inputUID, outputUID)
+        }
+        return try mainAudioGraph.applyAudioDeviceUIDs(inputUID: inputUID, outputUID: outputUID)
+    }
+
     /// Called at the start of every `shutdown()` / `shutdown(completion:)` invocation.
     /// Intended for test observation only — do not use in production code paths.
     var shutdownObserver: (() -> Void)?
+
+    /// Test-only hook for session/registry audio-device preference behavior.
+    /// Production applies through `mainAudioGraph`.
+    var audioDeviceApplyOverrideForTesting: ((_ inputUID: String?, _ outputUID: String?) throws -> AudioDeviceApplyResult)?
 
     func shutdown() {
         shutdown(completion: {})

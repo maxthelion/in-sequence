@@ -299,6 +299,46 @@ final class MainAudioGraph {
         }
     }
 
+    func applyAudioDeviceUIDs(
+        inputUID: String?,
+        outputUID: String?,
+        deviceOwner: AudioDeviceOwning = CoreAudioDefaultDeviceOwner()
+    ) throws -> AudioDeviceApplyResult {
+        try performOnMainThrowingReturning {
+            let previousInputUID = deviceOwner.activeDeviceUID(direction: .input)
+            let previousOutputUID = deviceOwner.activeDeviceUID(direction: .output)
+            let wasRunning = self.engine.isRunning || self.isStarted
+
+            self.removeMasterMeterTapIfNeeded()
+            if self.engine.isRunning {
+                self.engine.stop()
+            }
+
+            do {
+                let deviceResult = try deviceOwner.apply(inputUID: inputUID, outputUID: outputUID)
+                try self.recoverAudioGraphAfterDeviceApply(wasRunning: wasRunning)
+
+                return AudioDeviceApplyResult(
+                    appliedInputDeviceUID: deviceResult.appliedInputDeviceUID,
+                    appliedOutputDeviceUID: deviceResult.appliedOutputDeviceUID,
+                    wasRunningBeforeApply: wasRunning,
+                    restartedEngine: wasRunning && self.engine.isRunning
+                )
+            } catch {
+                let rollbackError = self.rollbackAudioDevicesWithOwner(
+                    inputUID: previousInputUID,
+                    outputUID: previousOutputUID,
+                    deviceOwner: deviceOwner,
+                    wasRunning: wasRunning
+                )
+                if rollbackError == nil, case AudioDeviceApplyError.rollbackPerformed = error {
+                    throw error
+                }
+                throw AudioDeviceApplyError.rollbackPerformed(underlying: error, rollbackError: rollbackError)
+            }
+        }
+    }
+
     func installMasterChains(
         _ chains: [MasterChain],
         postBlendMasterNodes: [AVAudioNode] = [],
@@ -512,6 +552,38 @@ final class MainAudioGraph {
         return Float(min(max(gain, 0), 2))
     }
 
+    @MainActor
+    private func recoverAudioGraphAfterDeviceApply(wasRunning: Bool) throws {
+        if self.engine.isRunning {
+            self.engine.stop()
+        }
+        self.engine.reset()
+        self.engine.prepare()
+        self.installMasterMeterTapIfNeeded()
+        if wasRunning {
+            self.masterMeterPublisher.startPublishing()
+            try self.engine.start()
+        }
+        self.isStarted = wasRunning ? self.engine.isRunning : self.isStarted
+    }
+
+    @MainActor
+    private func rollbackAudioDevicesWithOwner(
+        inputUID: String?,
+        outputUID: String?,
+        deviceOwner: AudioDeviceOwning,
+        wasRunning: Bool
+    ) -> Error? {
+        do {
+            _ = try deviceOwner.apply(inputUID: inputUID, outputUID: outputUID)
+            try self.recoverAudioGraphAfterDeviceApply(wasRunning: wasRunning)
+            return nil
+        } catch {
+            self.isStarted = self.engine.isRunning
+            return error
+        }
+    }
+
     func setMasterOutputGain(_ gain: Double) {
         graphLock.lock()
         defer { graphLock.unlock() }
@@ -703,6 +775,30 @@ final class MainAudioGraph {
             output = MainActor.assumeIsolated {
                 work()
             }
+        }
+        return output!
+    }
+
+    private func performOnMainThrowingReturning<T>(_ work: @escaping @MainActor () throws -> T) throws -> T {
+        if Thread.isMainThread {
+            return try MainActor.assumeIsolated {
+                try work()
+            }
+        }
+
+        var output: T?
+        var thrownError: Error?
+        DispatchQueue.main.sync {
+            do {
+                output = try MainActor.assumeIsolated {
+                    try work()
+                }
+            } catch {
+                thrownError = error
+            }
+        }
+        if let thrownError {
+            throw thrownError
         }
         return output!
     }

@@ -61,6 +61,7 @@ final class SequencerDocumentSession {
         )
         self.revision = store.revision
         SequencerDocumentSessionRegistry.register(self)
+        applyStoredAudioDevicePreferenceIfNeeded()
     }
 
     /// Test-only initializer that accepts an injected EngineController.
@@ -81,6 +82,7 @@ final class SequencerDocumentSession {
         )
         self.revision = store.revision
         SequencerDocumentSessionRegistry.register(self)
+        applyStoredAudioDevicePreferenceIfNeeded()
     }
 
     deinit {
@@ -97,6 +99,27 @@ final class SequencerDocumentSession {
         // compile call; the cost is one stateLock read on the main thread.
         engineController.apply(documentModel: store.exportToProject())
         snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
+    }
+
+    private func applyStoredAudioDevicePreferenceIfNeeded() {
+        let coordinator = AudioDeviceSwitchCoordinator { [engineController] inputUID, outputUID in
+            try engineController.applyAudioDeviceUIDs(inputUID: inputUID, outputUID: outputUID)
+        }
+        let resolution = coordinator.loadStartupPreference()
+        guard resolution.preference.preferredInputDeviceUID != nil ||
+            resolution.preference.preferredOutputDeviceUID != nil
+        else {
+            return
+        }
+
+        do {
+            _ = try engineController.applyAudioDeviceUIDs(
+                inputUID: resolution.resolvedInputDeviceUID,
+                outputUID: resolution.resolvedOutputDeviceUID
+            )
+        } catch {
+            NSLog("Audio device startup preference apply failed: \(error)")
+        }
     }
 
     func publishSnapshot(changed change: SnapshotChange? = nil) {
