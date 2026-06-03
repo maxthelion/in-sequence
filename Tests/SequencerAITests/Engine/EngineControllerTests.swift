@@ -1203,6 +1203,137 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(runtime.routeState, .available)
         XCTAssertFalse(runtime.isSilent)
     }
+
+    func test_audioInputRouting_inputModeUsesLiveInputRequestThroughMixerPath() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        project.tracks[project.selectedTrackIndex].mix = TrackMixSettings(
+            level: 0.65,
+            pan: -0.25,
+            isMuted: false,
+            sendA: 0.2,
+            sendB: 0.3
+        )
+
+        controller.apply(documentModel: project)
+
+        let readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.requestedSource, .input)
+        XCTAssertEqual(readout.selectedChannel, .stereo)
+        XCTAssertNotNil(readout.dryDestination)
+        XCTAssertEqual(readout.outputVolume, 0.65, accuracy: 0.0001)
+        XCTAssertEqual(readout.pan, -0.25, accuracy: 0.0001)
+        XCTAssertTrue(readout.connectedSource == .input || readout.connectedSource == .silent)
+    }
+
+    func test_audioInputRouting_loopModeWithoutLoopStaysSilent() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
+
+        let runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        let readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertTrue(runtime.isSilent)
+        XCTAssertEqual(readout.requestedSource, .silent)
+        XCTAssertEqual(readout.connectedSource, .silent)
+        XCTAssertEqual(readout.outputVolume, 0, accuracy: 0.0001)
+    }
+
+    func test_audioInputRouting_loopPlaceholderUsesPlayerAndExcludesInputPath() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.markAudioInputLoopPlaceholder(trackID: trackID))
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
+
+        var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.requestedSource, .loop)
+        XCTAssertEqual(readout.connectedSource, .loop)
+        XCTAssertTrue(
+            readout.loopPlayer.engine?.outputConnectionPoints(for: readout.loopPlayer, outputBus: 0).first?.node === readout.outputMixer
+        )
+
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .input))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.requestedSource, .input)
+        XCTAssertNotEqual(readout.connectedSource, .loop)
+        XCTAssertTrue(
+            readout.loopPlayer.engine?.outputConnectionPoints(for: readout.loopPlayer, outputBus: 0).isEmpty ?? true
+        )
+    }
+
+    func test_audioInputRouting_tracksMonoAndStereoChannelSelection() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.selectedChannel, .mono1)
+        XCTAssertEqual(readout.requestedSource, .input)
+
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono2))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.selectedChannel, .mono2)
+        XCTAssertEqual(readout.requestedSource, .input)
+
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .stereo))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.selectedChannel, .stereo)
+        XCTAssertEqual(readout.requestedSource, .input)
+    }
+
+    func test_audioInputRouting_unavailableInputStaysSilentUntilValidChannelSelected() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 1
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.selectedChannel, .stereo)
+        XCTAssertEqual(readout.requestedSource, .silent)
+        XCTAssertEqual(readout.connectedSource, .silent)
+        XCTAssertEqual(readout.outputVolume, 0, accuracy: 0.0001)
+
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.selectedChannel, .mono1)
+        XCTAssertEqual(readout.requestedSource, .input)
+        XCTAssertTrue(readout.connectedSource == .input || readout.connectedSource == .silent)
+    }
+
+    func test_audioInputRouting_tearsDownWhenTrackIsRemoved() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+        XCTAssertNotNil(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+
+        project.removeSelectedTrack()
+        controller.apply(documentModel: project)
+
+        XCTAssertNil(controller.audioInputRuntime(for: trackID))
+        XCTAssertNil(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+    }
 }
 
 private func makeAuditionOverrideDocument() -> (Project, StepSequenceTrack) {

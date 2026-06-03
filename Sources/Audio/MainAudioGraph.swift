@@ -3,6 +3,32 @@ import Foundation
 import Observation
 
 final class MainAudioGraph {
+    enum AudioInputMonitorSource: Equatable {
+        case input
+        case loop
+        case silent
+    }
+
+    struct AudioInputRoutingRequest: Equatable {
+        let trackID: UUID
+        let source: AudioInputMonitorSource
+        let selectedChannel: AudioInputChannel
+        let outputBusID: UUID?
+        let mix: TrackMixSettings
+    }
+
+    struct AudioInputRoutingReadout {
+        let trackID: UUID
+        let selectedChannel: AudioInputChannel
+        let requestedSource: AudioInputMonitorSource
+        let connectedSource: AudioInputMonitorSource
+        let outputMixer: AVAudioMixerNode
+        let loopPlayer: AVAudioPlayerNode
+        let dryDestination: AVAudioNode?
+        let outputVolume: Float
+        let pan: Float
+    }
+
     struct MasterChain {
         var nodes: [AVAudioNode]
         var gain: Double
@@ -57,6 +83,7 @@ final class MainAudioGraph {
     private var trackOutputRoutings: [ObjectIdentifier: TrackOutputRouting] = [:]
     private var trackSendNodes: [ObjectIdentifier: TrackSendNodes] = [:]
     private var trackSendDestinationsForTesting: [ObjectIdentifier: TrackSendDestinations] = [:]
+    private var audioInputRoutingHosts: [UUID: AudioInputRoutingHost] = [:]
     private var isStarted = false
     private var isMasterMeterTapInstalled = false
     private let masterMeterTapGeneration = AtomicInt32(0)
@@ -77,6 +104,20 @@ final class MainAudioGraph {
         var fanout: [AVAudioNode]
         var sendA: AVAudioNode?
         var sendB: AVAudioNode?
+    }
+
+    private final class AudioInputRoutingHost {
+        let trackID: UUID
+        let outputMixer = AVAudioMixerNode()
+        let loopPlayer = AVAudioPlayerNode()
+        var requestedSource: AudioInputMonitorSource = .silent
+        var connectedSource: AudioInputMonitorSource = .silent
+        var selectedChannel: AudioInputChannel = .stereo
+        var outputBusID: UUID?
+
+        init(trackID: UUID) {
+            self.trackID = trackID
+        }
     }
 
     init(
@@ -143,6 +184,36 @@ final class MainAudioGraph {
 
     var availableInputChannelCount: Int {
         Int(engine.inputNode.inputFormat(forBus: 0).channelCount)
+    }
+
+    func syncAudioInputRoutings(_ requests: [AudioInputRoutingRequest]) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            let wasRunning = self.engine.isRunning
+            self.removeMasterMeterTapIfNeeded()
+            if wasRunning {
+                self.engine.stop()
+            }
+
+            let requestedIDs = Set(requests.map(\.trackID))
+            for trackID in self.audioInputRoutingHosts.keys.filter({ !requestedIDs.contains($0) }) {
+                self.teardownAudioInputRoutingOnMain(trackID: trackID)
+            }
+
+            for request in requests {
+                self.installAudioInputRoutingOnMain(request)
+            }
+
+            self.engine.prepare()
+            self.installMasterMeterTapIfNeeded()
+
+            if wasRunning {
+                try? self.engine.start()
+                self.isStarted = self.engine.isRunning
+            }
+        }
     }
 
     func installMixerBuses(_ buses: [MixerBus], effectiveMuteByBusID: [UUID: Bool] = [:]) {
@@ -523,6 +594,26 @@ final class MainAudioGraph {
         }
     }
 
+    func audioInputRoutingReadoutForTesting(trackID: UUID) -> AudioInputRoutingReadout? {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            guard let host = self.audioInputRoutingHosts[trackID] else { return nil }
+            return AudioInputRoutingReadout(
+                trackID: host.trackID,
+                selectedChannel: host.selectedChannel,
+                requestedSource: host.requestedSource,
+                connectedSource: host.connectedSource,
+                outputMixer: host.outputMixer,
+                loopPlayer: host.loopPlayer,
+                dryDestination: self.trackOutputDestinationsForTesting[ObjectIdentifier(host.outputMixer)],
+                outputVolume: host.outputMixer.outputVolume,
+                pan: host.outputMixer.pan
+            )
+        }
+    }
+
     var masterMeterTapGenerationForTesting: Int {
         Int(masterMeterTapGeneration.load())
     }
@@ -682,6 +773,84 @@ final class MainAudioGraph {
             engine.connect(source, to: destinations, fromBus: 0, format: nil)
         }
         trackOutputDestinationsForTesting[ObjectIdentifier(source)] = dryDestination
+    }
+
+    @MainActor
+    private func installAudioInputRoutingOnMain(_ request: AudioInputRoutingRequest) {
+        let host = audioInputRoutingHosts[request.trackID] ?? AudioInputRoutingHost(trackID: request.trackID)
+        audioInputRoutingHosts[request.trackID] = host
+
+        if host.outputMixer.engine == nil {
+            engine.attach(host.outputMixer)
+        }
+        if host.loopPlayer.engine == nil {
+            engine.attach(host.loopPlayer)
+        }
+
+        host.selectedChannel = request.selectedChannel
+        host.outputBusID = request.outputBusID
+        host.requestedSource = request.source
+        host.outputMixer.outputVolume = request.source == .silent || request.mix.isMuted ? 0 : Float(request.mix.clampedLevel)
+        host.outputMixer.pan = Float(request.mix.clampedPan)
+
+        reconnectAudioInputSourceOnMain(host: host, requestedSource: request.source)
+
+        let routing = TrackOutputRouting(
+            source: host.outputMixer,
+            busID: request.outputBusID,
+            sendLevels: request.mix.graphSendLevels
+        )
+        trackOutputRoutings[ObjectIdentifier(host.outputMixer)] = routing
+        reconnectTrackOutputOnMain(routing)
+    }
+
+    @MainActor
+    private func reconnectAudioInputSourceOnMain(
+        host: AudioInputRoutingHost,
+        requestedSource: AudioInputMonitorSource
+    ) {
+        if host.connectedSource == .input {
+            engine.disconnectNodeOutput(engine.inputNode)
+        }
+        if host.connectedSource == .loop {
+            host.loopPlayer.stop()
+            engine.disconnectNodeOutput(host.loopPlayer)
+        }
+        engine.disconnectNodeInput(host.outputMixer)
+
+        switch requestedSource {
+        case .input:
+            let inputFormat = engine.inputNode.inputFormat(forBus: 0)
+            guard inputFormat.channelCount > 0 else {
+                host.connectedSource = .silent
+                host.outputMixer.outputVolume = 0
+                return
+            }
+            engine.connect(engine.inputNode, to: host.outputMixer, format: inputFormat)
+            host.connectedSource = .input
+
+        case .loop:
+            engine.connect(host.loopPlayer, to: host.outputMixer, format: nil)
+            host.connectedSource = .loop
+
+        case .silent:
+            host.connectedSource = .silent
+        }
+    }
+
+    @MainActor
+    private func teardownAudioInputRoutingOnMain(trackID: UUID) {
+        guard let host = audioInputRoutingHosts.removeValue(forKey: trackID) else { return }
+
+        if host.connectedSource == .input {
+            engine.disconnectNodeOutput(engine.inputNode)
+        }
+        host.loopPlayer.stop()
+        engine.disconnectNodeOutput(host.loopPlayer)
+        engine.disconnectNodeInput(host.outputMixer)
+        disconnectOutput(host.outputMixer)
+        detach(host.loopPlayer)
+        detach(host.outputMixer)
     }
 
     @MainActor

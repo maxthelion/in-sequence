@@ -167,6 +167,10 @@ final class EngineController: RouterDispatcher {
         return withStateLock { trackRuntime.audioInputRuntimes[trackID] }
     }
 
+    func audioInputRoutingReadoutForTesting(trackID: UUID) -> MainAudioGraph.AudioInputRoutingReadout? {
+        mainAudioGraph.audioInputRoutingReadoutForTesting(trackID: trackID)
+    }
+
     var audioInputRuntimeTrackIDs: Set<UUID> {
         _ = audioInputRuntimeRevision
         return withStateLock { Set(trackRuntime.audioInputRuntimes.keys) }
@@ -174,17 +178,19 @@ final class EngineController: RouterDispatcher {
 
     @discardableResult
     func armAudioInput(trackID: UUID, pendingStartTick: UInt64? = nil) -> Bool {
-        updateAudioInputRuntime(trackID: trackID) { runtime in
+        let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.armState = .armed
             runtime.pendingStartTick = pendingStartTick
             runtime.transientFrameCount = 0
             runtime.routeState = audioInputRouteState(for: runtime.selectedInputChannel)
         }
+        syncAudioInputRouting(for: currentDocumentModel)
+        return didUpdate
     }
 
     @discardableResult
     func cancelAudioInputArm(trackID: UUID) -> Bool {
-        updateAudioInputRuntime(trackID: trackID) { runtime in
+        let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             switch runtime.armState {
             case .armed, .recording:
                 runtime.armState = runtime.waveformBuckets.isEmpty ? .idle : .hasLoop
@@ -194,31 +200,39 @@ final class EngineController: RouterDispatcher {
                 runtime.pendingStartTick = nil
             }
         }
+        syncAudioInputRouting(for: currentDocumentModel)
+        return didUpdate
     }
 
     @discardableResult
     func setAudioInputMonitorMode(trackID: UUID, mode: AudioInputMonitorMode) -> Bool {
-        updateAudioInputRuntime(trackID: trackID) { runtime in
+        let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.monitorMode = mode
         }
+        syncAudioInputRouting(for: currentDocumentModel)
+        return didUpdate
     }
 
     @discardableResult
     func rerouteAudioInput(trackID: UUID, channel: AudioInputChannel) -> Bool {
-        updateAudioInputRuntime(trackID: trackID) { runtime in
+        let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.selectedInputChannel = channel
             runtime.routeState = audioInputRouteState(for: channel)
         }
+        syncAudioInputRouting(for: currentDocumentModel)
+        return didUpdate
     }
 
     @discardableResult
     func markAudioInputLoopPlaceholder(trackID: UUID, waveformBuckets: [Float] = []) -> Bool {
-        updateAudioInputRuntime(trackID: trackID) { runtime in
+        let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.armState = .hasLoop
             runtime.pendingStartTick = nil
             runtime.transientFrameCount = 0
             runtime.waveformBuckets = waveformBuckets
         }
+        syncAudioInputRouting(for: currentDocumentModel)
+        return didUpdate
     }
 
     /// Called at the start of every `shutdown()` / `shutdown(completion:)` invocation.
@@ -660,6 +674,7 @@ final class EngineController: RouterDispatcher {
             switch delta {
             case let .trackMixChanged(trackID, mix):
                 setMix(trackID: trackID, mix: mix)
+                syncAudioInputRouting(for: documentModel)
                 if trackID == documentModel.selectedTrackID {
                     currentTrackMix = mix
                 }
@@ -727,6 +742,7 @@ final class EngineController: RouterDispatcher {
                 syncMidiOutputs(for: documentModel)
                 syncAudioOutputs(for: documentModel)
                 syncAudioInputRuntimes(for: documentModel)
+                syncAudioInputRouting(for: documentModel)
             }
         } catch {
             NSLog("EngineController apply failed: \(error)")
@@ -1131,6 +1147,7 @@ final class EngineController: RouterDispatcher {
         mainAudioGraph.installSendBuses([documentModel.sendBusA, documentModel.sendBusB])
         syncAudioOutputs(for: documentModel)
         syncAudioInputRuntimes(for: documentModel)
+        syncAudioInputRouting(for: documentModel)
         currentDocumentModel = documentModel
         selectedOutput = Self.effectiveDestination(for: documentModel.selectedTrack.id, in: documentModel).destination.kind
         currentTrackMix = documentModel.selectedTrack.mix
@@ -1448,6 +1465,7 @@ final class EngineController: RouterDispatcher {
             }
         }
         syncMidiOutputs(for: documentModel)
+        syncAudioInputRouting(for: documentModel)
 
         for bus in documentModel.buses {
             mainAudioGraph.setMixerBusMix(
@@ -1570,6 +1588,36 @@ final class EngineController: RouterDispatcher {
                 trackRuntime.audioInputRuntimes = next
                 audioInputRuntimeRevision &+= 1
             }
+        }
+    }
+
+    private func syncAudioInputRouting(for documentModel: Project) {
+        let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
+        let runtimes = withStateLock { trackRuntime.audioInputRuntimes }
+        let requests = documentModel.tracks.compactMap { track -> MainAudioGraph.AudioInputRoutingRequest? in
+            guard let runtime = runtimes[track.id] else { return nil }
+            let mix = Self.effectiveMix(
+                for: track.mix,
+                isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)
+            )
+            return MainAudioGraph.AudioInputRoutingRequest(
+                trackID: track.id,
+                source: Self.audioInputMonitorSource(for: runtime),
+                selectedChannel: runtime.selectedInputChannel,
+                outputBusID: track.outputBusID,
+                mix: mix
+            )
+        }
+        mainAudioGraph.syncAudioInputRoutings(requests)
+    }
+
+    private static func audioInputMonitorSource(for runtime: AudioInputTrackRuntime) -> MainAudioGraph.AudioInputMonitorSource {
+        guard runtime.routeState == .available else { return .silent }
+        switch runtime.monitorMode {
+        case .input:
+            return .input
+        case .loop:
+            return runtime.armState == .hasLoop ? .loop : .silent
         }
     }
 
