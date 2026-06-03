@@ -212,7 +212,7 @@ private struct AudioInputRuntimePanel: View {
 
                 StudioPlaceholderTile(
                     title: runtime?.isSilent == true ? "Silent" : "Ready",
-                    detail: "Runtime commands are active. Audio tap wiring, bar-locked capture, loop playback, and waveform publication are still deferred.",
+                    detail: "Runtime commands are active. Real PCM tap capture, loop buffer/player playback, waveform and level publication, and final recording indicators are still deferred.",
                     accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent
                 )
             }
