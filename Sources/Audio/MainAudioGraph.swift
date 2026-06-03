@@ -38,6 +38,7 @@ final class MainAudioGraph {
     let engine: AVAudioEngine
     let preMasterMixer: AVAudioMixerNode
     let masterMeterPublisher: MasterMeterPublisher
+    private let audioDeviceOwner: AudioDeviceOwning
     private(set) var masterBranchesForTesting: [MasterBranchReadout] = []
     private(set) var postBlendMasterInsertNodesForTesting: [AVAudioNode] = []
     private(set) var masterOutputGainForTesting: Float = 1
@@ -78,9 +79,14 @@ final class MainAudioGraph {
         var sendB: AVAudioNode?
     }
 
-    init(engine: AVAudioEngine = AVAudioEngine(), masterMeterPublisher: MasterMeterPublisher = MasterMeterPublisher()) {
+    init(
+        engine: AVAudioEngine = AVAudioEngine(),
+        masterMeterPublisher: MasterMeterPublisher = MasterMeterPublisher(),
+        audioDeviceOwner: AudioDeviceOwning = CoreAudioHALDeviceOwner()
+    ) {
         self.engine = engine
         self.masterMeterPublisher = masterMeterPublisher
+        self.audioDeviceOwner = audioDeviceOwner
         self.preMasterMixer = AVAudioMixerNode()
 
         performOnMain {
@@ -302,9 +308,10 @@ final class MainAudioGraph {
     func applyAudioDeviceUIDs(
         inputUID: String?,
         outputUID: String?,
-        deviceOwner: AudioDeviceOwning = CoreAudioDefaultDeviceOwner()
+        deviceOwner: AudioDeviceOwning? = nil
     ) throws -> AudioDeviceApplyResult {
         try performOnMainThrowingReturning {
+            let deviceOwner = deviceOwner ?? self.audioDeviceOwner
             let previousInputUID = deviceOwner.activeDeviceUID(direction: .input)
             let previousOutputUID = deviceOwner.activeDeviceUID(direction: .output)
             let wasRunning = self.engine.isRunning || self.isStarted

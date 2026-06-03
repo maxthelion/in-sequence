@@ -1,3 +1,4 @@
+import AudioToolbox
 import CoreAudio
 import Foundation
 
@@ -39,30 +40,37 @@ protocol AudioDeviceOwning {
     func apply(inputUID: String?, outputUID: String?) throws -> AudioDeviceOwnerApplyResult
 }
 
-final class CoreAudioDefaultDeviceOwner: AudioDeviceOwning {
-    private let catalog: CoreAudioDeviceCatalog
+final class CoreAudioHALDeviceOwner: AudioDeviceOwning {
+    private let catalog: AudioHardwareDeviceResolving
+    private var inputUnit: HALAudioUnit?
+    private var outputUnit: HALAudioUnit?
 
-    init(catalog: CoreAudioDeviceCatalog = CoreAudioDeviceCatalog()) {
+    init(catalog: AudioHardwareDeviceResolving = CoreAudioDeviceCatalog()) {
         self.catalog = catalog
     }
 
     func activeDeviceUID(direction: AudioDeviceDirection) -> String? {
-        catalog.defaultDeviceUID(direction: direction)
+        switch direction {
+        case .input:
+            return inputUnit?.activeDeviceUID(catalog: catalog) ?? catalog.defaultDeviceUID(direction: .input)
+        case .output:
+            return outputUnit?.activeDeviceUID(catalog: catalog) ?? catalog.defaultDeviceUID(direction: .output)
+        }
     }
 
     func apply(inputUID: String?, outputUID: String?) throws -> AudioDeviceOwnerApplyResult {
-        let previousInputDeviceID = try? catalog.defaultDeviceID(direction: .input)
-        let previousOutputDeviceID = try? catalog.defaultDeviceID(direction: .output)
+        let previousInputDeviceID = currentDeviceID(direction: .input)
+        let previousOutputDeviceID = currentDeviceID(direction: .output)
 
         do {
             let targetInputDeviceID = try targetDeviceID(preferredUID: inputUID, direction: .input)
             let targetOutputDeviceID = try targetDeviceID(preferredUID: outputUID, direction: .output)
 
             if let targetInputDeviceID {
-                try setDefaultDeviceID(targetInputDeviceID, direction: .input)
+                try apply(deviceID: targetInputDeviceID, direction: .input)
             }
             if let targetOutputDeviceID {
-                try setDefaultDeviceID(targetOutputDeviceID, direction: .output)
+                try apply(deviceID: targetOutputDeviceID, direction: .output)
             }
 
             return AudioDeviceOwnerApplyResult(
@@ -78,6 +86,15 @@ final class CoreAudioDefaultDeviceOwner: AudioDeviceOwning {
         }
     }
 
+    private func currentDeviceID(direction: AudioDeviceDirection) -> AudioDeviceID? {
+        switch direction {
+        case .input:
+            return inputUnit?.currentDeviceID ?? (try? catalog.defaultDeviceID(direction: .input))
+        case .output:
+            return outputUnit?.currentDeviceID ?? (try? catalog.defaultDeviceID(direction: .output))
+        }
+    }
+
     private func targetDeviceID(preferredUID: String?, direction: AudioDeviceDirection) throws -> AudioDeviceID? {
         if let preferredUID {
             return try catalog.deviceID(for: preferredUID, direction: direction)
@@ -85,29 +102,25 @@ final class CoreAudioDefaultDeviceOwner: AudioDeviceOwning {
         return try? catalog.defaultDeviceID(direction: direction)
     }
 
-    private func setDefaultDeviceID(_ deviceID: AudioDeviceID, direction: AudioDeviceDirection) throws {
-        guard (try? catalog.defaultDeviceID(direction: direction)) != deviceID else { return }
-        var address = AudioObjectPropertyAddress(
-            mSelector: direction.defaultDeviceSelector,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        var mutableDeviceID = deviceID
-        let status = AudioObjectSetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject),
-            &address,
-            0,
-            nil,
-            UInt32(MemoryLayout<AudioDeviceID>.size),
-            &mutableDeviceID
-        )
-        try CoreAudioDeviceCatalog.throwIfNeeded(status, operation: "Set default \(direction.rawValue) device")
+    private func apply(deviceID: AudioDeviceID, direction: AudioDeviceDirection) throws {
+        switch direction {
+        case .input:
+            if inputUnit == nil {
+                inputUnit = try HALAudioUnit(direction: .input)
+            }
+            try inputUnit?.apply(deviceID: deviceID)
+        case .output:
+            if outputUnit == nil {
+                outputUnit = try HALAudioUnit(direction: .output)
+            }
+            try outputUnit?.apply(deviceID: deviceID)
+        }
     }
 
     private func verifiedActiveUID(_ targetDeviceID: AudioDeviceID?, direction: AudioDeviceDirection) throws -> String? {
         guard let targetDeviceID else { return nil }
         let expectedUID = catalog.deviceUID(for: targetDeviceID)
-        let actualUID = catalog.defaultDeviceUID(direction: direction)
+        let actualUID = activeDeviceUID(direction: direction)
         guard expectedUID == actualUID else {
             throw AudioDeviceApplyError.deviceVerificationFailed(
                 direction: direction,
@@ -121,14 +134,142 @@ final class CoreAudioDefaultDeviceOwner: AudioDeviceOwning {
     private func rollback(inputDeviceID: AudioDeviceID?, outputDeviceID: AudioDeviceID?) -> Error? {
         do {
             if let inputDeviceID {
-                try setDefaultDeviceID(inputDeviceID, direction: .input)
+                try apply(deviceID: inputDeviceID, direction: .input)
             }
             if let outputDeviceID {
-                try setDefaultDeviceID(outputDeviceID, direction: .output)
+                try apply(deviceID: outputDeviceID, direction: .output)
             }
             return nil
         } catch {
             return error
+        }
+    }
+
+    private final class HALAudioUnit {
+        private let audioUnit: AudioUnit
+        private let direction: AudioDeviceDirection
+        private var isInitialized = false
+        private(set) var currentDeviceID: AudioDeviceID?
+
+        init(direction: AudioDeviceDirection) throws {
+            self.direction = direction
+
+            var description = AudioComponentDescription(
+                componentType: kAudioUnitType_Output,
+                componentSubType: kAudioUnitSubType_HALOutput,
+                componentManufacturer: kAudioUnitManufacturer_Apple,
+                componentFlags: 0,
+                componentFlagsMask: 0
+            )
+            guard let component = AudioComponentFindNext(nil, &description) else {
+                throw AudioDeviceApplyError.missingAudioUnit(direction)
+            }
+
+            var createdUnit: AudioUnit?
+            let status = AudioComponentInstanceNew(component, &createdUnit)
+            try CoreAudioDeviceCatalog.throwIfNeeded(status, operation: "Create \(direction.rawValue) AUHAL unit")
+            guard let createdUnit else {
+                throw AudioDeviceApplyError.missingAudioUnit(direction)
+            }
+            self.audioUnit = createdUnit
+            try configureIO()
+        }
+
+        deinit {
+            if isInitialized {
+                AudioUnitUninitialize(audioUnit)
+            }
+            AudioComponentInstanceDispose(audioUnit)
+        }
+
+        func activeDeviceUID(catalog: AudioHardwareDeviceResolving) -> String? {
+            guard let currentDeviceID else { return nil }
+            return catalog.deviceUID(for: currentDeviceID)
+        }
+
+        func apply(deviceID: AudioDeviceID) throws {
+            if currentDeviceID == deviceID, isInitialized { return }
+            if isInitialized {
+                try uninitialize()
+            }
+
+            var mutableDeviceID = deviceID
+            var status = AudioUnitSetProperty(
+                audioUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &mutableDeviceID,
+                UInt32(MemoryLayout<AudioDeviceID>.size)
+            )
+            try CoreAudioDeviceCatalog.throwIfNeeded(
+                status,
+                operation: "Set current \(direction.rawValue) AUHAL device"
+            )
+
+            var verifiedDeviceID = AudioDeviceID(kAudioObjectUnknown)
+            var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+            status = AudioUnitGetProperty(
+                audioUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &verifiedDeviceID,
+                &size
+            )
+            try CoreAudioDeviceCatalog.throwIfNeeded(
+                status,
+                operation: "Read current \(direction.rawValue) AUHAL device"
+            )
+            guard verifiedDeviceID == deviceID else {
+                throw AudioDeviceApplyError.deviceVerificationFailed(
+                    direction: direction,
+                    expectedUID: "\(deviceID)",
+                    actualUID: "\(verifiedDeviceID)"
+                )
+            }
+
+            status = AudioUnitInitialize(audioUnit)
+            try CoreAudioDeviceCatalog.throwIfNeeded(status, operation: "Initialize \(direction.rawValue) AUHAL unit")
+            currentDeviceID = verifiedDeviceID
+            isInitialized = true
+        }
+
+        private func configureIO() throws {
+            var enableIO: UInt32 = 1
+            var disableIO: UInt32 = 0
+
+            switch direction {
+            case .input:
+                try setEnableIO(&enableIO, scope: kAudioUnitScope_Input, element: 1, operation: "Enable input AUHAL IO")
+                try setEnableIO(&disableIO, scope: kAudioUnitScope_Output, element: 0, operation: "Disable input AUHAL output")
+            case .output:
+                try setEnableIO(&enableIO, scope: kAudioUnitScope_Output, element: 0, operation: "Enable output AUHAL IO")
+                try setEnableIO(&disableIO, scope: kAudioUnitScope_Input, element: 1, operation: "Disable output AUHAL input")
+            }
+        }
+
+        private func setEnableIO(
+            _ value: inout UInt32,
+            scope: AudioUnitScope,
+            element: AudioUnitElement,
+            operation: String
+        ) throws {
+            let status = AudioUnitSetProperty(
+                audioUnit,
+                kAudioOutputUnitProperty_EnableIO,
+                scope,
+                element,
+                &value,
+                UInt32(MemoryLayout<UInt32>.size)
+            )
+            try CoreAudioDeviceCatalog.throwIfNeeded(status, operation: operation)
+        }
+
+        private func uninitialize() throws {
+            let status = AudioUnitUninitialize(audioUnit)
+            try CoreAudioDeviceCatalog.throwIfNeeded(status, operation: "Uninitialize \(direction.rawValue) AUHAL unit")
+            isInitialized = false
         }
     }
 }
