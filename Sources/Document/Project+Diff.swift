@@ -107,7 +107,9 @@ private extension StepSequenceTrack {
         groupID != previous.groupID ||
         outputBusID != previous.outputBusID ||
         velocity != previous.velocity ||
-        gateLength != previous.gateLength
+        gateLength != previous.gateLength ||
+        recordBarLength != previous.recordBarLength ||
+        inputChannel != previous.inputChannel
     }
 }
 

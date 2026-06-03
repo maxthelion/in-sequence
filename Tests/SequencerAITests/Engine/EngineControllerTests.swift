@@ -1158,6 +1158,32 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(runtime.routeState, .available)
     }
 
+    func test_audioInputRuntime_applySyncsAuthoredRecordLengthAndInputChannelChanges() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.selectedInputChannel, .mono1)
+
+        project.tracks[project.selectedTrackIndex].recordBarLength = 4
+        controller.apply(documentModel: project)
+
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.selectedInputChannel, .stereo)
+
+        project.tracks[project.selectedTrackIndex].inputChannel = .mono2
+        controller.apply(documentModel: project)
+
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.selectedInputChannel, .mono2)
+        XCTAssertEqual(runtime.routeState, .available)
+    }
+
     func test_audioInputRuntime_invalidRouteStaysSilentAndNonCrashing() throws {
         let controller = EngineController(client: nil, endpoint: nil)
         controller.audioInputAvailableChannelCountOverrideForTesting = 1

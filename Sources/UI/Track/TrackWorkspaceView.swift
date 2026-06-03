@@ -189,19 +189,23 @@ private struct AudioInputRuntimePanel: View {
                         }
                     }
 
-                    Picker("Monitor", selection: monitorBinding) {
-                        Text("Input").tag(EngineController.AudioInputMonitorMode.input)
-                        Text("Loop").tag(EngineController.AudioInputMonitorMode.loop)
-                    }
-                    .pickerStyle(.segmented)
+                    StudioSegmentedControl(
+                        title: "Monitor",
+                        selection: monitorBinding,
+                        segments: [
+                            StudioSegment(title: "Input", value: .input),
+                            StudioSegment(title: "Loop", value: .loop),
+                        ],
+                        accent: StudioTheme.amber
+                    )
                     .frame(width: 180)
 
-                    Picker("Input", selection: channelBinding) {
-                        ForEach(AudioInputChannel.allCases, id: \.self) { channel in
-                            Text(channel.label).tag(channel)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                    StudioSegmentedControl(
+                        title: "Input",
+                        selection: channelBinding,
+                        segments: AudioInputChannel.allCases.map { StudioSegment(title: $0.label, value: $0) },
+                        accent: StudioTheme.cyan
+                    )
                     .frame(width: 220)
                 }
                 .disabled(runtime == nil)
@@ -227,5 +231,67 @@ private struct AudioInputRuntimePanel: View {
             get: { runtime?.selectedInputChannel ?? track.inputChannel },
             set: { session.setAudioInputChannel(trackID: track.id, channel: $0) }
         )
+    }
+}
+
+private struct StudioSegment<Value: Equatable> {
+    let title: String
+    let value: Value
+}
+
+private struct StudioSegmentedControl<Value: Equatable>: View {
+    let title: String
+    let selection: Binding<Value>
+    let segments: [StudioSegment<Value>]
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .studioText(.eyebrow)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 4) {
+                ForEach(segments.indices, id: \.self) { index in
+                    segmentButton(segments[index])
+                }
+            }
+            .padding(3)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: 1)
+            )
+        }
+    }
+
+    private func segmentButton(_ segment: StudioSegment<Value>) -> some View {
+        let isSelected = selection.wrappedValue == segment.value
+
+        return Button {
+            selection.wrappedValue = segment.value
+        } label: {
+            Text(segment.title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity, minHeight: 28)
+                .padding(.horizontal, 8)
+                .background(
+                    isSelected ? accent.opacity(StudioOpacity.selectedFill) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(isSelected ? accent.opacity(0.72) : Color.clear, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title) \(segment.title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 }
