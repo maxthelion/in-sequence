@@ -44,4 +44,19 @@ final class ProjectAppendTrackClipTests: XCTestCase {
         let addedClip = project.clipPool.last!
         XCTAssertEqual(addedClip.trackType, .slice)
     }
+
+    func test_appendTrack_audioInput_doesNotCreateSequencerClip() {
+        var project = Project.empty
+        let priorClipCount = project.clipPool.count
+
+        project.appendTrack(trackType: .audioInput)
+
+        let newTrack = project.selectedTrack
+        let bank = project.patternBank(for: newTrack.id)
+        XCTAssertEqual(project.clipPool.count, priorClipCount)
+        XCTAssertEqual(newTrack.recordBarLength, 2)
+        XCTAssertEqual(newTrack.inputChannel, .stereo)
+        XCTAssertNil(bank.slots.first?.sourceRef.clipID)
+        XCTAssertNil(bank.attachedGeneratorID)
+    }
 }

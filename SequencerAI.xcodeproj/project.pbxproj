@@ -78,6 +78,7 @@
 		D10100000000000000000009 /* AudioDevicePreferenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000004 /* AudioDevicePreferenceStore.swift */; };
 		D1010000000000000000000A /* AudioDeviceSwitchCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */; };
 		D1010000000000000000000B /* MainAudioGraphDeviceSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */; };
+		D10200000000000000000002 /* StepSequenceTrackAudioInputCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10200000000000000000001 /* StepSequenceTrackAudioInputCodableTests.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
 		30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567FDBC3AA9E0A6F1D99AFBB /* AppSupportBootstrapTests.swift */; };
 		30ED3E0739DC51F020DBA586 /* TrackSourceEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5901836476E9360606315D /* TrackSourceEditorView.swift */; };
@@ -684,6 +685,7 @@
 		D10100000000000000000004 /* AudioDevicePreferenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDevicePreferenceStore.swift; sourceTree = "<group>"; };
 		D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceSwitchCoordinatorTests.swift; sourceTree = "<group>"; };
 		D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAudioGraphDeviceSwitchTests.swift; sourceTree = "<group>"; };
+		D10200000000000000000001 /* StepSequenceTrackAudioInputCodableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSequenceTrackAudioInputCodableTests.swift; sourceTree = "<group>"; };
 		3CBBE661BFC976779D2F2326 /* SlicerWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlicerWaveformView.swift; sourceTree = "<group>"; };
 		3D2B37E3ABA39D512CDEA526 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		3D5DAA79C924F4223888B858 /* validated-screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "validated-screen.png"; sourceTree = "<group>"; };
@@ -3648,6 +3650,7 @@
 				2D7C2BD9B01666806D99ECB4 /* SourceRefNormalizationTests.swift */,
 				28FAE49744AFC33D02238A2D /* StepAlgoKindTests.swift */,
 				8B57F2D76ACEE6E284F48C57 /* StepAlgoTests.swift */,
+				D10200000000000000000001 /* StepSequenceTrackAudioInputCodableTests.swift */,
 				BBA61E7A26FA67A2B8E41AE1 /* StepSequenceTrackFilterDefaultTests.swift */,
 				CD2EB37ED3671B8A0DC7F6B3 /* TrackDestinationEditingTests.swift */,
 				ABC1E5425C542E7967DFA1A3 /* TrackGroupTests.swift */,
@@ -4443,6 +4446,7 @@
 				AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */,
 				9047ABCFD6409B1CA3174E1B /* StepGridCoordinatorTests.swift in Sources */,
 				73B67EA8D19A040669F174B2 /* UnifiedStepCellTests.swift in Sources */,
+				D10200000000000000000002 /* StepSequenceTrackAudioInputCodableTests.swift in Sources */,
 				184AC10DCE6120E4193D78AD /* StepSequenceTrackFilterDefaultTests.swift in Sources */,
 				EC11C7CD4E29613131F89F90 /* StoreAccessorHelpersTests.swift in Sources */,
 				19D34BAFEC000DF2096A929C /* StoreTestSpyHelpers.swift in Sources */,

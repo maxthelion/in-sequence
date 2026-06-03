@@ -13,9 +13,11 @@ extension Project {
         )
         tracks.append(nextTrack)
         let ownedClip = Self.makeOwnedClip(for: nextTrack)
-        clipPool.append(ownedClip)
+        if let ownedClip {
+            clipPool.append(ownedClip)
+        }
         patternBanks.append(
-            TrackPatternBank.default(for: nextTrack, initialClipID: ownedClip.id)
+            TrackPatternBank.default(for: nextTrack, initialClipID: ownedClip?.id)
         )
         selectedTrackID = nextTrack.id
         syncPhrasesWithTracks()
@@ -69,14 +71,17 @@ extension Project {
         tracks[selectedTrackIndex].trackType = trackType
         let updatedTrack = tracks[selectedTrackIndex]
         // Always create a new owned clip for the updated track type so we never
-        // silently reuse another track's clip.
+        // silently reuse another track's clip. Audio input tracks intentionally
+        // have no authored clip source in this model slice.
         let ownedClip = Self.makeOwnedClip(for: updatedTrack)
-        clipPool.append(ownedClip)
+        if let ownedClip {
+            clipPool.append(ownedClip)
+        }
         patternBanks = patternBanks.map { bank in
             guard bank.trackID == selectedTrackID else {
                 return bank
             }
-            return TrackPatternBank.default(for: updatedTrack, initialClipID: ownedClip.id)
+            return TrackPatternBank.default(for: updatedTrack, initialClipID: ownedClip?.id)
         }
         syncPhrasesWithTracks()
     }
@@ -103,6 +108,8 @@ extension Project {
             return "Poly \(index)"
         case .slice:
             return "Slice \(index)"
+        case .audioInput:
+            return index == 1 ? "Audio Input" : "Audio Input \(index)"
         }
     }
 
@@ -114,6 +121,8 @@ extension Project {
             return [60, 64, 67]
         case .slice:
             return [60]
+        case .audioInput:
+            return [60]
         }
     }
 
@@ -122,6 +131,8 @@ extension Project {
         case .monoMelodic, .polyMelodic:
             return StepSequenceTrack.default.stepPattern
         case .slice:
+            return Array(repeating: false, count: 16)
+        case .audioInput:
             return Array(repeating: false, count: 16)
         }
     }
@@ -132,10 +143,16 @@ extension Project {
             return .none
         case .slice:
             return .slicer(sliceSetID: SliceSet.emptyID, settings: .default)
+        case .audioInput:
+            return .none
         }
     }
 
-    static func makeOwnedClip(for track: StepSequenceTrack) -> ClipPoolEntry {
+    static func makeOwnedClip(for track: StepSequenceTrack) -> ClipPoolEntry? {
+        if track.trackType == .audioInput {
+            return nil
+        }
+
         if track.trackType == .slice {
             return ClipPoolEntry(
                 id: UUID(),

@@ -493,6 +493,8 @@ private struct TrackMatrixCard: View {
             return StudioTheme.amber
         case .slice:
             return StudioTheme.violet
+        case .audioInput:
+            return StudioTheme.success
         }
     }
 
@@ -630,6 +632,8 @@ private struct TrackTypeBadge: View {
             return "pianokeys"
         case .slice:
             return "waveform"
+        case .audioInput:
+            return "dot.radiowaves.left.and.right"
         }
     }
 
@@ -666,6 +670,7 @@ private struct CreateTrackSheet: View {
                 createButton(title: "Mono", detail: "Single melodic lane", type: .monoMelodic, accent: StudioTheme.cyan)
                 createButton(title: "Poly", detail: "Chord-capable lane", type: .polyMelodic, accent: StudioTheme.amber)
                 createButton(title: "Slice", detail: "Sample/slice trigger lane", type: .slice, accent: StudioTheme.violet)
+                createButton(title: "Input", detail: "Audio input lane", type: .audioInput, accent: StudioTheme.success)
             }
         }
         .padding(24)

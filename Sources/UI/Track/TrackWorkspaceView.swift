@@ -22,6 +22,8 @@ struct TrackWorkspaceView: View {
             return StudioTheme.cyan
         case .slice:
             return StudioTheme.violet
+        case .audioInput:
+            return StudioTheme.success
         }
     }
 
@@ -33,7 +35,13 @@ struct TrackWorkspaceView: View {
         VStack(alignment: .leading, spacing: 18) {
             trackHeader
 
-            if track.trackType == .slice {
+            if track.trackType == .audioInput {
+                StudioPlaceholderTile(
+                    title: "Audio Input",
+                    detail: "Track model is ready. Recording, monitoring, waveform, and routing controls are deferred to the audio input workspace slice.",
+                    accent: sourceAccent
+                )
+            } else if track.trackType == .slice {
                 SliceTrackWorkspaceView(
                     document: $document,
                     accent: sourceAccent,

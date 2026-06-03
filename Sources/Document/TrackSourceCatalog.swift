@@ -27,7 +27,9 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
     }
 
     static func available(for trackType: TrackType) -> [TrackSourceMode] {
-        _ = trackType
+        if trackType == .audioInput {
+            return []
+        }
         return [.generator, .clip]
     }
 }

@@ -18,6 +18,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     /// Per-track filter settings. Lives here (not on Destination) so it survives
     /// sample swaps. Defaults are bypass-transparent.
     var filter: SamplerFilterSettings
+    var recordBarLength: Int
+    var inputChannel: AudioInputChannel
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -34,7 +36,13 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case gateLength
         case macros
         case filter
+        case recordBarLength
+        case inputChannel
     }
+
+    static let allowedRecordBarLengths: Set<Int> = [1, 2, 4, 8]
+    static let defaultRecordBarLength = 2
+    static let defaultInputChannel = AudioInputChannel.stereo
 
     static let `default` = StepSequenceTrack(
         id: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
@@ -50,7 +58,9 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         velocity: 100,
         gateLength: 4,
         macros: [],
-        filter: .init()
+        filter: .init(),
+        recordBarLength: Self.defaultRecordBarLength,
+        inputChannel: Self.defaultInputChannel
     )
 
     init(
@@ -67,7 +77,9 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         velocity: Int,
         gateLength: Int,
         macros: [TrackMacroBinding] = [],
-        filter: SamplerFilterSettings = .init()
+        filter: SamplerFilterSettings = .init(),
+        recordBarLength: Int = Self.defaultRecordBarLength,
+        inputChannel: AudioInputChannel = Self.defaultInputChannel
     ) {
         self.id = id
         self.name = name
@@ -83,6 +95,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.gateLength = gateLength
         self.macros = Self.normalizedMacros(macros)
         self.filter = filter
+        self.recordBarLength = Self.normalizedRecordBarLength(recordBarLength)
+        self.inputChannel = inputChannel
     }
 
     var activeStepCount: Int {
@@ -148,6 +162,9 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         )
         // Legacy documents without filter decode with bypass-transparent defaults.
         filter = try container.decodeIfPresent(SamplerFilterSettings.self, forKey: .filter) ?? .init()
+        let decodedRecordBarLength = try container.decodeIfPresent(Int.self, forKey: .recordBarLength)
+        recordBarLength = Self.normalizedRecordBarLength(decodedRecordBarLength ?? Self.defaultRecordBarLength)
+        inputChannel = (try? container.decodeIfPresent(AudioInputChannel.self, forKey: .inputChannel)) ?? Self.defaultInputChannel
     }
 
     func encode(to encoder: Encoder) throws {
@@ -166,6 +183,10 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(gateLength, forKey: .gateLength)
         try container.encode(macros, forKey: .macros)
         try container.encode(filter, forKey: .filter)
+        if trackType == .audioInput {
+            try container.encode(recordBarLength, forKey: .recordBarLength)
+            try container.encode(inputChannel, forKey: .inputChannel)
+        }
     }
 
     var defaultDestination: Destination {
@@ -214,6 +235,10 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             return accents
         }
         return Array(accents.prefix(stepCount)) + Array(repeating: false, count: max(0, stepCount - accents.count))
+    }
+
+    static func normalizedRecordBarLength(_ recordBarLength: Int) -> Int {
+        allowedRecordBarLengths.contains(recordBarLength) ? recordBarLength : defaultRecordBarLength
     }
 
     /// Normalise macro bindings so slotIndex values are valid (0-7) and unique.

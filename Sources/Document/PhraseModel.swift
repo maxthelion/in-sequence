@@ -715,7 +715,10 @@ struct TrackPatternBank: Codable, Equatable, Identifiable, Sendable {
         for track: StepSequenceTrack,
         generatorPool: [GeneratorPoolEntry]
     ) -> SourceRef {
-        .generator(generatorPool.first(where: { $0.trackType == track.trackType })?.id)
+        if track.trackType == .audioInput {
+            return .clip(nil)
+        }
+        return .generator(generatorPool.first(where: { $0.trackType == track.trackType })?.id)
     }
 }
 

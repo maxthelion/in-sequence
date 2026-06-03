@@ -30,4 +30,12 @@ final class ProjectAppendTrackDefaultDestinationTests: XCTestCase {
         XCTAssertEqual(sliceSetID, SliceSet.emptyID)
         XCTAssertEqual(settings, .default)
     }
+
+    func test_appendTrack_audioInput_defaults_to_none() {
+        var project = Project.empty
+
+        project.appendTrack(trackType: .audioInput)
+
+        XCTAssertEqual(project.selectedTrack.destination, .none)
+    }
 }

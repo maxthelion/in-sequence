@@ -75,6 +75,9 @@ extension Project {
         else {
             return nil
         }
+        guard track.trackType != .audioInput else {
+            return nil
+        }
         let slot = patternBanks[bankIndex].slot(at: slotIndex)
 
         let newClip = ClipPoolEntry(
@@ -442,6 +445,8 @@ extension Project {
             return .emptySliceTriggers(lengthSteps: 16)
         case .monoMelodic, .polyMelodic:
             return .emptyNoteGrid(lengthSteps: 16)
+        case .audioInput:
+            preconditionFailure("Audio input tracks do not own sequencer clips.")
         }
     }
 

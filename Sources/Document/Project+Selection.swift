@@ -3,7 +3,12 @@ import Foundation
 extension Project {
     static let empty: Project = {
         let defaultTrack = StepSequenceTrack.default
-        let ownedClip = makeOwnedClip(for: defaultTrack)
+        let ownedClip = makeOwnedClip(for: defaultTrack) ?? ClipPoolEntry(
+            id: UUID(),
+            name: "\(defaultTrack.name) clip",
+            trackType: defaultTrack.trackType,
+            content: .emptyNoteGrid(lengthSteps: 16)
+        )
         let seedClipPool = [ownedClip]
         return Project(
             version: 1,
