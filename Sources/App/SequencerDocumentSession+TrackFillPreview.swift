@@ -7,6 +7,10 @@ extension SequencerDocumentSession {
             clearTrackFillPreview(reason: .selectedTrackUnavailable)
             return
         }
+        guard isTrackFillPreviewAvailable(trackID: trackID) else {
+            clearTrackFillPreview(reason: .sourceBecameUnsupported)
+            return
+        }
         setTrackFillPreviewActiveTrackID(trackID)
     }
 
@@ -19,6 +23,21 @@ extension SequencerDocumentSession {
 
     func clearTrackFillPreview(reason _: TrackFillPreviewResetReason) {
         setTrackFillPreviewActiveTrackID(nil)
+    }
+
+    func isTrackFillPreviewAvailable(trackID: UUID) -> Bool {
+        let pattern = store.selectedPattern(for: trackID)
+        guard pattern.sourceRef.mode == .clip else {
+            return false
+        }
+        return store.clipEntry(id: pattern.sourceRef.clipID) != nil
+    }
+
+    func clearTrackFillPreviewIfActiveTrack(_ trackID: UUID, reason: TrackFillPreviewResetReason) {
+        guard trackFillPreviewState.activeTrackID == trackID else {
+            return
+        }
+        clearTrackFillPreview(reason: reason)
     }
 
     private func setTrackFillPreviewActiveTrackID(_ trackID: UUID?) {

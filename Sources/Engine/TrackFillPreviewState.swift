@@ -2,7 +2,12 @@ import Foundation
 
 enum TrackFillPreviewResetReason: Equatable, Sendable {
     case documentChanged
+    case documentClosed
+    case editorClosed
+    case selectedTrackChanged
+    case selectedTrackDeleted
     case selectedTrackUnavailable
+    case sourceBecameUnsupported
     case userCleared
 }
 
