@@ -1281,6 +1281,58 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertNotEqual(secondRuntime.recordedLoopID, firstLoopID)
     }
 
+    func test_audioInputCaptureStore_preservesCopiedPCMSamplesForPlaybackBuffer() throws {
+        let store = AudioInputCaptureStore(bucketCount: 4)
+        let trackID = UUID()
+        let firstSource = makeAudioInputLoopBuffer(
+            left: [0.1, -0.2, 0.3],
+            right: [0.4, -0.5, 0.6]
+        )
+        let secondSource = makeAudioInputLoopBuffer(
+            left: [-0.7, 0.8],
+            right: [0.9, -1.0]
+        )
+        let firstSummary = AudioInputCaptureStore.summarize(buffer: firstSource)
+        let secondSummary = AudioInputCaptureStore.summarize(buffer: secondSource)
+        let firstPCM = try XCTUnwrap(AudioInputCaptureStore.copyPCMForPlayback(from: firstSource))
+        let secondPCM = try XCTUnwrap(AudioInputCaptureStore.copyPCMForPlayback(from: secondSource))
+
+        firstSource.floatChannelData![0][0] = 1.0
+        firstSource.floatChannelData![1][2] = 1.0
+        secondSource.floatChannelData![0][0] = 1.0
+        secondSource.floatChannelData![1][1] = 1.0
+
+        _ = store.beginCapture(trackID: trackID)
+        _ = store.process(
+            packet: AudioInputCaptureBufferPacket(summary: firstSummary, capturedPCM: firstPCM),
+            trackID: trackID
+        )
+        _ = store.process(
+            packet: AudioInputCaptureBufferPacket(summary: secondSummary, capturedPCM: secondPCM),
+            trackID: trackID
+        )
+        let completed = store.completeCapture(trackID: trackID)
+
+        XCTAssertEqual(completed.completedFrameCount, 5)
+        let playbackBuffer = try XCTUnwrap(store.completedLoopPlaybackBuffer(trackID: trackID))
+        XCTAssertEqual(playbackBuffer.frameLength, 5)
+        XCTAssertEqual(playbackBuffer.format.channelCount, 2)
+        XCTAssertEqual(playbackBuffer.format.sampleRate, 44_100)
+        XCTAssertAudioInputBufferSamples(
+            playbackBuffer,
+            left: [0.1, -0.2, 0.3, -0.7, 0.8],
+            right: [0.4, -0.5, 0.6, 0.9, -1.0]
+        )
+
+        playbackBuffer.floatChannelData![0][0] = 0.99
+        let reconstructedAgain = try XCTUnwrap(store.completedLoopPlaybackBuffer(trackID: trackID))
+        XCTAssertAudioInputBufferSamples(
+            reconstructedAgain,
+            left: [0.1, -0.2, 0.3, -0.7, 0.8],
+            right: [0.4, -0.5, 0.6, 0.9, -1.0]
+        )
+    }
+
     func test_audioInputCapture_continuesAcrossWorkspaceSelectionChanges() throws {
         let (controller, project, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
 
@@ -1309,7 +1361,16 @@ final class EngineControllerTests: XCTestCase {
     }
 
     func test_audioInputLoopModeWithRecordedLoopEntersOnNextBarBoundary() throws {
-        let (controller, _, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
+        let (controller, project, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
+        var routedProject = project
+        routedProject.tracks[routedProject.selectedTrackIndex].mix = TrackMixSettings(
+            level: 0.62,
+            pan: -0.15,
+            isMuted: false,
+            sendA: 0.35,
+            sendB: 0.2
+        )
+        controller.apply(documentModel: routedProject)
 
         XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
         controller.processTick(tickIndex: 4, now: 0.4)
@@ -1347,7 +1408,15 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(readout.scheduledLoopChannelCount, 2)
         XCTAssertEqual(readout.scheduledLoopSampleRate, 44_100)
         XCTAssertEqual(readout.loopPlaybackScheduleCount, 1)
-        XCTAssertTrue(readout.dryDestination === controller.audioInputTrackSendReadoutForTesting(trackID: trackID)?.dryDestination)
+        XCTAssertTrue(
+            readout.loopPlayer.engine?.outputConnectionPoints(for: readout.loopPlayer, outputBus: 0).first?.node === readout.outputMixer
+        )
+        let sendReadout = try XCTUnwrap(controller.audioInputTrackSendReadoutForTesting(trackID: trackID))
+        XCTAssertTrue(readout.dryDestination === sendReadout.dryDestination)
+        XCTAssertEqual(readout.outputVolume, 0.62, accuracy: 0.0001)
+        XCTAssertEqual(readout.pan, -0.15, accuracy: 0.0001)
+        XCTAssertEqual(sendReadout.sendAGain, 0.35, accuracy: 0.0001)
+        XCTAssertEqual(sendReadout.sendBGain, 0.2, accuracy: 0.0001)
 
         controller.processTick(tickIndex: 16, now: 1.6)
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
@@ -1814,6 +1883,25 @@ private func makeAudioInputLoopBuffer(left: [Float], right: [Float]) -> AVAudioP
         buffer.floatChannelData![1][frame] = frame < right.count ? right[frame] : 0
     }
     return buffer
+}
+
+private func XCTAssertAudioInputBufferSamples(
+    _ buffer: AVAudioPCMBuffer,
+    left: [Float],
+    right: [Float],
+    file: StaticString = #filePath,
+    line: UInt = #line
+) {
+    XCTAssertEqual(buffer.frameLength, AVAudioFrameCount(max(left.count, right.count)), file: file, line: line)
+    XCTAssertEqual(buffer.format.channelCount, 2, file: file, line: line)
+    guard let channels = buffer.floatChannelData else {
+        return XCTFail("expected float channel data", file: file, line: line)
+    }
+
+    for frame in 0..<Int(buffer.frameLength) {
+        XCTAssertEqual(channels[0][frame], frame < left.count ? left[frame] : 0, accuracy: 0.0001, file: file, line: line)
+        XCTAssertEqual(channels[1][frame], frame < right.count ? right[frame] : 0, accuracy: 0.0001, file: file, line: line)
+    }
 }
 
 private func makeAuditionOverrideDocument() -> (Project, StepSequenceTrack) {
