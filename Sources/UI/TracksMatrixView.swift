@@ -1079,12 +1079,27 @@ private struct TrackPerformRuntimeLayerControl: View {
                         .tracking(0.8)
                         .foregroundStyle(accent)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
                     Text(stateLabel)
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundStyle(labelForeground)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 6) {
+                if let authoredSummary {
+                    Text("BASE \(authoredSummary.uppercased())")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
 
                 Spacer(minLength: 0)
@@ -1096,13 +1111,6 @@ private struct TrackPerformRuntimeLayerControl: View {
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
                     .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
-            }
-
-            if let authoredSummary {
-                Text("BASE \(authoredSummary.uppercased())")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
                     .lineLimit(1)
             }
         }
