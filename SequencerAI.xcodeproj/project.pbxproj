@@ -4785,9 +4785,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				BUILD_ATTRIBUTION_ID = unknown;
+				BUILD_ATTRIBUTION_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = Sources/Resources/SequencerAI.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
+				GIT_BRANCH = unknown;
+				GIT_COMMIT = unknown;
+				GIT_DIRTY = unknown;
 				INFOPLIST_FILE = Sources/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4929,9 +4934,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				BUILD_ATTRIBUTION_ID = unknown;
+				BUILD_ATTRIBUTION_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = Sources/Resources/SequencerAI.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
+				GIT_BRANCH = unknown;
+				GIT_COMMIT = unknown;
+				GIT_DIRTY = unknown;
 				INFOPLIST_FILE = Sources/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
