@@ -48,6 +48,7 @@ struct TracksMatrixView: View {
     @State private var isPresentingCreateTrack = false
     @State private var isPresentingAddSliceTrack = false
     @State private var isPresentingAddDrumGroup = false
+    @State private var performSelection = TrackPerformSelectionState()
 
     private let columns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -167,6 +168,17 @@ struct TracksMatrixView: View {
             )
             .presentationBackground(.clear)
         }
+        .onChange(of: tracks.map(\.id)) { _, trackIDs in
+            performSelection.reconcile(availableTrackIDs: trackIDs)
+        }
+        .onChange(of: isPerforming) { _, isNowPerforming in
+            if !isNowPerforming {
+                performSelection.clear()
+            }
+        }
+        .onDisappear {
+            performSelection.clear()
+        }
     }
 
     private var actionBar: some View {
@@ -176,6 +188,9 @@ struct TracksMatrixView: View {
                 Spacer()
                 layerControl
                 basisPhrasePill
+                if isPerforming {
+                    performSelectionSummary
+                }
                 performToggleButton
             }
 
@@ -186,6 +201,9 @@ struct TracksMatrixView: View {
                 HStack(spacing: 10) {
                     layerControl
                     basisPhrasePill
+                    if isPerforming {
+                        performSelectionSummary
+                    }
                     performToggleButton
                     Spacer()
                 }
@@ -303,6 +321,54 @@ struct TracksMatrixView: View {
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
+    private var performSelectionSummary: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("EDIT SET")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text(performSelectionSummaryText)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.amber)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            if !performSelection.isEmpty {
+                Button {
+                    performSelection.clear()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: 24, height: 24)
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("Clear edit set")
+            }
+        }
+        .frame(width: 150, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+    }
+
+    private var performSelectionSummaryText: String {
+        let selectedTracks = session.store.tracks.filter { performSelection.contains($0.id) }
+        guard !selectedTracks.isEmpty else {
+            return "None selected"
+        }
+
+        let names = selectedTracks.prefix(2).map(\.name).joined(separator: ", ")
+        if selectedTracks.count <= 2 {
+            return "\(selectedTracks.count): \(names)"
+        }
+        return "\(selectedTracks.count): \(names) +\(selectedTracks.count - 2)"
+    }
+
     private var performToggleButton: some View {
         Button(action: onTogglePerform) {
             Label("Perform", systemImage: isPerforming ? "record.circle.fill" : "record.circle")
@@ -353,8 +419,12 @@ struct TracksMatrixView: View {
                     resolvedValue: resolvedValue,
                     valueSummary: valueLabel(resolvedValue, layer: selectedLayer),
                     audioInputRuntimeLabel: audioInputRuntimeLabel(for: track.id),
-                    isSelected: track.id == selectedTrackID,
-                    isPerforming: isPerforming
+                    isFocused: track.id == selectedTrackID,
+                    isPerformSelected: performSelection.contains(track.id),
+                    isPerforming: isPerforming,
+                    onTogglePerformSelection: {
+                        performSelection.toggle(track.id)
+                    }
                 ) {
                     session.setSelectedTrackID(track.id)
                     if isPerforming {
@@ -393,18 +463,27 @@ struct TracksMatrixView: View {
     private func performPrimaryAction(trackID: UUID) {
         let address = phraseCellAddress(for: trackID)
         let cell = editingPhrase.cell(at: address)
+        let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
+            sourceTrackID: trackID,
+            orderedTrackIDs: session.store.tracks.map(\.id),
+            selection: performSelection
+        )
 
         switch cell {
         case .inheritDefault:
             let seedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
             session.setPhraseCell(
                 .single(cycledValue(seedValue, for: selectedLayer)),
-                at: address
+                layerID: selectedLayer.id,
+                trackIDs: recipientTrackIDs,
+                phraseID: editingPhraseID
             )
         case let .single(value):
             session.setPhraseCell(
                 .single(cycledValue(value, for: selectedLayer)),
-                at: address
+                layerID: selectedLayer.id,
+                trackIDs: recipientTrackIDs,
+                phraseID: editingPhraseID
             )
         case let .bars(values):
             guard !values.isEmpty else { return }
@@ -413,7 +492,9 @@ struct TracksMatrixView: View {
             nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
             session.setPhraseCell(
                 .bars(nextValues),
-                at: address
+                layerID: selectedLayer.id,
+                trackIDs: recipientTrackIDs,
+                phraseID: editingPhraseID
             )
         case let .steps(values):
             guard !values.isEmpty else { return }
@@ -422,13 +503,17 @@ struct TracksMatrixView: View {
             nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
             session.setPhraseCell(
                 .steps(nextValues),
-                at: address
+                layerID: selectedLayer.id,
+                trackIDs: recipientTrackIDs,
+                phraseID: editingPhraseID
             )
         case .curve:
             let seedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
             session.setPhraseCell(
                 .single(cycledValue(seedValue, for: selectedLayer)),
-                at: address
+                layerID: selectedLayer.id,
+                trackIDs: recipientTrackIDs,
+                phraseID: editingPhraseID
             )
         }
     }
@@ -503,8 +588,10 @@ private struct TrackMatrixCard: View {
     let resolvedValue: PhraseCellValue
     let valueSummary: String
     let audioInputRuntimeLabel: String?
-    let isSelected: Bool
+    let isFocused: Bool
+    let isPerformSelected: Bool
     let isPerforming: Bool
+    let onTogglePerformSelection: () -> Void
     let onTap: () -> Void
 
     private var accent: Color {
@@ -546,117 +633,151 @@ private struct TrackMatrixCard: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    TrackTypeBadge(trackType: track.trackType, accent: accent)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                TrackTypeBadge(trackType: track.trackType, accent: accent)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(track.name)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-
-                        HStack(spacing: 6) {
-                            Text(typeLabel)
-                            Text("P\(patternIndex + 1)")
-                            Text(destinationLabel)
-                            if let pitchOffsetLabel {
-                                Text(pitchOffsetLabel)
-                            }
-                        }
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(track.name)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                    }
+                        .minimumScaleFactor(0.7)
 
-                    Spacer(minLength: 0)
-
-                    if let audioInputRuntimeLabel {
-                        Text(audioInputRuntimeLabel)
-                            .studioText(.micro)
-                            .tracking(0.8)
-                            .foregroundStyle(accent)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                            .overlay(
-                                Capsule()
-                                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-                            )
-                            .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(typeLabel)
+                        Text("P\(patternIndex + 1)")
+                        Text(destinationLabel)
+                        if let pitchOffsetLabel {
+                            Text(pitchOffsetLabel)
+                        }
                     }
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
                 }
 
-                if let group {
-                    Text(group.name.uppercased())
+                Spacer(minLength: 0)
+
+                if let audioInputRuntimeLabel {
+                    Text(audioInputRuntimeLabel)
                         .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(accent.opacity(StudioOpacity.faintStroke), in: Capsule())
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                        )
                         .lineLimit(1)
-                } else {
-                    Text(track.defaultDestination.summary)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Text(cell.editMode.label.uppercased())
-                            .studioText(.micro)
-                            .tracking(0.8)
-                            .foregroundStyle(layerAccentColor)
-                            .lineLimit(1)
-
-                        Spacer(minLength: 0)
-
-                        if isPerforming {
-                            Text("LIVE")
-                                .studioText(.micro)
-                                .tracking(0.8)
-                                .foregroundStyle(StudioTheme.amber)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
-                        }
+                if isPerforming {
+                    Button(action: onTogglePerformSelection) {
+                        Image(systemName: isPerformSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(isPerformSelected ? StudioTheme.amber : StudioTheme.mutedText)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                (isPerformSelected ? StudioTheme.amber : Color.white)
+                                    .opacity(StudioOpacity.subtleFill),
+                                in: Circle()
+                            )
+                            .overlay(Circle().stroke(isPerformSelected ? StudioTheme.amber.opacity(0.7) : StudioTheme.border, lineWidth: 1))
                     }
-
-                    PhraseCellPreview(
-                        layer: layer,
-                        cell: cell,
-                        resolvedValue: resolvedValue,
-                        accent: layerAccentColor,
-                        summary: valueSummary,
-                        metrics: .matrix
-                    )
-                    .opacity(isPerforming ? 1 : 0.82)
+                    .buttonStyle(.plain)
+                    .help(isPerformSelected ? "Remove from edit set" : "Add to edit set")
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .fill(isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(
-                        isPerforming
-                            ? layerAccentColor.opacity(StudioOpacity.accentFill)
-                            : (isSelected ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border),
-                        lineWidth: isSelected || isPerforming ? 2 : 1
-                    )
-            )
+
+            if let group {
+                Text(group.name.uppercased())
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(accent.opacity(StudioOpacity.faintStroke), in: Capsule())
+                    .lineLimit(1)
+            } else {
+                Text(track.defaultDestination.summary)
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Text(cell.editMode.label.uppercased())
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(layerAccentColor)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+
+                    if isPerforming {
+                        Text(isPerformSelected ? "LINKED" : "LIVE")
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .foregroundStyle(isPerformSelected ? StudioTheme.amber : layerAccentColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                    }
+                }
+
+                PhraseCellPreview(
+                    layer: layer,
+                    cell: cell,
+                    resolvedValue: resolvedValue,
+                    accent: layerAccentColor,
+                    summary: valueSummary,
+                    metrics: .matrix
+                )
+                .opacity(isPerforming ? 1 : 0.82)
+            }
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .fill(cardFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(cardStroke, lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .onTapGesture(perform: onTap)
+    }
+
+    private var cardFill: Color {
+        if isPerformSelected {
+            return StudioTheme.amber.opacity(StudioOpacity.hoverFill)
+        }
+        if isFocused {
+            return accent.opacity(StudioOpacity.hoverFill)
+        }
+        return Color.white.opacity(StudioOpacity.subtleFill)
+    }
+
+    private var cardStroke: Color {
+        if isPerformSelected {
+            return StudioTheme.amber.opacity(StudioOpacity.accentFill)
+        }
+        if isPerforming {
+            return layerAccentColor.opacity(StudioOpacity.accentFill)
+        }
+        if isFocused {
+            return accent.opacity(StudioOpacity.accentFill)
+        }
+        return StudioTheme.border
     }
 }
 
