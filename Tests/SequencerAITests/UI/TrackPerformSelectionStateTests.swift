@@ -61,6 +61,16 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertTrue(selection.isEmpty)
     }
 
+    func test_performLayerModesExposePatternFillAndNoteRepeat() {
+        XCTAssertEqual(TrackPerformLayerMode.allCases, [.pattern, .fill, .noteRepeat])
+        XCTAssertEqual(TrackPerformLayerMode.pattern.phraseLayerID, "pattern")
+        XCTAssertNil(TrackPerformLayerMode.pattern.binaryControl)
+        XCTAssertEqual(TrackPerformLayerMode.fill.phraseLayerID, "fill-flag")
+        XCTAssertEqual(TrackPerformLayerMode.fill.binaryControl, .fill)
+        XCTAssertNil(TrackPerformLayerMode.noteRepeat.phraseLayerID)
+        XCTAssertEqual(TrackPerformLayerMode.noteRepeat.binaryControl, .noteRepeat)
+    }
+
     func test_authoredEditFromSelectedSourceFansOutToSelectedTracksOnly() throws {
         let project = makeThreeTrackProject()
         let session = makeSession(project: project)
@@ -200,6 +210,26 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertTrue(overlay.isActive(.noteRepeat, trackID: trackA))
     }
 
+    func test_runtimeOverlay_unselectedSourceStaysLocal() {
+        let selectedTrackID = UUID()
+        let sourceTrackID = UUID()
+        let otherSelectedTrackID = UUID()
+        let orderedTrackIDs = [selectedTrackID, sourceTrackID, otherSelectedTrackID]
+        let selection = TrackPerformSelectionState(selectedTrackIDs: [selectedTrackID, otherSelectedTrackID])
+        var overlay = TrackPerformRuntimeOverlayState(latchMode: .latched)
+
+        overlay.activate(
+            control: .noteRepeat,
+            sourceTrackID: sourceTrackID,
+            orderedTrackIDs: orderedTrackIDs,
+            selection: selection
+        )
+
+        XCTAssertFalse(overlay.isActive(.noteRepeat, trackID: selectedTrackID))
+        XCTAssertTrue(overlay.isActive(.noteRepeat, trackID: sourceTrackID))
+        XCTAssertFalse(overlay.isActive(.noteRepeat, trackID: otherSelectedTrackID))
+    }
+
     func test_runtimeOverlay_momentaryLifecycleUsesCapturedRecipients() {
         let sourceTrackID = UUID()
         let capturedTrackID = UUID()
@@ -257,6 +287,7 @@ final class TrackPerformSelectionStateTests: XCTestCase {
 
         let tracks = session.store.tracks.map(\.id)
         let fillLayerID = try XCTUnwrap(session.store.layers.first(where: { $0.id == "fill-flag" })?.id)
+        let patternLayerID = try XCTUnwrap(session.store.layers.first(where: { $0.id == "pattern" })?.id)
         var overlay = TrackPerformRuntimeOverlayState(latchMode: .latched)
         let selection = TrackPerformSelectionState(selectedTrackIDs: [tracks[0], tracks[2]])
 
@@ -279,5 +310,7 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(phrase.cell(for: fillLayerID, trackID: tracks[0]), .inheritDefault)
         XCTAssertEqual(phrase.cell(for: fillLayerID, trackID: tracks[1]), .inheritDefault)
         XCTAssertEqual(phrase.cell(for: fillLayerID, trackID: tracks[2]), .inheritDefault)
+        XCTAssertEqual(phrase.cell(for: patternLayerID, trackID: tracks[0]), .inheritDefault)
+        XCTAssertEqual(phrase.cell(for: patternLayerID, trackID: tracks[2]), .inheritDefault)
     }
 }

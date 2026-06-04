@@ -75,6 +75,69 @@ enum TrackPerformLatchMode: String, CaseIterable, Equatable, Identifiable {
     }
 }
 
+enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifiable {
+    case pattern
+    case fill
+    case noteRepeat
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .pattern:
+            return "Pattern"
+        case .fill:
+            return "Fill"
+        case .noteRepeat:
+            return "Repeat"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .pattern:
+            return "pattern slot"
+        case .fill:
+            return "runtime fill"
+        case .noteRepeat:
+            return "runtime repeat"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .pattern:
+            return "square.grid.2x2"
+        case .fill:
+            return "sparkles"
+        case .noteRepeat:
+            return "repeat"
+        }
+    }
+
+    var phraseLayerID: String? {
+        switch self {
+        case .pattern:
+            return "pattern"
+        case .fill:
+            return "fill-flag"
+        case .noteRepeat:
+            return nil
+        }
+    }
+
+    var binaryControl: TrackPerformBinaryControl? {
+        switch self {
+        case .pattern:
+            return nil
+        case .fill:
+            return .fill
+        case .noteRepeat:
+            return .noteRepeat
+        }
+    }
+}
+
 enum TrackPerformBinaryControl: String, CaseIterable, Equatable, Hashable, Identifiable {
     case fill
     case noteRepeat

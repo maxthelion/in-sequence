@@ -50,6 +50,7 @@ struct TracksMatrixView: View {
     @State private var isPresentingAddDrumGroup = false
     @State private var performSelection = TrackPerformSelectionState()
     @State private var performRuntimeOverlay = TrackPerformRuntimeOverlayState()
+    @State private var performLayerMode = TrackPerformLayerMode.pattern
 
     private let columns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -69,6 +70,14 @@ struct TracksMatrixView: View {
 
     private var selectedLayerIndex: Int {
         layers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
+    }
+
+    private var activeMatrixLayer: PhraseLayerDefinition {
+        guard isPerforming, let layerID = performLayerMode.phraseLayerID else {
+            return selectedLayer
+        }
+
+        return session.store.layer(id: layerID) ?? selectedLayer
     }
 
     private var editingPhrase: PhraseModel {
@@ -250,7 +259,16 @@ struct TracksMatrixView: View {
         }
     }
 
+    @ViewBuilder
     private var layerControl: some View {
+        if isPerforming {
+            performLayerControl
+        } else {
+            phraseLayerControl
+        }
+    }
+
+    private var phraseLayerControl: some View {
         HStack(spacing: 8) {
             Button {
                 cycleLayer(by: -1)
@@ -305,6 +323,33 @@ struct TracksMatrixView: View {
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(layerAccent(selectedLayer.id).opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+        )
+    }
+
+    private var performLayerControl: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("PERFORM LAYER")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Text(performLayerMode.subtitle.uppercased())
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(performLayerMode.accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            TrackPerformLayerModePicker(selection: $performLayerMode)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(performLayerMode.accent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
         )
     }
 
@@ -413,29 +458,35 @@ struct TracksMatrixView: View {
 
     @ViewBuilder
     private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?, selectedTrackID: UUID) -> some View {
+        let layer = activeMatrixLayer
+        let activePerformLayer = isPerforming ? performLayerMode : nil
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(tracks, id: \.id) { track in
-                let address = phraseCellAddress(for: track.id)
+                let address = phraseCellAddress(for: track.id, layerID: layer.id)
                 let cell = editingPhrase.cell(at: address)
-                let resolvedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
+                let resolvedValue = editingPhrase.resolvedValue(for: layer, at: address)
                 TrackMatrixCard(
                     track: track,
                     group: group,
                     patternIndex: session.store.selectedPatternIndex(for: track.id),
-                    layer: selectedLayer,
+                    layer: layer,
+                    activePerformLayer: activePerformLayer,
                     cell: cell,
                     resolvedValue: resolvedValue,
-                    valueSummary: valueLabel(resolvedValue, layer: selectedLayer),
+                    valueSummary: valueLabel(resolvedValue, layer: layer),
                     audioInputRuntimeLabel: audioInputRuntimeLabel(for: track.id),
                     isFocused: track.id == selectedTrackID,
                     isPerformSelected: performSelection.contains(track.id),
                     isPerforming: isPerforming,
                     latchMode: performRuntimeOverlay.latchMode,
-                    runtimeControlStates: runtimeControlStates(for: track.id),
+                    runtimeControlState: activePerformLayer?.binaryControl.map {
+                        runtimeControlState(for: track.id, control: $0)
+                    },
                     onTogglePerformSelection: {
                         performSelection.toggle(track.id)
                     },
                     onActivateRuntimeControl: { control in
+                        session.setSelectedTrackID(track.id)
                         activateRuntimeControl(control, sourceTrackID: track.id)
                     },
                     onReleaseRuntimeControl: { control in
@@ -453,15 +504,13 @@ struct TracksMatrixView: View {
         }
     }
 
-    private func runtimeControlStates(for trackID: UUID) -> [TrackPerformRuntimeControlState] {
-        TrackPerformBinaryControl.allCases.map { control in
-            TrackPerformRuntimeControlState(
-                control: control,
-                isActive: performRuntimeOverlay.isActive(control, trackID: trackID),
-                isLatched: performRuntimeOverlay.isLatched(control, trackID: trackID),
-                isMomentaryPressed: performRuntimeOverlay.isMomentaryPressed(control, trackID: trackID)
-            )
-        }
+    private func runtimeControlState(for trackID: UUID, control: TrackPerformBinaryControl) -> TrackPerformRuntimeControlState {
+        TrackPerformRuntimeControlState(
+            control: control,
+            isActive: performRuntimeOverlay.isActive(control, trackID: trackID),
+            isLatched: performRuntimeOverlay.isLatched(control, trackID: trackID),
+            isMomentaryPressed: performRuntimeOverlay.isMomentaryPressed(control, trackID: trackID)
+        )
     }
 
     private func audioInputRuntimeLabel(for trackID: UUID) -> String? {
@@ -488,14 +537,15 @@ struct TracksMatrixView: View {
     }
 
     private func performPrimaryAction(trackID: UUID) {
-        if let control = TrackPerformBinaryControl(layer: selectedLayer) {
+        if isPerforming, let control = performLayerMode.binaryControl {
             if performRuntimeOverlay.latchMode == .latched {
                 activateRuntimeControl(control, sourceTrackID: trackID)
             }
             return
         }
 
-        let address = phraseCellAddress(for: trackID)
+        let layer = activeMatrixLayer
+        let address = phraseCellAddress(for: trackID, layerID: layer.id)
         let cell = editingPhrase.cell(at: address)
         let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
             sourceTrackID: trackID,
@@ -505,17 +555,17 @@ struct TracksMatrixView: View {
 
         switch cell {
         case .inheritDefault:
-            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
+            let seedValue = editingPhrase.resolvedValue(for: layer, at: address)
             session.setPhraseCell(
-                .single(cycledValue(seedValue, for: selectedLayer)),
-                layerID: selectedLayer.id,
+                .single(cycledValue(seedValue, for: layer)),
+                layerID: layer.id,
                 trackIDs: recipientTrackIDs,
                 phraseID: editingPhraseID
             )
         case let .single(value):
             session.setPhraseCell(
-                .single(cycledValue(value, for: selectedLayer)),
-                layerID: selectedLayer.id,
+                .single(cycledValue(value, for: layer)),
+                layerID: layer.id,
                 trackIDs: recipientTrackIDs,
                 phraseID: editingPhraseID
             )
@@ -523,10 +573,10 @@ struct TracksMatrixView: View {
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentBarIndexInPhrase, nextValues.count - 1)
-            nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
+            nextValues[index] = cycledValue(nextValues[index], for: layer)
             session.setPhraseCell(
                 .bars(nextValues),
-                layerID: selectedLayer.id,
+                layerID: layer.id,
                 trackIDs: recipientTrackIDs,
                 phraseID: editingPhraseID
             )
@@ -534,28 +584,28 @@ struct TracksMatrixView: View {
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentStepIndexInPhrase, nextValues.count - 1)
-            nextValues[index] = cycledValue(nextValues[index], for: selectedLayer)
+            nextValues[index] = cycledValue(nextValues[index], for: layer)
             session.setPhraseCell(
                 .steps(nextValues),
-                layerID: selectedLayer.id,
+                layerID: layer.id,
                 trackIDs: recipientTrackIDs,
                 phraseID: editingPhraseID
             )
         case .curve:
-            let seedValue = editingPhrase.resolvedValue(for: selectedLayer, at: address)
+            let seedValue = editingPhrase.resolvedValue(for: layer, at: address)
             session.setPhraseCell(
-                .single(cycledValue(seedValue, for: selectedLayer)),
-                layerID: selectedLayer.id,
+                .single(cycledValue(seedValue, for: layer)),
+                layerID: layer.id,
                 trackIDs: recipientTrackIDs,
                 phraseID: editingPhraseID
             )
         }
     }
 
-    private func phraseCellAddress(for trackID: UUID) -> PhraseCellAddress {
+    private func phraseCellAddress(for trackID: UUID, layerID: String) -> PhraseCellAddress {
         PhraseCellAddress(
             phraseID: editingPhraseID,
-            layerID: selectedLayer.id,
+            layerID: layerID,
             trackID: trackID,
             stepIndex: currentStepIndexInPhrase
         )
@@ -682,11 +732,57 @@ private struct TrackPerformLatchModePicker: View {
     }
 }
 
+private struct TrackPerformLayerModePicker: View {
+    @Binding var selection: TrackPerformLayerMode
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(TrackPerformLayerMode.allCases) { mode in
+                Button {
+                    selection = mode
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: mode.symbolName)
+                            .font(.system(size: 10, weight: .bold))
+
+                        Text(mode.label.uppercased())
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                    .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.text.opacity(0.68))
+                    .frame(width: 82, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .fill(selection == mode ? mode.accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(0.02))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(selection == mode ? mode.accent.opacity(StudioOpacity.mediumStroke) : Color.white.opacity(StudioOpacity.borderFaint), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(mode.label))
+                .help("\(mode.label) layer")
+            }
+        }
+        .padding(3)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: 1)
+        )
+        .accessibilityIdentifier("track-perform-layer-mode")
+    }
+}
+
 private struct TrackMatrixCard: View {
     let track: StepSequenceTrack
     let group: TrackGroup?
     let patternIndex: Int
     let layer: PhraseLayerDefinition
+    let activePerformLayer: TrackPerformLayerMode?
     let cell: PhraseCell
     let resolvedValue: PhraseCellValue
     let valueSummary: String
@@ -695,7 +791,7 @@ private struct TrackMatrixCard: View {
     let isPerformSelected: Bool
     let isPerforming: Bool
     let latchMode: TrackPerformLatchMode
-    let runtimeControlStates: [TrackPerformRuntimeControlState]
+    let runtimeControlState: TrackPerformRuntimeControlState?
     let onTogglePerformSelection: () -> Void
     let onActivateRuntimeControl: (TrackPerformBinaryControl) -> Void
     let onReleaseRuntimeControl: (TrackPerformBinaryControl) -> Void
@@ -736,7 +832,14 @@ private struct TrackMatrixCard: View {
     }
 
     private var layerAccentColor: Color {
-        layerAccent(layer.id)
+        if let activePerformLayer {
+            return activePerformLayer.accent
+        }
+        return layerAccent(layer.id)
+    }
+
+    private var isRuntimeLayerCard: Bool {
+        activePerformLayer?.binaryControl != nil
     }
 
     var body: some View {
@@ -818,6 +921,41 @@ private struct TrackMatrixCard: View {
                     .minimumScaleFactor(0.75)
             }
 
+            activeLayerContent
+        }
+        .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .fill(cardFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(cardStroke, lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .onTapGesture {
+            if !isRuntimeLayerCard {
+                onTap()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var activeLayerContent: some View {
+        if let activePerformLayer,
+           let runtimeControlState,
+           let control = activePerformLayer.binaryControl {
+            TrackPerformRuntimeLayerControl(
+                mode: activePerformLayer,
+                state: runtimeControlState,
+                latchMode: latchMode,
+                accent: layerAccentColor,
+                authoredSummary: activePerformLayer.phraseLayerID == nil ? nil : valueSummary,
+                onActivate: { onActivateRuntimeControl(control) },
+                onRelease: { onReleaseRuntimeControl(control) }
+            )
+        } else {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Text(cell.editMode.label.uppercased())
@@ -849,29 +987,7 @@ private struct TrackMatrixCard: View {
                 )
                 .opacity(isPerforming ? 1 : 0.82)
             }
-
-            if isPerforming {
-                TrackPerformRuntimeControlStrip(
-                    states: runtimeControlStates,
-                    latchMode: latchMode,
-                    accent: layerAccentColor,
-                    onActivate: onActivateRuntimeControl,
-                    onRelease: onReleaseRuntimeControl
-                )
-            }
         }
-        .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(cardFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(cardStroke, lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : 1)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .onTapGesture(perform: onTap)
     }
 
     private var cardFill: Color {
@@ -898,33 +1014,12 @@ private struct TrackMatrixCard: View {
     }
 }
 
-private struct TrackPerformRuntimeControlStrip: View {
-    let states: [TrackPerformRuntimeControlState]
-    let latchMode: TrackPerformLatchMode
-    let accent: Color
-    let onActivate: (TrackPerformBinaryControl) -> Void
-    let onRelease: (TrackPerformBinaryControl) -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(states) { state in
-                TrackPerformRuntimeControlButton(
-                    state: state,
-                    latchMode: latchMode,
-                    accent: accent,
-                    onActivate: { onActivate(state.control) },
-                    onRelease: { onRelease(state.control) }
-                )
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-private struct TrackPerformRuntimeControlButton: View {
+private struct TrackPerformRuntimeLayerControl: View {
+    let mode: TrackPerformLayerMode
     let state: TrackPerformRuntimeControlState
     let latchMode: TrackPerformLatchMode
     let accent: Color
+    let authoredSummary: String?
     let onActivate: () -> Void
     let onRelease: () -> Void
 
@@ -943,7 +1038,7 @@ private struct TrackPerformRuntimeControlButton: View {
             case .momentary:
                 GeometryReader { proxy in
                     label
-                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
                         .gesture(
                             DragGesture(minimumDistance: 0, coordinateSpace: .local)
                                 .onChanged { value in
@@ -961,31 +1056,62 @@ private struct TrackPerformRuntimeControlButton: View {
                                 }
                         )
                 }
-                .frame(height: 30)
+                .frame(minHeight: 96)
                 .onDisappear {
                     endMomentaryPressIfNeeded()
                 }
             }
         }
-        .help("\(state.control.label) \(latchMode.label)")
+        .help("\(mode.label) \(latchMode.label)")
     }
 
     private var label: some View {
-        HStack(spacing: 5) {
-            Image(systemName: leadingSymbolName)
-                .font(.system(size: 11, weight: .bold))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: leadingSymbolName)
+                    .font(.system(size: 16, weight: .bold))
+                    .frame(width: 28, height: 28)
+                    .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
 
-            Text(state.control.runtimeChipLabel)
-                .studioText(.micro)
-                .tracking(0.8)
-                .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mode.label.uppercased())
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+
+                    Text(stateLabel)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(labelForeground)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(latchMode.actionBarLabel)
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(state.isActive ? StudioTheme.text : StudioTheme.mutedText)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+            }
+
+            if let authoredSummary {
+                Text("BASE \(authoredSummary.uppercased())")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
         }
         .foregroundStyle(labelForeground)
-        .padding(.horizontal, 8)
-        .frame(height: 30)
-        .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+        .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(labelStroke, lineWidth: state.isMomentaryPressed ? 2 : 1)
         )
     }
@@ -998,6 +1124,19 @@ private struct TrackPerformRuntimeControlButton: View {
             return "lock.fill"
         }
         return state.control.symbolName
+    }
+
+    private var stateLabel: String {
+        if state.isMomentaryPressed {
+            return "HELD"
+        }
+        if state.isLatched {
+            return "LATCHED"
+        }
+        if state.isActive {
+            return "ACTIVE"
+        }
+        return "READY"
     }
 
     private var labelForeground: Color {
@@ -1063,13 +1202,15 @@ private extension TrackPerformLatchMode {
     }
 }
 
-private extension TrackPerformBinaryControl {
-    var runtimeChipLabel: String {
+private extension TrackPerformLayerMode {
+    var accent: Color {
         switch self {
+        case .pattern:
+            return StudioTheme.violet
         case .fill:
-            return "FILL"
+            return StudioTheme.success
         case .noteRepeat:
-            return "RPT"
+            return StudioTheme.cyan
         }
     }
 }
