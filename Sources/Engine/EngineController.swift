@@ -447,10 +447,19 @@ final class EngineController: RouterDispatcher {
         eventQueue.clear()
     }
 
+    func apply(trackFillPreview snapshot: TrackFillPreviewPlaybackSnapshot) {
+        tickState.installTrackFillPreviewSnapshot(snapshot)
+        eventQueue.clear()
+    }
+
     /// Exposes the current playback snapshot for test assertions.
     /// Do not use in production code — read the published observable state instead.
     var currentPlaybackSnapshotForTesting: PlaybackSnapshot {
         tickState.currentPlaybackSnapshot()
+    }
+
+    var currentTrackFillPreviewSnapshotForTesting: TrackFillPreviewPlaybackSnapshot {
+        tickState.currentTrackFillPreviewSnapshot()
     }
 
     /// Counter for test observation of `apply(documentModel:)` invocations.
@@ -939,6 +948,7 @@ final class EngineController: RouterDispatcher {
         let generatedStates = prepareInputs.generatedStates
         let clipCaptureService = prepareInputs.clipCaptureService
         let playbackSnapshot = prepareInputs.playbackSnapshot
+        let trackFillPreview = prepareInputs.trackFillPreview
         let auditionOverridesByTrackID = prepareInputs.auditionOverridesByTrackID
 
         assert(executor != nil, "EngineController.prepareTick called without an executor.")
@@ -984,6 +994,7 @@ final class EngineController: RouterDispatcher {
                     phraseID: playbackSnapshot.selectedPhraseID,
                     stepIndex: stepInPhrase,
                     chordContext: harmonicSidechainChord,
+                    trackFillPreview: trackFillPreview,
                     state: &state,
                     rng: &rng
                 )
@@ -2103,6 +2114,7 @@ final class EngineController: RouterDispatcher {
         phraseID: UUID,
         stepIndex: Int,
         chordContext: Chord?,
+        trackFillPreview: TrackFillPreviewPlaybackSnapshot = .inactive,
         state: inout GeneratedSourceEvaluationState,
         rng: inout R
     ) -> [GeneratedNote] {
@@ -2149,10 +2161,11 @@ final class EngineController: RouterDispatcher {
                 return []
             }
 
+            let effectiveFillEnabled = resolved.fillEnabled || trackFillPreview.isActive(for: trackID)
             let sourceNotes = GeneratedSourceEvaluator.resolveClipStep(
                 for: clip,
                 stepIndex: stepIndex,
-                fillEnabled: resolved.fillEnabled,
+                fillEnabled: effectiveFillEnabled,
                 rng: &rng
             )
 

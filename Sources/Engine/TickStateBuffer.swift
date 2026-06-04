@@ -5,11 +5,13 @@ final class TickStateBuffer {
         let generatedStates: [UUID: GeneratedSourceEvaluationState]
         let clipCaptureService: ClipCaptureService
         let playbackSnapshot: PlaybackSnapshot
+        let trackFillPreview: TrackFillPreviewPlaybackSnapshot
         let auditionOverridesByTrackID: [UUID: PseudoClipState]
     }
 
     private let lock = NSLock()
     private var playbackSnapshot: PlaybackSnapshot
+    private var trackFillPreview: TrackFillPreviewPlaybackSnapshot = .inactive
     private var generatedStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:]
     private var clipCaptureService = ClipCaptureService()
     private var auditionOverridesByTrackID: [UUID: PseudoClipState] = [:]
@@ -28,6 +30,9 @@ final class TickStateBuffer {
     ) {
         withLock {
             playbackSnapshot = snapshot
+            if let currentTrackIDs, let activeTrackID = trackFillPreview.activeTrackID, !currentTrackIDs.contains(activeTrackID) {
+                trackFillPreview = .inactive
+            }
             if let currentTrackIDs {
                 clipCaptureService.removeMissingTracks(currentTrackIDs)
                 auditionOverridesByTrackID = auditionOverridesByTrackID.filter { currentTrackIDs.contains($0.key) }
@@ -40,6 +45,20 @@ final class TickStateBuffer {
             }
             preparedTickIndex = nil
         }
+    }
+
+    func installTrackFillPreviewSnapshot(_ snapshot: TrackFillPreviewPlaybackSnapshot) {
+        withLock {
+            guard trackFillPreview != snapshot else {
+                return
+            }
+            trackFillPreview = snapshot
+            preparedTickIndex = nil
+        }
+    }
+
+    func currentTrackFillPreviewSnapshot() -> TrackFillPreviewPlaybackSnapshot {
+        withLock { trackFillPreview }
     }
 
     func currentPlaybackSnapshot() -> PlaybackSnapshot {
@@ -84,6 +103,7 @@ final class TickStateBuffer {
                 generatedStates: generatedStatesByTrackID,
                 clipCaptureService: clipCaptureService,
                 playbackSnapshot: playbackSnapshot,
+                trackFillPreview: trackFillPreview,
                 auditionOverridesByTrackID: auditionOverridesByTrackID
             )
         }
