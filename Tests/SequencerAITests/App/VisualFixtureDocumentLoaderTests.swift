@@ -39,6 +39,7 @@ final class VisualFixtureDocumentLoaderTests: XCTestCase {
         XCTAssertEqual(project.selectedTrack.name, "Phrase Nav Track")
         XCTAssertEqual(project.phrases.count, 4)
         XCTAssertEqual(project.phrases.first?.name, "Intro Lift")
+        XCTAssertEqual(project.phrases.first?.lengthBars, 8)
         XCTAssertTrue(
             project.phrases.contains {
                 $0.name == "Verse - Pocket With A Very Long Name For Truncation"

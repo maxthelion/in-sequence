@@ -30,7 +30,7 @@
     {
       "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
       "name": "Intro Lift",
-      "lengthBars": 1,
+      "lengthBars": 8,
       "stepsPerBar": 16,
       "cells": []
     },

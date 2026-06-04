@@ -40,9 +40,11 @@ Command file: \`${command_file}\`
 Status file: \`${status_file}\`
 
 This scenario launches the built SequencerAI app through \`scripts/open-latest-build.sh\`,
-creates a fixture-backed new document, drives the production transport phrase
-navigation UI with \`VisualScenarioCommandRunner\`, and captures the active app
-window with the shared Peekaboo/screencapture helpers.
+creates a fixture-backed new document whose Intro phrase is long enough to hold
+the pre-promotion queued state, drives the production transport phrase navigation
+UI with \`VisualScenarioCommandRunner\`, refreshes each status sidecar immediately
+before capture, and captures the active app window with the shared
+Peekaboo/screencapture helpers.
 
 Status from this script run: ${scenario_status}.
 
@@ -58,7 +60,7 @@ Captured states:
 - \`transport-keyboard-space-picker.png\` and \`transport-keyboard-escape-dismissed.png\`: focus/keyboard attempt and post-Escape state.
 
 The status sidecar records phrase count, phrase names, current phrase, queued phrase,
-and whether queue/now actions are enabled after each command.
+and whether queue/now actions are enabled at capture time.
 NOTES
 }
 
@@ -149,10 +151,14 @@ ensure_transport_document() {
 capture_state() {
   local pid="$1"
   local name="$2"
+  cp "$command_file" "$output_dir/${name}.command.env"
   sleep 0.6
+  rm -f "$status_file"
+  write_visual_command "workspace=tracks
+statusCapture=$name"
+  wait_for_status workspace "tracks" 8
   capture_window "$pid" "$output_dir/${name}.png"
   cp "$status_file" "$output_dir/${name}.status"
-  cp "$command_file" "$output_dir/${name}.command.env"
   scenario_status="captured ${name}"
 }
 
