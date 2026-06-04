@@ -93,6 +93,7 @@ enum VisualScenarioCommandRunner {
         }
 
         applySendEffects(command: command, session: session)
+        applyTrackFillPreviewFixture(command: command, section: section, session: session)
         applyAudioInputFixture(
             command: command,
             section: section,
@@ -163,6 +164,10 @@ enum VisualScenarioCommandRunner {
         let activeAudioInputRuntime = activeAudioInputTrack.flatMap { engineController.audioInputRuntime(for: $0.id) }
         let selectedAudioInputReadout = engineController.audioInputRoutingReadoutForTesting(trackID: session.store.selectedTrackID)
         let audioInputTrackCount = session.store.tracks.filter { $0.trackType == .audioInput }.count
+        let selectedPattern = session.store.selectedPattern(for: session.store.selectedTrackID)
+        let activeFillPreviewTrack = session.trackFillPreviewState.activeTrackID.flatMap { activeTrackID in
+            session.store.tracks.first { $0.id == activeTrackID }
+        }
         let status = """
         workspace=\(section.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
@@ -172,6 +177,15 @@ enum VisualScenarioCommandRunner {
         trackCount=\(session.store.tracks.count)
         selectedTrackName=\(session.store.selectedTrack.name)
         selectedTrackType=\(session.store.selectedTrack.trackType.rawValue)
+        selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
+        selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
+        selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
+        selectedTrackFillPreviewAvailable=\(session.isTrackFillPreviewAvailable(trackID: session.store.selectedTrackID))
+        selectedTrackFillPreviewActive=\(session.trackFillPreviewState.isActive(for: session.store.selectedTrackID))
+        fillPreviewActiveTrackName=\(activeFillPreviewTrack?.name ?? "none")
+        fillPreviewActiveTrackIsSelected=\(session.trackFillPreviewState.activeTrackID == session.store.selectedTrackID)
+        selectedPhraseID=\(session.store.selectedPhraseID.uuidString)
+        sessionRevision=\(session.revision)
         canAppendAudioInputTrack=\(session.canAppendAudioInputTrack)
         audioInputTrackCount=\(audioInputTrackCount)
         activeAudioInputTrackName=\(activeAudioInputTrack?.name ?? "none")
@@ -241,6 +255,75 @@ enum VisualScenarioCommandRunner {
             return "input"
         case .loop:
             return "loop"
+        }
+    }
+
+    private static func applyTrackFillPreviewFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["trackFillPreview"] != nil ||
+              command["trackFillSource"] != nil ||
+              command["trackFillSelectedTrackIndex"] != nil ||
+              command["trackFillEnsureSecondClipTrack"] == "true"
+        else { return }
+
+        section.wrappedValue = .track
+
+        if command["trackFillEnsureSecondClipTrack"] == "true" {
+            ensureTrackCount(2, session: session)
+        }
+
+        if let rawIndex = command["trackFillSelectedTrackIndex"],
+           let selectedIndex = Int(rawIndex) {
+            ensureTrackCount(selectedIndex + 1, session: session)
+            let clampedIndex = min(max(0, selectedIndex), session.store.tracks.count - 1)
+            session.setSelectedTrackID(session.store.tracks[clampedIndex].id)
+        }
+
+        if let sourceState = command["trackFillSource"] {
+            applyTrackFillSource(sourceState, session: session)
+        }
+
+        switch command["trackFillPreview"] {
+        case "on", "active", "true":
+            session.enableSelectedTrackFillPreview()
+        case "off", "clear", "inactive", "false":
+            session.clearTrackFillPreview(reason: .userCleared)
+        default:
+            break
+        }
+    }
+
+    private static func ensureTrackCount(_ count: Int, session: SequencerDocumentSession) {
+        while session.store.tracks.count < count {
+            session.appendTrack(trackType: .monoMelodic)
+        }
+    }
+
+    private static func applyTrackFillSource(_ sourceState: String, session: SequencerDocumentSession) {
+        let trackID = session.store.selectedTrackID
+        let slotIndex = session.store.selectedPatternIndex(for: trackID)
+        switch sourceState {
+        case "clip":
+            let pattern = session.store.selectedPattern(for: trackID)
+            if let clipID = pattern.sourceRef.clipID,
+               session.store.clipEntry(id: clipID) != nil {
+                session.assignClipSource(clipID, to: trackID, slotIndex: slotIndex)
+            } else {
+                _ = session.createBlankClipSource(trackID: trackID, slotIndex: slotIndex)
+            }
+        case "empty", "unavailable":
+            session.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex)
+        case "generator":
+            if let generator = session.store.compatibleGenerators(for: session.store.selectedTrack).first {
+                session.assignGeneratorSource(generator.id, to: trackID, slotIndex: slotIndex)
+            } else {
+                _ = session.createBlankGeneratorSource(trackID: trackID, slotIndex: slotIndex)
+            }
+        default:
+            break
         }
     }
 
