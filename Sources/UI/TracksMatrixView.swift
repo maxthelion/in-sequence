@@ -1,5 +1,42 @@
 import SwiftUI
 
+enum TracksBasisPhraseResolver {
+    static func resolveID(
+        engineBasisPhraseID: UUID?,
+        selectedPhraseID: UUID,
+        phrases: [PhraseModel]
+    ) -> UUID? {
+        if let engineBasisPhraseID,
+           phrases.contains(where: { $0.id == engineBasisPhraseID })
+        {
+            return engineBasisPhraseID
+        }
+
+        if phrases.contains(where: { $0.id == selectedPhraseID }) {
+            return selectedPhraseID
+        }
+
+        return phrases.first?.id
+    }
+
+    static func resolvePhrase(
+        engineBasisPhraseID: UUID?,
+        selectedPhraseID: UUID,
+        selectedPhrase: PhraseModel,
+        phrases: [PhraseModel]
+    ) -> PhraseModel {
+        guard let resolvedID = resolveID(
+            engineBasisPhraseID: engineBasisPhraseID,
+            selectedPhraseID: selectedPhraseID,
+            phrases: phrases
+        ) else {
+            return selectedPhrase
+        }
+
+        return phrases.first(where: { $0.id == resolvedID }) ?? selectedPhrase
+    }
+}
+
 enum TracksWorkspaceMode: String, CaseIterable, Identifiable {
     case edit
     case perform
@@ -81,32 +118,16 @@ struct TracksMatrixView: View {
     }
 
     private var editingPhrase: PhraseModel {
-        let phrases = session.store.phrases
-        return phrases.first(where: { $0.id == editingPhraseID }) ?? session.store.selectedPhrase
+        TracksBasisPhraseResolver.resolvePhrase(
+            engineBasisPhraseID: engineController.basisPhraseID,
+            selectedPhraseID: session.store.selectedPhraseID,
+            selectedPhrase: session.store.selectedPhrase,
+            phrases: session.store.phrases
+        )
     }
 
     private var editingPhraseID: UUID {
-        guard engineController.transportMode == .song,
-              engineController.isRunning,
-              let playbackPhraseIndex
-        else {
-            return session.store.selectedPhraseID
-        }
-
-        let phrases = session.store.phrases
-        return phrases[playbackPhraseIndex].id
-    }
-
-    private var playbackPhraseIndex: Int? {
-        guard engineController.isRunning else {
-            return nil
-        }
-
-        return PhrasePlayhead.playbackPhraseIndex(
-            transportTickIndex: engineController.transportTickIndex,
-            phrases: session.store.phrases,
-            stepsPerBar: session.store.selectedPhrase.stepsPerBar
-        )
+        editingPhrase.id
     }
 
     private var groupedSections: [GroupedTrackSection] {

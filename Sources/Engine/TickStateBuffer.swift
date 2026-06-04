@@ -70,6 +70,10 @@ final class TickStateBuffer {
         withLock { preparedTickIndex != nil }
     }
 
+    func currentPreparedTickIndex() -> UInt64? {
+        withLock { preparedTickIndex }
+    }
+
     func isPrepared(for tickIndex: UInt64) -> Bool {
         withLock { preparedTickIndex == tickIndex }
     }

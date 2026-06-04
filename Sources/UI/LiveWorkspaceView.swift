@@ -27,32 +27,16 @@ struct LiveWorkspaceView: View {
     }
 
     private var editingPhrase: PhraseModel {
-        let phrases = session.store.phrases
-        return phrases.first(where: { $0.id == editingPhraseID }) ?? session.store.selectedPhrase
+        TracksBasisPhraseResolver.resolvePhrase(
+            engineBasisPhraseID: engineController.basisPhraseID,
+            selectedPhraseID: session.store.selectedPhraseID,
+            selectedPhrase: session.store.selectedPhrase,
+            phrases: session.store.phrases
+        )
     }
 
     private var editingPhraseID: UUID {
-        guard engineController.transportMode == .song,
-              engineController.isRunning,
-              let playbackPhraseIndex
-        else {
-            return session.store.selectedPhraseID
-        }
-
-        let phrases = session.store.phrases
-        return phrases[playbackPhraseIndex].id
-    }
-
-    private var playbackPhraseIndex: Int? {
-        guard engineController.isRunning else {
-            return nil
-        }
-
-        return PhrasePlayhead.playbackPhraseIndex(
-            transportTickIndex: engineController.transportTickIndex,
-            phrases: session.store.phrases,
-            stepsPerBar: session.store.selectedPhrase.stepsPerBar
-        )
+        editingPhrase.id
     }
 
     private var visibleScopes: [LiveLaneScope] {

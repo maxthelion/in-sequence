@@ -31,6 +31,7 @@ enum SequencerSnapshotCompiler {
             tracks: state.tracks,
             resolvedDestinationsByTrackID: resolvedDestinations,
             trackOrder: trackOrder,
+            phraseOrder: state.phraseOrder,
             clipBuffersByID: clipBuffers,
             trackProgramsByTrackID: trackPrograms,
             phraseBuffersByID: phraseBuffers
@@ -125,6 +126,7 @@ enum SequencerSnapshotCompiler {
             tracks: tracks,
             resolvedDestinationsByTrackID: resolvedDestinations,
             trackOrder: previous.trackOrder,
+            phraseOrder: state.phraseOrder,
             clipBuffersByID: clipBuffersByID,
             trackProgramsByTrackID: trackProgramsByTrackID,
             phraseBuffersByID: phraseBuffersByID

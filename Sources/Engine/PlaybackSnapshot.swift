@@ -24,6 +24,7 @@ struct PlaybackSnapshot: Equatable, Sendable {
     let tracks: [StepSequenceTrack]
     let resolvedDestinationsByTrackID: [UUID: ResolvedTrackDestination]
     let trackOrder: [UUID]
+    let phraseOrder: [UUID]
     let clipBuffersByID: [UUID: ClipBuffer]
     let trackProgramsByTrackID: [UUID: TrackSourceProgram]
     let phraseBuffersByID: [UUID: PhrasePlaybackBuffer]
