@@ -267,6 +267,27 @@ final class MainAudioGraph {
         }
     }
 
+    func audioInputCaptureFormat(trackID: UUID) -> AVAudioFormat? {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            guard let host = self.audioInputRoutingHosts[trackID],
+                  host.connectedSource != .silent
+            else {
+                return nil
+            }
+
+            let format = host.outputMixer.inputFormat(forBus: 0)
+            guard format.sampleRate > 0,
+                  format.channelCount > 0
+            else {
+                return nil
+            }
+            return format
+        }
+    }
+
     @discardableResult
     func scheduleAudioInputLoopPlayback(trackID: UUID, buffer: AVAudioPCMBuffer) -> Bool {
         graphLock.lock()

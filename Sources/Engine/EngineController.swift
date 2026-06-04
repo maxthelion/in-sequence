@@ -332,6 +332,7 @@ final class EngineController: RouterDispatcher {
     /// Production applies through `mainAudioGraph`.
     var audioDeviceApplyOverrideForTesting: ((_ inputUID: String?, _ outputUID: String?) throws -> AudioDeviceApplyResult)?
     var audioInputAvailableChannelCountOverrideForTesting: Int?
+    var audioInputCapturePlanOverrideForTesting: ((_ trackID: UUID, _ bars: Int) -> AudioInputCapturePlan?)?
     var bypassAudioInputRoutingSyncForTesting = false
     var audioInputCapturePublicationEnabledForTesting: Bool { publishesAudioInputCapture }
 
@@ -1513,10 +1514,8 @@ final class EngineController: RouterDispatcher {
 
     private func processAudioInputBuffer(trackID: UUID, buffer: AVAudioPCMBuffer) {
         let summary = AudioInputCaptureStore.summarize(buffer: buffer)
-        let capturedPCM = readAudioInputCaptureStore {
-            audioInputCaptureStore.isRecording(trackID: trackID)
-        } ? AudioInputCaptureStore.copyPCMForPlayback(from: buffer) : nil
-        audioInputCaptureTransport.write(trackID: trackID, summary: summary, capturedPCM: capturedPCM)
+        audioInputCaptureStore.copyPCMIntoReservedLoopStorage(trackID: trackID, from: buffer)
+        audioInputCaptureTransport.write(trackID: trackID, summary: summary)
     }
 
     private func startAudioInputCaptureDrainTimer() {
@@ -1922,6 +1921,7 @@ final class EngineController: RouterDispatcher {
     private func beginAudioInputCapture(_ runtime: inout AudioInputTrackRuntime, at tickIndex: UInt64) {
         let bars = StepSequenceTrack.normalizedRecordBarLength(runtime.armedRecordBarLength ?? runtime.recordBarLength)
         let endTick = tickIndex &+ UInt64(bars * stepsPerBar)
+        let capturePlan = audioInputCapturePlan(trackID: runtime.trackID, bars: bars)
         runtime.armState = .recording
         runtime.pendingStartTick = nil
         runtime.pendingStopTick = endTick
@@ -1933,9 +1933,29 @@ final class EngineController: RouterDispatcher {
         runtime.pendingLoopStartTick = nil
         applyAudioInputCaptureSnapshot(
             readAudioInputCaptureStore {
-                audioInputCaptureStore.beginCapture(trackID: runtime.trackID)
+                audioInputCaptureStore.beginCapture(trackID: runtime.trackID, plan: capturePlan)
             },
             to: &runtime
+        )
+    }
+
+    private func audioInputCapturePlan(trackID: UUID, bars: Int) -> AudioInputCapturePlan? {
+        if let override = audioInputCapturePlanOverrideForTesting {
+            return override(trackID, bars)
+        }
+
+        guard let format = mainAudioGraph.audioInputCaptureFormat(trackID: trackID) else {
+            return nil
+        }
+
+        let beatsPerBar = 4.0
+        let durationSeconds = (Double(bars) * beatsPerBar * 60.0) / max(currentBPM, 1)
+        let expectedFrameCount = Int((durationSeconds * format.sampleRate).rounded(.up))
+        let tapSlackFrameCount = 4096
+        return AudioInputCapturePlan(
+            sampleRate: format.sampleRate,
+            channelCount: Int(format.channelCount),
+            maximumFrameCount: max(1, expectedFrameCount + tapSlackFrameCount)
         )
     }
 

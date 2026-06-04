@@ -1281,9 +1281,10 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertNotEqual(secondRuntime.recordedLoopID, firstLoopID)
     }
 
-    func test_audioInputCaptureStore_preservesCopiedPCMSamplesForPlaybackBuffer() throws {
+    func test_audioInputCaptureStore_preservesReservedPCMSamplesForPlaybackBuffer() throws {
         let store = AudioInputCaptureStore(bucketCount: 4)
         let trackID = UUID()
+        let plan = AudioInputCapturePlan(sampleRate: 44_100, channelCount: 2, maximumFrameCount: 5)
         let firstSource = makeAudioInputLoopBuffer(
             left: [0.1, -0.2, 0.3],
             right: [0.4, -0.5, 0.6]
@@ -1294,21 +1295,22 @@ final class EngineControllerTests: XCTestCase {
         )
         let firstSummary = AudioInputCaptureStore.summarize(buffer: firstSource)
         let secondSummary = AudioInputCaptureStore.summarize(buffer: secondSource)
-        let firstPCM = try XCTUnwrap(AudioInputCaptureStore.copyPCMForPlayback(from: firstSource))
-        let secondPCM = try XCTUnwrap(AudioInputCaptureStore.copyPCMForPlayback(from: secondSource))
+
+        _ = store.beginCapture(trackID: trackID, plan: plan)
+        store.copyPCMIntoReservedLoopStorage(trackID: trackID, from: firstSource)
+        store.copyPCMIntoReservedLoopStorage(trackID: trackID, from: secondSource)
 
         firstSource.floatChannelData![0][0] = 1.0
         firstSource.floatChannelData![1][2] = 1.0
         secondSource.floatChannelData![0][0] = 1.0
         secondSource.floatChannelData![1][1] = 1.0
 
-        _ = store.beginCapture(trackID: trackID)
         _ = store.process(
-            packet: AudioInputCaptureBufferPacket(summary: firstSummary, capturedPCM: firstPCM),
+            packet: AudioInputCaptureBufferPacket(summary: firstSummary),
             trackID: trackID
         )
         _ = store.process(
-            packet: AudioInputCaptureBufferPacket(summary: secondSummary, capturedPCM: secondPCM),
+            packet: AudioInputCaptureBufferPacket(summary: secondSummary),
             trackID: trackID
         )
         let completed = store.completeCapture(trackID: trackID)
@@ -1864,6 +1866,9 @@ private func makeAudioInputSchedulingFixture(
 ) -> (controller: EngineController, project: Project, trackID: UUID) {
     let controller = EngineController(client: nil, endpoint: nil, stepsPerBar: 4)
     controller.audioInputAvailableChannelCountOverrideForTesting = 2
+    controller.audioInputCapturePlanOverrideForTesting = { _, bars in
+        AudioInputCapturePlan(sampleRate: 44_100, channelCount: 2, maximumFrameCount: max(1, bars * 4096))
+    }
     var project = Project.empty
     project.appendTrack(trackType: .audioInput)
     let trackID = project.selectedTrackID
