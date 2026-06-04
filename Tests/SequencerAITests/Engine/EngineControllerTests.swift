@@ -1313,6 +1313,11 @@ final class EngineControllerTests: XCTestCase {
 
         XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
         controller.processTick(tickIndex: 4, now: 0.4)
+        controller.recordAudioInputBufferForTesting(
+            trackID: trackID,
+            buffer: makeAudioInputLoopBuffer(left: [0.1, -0.5, 0.2, 0.4], right: [0.2, -0.25, 0.7, 0.1])
+        )
+        controller.drainAudioInputCapturePublicationForTesting()
         controller.processTick(tickIndex: 8, now: 0.8)
         XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
 
@@ -1322,17 +1327,54 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(runtime.activeMonitorMode, .input)
         XCTAssertEqual(runtime.pendingLoopStartTick, 12)
         XCTAssertEqual(readout.requestedSource, .input)
+        XCTAssertNil(readout.scheduledLoopFrameCount)
 
         controller.processTick(tickIndex: 11, now: 1.1)
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         XCTAssertEqual(runtime.activeMonitorMode, .input)
+        XCTAssertNil(readout.scheduledLoopFrameCount)
 
         controller.processTick(tickIndex: 12, now: 1.2)
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         XCTAssertEqual(runtime.activeMonitorMode, .loop)
         XCTAssertNil(runtime.pendingLoopStartTick)
+        XCTAssertEqual(runtime.scheduledLoopPlaybackID, runtime.recordedLoopID)
         XCTAssertEqual(readout.requestedSource, .loop)
+        XCTAssertEqual(readout.connectedSource, .loop)
+        XCTAssertEqual(readout.scheduledLoopFrameCount, 4)
+        XCTAssertEqual(readout.scheduledLoopChannelCount, 2)
+        XCTAssertEqual(readout.scheduledLoopSampleRate, 44_100)
+        XCTAssertEqual(readout.loopPlaybackScheduleCount, 1)
+        XCTAssertTrue(readout.dryDestination === controller.audioInputTrackSendReadoutForTesting(trackID: trackID)?.dryDestination)
+
+        controller.processTick(tickIndex: 16, now: 1.6)
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(readout.loopPlaybackScheduleCount, 1)
+
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .input))
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(runtime.activeMonitorMode, .input)
+        XCTAssertNil(runtime.scheduledLoopPlaybackID)
+        XCTAssertEqual(readout.requestedSource, .input)
+        XCTAssertEqual(readout.connectedSource, .input)
+        XCTAssertNil(readout.scheduledLoopFrameCount)
+
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.activeMonitorMode, .input)
+        XCTAssertEqual(runtime.pendingLoopStartTick, 20)
+
+        controller.processTick(tickIndex: 20, now: 2.0)
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(runtime.activeMonitorMode, .loop)
+        XCTAssertEqual(runtime.scheduledLoopPlaybackID, runtime.recordedLoopID)
+        XCTAssertEqual(readout.connectedSource, .loop)
+        XCTAssertEqual(readout.scheduledLoopFrameCount, 4)
+        XCTAssertEqual(readout.loopPlaybackScheduleCount, 2)
     }
 
     func test_audioInputRouting_inputModeUsesLiveInputRequestThroughMixerPath() throws {
@@ -1650,6 +1692,7 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(readout.requestedSource, .silent)
         XCTAssertEqual(readout.connectedSource, .silent)
         XCTAssertEqual(readout.outputVolume, 0, accuracy: 0.0001)
+        XCTAssertNil(readout.scheduledLoopFrameCount)
     }
 
     func test_audioInputRouting_loopPlaceholderUsesPlayerAndExcludesInputPath() throws {
@@ -1673,11 +1716,13 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertTrue(
             readout.loopPlayer.engine?.outputConnectionPoints(for: readout.loopPlayer, outputBus: 0).first?.node === readout.outputMixer
         )
+        XCTAssertNil(readout.scheduledLoopFrameCount)
 
         XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .input))
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         XCTAssertEqual(readout.requestedSource, .input)
         XCTAssertNotEqual(readout.connectedSource, .loop)
+        XCTAssertNil(readout.scheduledLoopFrameCount)
         XCTAssertTrue(
             readout.loopPlayer.engine?.outputConnectionPoints(for: readout.loopPlayer, outputBus: 0).isEmpty ?? true
         )
@@ -1756,6 +1801,19 @@ private func makeAudioInputSchedulingFixture(
     project.tracks[project.selectedTrackIndex].recordBarLength = recordBarLength
     controller.apply(documentModel: project)
     return (controller, project, trackID)
+}
+
+private func makeAudioInputLoopBuffer(left: [Float], right: [Float]) -> AVAudioPCMBuffer {
+    let frameCount = max(left.count, right.count)
+    let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
+    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frameCount))!
+    buffer.frameLength = AVAudioFrameCount(frameCount)
+
+    for frame in 0..<frameCount {
+        buffer.floatChannelData![0][frame] = frame < left.count ? left[frame] : 0
+        buffer.floatChannelData![1][frame] = frame < right.count ? right[frame] : 0
+    }
+    return buffer
 }
 
 private func makeAuditionOverrideDocument() -> (Project, StepSequenceTrack) {

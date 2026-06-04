@@ -27,6 +27,10 @@ final class MainAudioGraph {
         let dryDestination: AVAudioNode?
         let outputVolume: Float
         let pan: Float
+        let scheduledLoopFrameCount: AVAudioFrameCount?
+        let scheduledLoopChannelCount: AVAudioChannelCount?
+        let scheduledLoopSampleRate: Double?
+        let loopPlaybackScheduleCount: Int
     }
 
     struct MasterChain {
@@ -123,6 +127,10 @@ final class MainAudioGraph {
         var selectedChannel: AudioInputChannel = .stereo
         var outputBusID: UUID?
         var isCaptureTapInstalled = false
+        var scheduledLoopFrameCount: AVAudioFrameCount?
+        var scheduledLoopChannelCount: AVAudioChannelCount?
+        var scheduledLoopSampleRate: Double?
+        var loopPlaybackScheduleCount = 0
         let captureTapGeneration = AtomicInt32(0)
 
         init(trackID: UUID) {
@@ -256,6 +264,32 @@ final class MainAudioGraph {
         performOnMain {
             self.applyAudioInputRoutingParametersOnMain(requests)
             self.audioInputScopedRoutingUpdateCountForTesting += 1
+        }
+    }
+
+    @discardableResult
+    func scheduleAudioInputLoopPlayback(trackID: UUID, buffer: AVAudioPCMBuffer) -> Bool {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        return performOnMainReturning {
+            guard let host = self.audioInputRoutingHosts[trackID],
+                  host.connectedSource == .loop,
+                  buffer.frameLength > 0
+            else {
+                return false
+            }
+
+            host.loopPlayer.stop()
+            host.loopPlayer.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+            if self.engine.isRunning || self.isStarted {
+                host.loopPlayer.play()
+            }
+            host.scheduledLoopFrameCount = buffer.frameLength
+            host.scheduledLoopChannelCount = buffer.format.channelCount
+            host.scheduledLoopSampleRate = buffer.format.sampleRate
+            host.loopPlaybackScheduleCount += 1
+            return true
         }
     }
 
@@ -652,7 +686,11 @@ final class MainAudioGraph {
                 loopPlayer: host.loopPlayer,
                 dryDestination: self.trackOutputDestinationsForTesting[ObjectIdentifier(host.outputMixer)],
                 outputVolume: host.outputMixer.outputVolume,
-                pan: host.outputMixer.pan
+                pan: host.outputMixer.pan,
+                scheduledLoopFrameCount: host.scheduledLoopFrameCount,
+                scheduledLoopChannelCount: host.scheduledLoopChannelCount,
+                scheduledLoopSampleRate: host.scheduledLoopSampleRate,
+                loopPlaybackScheduleCount: host.loopPlaybackScheduleCount
             )
         }
     }
@@ -928,6 +966,9 @@ final class MainAudioGraph {
         if host.connectedSource == .loop {
             host.loopPlayer.stop()
             engine.disconnectNodeOutput(host.loopPlayer)
+            host.scheduledLoopFrameCount = nil
+            host.scheduledLoopChannelCount = nil
+            host.scheduledLoopSampleRate = nil
         }
         engine.disconnectNodeInput(host.outputMixer)
 

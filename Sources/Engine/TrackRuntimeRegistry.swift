@@ -32,6 +32,7 @@ extension EngineController {
         var armedRecordBarLength: Int?
         var recordedLoopID: UUID?
         var recordedLoopBarLength: Int?
+        var scheduledLoopPlaybackID: UUID?
         var selectedInputChannel: AudioInputChannel
         var routeState: AudioInputRouteState
         var transientFrameCount: Int
@@ -60,6 +61,7 @@ extension EngineController {
             self.armedRecordBarLength = nil
             self.recordedLoopID = nil
             self.recordedLoopBarLength = nil
+            self.scheduledLoopPlaybackID = nil
             self.selectedInputChannel = selectedInputChannel
             self.routeState = routeState
             self.transientFrameCount = 0

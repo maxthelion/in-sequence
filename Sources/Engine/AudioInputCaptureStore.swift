@@ -42,11 +42,32 @@ struct AudioInputCaptureBufferSummary: Equatable, Sendable {
     }
 }
 
+struct AudioInputCapturedPCM: Equatable, Sendable {
+    var sampleRate: Double
+    var channels: [[Float]]
+
+    var frameCount: Int {
+        channels.first?.count ?? 0
+    }
+
+    var channelCount: Int {
+        channels.count
+    }
+}
+
+struct AudioInputCaptureBufferPacket: Equatable, Sendable {
+    var summary: AudioInputCaptureBufferSummary
+    var capturedPCM: AudioInputCapturedPCM?
+}
+
 final class AudioInputCaptureSummaryRing {
     private final class Slot {
         let sequence = AtomicInt32(0)
         var trackID = UUID()
-        var summary = AudioInputCaptureBufferSummary(liveLevel: .silent, monoPeak: 0, frameCount: 0)
+        var packet = AudioInputCaptureBufferPacket(
+            summary: AudioInputCaptureBufferSummary(liveLevel: .silent, monoPeak: 0, frameCount: 0),
+            capturedPCM: nil
+        )
     }
 
     private let slots: [Slot]
@@ -60,15 +81,19 @@ final class AudioInputCaptureSummaryRing {
         self.slots = (0..<resolvedCapacity).map { _ in Slot() }
     }
 
-    func write(trackID: UUID, summary: AudioInputCaptureBufferSummary) {
+    func write(
+        trackID: UUID,
+        summary: AudioInputCaptureBufferSummary,
+        capturedPCM: AudioInputCapturedPCM? = nil
+    ) {
         let sequence = writeSequence.increment()
         let slot = slots[index(for: sequence)]
         slot.trackID = trackID
-        slot.summary = summary
+        slot.packet = AudioInputCaptureBufferPacket(summary: summary, capturedPCM: capturedPCM)
         slot.sequence.store(sequence)
     }
 
-    func drain(_ consume: (UUID, AudioInputCaptureBufferSummary) -> Void) {
+    func drain(_ consume: (UUID, AudioInputCaptureBufferPacket) -> Void) {
         let writeLimit = writeSequence.load()
         guard writeLimit > readSequence else { return }
 
@@ -90,9 +115,9 @@ final class AudioInputCaptureSummaryRing {
             }
 
             let trackID = slot.trackID
-            let summary = slot.summary
+            let packet = slot.packet
             readSequence = nextSequence
-            consume(trackID, summary)
+            consume(trackID, packet)
             nextSequence = nextSequence &+ 1
         }
     }
@@ -111,6 +136,8 @@ final class AudioInputCaptureStore {
         var capturedMagnitudes: [Float] = []
         var streamedWaveformBuckets: [Float] = []
         var completedWaveformBuckets: [Float] = []
+        var capturedPCMChunks: [AudioInputCapturedPCM] = []
+        var completedLoopPCM: AudioInputCapturedPCM?
         var capturedFrameCount = 0
         var completedFrameCount = 0
     }
@@ -141,6 +168,7 @@ final class AudioInputCaptureStore {
             state.isRecording = true
             state.recordingProgress = 0
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
+            state.capturedPCMChunks.removeAll(keepingCapacity: true)
             state.streamedWaveformBuckets = []
             state.capturedFrameCount = 0
         }
@@ -151,6 +179,7 @@ final class AudioInputCaptureStore {
             state.isRecording = false
             state.recordingProgress = 0
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
+            state.capturedPCMChunks.removeAll(keepingCapacity: true)
             state.streamedWaveformBuckets = []
             state.capturedFrameCount = 0
         }
@@ -168,8 +197,10 @@ final class AudioInputCaptureStore {
             state.recordingProgress = 1
             state.completedWaveformBuckets = Self.downsample(state.capturedMagnitudes, bucketCount: bucketCount)
             state.completedFrameCount = state.capturedFrameCount
+            state.completedLoopPCM = Self.concatenate(state.capturedPCMChunks)
             state.streamedWaveformBuckets = []
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
+            state.capturedPCMChunks.removeAll(keepingCapacity: true)
             state.capturedFrameCount = 0
         }
     }
@@ -179,22 +210,45 @@ final class AudioInputCaptureStore {
             state.isRecording = false
             state.recordingProgress = 1
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
+            state.capturedPCMChunks.removeAll(keepingCapacity: true)
             state.streamedWaveformBuckets = []
             state.completedWaveformBuckets = waveformBuckets.map(Self.clampedBucket)
+            state.completedLoopPCM = nil
             state.capturedFrameCount = 0
             state.completedFrameCount = waveformBuckets.count
         }
     }
 
     func process(summary: AudioInputCaptureBufferSummary, trackID: UUID) -> AudioInputCaptureSnapshot {
+        process(packet: AudioInputCaptureBufferPacket(summary: summary, capturedPCM: nil), trackID: trackID)
+    }
+
+    func process(packet: AudioInputCaptureBufferPacket, trackID: UUID) -> AudioInputCaptureSnapshot {
         withState(trackID: trackID) { state in
+            let summary = packet.summary
             state.liveLevel = summary.liveLevel
             if state.isRecording, summary.hasFrames {
                 state.capturedMagnitudes.append(summary.monoPeak)
+                if let capturedPCM = packet.capturedPCM {
+                    state.capturedPCMChunks.append(capturedPCM)
+                }
                 state.capturedFrameCount += summary.frameCount
                 state.streamedWaveformBuckets = Self.downsample(state.capturedMagnitudes, bucketCount: bucketCount)
             }
         }
+    }
+
+    func isRecording(trackID: UUID) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return states[trackID]?.isRecording == true
+    }
+
+    func completedLoopPlaybackBuffer(trackID: UUID) -> AVAudioPCMBuffer? {
+        lock.lock()
+        let pcm = states[trackID]?.completedLoopPCM
+        lock.unlock()
+        return pcm.flatMap(Self.makeBuffer)
     }
 
     static func summarize(buffer: AVAudioPCMBuffer) -> AudioInputCaptureBufferSummary {
@@ -242,6 +296,24 @@ final class AudioInputCaptureStore {
         )
     }
 
+    static func copyPCMForPlayback(from buffer: AVAudioPCMBuffer) -> AudioInputCapturedPCM? {
+        let frameCount = Int(buffer.frameLength)
+        let channelCount = Int(buffer.format.channelCount)
+        guard frameCount > 0,
+              channelCount > 0,
+              let sourceChannels = buffer.floatChannelData
+        else {
+            return nil
+        }
+
+        var copiedChannels: [[Float]] = []
+        copiedChannels.reserveCapacity(channelCount)
+        for channel in 0..<channelCount {
+            copiedChannels.append(Array(UnsafeBufferPointer(start: sourceChannels[channel], count: frameCount)))
+        }
+        return AudioInputCapturedPCM(sampleRate: buffer.format.sampleRate, channels: copiedChannels)
+    }
+
     private func withState(
         trackID: UUID,
         update: (inout CaptureState) -> Void
@@ -266,6 +338,55 @@ final class AudioInputCaptureStore {
             capturedFrameCount: state.capturedFrameCount,
             completedFrameCount: state.completedFrameCount
         )
+    }
+
+    private static func concatenate(_ chunks: [AudioInputCapturedPCM]) -> AudioInputCapturedPCM? {
+        guard let first = chunks.first,
+              first.frameCount > 0,
+              first.channelCount > 0
+        else {
+            return nil
+        }
+
+        let sampleRate = first.sampleRate
+        let channelCount = first.channelCount
+        var output = Array(repeating: [Float](), count: channelCount)
+        for chunk in chunks
+            where chunk.sampleRate == sampleRate && chunk.channelCount == channelCount
+        {
+            for channel in 0..<channelCount {
+                output[channel].append(contentsOf: chunk.channels[channel])
+            }
+        }
+
+        return AudioInputCapturedPCM(sampleRate: sampleRate, channels: output)
+    }
+
+    private static func makeBuffer(from pcm: AudioInputCapturedPCM) -> AVAudioPCMBuffer? {
+        guard pcm.frameCount > 0,
+              pcm.channelCount > 0,
+              let format = AVAudioFormat(
+                standardFormatWithSampleRate: pcm.sampleRate,
+                channels: AVAudioChannelCount(pcm.channelCount)
+              ),
+              let buffer = AVAudioPCMBuffer(
+                pcmFormat: format,
+                frameCapacity: AVAudioFrameCount(pcm.frameCount)
+              )
+        else {
+            return nil
+        }
+
+        buffer.frameLength = AVAudioFrameCount(pcm.frameCount)
+        guard let destinationChannels = buffer.floatChannelData else {
+            return nil
+        }
+        for channel in 0..<pcm.channelCount {
+            for frame in 0..<pcm.frameCount {
+                destinationChannels[channel][frame] = pcm.channels[channel][frame]
+            }
+        }
+        return buffer
     }
 
     private static func downsample(_ magnitudes: [Float], bucketCount: Int) -> [Float] {
