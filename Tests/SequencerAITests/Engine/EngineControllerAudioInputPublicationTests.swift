@@ -143,6 +143,9 @@ private func makeAudioInputPublicationFixture(
         publishesAudioInputCapture: true
     )
     controller.audioInputAvailableChannelCountOverrideForTesting = 2
+    controller.audioInputCapturePlanOverrideForTesting = { _, bars in
+        AudioInputCapturePlan(sampleRate: 44_100, channelCount: 2, maximumFrameCount: max(1, bars * 4096))
+    }
     controller.bypassAudioInputRoutingSyncForTesting = true
     var project = Project.empty
     project.appendTrack(trackType: .audioInput)

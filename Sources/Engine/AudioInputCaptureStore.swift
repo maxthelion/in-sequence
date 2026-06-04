@@ -63,15 +63,33 @@ struct AudioInputCapturePlan: Equatable, Sendable {
 
 struct AudioInputCaptureBufferPacket: Equatable, Sendable {
     var summary: AudioInputCaptureBufferSummary
+    var captureWriterID: UUID?
+    var copiedFrameCount: Int
+
+    init(
+        summary: AudioInputCaptureBufferSummary,
+        captureWriterID: UUID? = nil,
+        copiedFrameCount: Int = 0
+    ) {
+        self.summary = summary
+        self.captureWriterID = captureWriterID
+        self.copiedFrameCount = copiedFrameCount
+    }
+}
+
+struct AudioInputCapturePCMCopyReceipt: Equatable, Sendable {
+    var writerID: UUID
+    var frameCount: Int
 }
 
 final class AudioInputCapturePCMWriter {
+    let captureID = UUID()
     let trackID: UUID
     let sampleRate: Double
     let channelCount: Int
     let maximumFrameCount: Int
     private let capturedFrameCount = AtomicInt32(0)
-    private let isActive = AtomicInt32(1)
+    private let isActive = AtomicInt32(0)
     private let inFlightCopies = AtomicInt32(0)
     private var channels: [[Float]]
 
@@ -92,11 +110,11 @@ final class AudioInputCapturePCMWriter {
         }
     }
 
-    func copy(trackID: UUID, from buffer: AVAudioPCMBuffer) {
+    func copy(trackID: UUID, from buffer: AVAudioPCMBuffer) -> AudioInputCapturePCMCopyReceipt? {
         guard self.trackID == trackID,
               isActive.load() == 1
         else {
-            return
+            return nil
         }
 
         inFlightCopies.increment()
@@ -107,14 +125,14 @@ final class AudioInputCapturePCMWriter {
               Int(buffer.format.channelCount) == channelCount,
               let sourceChannels = buffer.floatChannelData
         else {
-            return
+            return nil
         }
 
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0,
               let destination = reserveDestinationRange(frameCount: frameCount)
         else {
-            return
+            return nil
         }
 
         for channel in 0..<channelCount {
@@ -122,17 +140,23 @@ final class AudioInputCapturePCMWriter {
                 channels[channel][destination.start + frame] = sourceChannels[channel][frame]
             }
         }
+        return AudioInputCapturePCMCopyReceipt(writerID: captureID, frameCount: destination.count)
+    }
+
+    func activate() {
+        isActive.store(1)
     }
 
     func deactivate() {
         isActive.store(0)
     }
 
-    func materializeCapturedPCM() -> AudioInputCapturedPCM? {
+    func materializeCapturedPCM(frameCountLimit: Int? = nil) -> AudioInputCapturedPCM? {
         deactivate()
         waitForInFlightCopies()
 
-        let frameCount = Int(capturedFrameCount.load())
+        let copiedFrameCount = Int(capturedFrameCount.load())
+        let frameCount = min(copiedFrameCount, max(0, frameCountLimit ?? copiedFrameCount))
         guard frameCount > 0 else { return nil }
 
         var copiedChannels: [[Float]] = []
@@ -175,12 +199,12 @@ final class AudioInputCapturePCMWriterSlot {
         retainedWriter = writer
     }
 
-    func copy(trackID: UUID, from buffer: AVAudioPCMBuffer) {
+    func copy(trackID: UUID, from buffer: AVAudioPCMBuffer) -> AudioInputCapturePCMCopyReceipt? {
         inFlightReaders.increment()
         defer { inFlightReaders.decrement() }
 
-        guard let writer = writer() else { return }
-        writer.copy(trackID: trackID, from: buffer)
+        guard let writer = writer() else { return nil }
+        return writer.copy(trackID: trackID, from: buffer)
     }
 
     private func writer() -> AudioInputCapturePCMWriter? {
@@ -228,14 +252,11 @@ final class AudioInputCaptureSummaryRing {
         self.slots = (0..<resolvedCapacity).map { _ in Slot() }
     }
 
-    func write(
-        trackID: UUID,
-        summary: AudioInputCaptureBufferSummary
-    ) {
+    func write(trackID: UUID, packet: AudioInputCaptureBufferPacket) {
         let sequence = writeSequence.increment()
         let slot = slots[index(for: sequence)]
         slot.trackID = trackID
-        slot.packet = AudioInputCaptureBufferPacket(summary: summary)
+        slot.packet = packet
         slot.sequence.store(sequence)
     }
 
@@ -313,14 +334,25 @@ final class AudioInputCaptureStore {
     }
 
     func beginCapture(trackID: UUID, plan: AudioInputCapturePlan? = nil) -> AudioInputCaptureSnapshot {
+        beginCapture(
+            trackID: trackID,
+            writer: plan.flatMap { AudioInputCapturePCMWriter(trackID: trackID, plan: $0) }
+        )
+    }
+
+    func beginCapture(
+        trackID: UUID,
+        writer: AudioInputCapturePCMWriter?
+    ) -> AudioInputCaptureSnapshot {
         withState(trackID: trackID) { state in
             state.pcmWriter?.deactivate()
-            state.isRecording = true
             state.recordingProgress = 0
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
-            state.pcmWriter = plan.flatMap { AudioInputCapturePCMWriter(trackID: trackID, plan: $0) }
+            state.pcmWriter = writer
             state.streamedWaveformBuckets = []
             state.capturedFrameCount = 0
+            writer?.activate()
+            state.isRecording = true
         }
     }
 
@@ -348,7 +380,7 @@ final class AudioInputCaptureStore {
             state.recordingProgress = 1
             state.completedWaveformBuckets = Self.downsample(state.capturedMagnitudes, bucketCount: bucketCount)
             state.completedFrameCount = state.capturedFrameCount
-            state.completedLoopPCM = state.pcmWriter?.materializeCapturedPCM()
+            state.completedLoopPCM = state.pcmWriter?.materializeCapturedPCM(frameCountLimit: state.capturedFrameCount)
             state.streamedWaveformBuckets = []
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
             state.pcmWriter = nil
@@ -379,9 +411,11 @@ final class AudioInputCaptureStore {
         withState(trackID: trackID) { state in
             let summary = packet.summary
             state.liveLevel = summary.liveLevel
-            if state.isRecording, summary.hasFrames {
+            let copiedFrameCount = max(0, packet.copiedFrameCount)
+            let matchesActiveWriter = state.pcmWriter?.captureID == packet.captureWriterID
+            if state.isRecording, summary.hasFrames, matchesActiveWriter, copiedFrameCount > 0 {
                 state.capturedMagnitudes.append(summary.monoPeak)
-                state.capturedFrameCount += summary.frameCount
+                state.capturedFrameCount += min(summary.frameCount, copiedFrameCount)
                 state.streamedWaveformBuckets = Self.downsample(state.capturedMagnitudes, bucketCount: bucketCount)
             }
         }

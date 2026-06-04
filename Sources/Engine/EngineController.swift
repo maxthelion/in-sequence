@@ -1517,8 +1517,15 @@ final class EngineController: RouterDispatcher {
 
     private func processAudioInputBuffer(trackID: UUID, buffer: AVAudioPCMBuffer) {
         let summary = AudioInputCaptureStore.summarize(buffer: buffer)
-        audioInputCapturePCMWriterSlot.copy(trackID: trackID, from: buffer)
-        audioInputCaptureTransport.write(trackID: trackID, summary: summary)
+        let copyReceipt = audioInputCapturePCMWriterSlot.copy(trackID: trackID, from: buffer)
+        audioInputCaptureTransport.write(
+            trackID: trackID,
+            packet: AudioInputCaptureBufferPacket(
+                summary: summary,
+                captureWriterID: copyReceipt?.writerID,
+                copiedFrameCount: copyReceipt?.frameCount ?? 0
+            )
+        )
     }
 
     private func startAudioInputCaptureDrainTimer() {
@@ -1937,19 +1944,15 @@ final class EngineController: RouterDispatcher {
         runtime.transientFrameCount = 0
         runtime.activeMonitorMode = .input
         runtime.pendingLoopStartTick = nil
-        let captureStart = readAudioInputCaptureStore { () -> (
-            snapshot: AudioInputCaptureSnapshot,
-            writer: AudioInputCapturePCMWriter?
-        ) in
-            let snapshot = audioInputCaptureStore.beginCapture(trackID: runtime.trackID, plan: capturePlan)
-            return (
-                snapshot: snapshot,
-                writer: audioInputCaptureStore.pcmWriterForActiveCapture(trackID: runtime.trackID)
-            )
+        let captureWriter = capturePlan.flatMap {
+            AudioInputCapturePCMWriter(trackID: runtime.trackID, plan: $0)
         }
-        audioInputCapturePCMWriterSlot.install(captureStart.writer)
+        audioInputCapturePCMWriterSlot.install(captureWriter)
+        let captureStart = readAudioInputCaptureStore {
+            audioInputCaptureStore.beginCapture(trackID: runtime.trackID, writer: captureWriter)
+        }
         applyAudioInputCaptureSnapshot(
-            captureStart.snapshot,
+            captureStart,
             to: &runtime
         )
     }

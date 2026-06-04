@@ -1298,8 +1298,8 @@ final class EngineControllerTests: XCTestCase {
 
         _ = store.beginCapture(trackID: trackID, plan: plan)
         let writer = try XCTUnwrap(store.pcmWriterForActiveCapture(trackID: trackID))
-        writer.copy(trackID: trackID, from: firstSource)
-        writer.copy(trackID: trackID, from: secondSource)
+        let firstReceipt = try XCTUnwrap(writer.copy(trackID: trackID, from: firstSource))
+        let secondReceipt = try XCTUnwrap(writer.copy(trackID: trackID, from: secondSource))
 
         firstSource.floatChannelData![0][0] = 1.0
         firstSource.floatChannelData![1][2] = 1.0
@@ -1307,11 +1307,19 @@ final class EngineControllerTests: XCTestCase {
         secondSource.floatChannelData![1][1] = 1.0
 
         _ = store.process(
-            packet: AudioInputCaptureBufferPacket(summary: firstSummary),
+            packet: AudioInputCaptureBufferPacket(
+                summary: firstSummary,
+                captureWriterID: firstReceipt.writerID,
+                copiedFrameCount: firstReceipt.frameCount
+            ),
             trackID: trackID
         )
         _ = store.process(
-            packet: AudioInputCaptureBufferPacket(summary: secondSummary),
+            packet: AudioInputCaptureBufferPacket(
+                summary: secondSummary,
+                captureWriterID: secondReceipt.writerID,
+                copiedFrameCount: secondReceipt.frameCount
+            ),
             trackID: trackID
         )
         let completed = store.completeCapture(trackID: trackID)
@@ -1333,6 +1341,58 @@ final class EngineControllerTests: XCTestCase {
             reconstructedAgain,
             left: [0.1, -0.2, 0.3, -0.7, 0.8],
             right: [0.4, -0.5, 0.6, 0.9, -1.0]
+        )
+    }
+
+    func test_audioInputCaptureStore_beginBoundaryDoesNotCountBuffersWithoutActivePCMReceipt() throws {
+        let store = AudioInputCaptureStore(bucketCount: 4)
+        let slot = AudioInputCapturePCMWriterSlot()
+        let trackID = UUID()
+        let plan = AudioInputCapturePlan(sampleRate: 44_100, channelCount: 2, maximumFrameCount: 8)
+        let writer = try XCTUnwrap(AudioInputCapturePCMWriter(trackID: trackID, plan: plan))
+        let boundarySource = makeAudioInputLoopBuffer(
+            left: [0.8, 0.7, 0.6],
+            right: [0.5, 0.4, 0.3]
+        )
+        let activeSource = makeAudioInputLoopBuffer(
+            left: [0.1, -0.2],
+            right: [0.3, -0.4]
+        )
+        let boundarySummary = AudioInputCaptureStore.summarize(buffer: boundarySource)
+        let activeSummary = AudioInputCaptureStore.summarize(buffer: activeSource)
+
+        slot.install(writer)
+        let boundaryReceipt = slot.copy(trackID: trackID, from: boundarySource)
+        _ = store.beginCapture(trackID: trackID, writer: writer)
+        _ = store.process(
+            packet: AudioInputCaptureBufferPacket(
+                summary: boundarySummary,
+                captureWriterID: boundaryReceipt?.writerID,
+                copiedFrameCount: boundaryReceipt?.frameCount ?? 0
+            ),
+            trackID: trackID
+        )
+
+        XCTAssertNil(boundaryReceipt)
+
+        let activeReceipt = try XCTUnwrap(slot.copy(trackID: trackID, from: activeSource))
+        _ = store.process(
+            packet: AudioInputCaptureBufferPacket(
+                summary: activeSummary,
+                captureWriterID: activeReceipt.writerID,
+                copiedFrameCount: activeReceipt.frameCount
+            ),
+            trackID: trackID
+        )
+        let completed = store.completeCapture(trackID: trackID)
+
+        XCTAssertEqual(completed.completedFrameCount, 2)
+        let playbackBuffer = try XCTUnwrap(store.completedLoopPlaybackBuffer(trackID: trackID))
+        XCTAssertEqual(playbackBuffer.frameLength, 2)
+        XCTAssertAudioInputBufferSamples(
+            playbackBuffer,
+            left: [0.1, -0.2],
+            right: [0.3, -0.4]
         )
     }
 
