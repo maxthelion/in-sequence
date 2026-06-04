@@ -35,6 +35,7 @@ final class EngineController: RouterDispatcher {
 
     private let eventQueue = EventQueue()
     private let sampleEngine: SamplePlaybackSink
+    private let audioInputCaptureStore = AudioInputCaptureStore()
     // Initialized at end of init() after `self` is fully available.
     private var macroApplier: TrackMacroApplier!
     private let sampleLibrary: AudioSampleLibrary
@@ -90,7 +91,8 @@ final class EngineController: RouterDispatcher {
         mainAudioGraph: MainAudioGraph = MainAudioGraph(),
         sampleEngine: SamplePlaybackSink? = nil,
         sampleLibrary: AudioSampleLibrary = .shared,
-        masterBusHost: MasterBusHosting = MasterBusHost()
+        masterBusHost: MasterBusHosting = MasterBusHost(),
+        publishesAudioInputCapture: Bool = false
     ) {
         self.mainAudioGraph = mainAudioGraph
         self.sampleEngine = sampleEngine ?? SamplePlaybackEngine(audioGraph: mainAudioGraph)
@@ -111,6 +113,11 @@ final class EngineController: RouterDispatcher {
         // Now self is fully initialized; safe to capture as weak.
         self.macroApplier = TrackMacroApplier(sampleEngine: self.sampleEngine) { [weak self] trackID in
             self?.currentAudioUnit(for: trackID)
+        }
+        if publishesAudioInputCapture {
+            self.mainAudioGraph.setAudioInputCaptureHandler { [weak self] trackID, buffer in
+                self?.processAudioInputBuffer(trackID: trackID, buffer: buffer)
+            }
         }
 
         do {
@@ -196,6 +203,10 @@ final class EngineController: RouterDispatcher {
             runtime.armedRecordBarLength = runtime.recordBarLength
             runtime.transientFrameCount = 0
             runtime.routeState = audioInputRouteState(for: runtime.selectedInputChannel)
+            applyAudioInputCaptureSnapshot(
+                audioInputCaptureStore.prepareCapture(trackID: trackID),
+                to: &runtime
+            )
         }
         syncAudioInputRouting(for: currentDocumentModel)
         return didUpdate
@@ -214,6 +225,10 @@ final class EngineController: RouterDispatcher {
                 runtime.captureEndTick = nil
                 runtime.armedRecordBarLength = nil
                 runtime.transientFrameCount = 0
+                applyAudioInputCaptureSnapshot(
+                    audioInputCaptureStore.cancelCapture(trackID: trackID),
+                    to: &runtime
+                )
             case .idle, .hasLoop:
                 runtime.pendingStartTick = nil
                 runtime.pendingStopTick = nil
@@ -269,7 +284,10 @@ final class EngineController: RouterDispatcher {
             runtime.recordedLoopID = UUID()
             runtime.recordedLoopBarLength = runtime.recordBarLength
             runtime.transientFrameCount = 0
-            runtime.waveformBuckets = waveformBuckets
+            applyAudioInputCaptureSnapshot(
+                audioInputCaptureStore.replaceCompletedLoop(trackID: trackID, waveformBuckets: waveformBuckets),
+                to: &runtime
+            )
         }
         syncAudioInputRouting(for: currentDocumentModel)
         return didUpdate
@@ -283,6 +301,7 @@ final class EngineController: RouterDispatcher {
     /// Production applies through `mainAudioGraph`.
     var audioDeviceApplyOverrideForTesting: ((_ inputUID: String?, _ outputUID: String?) throws -> AudioDeviceApplyResult)?
     var audioInputAvailableChannelCountOverrideForTesting: Int?
+    var bypassAudioInputRoutingSyncForTesting = false
 
     func shutdown() {
         shutdown(completion: {})
@@ -669,6 +688,10 @@ final class EngineController: RouterDispatcher {
 
     func captureSnapshot(trackID: UUID) -> CaptureSnapshot {
         tickState.captureSnapshot(trackID: trackID)
+    }
+
+    func recordAudioInputBufferForTesting(trackID: UUID, buffer: AVAudioPCMBuffer) {
+        processAudioInputBuffer(trackID: trackID, buffer: buffer)
     }
 
     func setAuditionOverride(_ state: PseudoClipState?, for trackID: UUID) {
@@ -1451,6 +1474,30 @@ final class EngineController: RouterDispatcher {
         return midiClient?.destinations.first(where: { $0.displayName == port.displayName })
     }
 
+    private func processAudioInputBuffer(trackID: UUID, buffer: AVAudioPCMBuffer) {
+        let snapshot = audioInputCaptureStore.process(buffer: buffer, trackID: trackID)
+        publishAudioInputCaptureSnapshot(trackID: trackID, snapshot: snapshot)
+    }
+
+    private func publishAudioInputCaptureSnapshot(trackID: UUID, snapshot: AudioInputCaptureSnapshot) {
+        publishToMain { [weak self] in
+            guard let self else { return }
+            _ = self.updateAudioInputRuntime(trackID: trackID) { runtime in
+                self.applyAudioInputCaptureSnapshot(snapshot, to: &runtime)
+            }
+        }
+    }
+
+    private func applyAudioInputCaptureSnapshot(
+        _ snapshot: AudioInputCaptureSnapshot,
+        to runtime: inout AudioInputTrackRuntime
+    ) {
+        runtime.liveLevel = snapshot.liveLevel
+        runtime.recordingProgress = snapshot.recordingProgress
+        runtime.captureWaveformBuckets = snapshot.streamedWaveformBuckets
+        runtime.waveformBuckets = snapshot.completedWaveformBuckets
+    }
+
     private func syncTrackParams(for documentModel: Project) {
         // Note injection uses the typed preparedNotesByBlockID path only; no params to sync.
         // Reset generator evaluation state and prepared-tick index so the next prepareTick
@@ -1635,6 +1682,7 @@ final class EngineController: RouterDispatcher {
     private func syncAudioInputRuntimes(for documentModel: Project) {
         let desiredTracks = Array(documentModel.tracks.filter { $0.trackType == .audioInput }.prefix(1))
         let desiredIDs = Set(desiredTracks.map(\.id))
+        audioInputCaptureStore.keepOnly(trackIDs: desiredIDs)
 
         withStateLock {
             var next = trackRuntime.audioInputRuntimes.filter { desiredIDs.contains($0.key) }
@@ -1660,10 +1708,12 @@ final class EngineController: RouterDispatcher {
     }
 
     private func syncAudioInputRouting(for documentModel: Project) {
+        guard !bypassAudioInputRoutingSyncForTesting else { return }
         mainAudioGraph.syncAudioInputRoutings(audioInputRoutingRequests(for: documentModel))
     }
 
     private func updateAudioInputRoutingParameters(for documentModel: Project) {
+        guard !bypassAudioInputRoutingSyncForTesting else { return }
         mainAudioGraph.updateAudioInputRoutingParameters(audioInputRoutingRequests(for: documentModel))
     }
 
@@ -1721,6 +1771,22 @@ final class EngineController: RouterDispatcher {
                     beginAudioInputCapture(&runtime, at: tickIndex)
                 }
 
+                if runtime.armState == .recording,
+                   let startTick = runtime.captureStartTick,
+                   let endTick = runtime.captureEndTick,
+                   tickIndex < endTick
+                {
+                    let span = max(1, endTick &- startTick)
+                    let elapsed = min(tickIndex &- startTick, span)
+                    applyAudioInputCaptureSnapshot(
+                        audioInputCaptureStore.updateProgress(
+                            trackID: runtime.trackID,
+                            progress: Double(elapsed) / Double(span)
+                        ),
+                        to: &runtime
+                    )
+                }
+
                 if let loopStartTick = runtime.pendingLoopStartTick,
                    tickIndex >= loopStartTick,
                    isAudioInputBarBoundary(tickIndex)
@@ -1754,6 +1820,10 @@ final class EngineController: RouterDispatcher {
         runtime.transientFrameCount = 0
         runtime.activeMonitorMode = .input
         runtime.pendingLoopStartTick = nil
+        applyAudioInputCaptureSnapshot(
+            audioInputCaptureStore.beginCapture(trackID: runtime.trackID),
+            to: &runtime
+        )
     }
 
     private func completeAudioInputCapture(_ runtime: inout AudioInputTrackRuntime, at tickIndex: UInt64) {
@@ -1768,7 +1838,10 @@ final class EngineController: RouterDispatcher {
         runtime.recordedLoopID = UUID()
         runtime.recordedLoopBarLength = bars
         runtime.transientFrameCount = Int(tickIndex &- startTick)
-        runtime.waveformBuckets = []
+        applyAudioInputCaptureSnapshot(
+            audioInputCaptureStore.completeCapture(trackID: runtime.trackID),
+            to: &runtime
+        )
         if runtime.monitorMode == .loop {
             runtime.pendingLoopStartTick = nil
             runtime.activeMonitorMode = .loop

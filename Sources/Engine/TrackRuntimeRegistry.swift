@@ -35,6 +35,9 @@ extension EngineController {
         var selectedInputChannel: AudioInputChannel
         var routeState: AudioInputRouteState
         var transientFrameCount: Int
+        var liveLevel: AudioInputLevelSnapshot
+        var recordingProgress: Double
+        var captureWaveformBuckets: [Float]
         var waveformBuckets: [Float]
 
         init(
@@ -59,6 +62,9 @@ extension EngineController {
             self.selectedInputChannel = selectedInputChannel
             self.routeState = routeState
             self.transientFrameCount = 0
+            self.liveLevel = .silent
+            self.recordingProgress = 0
+            self.captureWaveformBuckets = []
             self.waveformBuckets = []
         }
 

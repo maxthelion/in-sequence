@@ -75,6 +75,7 @@ final class MainAudioGraph {
     private(set) var audioInputScopedRoutingUpdateCountForTesting = 0
 
     private let graphLock = NSLock()
+    private var audioInputCaptureHandler: ((UUID, AVAudioPCMBuffer) -> Void)?
     private let postBlendMixer = AVAudioMixerNode()
     private let finalOutputMixer = AVAudioMixerNode()
     private var managedMasterNodes: [AVAudioNode] = []
@@ -116,6 +117,8 @@ final class MainAudioGraph {
         var connectedSource: AudioInputMonitorSource = .silent
         var selectedChannel: AudioInputChannel = .stereo
         var outputBusID: UUID?
+        var isCaptureTapInstalled = false
+        let captureTapGeneration = AtomicInt32(0)
 
         init(trackID: UUID) {
             self.trackID = trackID
@@ -221,6 +224,22 @@ final class MainAudioGraph {
             if wasRunning {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
+            }
+        }
+    }
+
+    func setAudioInputCaptureHandler(_ handler: ((UUID, AVAudioPCMBuffer) -> Void)?) {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+
+        performOnMain {
+            self.audioInputCaptureHandler = handler
+            for host in self.audioInputRoutingHosts.values {
+                if handler == nil {
+                    self.removeAudioInputCaptureTapOnMain(host: host)
+                } else {
+                    self.installAudioInputCaptureTapIfNeededOnMain(host: host)
+                }
             }
         }
     }
@@ -838,6 +857,7 @@ final class MainAudioGraph {
 
         reconnectAudioInputSourceOnMain(host: host, requestedSource: request.source)
         applyAudioInputRoutingParametersOnMain(request)
+        installAudioInputCaptureTapIfNeededOnMain(host: host)
     }
 
     @MainActor
@@ -882,7 +902,9 @@ final class MainAudioGraph {
         trackOutputRoutings[key] = routing
 
         if currentRouting?.busID != request.outputBusID || currentRouting?.sendLevels != sendLevels {
+            removeAudioInputCaptureTapOnMain(host: host)
             reconnectTrackOutputOnMain(routing)
+            installAudioInputCaptureTapIfNeededOnMain(host: host)
         } else {
             trackSendNodes[key]?.sendA.outputVolume = sendLevels.clampedSendA
             trackSendNodes[key]?.sendB.outputVolume = sendLevels.clampedSendB
@@ -894,6 +916,7 @@ final class MainAudioGraph {
         host: AudioInputRoutingHost,
         requestedSource: AudioInputMonitorSource
     ) {
+        removeAudioInputCaptureTapOnMain(host: host)
         if host.connectedSource == .input {
             engine.disconnectNodeOutput(engine.inputNode)
         }
@@ -930,12 +953,45 @@ final class MainAudioGraph {
         if host.connectedSource == .input {
             engine.disconnectNodeOutput(engine.inputNode)
         }
+        removeAudioInputCaptureTapOnMain(host: host)
         host.loopPlayer.stop()
         engine.disconnectNodeOutput(host.loopPlayer)
         engine.disconnectNodeInput(host.outputMixer)
         disconnectOutput(host.outputMixer)
         detach(host.loopPlayer)
         detach(host.outputMixer)
+    }
+
+    @MainActor
+    private func installAudioInputCaptureTapIfNeededOnMain(host: AudioInputRoutingHost) {
+        guard audioInputCaptureHandler != nil,
+              host.connectedSource != .silent,
+              !host.isCaptureTapInstalled
+        else {
+            return
+        }
+
+        let generation = host.captureTapGeneration.increment()
+        let format = host.outputMixer.inputFormat(forBus: 0)
+        guard format.channelCount > 0 else { return }
+        host.outputMixer.installTap(onBus: 0, bufferSize: 32, format: format) { [weak self, weak host] buffer, _ in
+            guard let self,
+                  let host,
+                  host.captureTapGeneration.load() == generation
+            else {
+                return
+            }
+            self.audioInputCaptureHandler?(host.trackID, buffer)
+        }
+        host.isCaptureTapInstalled = true
+    }
+
+    @MainActor
+    private func removeAudioInputCaptureTapOnMain(host: AudioInputRoutingHost) {
+        guard host.isCaptureTapInstalled else { return }
+        host.captureTapGeneration.increment()
+        host.outputMixer.removeTap(onBus: 0)
+        host.isCaptureTapInstalled = false
     }
 
     @MainActor

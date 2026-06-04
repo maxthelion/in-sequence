@@ -79,6 +79,8 @@
 		D1010000000000000000000A /* AudioDeviceSwitchCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */; };
 		D1010000000000000000000B /* MainAudioGraphDeviceSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */; };
 		D10200000000000000000002 /* StepSequenceTrackAudioInputCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10200000000000000000001 /* StepSequenceTrackAudioInputCodableTests.swift */; };
+		F11100000000000000000002 /* AudioInputCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11100000000000000000001 /* AudioInputCaptureStore.swift */; };
+		F11100000000000000000004 /* EngineControllerAudioInputPublicationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11100000000000000000003 /* EngineControllerAudioInputPublicationTests.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
 		30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567FDBC3AA9E0A6F1D99AFBB /* AppSupportBootstrapTests.swift */; };
 		30ED3E0739DC51F020DBA586 /* TrackSourceEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5901836476E9360606315D /* TrackSourceEditorView.swift */; };
@@ -1039,6 +1041,8 @@
 		8E0F2F33913759A744FA0144 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		8E23A22707386FCA6CC0C680 /* implementation-handoff.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "implementation-handoff.md"; sourceTree = "<group>"; };
 		8E3F3975EAA9F148F8B74295 /* Project+Patterns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Patterns.swift"; sourceTree = "<group>"; };
+		F11100000000000000000001 /* AudioInputCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInputCaptureStore.swift; sourceTree = "<group>"; };
+		F11100000000000000000003 /* EngineControllerAudioInputPublicationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerAudioInputPublicationTests.swift; sourceTree = "<group>"; };
 		8F0D67CB46A93BAA898BD9BE /* EngineControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerTests.swift; sourceTree = "<group>"; };
 		8F137F909E951888DD11F5C7 /* 2026-05-08T09-27-08Z-holistic-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T09-27-08Z-holistic-observer-cadence.md"; sourceTree = "<group>"; };
 		B2EC583A167B3A4C113EE37D /* EngineControllerScenePerformTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerScenePerformTests.swift; sourceTree = "<group>"; };
@@ -2077,6 +2081,7 @@
 				647C9E860E3A67CF5CF389F8 /* ClipBuffer.swift */,
 				A89185511AA5FA2CF82770A4 /* ClipCaptureService.swift */,
 				A62DA60AD5603ED2570D4A35 /* CommandQueue.swift */,
+				F11100000000000000000001 /* AudioInputCaptureStore.swift */,
 				0E31D7113289BE3CB828D500 /* EngineController.swift */,
 				34E2B8C3B8F4CD6E32222E0C /* EngineControllerRoutingHelpers.swift */,
 				C4086161E1BA442F08364D06 /* EngineSlicerDispatcher.swift */,
@@ -3486,6 +3491,7 @@
 				921877FE74260A065D539C53 /* ClipCaptureServiceTests.swift */,
 				55BE9D6C71635DC7BA504BC2 /* CommandQueueTests.swift */,
 				096DCB8E4C9950DB95BF6F51 /* EngineControllerDeltaDispatchTests.swift */,
+				F11100000000000000000003 /* EngineControllerAudioInputPublicationTests.swift */,
 				230F8F00147A645CF4E932F5 /* EngineControllerMixerBusTests.swift */,
 				9672E7B19B6CB39CF62317B3 /* EngineControllerMuteTests.swift */,
 				B7EC2D68AEFBA1314B892FDA /* EngineControllerSampleTriggerTests.swift */,
@@ -4344,6 +4350,7 @@
 				34C061180124AB5984B7EF5D /* DestinationTests.swift in Sources */,
 				97A4BC6A4B8C2546532589A5 /* DrumGroupPlanFactoryTests.swift in Sources */,
 				234F2E739F42503F583DDE9C /* DrumKitPresetSampleTests.swift in Sources */,
+				F11100000000000000000004 /* EngineControllerAudioInputPublicationTests.swift in Sources */,
 				8A1E3F634371502518510AC9 /* EngineControllerDeltaDispatchTests.swift in Sources */,
 				884C1F617D996A03EB622EAB /* EngineControllerMixerBusTests.swift in Sources */,
 				02102497543BC98F0273AE31 /* EngineControllerMuteTests.swift in Sources */,
@@ -4493,6 +4500,7 @@
 				D10100000000000000000008 /* AudioDeviceSwitchCoordinator.swift in Sources */,
 				264E28E6E0BAF90F46E45187 /* AudioEffectChoice.swift in Sources */,
 				BC4D77AEF8FC9502472339E8 /* AudioFileRef.swift in Sources */,
+				F11100000000000000000002 /* AudioInputCaptureStore.swift in Sources */,
 				F2873CBFB0F90A9D00B19847 /* AudioInstrumentChoice.swift in Sources */,
 				181CFF71ABFDB7EA5FDEECF6 /* AudioInstrumentChoiceCache.swift in Sources */,
 				100D18E7E577F78A68EE89C7 /* AudioInstrumentHost.swift in Sources */,

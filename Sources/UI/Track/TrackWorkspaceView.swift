@@ -210,11 +210,7 @@ private struct AudioInputRuntimePanel: View {
                 }
                 .disabled(runtime == nil)
 
-                StudioPlaceholderTile(
-                    title: runtime?.isSilent == true ? "Silent" : "Ready",
-                    detail: "Runtime commands are active. Real PCM tap capture, loop buffer/player playback, waveform and level publication, and final recording indicators are still deferred.",
-                    accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent
-                )
+                AudioInputSignalPanel(runtime: runtime, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
             }
         }
     }
@@ -231,6 +227,122 @@ private struct AudioInputRuntimePanel: View {
             get: { runtime?.selectedInputChannel ?? track.inputChannel },
             set: { session.setAudioInputChannel(trackID: track.id, channel: $0) }
         )
+    }
+}
+
+private struct AudioInputSignalPanel: View {
+    let runtime: EngineController.AudioInputTrackRuntime?
+    let accent: Color
+
+    private var level: AudioInputLevelSnapshot {
+        runtime?.liveLevel ?? .silent
+    }
+
+    private var progress: Double {
+        runtime?.recordingProgress ?? 0
+    }
+
+    private var title: String {
+        switch runtime?.armState ?? .idle {
+        case .recording:
+            return "Recording"
+        case .hasLoop:
+            return "Loop"
+        case .armed:
+            return "Armed"
+        case .idle:
+            return runtime?.isSilent == true ? "Silent" : "Input"
+        }
+    }
+
+    private var waveformBuckets: [Float] {
+        guard let runtime else { return [] }
+        if runtime.armState == .recording {
+            return runtime.captureWaveformBuckets
+        }
+        return runtime.waveformBuckets
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Text(title.uppercased())
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Spacer()
+
+                if runtime?.armState == .recording {
+                    Text(progress.formatted(.percent.precision(.fractionLength(0))))
+                        .studioText(.eyebrow)
+                        .foregroundStyle(accent)
+                }
+            }
+
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                            .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                    )
+
+                if waveformBuckets.isEmpty {
+                    AudioInputLevelMeters(level: level, accent: accent)
+                        .padding(14)
+                } else {
+                    WaveformView(
+                        buckets: waveformBuckets,
+                        fillColor: accent,
+                        inactiveColor: StudioTheme.border.opacity(0.7)
+                    )
+                    .padding(14)
+                }
+
+                if runtime?.armState == .recording {
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(accent.opacity(0.28))
+                            .frame(width: geo.size.width * CGFloat(min(max(progress, 0), 1)))
+                            .frame(maxHeight: .infinity, alignment: .bottomLeading)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+                }
+            }
+            .frame(height: 128)
+        }
+    }
+}
+
+private struct AudioInputLevelMeters: View {
+    let level: AudioInputLevelSnapshot
+    let accent: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            HStack(alignment: .bottom, spacing: 8) {
+                meter(value: level.leftPeak, label: "L", height: geo.size.height)
+                meter(value: level.rightPeak, label: "R", height: geo.size.height)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        }
+    }
+
+    private func meter(value: Float, label: String, height: CGFloat) -> some View {
+        VStack(spacing: 5) {
+            ZStack(alignment: .bottom) {
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .fill(StudioTheme.border.opacity(0.35))
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .fill(accent)
+                    .frame(height: max(2, height * CGFloat(min(max(value, 0), 1))))
+            }
+            .frame(width: 18)
+
+            Text(label)
+                .studioText(.eyebrow)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
     }
 }
 
