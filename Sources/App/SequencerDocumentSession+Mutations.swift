@@ -906,13 +906,17 @@ extension SequencerDocumentSession {
 
     // MARK: - Track add / remove
 
+    var canAppendAudioInputTrack: Bool {
+        !store.tracks.contains { $0.trackType == .audioInput }
+    }
+
     /// Append a new track of the given type.
     ///
     /// Uses a project round-trip because `appendTrack` also creates an owned clip,
     /// a pattern bank, and calls `syncPhrasesWithTracks` — all of which are inter-
     /// dependent and not individually decomposed into store typed methods yet.
     func appendTrack(trackType: TrackType = .monoMelodic) {
-        if trackType == .audioInput, store.tracks.contains(where: { $0.trackType == .audioInput }) {
+        if trackType == .audioInput, !canAppendAudioInputTrack {
             return
         }
 

@@ -13,6 +13,7 @@
 		02102497543BC98F0273AE31 /* EngineControllerMuteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9672E7B19B6CB39CF62317B3 /* EngineControllerMuteTests.swift */; };
 		02E79C95A18009B62DB67FFE /* MIDIRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E54B81F6B860472FC5758B3 /* MIDIRouterTests.swift */; };
 		036ED82DD1EACD3A16C00F3B /* SequencerDocumentSessionAuthorityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15C450AE25743A653F669059 /* SequencerDocumentSessionAuthorityTests.swift */; };
+		C0FFEE000000000000000001 /* SequencerDocumentSessionAudioInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000000002 /* SequencerDocumentSessionAudioInputTests.swift */; };
 		0858E7BE80B3CCADFA28E634 /* PatternIndexCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C83646DA7EE07AF03317D968 /* PatternIndexCellPreview.swift */; };
 		08612155F4FAC437E7C5CCCE /* AUWindowHostCloseAllTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550816EA6A0A5FF2E9425922 /* AUWindowHostCloseAllTests.swift */; };
 		08DAA37EDE7E63650C12C817 /* SamplerDestinationWidgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1624C29AA598742CFB6E4069 /* SamplerDestinationWidgetTests.swift */; };
@@ -515,6 +516,7 @@
 		1525ED94BCDEB1DFAEAD1B2C /* ProjectTrackMacroTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTrackMacroTests.swift; sourceTree = "<group>"; };
 		159DE99AC8718F1233417C25 /* modifier-chain-placement-slot-well.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "modifier-chain-placement-slot-well.html"; sourceTree = "<group>"; };
 		15C450AE25743A653F669059 /* SequencerDocumentSessionAuthorityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerDocumentSessionAuthorityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000000002 /* SequencerDocumentSessionAudioInputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerDocumentSessionAudioInputTests.swift; sourceTree = "<group>"; };
 		161C097DF540CBB16B918810 /* chosen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = chosen.png; sourceTree = "<group>"; };
 		1624C29AA598742CFB6E4069 /* SamplerDestinationWidgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplerDestinationWidgetTests.swift; sourceTree = "<group>"; };
 		163A6523A76544076678A064 /* ProjectAppendSliceTrackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAppendSliceTrackTests.swift; sourceTree = "<group>"; };
@@ -2289,6 +2291,7 @@
 				D31EC90B484ACD21E40D33A4 /* PlaybackInertSelectionTests.swift */,
 				18AEECC2BF587F77E849B4F5 /* SaveFlushTests.swift */,
 				B429A3ED9DC172B8351D6DA7 /* SequencerAIAppDelegateTests.swift */,
+				C0FFEE000000000000000002 /* SequencerDocumentSessionAudioInputTests.swift */,
 				15C450AE25743A653F669059 /* SequencerDocumentSessionAuthorityTests.swift */,
 				175883927299EB7BCF0D274A /* SequencerDocumentSessionMasterBusTests.swift */,
 				E2983B1B1D605847576E2029 /* SessionBatchHelperTests.swift */,
@@ -4435,6 +4438,7 @@
 				DCEA5182138E0D1A74DB5F4C /* ScalesTests.swift in Sources */,
 				21CF54EC399E74FA626EA910 /* SeqAIDocumentTests.swift in Sources */,
 				EE3BC06D914E4092C8CE30BA /* SequencerAIAppDelegateTests.swift in Sources */,
+				C0FFEE000000000000000001 /* SequencerDocumentSessionAudioInputTests.swift in Sources */,
 				036ED82DD1EACD3A16C00F3B /* SequencerDocumentSessionAuthorityTests.swift in Sources */,
 				80D3D8762D9BDA2E536F8C72 /* SequencerDocumentSessionMasterBusTests.swift in Sources */,
 				7731FADB541C47A914C54D3B /* SequencerSnapshotCompilerSemanticsTests.swift in Sources */,

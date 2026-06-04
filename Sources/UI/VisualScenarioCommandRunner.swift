@@ -156,7 +156,13 @@ enum VisualScenarioCommandRunner {
         engineController: EngineController
     ) {
         let meterState = engineController.masterMeterPublisher.displayState
-        let audioInputRuntime = engineController.audioInputRuntime(for: session.store.selectedTrackID)
+        let selectedAudioInputRuntime = engineController.audioInputRuntime(for: session.store.selectedTrackID)
+        let activeAudioInputTrack = session.store.tracks.first { track in
+            track.trackType == .audioInput && engineController.audioInputRuntime(for: track.id) != nil
+        }
+        let activeAudioInputRuntime = activeAudioInputTrack.flatMap { engineController.audioInputRuntime(for: $0.id) }
+        let selectedAudioInputReadout = engineController.audioInputRoutingReadoutForTesting(trackID: session.store.selectedTrackID)
+        let audioInputTrackCount = session.store.tracks.filter { $0.trackType == .audioInput }.count
         let status = """
         workspace=\(section.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
@@ -166,18 +172,33 @@ enum VisualScenarioCommandRunner {
         trackCount=\(session.store.tracks.count)
         selectedTrackName=\(session.store.selectedTrack.name)
         selectedTrackType=\(session.store.selectedTrack.trackType.rawValue)
+        canAppendAudioInputTrack=\(session.canAppendAudioInputTrack)
+        audioInputTrackCount=\(audioInputTrackCount)
+        activeAudioInputTrackName=\(activeAudioInputTrack?.name ?? "none")
+        activeAudioInputTrackSelected=\(activeAudioInputTrack?.id == session.store.selectedTrackID)
+        activeAudioInputArmState=\(activeAudioInputRuntime.map(audioInputArmStateLabel) ?? "none")
+        activeAudioInputRouteState=\(activeAudioInputRuntime.map(audioInputRouteStateLabel) ?? "none")
+        activeAudioInputRecordingProgress=\(activeAudioInputRuntime?.recordingProgress ?? 0)
+        activeAudioInputCaptureBucketCount=\(activeAudioInputRuntime?.captureWaveformBuckets.count ?? 0)
+        activeAudioInputCompletedBucketCount=\(activeAudioInputRuntime?.waveformBuckets.count ?? 0)
         sendAInsertCount=\(session.store.sendBusA.inserts.count)
         sendBInsertCount=\(session.store.sendBusB.inserts.count)
         clipLatched=\(meterState.isClipLatched)
         clearClipActionable=\(meterState.isClearClipActionable)
         leftPeakDBFS=\(meterState.leftPeakDBFS)
         rightPeakDBFS=\(meterState.rightPeakDBFS)
-        audioInputArmState=\(audioInputRuntime.map(audioInputArmStateLabel) ?? "none")
-        audioInputRouteState=\(audioInputRuntime.map(audioInputRouteStateLabel) ?? "none")
-        audioInputLivePeak=\(audioInputRuntime?.liveLevel.peak ?? 0)
-        audioInputRecordingProgress=\(audioInputRuntime?.recordingProgress ?? 0)
-        audioInputCaptureBucketCount=\(audioInputRuntime?.captureWaveformBuckets.count ?? 0)
-        audioInputCompletedBucketCount=\(audioInputRuntime?.waveformBuckets.count ?? 0)
+        audioInputArmState=\(selectedAudioInputRuntime.map(audioInputArmStateLabel) ?? "none")
+        audioInputRouteState=\(selectedAudioInputRuntime.map(audioInputRouteStateLabel) ?? "none")
+        audioInputMonitorMode=\(selectedAudioInputRuntime.map(audioInputMonitorModeLabel) ?? "none")
+        audioInputActiveMonitorMode=\(selectedAudioInputRuntime.map(audioInputActiveMonitorModeLabel) ?? "none")
+        audioInputIsSilent=\(selectedAudioInputRuntime?.isSilent ?? true)
+        audioInputCanArm=\((selectedAudioInputRuntime?.routeState ?? .silentUnavailable) == .available)
+        audioInputLivePeak=\(selectedAudioInputRuntime?.liveLevel.peak ?? 0)
+        audioInputRecordingProgress=\(selectedAudioInputRuntime?.recordingProgress ?? 0)
+        audioInputCaptureBucketCount=\(selectedAudioInputRuntime?.captureWaveformBuckets.count ?? 0)
+        audioInputCompletedBucketCount=\(selectedAudioInputRuntime?.waveformBuckets.count ?? 0)
+        audioInputScheduledLoopFrameCount=\(selectedAudioInputReadout?.scheduledLoopFrameCount ?? 0)
+        audioInputLoopPlaybackScheduleCount=\(selectedAudioInputReadout?.loopPlaybackScheduleCount ?? 0)
         """
 
         try? status.write(to: statusURL, atomically: true, encoding: .utf8)
@@ -205,6 +226,24 @@ enum VisualScenarioCommandRunner {
         }
     }
 
+    private static func audioInputMonitorModeLabel(_ runtime: EngineController.AudioInputTrackRuntime) -> String {
+        switch runtime.monitorMode {
+        case .input:
+            return "input"
+        case .loop:
+            return "loop"
+        }
+    }
+
+    private static func audioInputActiveMonitorModeLabel(_ runtime: EngineController.AudioInputTrackRuntime) -> String {
+        switch runtime.activeMonitorMode {
+        case .input:
+            return "input"
+        case .loop:
+            return "loop"
+        }
+    }
+
     private static func applyAudioInputFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
@@ -216,7 +255,19 @@ enum VisualScenarioCommandRunner {
               command["audioInputAvailableChannels"] != nil
         else { return }
 
-        let trackID = ensureSelectedAudioInputTrack(section: section, session: session)
+        let requestedAudioInputState = command["audioInputState"] ?? command["audioInputFixture"]
+        var trackID = ensureSelectedAudioInputTrack(section: section, session: session)
+        if shouldResetAudioInputFixtureTrack(for: requestedAudioInputState) {
+            trackID = replaceAudioInputFixtureTrack(section: section, session: session)
+        }
+        engineController.audioInputCapturePlanOverrideForTesting = { requestedTrackID, bars in
+            guard requestedTrackID == trackID else { return nil }
+            return AudioInputCapturePlan(
+                sampleRate: 44_100,
+                channelCount: 2,
+                maximumFrameCount: max(1, bars * 4096)
+            )
+        }
         if let channels = Int(command["audioInputAvailableChannels"] ?? "") {
             engineController.audioInputAvailableChannelCountOverrideForTesting = max(0, channels)
         } else {
@@ -225,7 +276,7 @@ enum VisualScenarioCommandRunner {
         _ = engineController.rerouteAudioInput(trackID: trackID, channel: session.store.selectedTrack.inputChannel)
         _ = engineController.setAudioInputMonitorMode(trackID: trackID, mode: .input)
 
-        switch command["audioInputState"] ?? command["audioInputFixture"] {
+        switch requestedAudioInputState {
         case "live":
             _ = engineController.cancelAudioInputArm(trackID: trackID)
             publishAudioInputBuffers(
@@ -236,7 +287,7 @@ enum VisualScenarioCommandRunner {
         case "recording":
             _ = engineController.armAudioInput(trackID: trackID, pendingStartTick: 16)
             engineController.processTick(tickIndex: 16, now: ProcessInfo.processInfo.systemUptime)
-            engineController.processTick(tickIndex: 24, now: ProcessInfo.processInfo.systemUptime)
+            engineController.processTick(tickIndex: 18, now: ProcessInfo.processInfo.systemUptime)
             publishAudioInputBuffers(
                 trackID: trackID,
                 engineController: engineController,
@@ -248,6 +299,38 @@ enum VisualScenarioCommandRunner {
                 trackID: trackID,
                 waveformBuckets: audioInputFixtureBuckets()
             )
+        case "playback":
+            _ = engineController.armAudioInput(trackID: trackID, pendingStartTick: 16)
+            engineController.processTick(tickIndex: 16, now: ProcessInfo.processInfo.systemUptime)
+            publishAudioInputBuffers(
+                trackID: trackID,
+                engineController: engineController,
+                amplitudes: audioInputFixtureBuckets()
+            )
+            engineController.processTick(tickIndex: 32, now: ProcessInfo.processInfo.systemUptime)
+            _ = engineController.setAudioInputMonitorMode(trackID: trackID, mode: .loop)
+            engineController.processTick(tickIndex: 48, now: ProcessInfo.processInfo.systemUptime)
+        case "loop-empty":
+            _ = engineController.cancelAudioInputArm(trackID: trackID)
+            _ = engineController.setAudioInputMonitorMode(trackID: trackID, mode: .loop)
+        case "invalid-route":
+            engineController.audioInputAvailableChannelCountOverrideForTesting = 1
+            session.setAudioInputChannel(trackID: trackID, channel: .stereo)
+            _ = engineController.setAudioInputMonitorMode(trackID: trackID, mode: .input)
+            _ = engineController.cancelAudioInputArm(trackID: trackID)
+            _ = engineController.armAudioInput(trackID: trackID, pendingStartTick: 16)
+        case "recording-away":
+            _ = engineController.armAudioInput(trackID: trackID, pendingStartTick: 16)
+            engineController.processTick(tickIndex: 16, now: ProcessInfo.processInfo.systemUptime)
+            engineController.processTick(tickIndex: 18, now: ProcessInfo.processInfo.systemUptime)
+            publishAudioInputBuffers(
+                trackID: trackID,
+                engineController: engineController,
+                amplitudes: audioInputFixtureBuckets()
+            )
+            let nonInputTrackID = ensureSelectedNonInputTrack(session: session)
+            session.setSelectedTrackID(nonInputTrackID)
+            section.wrappedValue = .tracks
         default:
             break
         }
@@ -270,6 +353,41 @@ enum VisualScenarioCommandRunner {
 
         session.appendTrack(trackType: .audioInput)
         section.wrappedValue = .track
+        return session.store.selectedTrackID
+    }
+
+    private static func shouldResetAudioInputFixtureTrack(for state: String?) -> Bool {
+        switch state {
+        case "recording", "completed", "playback", "loop-empty", "invalid-route", "recording-away":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func replaceAudioInputFixtureTrack(
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) -> UUID {
+        if let existingInputTrackID = session.store.tracks.first(where: { $0.trackType == .audioInput })?.id {
+            if session.store.tracks.count <= 1 {
+                session.appendTrack(trackType: .monoMelodic)
+            }
+            session.setSelectedTrackID(existingInputTrackID)
+            session.removeSelectedTrack()
+        }
+
+        session.appendTrack(trackType: .audioInput)
+        section.wrappedValue = .track
+        return session.store.selectedTrackID
+    }
+
+    private static func ensureSelectedNonInputTrack(session: SequencerDocumentSession) -> UUID {
+        if let existing = session.store.tracks.first(where: { $0.trackType != .audioInput }) {
+            return existing.id
+        }
+
+        session.appendTrack(trackType: .monoMelodic)
         return session.store.selectedTrackID
     }
 

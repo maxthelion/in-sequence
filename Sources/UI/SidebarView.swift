@@ -4,6 +4,7 @@ struct SidebarView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
     @Environment(SequencerDocumentSession.self) private var session
+    @Environment(EngineController.self) private var engineController
 
     var body: some View {
         let tracks = session.store.tracks
@@ -22,7 +23,7 @@ struct SidebarView: View {
                         SidebarRow(
                             title: track.name,
                             systemImage: track.id == selectedTrackID ? "pianokeys.inverse" : "pianokeys",
-                            trailingText: "\(track.stepPattern.filter { $0 }.count)",
+                            trailingText: trailingText(for: track),
                             isSelected: track.id == selectedTrackID && section == .track
                         )
                     }
@@ -51,6 +52,23 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("SequencerAI")
+    }
+
+    private func trailingText(for track: StepSequenceTrack) -> String {
+        guard track.trackType == .audioInput,
+              let runtime = engineController.audioInputRuntime(for: track.id)
+        else {
+            return "\(track.stepPattern.filter { $0 }.count)"
+        }
+
+        switch runtime.armState {
+        case .armed:
+            return "ARM"
+        case .recording:
+            return "REC"
+        case .idle, .hasLoop:
+            return "IN"
+        }
     }
 
     @ViewBuilder

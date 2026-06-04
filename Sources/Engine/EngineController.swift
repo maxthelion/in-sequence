@@ -212,6 +212,14 @@ final class EngineController: RouterDispatcher {
 
     @discardableResult
     func armAudioInput(trackID: UUID, pendingStartTick: UInt64? = nil) -> Bool {
+        let selectedInputChannel = withStateLock { trackRuntime.audioInputRuntimes[trackID]?.selectedInputChannel }
+        guard let selectedInputChannel,
+              audioInputRouteState(for: selectedInputChannel) == .available
+        else {
+            syncAudioInputRouting(for: currentDocumentModel)
+            return false
+        }
+
         let scheduledStartTick = pendingStartTick ?? nextAudioInputBarBoundary(after: transportTickIndex)
         let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.armState = .armed

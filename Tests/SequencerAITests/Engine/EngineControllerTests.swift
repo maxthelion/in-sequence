@@ -1193,7 +1193,7 @@ final class EngineControllerTests: XCTestCase {
         let trackID = project.selectedTrackID
         controller.apply(documentModel: project)
 
-        XCTAssertTrue(controller.armAudioInput(trackID: trackID))
+        XCTAssertFalse(controller.armAudioInput(trackID: trackID))
         var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertEqual(runtime.selectedInputChannel, .stereo)
         XCTAssertEqual(runtime.routeState, .silentUnavailable)
@@ -1897,6 +1897,9 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(readout.requestedSource, .silent)
         XCTAssertEqual(readout.connectedSource, .silent)
         XCTAssertEqual(readout.outputVolume, 0, accuracy: 0.0001)
+        XCTAssertFalse(controller.armAudioInput(trackID: trackID))
+        let invalidRuntime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(invalidRuntime.armState, .idle)
 
         XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))

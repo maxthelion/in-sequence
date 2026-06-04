@@ -164,6 +164,10 @@ private struct AudioInputRuntimePanel: View {
         return runtime.routeState == .available ? "Input route ready" : "Silent input route"
     }
 
+    private var canArmInput: Bool {
+        runtime?.routeState == .available
+    }
+
     var body: some View {
         StudioPanel(title: "Audio Input", eyebrow: routeLabel, accent: accent) {
             VStack(alignment: .leading, spacing: 16) {
@@ -187,6 +191,8 @@ private struct AudioInputRuntimePanel: View {
                         } label: {
                             Label("ARM", systemImage: "record.circle")
                         }
+                        .disabled(!canArmInput)
+                        .help(canArmInput ? "Arm recording at the next bar" : "Select an available input route before arming")
                     }
 
                     StudioSegmentedControl(

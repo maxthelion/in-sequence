@@ -213,6 +213,8 @@ struct TracksMatrixView: View {
                 onOpenTrack()
             }
             .buttonStyle(.bordered)
+            .disabled(!session.canAppendAudioInputTrack)
+            .help(session.canAppendAudioInputTrack ? "Add audio input track" : "One audio input track is available in this version")
 
             Button("New Slice Track") {
                 isPresentingAddSliceTrack = true
@@ -350,6 +352,7 @@ struct TracksMatrixView: View {
                     cell: cell,
                     resolvedValue: resolvedValue,
                     valueSummary: valueLabel(resolvedValue, layer: selectedLayer),
+                    audioInputRuntimeLabel: audioInputRuntimeLabel(for: track.id),
                     isSelected: track.id == selectedTrackID,
                     isPerforming: isPerforming
                 ) {
@@ -361,6 +364,21 @@ struct TracksMatrixView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func audioInputRuntimeLabel(for trackID: UUID) -> String? {
+        guard let runtime = engineController.audioInputRuntime(for: trackID) else {
+            return nil
+        }
+
+        switch runtime.armState {
+        case .armed:
+            return "ARM"
+        case .recording:
+            return "REC"
+        case .idle, .hasLoop:
+            return "IN"
         }
     }
 
@@ -484,6 +502,7 @@ private struct TrackMatrixCard: View {
     let cell: PhraseCell
     let resolvedValue: PhraseCellValue
     let valueSummary: String
+    let audioInputRuntimeLabel: String?
     let isSelected: Bool
     let isPerforming: Bool
     let onTap: () -> Void
@@ -555,6 +574,21 @@ private struct TrackMatrixCard: View {
                     }
 
                     Spacer(minLength: 0)
+
+                    if let audioInputRuntimeLabel {
+                        Text(audioInputRuntimeLabel)
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .foregroundStyle(accent)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                            )
+                            .lineLimit(1)
+                    }
                 }
 
                 if let group {
@@ -676,7 +710,12 @@ private struct CreateTrackSheet: View {
                 createButton(title: "Mono", detail: "Single melodic lane", type: .monoMelodic, accent: StudioTheme.cyan)
                 createButton(title: "Poly", detail: "Chord-capable lane", type: .polyMelodic, accent: StudioTheme.amber)
                 createButton(title: "Slice", detail: "Sample/slice trigger lane", type: .slice, accent: StudioTheme.violet)
-                createButton(title: "Input", detail: "Audio input lane", type: .audioInput, accent: StudioTheme.success)
+                createButton(
+                    title: "Input",
+                    detail: session.canAppendAudioInputTrack ? "Audio input lane" : "Already in project",
+                    type: .audioInput,
+                    accent: StudioTheme.success
+                )
             }
         }
         .padding(24)
@@ -708,6 +747,8 @@ private struct CreateTrackSheet: View {
             )
         }
         .buttonStyle(.plain)
+        .disabled(type == .audioInput && !session.canAppendAudioInputTrack)
+        .help(type == .audioInput && !session.canAppendAudioInputTrack ? "One audio input track is available in this version" : "")
     }
 }
 
