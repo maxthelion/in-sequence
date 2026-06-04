@@ -374,15 +374,7 @@ struct TracksMatrixView: View {
     }
 
     private var performLatchModeControl: some View {
-        Picker("Runtime mode", selection: $performRuntimeOverlay.latchMode) {
-            ForEach(TrackPerformLatchMode.allCases) { mode in
-                Text(mode.label).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(width: 166)
-        .help("Runtime Fill and Repeat mode")
+        TrackPerformLatchModePicker(selection: $performRuntimeOverlay.latchMode)
     }
 
     private var performToggleButton: some View {
@@ -642,6 +634,50 @@ private struct TrackPerformRuntimeControlState: Equatable, Identifiable {
     let isMomentaryPressed: Bool
 
     var id: TrackPerformBinaryControl { control }
+}
+
+private struct TrackPerformLatchModePicker: View {
+    @Binding var selection: TrackPerformLatchMode
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(TrackPerformLatchMode.allCases) { mode in
+                Button {
+                    selection = mode
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: mode.symbolName)
+                            .font(.system(size: 10, weight: .bold))
+
+                        Text(mode.label.uppercased())
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.text.opacity(0.68))
+                    .frame(width: 74, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : Color.white.opacity(0.02))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : Color.white.opacity(StudioOpacity.borderFaint), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .help(mode.helpText)
+            }
+        }
+        .padding(3)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: 1)
+        )
+        .accessibilityIdentifier("track-perform-latch-mode")
+        .help("Runtime Fill and Repeat mode")
+    }
 }
 
 private struct TrackMatrixCard: View {
@@ -937,11 +973,10 @@ private struct TrackPerformRuntimeControlButton: View {
             Image(systemName: leadingSymbolName)
                 .font(.system(size: 11, weight: .bold))
 
-            Text(state.control.label.uppercased())
+            Text(state.control.runtimeChipLabel)
                 .studioText(.micro)
                 .tracking(0.8)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
         }
         .foregroundStyle(labelForeground)
         .padding(.horizontal, 8)
@@ -994,6 +1029,37 @@ private struct TrackPerformRuntimeControlButton: View {
 
         isTrackingMomentaryPress = false
         onRelease()
+    }
+}
+
+private extension TrackPerformLatchMode {
+    var symbolName: String {
+        switch self {
+        case .momentary:
+            return "hand.tap"
+        case .latched:
+            return "lock"
+        }
+    }
+
+    var helpText: String {
+        switch self {
+        case .momentary:
+            return "Momentary runtime controls release on pointer up"
+        case .latched:
+            return "Latch runtime controls toggle until changed"
+        }
+    }
+}
+
+private extension TrackPerformBinaryControl {
+    var runtimeChipLabel: String {
+        switch self {
+        case .fill:
+            return "FILL"
+        case .noteRepeat:
+            return "RPT"
+        }
     }
 }
 
