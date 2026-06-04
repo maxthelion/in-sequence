@@ -105,18 +105,37 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func withPhraseNavigationLock<T>(_ body: (inout PhraseNavigationState) -> T) -> T {
+    private func mutatePhraseNavigationState(
+        _ body: (inout PhraseNavigationState) -> Void
+    ) -> PhraseNavigationState? {
         phraseNavigationLock.lock()
         defer { phraseNavigationLock.unlock() }
-        return body(&phraseNavigationState)
+        let previousState = phraseNavigationState
+        body(&phraseNavigationState)
+        let updatedState = phraseNavigationState
+        return updatedState == previousState ? nil : updatedState
     }
 
-    private func publishPhraseNavigationState(_ state: PhraseNavigationState) {
+    private func publishPhraseNavigationStateIfChanged(_ state: PhraseNavigationState?) {
+        guard let state else { return }
         publishToMain { [weak self] in
             guard let self else { return }
-            self.currentPhraseID = state.currentPhraseID
-            self.queuedPhraseID = state.queuedPhraseID
-            self.basisPhraseID = state.basisPhraseID
+            var didPublish = false
+            if self.currentPhraseID != state.currentPhraseID {
+                self.currentPhraseID = state.currentPhraseID
+                didPublish = true
+            }
+            if self.queuedPhraseID != state.queuedPhraseID {
+                self.queuedPhraseID = state.queuedPhraseID
+                didPublish = true
+            }
+            if self.basisPhraseID != state.basisPhraseID {
+                self.basisPhraseID = state.basisPhraseID
+                didPublish = true
+            }
+            if didPublish {
+                self.phraseNavigationPublicationCountForTesting += 1
+            }
         }
     }
 
@@ -142,7 +161,7 @@ final class EngineController: RouterDispatcher {
 
     private func initializePhraseNavigationForPlaybackStart(snapshot: PlaybackSnapshot, cycleStartTick: UInt64) {
         let fallbackPhraseID = firstValidPhraseID(in: snapshot)
-        let updatedState = withPhraseNavigationLock { state in
+        let updatedState = mutatePhraseNavigationState { state in
             state.currentPhraseID = fallbackPhraseID
             if validPhraseID(state.queuedPhraseID, in: snapshot) == nil {
                 state.queuedPhraseID = nil
@@ -151,22 +170,20 @@ final class EngineController: RouterDispatcher {
                 ?? validPhraseID(state.currentPhraseID, in: snapshot)
                 ?? fallbackPhraseID
             state.phraseCycleStartTick = cycleStartTick
-            return state
         }
-        publishPhraseNavigationState(updatedState)
+        publishPhraseNavigationStateIfChanged(updatedState)
     }
 
     private func clearQueuedPhraseOnStop(snapshot: PlaybackSnapshot) {
         let fallbackPhraseID = firstValidPhraseID(in: snapshot)
-        let updatedState = withPhraseNavigationLock { state in
+        let updatedState = mutatePhraseNavigationState { state in
             state.queuedPhraseID = nil
             if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
                 state.currentPhraseID = fallbackPhraseID
             }
             state.basisPhraseID = fallbackPhraseID
-            return state
         }
-        publishPhraseNavigationState(updatedState)
+        publishPhraseNavigationStateIfChanged(updatedState)
     }
 
     private func reconcilePhraseNavigation(
@@ -174,7 +191,7 @@ final class EngineController: RouterDispatcher {
         cycleStartTickForChangedCurrent: UInt64
     ) {
         let fallbackPhraseID = firstValidPhraseID(in: snapshot)
-        let updatedState = withPhraseNavigationLock { state in
+        let updatedState = mutatePhraseNavigationState { state in
             let previousCurrentPhraseID = state.currentPhraseID
             if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
                 state.currentPhraseID = fallbackPhraseID
@@ -193,9 +210,8 @@ final class EngineController: RouterDispatcher {
             if !isRunning, state.queuedPhraseID == nil {
                 state.basisPhraseID = fallbackPhraseID
             }
-            return state
         }
-        publishPhraseNavigationState(updatedState)
+        publishPhraseNavigationStateIfChanged(updatedState)
     }
 
     private func playbackPhraseForPrepare(
@@ -205,7 +221,7 @@ final class EngineController: RouterDispatcher {
         let fallbackPhraseID = firstValidPhraseID(in: snapshot)
         var playbackPhraseID = fallbackPhraseID ?? snapshot.selectedPhraseID
         var stepInPhrase = 0
-        let updatedState = withPhraseNavigationLock { state in
+        let updatedState = mutatePhraseNavigationState { state in
             if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
                 state.currentPhraseID = fallbackPhraseID
                 state.phraseCycleStartTick = upcomingStep
@@ -241,10 +257,8 @@ final class EngineController: RouterDispatcher {
             } else if validPhraseID(state.basisPhraseID, in: snapshot) == nil {
                 state.basisPhraseID = state.queuedPhraseID ?? state.currentPhraseID ?? fallbackPhraseID
             }
-
-            return state
         }
-        publishPhraseNavigationState(updatedState)
+        publishPhraseNavigationStateIfChanged(updatedState)
         return (playbackPhraseID, stepInPhrase)
     }
 
@@ -651,6 +665,9 @@ final class EngineController: RouterDispatcher {
     /// Use to assert that prepared events were cleared after a snapshot swap.
     var eventQueueIsEmpty: Bool { eventQueue.isEmpty }
 
+    @ObservationIgnored
+    private(set) var phraseNavigationPublicationCountForTesting = 0
+
     @discardableResult
     func queuePhrase(_ phraseID: UUID) -> Bool {
         guard isRunning else {
@@ -666,12 +683,11 @@ final class EngineController: RouterDispatcher {
             return false
         }
 
-        let updatedState = withPhraseNavigationLock { state in
+        let updatedState = mutatePhraseNavigationState { state in
             state.queuedPhraseID = phraseID
             state.basisPhraseID = phraseID
-            return state
         }
-        publishPhraseNavigationState(updatedState)
+        publishPhraseNavigationStateIfChanged(updatedState)
         return true
     }
 
@@ -687,16 +703,15 @@ final class EngineController: RouterDispatcher {
         }
 
         let cycleStartTick = nextPhraseCycleStartTick()
-        let updatedState = withPhraseNavigationLock { state in
+        let updatedState = mutatePhraseNavigationState { state in
             state.currentPhraseID = phraseID
             state.queuedPhraseID = nil
             state.basisPhraseID = phraseID
             state.phraseCycleStartTick = cycleStartTick
-            return state
         }
         tickState.invalidatePreparedTick(resetGeneratedStates: true)
         eventQueue.clear()
-        publishPhraseNavigationState(updatedState)
+        publishPhraseNavigationStateIfChanged(updatedState)
         return true
     }
 

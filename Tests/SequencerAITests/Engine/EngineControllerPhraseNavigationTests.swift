@@ -97,6 +97,38 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
     }
 
+    func test_queuePhraseIsUnavailableWhileStoppedAndDoesNotAccumulateHiddenQueue() throws {
+        let fixture = makePhraseNavigationFixture()
+
+        XCTAssertFalse(fixture.controller.isRunning)
+        XCTAssertFalse(fixture.controller.queuePhrase(fixture.phrases[1].id))
+
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.currentPlaybackSnapshotForTesting.selectedPhraseID, fixture.phrases[0].id)
+    }
+
+    func test_stopClearsQueueAndRestartUsesStoppedSelectedPhrase() throws {
+        let fixture = makePhraseNavigationFixture()
+        startEngineForManualTicks(fixture.controller)
+        XCTAssertTrue(fixture.controller.queuePhrase(fixture.phrases[1].id))
+        fixture.controller.stop()
+
+        var updatedProject = fixture.project
+        updatedProject.selectedPhraseID = fixture.phrases[2].id
+        fixture.controller.apply(documentModel: updatedProject)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[2].id)
+
+        startEngineForManualTicks(fixture.controller)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[2].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[2].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+
+        fixture.controller.stop()
+    }
+
     func test_applyReconcilesInvalidCurrentBasisAndQueuedPhrases() throws {
         let fixture = makePhraseNavigationFixture()
         startEngineForManualTicks(fixture.controller)
@@ -110,6 +142,41 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[2].id)
         XCTAssertNil(fixture.controller.queuedPhraseID)
         XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[2].id)
+
+        fixture.controller.stop()
+    }
+
+    func test_playbackSnapshotInstallClearsInvalidQueuedPhraseAndKeepsValidCurrent() throws {
+        let fixture = makePhraseNavigationFixture()
+        startEngineForManualTicks(fixture.controller)
+        XCTAssertTrue(fixture.controller.queuePhrase(fixture.phrases[1].id))
+
+        var updatedProject = fixture.project
+        updatedProject.removePhrase(id: fixture.phrases[1].id)
+        fixture.controller.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(project: updatedProject))
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+
+        fixture.controller.stop()
+    }
+
+    func test_playbackSnapshotInstallReconcilesInvalidCurrentToSelectedFallback() throws {
+        let fixture = makePhraseNavigationFixture()
+        startEngineForManualTicks(fixture.controller)
+        XCTAssertTrue(fixture.controller.switchPhraseNow(fixture.phrases[1].id))
+
+        var updatedProject = fixture.project
+        updatedProject.removePhrase(id: fixture.phrases[1].id)
+        fixture.sink.reset()
+        fixture.controller.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(project: updatedProject))
+        fixture.controller.processTick(tickIndex: 0, now: 0)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[2].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[2].id)
+        XCTAssertEqual(fixture.sink.playedPitches, [84])
 
         fixture.controller.stop()
     }
@@ -129,6 +196,23 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[2].id)
         XCTAssertNil(fixture.controller.queuedPhraseID)
         XCTAssertEqual(fixture.controller.currentPlaybackSnapshotForTesting.selectedPhraseID, fixture.phrases[2].id)
+
+        fixture.controller.stop()
+    }
+
+    func test_prepareTickDoesNotRepublishUnchangedPhraseNavigationState() throws {
+        let fixture = makePhraseNavigationFixture()
+        startEngineForManualTicks(fixture.controller)
+        let publicationCount = fixture.controller.phraseNavigationPublicationCountForTesting
+
+        fixture.controller.processTick(tickIndex: 0, now: 0)
+        fixture.controller.processTick(tickIndex: 1, now: 0.1)
+        fixture.controller.processTick(tickIndex: 2, now: 0.2)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.phraseNavigationPublicationCountForTesting, publicationCount)
 
         fixture.controller.stop()
     }
