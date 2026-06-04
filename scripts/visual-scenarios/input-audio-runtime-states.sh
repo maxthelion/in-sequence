@@ -10,7 +10,11 @@ case "$output_dir" in
   /*) ;;
   *) output_dir="$REPO_ROOT/$output_dir" ;;
 esac
-command_file="${SEQUENCER_AI_VISUAL_COMMAND_FILE:-$output_dir/input-audio-runtime-command.env}"
+export PEEKABOO_OUTPUT_DIR="$output_dir"
+bundle_id="ai.sequencer.SequencerAI"
+app_command_dir="$HOME/Library/Containers/$bundle_id/Data/tmp/sequencer-ai-visual-commands"
+run_id="$(basename "$output_dir")"
+command_file="${INPUT_AUDIO_RUNTIME_COMMAND_FILE:-$app_command_dir/${run_id}-input-audio-runtime-command.env}"
 case "$command_file" in
   /*) ;;
   *) command_file="$REPO_ROOT/$command_file" ;;
@@ -43,7 +47,14 @@ If captures are missing, inspect \`scenario-actions.log\`,
 \`peekaboo-actions.err\`, and \`app-open.log\` in this folder.
 NOTES
 }
-trap write_notes EXIT
+
+cleanup() {
+  launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
+  launchctl unsetenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE >/dev/null 2>&1 || true
+  defaults delete "$bundle_id" VisualScenarioCommandFile >/dev/null 2>&1 || true
+  write_notes
+}
+trap cleanup EXIT
 
 write_visual_command() {
   local state="$1"
@@ -102,6 +113,26 @@ wait_for_positive_number() {
   return 1
 }
 
+wait_for_progress_between() {
+  local key="$1"
+  local lower="$2"
+  local upper="$3"
+  local timeout_seconds="${4:-10}"
+  local deadline=$((SECONDS + timeout_seconds))
+  local actual=""
+
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    actual="$(status_value "$key" 2>/dev/null || true)"
+    if awk "BEGIN { exit !(($actual > $lower) && ($actual < $upper)) }" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.2
+  done
+
+  echo "Timed out waiting for visual automation status ${key} between ${lower} and ${upper}; last value was '${actual}'." >&2
+  return 1
+}
+
 ensure_document_window() {
   local pid="$1"
   "$PEEKABOO_BIN" app switch --to "$APP_NAME" --no-remote >/dev/null || true
@@ -136,11 +167,14 @@ capture_state() {
   fi
   if [ "$state" = "live" ]; then
     wait_for_positive_number audioInputLivePeak 6
+  elif [ "$state" = "recording" ]; then
+    wait_for_progress_between audioInputRecordingProgress 0 1 6
   fi
 
   sleep 0.8
   capture_window "$pid" "$output_dir/input-audio-${state}.png"
   cp "$status_file" "$output_dir/input-audio-${state}.status"
+  cp "$command_file" "$output_dir/input-audio-${state}.command.env"
   scenario_status="captured ${state}"
 }
 
@@ -156,6 +190,9 @@ sleep 1
 
 launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
 launchctl unsetenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE >/dev/null 2>&1 || true
+defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
+export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
+unset SEQUENCER_AI_NEW_DOCUMENT_FIXTURE
 
 (
   cd "$REPO_ROOT"
@@ -178,5 +215,4 @@ capture_state "$pid" recording recording audioInputCaptureBucketCount
 capture_state "$pid" completed hasLoop audioInputCompletedBucketCount
 
 scenario_status="completed live/recording/completed captures"
-launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
 sleep 0.2

@@ -234,9 +234,9 @@ enum VisualScenarioCommandRunner {
                 amplitudes: [0.18, 0.42, 0.67, 0.38, 0.74, 0.51]
             )
         case "recording":
-            _ = engineController.armAudioInput(trackID: trackID, pendingStartTick: 4)
-            engineController.processTick(tickIndex: 4, now: ProcessInfo.processInfo.systemUptime)
-            engineController.processTick(tickIndex: 10, now: ProcessInfo.processInfo.systemUptime)
+            _ = engineController.armAudioInput(trackID: trackID, pendingStartTick: 16)
+            engineController.processTick(tickIndex: 16, now: ProcessInfo.processInfo.systemUptime)
+            engineController.processTick(tickIndex: 24, now: ProcessInfo.processInfo.systemUptime)
             publishAudioInputBuffers(
                 trackID: trackID,
                 engineController: engineController,
