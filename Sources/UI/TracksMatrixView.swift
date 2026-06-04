@@ -49,6 +49,7 @@ struct TracksMatrixView: View {
     @State private var isPresentingAddSliceTrack = false
     @State private var isPresentingAddDrumGroup = false
     @State private var performSelection = TrackPerformSelectionState()
+    @State private var performRuntimeOverlay = TrackPerformRuntimeOverlayState()
 
     private let columns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -170,14 +171,15 @@ struct TracksMatrixView: View {
         }
         .onChange(of: tracks.map(\.id)) { _, trackIDs in
             performSelection.reconcile(availableTrackIDs: trackIDs)
+            performRuntimeOverlay.reconcile(availableTrackIDs: trackIDs)
         }
         .onChange(of: isPerforming) { _, isNowPerforming in
             if !isNowPerforming {
-                performSelection.clear()
+                cleanupPerformRuntime()
             }
         }
         .onDisappear {
-            performSelection.clear()
+            cleanupPerformRuntime()
         }
     }
 
@@ -190,6 +192,7 @@ struct TracksMatrixView: View {
                 basisPhrasePill
                 if isPerforming {
                     performSelectionSummary
+                    performLatchModeControl
                 }
                 performToggleButton
             }
@@ -203,6 +206,7 @@ struct TracksMatrixView: View {
                     basisPhrasePill
                     if isPerforming {
                         performSelectionSummary
+                        performLatchModeControl
                     }
                     performToggleButton
                     Spacer()
@@ -369,6 +373,18 @@ struct TracksMatrixView: View {
         return "\(selectedTracks.count): \(names) +\(selectedTracks.count - 2)"
     }
 
+    private var performLatchModeControl: some View {
+        Picker("Runtime mode", selection: $performRuntimeOverlay.latchMode) {
+            ForEach(TrackPerformLatchMode.allCases) { mode in
+                Text(mode.label).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 166)
+        .help("Runtime Fill and Repeat mode")
+    }
+
     private var performToggleButton: some View {
         Button(action: onTogglePerform) {
             Label("Perform", systemImage: isPerforming ? "record.circle.fill" : "record.circle")
@@ -422,8 +438,16 @@ struct TracksMatrixView: View {
                     isFocused: track.id == selectedTrackID,
                     isPerformSelected: performSelection.contains(track.id),
                     isPerforming: isPerforming,
+                    latchMode: performRuntimeOverlay.latchMode,
+                    runtimeControlStates: runtimeControlStates(for: track.id),
                     onTogglePerformSelection: {
                         performSelection.toggle(track.id)
+                    },
+                    onActivateRuntimeControl: { control in
+                        activateRuntimeControl(control, sourceTrackID: track.id)
+                    },
+                    onReleaseRuntimeControl: { control in
+                        performRuntimeOverlay.releaseMomentary(control: control, sourceTrackID: track.id)
                     }
                 ) {
                     session.setSelectedTrackID(track.id)
@@ -434,6 +458,17 @@ struct TracksMatrixView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func runtimeControlStates(for trackID: UUID) -> [TrackPerformRuntimeControlState] {
+        TrackPerformBinaryControl.allCases.map { control in
+            TrackPerformRuntimeControlState(
+                control: control,
+                isActive: performRuntimeOverlay.isActive(control, trackID: trackID),
+                isLatched: performRuntimeOverlay.isLatched(control, trackID: trackID),
+                isMomentaryPressed: performRuntimeOverlay.isMomentaryPressed(control, trackID: trackID)
+            )
         }
     }
 
@@ -461,6 +496,13 @@ struct TracksMatrixView: View {
     }
 
     private func performPrimaryAction(trackID: UUID) {
+        if let control = TrackPerformBinaryControl(layer: selectedLayer) {
+            if performRuntimeOverlay.latchMode == .latched {
+                activateRuntimeControl(control, sourceTrackID: trackID)
+            }
+            return
+        }
+
         let address = phraseCellAddress(for: trackID)
         let cell = editingPhrase.cell(at: address)
         let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
@@ -527,6 +569,20 @@ struct TracksMatrixView: View {
         )
     }
 
+    private func activateRuntimeControl(_ control: TrackPerformBinaryControl, sourceTrackID: UUID) {
+        performRuntimeOverlay.activate(
+            control: control,
+            sourceTrackID: sourceTrackID,
+            orderedTrackIDs: session.store.tracks.map(\.id),
+            selection: performSelection
+        )
+    }
+
+    private func cleanupPerformRuntime() {
+        performSelection.clear()
+        performRuntimeOverlay.cleanupRuntime()
+    }
+
 }
 
 private struct GroupedTrackSection: Identifiable {
@@ -579,6 +635,15 @@ private struct GroupSectionView<Grid: View>: View {
     }
 }
 
+private struct TrackPerformRuntimeControlState: Equatable, Identifiable {
+    let control: TrackPerformBinaryControl
+    let isActive: Bool
+    let isLatched: Bool
+    let isMomentaryPressed: Bool
+
+    var id: TrackPerformBinaryControl { control }
+}
+
 private struct TrackMatrixCard: View {
     let track: StepSequenceTrack
     let group: TrackGroup?
@@ -591,7 +656,11 @@ private struct TrackMatrixCard: View {
     let isFocused: Bool
     let isPerformSelected: Bool
     let isPerforming: Bool
+    let latchMode: TrackPerformLatchMode
+    let runtimeControlStates: [TrackPerformRuntimeControlState]
     let onTogglePerformSelection: () -> Void
+    let onActivateRuntimeControl: (TrackPerformBinaryControl) -> Void
+    let onReleaseRuntimeControl: (TrackPerformBinaryControl) -> Void
     let onTap: () -> Void
 
     private var accent: Color {
@@ -742,6 +811,16 @@ private struct TrackMatrixCard: View {
                 )
                 .opacity(isPerforming ? 1 : 0.82)
             }
+
+            if isPerforming {
+                TrackPerformRuntimeControlStrip(
+                    states: runtimeControlStates,
+                    latchMode: latchMode,
+                    accent: layerAccentColor,
+                    onActivate: onActivateRuntimeControl,
+                    onRelease: onReleaseRuntimeControl
+                )
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
         .padding(12)
@@ -778,6 +857,143 @@ private struct TrackMatrixCard: View {
             return accent.opacity(StudioOpacity.accentFill)
         }
         return StudioTheme.border
+    }
+}
+
+private struct TrackPerformRuntimeControlStrip: View {
+    let states: [TrackPerformRuntimeControlState]
+    let latchMode: TrackPerformLatchMode
+    let accent: Color
+    let onActivate: (TrackPerformBinaryControl) -> Void
+    let onRelease: (TrackPerformBinaryControl) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(states) { state in
+                TrackPerformRuntimeControlButton(
+                    state: state,
+                    latchMode: latchMode,
+                    accent: accent,
+                    onActivate: { onActivate(state.control) },
+                    onRelease: { onRelease(state.control) }
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct TrackPerformRuntimeControlButton: View {
+    let state: TrackPerformRuntimeControlState
+    let latchMode: TrackPerformLatchMode
+    let accent: Color
+    let onActivate: () -> Void
+    let onRelease: () -> Void
+
+    @State private var isTrackingMomentaryPress = false
+
+    var body: some View {
+        Group {
+            switch latchMode {
+            case .latched:
+                Button {
+                    onActivate()
+                } label: {
+                    label
+                }
+                .buttonStyle(.plain)
+            case .momentary:
+                GeometryReader { proxy in
+                    label
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                        .gesture(
+                            DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                                .onChanged { value in
+                                    let isInside = CGRect(origin: .zero, size: proxy.size).contains(value.location)
+                                    if isInside, !isTrackingMomentaryPress {
+                                        isTrackingMomentaryPress = true
+                                        onActivate()
+                                    } else if !isInside, isTrackingMomentaryPress {
+                                        isTrackingMomentaryPress = false
+                                        onRelease()
+                                    }
+                                }
+                                .onEnded { _ in
+                                    endMomentaryPressIfNeeded()
+                                }
+                        )
+                }
+                .frame(height: 30)
+                .onDisappear {
+                    endMomentaryPressIfNeeded()
+                }
+            }
+        }
+        .help("\(state.control.label) \(latchMode.label)")
+    }
+
+    private var label: some View {
+        HStack(spacing: 5) {
+            Image(systemName: leadingSymbolName)
+                .font(.system(size: 11, weight: .bold))
+
+            Text(state.control.label.uppercased())
+                .studioText(.micro)
+                .tracking(0.8)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .foregroundStyle(labelForeground)
+        .padding(.horizontal, 8)
+        .frame(height: 30)
+        .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(labelStroke, lineWidth: state.isMomentaryPressed ? 2 : 1)
+        )
+    }
+
+    private var leadingSymbolName: String {
+        if state.isMomentaryPressed {
+            return "hand.tap.fill"
+        }
+        if state.isLatched {
+            return "lock.fill"
+        }
+        return state.control.symbolName
+    }
+
+    private var labelForeground: Color {
+        state.isActive ? StudioTheme.text : StudioTheme.mutedText
+    }
+
+    private var labelBackground: Color {
+        if state.isMomentaryPressed {
+            return StudioTheme.amber.opacity(StudioOpacity.selectedFill)
+        }
+        if state.isLatched {
+            return accent.opacity(StudioOpacity.selectedFill)
+        }
+        return Color.white.opacity(StudioOpacity.subtleFill)
+    }
+
+    private var labelStroke: Color {
+        if state.isMomentaryPressed {
+            return StudioTheme.amber.opacity(0.9)
+        }
+        if state.isLatched {
+            return accent.opacity(0.7)
+        }
+        return StudioTheme.border
+    }
+
+    private func endMomentaryPressIfNeeded() {
+        guard isTrackingMomentaryPress else {
+            return
+        }
+
+        isTrackingMomentaryPress = false
+        onRelease()
     }
 }
 

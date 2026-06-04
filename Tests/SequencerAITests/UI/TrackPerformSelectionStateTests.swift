@@ -150,4 +150,134 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(phrase.cell(for: muteLayerID, trackID: sourceTrackID), .single(.bool(true)))
         XCTAssertEqual(phrase.cell(for: muteLayerID, trackID: untouchedTrackID), .inheritDefault)
     }
+
+    func test_runtimeOverlay_setClearAndQueryArePerControlAndTrack() {
+        let trackA = UUID()
+        let trackB = UUID()
+        var overlay = TrackPerformRuntimeOverlayState()
+
+        overlay.setRuntime(true, control: .fill, trackIDs: [trackA, trackB])
+        XCTAssertTrue(overlay.isActive(.fill, trackID: trackA))
+        XCTAssertTrue(overlay.isActive(.fill, trackID: trackB))
+        XCTAssertFalse(overlay.isActive(.noteRepeat, trackID: trackA))
+
+        overlay.clearRuntime(control: .fill, trackIDs: [trackB])
+        XCTAssertTrue(overlay.isActive(.fill, trackID: trackA))
+        XCTAssertFalse(overlay.isActive(.fill, trackID: trackB))
+
+        overlay.clearRuntime(control: .fill, trackIDs: [trackA])
+        XCTAssertFalse(overlay.isActive(.fill, trackID: trackA))
+    }
+
+    func test_runtimeOverlay_latchModeIsSharedByFillAndNoteRepeat() {
+        let trackA = UUID()
+        let trackB = UUID()
+        let orderedTrackIDs = [trackA, trackB]
+        let selection = TrackPerformSelectionState(selectedTrackIDs: [trackA, trackB])
+        var overlay = TrackPerformRuntimeOverlayState(latchMode: .latched)
+
+        overlay.activate(
+            control: .fill,
+            sourceTrackID: trackA,
+            orderedTrackIDs: orderedTrackIDs,
+            selection: selection
+        )
+        overlay.activate(
+            control: .noteRepeat,
+            sourceTrackID: trackA,
+            orderedTrackIDs: orderedTrackIDs,
+            selection: selection
+        )
+
+        XCTAssertTrue(overlay.isLatched(.fill, trackID: trackA))
+        XCTAssertTrue(overlay.isLatched(.fill, trackID: trackB))
+        XCTAssertTrue(overlay.isLatched(.noteRepeat, trackID: trackA))
+        XCTAssertTrue(overlay.isLatched(.noteRepeat, trackID: trackB))
+
+        overlay.releaseMomentary(control: .fill, sourceTrackID: trackA)
+        overlay.releaseMomentary(control: .noteRepeat, sourceTrackID: trackA)
+        XCTAssertTrue(overlay.isActive(.fill, trackID: trackA))
+        XCTAssertTrue(overlay.isActive(.noteRepeat, trackID: trackA))
+    }
+
+    func test_runtimeOverlay_momentaryLifecycleUsesCapturedRecipients() {
+        let sourceTrackID = UUID()
+        let capturedTrackID = UUID()
+        let laterSelectedTrackID = UUID()
+        let orderedTrackIDs = [sourceTrackID, capturedTrackID, laterSelectedTrackID]
+        var selection = TrackPerformSelectionState(selectedTrackIDs: [sourceTrackID, capturedTrackID])
+        var overlay = TrackPerformRuntimeOverlayState(latchMode: .momentary)
+
+        overlay.activate(
+            control: .fill,
+            sourceTrackID: sourceTrackID,
+            orderedTrackIDs: orderedTrackIDs,
+            selection: selection
+        )
+        XCTAssertTrue(overlay.isMomentaryPressed(.fill, trackID: sourceTrackID))
+        XCTAssertTrue(overlay.isMomentaryPressed(.fill, trackID: capturedTrackID))
+
+        selection.clear()
+        selection.add(sourceTrackID)
+        selection.add(laterSelectedTrackID)
+        XCTAssertFalse(overlay.isMomentaryPressed(.fill, trackID: laterSelectedTrackID))
+
+        overlay.releaseMomentary(control: .fill, sourceTrackID: sourceTrackID)
+        XCTAssertFalse(overlay.isActive(.fill, trackID: sourceTrackID))
+        XCTAssertFalse(overlay.isActive(.fill, trackID: capturedTrackID))
+        XCTAssertFalse(overlay.isActive(.fill, trackID: laterSelectedTrackID))
+    }
+
+    func test_runtimeOverlay_cleanupOnTeardownClearsLatchedAndMomentaryState() {
+        let trackA = UUID()
+        let trackB = UUID()
+        var overlay = TrackPerformRuntimeOverlayState(latchMode: .latched)
+        overlay.setRuntime(true, control: .fill, trackIDs: [trackA])
+
+        overlay.latchMode = .momentary
+        overlay.activate(
+            control: .noteRepeat,
+            sourceTrackID: trackB,
+            orderedTrackIDs: [trackA, trackB],
+            selection: TrackPerformSelectionState(selectedTrackIDs: [trackA, trackB])
+        )
+
+        XCTAssertTrue(overlay.isActive(.fill, trackID: trackA))
+        XCTAssertTrue(overlay.isActive(.noteRepeat, trackID: trackB))
+
+        overlay.cleanupRuntime()
+        XCTAssertFalse(overlay.isActive(.fill, trackID: trackA))
+        XCTAssertFalse(overlay.isActive(.noteRepeat, trackID: trackB))
+    }
+
+    func test_runtimeOverlay_doesNotPersistIntoPhraseCellData() throws {
+        let project = makeThreeTrackProject()
+        let session = makeSession(project: project)
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        let tracks = session.store.tracks.map(\.id)
+        let fillLayerID = try XCTUnwrap(session.store.layers.first(where: { $0.id == "fill-flag" })?.id)
+        var overlay = TrackPerformRuntimeOverlayState(latchMode: .latched)
+        let selection = TrackPerformSelectionState(selectedTrackIDs: [tracks[0], tracks[2]])
+
+        overlay.activate(
+            control: .fill,
+            sourceTrackID: tracks[0],
+            orderedTrackIDs: tracks,
+            selection: selection
+        )
+        overlay.activate(
+            control: .noteRepeat,
+            sourceTrackID: tracks[0],
+            orderedTrackIDs: tracks,
+            selection: selection
+        )
+
+        let phrase = session.store.selectedPhrase
+        XCTAssertTrue(overlay.isActive(.fill, trackID: tracks[0]))
+        XCTAssertTrue(overlay.isActive(.noteRepeat, trackID: tracks[2]))
+        XCTAssertEqual(phrase.cell(for: fillLayerID, trackID: tracks[0]), .inheritDefault)
+        XCTAssertEqual(phrase.cell(for: fillLayerID, trackID: tracks[1]), .inheritDefault)
+        XCTAssertEqual(phrase.cell(for: fillLayerID, trackID: tracks[2]), .inheritDefault)
+    }
 }
