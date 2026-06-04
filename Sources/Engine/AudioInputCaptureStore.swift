@@ -14,6 +14,7 @@ struct AudioInputLevelSnapshot: Equatable, Sendable {
 
 struct AudioInputCaptureSnapshot: Equatable, Sendable {
     static let empty = AudioInputCaptureSnapshot(
+        revision: 0,
         liveLevel: .silent,
         recordingProgress: 0,
         streamedWaveformBuckets: [],
@@ -22,6 +23,7 @@ struct AudioInputCaptureSnapshot: Equatable, Sendable {
         completedFrameCount: 0
     )
 
+    var revision: UInt64
     var liveLevel: AudioInputLevelSnapshot
     var recordingProgress: Double
     var streamedWaveformBuckets: [Float]
@@ -30,14 +32,26 @@ struct AudioInputCaptureSnapshot: Equatable, Sendable {
     var completedFrameCount: Int
 }
 
+struct AudioInputCaptureBufferSummary: Equatable, Sendable {
+    var liveLevel: AudioInputLevelSnapshot
+    var monoPeak: Float
+    var frameCount: Int
+
+    var hasFrames: Bool {
+        frameCount > 0
+    }
+}
+
 final class AudioInputCaptureStore {
     private struct CaptureState {
+        var revision: UInt64 = 0
         var liveLevel = AudioInputLevelSnapshot.silent
         var recordingProgress: Double = 0
         var isRecording = false
         var capturedMagnitudes: [Float] = []
         var streamedWaveformBuckets: [Float] = []
         var completedWaveformBuckets: [Float] = []
+        var capturedFrameCount = 0
         var completedFrameCount = 0
     }
 
@@ -59,7 +73,6 @@ final class AudioInputCaptureStore {
         withState(trackID: trackID) { state in
             state.recordingProgress = 0
             state.streamedWaveformBuckets = []
-            return snapshot(from: state)
         }
     }
 
@@ -69,7 +82,7 @@ final class AudioInputCaptureStore {
             state.recordingProgress = 0
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
             state.streamedWaveformBuckets = []
-            return snapshot(from: state)
+            state.capturedFrameCount = 0
         }
     }
 
@@ -79,14 +92,13 @@ final class AudioInputCaptureStore {
             state.recordingProgress = 0
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
             state.streamedWaveformBuckets = []
-            return snapshot(from: state)
+            state.capturedFrameCount = 0
         }
     }
 
     func updateProgress(trackID: UUID, progress: Double) -> AudioInputCaptureSnapshot {
         withState(trackID: trackID) { state in
             state.recordingProgress = min(max(progress, 0), 1)
-            return snapshot(from: state)
         }
     }
 
@@ -95,10 +107,10 @@ final class AudioInputCaptureStore {
             state.isRecording = false
             state.recordingProgress = 1
             state.completedWaveformBuckets = Self.downsample(state.capturedMagnitudes, bucketCount: bucketCount)
-            state.completedFrameCount = state.capturedMagnitudes.count
+            state.completedFrameCount = state.capturedFrameCount
             state.streamedWaveformBuckets = []
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
-            return snapshot(from: state)
+            state.capturedFrameCount = 0
         }
     }
 
@@ -109,32 +121,76 @@ final class AudioInputCaptureStore {
             state.capturedMagnitudes.removeAll(keepingCapacity: true)
             state.streamedWaveformBuckets = []
             state.completedWaveformBuckets = waveformBuckets.map(Self.clampedBucket)
+            state.capturedFrameCount = 0
             state.completedFrameCount = waveformBuckets.count
-            return snapshot(from: state)
         }
     }
 
-    func process(buffer: AVAudioPCMBuffer, trackID: UUID) -> AudioInputCaptureSnapshot {
-        let level = Self.levelSnapshot(buffer: buffer)
-        let magnitudes = Self.monoMagnitudes(buffer: buffer)
-
-        return withState(trackID: trackID) { state in
-            state.liveLevel = level
-            if state.isRecording, !magnitudes.isEmpty {
-                state.capturedMagnitudes.append(contentsOf: magnitudes)
+    func process(summary: AudioInputCaptureBufferSummary, trackID: UUID) -> AudioInputCaptureSnapshot {
+        withState(trackID: trackID) { state in
+            state.liveLevel = summary.liveLevel
+            if state.isRecording, summary.hasFrames {
+                state.capturedMagnitudes.append(summary.monoPeak)
+                state.capturedFrameCount += summary.frameCount
                 state.streamedWaveformBuckets = Self.downsample(state.capturedMagnitudes, bucketCount: bucketCount)
             }
-            return snapshot(from: state)
         }
+    }
+
+    static func summarize(buffer: AVAudioPCMBuffer) -> AudioInputCaptureBufferSummary {
+        let frameCount = Int(buffer.frameLength)
+        guard frameCount > 0,
+              let channels = buffer.floatChannelData
+        else {
+            return AudioInputCaptureBufferSummary(liveLevel: .silent, monoPeak: 0, frameCount: 0)
+        }
+
+        let channelCount = Int(buffer.format.channelCount)
+        guard channelCount > 0 else {
+            return AudioInputCaptureBufferSummary(liveLevel: .silent, monoPeak: 0, frameCount: 0)
+        }
+
+        var leftPeak: Float = 0
+        var rightPeak: Float = 0
+        var monoPeak: Float = 0
+
+        for frame in 0..<frameCount {
+            var frameMagnitude: Float = 0
+            for channel in 0..<channelCount {
+                let magnitude = abs(channels[channel][frame])
+                frameMagnitude += magnitude
+                if channel == 0 {
+                    leftPeak = max(leftPeak, magnitude)
+                } else if channel == 1 {
+                    rightPeak = max(rightPeak, magnitude)
+                }
+            }
+            monoPeak = max(monoPeak, frameMagnitude / Float(channelCount))
+        }
+
+        if channelCount == 1 {
+            rightPeak = leftPeak
+        }
+
+        return AudioInputCaptureBufferSummary(
+            liveLevel: AudioInputLevelSnapshot(
+                leftPeak: clampedBucket(leftPeak),
+                rightPeak: clampedBucket(rightPeak)
+            ),
+            monoPeak: clampedBucket(monoPeak),
+            frameCount: frameCount
+        )
     }
 
     private func withState(
         trackID: UUID,
-        update: (inout CaptureState) -> AudioInputCaptureSnapshot
+        update: (inout CaptureState) -> Void
     ) -> AudioInputCaptureSnapshot {
         lock.lock()
         var state = states[trackID] ?? CaptureState()
-        let output = update(&state)
+        update(&state)
+        state.revision &+= 1
+        let output = snapshot(from: state)
         states[trackID] = state
         lock.unlock()
         return output
@@ -142,53 +198,14 @@ final class AudioInputCaptureStore {
 
     private func snapshot(from state: CaptureState) -> AudioInputCaptureSnapshot {
         AudioInputCaptureSnapshot(
+            revision: state.revision,
             liveLevel: state.liveLevel,
             recordingProgress: state.recordingProgress,
             streamedWaveformBuckets: Array(state.streamedWaveformBuckets),
             completedWaveformBuckets: Array(state.completedWaveformBuckets),
-            capturedFrameCount: state.capturedMagnitudes.count,
+            capturedFrameCount: state.capturedFrameCount,
             completedFrameCount: state.completedFrameCount
         )
-    }
-
-    private static func levelSnapshot(buffer: AVAudioPCMBuffer) -> AudioInputLevelSnapshot {
-        let frameCount = Int(buffer.frameLength)
-        guard frameCount > 0,
-              let channels = buffer.floatChannelData
-        else {
-            return .silent
-        }
-
-        let channelCount = Int(buffer.format.channelCount)
-        guard channelCount > 0 else { return .silent }
-
-        let left = peakAmplitude(channel: channels[0], frameCount: frameCount)
-        let right = channelCount > 1
-            ? peakAmplitude(channel: channels[1], frameCount: frameCount)
-            : left
-        return AudioInputLevelSnapshot(leftPeak: left, rightPeak: right)
-    }
-
-    private static func monoMagnitudes(buffer: AVAudioPCMBuffer) -> [Float] {
-        let frameCount = Int(buffer.frameLength)
-        guard frameCount > 0,
-              let channels = buffer.floatChannelData
-        else {
-            return []
-        }
-
-        let channelCount = Int(buffer.format.channelCount)
-        guard channelCount > 0 else { return [] }
-
-        var output = Array<Float>(repeating: 0, count: frameCount)
-        for frame in 0..<frameCount {
-            var sum: Float = 0
-            for channel in 0..<channelCount {
-                sum += abs(channels[channel][frame])
-            }
-            output[frame] = min(sum / Float(channelCount), 1)
-        }
-        return output
     }
 
     private static func downsample(_ magnitudes: [Float], bucketCount: Int) -> [Float] {
@@ -204,14 +221,6 @@ final class AudioInputCaptureStore {
             output[bucket] = magnitudes[start..<end].reduce(0) { max($0, clampedBucket($1)) }
         }
         return output
-    }
-
-    private static func peakAmplitude(channel: UnsafePointer<Float>, frameCount: Int) -> Float {
-        var peak: Float = 0
-        for frame in 0..<frameCount {
-            peak = max(peak, abs(channel[frame]))
-        }
-        return clampedBucket(peak)
     }
 
     private static func clampedBucket(_ value: Float) -> Float {

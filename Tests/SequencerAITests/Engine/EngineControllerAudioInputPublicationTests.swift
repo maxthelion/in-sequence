@@ -1,4 +1,5 @@
 import AVFoundation
+import SwiftUI
 import XCTest
 @testable import SequencerAI
 
@@ -8,7 +9,7 @@ final class EngineControllerAudioInputPublicationTests: XCTestCase {
         let buffer = makeBuffer(left: [0.1, -0.4, 0.2], right: [0.2, -0.8, 0.1])
 
         controller.recordAudioInputBufferForTesting(trackID: trackID, buffer: buffer)
-        waitForMainQueue()
+        waitForAudioInputPublication(controller)
 
         var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertEqual(runtime.liveLevel.leftPeak, 0.4, accuracy: 0.0001)
@@ -30,7 +31,7 @@ final class EngineControllerAudioInputPublicationTests: XCTestCase {
             trackID: trackID,
             buffer: makeBuffer(left: [0.1, 0.25, -0.5, 0.35], right: [0.2, 0.45, -0.7, 0.1])
         )
-        waitForMainQueue()
+        waitForAudioInputPublication(controller)
 
         var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertEqual(runtime.armState, .recording)
@@ -57,7 +58,7 @@ final class EngineControllerAudioInputPublicationTests: XCTestCase {
         XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
         controller.processTick(tickIndex: 4, now: 0.4)
         controller.recordAudioInputBufferForTesting(trackID: trackID, buffer: makeConstantBuffer(amplitude: 0.2))
-        waitForMainQueue()
+        waitForAudioInputPublication(controller)
         controller.processTick(tickIndex: 8, now: 0.8)
 
         let firstRuntime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
@@ -67,7 +68,7 @@ final class EngineControllerAudioInputPublicationTests: XCTestCase {
         XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 12))
         controller.processTick(tickIndex: 12, now: 1.2)
         controller.recordAudioInputBufferForTesting(trackID: trackID, buffer: makeConstantBuffer(amplitude: 0.85))
-        waitForMainQueue()
+        waitForAudioInputPublication(controller)
         controller.processTick(tickIndex: 16, now: 1.6)
 
         let secondRuntime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
@@ -83,7 +84,7 @@ final class EngineControllerAudioInputPublicationTests: XCTestCase {
         XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
         controller.processTick(tickIndex: 4, now: 0.4)
         controller.recordAudioInputBufferForTesting(trackID: trackID, buffer: makeConstantBuffer(amplitude: 0.6))
-        waitForMainQueue()
+        waitForAudioInputPublication(controller)
 
         let runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertFalse(runtime.captureWaveformBuckets.isEmpty)
@@ -96,7 +97,34 @@ final class EngineControllerAudioInputPublicationTests: XCTestCase {
         XCTAssertGreaterThan(freshRuntime.captureWaveformBuckets.max() ?? 0, 0.5)
     }
 
-    private func waitForMainQueue() {
+    func test_audioInputPublication_engineInitializerInstallsGraphCaptureHandler() {
+        let graph = MainAudioGraph()
+
+        _ = EngineController(
+            client: nil,
+            endpoint: nil,
+            mainAudioGraph: graph,
+            publishesAudioInputCapture: true
+        )
+
+        XCTAssertTrue(graph.audioInputCaptureHandlerInstalledForTesting)
+    }
+
+    @MainActor
+    func test_audioInputPublication_productionDocumentSessionEnablesCapturePublication() {
+        let document = SeqAIDocument()
+        let binding = Binding<SeqAIDocument>(
+            get: { document },
+            set: { _ in }
+        )
+
+        let session = SequencerDocumentSession(document: binding)
+
+        XCTAssertTrue(session.engineController.audioInputCapturePublicationEnabledForTesting)
+    }
+
+    private func waitForAudioInputPublication(_ controller: EngineController) {
+        controller.drainAudioInputCapturePublicationForTesting()
         let expectation = expectation(description: "main queue drained")
         DispatchQueue.main.async {
             expectation.fulfill()

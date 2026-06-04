@@ -73,6 +73,11 @@ final class MainAudioGraph {
     private(set) var masterMeterTapRemoveCountForTesting = 0
     private(set) var audioInputFullRoutingSyncCountForTesting = 0
     private(set) var audioInputScopedRoutingUpdateCountForTesting = 0
+    var audioInputCaptureHandlerInstalledForTesting: Bool {
+        graphLock.lock()
+        defer { graphLock.unlock() }
+        return audioInputCaptureHandler != nil
+    }
 
     private let graphLock = NSLock()
     private var audioInputCaptureHandler: ((UUID, AVAudioPCMBuffer) -> Void)?

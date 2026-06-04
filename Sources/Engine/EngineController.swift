@@ -36,6 +36,11 @@ final class EngineController: RouterDispatcher {
     private let eventQueue = EventQueue()
     private let sampleEngine: SamplePlaybackSink
     private let audioInputCaptureStore = AudioInputCaptureStore()
+    private let audioInputCapturePublicationQueue = DispatchQueue(
+        label: "ai.sequencer.SequencerAI.AudioInputCapturePublication"
+    )
+    private let audioInputCapturePublicationQueueKey = DispatchSpecificKey<Void>()
+    private let publishesAudioInputCapture: Bool
     // Initialized at end of init() after `self` is fully available.
     private var macroApplier: TrackMacroApplier!
     private let sampleLibrary: AudioSampleLibrary
@@ -108,6 +113,11 @@ final class EngineController: RouterDispatcher {
         self.clock = TickClock(stepsPerBar: stepsPerBar)
         self.currentBPM = 120
         self.selectedOutput = .midi
+        self.publishesAudioInputCapture = publishesAudioInputCapture
+        self.audioInputCapturePublicationQueue.setSpecific(
+            key: audioInputCapturePublicationQueueKey,
+            value: ()
+        )
         self.masterBusHost.attach(to: mainAudioGraph)
 
         // Now self is fully initialized; safe to capture as weak.
@@ -204,7 +214,9 @@ final class EngineController: RouterDispatcher {
             runtime.transientFrameCount = 0
             runtime.routeState = audioInputRouteState(for: runtime.selectedInputChannel)
             applyAudioInputCaptureSnapshot(
-                audioInputCaptureStore.prepareCapture(trackID: trackID),
+                readAudioInputCaptureStore {
+                    audioInputCaptureStore.prepareCapture(trackID: trackID)
+                },
                 to: &runtime
             )
         }
@@ -226,7 +238,9 @@ final class EngineController: RouterDispatcher {
                 runtime.armedRecordBarLength = nil
                 runtime.transientFrameCount = 0
                 applyAudioInputCaptureSnapshot(
-                    audioInputCaptureStore.cancelCapture(trackID: trackID),
+                    readAudioInputCaptureStore {
+                        audioInputCaptureStore.cancelCapture(trackID: trackID)
+                    },
                     to: &runtime
                 )
             case .idle, .hasLoop:
@@ -285,7 +299,12 @@ final class EngineController: RouterDispatcher {
             runtime.recordedLoopBarLength = runtime.recordBarLength
             runtime.transientFrameCount = 0
             applyAudioInputCaptureSnapshot(
-                audioInputCaptureStore.replaceCompletedLoop(trackID: trackID, waveformBuckets: waveformBuckets),
+                readAudioInputCaptureStore {
+                    audioInputCaptureStore.replaceCompletedLoop(
+                        trackID: trackID,
+                        waveformBuckets: waveformBuckets
+                    )
+                },
                 to: &runtime
             )
         }
@@ -302,6 +321,11 @@ final class EngineController: RouterDispatcher {
     var audioDeviceApplyOverrideForTesting: ((_ inputUID: String?, _ outputUID: String?) throws -> AudioDeviceApplyResult)?
     var audioInputAvailableChannelCountOverrideForTesting: Int?
     var bypassAudioInputRoutingSyncForTesting = false
+    var audioInputCapturePublicationEnabledForTesting: Bool { publishesAudioInputCapture }
+
+    func drainAudioInputCapturePublicationForTesting() {
+        readAudioInputCaptureStore {}
+    }
 
     func shutdown() {
         shutdown(completion: {})
@@ -1475,8 +1499,12 @@ final class EngineController: RouterDispatcher {
     }
 
     private func processAudioInputBuffer(trackID: UUID, buffer: AVAudioPCMBuffer) {
-        let snapshot = audioInputCaptureStore.process(buffer: buffer, trackID: trackID)
-        publishAudioInputCaptureSnapshot(trackID: trackID, snapshot: snapshot)
+        let summary = AudioInputCaptureStore.summarize(buffer: buffer)
+        audioInputCapturePublicationQueue.async { [weak self] in
+            guard let self else { return }
+            let snapshot = self.audioInputCaptureStore.process(summary: summary, trackID: trackID)
+            self.publishAudioInputCaptureSnapshot(trackID: trackID, snapshot: snapshot)
+        }
     }
 
     private func publishAudioInputCaptureSnapshot(trackID: UUID, snapshot: AudioInputCaptureSnapshot) {
@@ -1492,10 +1520,21 @@ final class EngineController: RouterDispatcher {
         _ snapshot: AudioInputCaptureSnapshot,
         to runtime: inout AudioInputTrackRuntime
     ) {
+        guard snapshot.revision >= runtime.captureSnapshotRevision else {
+            return
+        }
+        runtime.captureSnapshotRevision = snapshot.revision
         runtime.liveLevel = snapshot.liveLevel
         runtime.recordingProgress = snapshot.recordingProgress
         runtime.captureWaveformBuckets = snapshot.streamedWaveformBuckets
         runtime.waveformBuckets = snapshot.completedWaveformBuckets
+    }
+
+    private func readAudioInputCaptureStore<T>(_ body: () -> T) -> T {
+        if DispatchQueue.getSpecific(key: audioInputCapturePublicationQueueKey) != nil {
+            return body()
+        }
+        return audioInputCapturePublicationQueue.sync(execute: body)
     }
 
     private func syncTrackParams(for documentModel: Project) {
@@ -1682,7 +1721,9 @@ final class EngineController: RouterDispatcher {
     private func syncAudioInputRuntimes(for documentModel: Project) {
         let desiredTracks = Array(documentModel.tracks.filter { $0.trackType == .audioInput }.prefix(1))
         let desiredIDs = Set(desiredTracks.map(\.id))
-        audioInputCaptureStore.keepOnly(trackIDs: desiredIDs)
+        readAudioInputCaptureStore {
+            audioInputCaptureStore.keepOnly(trackIDs: desiredIDs)
+        }
 
         withStateLock {
             var next = trackRuntime.audioInputRuntimes.filter { desiredIDs.contains($0.key) }
@@ -1779,10 +1820,12 @@ final class EngineController: RouterDispatcher {
                     let span = max(1, endTick &- startTick)
                     let elapsed = min(tickIndex &- startTick, span)
                     applyAudioInputCaptureSnapshot(
-                        audioInputCaptureStore.updateProgress(
-                            trackID: runtime.trackID,
-                            progress: Double(elapsed) / Double(span)
-                        ),
+                        readAudioInputCaptureStore {
+                            audioInputCaptureStore.updateProgress(
+                                trackID: runtime.trackID,
+                                progress: Double(elapsed) / Double(span)
+                            )
+                        },
                         to: &runtime
                     )
                 }
@@ -1821,7 +1864,9 @@ final class EngineController: RouterDispatcher {
         runtime.activeMonitorMode = .input
         runtime.pendingLoopStartTick = nil
         applyAudioInputCaptureSnapshot(
-            audioInputCaptureStore.beginCapture(trackID: runtime.trackID),
+            readAudioInputCaptureStore {
+                audioInputCaptureStore.beginCapture(trackID: runtime.trackID)
+            },
             to: &runtime
         )
     }
@@ -1839,7 +1884,9 @@ final class EngineController: RouterDispatcher {
         runtime.recordedLoopBarLength = bars
         runtime.transientFrameCount = Int(tickIndex &- startTick)
         applyAudioInputCaptureSnapshot(
-            audioInputCaptureStore.completeCapture(trackID: runtime.trackID),
+            readAudioInputCaptureStore {
+                audioInputCaptureStore.completeCapture(trackID: runtime.trackID)
+            },
             to: &runtime
         )
         if runtime.monitorMode == .loop {

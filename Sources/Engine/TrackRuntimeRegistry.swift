@@ -39,6 +39,7 @@ extension EngineController {
         var recordingProgress: Double
         var captureWaveformBuckets: [Float]
         var waveformBuckets: [Float]
+        var captureSnapshotRevision: UInt64
 
         init(
             trackID: UUID,
@@ -66,6 +67,7 @@ extension EngineController {
             self.recordingProgress = 0
             self.captureWaveformBuckets = []
             self.waveformBuckets = []
+            self.captureSnapshotRevision = 0
         }
 
         var hasRecordedLoop: Bool {
