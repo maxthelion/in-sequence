@@ -83,6 +83,8 @@
 		D10200000000000000000002 /* StepSequenceTrackAudioInputCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10200000000000000000001 /* StepSequenceTrackAudioInputCodableTests.swift */; };
 		F11100000000000000000002 /* AudioInputCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11100000000000000000001 /* AudioInputCaptureStore.swift */; };
 		F11100000000000000000004 /* EngineControllerAudioInputPublicationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11100000000000000000003 /* EngineControllerAudioInputPublicationTests.swift */; };
+		F1AA00000000000000000001 /* TrackFillPreviewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000002 /* TrackFillPreviewState.swift */; };
+		F1AA00000000000000000003 /* SequencerDocumentSession+TrackFillPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000004 /* SequencerDocumentSession+TrackFillPreview.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
 		30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567FDBC3AA9E0A6F1D99AFBB /* AppSupportBootstrapTests.swift */; };
 		30ED3E0739DC51F020DBA586 /* TrackSourceEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5901836476E9360606315D /* TrackSourceEditorView.swift */; };
@@ -110,6 +112,8 @@
 		3FC4273583B46817785B1439 /* ScenesWorkspaceView+AUEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB7647B37DBB4E09B7C638B5 /* ScenesWorkspaceView+AUEffects.swift */; };
 		40D5387C0820A5C21AC8B014 /* SingleMacroSlotPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06BA8181EA24823BEF66FA1E /* SingleMacroSlotPickerSheet.swift */; };
 		4188653D0B096D54D39F44AB /* TrackPerformSelectionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 034C9347D990B68BE91CFA66 /* TrackPerformSelectionStateTests.swift */; };
+		F1AA00000000000000000005 /* TrackFillPreviewSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000006 /* TrackFillPreviewSessionTests.swift */; };
+		F1AA00000000000000000007 /* TrackFillPreviewEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000008 /* TrackFillPreviewEngineTests.swift */; };
 		41A22E3884A19683E38FB188 /* BlockProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A327CD4562F4083893A9AF3 /* BlockProtocolTests.swift */; };
 		431FAED886F853C594F9602A /* GeneratedSourceEvaluatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C05CE93D43B8EBED98931E8 /* GeneratedSourceEvaluatorTests.swift */; };
 		43564851CC4ECFAC1E7C50A1 /* SlicerControlField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A43942B9DE664F56D3D1E7 /* SlicerControlField.swift */; };
@@ -1050,6 +1054,10 @@
 		8E3F3975EAA9F148F8B74295 /* Project+Patterns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Patterns.swift"; sourceTree = "<group>"; };
 		F11100000000000000000001 /* AudioInputCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInputCaptureStore.swift; sourceTree = "<group>"; };
 		F11100000000000000000003 /* EngineControllerAudioInputPublicationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerAudioInputPublicationTests.swift; sourceTree = "<group>"; };
+		F1AA00000000000000000002 /* TrackFillPreviewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewState.swift; sourceTree = "<group>"; };
+		F1AA00000000000000000004 /* SequencerDocumentSession+TrackFillPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SequencerDocumentSession+TrackFillPreview.swift"; sourceTree = "<group>"; };
+		F1AA00000000000000000006 /* TrackFillPreviewSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewSessionTests.swift; sourceTree = "<group>"; };
+		F1AA00000000000000000008 /* TrackFillPreviewEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewEngineTests.swift; sourceTree = "<group>"; };
 		8F0D67CB46A93BAA898BD9BE /* EngineControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerTests.swift; sourceTree = "<group>"; };
 		F10100000000000000000000 /* EngineControllerPhraseNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerPhraseNavigationTests.swift; sourceTree = "<group>"; };
 		8F137F909E951888DD11F5C7 /* 2026-05-08T09-27-08Z-holistic-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T09-27-08Z-holistic-observer-cadence.md"; sourceTree = "<group>"; };
@@ -2110,6 +2118,7 @@
 				610DC2745D7F48A18E3D11D2 /* RouterDispatchState.swift */,
 				D14D36481855CDB4DD04A150 /* TickClock.swift */,
 				57865C84C633D0EFCE676C5F /* TickStateBuffer.swift */,
+				F1AA00000000000000000002 /* TrackFillPreviewState.swift */,
 				921E462AD4D705FF1D61E26C /* TrackRuntimeRegistry.swift */,
 				BFA6774205802E8323E22386 /* TrackSourceProgram.swift */,
 				E2A202B9BFA28C84495F2909 /* TransportMode.swift */,
@@ -2307,6 +2316,7 @@
 				82A3535947AAA3671C9B3D2A /* SessionSnapshotPublisherTests.swift */,
 				C7D67B1477FA156C5DB921E8 /* SessionTestSupport.swift */,
 				4E85AF51231E7ED41477BCAB /* TerminateFlushTests.swift */,
+				F1AA00000000000000000006 /* TrackFillPreviewSessionTests.swift */,
 				30F0C3ECDAEA52B9BD8D7E8A /* VisualFixtureDocumentLoaderTests.swift */,
 			);
 			path = App;
@@ -3533,6 +3543,7 @@
 				778D655EFC1633FC7D0F5AD2 /* StreamTests.swift */,
 				C2764FC6A9FDC023A55124FC /* TickClockTests.swift */,
 				F8089D62FCED221080CD45F1 /* TrackFanOutTests.swift */,
+				F1AA00000000000000000008 /* TrackFillPreviewEngineTests.swift */,
 				C67B15F23EBA2CBED422CF85 /* TrackMacroApplierSamplerFilterTests.swift */,
 				F8A7DE63635A6763B696BB09 /* TrackMacroApplierTests.swift */,
 				82DC6DBCE302A941AF17ADA2 /* TransportModeTests.swift */,
@@ -3596,6 +3607,7 @@
 				F77CB755E9BDC045420902FC /* SequencerDocumentSession.swift */,
 				9BCE2D45E5C0442BDBB40D75 /* SequencerDocumentSession+Mutations.swift */,
 				D98B1A82B412D3E96A590032 /* SequencerDocumentSession+SendBusMutations.swift */,
+				F1AA00000000000000000004 /* SequencerDocumentSession+TrackFillPreview.swift */,
 				BA410BB96AE3DBC3C2696FFD /* SequencerDocumentSession+TrackSourceSlotModifiers.swift */,
 				6A722A3FE340A068B514DB7E /* SequencerDocumentSessionRegistry.swift */,
 				B9F5315493DF8287EC5F7B71 /* SessionSnapshotPublisher.swift */,
@@ -4457,6 +4469,8 @@
 				0077E4E53A46E6D3A4D36087 /* SessionMacroSlotTests.swift in Sources */,
 				A165D88338847DD38B45532D /* SessionSnapshotPublisherTests.swift in Sources */,
 				64645F74EDC54A22604EE436 /* SessionTestSupport.swift in Sources */,
+				F1AA00000000000000000007 /* TrackFillPreviewEngineTests.swift in Sources */,
+				F1AA00000000000000000005 /* TrackFillPreviewSessionTests.swift in Sources */,
 				545F5682AD665A92AA1EF3B1 /* SliceAnalyzerTests.swift in Sources */,
 				EB4540B3F1F0454C7AE87E33 /* SliceSetTests.swift in Sources */,
 				863F457B1A9AF8F08E6F39FE /* SlicerSettingsTests.swift in Sources */,
@@ -4653,6 +4667,7 @@
 				601677F0BC324E42A1D03833 /* SequencerDocumentRootView.swift in Sources */,
 				01EC6B69C4C6C3920A0A1908 /* SequencerDocumentSession+Mutations.swift in Sources */,
 				16679621CC800C9444F4A96B /* SequencerDocumentSession+SendBusMutations.swift in Sources */,
+				F1AA00000000000000000003 /* SequencerDocumentSession+TrackFillPreview.swift in Sources */,
 				FA34FEB78C73F50663B33DBE /* SequencerDocumentSession+TrackSourceSlotModifiers.swift in Sources */,
 				9A128CC4D3BA0FFACD33E45C /* SequencerDocumentSession.swift in Sources */,
 				B6863061684526E1768461AF /* SequencerDocumentSessionRegistry.swift in Sources */,
@@ -4702,6 +4717,7 @@
 				7F6E2E9E21E78C0B6DC49184 /* TickStateBuffer.swift in Sources */,
 				7F86F63242B34E3DA4825E65 /* RouterDispatchState.swift in Sources */,
 				98F83A64276D544C66E703A2 /* TrackDestinationEditor.swift in Sources */,
+				F1AA00000000000000000001 /* TrackFillPreviewState.swift in Sources */,
 				BCDB32B74E1D08995B7C148C /* TrackGroup.swift in Sources */,
 				B1E9D2674C7F45983E382984 /* TrackMacroApplier.swift in Sources */,
 				7A3AD0D0C8286855B7F8932A /* TrackMacroDescriptor.swift in Sources */,

@@ -457,6 +457,10 @@ extension SequencerDocumentSession {
     /// Set the selected track ID, publish a snapshot. Always `.snapshotOnly` —
     /// selection has no audible impact.
     func setSelectedTrackID(_ id: UUID) {
+        let selectedTrackBefore = store.selectedTrackID
+        if selectedTrackBefore != id {
+            clearTrackFillPreview(reason: .selectedTrackChanged)
+        }
         store.setSelectedTrackID(id)
         guard store.revision > revision else { return }
         if isInBatch {
@@ -483,6 +487,9 @@ extension SequencerDocumentSession {
         let selectedPhraseBefore = store.selectedPhraseID
         let selectedTrackBefore = store.selectedTrackID
 
+        if selectedTrackBefore != trackID {
+            clearTrackFillPreview(reason: .selectedTrackChanged)
+        }
         store.setSelectedPhraseID(phraseID)
         store.setSelectedTrackID(trackID)
 
@@ -585,7 +592,7 @@ extension SequencerDocumentSession {
         impact: LiveMutationImpact = .snapshotOnly
     ) {
         let clipsBefore = Set(store.clipPool.map(\.id))
-        batch(impact: impact, changed: .patternBank(trackID)) { s in
+        let changed = batch(impact: impact, changed: .patternBank(trackID)) { s in
             var p = s.exportToProject()
             p.setPatternSourceRef(sourceRef, for: trackID, slotIndex: slotIndex)
             for bank in p.patternBanks {
@@ -596,6 +603,9 @@ extension SequencerDocumentSession {
                 s.appendClip(clip)
             }
         }
+        if changed, trackFillPreviewState.activeTrackID == trackID, !isTrackFillPreviewAvailable(trackID: trackID) {
+            clearTrackFillPreview(reason: .sourceBecameUnsupported)
+        }
     }
 
     private func applySelectedSlotSourceMutation(
@@ -605,7 +615,7 @@ extension SequencerDocumentSession {
     ) {
         let clipIDsBefore = Set(store.clipPool.map(\.id))
         let generatorIDsBefore = Set(store.generatorPool.map(\.id))
-        batch(impact: impact, changed: .patternBank(trackID)) { s in
+        let changed = batch(impact: impact, changed: .patternBank(trackID)) { s in
             var project = s.exportToProject()
             update(&project)
             for clip in project.clipPool where !clipIDsBefore.contains(clip.id) {
@@ -619,6 +629,9 @@ extension SequencerDocumentSession {
             guard let bank = project.patternBanks.first(where: { $0.trackID == trackID }) else { return }
             s.setPatternBank(trackID: trackID, bank: bank)
             recordBatchChange(.patternBank(trackID))
+        }
+        if changed, trackFillPreviewState.activeTrackID == trackID, !isTrackFillPreviewAvailable(trackID: trackID) {
+            clearTrackFillPreview(reason: .sourceBecameUnsupported)
         }
     }
 
@@ -942,6 +955,8 @@ extension SequencerDocumentSession {
     ///
     /// Uses a project round-trip for the same reasons as `appendTrack`.
     func removeSelectedTrack() {
+        let removedTrackID = store.selectedTrackID
+        clearTrackFillPreviewIfActiveTrack(removedTrackID, reason: .selectedTrackDeleted)
         batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
             p.removeSelectedTrack()

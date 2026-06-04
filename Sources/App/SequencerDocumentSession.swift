@@ -31,6 +31,7 @@ final class SequencerDocumentSession {
     let engineController: EngineController
     let snapshotPublisher: SessionSnapshotPublisher
     var revision: UInt64 = 0
+    var trackFillPreviewState: TrackFillPreviewState = .inactive
 
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
@@ -179,6 +180,7 @@ final class SequencerDocumentSession {
         guard store.replaceProject(project) else {
             return
         }
+        clearTrackFillPreview(reason: .documentChanged)
         revision = store.revision
         // apply(documentModel:) compiles and installs a fresh snapshot internally.
         // We also update the publisher so UI visualisers see the new state immediately.

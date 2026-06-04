@@ -20,6 +20,7 @@ struct SequencerDocumentRootView: View {
                 session.ingestExternalDocumentChange(newProject)
             }
             .onDisappear {
+                session.clearTrackFillPreview(reason: .documentClosed)
                 session.flushToDocument()
             }
     }

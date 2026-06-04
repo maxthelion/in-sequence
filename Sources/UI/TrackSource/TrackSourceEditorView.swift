@@ -19,6 +19,51 @@ enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
     }
 }
 
+struct TrackFillPreviewHeaderPresentation: Equatable {
+    enum Availability: Equatable {
+        case enabled
+        case unavailable
+    }
+
+    let availability: Availability
+    let isActive: Bool
+    let buttonTitle: String
+    let statusText: String
+    let accessibilityLabel: String
+
+    var isEnabled: Bool {
+        availability == .enabled
+    }
+
+    static func resolve(
+        sourceMode: TrackSourceMode,
+        currentClip: ClipPoolEntry?,
+        selectedTrackID: UUID,
+        previewState: TrackFillPreviewState
+    ) -> TrackFillPreviewHeaderPresentation {
+        guard sourceMode == .clip, currentClip != nil else {
+            return TrackFillPreviewHeaderPresentation(
+                availability: .unavailable,
+                isActive: false,
+                buttonTitle: "Fill Preview",
+                statusText: "Fill preview is available for clip-backed tracks only in v1.",
+                accessibilityLabel: "Fill preview unavailable"
+            )
+        }
+
+        let isActive = previewState.isActive(for: selectedTrackID)
+        return TrackFillPreviewHeaderPresentation(
+            availability: .enabled,
+            isActive: isActive,
+            buttonTitle: "Fill Preview",
+            statusText: isActive
+                ? "Hearing the fill lane for this track only."
+                : "Hearing phrase-resolved playback for this track.",
+            accessibilityLabel: isActive ? "Disable fill preview" : "Enable fill preview"
+        )
+    }
+}
+
 struct TrackSourceEditorView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
@@ -117,6 +162,15 @@ struct TrackSourceEditorView: View {
         return playhead.clipStepIndex(clipStepCount: clip.content.stepCount)
     }
 
+    private var fillPreviewPresentation: TrackFillPreviewHeaderPresentation {
+        TrackFillPreviewHeaderPresentation.resolve(
+            sourceMode: selectedSourceMode,
+            currentClip: currentClip,
+            selectedTrackID: track.id,
+            previewState: session.trackFillPreviewState
+        )
+    }
+
     private var orderedMacros: [TrackMacroBinding] {
         track.macros.sorted { $0.slotIndex < $1.slotIndex }
     }
@@ -189,13 +243,7 @@ struct TrackSourceEditorView: View {
             }
 
             VStack(alignment: .leading, spacing: 0) {
-                TrackSourceSlotWellTabBar(
-                    selectedTab: $selectedTab,
-                    sourceState: sourceDisplayState,
-                    modifierState: modifierDisplayState,
-                    historyState: historyDisplayState,
-                    accent: accent
-                )
+                trackSourceHeader
 
                 Group {
                     switch selectedTab {
@@ -255,6 +303,7 @@ struct TrackSourceEditorView: View {
             }
         }
         .onChange(of: track.id) { _, _ in
+            session.clearTrackFillPreview(reason: .selectedTrackChanged)
             if selectedTab == .history {
                 resetClipHistoryModel()
                 if historyDisplayState.isAvailable {
@@ -262,9 +311,35 @@ struct TrackSourceEditorView: View {
                 }
             }
         }
+        .onDisappear {
+            session.clearTrackFillPreview(reason: .editorClosed)
+        }
         .task(id: clipHistoryLiveRefreshKey) {
             await refreshClipHistoryWhileVisible()
         }
+    }
+
+    private var trackSourceHeader: some View {
+        HStack(alignment: .top, spacing: 10) {
+            TrackSourceSlotWellTabBar(
+                selectedTab: $selectedTab,
+                sourceState: sourceDisplayState,
+                modifierState: modifierDisplayState,
+                historyState: historyDisplayState,
+                accent: accent
+            )
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+
+            TrackFillPreviewHeaderControl(
+                presentation: fillPreviewPresentation,
+                accent: StudioTheme.amber,
+                toggle: toggleFillPreview
+            )
+            .frame(width: 250, alignment: .trailing)
+        }
+        .padding(.trailing, 10)
+        .padding(.bottom, 8)
+        .background(Color.white.opacity(StudioOpacity.subtleFill))
     }
 
     @ViewBuilder
@@ -301,6 +376,17 @@ struct TrackSourceEditorView: View {
             onRemoveSource: removeSource,
             onUpdateGeneratorParams: updateSourceGeneratorParams
         )
+    }
+
+    private func toggleFillPreview() {
+        guard fillPreviewPresentation.isEnabled else {
+            return
+        }
+        if fillPreviewPresentation.isActive {
+            session.disableTrackFillPreview(for: track.id)
+        } else {
+            session.enableSelectedTrackFillPreview()
+        }
     }
 
     private func updateSourcePickerStep(_ action: TrackSourceContainedSourcePickerNavigationAction) {
@@ -719,6 +805,82 @@ struct TrackSourceEditorView: View {
                 session.setSelectedPatternIndex(newValue, for: trackID)
             }
         )
+    }
+}
+
+private struct TrackFillPreviewHeaderControl: View {
+    let presentation: TrackFillPreviewHeaderPresentation
+    let accent: Color
+    let toggle: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button(action: toggle) {
+                HStack(spacing: 7) {
+                    Image(systemName: presentation.isActive ? "waveform.path.ecg.rectangle.fill" : "waveform.path.ecg.rectangle")
+                        .imageScale(.small)
+                    Text(presentation.buttonTitle)
+                        .studioText(.labelBold)
+                    Text(presentation.isActive ? "ON" : "OFF")
+                        .studioText(.microEmphasis)
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 6)
+                        .background(
+                            badgeFill,
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        )
+                }
+                .foregroundStyle(foreground)
+                .frame(maxWidth: .infinity, minHeight: 34)
+                .padding(.horizontal, 10)
+                .background(
+                    backgroundFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(border, lineWidth: presentation.isActive ? 1.5 : 1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(!presentation.isEnabled)
+            .accessibilityLabel(presentation.accessibilityLabel)
+            .accessibilityValue(presentation.isActive ? "On" : "Off")
+
+            Text(presentation.statusText)
+                .studioText(.micro)
+                .foregroundStyle(presentation.isEnabled ? StudioTheme.mutedText : StudioTheme.amber)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var foreground: Color {
+        if !presentation.isEnabled {
+            return StudioTheme.mutedText.opacity(StudioOpacity.ghostStroke)
+        }
+        return presentation.isActive ? StudioTheme.text : StudioTheme.mutedText
+    }
+
+    private var backgroundFill: Color {
+        if !presentation.isEnabled {
+            return Color.white.opacity(StudioOpacity.subtleFill)
+        }
+        return presentation.isActive ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)
+    }
+
+    private var border: Color {
+        if !presentation.isEnabled {
+            return StudioTheme.border
+        }
+        return presentation.isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border
+    }
+
+    private var badgeFill: Color {
+        if !presentation.isEnabled {
+            return StudioTheme.border
+        }
+        return presentation.isActive ? accent.opacity(StudioOpacity.accentFill) : Color.white.opacity(StudioOpacity.borderSubtle)
     }
 }
 
