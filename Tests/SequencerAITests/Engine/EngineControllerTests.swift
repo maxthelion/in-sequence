@@ -1297,8 +1297,9 @@ final class EngineControllerTests: XCTestCase {
         let secondSummary = AudioInputCaptureStore.summarize(buffer: secondSource)
 
         _ = store.beginCapture(trackID: trackID, plan: plan)
-        store.copyPCMIntoReservedLoopStorage(trackID: trackID, from: firstSource)
-        store.copyPCMIntoReservedLoopStorage(trackID: trackID, from: secondSource)
+        let writer = try XCTUnwrap(store.pcmWriterForActiveCapture(trackID: trackID))
+        writer.copy(trackID: trackID, from: firstSource)
+        writer.copy(trackID: trackID, from: secondSource)
 
         firstSource.floatChannelData![0][0] = 1.0
         firstSource.floatChannelData![1][2] = 1.0

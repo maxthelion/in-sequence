@@ -37,6 +37,7 @@ final class EngineController: RouterDispatcher {
     private let sampleEngine: SamplePlaybackSink
     private let audioInputCaptureStore = AudioInputCaptureStore()
     private let audioInputCaptureTransport = AudioInputCaptureSummaryRing(capacity: 1024)
+    private let audioInputCapturePCMWriterSlot = AudioInputCapturePCMWriterSlot()
     private let audioInputCapturePublicationQueue = DispatchQueue(
         label: "ai.sequencer.SequencerAI.AudioInputCapturePublication"
     )
@@ -253,6 +254,7 @@ final class EngineController: RouterDispatcher {
                     },
                     to: &runtime
                 )
+                audioInputCapturePCMWriterSlot.install(nil)
             case .idle, .hasLoop:
                 runtime.pendingStartTick = nil
                 runtime.pendingStopTick = nil
@@ -319,6 +321,7 @@ final class EngineController: RouterDispatcher {
                 },
                 to: &runtime
             )
+            audioInputCapturePCMWriterSlot.install(nil)
         }
         syncAudioInputRouting(for: currentDocumentModel)
         return didUpdate
@@ -1514,7 +1517,7 @@ final class EngineController: RouterDispatcher {
 
     private func processAudioInputBuffer(trackID: UUID, buffer: AVAudioPCMBuffer) {
         let summary = AudioInputCaptureStore.summarize(buffer: buffer)
-        audioInputCaptureStore.copyPCMIntoReservedLoopStorage(trackID: trackID, from: buffer)
+        audioInputCapturePCMWriterSlot.copy(trackID: trackID, from: buffer)
         audioInputCaptureTransport.write(trackID: trackID, summary: summary)
     }
 
@@ -1759,6 +1762,9 @@ final class EngineController: RouterDispatcher {
     private func syncAudioInputRuntimes(for documentModel: Project) {
         let desiredTracks = Array(documentModel.tracks.filter { $0.trackType == .audioInput }.prefix(1))
         let desiredIDs = Set(desiredTracks.map(\.id))
+        if desiredIDs.isEmpty {
+            audioInputCapturePCMWriterSlot.install(nil)
+        }
         readAudioInputCaptureStore {
             audioInputCaptureStore.keepOnly(trackIDs: desiredIDs)
         }
@@ -1931,10 +1937,19 @@ final class EngineController: RouterDispatcher {
         runtime.transientFrameCount = 0
         runtime.activeMonitorMode = .input
         runtime.pendingLoopStartTick = nil
+        let captureStart = readAudioInputCaptureStore { () -> (
+            snapshot: AudioInputCaptureSnapshot,
+            writer: AudioInputCapturePCMWriter?
+        ) in
+            let snapshot = audioInputCaptureStore.beginCapture(trackID: runtime.trackID, plan: capturePlan)
+            return (
+                snapshot: snapshot,
+                writer: audioInputCaptureStore.pcmWriterForActiveCapture(trackID: runtime.trackID)
+            )
+        }
+        audioInputCapturePCMWriterSlot.install(captureStart.writer)
         applyAudioInputCaptureSnapshot(
-            readAudioInputCaptureStore {
-                audioInputCaptureStore.beginCapture(trackID: runtime.trackID, plan: capturePlan)
-            },
+            captureStart.snapshot,
             to: &runtime
         )
     }
@@ -1978,6 +1993,7 @@ final class EngineController: RouterDispatcher {
             },
             to: &runtime
         )
+        audioInputCapturePCMWriterSlot.install(nil)
         if runtime.monitorMode == .loop {
             runtime.pendingLoopStartTick = nil
             runtime.activeMonitorMode = .loop

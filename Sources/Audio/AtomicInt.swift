@@ -72,8 +72,17 @@ final class AtomicInt32 {
         }
     }
 
+    func compareAndSwap(expected: Int32, desired: Int32) -> Bool {
+        OSAtomicCompareAndSwap32Barrier(expected, desired, storage)
+    }
+
     @discardableResult
     func increment() -> Int32 {
         OSAtomicIncrement32Barrier(storage)
+    }
+
+    @discardableResult
+    func decrement() -> Int32 {
+        OSAtomicDecrement32Barrier(storage)
     }
 }
