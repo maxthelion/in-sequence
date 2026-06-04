@@ -449,10 +449,18 @@ final class MainAudioGraph {
         performOnMain {
             let key = ObjectIdentifier(source)
             let sendLevels = TrackSendLevels(sendA: sendA, sendB: sendB)
-            if var routing = self.trackOutputRoutings[key] {
-                routing.sendLevels = sendLevels
-                self.trackOutputRoutings[key] = routing
+            guard var routing = self.trackOutputRoutings[key] else { return }
+
+            routing.sendLevels = sendLevels
+            self.trackOutputRoutings[key] = routing
+
+            let hasSendNodes = self.trackSendNodes[key] != nil
+            let hasActiveSends = sendLevels.clampedSendA > 0 || sendLevels.clampedSendB > 0
+            if !hasSendNodes || !hasActiveSends {
+                self.reconnectTrackOutputOnMain(routing)
+                return
             }
+
             self.trackSendNodes[key]?.sendA.outputVolume = sendLevels.clampedSendA
             self.trackSendNodes[key]?.sendB.outputVolume = sendLevels.clampedSendB
         }
