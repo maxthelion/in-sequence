@@ -649,7 +649,7 @@ private struct TrackPerformLatchModePicker: View {
                         Image(systemName: mode.symbolName)
                             .font(.system(size: 10, weight: .bold))
 
-                        Text(mode.label.uppercased())
+                        Text(mode.actionBarLabel)
                             .studioText(.micro)
                             .tracking(0.8)
                             .lineLimit(1)
@@ -666,6 +666,8 @@ private struct TrackPerformLatchModePicker: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Text(mode.label))
+                .accessibilityHint(Text(mode.helpText))
                 .help(mode.helpText)
             }
         }
@@ -1033,6 +1035,15 @@ private struct TrackPerformRuntimeControlButton: View {
 }
 
 private extension TrackPerformLatchMode {
+    var actionBarLabel: String {
+        switch self {
+        case .momentary:
+            return "MOM"
+        case .latched:
+            return "LATCH"
+        }
+    }
+
     var symbolName: String {
         switch self {
         case .momentary:
