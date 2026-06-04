@@ -42,6 +42,66 @@ struct AudioInputCaptureBufferSummary: Equatable, Sendable {
     }
 }
 
+final class AudioInputCaptureSummaryRing {
+    private final class Slot {
+        let sequence = AtomicInt32(0)
+        var trackID = UUID()
+        var summary = AudioInputCaptureBufferSummary(liveLevel: .silent, monoPeak: 0, frameCount: 0)
+    }
+
+    private let slots: [Slot]
+    private let capacity: Int32
+    private let writeSequence = AtomicInt32(0)
+    private var readSequence: Int32 = 0
+
+    init(capacity: Int = 1024) {
+        let resolvedCapacity = max(1, capacity)
+        self.capacity = Int32(resolvedCapacity)
+        self.slots = (0..<resolvedCapacity).map { _ in Slot() }
+    }
+
+    func write(trackID: UUID, summary: AudioInputCaptureBufferSummary) {
+        let sequence = writeSequence.increment()
+        let slot = slots[index(for: sequence)]
+        slot.trackID = trackID
+        slot.summary = summary
+        slot.sequence.store(sequence)
+    }
+
+    func drain(_ consume: (UUID, AudioInputCaptureBufferSummary) -> Void) {
+        let writeLimit = writeSequence.load()
+        guard writeLimit > readSequence else { return }
+
+        let earliestAvailableSequence = max(readSequence &+ 1, writeLimit &- capacity &+ 1)
+        if earliestAvailableSequence > readSequence &+ 1 {
+            readSequence = earliestAvailableSequence &- 1
+        }
+
+        var nextSequence = readSequence &+ 1
+        while nextSequence <= writeLimit {
+            let slot = slots[index(for: nextSequence)]
+            let slotSequence = slot.sequence.load()
+            guard slotSequence >= nextSequence else { break }
+
+            if slotSequence > nextSequence {
+                readSequence = slotSequence &- 1
+                nextSequence = slotSequence
+                continue
+            }
+
+            let trackID = slot.trackID
+            let summary = slot.summary
+            readSequence = nextSequence
+            consume(trackID, summary)
+            nextSequence = nextSequence &+ 1
+        }
+    }
+
+    private func index(for sequence: Int32) -> Int {
+        Int((sequence &- 1) % capacity)
+    }
+}
+
 final class AudioInputCaptureStore {
     private struct CaptureState {
         var revision: UInt64 = 0

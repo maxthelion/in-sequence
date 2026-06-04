@@ -36,11 +36,13 @@ final class EngineController: RouterDispatcher {
     private let eventQueue = EventQueue()
     private let sampleEngine: SamplePlaybackSink
     private let audioInputCaptureStore = AudioInputCaptureStore()
+    private let audioInputCaptureTransport = AudioInputCaptureSummaryRing(capacity: 1024)
     private let audioInputCapturePublicationQueue = DispatchQueue(
         label: "ai.sequencer.SequencerAI.AudioInputCapturePublication"
     )
     private let audioInputCapturePublicationQueueKey = DispatchSpecificKey<Void>()
     private let publishesAudioInputCapture: Bool
+    private var audioInputCaptureDrainTimer: DispatchSourceTimer?
     // Initialized at end of init() after `self` is fully available.
     private var macroApplier: TrackMacroApplier!
     private let sampleLibrary: AudioSampleLibrary
@@ -118,6 +120,9 @@ final class EngineController: RouterDispatcher {
             key: audioInputCapturePublicationQueueKey,
             value: ()
         )
+        if publishesAudioInputCapture {
+            startAudioInputCaptureDrainTimer()
+        }
         self.masterBusHost.attach(to: mainAudioGraph)
 
         // Now self is fully initialized; safe to capture as weak.
@@ -137,6 +142,10 @@ final class EngineController: RouterDispatcher {
         } catch {
             NSLog("EngineController setup failed: \(error)")
         }
+    }
+
+    deinit {
+        audioInputCaptureDrainTimer?.cancel()
     }
 
     func start() {
@@ -1500,10 +1509,29 @@ final class EngineController: RouterDispatcher {
 
     private func processAudioInputBuffer(trackID: UUID, buffer: AVAudioPCMBuffer) {
         let summary = AudioInputCaptureStore.summarize(buffer: buffer)
-        audioInputCapturePublicationQueue.async { [weak self] in
-            guard let self else { return }
-            let snapshot = self.audioInputCaptureStore.process(summary: summary, trackID: trackID)
-            self.publishAudioInputCaptureSnapshot(trackID: trackID, snapshot: snapshot)
+        audioInputCaptureTransport.write(trackID: trackID, summary: summary)
+    }
+
+    private func startAudioInputCaptureDrainTimer() {
+        guard audioInputCaptureDrainTimer == nil else { return }
+
+        let timer = DispatchSource.makeTimerSource(queue: audioInputCapturePublicationQueue)
+        timer.schedule(
+            deadline: .now() + .milliseconds(33),
+            repeating: .milliseconds(33),
+            leeway: .milliseconds(5)
+        )
+        timer.setEventHandler { [weak self] in
+            self?.drainAudioInputCaptureTransport()
+        }
+        timer.resume()
+        audioInputCaptureDrainTimer = timer
+    }
+
+    private func drainAudioInputCaptureTransport() {
+        audioInputCaptureTransport.drain { trackID, summary in
+            let snapshot = audioInputCaptureStore.process(summary: summary, trackID: trackID)
+            publishAudioInputCaptureSnapshot(trackID: trackID, snapshot: snapshot)
         }
     }
 
@@ -1532,9 +1560,13 @@ final class EngineController: RouterDispatcher {
 
     private func readAudioInputCaptureStore<T>(_ body: () -> T) -> T {
         if DispatchQueue.getSpecific(key: audioInputCapturePublicationQueueKey) != nil {
+            drainAudioInputCaptureTransport()
             return body()
         }
-        return audioInputCapturePublicationQueue.sync(execute: body)
+        return audioInputCapturePublicationQueue.sync {
+            self.drainAudioInputCaptureTransport()
+            return body()
+        }
     }
 
     private func syncTrackParams(for documentModel: Project) {
