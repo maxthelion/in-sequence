@@ -99,6 +99,11 @@ enum VisualScenarioCommandRunner {
             session: session,
             engineController: engineController
         )
+        applyPhraseNavigationFixture(
+            command: command,
+            session: session,
+            engineController: engineController
+        )
 
         switch command["transport"] {
         case "play":
@@ -163,9 +168,22 @@ enum VisualScenarioCommandRunner {
         let activeAudioInputRuntime = activeAudioInputTrack.flatMap { engineController.audioInputRuntime(for: $0.id) }
         let selectedAudioInputReadout = engineController.audioInputRoutingReadoutForTesting(trackID: session.store.selectedTrackID)
         let audioInputTrackCount = session.store.tracks.filter { $0.trackType == .audioInput }.count
+        let phrases = session.store.phrases
+        let currentPhraseName = engineController.currentPhraseID.flatMap { phraseID in
+            phrases.first { $0.id == phraseID }?.name
+        }
+        let queuedPhraseName = engineController.queuedPhraseID.flatMap { phraseID in
+            phrases.first { $0.id == phraseID }?.name
+        }
         let status = """
         workspace=\(section.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
+        phraseCount=\(phrases.count)
+        phraseNames=\(phrases.map(\.name).joined(separator: "|"))
+        currentPhraseName=\(currentPhraseName ?? "none")
+        queuedPhraseName=\(queuedPhraseName ?? "none")
+        phraseQueueEnabled=\(engineController.isRunning && !phrases.isEmpty)
+        phraseNowEnabled=\(!phrases.isEmpty)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -202,6 +220,51 @@ enum VisualScenarioCommandRunner {
         """
 
         try? status.write(to: statusURL, atomically: true, encoding: .utf8)
+    }
+
+    private static func applyPhraseNavigationFixture(
+        command: [String: String],
+        session: SequencerDocumentSession,
+        engineController: EngineController
+    ) {
+        if command["phraseFixture"] == "empty" {
+            if engineController.isRunning {
+                engineController.stop()
+            }
+            let emptySelection = UUID(uuidString: "00000000-0000-4000-8000-000000000911") ?? UUID()
+            session.batch(impact: .snapshotOnly, changed: .full) { store in
+                store.replacePhrases([], selectedPhraseID: emptySelection)
+            }
+        }
+
+        switch command["phrasePicker"] {
+        case "open":
+            NotificationCenter.default.post(name: .transportPhraseNavigationVisualCommand, object: "open")
+        case "close":
+            NotificationCenter.default.post(name: .transportPhraseNavigationVisualCommand, object: "close")
+        default:
+            break
+        }
+
+        if let action = command["phraseAction"] {
+            NotificationCenter.default.post(name: .transportPhraseNavigationVisualCommand, object: action)
+        }
+
+        if let queueIndex = Int(command["phraseQueueIndex"] ?? ""),
+           let phraseID = phraseID(at: queueIndex, session: session) {
+            _ = engineController.queuePhrase(phraseID)
+        }
+
+        if let nowIndex = Int(command["phraseNowIndex"] ?? ""),
+           let phraseID = phraseID(at: nowIndex, session: session) {
+            _ = engineController.switchPhraseNow(phraseID)
+        }
+    }
+
+    private static func phraseID(at index: Int, session: SequencerDocumentSession) -> UUID? {
+        let phrases = session.store.phrases
+        guard phrases.indices.contains(index) else { return nil }
+        return phrases[index].id
     }
 
     private static func audioInputArmStateLabel(_ runtime: EngineController.AudioInputTrackRuntime) -> String {

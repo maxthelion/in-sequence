@@ -227,6 +227,10 @@ struct TransportBar: View {
         .popover(isPresented: $phrasePickerPresented, arrowEdge: .bottom) {
             phrasePicker
         }
+        .onReceive(NotificationCenter.default.publisher(for: .transportPhraseNavigationVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            applyVisualPhraseNavigationCommand(command)
+        }
         .layoutPriority(1)
     }
 
@@ -279,6 +283,41 @@ struct TransportBar: View {
     private func phrase(for phraseID: UUID) -> PhraseModel? {
         phrases.first { $0.id == phraseID }
     }
+
+    private func applyVisualPhraseNavigationCommand(_ command: String) {
+        switch command {
+        case "open":
+            if !phrases.isEmpty {
+                phrasePickerPresented = true
+            }
+        case "close":
+            phrasePickerPresented = false
+        default:
+            let parts = command.split(separator: ":", maxSplits: 1).map(String.init)
+            guard parts.count == 2,
+                  let index = Int(parts[1]),
+                  phrases.indices.contains(index)
+            else { return }
+
+            let phraseID = phrases[index].id
+            switch parts[0] {
+            case "queue":
+                if engineController.queuePhrase(phraseID) {
+                    phrasePickerPresented = false
+                }
+            case "now":
+                if engineController.switchPhraseNow(phraseID) {
+                    phrasePickerPresented = false
+                }
+            default:
+                break
+            }
+        }
+    }
+}
+
+extension Notification.Name {
+    static let transportPhraseNavigationVisualCommand = Notification.Name("SequencerAITransportPhraseNavigationVisualCommand")
 }
 
 private struct PhraseNavigationRow: View {

@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "tracks": [
+    {
+      "id": "11111111-aaaa-bbbb-cccc-111111111111",
+      "name": "Phrase Nav Track",
+      "trackType": "monoMelodic",
+      "pitches": [60, 64, 67, 72],
+      "stepPattern": [true, true, false, true, true, false, true, false, true, true, false, true, true, false, true, false],
+      "stepAccents": [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+      "destination": {
+        "midi": {
+          "port": null,
+          "channel": 0,
+          "noteOffset": 0
+        }
+      },
+      "mix": {
+        "level": 0.86,
+        "pan": 0,
+        "isMuted": false
+      },
+      "velocity": 104,
+      "gateLength": 4,
+      "macros": []
+    }
+  ],
+  "selectedTrackID": "11111111-aaaa-bbbb-cccc-111111111111",
+  "phrases": [
+    {
+      "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+      "name": "Intro Lift",
+      "lengthBars": 1,
+      "stepsPerBar": 16,
+      "cells": []
+    },
+    {
+      "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+      "name": "Verse - Pocket With A Very Long Name For Truncation",
+      "lengthBars": 2,
+      "stepsPerBar": 16,
+      "cells": []
+    },
+    {
+      "id": "cccccccc-cccc-cccc-cccc-ccccccccccc3",
+      "name": "Chorus Drop",
+      "lengthBars": 4,
+      "stepsPerBar": 16,
+      "cells": []
+    },
+    {
+      "id": "dddddddd-dddd-dddd-dddd-ddddddddddd4",
+      "name": "Outro Texture With Extended Label For Crowded Transport Verification",
+      "lengthBars": 8,
+      "stepsPerBar": 16,
+      "cells": []
+    }
+  ],
+  "selectedPhraseID": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+}
