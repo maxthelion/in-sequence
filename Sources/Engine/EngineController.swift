@@ -17,6 +17,13 @@ final class EngineController: RouterDispatcher {
         let pitchOffset: Int
     }
 
+    private struct PhraseNavigationState: Equatable {
+        var currentPhraseID: UUID?
+        var queuedPhraseID: UUID?
+        var basisPhraseID: UUID?
+        var phraseCycleStartTick: UInt64 = 0
+    }
+
     private let midiClient: MIDIClient?
     private let endpoint: MIDIEndpoint?
     private let sharedAudioOutput: TrackPlaybackSink?
@@ -25,6 +32,8 @@ final class EngineController: RouterDispatcher {
     private let masterBusHost: MasterBusHosting
     private let stepsPerBar: Int
     private let stateLock = NSLock()
+    @ObservationIgnored
+    private let phraseNavigationLock = NSLock()
     private let documentApplyLock = NSLock()
     @ObservationIgnored
     private lazy var router = MIDIRouter(dispatcher: self)
@@ -66,7 +75,13 @@ final class EngineController: RouterDispatcher {
     private let tickState = TickStateBuffer(playbackSnapshot: SequencerSnapshotCompiler.compile(state: .empty))
     private let trackRuntime = TrackRuntimeRegistry()
     private let routerDispatch = RouterDispatchState()
+    @ObservationIgnored
+    private var phraseNavigationState = PhraseNavigationState()
     private(set) var chordContextByLane: [String: Chord] = [:]
+
+    private(set) var currentPhraseID: UUID?
+    private(set) var queuedPhraseID: UUID?
+    private(set) var basisPhraseID: UUID?
 
     private func log(_ message: String) {
         NSLog("[EngineController] \(message)")
@@ -88,6 +103,157 @@ final class EngineController: RouterDispatcher {
         } else {
             DispatchQueue.main.async(execute: body)
         }
+    }
+
+    private func withPhraseNavigationLock<T>(_ body: (inout PhraseNavigationState) -> T) -> T {
+        phraseNavigationLock.lock()
+        defer { phraseNavigationLock.unlock() }
+        return body(&phraseNavigationState)
+    }
+
+    private func publishPhraseNavigationState(_ state: PhraseNavigationState) {
+        publishToMain { [weak self] in
+            guard let self else { return }
+            self.currentPhraseID = state.currentPhraseID
+            self.queuedPhraseID = state.queuedPhraseID
+            self.basisPhraseID = state.basisPhraseID
+        }
+    }
+
+    private func firstValidPhraseID(in snapshot: PlaybackSnapshot) -> UUID? {
+        if snapshot.phraseBuffer(for: snapshot.selectedPhraseID) != nil {
+            return snapshot.selectedPhraseID
+        }
+        return snapshot.phraseOrder.first { snapshot.phraseBuffer(for: $0) != nil }
+    }
+
+    private func validPhraseID(_ phraseID: UUID?, in snapshot: PlaybackSnapshot) -> UUID? {
+        guard let phraseID,
+              snapshot.phraseBuffer(for: phraseID) != nil
+        else {
+            return nil
+        }
+        return phraseID
+    }
+
+    private func nextPhraseCycleStartTick() -> UInt64 {
+        tickState.currentPreparedTickIndex() ?? transportTickIndex
+    }
+
+    private func initializePhraseNavigationForPlaybackStart(snapshot: PlaybackSnapshot, cycleStartTick: UInt64) {
+        let fallbackPhraseID = firstValidPhraseID(in: snapshot)
+        let updatedState = withPhraseNavigationLock { state in
+            state.currentPhraseID = fallbackPhraseID
+            if validPhraseID(state.queuedPhraseID, in: snapshot) == nil {
+                state.queuedPhraseID = nil
+            }
+            state.basisPhraseID = validPhraseID(state.queuedPhraseID, in: snapshot)
+                ?? validPhraseID(state.currentPhraseID, in: snapshot)
+                ?? fallbackPhraseID
+            state.phraseCycleStartTick = cycleStartTick
+            return state
+        }
+        publishPhraseNavigationState(updatedState)
+    }
+
+    private func clearQueuedPhraseOnStop(snapshot: PlaybackSnapshot) {
+        let fallbackPhraseID = firstValidPhraseID(in: snapshot)
+        let updatedState = withPhraseNavigationLock { state in
+            state.queuedPhraseID = nil
+            if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
+                state.currentPhraseID = fallbackPhraseID
+            }
+            state.basisPhraseID = fallbackPhraseID
+            return state
+        }
+        publishPhraseNavigationState(updatedState)
+    }
+
+    private func reconcilePhraseNavigation(
+        snapshot: PlaybackSnapshot,
+        cycleStartTickForChangedCurrent: UInt64
+    ) {
+        let fallbackPhraseID = firstValidPhraseID(in: snapshot)
+        let updatedState = withPhraseNavigationLock { state in
+            let previousCurrentPhraseID = state.currentPhraseID
+            if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
+                state.currentPhraseID = fallbackPhraseID
+            }
+            if state.currentPhraseID != previousCurrentPhraseID {
+                state.phraseCycleStartTick = cycleStartTickForChangedCurrent
+            }
+            if validPhraseID(state.queuedPhraseID, in: snapshot) == nil {
+                state.queuedPhraseID = nil
+            }
+            if validPhraseID(state.basisPhraseID, in: snapshot) == nil {
+                state.basisPhraseID = isRunning
+                    ? (state.queuedPhraseID ?? state.currentPhraseID ?? fallbackPhraseID)
+                    : fallbackPhraseID
+            }
+            if !isRunning, state.queuedPhraseID == nil {
+                state.basisPhraseID = fallbackPhraseID
+            }
+            return state
+        }
+        publishPhraseNavigationState(updatedState)
+    }
+
+    private func playbackPhraseForPrepare(
+        upcomingStep: UInt64,
+        snapshot: PlaybackSnapshot
+    ) -> (phraseID: UUID, stepInPhrase: Int) {
+        let fallbackPhraseID = firstValidPhraseID(in: snapshot)
+        var playbackPhraseID = fallbackPhraseID ?? snapshot.selectedPhraseID
+        var stepInPhrase = 0
+        let updatedState = withPhraseNavigationLock { state in
+            if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
+                state.currentPhraseID = fallbackPhraseID
+                state.phraseCycleStartTick = upcomingStep
+            }
+            if validPhraseID(state.queuedPhraseID, in: snapshot) == nil {
+                state.queuedPhraseID = nil
+            }
+
+            playbackPhraseID = state.currentPhraseID ?? fallbackPhraseID ?? snapshot.selectedPhraseID
+            let phraseStepCount = snapshot.phraseBuffer(for: playbackPhraseID)?.stepCount
+                ?? snapshot.phraseBuffer(for: snapshot.selectedPhraseID)?.stepCount
+                ?? 1
+            stepInPhrase = Self.phraseLocalStep(
+                upcomingStep: upcomingStep,
+                cycleStartTick: state.phraseCycleStartTick,
+                stepCount: phraseStepCount
+            )
+
+            if stepInPhrase == 0,
+               upcomingStep != state.phraseCycleStartTick,
+               let queuedPhraseID = state.queuedPhraseID {
+                if snapshot.phraseBuffer(for: queuedPhraseID) != nil {
+                    state.currentPhraseID = queuedPhraseID
+                    state.queuedPhraseID = nil
+                    state.basisPhraseID = queuedPhraseID
+                    state.phraseCycleStartTick = upcomingStep
+                    playbackPhraseID = queuedPhraseID
+                    stepInPhrase = 0
+                } else {
+                    state.queuedPhraseID = nil
+                    state.basisPhraseID = state.currentPhraseID ?? fallbackPhraseID
+                }
+            } else if validPhraseID(state.basisPhraseID, in: snapshot) == nil {
+                state.basisPhraseID = state.queuedPhraseID ?? state.currentPhraseID ?? fallbackPhraseID
+            }
+
+            return state
+        }
+        publishPhraseNavigationState(updatedState)
+        return (playbackPhraseID, stepInPhrase)
+    }
+
+    private static func phraseLocalStep(upcomingStep: UInt64, cycleStartTick: UInt64, stepCount: Int) -> Int {
+        let resolvedStepCount = UInt64(max(1, stepCount))
+        guard upcomingStep >= cycleStartTick else {
+            return Int(upcomingStep % resolvedStepCount)
+        }
+        return Int((upcomingStep - cycleStartTick) % resolvedStepCount)
     }
 
     init(
@@ -154,6 +320,10 @@ final class EngineController: RouterDispatcher {
             return
         }
 
+        initializePhraseNavigationForPlaybackStart(
+            snapshot: tickState.currentPlaybackSnapshot(),
+            cycleStartTick: 0
+        )
         let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
         hosts.forEach { $0.startIfNeeded() }
         try? sampleEngine.start()
@@ -180,6 +350,7 @@ final class EngineController: RouterDispatcher {
         lastNoteTriggerCount = 0
         sampleEngine.stop()
         tickState.resetRuntimeState()
+        clearQueuedPhraseOnStop(snapshot: tickState.currentPlaybackSnapshot())
     }
 
     func applyAudioDeviceUIDs(inputUID: String?, outputUID: String?) throws -> AudioDeviceApplyResult {
@@ -434,6 +605,10 @@ final class EngineController: RouterDispatcher {
             currentTrackIDs: Set(documentModel.tracks.map(\.id)),
             clearAuditionOverrides: true
         )
+        reconcilePhraseNavigation(
+            snapshot: compiledSnapshot,
+            cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
+        )
         apply(deltas: deltas, documentModel: documentModel)
     }
 
@@ -445,6 +620,10 @@ final class EngineController: RouterDispatcher {
             resetGeneratedStates: true
         )
         eventQueue.clear()
+        reconcilePhraseNavigation(
+            snapshot: playbackSnapshot,
+            cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
+        )
     }
 
     /// Exposes the current playback snapshot for test assertions.
@@ -471,6 +650,55 @@ final class EngineController: RouterDispatcher {
     /// Test hook: exposes whether the internal event queue is empty.
     /// Use to assert that prepared events were cleared after a snapshot swap.
     var eventQueueIsEmpty: Bool { eventQueue.isEmpty }
+
+    @discardableResult
+    func queuePhrase(_ phraseID: UUID) -> Bool {
+        guard isRunning else {
+            return false
+        }
+
+        let snapshot = tickState.currentPlaybackSnapshot()
+        guard snapshot.phraseBuffer(for: phraseID) != nil else {
+            reconcilePhraseNavigation(
+                snapshot: snapshot,
+                cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
+            )
+            return false
+        }
+
+        let updatedState = withPhraseNavigationLock { state in
+            state.queuedPhraseID = phraseID
+            state.basisPhraseID = phraseID
+            return state
+        }
+        publishPhraseNavigationState(updatedState)
+        return true
+    }
+
+    @discardableResult
+    func switchPhraseNow(_ phraseID: UUID) -> Bool {
+        let snapshot = tickState.currentPlaybackSnapshot()
+        guard snapshot.phraseBuffer(for: phraseID) != nil else {
+            reconcilePhraseNavigation(
+                snapshot: snapshot,
+                cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
+            )
+            return false
+        }
+
+        let cycleStartTick = nextPhraseCycleStartTick()
+        let updatedState = withPhraseNavigationLock { state in
+            state.currentPhraseID = phraseID
+            state.queuedPhraseID = nil
+            state.basisPhraseID = phraseID
+            state.phraseCycleStartTick = cycleStartTick
+            return state
+        }
+        tickState.invalidatePreparedTick(resetGeneratedStates: true)
+        eventQueue.clear()
+        publishPhraseNavigationState(updatedState)
+        return true
+    }
 
     /// Scoped write: store a new AU state blob for the given track.
     ///
@@ -945,10 +1173,11 @@ final class EngineController: RouterDispatcher {
         guard let executor else {
             return
         }
-        let phraseStepCount = playbackSnapshot.phraseBuffer(for: playbackSnapshot.selectedPhraseID)?.stepCount ?? 1
-        let stepInPhrase = Int(upcomingStep % UInt64(max(1, phraseStepCount)))
+        let playbackPhrase = playbackPhraseForPrepare(upcomingStep: upcomingStep, snapshot: playbackSnapshot)
+        let activePhraseID = playbackPhrase.phraseID
+        let stepInPhrase = playbackPhrase.stepInPhrase
         let currentLayerSnapshot = playbackSnapshot.layerSnapshot(
-            phraseID: playbackSnapshot.selectedPhraseID,
+            phraseID: activePhraseID,
             stepInPhrase: stepInPhrase
         )
 
@@ -981,7 +1210,7 @@ final class EngineController: RouterDispatcher {
                 notes = Self.resolvedStepNotes(
                     for: track.id,
                     in: playbackSnapshot,
-                    phraseID: playbackSnapshot.selectedPhraseID,
+                    phraseID: activePhraseID,
                     stepIndex: stepInPhrase,
                     chordContext: harmonicSidechainChord,
                     state: &state,
