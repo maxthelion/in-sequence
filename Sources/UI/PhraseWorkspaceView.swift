@@ -19,7 +19,6 @@ struct PhraseWorkspaceView: View {
     private var phrases: [PhraseModel] { session.store.phrases }
     private var tracks: [StepSequenceTrack] { session.store.tracks }
     private var layers: [PhraseLayerDefinition] { session.store.layers }
-    private var selectedPhrase: PhraseModel { session.store.selectedPhrase }
     private var selectedTrack: StepSequenceTrack { session.store.selectedTrack }
 
     private var selectedLayer: PhraseLayerDefinition {
@@ -46,18 +45,6 @@ struct PhraseWorkspaceView: View {
         let trackSlotsWidth = CGFloat(visibleTrackSlots.count) * trackColumnWidth
         let interiorSpacing = CGFloat(max(visibleTrackSlots.count, 1)) * gridSpacing
         return phraseColumnWidth + interiorSpacing + trackSlotsWidth
-    }
-
-    private var playbackPhraseIndex: Int? {
-        guard engineController.isRunning else {
-            return nil
-        }
-
-        return PhrasePlayhead.playbackPhraseIndex(
-            transportTickIndex: engineController.transportTickIndex,
-            phrases: phrases,
-            stepsPerBar: selectedPhrase.stepsPerBar
-        )
     }
 
     var body: some View {
@@ -289,7 +276,11 @@ struct PhraseWorkspaceView: View {
                             PhraseMatrixPhraseCell(
                                 phrase: phrase,
                                 isSelected: selectedPhraseID == phrase.id,
-                                isPlaying: playbackPhraseIndex == index,
+                                isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
+                                    phraseID: phrase.id,
+                                    engineIsRunning: engineController.isRunning,
+                                    currentPhraseID: engineController.currentPhraseID
+                                ),
                                 isQueued: engineController.queuedPhraseID == phrase.id,
                                 isOpen: isOpen
                             ) {

@@ -98,4 +98,12 @@ struct PhraseButtonControlPresentation: Equatable {
         }
         return "\(queuePrefix)plays \(clampedRepeatCount) times, then advances to the next phrase."
     }
+
+    static func isPlayingBadgeVisible(
+        phraseID: UUID,
+        engineIsRunning: Bool,
+        currentPhraseID: UUID?
+    ) -> Bool {
+        engineIsRunning && currentPhraseID == phraseID
+    }
 }

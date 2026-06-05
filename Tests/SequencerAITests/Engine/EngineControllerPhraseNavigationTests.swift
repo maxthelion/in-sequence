@@ -121,6 +121,7 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         fixture.controller.processTick(tickIndex: 3, now: 0.3)
         XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
         XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 2)
+        assertPhraseButtonPlayingBadge(in: fixture, isVisibleOnlyFor: fixture.phrases[0].id)
 
         fixture.controller.processTick(tickIndex: 5, now: 0.5)
         XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
@@ -140,7 +141,12 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         }
         startEngineForManualTicks(fixture.controller)
 
-        processTicks(fixture.controller, through: 7)
+        fixture.controller.processTick(tickIndex: 3, now: 0.3)
+        assertPhraseButtonPlayingBadge(in: fixture, isVisibleOnlyFor: fixture.phrases[0].id)
+
+        for tickIndex in 4...7 {
+            fixture.controller.processTick(tickIndex: UInt64(tickIndex), now: TimeInterval(tickIndex) / 10)
+        }
 
         XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
         XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
@@ -181,6 +187,7 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[1].id)
         XCTAssertNil(fixture.controller.queuedPhraseID)
         XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+        assertPhraseButtonPlayingBadge(in: fixture, isVisibleOnlyFor: fixture.phrases[1].id)
 
         fixture.controller.stop()
     }
@@ -448,6 +455,27 @@ private func startEngineForManualTicks(_ controller: EngineController) {
 private func processTicks(_ controller: EngineController, through finalTickIndex: UInt64) {
     for tickIndex in 0...finalTickIndex {
         controller.processTick(tickIndex: tickIndex, now: TimeInterval(tickIndex) / 10)
+    }
+}
+
+private func assertPhraseButtonPlayingBadge(
+    in fixture: PhraseNavigationFixture,
+    isVisibleOnlyFor expectedPhraseID: UUID,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) {
+    for phrase in fixture.phrases {
+        XCTAssertEqual(
+            PhraseButtonControlPresentation.isPlayingBadgeVisible(
+                phraseID: phrase.id,
+                engineIsRunning: fixture.controller.isRunning,
+                currentPhraseID: fixture.controller.currentPhraseID
+            ),
+            phrase.id == expectedPhraseID,
+            "Phrase button playing badge should follow EngineController.currentPhraseID for \(phrase.name)",
+            file: file,
+            line: line
+        )
     }
 }
 
