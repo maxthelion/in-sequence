@@ -405,6 +405,8 @@ enum SequencerSnapshotCompiler {
         return PhrasePlaybackBuffer(
             phraseID: phrase.id,
             stepCount: stepCount,
+            repeatCount: phrase.repeatCount,
+            loopEnabled: phrase.loopEnabled,
             trackStates: trackStates
         )
     }

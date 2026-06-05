@@ -10,6 +10,8 @@ struct TrackPhrasePlaybackBuffer: Equatable, Sendable {
 struct PhrasePlaybackBuffer: Equatable, Sendable {
     let phraseID: UUID
     let stepCount: Int
+    let repeatCount: Int
+    let loopEnabled: Bool
     let trackStates: [UUID: TrackPhrasePlaybackBuffer]
 
     func trackState(for trackID: UUID) -> TrackPhrasePlaybackBuffer? {

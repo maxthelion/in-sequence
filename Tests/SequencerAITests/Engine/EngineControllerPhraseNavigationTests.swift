@@ -85,6 +85,141 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         fixture.controller.stop()
     }
 
+    func test_repeatCountOneAdvancesToNextPhraseAtFirstCycleBoundary() throws {
+        let fixture = makePhraseNavigationFixture { phrases in
+            phrases[0].repeatCount = 1
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        fixture.controller.processTick(tickIndex: 0, now: 0)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+
+        fixture.controller.processTick(tickIndex: 1, now: 0.1)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[1].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[1].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+
+        fixture.sink.reset()
+        fixture.controller.processTick(tickIndex: 2, now: 0.2)
+        XCTAssertEqual(fixture.sink.playedPitches, [72])
+
+        fixture.controller.stop()
+    }
+
+    func test_finiteRepeatCountHigherThanOneAdvancesOnlyAfterRequestedCycles() throws {
+        let fixture = makePhraseNavigationFixture { phrases in
+            phrases[0].repeatCount = 4
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        fixture.controller.processTick(tickIndex: 1, now: 0.1)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 1)
+
+        fixture.controller.processTick(tickIndex: 3, now: 0.3)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 2)
+
+        fixture.controller.processTick(tickIndex: 5, now: 0.5)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 3)
+
+        fixture.controller.processTick(tickIndex: 7, now: 0.7)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[1].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[1].id)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+
+        fixture.controller.stop()
+    }
+
+    func test_repeatCountZeroStaysOnCurrentPhraseWithoutAutomaticAdvancement() throws {
+        let fixture = makePhraseNavigationFixture { phrases in
+            phrases[0].repeatCount = 0
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        processTicks(fixture.controller, through: 7)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+
+        fixture.controller.stop()
+    }
+
+    func test_loopEnabledStaysOnCurrentPhraseEvenWithFiniteRepeatCount() throws {
+        let fixture = makePhraseNavigationFixture { phrases in
+            phrases[0].repeatCount = 1
+            phrases[0].loopEnabled = true
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        processTicks(fixture.controller, through: 7)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+
+        fixture.controller.stop()
+    }
+
+    func test_queuedPhrasePromotesAtBoundaryEvenWhenCurrentPhraseLoops() throws {
+        let fixture = makePhraseNavigationFixture { phrases in
+            phrases[0].repeatCount = 0
+            phrases[0].loopEnabled = true
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        XCTAssertTrue(fixture.controller.queuePhrase(fixture.phrases[1].id))
+        fixture.controller.processTick(tickIndex: 1, now: 0.1)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[1].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[1].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+
+        fixture.controller.stop()
+    }
+
+    func test_finalFinitePhraseWrapsToFirstPhrase() throws {
+        let fixture = makePhraseNavigationFixture(selectedPhraseIndex: 2) { phrases in
+            phrases[2].repeatCount = 1
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        fixture.controller.processTick(tickIndex: 1, now: 0.1)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+
+        fixture.controller.stop()
+    }
+
+    func test_onePhraseDocumentFiniteAdvancementResolvesBackAndResetsProgress() throws {
+        let fixture = makePhraseNavigationFixture(phraseCount: 1) { phrases in
+            phrases[0].repeatCount = 2
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        fixture.controller.processTick(tickIndex: 1, now: 0.1)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 1)
+
+        fixture.controller.processTick(tickIndex: 3, now: 0.3)
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertNil(fixture.controller.queuedPhraseID)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
+
+        fixture.controller.stop()
+    }
+
     func test_stopClearsQueuedPhraseState() throws {
         let fixture = makePhraseNavigationFixture()
         startEngineForManualTicks(fixture.controller)
@@ -142,6 +277,7 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[2].id)
         XCTAssertNil(fixture.controller.queuedPhraseID)
         XCTAssertEqual(fixture.controller.basisPhraseID, fixture.phrases[2].id)
+        XCTAssertEqual(fixture.controller.currentPhraseCompletedCyclesForTesting, 0)
 
         fixture.controller.stop()
     }
@@ -201,7 +337,9 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
     }
 
     func test_prepareTickDoesNotRepublishUnchangedPhraseNavigationState() throws {
-        let fixture = makePhraseNavigationFixture()
+        let fixture = makePhraseNavigationFixture { phrases in
+            phrases[0].repeatCount = 0
+        }
         startEngineForManualTicks(fixture.controller)
         let publicationCount = fixture.controller.phraseNavigationPublicationCountForTesting
 
@@ -244,7 +382,11 @@ private struct PhraseNavigationFixture {
     let phrases: [PhraseModel]
 }
 
-private func makePhraseNavigationFixture(selectedPhraseIndex: Int = 0) -> PhraseNavigationFixture {
+private func makePhraseNavigationFixture(
+    selectedPhraseIndex: Int = 0,
+    phraseCount: Int = 3,
+    configurePhrases: (inout [PhraseModel]) -> Void = { _ in }
+) -> PhraseNavigationFixture {
     let sink = PhraseNavigationAudioSink()
     let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink, stepsPerBar: 2)
     let trackID = UUID(uuidString: "11111111-aaaa-bbbb-cccc-111111111111")!
@@ -267,11 +409,12 @@ private func makePhraseNavigationFixture(selectedPhraseIndex: Int = 0) -> Phrase
         phraseNavigationGenerator(id: generatorCID, name: "C", pattern: [true, false], pitch: 84),
     ]
     let layers = PhraseLayerDefinition.defaultSet(for: [track])
-    let phrases = [
+    var phrases = Array([
         phraseNavigationPhrase(id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")!, name: "Phrase A", slotIndex: 0, track: track, layers: layers),
         phraseNavigationPhrase(id: UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2")!, name: "Phrase B", slotIndex: 1, track: track, layers: layers),
         phraseNavigationPhrase(id: UUID(uuidString: "cccccccc-cccc-cccc-cccc-ccccccccccc3")!, name: "Phrase C", slotIndex: 2, track: track, layers: layers),
-    ]
+    ].prefix(min(max(1, phraseCount), 3)))
+    configurePhrases(&phrases)
     let patternBank = TrackPatternBank(
         trackID: track.id,
         slots: [
@@ -300,6 +443,12 @@ private func makePhraseNavigationFixture(selectedPhraseIndex: Int = 0) -> Phrase
 private func startEngineForManualTicks(_ controller: EngineController) {
     controller.start()
     controller.clock.stop()
+}
+
+private func processTicks(_ controller: EngineController, through finalTickIndex: UInt64) {
+    for tickIndex in 0...finalTickIndex {
+        controller.processTick(tickIndex: tickIndex, now: TimeInterval(tickIndex) / 10)
+    }
 }
 
 private func phraseNavigationPhrase(

@@ -22,6 +22,7 @@ final class EngineController: RouterDispatcher {
         var queuedPhraseID: UUID?
         var basisPhraseID: UUID?
         var phraseCycleStartTick: UInt64 = 0
+        var currentPhraseCompletedCycles: Int = 0
     }
 
     private let midiClient: MIDIClient?
@@ -155,6 +156,17 @@ final class EngineController: RouterDispatcher {
         return phraseID
     }
 
+    private func nextValidPhraseID(after phraseID: UUID, in snapshot: PlaybackSnapshot) -> UUID? {
+        let validPhraseIDs = snapshot.phraseOrder.filter { snapshot.phraseBuffer(for: $0) != nil }
+        guard !validPhraseIDs.isEmpty else {
+            return nil
+        }
+        guard let currentIndex = validPhraseIDs.firstIndex(of: phraseID) else {
+            return validPhraseIDs.first
+        }
+        return validPhraseIDs[(currentIndex + 1) % validPhraseIDs.count]
+    }
+
     private func nextPhraseCycleStartTick() -> UInt64 {
         tickState.currentPreparedTickIndex() ?? transportTickIndex
     }
@@ -170,6 +182,7 @@ final class EngineController: RouterDispatcher {
                 ?? validPhraseID(state.currentPhraseID, in: snapshot)
                 ?? fallbackPhraseID
             state.phraseCycleStartTick = cycleStartTick
+            state.currentPhraseCompletedCycles = 0
         }
         publishPhraseNavigationStateIfChanged(updatedState)
     }
@@ -180,6 +193,7 @@ final class EngineController: RouterDispatcher {
             state.queuedPhraseID = nil
             if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
                 state.currentPhraseID = fallbackPhraseID
+                state.currentPhraseCompletedCycles = 0
             }
             state.basisPhraseID = fallbackPhraseID
         }
@@ -198,6 +212,7 @@ final class EngineController: RouterDispatcher {
             }
             if state.currentPhraseID != previousCurrentPhraseID {
                 state.phraseCycleStartTick = cycleStartTickForChangedCurrent
+                state.currentPhraseCompletedCycles = 0
             }
             if validPhraseID(state.queuedPhraseID, in: snapshot) == nil {
                 state.queuedPhraseID = nil
@@ -225,36 +240,57 @@ final class EngineController: RouterDispatcher {
             if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
                 state.currentPhraseID = fallbackPhraseID
                 state.phraseCycleStartTick = upcomingStep
+                state.currentPhraseCompletedCycles = 0
             }
             if validPhraseID(state.queuedPhraseID, in: snapshot) == nil {
                 state.queuedPhraseID = nil
             }
 
             playbackPhraseID = state.currentPhraseID ?? fallbackPhraseID ?? snapshot.selectedPhraseID
-            let phraseStepCount = snapshot.phraseBuffer(for: playbackPhraseID)?.stepCount
-                ?? snapshot.phraseBuffer(for: snapshot.selectedPhraseID)?.stepCount
-                ?? 1
+            let phraseBuffer = snapshot.phraseBuffer(for: playbackPhraseID)
+                ?? snapshot.phraseBuffer(for: snapshot.selectedPhraseID)
+            let phraseStepCount = phraseBuffer?.stepCount ?? 1
             stepInPhrase = Self.phraseLocalStep(
                 upcomingStep: upcomingStep,
                 cycleStartTick: state.phraseCycleStartTick,
                 stepCount: phraseStepCount
             )
 
-            if stepInPhrase == 0,
-               upcomingStep != state.phraseCycleStartTick,
-               let queuedPhraseID = state.queuedPhraseID {
-                if snapshot.phraseBuffer(for: queuedPhraseID) != nil {
+            if stepInPhrase == 0, upcomingStep != state.phraseCycleStartTick {
+                if let queuedPhraseID = state.queuedPhraseID,
+                   snapshot.phraseBuffer(for: queuedPhraseID) != nil {
                     state.currentPhraseID = queuedPhraseID
                     state.queuedPhraseID = nil
                     state.basisPhraseID = queuedPhraseID
                     state.phraseCycleStartTick = upcomingStep
+                    state.currentPhraseCompletedCycles = 0
                     playbackPhraseID = queuedPhraseID
                     stepInPhrase = 0
-                } else {
+                } else if let phraseBuffer {
                     state.queuedPhraseID = nil
-                    state.basisPhraseID = state.currentPhraseID ?? fallbackPhraseID
+                    let completedCycles = state.currentPhraseCompletedCycles + 1
+                    if phraseBuffer.loopEnabled || phraseBuffer.repeatCount == 0 {
+                        state.phraseCycleStartTick = upcomingStep
+                        state.currentPhraseCompletedCycles = 0
+                    } else if completedCycles < phraseBuffer.repeatCount {
+                        state.phraseCycleStartTick = upcomingStep
+                        state.currentPhraseCompletedCycles = completedCycles
+                    } else if let nextPhraseID = nextValidPhraseID(after: playbackPhraseID, in: snapshot) {
+                        state.currentPhraseID = nextPhraseID
+                        state.basisPhraseID = nextPhraseID
+                        state.phraseCycleStartTick = upcomingStep
+                        state.currentPhraseCompletedCycles = 0
+                        playbackPhraseID = nextPhraseID
+                        stepInPhrase = 0
+                    } else {
+                        state.phraseCycleStartTick = upcomingStep
+                        state.currentPhraseCompletedCycles = 0
+                    }
+                } else if state.queuedPhraseID != nil {
+                    state.queuedPhraseID = nil
                 }
-            } else if validPhraseID(state.basisPhraseID, in: snapshot) == nil {
+            }
+            if validPhraseID(state.basisPhraseID, in: snapshot) == nil {
                 state.basisPhraseID = state.queuedPhraseID ?? state.currentPhraseID ?? fallbackPhraseID
             }
         }
@@ -677,6 +713,12 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private(set) var phraseNavigationPublicationCountForTesting = 0
 
+    var currentPhraseCompletedCyclesForTesting: Int {
+        phraseNavigationLock.lock()
+        defer { phraseNavigationLock.unlock() }
+        return phraseNavigationState.currentPhraseCompletedCycles
+    }
+
     @discardableResult
     func queuePhrase(_ phraseID: UUID) -> Bool {
         guard isRunning else {
@@ -717,6 +759,7 @@ final class EngineController: RouterDispatcher {
             state.queuedPhraseID = nil
             state.basisPhraseID = phraseID
             state.phraseCycleStartTick = cycleStartTick
+            state.currentPhraseCompletedCycles = 0
         }
         tickState.invalidatePreparedTick(resetGeneratedStates: true)
         eventQueue.clear()
