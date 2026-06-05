@@ -297,6 +297,8 @@
 		AF8E5E1D0D07C58421C6886C /* SamplerSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AAFEACE9EB181127A5EA6C7 /* SamplerSettingsTests.swift */; };
 		AF95D97356EC08944A6CC365 /* TrackMacroApplierSamplerFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C67B15F23EBA2CBED422CF85 /* TrackMacroApplierSamplerFilterTests.swift */; };
 		AFC19BBB90A6238AA8CD7416 /* PresetBrowserSheetViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */; };
+		B64A40000000000000000002 /* PhraseButtonControlPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64A40000000000000000001 /* PhraseButtonControlPresentation.swift */; };
+		B64A40000000000000000004 /* PhraseButtonControlPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64A40000000000000000003 /* PhraseButtonControlPresentationTests.swift */; };
 		AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766C257A66BCD3812FAC00F4 /* StepGridTapLatencyTests.swift */; };
 		AFEC910ED207BA5E8F1AADA9 /* Project+TrackMacros.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773F90C630CF113A01EEBE27 /* Project+TrackMacros.swift */; };
 		B04D33E65E6D0FF3E2FBD89E /* SamplerFilterSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47991C72ED92062FA4C7B60 /* SamplerFilterSettings.swift */; };
@@ -1254,6 +1256,8 @@
 		B5DA09D62BEE9BDCC25B5A08 /* ContentView.swift.before */ = {isa = PBXFileReference; path = ContentView.swift.before; sourceTree = "<group>"; };
 		B617F499D08BCF33E2251D5A /* 2026-04-23-ui-read-path-authority-cutover.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-23-ui-read-path-authority-cutover.md"; sourceTree = "<group>"; };
 		B6380D1D6AC0517C4D1013C8 /* validated-screen.err */ = {isa = PBXFileReference; path = "validated-screen.err"; sourceTree = "<group>"; };
+		B64A40000000000000000001 /* PhraseButtonControlPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseButtonControlPresentation.swift; sourceTree = "<group>"; };
+		B64A40000000000000000003 /* PhraseButtonControlPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseButtonControlPresentationTests.swift; sourceTree = "<group>"; };
 		B6685502B2713380D3804AD6 /* PhraseWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseWorkspaceView.swift; sourceTree = "<group>"; };
 		B668ECDFFB6A13DE71CEBB1D /* validated-windows.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "validated-windows.json"; sourceTree = "<group>"; };
 		B698555B717FC33A33579951 /* WaveformDownsamplerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformDownsamplerTests.swift; sourceTree = "<group>"; };
@@ -2017,6 +2021,7 @@
 				2F66D53850064B8D47A58EDE /* PhraseCellEditorSheet.swift */,
 				D4DE847F1A4F5E88F5159E35 /* PhraseCellPreview.swift */,
 				A2B25BBA0A63F5333205728D /* PhraseLayerPresentation.swift */,
+				B64A40000000000000000001 /* PhraseButtonControlPresentation.swift */,
 				B6685502B2713380D3804AD6 /* PhraseWorkspaceView.swift */,
 				570F5DAF2012F23A03ED7F62 /* PreferencesView.swift */,
 				8AD75155580076544C43CCDF /* RouteEditorSheet.swift */,
@@ -2731,6 +2736,7 @@
 				05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */,
 				02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */,
 				B5690E8FE8F2FADF13A6A0D3 /* PresetStepperTests.swift */,
+				B64A40000000000000000003 /* PhraseButtonControlPresentationTests.swift */,
 				1624C29AA598742CFB6E4069 /* SamplerDestinationWidgetTests.swift */,
 				BF8772C8554BBCE9F9C6026A /* StudioTypographyTests.swift */,
 				034C9347D990B68BE91CFA66 /* TrackPerformSelectionStateTests.swift */,
@@ -4491,6 +4497,7 @@
 				3673592D97299B3CE70000BD /* SessionBatchHelperTests.swift in Sources */,
 				2987BC3A8BE7E469E498B535 /* SessionDestinationMacroTests.swift in Sources */,
 				EED001000000000000000001 /* PhrasePolicySessionTests.swift in Sources */,
+				B64A40000000000000000004 /* PhraseButtonControlPresentationTests.swift in Sources */,
 				0077E4E53A46E6D3A4D36087 /* SessionMacroSlotTests.swift in Sources */,
 				A165D88338847DD38B45532D /* SessionSnapshotPublisherTests.swift in Sources */,
 				64645F74EDC54A22604EE436 /* SessionTestSupport.swift in Sources */,
@@ -4641,6 +4648,7 @@
 				4AAF9900316F1DA8AAC11F03 /* PhraseModel.swift in Sources */,
 				FD3B9E87ADA540AEE60F3CA4 /* PhrasePlaybackBuffer.swift in Sources */,
 				6CC8F8D7C3A0D1060FEFE0C0 /* PhraseWorkspaceView.swift in Sources */,
+				B64A40000000000000000002 /* PhraseButtonControlPresentation.swift in Sources */,
 				0FA7416A5483DD84C3FBC9C6 /* PitchAlgo+Kind.swift in Sources */,
 				11CD21EF821C953235E27B22 /* PitchAlgo.swift in Sources */,
 				775EF05EA93FDF55B31D5D9C /* PitchAlgoEditor.swift in Sources */,
