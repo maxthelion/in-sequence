@@ -151,6 +151,7 @@ extension Project {
         {
             trackGroups[previousGroupIndex].memberIDs.removeAll { $0 == trackID }
             trackGroups[previousGroupIndex].noteMapping.removeValue(forKey: trackID)
+            trackGroups[previousGroupIndex].channelMapping.removeValue(forKey: trackID)
         }
 
         tracks[trackIndex].groupID = groupID
@@ -173,6 +174,7 @@ extension Project {
         tracks[trackIndex].groupID = nil
         trackGroups[groupIndex].memberIDs.removeAll { $0 == trackID }
         trackGroups[groupIndex].noteMapping.removeValue(forKey: trackID)
+        trackGroups[groupIndex].channelMapping.removeValue(forKey: trackID)
         if tracks[trackIndex].destination == .inheritGroup {
             NSLog("Track %@ left group %@ while inheriting destination; resetting to .none", tracks[trackIndex].name, trackGroups[groupIndex].name)
             tracks[trackIndex].destination = .none

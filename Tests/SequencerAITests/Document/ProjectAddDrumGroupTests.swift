@@ -128,6 +128,63 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         XCTAssertEqual(group.channelMapping, expectedChannelMapping)
     }
 
+    func test_removeFromGroup_prunes_note_and_channel_mappings_for_removed_member() {
+        var project = Project.empty
+        var plan = DrumGroupPlan.templated(from: .kit808)
+        plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+
+        let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
+
+        guard let groupID, let removedTrackID = project.trackGroups.first(where: { $0.id == groupID })?.memberIDs[1] else {
+            return XCTFail("expected a populated group")
+        }
+
+        project.removeFromGroup(trackID: removedTrackID)
+
+        guard let group = project.trackGroups.first(where: { $0.id == groupID }) else {
+            return XCTFail("expected group to remain")
+        }
+        XCTAssertFalse(group.memberIDs.contains(removedTrackID))
+        XCTAssertNil(group.noteMapping[removedTrackID])
+        XCTAssertNil(group.channelMapping[removedTrackID])
+        XCTAssertEqual(Set(group.noteMapping.keys), Set(group.memberIDs))
+        XCTAssertEqual(Set(group.channelMapping.keys), Set(group.memberIDs))
+    }
+
+    func test_addToGroup_move_prunes_previous_group_note_and_channel_mappings() {
+        var project = Project.empty
+        var plan = DrumGroupPlan.templated(from: .kit808)
+        plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+
+        let sourceGroupID = project.addDrumGroup(plan: plan, library: testLibrary)
+        let destinationGroupID = project.addDrumGroup(plan: plan, library: testLibrary)
+
+        guard let sourceGroupID,
+              let destinationGroupID,
+              let movedTrackID = project.trackGroups.first(where: { $0.id == sourceGroupID })?.memberIDs[2]
+        else {
+            return XCTFail("expected two populated groups")
+        }
+
+        project.addToGroup(trackID: movedTrackID, groupID: destinationGroupID)
+
+        guard let sourceGroup = project.trackGroups.first(where: { $0.id == sourceGroupID }),
+              let destinationGroup = project.trackGroups.first(where: { $0.id == destinationGroupID }),
+              let movedTrack = project.tracks.first(where: { $0.id == movedTrackID })
+        else {
+            return XCTFail("expected moved track and groups to remain")
+        }
+        XCTAssertEqual(movedTrack.groupID, destinationGroupID)
+        XCTAssertFalse(sourceGroup.memberIDs.contains(movedTrackID))
+        XCTAssertNil(sourceGroup.noteMapping[movedTrackID])
+        XCTAssertNil(sourceGroup.channelMapping[movedTrackID])
+        XCTAssertEqual(Set(sourceGroup.noteMapping.keys), Set(sourceGroup.memberIDs))
+        XCTAssertEqual(Set(sourceGroup.channelMapping.keys), Set(sourceGroup.memberIDs))
+        XCTAssertTrue(destinationGroup.memberIDs.contains(movedTrackID))
+        XCTAssertTrue(Set(destinationGroup.noteMapping.keys).isSubset(of: Set(destinationGroup.memberIDs)))
+        XCTAssertTrue(Set(destinationGroup.channelMapping.keys).isSubset(of: Set(destinationGroup.memberIDs)))
+    }
+
     func test_shared_destination_with_mixed_routing_respects_per_member_flag() {
         var project = Project.empty
         var plan = DrumGroupPlan.templated(from: .kit808)
