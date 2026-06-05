@@ -149,6 +149,25 @@ capture_state() {
   write_visual_command "$state" "$payload"
   wait_for_status workspace track 12
   wait_for_status "$wait_key" "$wait_value" 12
+  if [ "$(status_value drumKitMatrixVisible 2>/dev/null || true)" = "true" ]; then
+    wait_for_status drumKitMatrixRenderedVisible true 12
+    wait_for_status \
+      drumKitMatrixRenderedDisplayStepCount \
+      "$(status_value drumKitMatrixDisplayStepCount)" \
+      12
+    wait_for_status \
+      drumKitMatrixRenderedGroupName \
+      "$(status_value drumKitMatrixGroupName)" \
+      12
+    wait_for_status \
+      drumKitMatrixRenderedMemberCount \
+      "$(status_value drumKitMatrixMemberCount)" \
+      12
+    wait_for_status \
+      drumKitMatrixRenderedRoutingEditorVisible \
+      "$(status_value drumKitMatrixRoutingEditorVisible)" \
+      12
+  fi
   sleep 0.8
   cp "$command_file" "$output_dir/${state}.command.env"
   capture_document_window "$pid" "$output_dir/${state}.png"
@@ -195,9 +214,13 @@ expect_status drumKitMatrixMemberCount 6
 expect_status drumKitMatrixPatternBadges "P1|P1|P1|P1|P1|P1"
 expect_status drumKitMatrixPatternMismatch false
 expect_status drumKitMatrixDisplayStepCount 16
+expect_status drumKitMatrixRenderedVisible true
+expect_status drumKitMatrixPreviewActiveCounts "2|2|2|8|2|2"
 
 capture_state "$pid" "02-coherent-32" "drumKitMatrixCommand=display32" "drumKitMatrixDisplayStepCount" "32"
 expect_status drumKitMatrixVisible true
+expect_status drumKitMatrixRenderedVisible true
+expect_status drumKitMatrixPreviewActiveCounts "5|4|4|16|4|4"
 
 capture_state "$pid" "03-mixed-patterns" "drumPartHeaderFixture=kit
 drumPartHeaderSelectedIndex=2
@@ -210,7 +233,7 @@ capture_state "$pid" "04-generator-read-only" "drumPartHeaderFixture=kit
 drumPartHeaderSelectedIndex=2
 drumPartHeaderRename=off
 drumKitMatrixFixture=generatorAndReadOnly
-drumPartHeaderOpenKitView=true" "drumKitMatrixPreviewKinds" "steps16|RO|GEN|steps16|steps16|steps16"
+drumPartHeaderOpenKitView=true" "drumKitMatrixPreviewKinds" "steps16+|RO|GEN|steps16+|steps16+|steps16+"
 expect_status drumKitMatrixSourceModes "clip|clip|generator|clip|clip|clip"
 
 capture_state "$pid" "05-row-navigation-source" "drumPartHeaderFixture=kit

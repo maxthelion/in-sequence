@@ -237,10 +237,42 @@ struct DrumKitMatrixView: View {
                     .background(StudioTheme.stageFill)
             }
         }
+        .onAppear {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onDisappear {
+            postRenderedVisualState(isVisible: false)
+        }
+        .onChange(of: displayStepCount) {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onChange(of: isPresentingRoutingEditor) {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onChange(of: session.revision) {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onChange(of: navigationState) {
+            postRenderedVisualState(isVisible: true)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .drumKitMatrixVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
         }
+    }
+
+    private func postRenderedVisualState(isVisible: Bool) {
+        NotificationCenter.default.post(
+            name: .drumKitMatrixRenderedVisualState,
+            object: nil,
+            userInfo: [
+                "visible": isVisible,
+                "routingEditorVisible": isVisible && isPresentingRoutingEditor,
+                "displayStepCount": displayStepCount,
+                "groupName": isVisible ? model?.groupName ?? "none" : "none",
+                "memberCount": isVisible ? model?.rows.count ?? 0 : 0,
+            ]
+        )
     }
 
     private var header: some View {

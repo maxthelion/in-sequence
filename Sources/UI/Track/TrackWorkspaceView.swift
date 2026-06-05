@@ -55,6 +55,21 @@ struct TrackWorkspaceView: View {
                 }
                 stepGridWorkspaceModel.reset()
             }
+            .onChange(of: kitNavigationState) {
+                if kitNavigationState == nil {
+                    NotificationCenter.default.post(
+                        name: .drumKitMatrixRenderedVisualState,
+                        object: nil,
+                        userInfo: [
+                            "visible": false,
+                            "routingEditorVisible": false,
+                            "displayStepCount": 16,
+                            "groupName": "none",
+                            "memberCount": 0,
+                        ]
+                    )
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .drumPartWorkspaceHeaderVisualCommand)) { notification in
                 guard let command = notification.object as? String else { return }
 
@@ -368,6 +383,7 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
 extension Notification.Name {
     static let drumPartWorkspaceHeaderVisualCommand = Notification.Name("SequencerAIDrumPartWorkspaceHeaderVisualCommand")
     static let drumKitMatrixVisualCommand = Notification.Name("SequencerAIDrumKitMatrixVisualCommand")
+    static let drumKitMatrixRenderedVisualState = Notification.Name("SequencerAIDrumKitMatrixRenderedVisualState")
 }
 
 private extension Color {
