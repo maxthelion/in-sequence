@@ -452,6 +452,27 @@ extension SequencerDocumentSession {
         return true
     }
 
+    @discardableResult
+    func setPhraseBarCount(_ barCount: Int, phraseID: UUID) -> Bool {
+        mutatePhrase(id: phraseID) { phrase in
+            phrase.lengthBars = barCount
+        }
+    }
+
+    @discardableResult
+    func setPhraseRepeatCount(_ repeatCount: Int, phraseID: UUID) -> Bool {
+        mutatePhrase(id: phraseID) { phrase in
+            phrase.repeatCount = repeatCount
+        }
+    }
+
+    @discardableResult
+    func setPhraseLoopEnabled(_ enabled: Bool, phraseID: UUID) -> Bool {
+        mutatePhrase(id: phraseID) { phrase in
+            phrase.loopEnabled = enabled
+        }
+    }
+
     // MARK: - Selection
 
     /// Set the selected track ID, publish a snapshot. Always `.snapshotOnly` —

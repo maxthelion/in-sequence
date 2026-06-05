@@ -94,10 +94,23 @@ struct PhrasePlayhead: Equatable, Sendable {
 }
 
 struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
+    static let lengthBarsRange = 1...64
+    static let repeatCountRange = 0...64
+
     var id: UUID
     var name: String
-    var lengthBars: Int
+    var lengthBars: Int {
+        didSet {
+            lengthBars = Self.clampedLengthBars(lengthBars)
+        }
+    }
     var stepsPerBar: Int
+    var repeatCount: Int {
+        didSet {
+            repeatCount = Self.clampedRepeatCount(repeatCount)
+        }
+    }
+    var loopEnabled: Bool
     var cells: [PhraseCellAssignment]
 
     init(
@@ -105,13 +118,46 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         name: String,
         lengthBars: Int,
         stepsPerBar: Int,
+        repeatCount: Int = 1,
+        loopEnabled: Bool = false,
         cells: [PhraseCellAssignment]
     ) {
         self.id = id
         self.name = name
-        self.lengthBars = max(1, lengthBars)
+        self.lengthBars = Self.clampedLengthBars(lengthBars)
         self.stepsPerBar = max(1, stepsPerBar)
+        self.repeatCount = Self.clampedRepeatCount(repeatCount)
+        self.loopEnabled = loopEnabled
         self.cells = cells
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case lengthBars
+        case stepsPerBar
+        case repeatCount
+        case loopEnabled
+        case cells
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        lengthBars = Self.clampedLengthBars(try container.decode(Int.self, forKey: .lengthBars))
+        stepsPerBar = max(1, try container.decode(Int.self, forKey: .stepsPerBar))
+        repeatCount = Self.clampedRepeatCount(try container.decodeIfPresent(Int.self, forKey: .repeatCount) ?? 1)
+        loopEnabled = try container.decodeIfPresent(Bool.self, forKey: .loopEnabled) ?? false
+        cells = try container.decode([PhraseCellAssignment].self, forKey: .cells)
+    }
+
+    static func clampedLengthBars(_ value: Int) -> Int {
+        min(max(value, lengthBarsRange.lowerBound), lengthBarsRange.upperBound)
+    }
+
+    static func clampedRepeatCount(_ value: Int) -> Int {
+        min(max(value, repeatCountRange.lowerBound), repeatCountRange.upperBound)
     }
 
     static func `default`(
@@ -270,8 +316,10 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         return PhraseModel(
             id: id,
             name: name,
-            lengthBars: max(1, lengthBars),
+            lengthBars: lengthBars,
             stepsPerBar: max(1, stepsPerBar),
+            repeatCount: repeatCount,
+            loopEnabled: loopEnabled,
             cells: normalizedCells
         )
     }
