@@ -384,6 +384,8 @@ extension Notification.Name {
     static let drumPartWorkspaceHeaderVisualCommand = Notification.Name("SequencerAIDrumPartWorkspaceHeaderVisualCommand")
     static let drumKitMatrixVisualCommand = Notification.Name("SequencerAIDrumKitMatrixVisualCommand")
     static let drumKitMatrixRenderedVisualState = Notification.Name("SequencerAIDrumKitMatrixRenderedVisualState")
+    static let drumGroupRoutingEditorVisualCommand = Notification.Name("SequencerAIDrumGroupRoutingEditorVisualCommand")
+    static let drumGroupRoutingEditorRenderedVisualState = Notification.Name("SequencerAIDrumGroupRoutingEditorRenderedVisualState")
 }
 
 private extension Color {

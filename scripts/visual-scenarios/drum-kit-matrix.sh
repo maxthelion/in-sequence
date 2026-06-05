@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "$SCRIPT_DIR/peekaboo-common.sh"
 
-output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/loops/build/drum-parts-as-group/act/phase-5-kit-matrix-rendered}"
+output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/loops/build/drum-parts-as-group/act/phase-6-integration-rendered}"
 case "$output_dir" in
   /*) ;;
   *) output_dir="$REPO_ROOT/$output_dir" ;;
@@ -42,8 +42,10 @@ Captured states: coherent six-member matrix in 16-step mode, the same matrix in
 32-step mode, mixed active pattern slots with mismatch treatment,
 generator/non-step read-only rows, row navigation back to a member workspace,
 Back behavior to the originating part workspace, long group/part names,
-zero-member groups, stale member IDs, routing-editor launch from the matrix, and
-return to the matrix after closing routing.
+zero-member groups, stale member IDs, routing-editor launch from the matrix,
+per-note routing, per-channel routing, individual routing, duplicate-channel
+warning, invalid-note validation, non-MIDI destination validation, and return
+to the matrix after closing routing.
 
 Status from this script run: ${scenario_status}.
 
@@ -167,6 +169,9 @@ capture_state() {
       drumKitMatrixRenderedRoutingEditorVisible \
       "$(status_value drumKitMatrixRoutingEditorVisible)" \
       12
+    if [ "$(status_value drumKitMatrixRoutingEditorVisible 2>/dev/null || true)" = "true" ]; then
+      wait_for_status drumGroupRoutingEditorRenderedVisible true 12
+    fi
   fi
   sleep 0.8
   cp "$command_file" "$output_dir/${state}.command.env"
@@ -277,7 +282,37 @@ drumPartHeaderSelectedIndex=2
 drumPartHeaderRename=off
 drumPartHeaderOpenKitView=true" "drumKitMatrixVisible" "true"
 capture_state "$pid" "13-routing-editor-open" "drumKitMatrixCommand=openRouting" "drumKitMatrixRoutingEditorVisible" "true"
-capture_state "$pid" "14-routing-return-to-matrix" "drumKitMatrixCommand=closeRouting" "drumKitMatrixRoutingEditorVisible" "false"
+capture_state "$pid" "14-routing-per-note" "drumKitMatrixCommand=noop
+drumGroupRoutingEditorState=per-note" "drumGroupRoutingEditorMode" "perNote"
+expect_status drumGroupRoutingEditorSharedDestinationKind MIDI
+expect_status drumGroupRoutingEditorCanApply true
+
+capture_state "$pid" "15-routing-per-channel" "drumKitMatrixCommand=noop
+drumGroupRoutingEditorState=per-channel" "drumGroupRoutingEditorMode" "perChannel"
+expect_status drumGroupRoutingEditorSharedDestinationKind MIDI
+expect_status drumGroupRoutingEditorCanApply true
+
+capture_state "$pid" "16-routing-individual" "drumKitMatrixCommand=noop
+drumGroupRoutingEditorState=individual" "drumGroupRoutingEditorMode" "individual"
+expect_status drumGroupRoutingEditorCanApply true
+
+capture_state "$pid" "17-routing-duplicate-channel-warning" "drumKitMatrixCommand=noop
+drumGroupRoutingEditorState=duplicate-channel" "drumGroupRoutingEditorWarnings" "Multiple parts use MIDI channel 10."
+expect_status drumGroupRoutingEditorMode perChannel
+expect_status drumGroupRoutingEditorCanApply true
+
+capture_state "$pid" "18-routing-invalid-note" "drumKitMatrixCommand=noop
+drumGroupRoutingEditorState=invalid-note" "drumGroupRoutingEditorValidationIssues" "invalidNote"
+expect_status drumGroupRoutingEditorMode perNote
+expect_status drumGroupRoutingEditorCanApply false
+
+capture_state "$pid" "19-routing-non-midi-validation" "drumKitMatrixCommand=noop
+drumGroupRoutingEditorState=non-midi" "drumGroupRoutingEditorValidationIssues" "perChannelRequiresMIDISharedDestination"
+expect_status drumGroupRoutingEditorMode perChannel
+expect_status drumGroupRoutingEditorSharedDestinationKind Sampler
+expect_status drumGroupRoutingEditorCanApply false
+
+capture_state "$pid" "20-routing-return-to-matrix" "drumKitMatrixCommand=closeRouting" "drumKitMatrixRoutingEditorVisible" "false"
 expect_status drumKitMatrixVisible true
 
 scenario_status="completed drum kit matrix captures"

@@ -296,6 +296,88 @@ final class TrackDestinationEditingTests: XCTestCase {
         XCTAssertEqual(model.tracks[1].destination, ownDestination)
     }
 
+    func test_drum_group_routing_apply_state_survives_project_save_reload_round_trip() throws {
+        let groupID = UUID()
+        let kick = StepSequenceTrack(
+            name: "Kick",
+            trackType: .monoMelodic,
+            pitches: [36],
+            stepPattern: [true, false, false, false],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        let snare = StepSequenceTrack(
+            name: "Snare",
+            trackType: .monoMelodic,
+            pitches: [38],
+            stepPattern: [false, false, true, false],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        let sharedDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Kit Port", isVirtual: false),
+            channel: 9,
+            noteOffset: 11
+        )
+        let ownDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Snare Port", isVirtual: false),
+            channel: 2,
+            noteOffset: 5
+        )
+        var model = makeModel(
+            tracks: [kick, snare],
+            groups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "808 Bones",
+                    memberIDs: [kick.id, snare.id],
+                    sharedDestination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+                    triggerMappingMode: .perNote,
+                    noteMapping: [kick.id: 0, snare.id: 2],
+                    channelMapping: [kick.id: 0, snare.id: 1]
+                )
+            ]
+        )
+
+        model.applyDrumGroupRoutingDraft(
+            Project.DrumGroupRoutingDraft(
+                groupID: groupID,
+                sharedDestination: sharedDestination,
+                triggerMappingMode: .perChannel,
+                members: [
+                    .init(memberID: kick.id, inheritsGroupDestination: true, noteOffset: 12, midiChannel: 4),
+                    .init(memberID: snare.id, inheritsGroupDestination: false, ownDestination: ownDestination, noteOffset: 14, midiChannel: 8),
+                ]
+            )
+        )
+
+        let encoded = try JSONEncoder().encode(model)
+        let reloaded = try JSONDecoder().decode(Project.self, from: encoded)
+        let reloadedGroup = try XCTUnwrap(reloaded.trackGroups.first(where: { $0.id == groupID }))
+
+        XCTAssertEqual(reloadedGroup.sharedDestination, sharedDestination)
+        XCTAssertEqual(reloadedGroup.triggerMappingMode, .perChannel)
+        XCTAssertEqual(reloadedGroup.noteMapping, [kick.id: 12, snare.id: 14])
+        XCTAssertEqual(reloadedGroup.channelMapping, [kick.id: 4, snare.id: 8])
+        XCTAssertEqual(reloaded.tracks.first(where: { $0.id == kick.id })?.destination, .inheritGroup)
+        XCTAssertEqual(reloaded.tracks.first(where: { $0.id == snare.id })?.destination, ownDestination)
+        XCTAssertEqual(
+            reloaded.resolvedPlaybackDestination(for: kick.id),
+            Project.ResolvedPlaybackDestination(
+                destination: .midi(port: sharedDestination.midiPort, channel: 4, noteOffset: 0),
+                pitchOffset: 0
+            )
+        )
+        XCTAssertEqual(
+            reloaded.resolvedPlaybackDestination(for: snare.id),
+            Project.ResolvedPlaybackDestination(destination: ownDestination, pitchOffset: 0)
+        )
+    }
+
     private func makeModel(
         tracks: [StepSequenceTrack],
         groups: [TrackGroup] = []

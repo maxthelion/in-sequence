@@ -686,6 +686,19 @@ private struct DrumGroupRoutingEditorSheet: View {
                 }
             )
         }
+        .onAppear {
+            postRoutingEditorVisualState(isVisible: true)
+        }
+        .onDisappear {
+            postRoutingEditorVisualState(isVisible: false)
+        }
+        .onChange(of: draft) {
+            postRoutingEditorVisualState(isVisible: true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .drumGroupRoutingEditorVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            applyVisualCommand(command)
+        }
     }
 
     private var destinationSection: some View {
@@ -749,6 +762,118 @@ private struct DrumGroupRoutingEditorSheet: View {
             return "A part needs an own destination before individual mode can apply."
         case .perChannelRequiresMIDISharedDestination:
             return "Per-channel mode requires a MIDI shared destination."
+        }
+    }
+
+    private func postRoutingEditorVisualState(isVisible: Bool) {
+        NotificationCenter.default.post(
+            name: .drumGroupRoutingEditorRenderedVisualState,
+            object: nil,
+            userInfo: [
+                "visible": isVisible,
+                "mode": isVisible ? draft.triggerMappingMode.rawValue : "none",
+                "canApply": isVisible && draft.canApply,
+                "sharedDestinationKind": isVisible ? draft.sharedDestination?.kindLabel ?? "none" : "none",
+                "warnings": isVisible ? draft.warnings.map(\.message).joined(separator: "|") : "none",
+                "validationIssues": isVisible ? draft.validationIssues.map(Self.validationIssueLabel).joined(separator: "|") : "none",
+                "rowInheritance": isVisible ? draft.rows.map { $0.inheritsGroupDestination ? "inherit" : "own" }.joined(separator: "|") : "none",
+                "noteInputs": isVisible ? draft.rows.map(\.noteInput).joined(separator: "|") : "none",
+                "channelInputs": isVisible ? draft.rows.map(\.channelInput).joined(separator: "|") : "none",
+            ]
+        )
+    }
+
+    private static func validationIssueLabel(_ issue: DrumGroupRoutingEditorDraft.ValidationIssue) -> String {
+        switch issue {
+        case .invalidNote:
+            return "invalidNote"
+        case .invalidChannel:
+            return "invalidChannel"
+        case .impossibleIndividualRouting:
+            return "impossibleIndividualRouting"
+        case .perChannelRequiresMIDISharedDestination:
+            return "perChannelRequiresMIDISharedDestination"
+        }
+    }
+
+    private func applyVisualCommand(_ command: String) {
+        switch command {
+        case "routing-per-note":
+            draft.sharedDestination = .midi(
+                port: MIDIEndpointName(displayName: "Visual Kit Out", isVirtual: false),
+                channel: 9,
+                noteOffset: 0
+            )
+            setVisualRowsInheritGroupDestination(true)
+            resetVisualRowInputs()
+            draft.setTriggerMappingMode(.perNote)
+        case "routing-per-channel":
+            draft.sharedDestination = .midi(
+                port: MIDIEndpointName(displayName: "Visual Kit Out", isVirtual: false),
+                channel: 9,
+                noteOffset: 0
+            )
+            setVisualRowsInheritGroupDestination(true)
+            resetVisualRowInputs()
+            draft.setTriggerMappingMode(.perChannel)
+        case "routing-individual":
+            draft.sharedDestination = .midi(
+                port: MIDIEndpointName(displayName: "Visual Kit Out", isVirtual: false),
+                channel: 9,
+                noteOffset: 0
+            )
+            draft.setTriggerMappingMode(.individual)
+            resetVisualRowInputs()
+            for memberID in draft.rows.map(\.memberID) {
+                draft.setMemberInheritsGroupDestination(false, memberID: memberID)
+            }
+        case "routing-duplicate-channel":
+            draft.sharedDestination = .midi(
+                port: MIDIEndpointName(displayName: "Visual Kit Out", isVirtual: false),
+                channel: 9,
+                noteOffset: 0
+            )
+            draft.setTriggerMappingMode(.perChannel)
+            setVisualRowsInheritGroupDestination(true)
+            resetVisualRowInputs()
+            for memberID in draft.rows.prefix(2).map(\.memberID) {
+                draft.setChannelInput("10", memberID: memberID)
+            }
+        case "routing-invalid-note":
+            draft.sharedDestination = .midi(
+                port: MIDIEndpointName(displayName: "Visual Kit Out", isVirtual: false),
+                channel: 9,
+                noteOffset: 0
+            )
+            draft.setTriggerMappingMode(.perNote)
+            setVisualRowsInheritGroupDestination(true)
+            resetVisualRowInputs()
+            if let firstRow = draft.rows.first {
+                draft.setNoteInput("C#", memberID: firstRow.memberID)
+            }
+        case "routing-non-midi":
+            draft.sharedDestination = .sample(sampleID: UUID(), settings: .default)
+            draft.setTriggerMappingMode(.perChannel)
+            setVisualRowsInheritGroupDestination(true)
+            resetVisualRowInputs()
+        default:
+            break
+        }
+
+        postRoutingEditorVisualState(isVisible: true)
+    }
+
+    private func setVisualRowsInheritGroupDestination(_ inherits: Bool) {
+        for memberID in draft.rows.map(\.memberID) {
+            draft.setMemberInheritsGroupDestination(inherits, memberID: memberID)
+        }
+    }
+
+    private func resetVisualRowInputs() {
+        let memberIDs = draft.rows.map(\.memberID)
+        for (index, memberID) in memberIDs.enumerated() {
+            draft.setNoteInput("C2", memberID: memberID)
+            draft.setChannelInput("\(min(index + 1, 16))", memberID: memberID)
         }
     }
 }

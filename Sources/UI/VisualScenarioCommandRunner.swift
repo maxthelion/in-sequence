@@ -16,6 +16,15 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedDisplayStepCount = 16
     private static var drumKitMatrixRenderedGroupName = "none"
     private static var drumKitMatrixRenderedMemberCount = 0
+    private static var drumGroupRoutingEditorRenderedState = false
+    private static var drumGroupRoutingEditorMode = "none"
+    private static var drumGroupRoutingEditorCanApply = false
+    private static var drumGroupRoutingEditorSharedDestinationKind = "none"
+    private static var drumGroupRoutingEditorWarnings = "none"
+    private static var drumGroupRoutingEditorValidationIssues = "none"
+    private static var drumGroupRoutingEditorRowInheritance = "none"
+    private static var drumGroupRoutingEditorNoteInputs = "none"
+    private static var drumGroupRoutingEditorChannelInputs = "none"
     private static var drumKitMatrixGroupID: TrackGroupID?
     private static var drumKitMatrixOriginatingPartID: UUID?
     private static var drumKitMatrixDisplayStepCount = 16
@@ -75,6 +84,24 @@ enum VisualScenarioCommandRunner {
                 drumKitMatrixRenderedDisplayStepCount = userInfo["displayStepCount"] as? Int ?? 16
                 drumKitMatrixRenderedGroupName = userInfo["groupName"] as? String ?? "none"
                 drumKitMatrixRenderedMemberCount = userInfo["memberCount"] as? Int ?? 0
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .drumGroupRoutingEditorRenderedVisualState,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let userInfo = notification.userInfo else { return }
+            Task { @MainActor in
+                drumGroupRoutingEditorRenderedState = userInfo["visible"] as? Bool ?? false
+                drumGroupRoutingEditorMode = userInfo["mode"] as? String ?? "none"
+                drumGroupRoutingEditorCanApply = userInfo["canApply"] as? Bool ?? false
+                drumGroupRoutingEditorSharedDestinationKind = userInfo["sharedDestinationKind"] as? String ?? "none"
+                drumGroupRoutingEditorWarnings = userInfo["warnings"] as? String ?? "none"
+                drumGroupRoutingEditorValidationIssues = userInfo["validationIssues"] as? String ?? "none"
+                drumGroupRoutingEditorRowInheritance = userInfo["rowInheritance"] as? String ?? "none"
+                drumGroupRoutingEditorNoteInputs = userInfo["noteInputs"] as? String ?? "none"
+                drumGroupRoutingEditorChannelInputs = userInfo["channelInputs"] as? String ?? "none"
             }
         }
     }
@@ -255,6 +282,15 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRenderedDisplayStepCount=\(drumKitMatrixRenderedDisplayStepCount)
         drumKitMatrixRenderedGroupName=\(drumKitMatrixRenderedGroupName)
         drumKitMatrixRenderedMemberCount=\(drumKitMatrixRenderedMemberCount)
+        drumGroupRoutingEditorRenderedVisible=\(drumGroupRoutingEditorRenderedState)
+        drumGroupRoutingEditorMode=\(drumGroupRoutingEditorMode)
+        drumGroupRoutingEditorCanApply=\(drumGroupRoutingEditorCanApply)
+        drumGroupRoutingEditorSharedDestinationKind=\(drumGroupRoutingEditorSharedDestinationKind)
+        drumGroupRoutingEditorWarnings=\(drumGroupRoutingEditorWarnings)
+        drumGroupRoutingEditorValidationIssues=\(drumGroupRoutingEditorValidationIssues)
+        drumGroupRoutingEditorRowInheritance=\(drumGroupRoutingEditorRowInheritance)
+        drumGroupRoutingEditorNoteInputs=\(drumGroupRoutingEditorNoteInputs)
+        drumGroupRoutingEditorChannelInputs=\(drumGroupRoutingEditorChannelInputs)
         drumKitMatrixGroupName=\(drumKitMatrixModel?.groupName ?? "none")
         drumKitMatrixMemberCount=\(drumKitMatrixModel?.rows.count ?? 0)
         drumKitMatrixMemberNames=\(drumKitMatrixModel.map { $0.rows.map(\.partName).joined(separator: "|") } ?? "none")
@@ -370,10 +406,14 @@ enum VisualScenarioCommandRunner {
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "open-routing")
         case "closeRouting", "close-routing":
             drumKitMatrixRoutingEditorVisualState = false
+            drumGroupRoutingEditorRenderedState = false
+            drumGroupRoutingEditorMode = "none"
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-routing")
         case "back":
             drumKitMatrixVisualState = false
             drumKitMatrixRoutingEditorVisualState = false
+            drumGroupRoutingEditorRenderedState = false
+            drumGroupRoutingEditorMode = "none"
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "back")
         default:
             if rawCommand.hasPrefix("selectIndex:"),
@@ -381,12 +421,20 @@ enum VisualScenarioCommandRunner {
                let selectedIndex = Int(rawIndex) {
                 drumKitMatrixVisualState = false
                 drumKitMatrixRoutingEditorVisualState = false
+                drumGroupRoutingEditorRenderedState = false
+                drumGroupRoutingEditorMode = "none"
                 NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "select-index:\(selectedIndex)")
             }
         }
 
         if let mutation = command["drumKitMatrixMutation"] {
             applyDrumKitMatrixMutation(mutation, session: session)
+        }
+        if let routingState = command["drumGroupRoutingEditorState"] {
+            NotificationCenter.default.post(
+                name: .drumGroupRoutingEditorVisualCommand,
+                object: "routing-\(routingState)"
+            )
         }
     }
 
