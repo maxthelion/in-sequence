@@ -81,6 +81,29 @@ struct TrackWorkspaceView: View {
             }
             stepGridWorkspaceModel.reset()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .drumPartWorkspaceHeaderVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+
+            switch command {
+            case "rename-on":
+                editingTrackID = track.id
+                draftTrackName = track.name
+                trackNameFieldFocused = true
+            case "rename-off":
+                editingTrackID = nil
+                draftTrackName = ""
+                trackNameFieldFocused = false
+            case "open-kit-view":
+                if let drumPartHeaderModel {
+                    kitNavigationState = DrumKitWorkspaceNavigationState(
+                        groupID: drumPartHeaderModel.groupID,
+                        originatingPartID: drumPartHeaderModel.currentPartID
+                    )
+                }
+            default:
+                break
+            }
+        }
     }
 
     private var destinationColumn: some View {
@@ -320,6 +343,10 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
         .help(title)
         .accessibilityLabel(title)
     }
+}
+
+extension Notification.Name {
+    static let drumPartWorkspaceHeaderVisualCommand = Notification.Name("SequencerAIDrumPartWorkspaceHeaderVisualCommand")
 }
 
 private extension Color {

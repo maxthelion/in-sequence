@@ -6,6 +6,9 @@ import SwiftUI
 enum VisualScenarioCommandRunner {
     private static let commandFileEnvironmentKey = "SEQUENCER_AI_VISUAL_COMMAND_FILE"
     private static let commandFileDefaultsKey = "VisualScenarioCommandFile"
+    private static var drumPartHeaderRenameVisualState = false
+    private static var drumPartHeaderOpenKitOriginPartName: String?
+    private static var drumPartHeaderOpenKitOriginGroupName: String?
 
     static func runIfConfigured(
         section: Binding<WorkspaceSection>,
@@ -105,6 +108,7 @@ enum VisualScenarioCommandRunner {
             session: session,
             engineController: engineController
         )
+        applyDrumPartHeaderFixture(command: command, section: section, session: session)
 
         switch command["transport"] {
         case "play":
@@ -180,6 +184,11 @@ enum VisualScenarioCommandRunner {
         let activeFillPreviewTrack = session.trackFillPreviewState.activeTrackID.flatMap { activeTrackID in
             session.store.tracks.first { $0.id == activeTrackID }
         }
+        let drumPartHeaderModel = DrumPartWorkspaceHeaderModel(
+            selectedTrack: session.store.selectedTrack,
+            tracks: session.store.tracks,
+            trackGroups: session.store.trackGroups
+        )
         let status = """
         workspace=\(section.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
@@ -195,6 +204,15 @@ enum VisualScenarioCommandRunner {
         trackCount=\(session.store.tracks.count)
         selectedTrackName=\(session.store.selectedTrack.name)
         selectedTrackType=\(session.store.selectedTrack.trackType.rawValue)
+        selectedTrackGroupName=\(drumPartHeaderModel?.groupName ?? "none")
+        drumPartHeaderVisible=\(drumPartHeaderModel != nil)
+        drumPartHeaderPosition=\(drumPartHeaderModel?.positionLabel ?? "none")
+        drumPartHeaderPreviousEnabled=\(drumPartHeaderModel?.previousPartID != nil)
+        drumPartHeaderNextEnabled=\(drumPartHeaderModel?.nextPartID != nil)
+        drumPartHeaderMemberCount=\(drumPartHeaderModel?.memberCount ?? 0)
+        drumPartHeaderRenameVisualState=\(drumPartHeaderRenameVisualState)
+        drumPartHeaderOpenKitOriginPartName=\(drumPartHeaderOpenKitOriginPartName ?? "none")
+        drumPartHeaderOpenKitOriginGroupName=\(drumPartHeaderOpenKitOriginGroupName ?? "none")
         selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
         selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
         selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
@@ -234,6 +252,90 @@ enum VisualScenarioCommandRunner {
         """
 
         try? status.write(to: statusURL, atomically: true, encoding: .utf8)
+    }
+
+    private static func applyDrumPartHeaderFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["drumPartHeaderFixture"] != nil ||
+              command["drumPartHeaderSelectedIndex"] != nil ||
+              command["drumPartHeaderRename"] != nil ||
+              command["drumPartHeaderOpenKitView"] != nil
+        else { return }
+
+        section.wrappedValue = .track
+
+        switch command["drumPartHeaderFixture"] {
+        case "kit", "group", "drumGroup":
+            let group = ensureDrumPartHeaderFixtureGroup(session: session)
+            let requestedIndex = Int(command["drumPartHeaderSelectedIndex"] ?? "") ?? 2
+            let resolvedMemberIDs = group.memberIDs.filter { memberID in
+                session.store.tracks.contains(where: { $0.id == memberID })
+            }
+            if !resolvedMemberIDs.isEmpty {
+                let clampedIndex = min(max(0, requestedIndex), resolvedMemberIDs.count - 1)
+                session.setSelectedTrackID(resolvedMemberIDs[clampedIndex])
+            }
+        case "nonKit", "fallback":
+            if let nonKitTrack = session.store.tracks.first(where: { $0.groupID == nil }) {
+                session.setSelectedTrackID(nonKitTrack.id)
+            } else {
+                session.appendTrack(trackType: .monoMelodic)
+            }
+        default:
+            break
+        }
+
+        switch command["drumPartHeaderRename"] {
+        case "on", "true", "editing":
+            drumPartHeaderRenameVisualState = true
+            NotificationCenter.default.post(name: .drumPartWorkspaceHeaderVisualCommand, object: "rename-on")
+        case "off", "false", "clear":
+            drumPartHeaderRenameVisualState = false
+            NotificationCenter.default.post(name: .drumPartWorkspaceHeaderVisualCommand, object: "rename-off")
+        default:
+            break
+        }
+
+        if command["drumPartHeaderOpenKitView"] == "true" {
+            let model = DrumPartWorkspaceHeaderModel(
+                selectedTrack: session.store.selectedTrack,
+                tracks: session.store.tracks,
+                trackGroups: session.store.trackGroups
+            )
+            drumPartHeaderOpenKitOriginPartName = model?.currentPartName
+            drumPartHeaderOpenKitOriginGroupName = model?.groupName
+            NotificationCenter.default.post(name: .drumPartWorkspaceHeaderVisualCommand, object: "open-kit-view")
+        }
+    }
+
+    private static func ensureDrumPartHeaderFixtureGroup(session: SequencerDocumentSession) -> TrackGroup {
+        if let existing = session.store.trackGroups.first(where: { $0.name == "808 Bones" }),
+           existing.memberIDs.count >= 6 {
+            return existing
+        }
+
+        let seedPattern = Array(repeating: false, count: 16)
+        let plan = DrumGroupPlan(
+            name: "808 Bones",
+            color: "#C06030",
+            members: [
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: seedPattern),
+                DrumGroupPlan.Member(tag: "snare", trackName: "Snare", seedPattern: seedPattern),
+                DrumGroupPlan.Member(tag: "clap", trackName: "Clap", seedPattern: seedPattern),
+                DrumGroupPlan.Member(tag: "hat-closed", trackName: "Closed Hat", seedPattern: seedPattern),
+                DrumGroupPlan.Member(tag: "hat-open", trackName: "Open Hat", seedPattern: seedPattern),
+                DrumGroupPlan.Member(tag: "rim", trackName: "Rim Shot", seedPattern: seedPattern),
+            ],
+            prepopulateClips: false,
+            sharedDestination: nil
+        )
+        _ = session.addDrumGroup(plan: plan)
+        return session.store.trackGroups.first(where: { $0.name == "808 Bones" })
+            ?? session.store.trackGroups.last
+            ?? TrackGroup(name: "808 Bones", color: "#C06030")
     }
 
     private static func applyPhraseNavigationFixture(
