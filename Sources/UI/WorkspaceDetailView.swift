@@ -4,6 +4,7 @@ struct WorkspaceDetailView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
     var scenesResetToken: Int = 0
+    var visualPhraseControlsOpenIndex: Binding<Int?> = .constant(nil)
     @State private var liveLayerID = "pattern"
     @State private var tracksMode: TracksWorkspaceMode = .edit
     @Environment(SequencerDocumentSession.self) private var session
@@ -25,7 +26,10 @@ struct WorkspaceDetailView: View {
     private var workspace: some View {
         switch section {
         case .phrase:
-            PhraseWorkspaceView(document: $document)
+            PhraseWorkspaceView(
+                document: $document,
+                visualControlsOpenIndex: visualPhraseControlsOpenIndex
+            )
                 .padding(10)
         case .tracks:
             TracksWorkspaceView(document: $document, mode: $tracksMode, selectedLayerID: $liveLayerID) {

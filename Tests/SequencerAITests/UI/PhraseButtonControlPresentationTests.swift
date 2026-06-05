@@ -7,8 +7,11 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
         let phraseB = UUID()
         var state = PhraseButtonControlsState()
 
-        state.toggleControls(for: phraseA)
+        state.openControls(for: phraseA)
         XCTAssertEqual(state.openPhraseID, phraseA)
+
+        state.toggleControls(for: phraseA)
+        XCTAssertNil(state.openPhraseID)
 
         state.toggleControls(for: phraseB)
         XCTAssertEqual(state.openPhraseID, phraseB)

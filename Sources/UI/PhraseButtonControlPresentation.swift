@@ -3,6 +3,10 @@ import Foundation
 struct PhraseButtonControlsState: Equatable {
     private(set) var openPhraseID: UUID?
 
+    mutating func openControls(for phraseID: UUID) {
+        openPhraseID = phraseID
+    }
+
     mutating func toggleControls(for phraseID: UUID) {
         openPhraseID = openPhraseID == phraseID ? nil : phraseID
     }

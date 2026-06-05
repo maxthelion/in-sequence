@@ -4,6 +4,7 @@ struct ContentView: View {
     @Binding var document: SeqAIDocument
     @State private var section: WorkspaceSection = .tracks
     @State private var scenesResetToken = 0
+    @State private var visualPhraseControlsOpenIndex: Int?
     @State private var visualScenarioCommandTask: Task<Void, Never>?
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
@@ -26,7 +27,12 @@ struct ContentView: View {
 
             VStack(spacing: 14) {
                 StudioTopBar(section: sectionBinding, document: $document)
-                WorkspaceDetailView(document: $document, section: sectionBinding, scenesResetToken: scenesResetToken)
+                WorkspaceDetailView(
+                    document: $document,
+                    section: sectionBinding,
+                    scenesResetToken: scenesResetToken,
+                    visualPhraseControlsOpenIndex: $visualPhraseControlsOpenIndex
+                )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(18)
@@ -36,6 +42,7 @@ struct ContentView: View {
             visualScenarioCommandTask = Task {
                 await VisualScenarioCommandRunner.runIfConfigured(
                     section: sectionBinding,
+                    visualPhraseControlsOpenIndex: $visualPhraseControlsOpenIndex,
                     session: session,
                     engineController: engineController
                 )

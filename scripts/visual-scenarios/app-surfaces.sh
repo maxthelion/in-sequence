@@ -10,12 +10,16 @@ case "$output_dir" in
   /*) ;;
   *) output_dir="$REPO_ROOT/$output_dir" ;;
 esac
-command_file="${SEQUENCER_AI_VISUAL_COMMAND_FILE:-$output_dir/app-surfaces-command.env}"
+bundle_id="ai.sequencer.SequencerAI"
+app_command_dir="$HOME/Library/Containers/$bundle_id/Data/tmp/sequencer-ai-visual-commands"
+run_id="$(basename "$output_dir")"
+command_file="${SEQUENCER_AI_VISUAL_COMMAND_FILE:-$app_command_dir/${run_id}-app-surfaces-command.env}"
 case "$command_file" in
   /*) ;;
   *) command_file="$REPO_ROOT/$command_file" ;;
 esac
 status_file="${command_file}.status"
+phrase_controls_open_index="${APP_SURFACES_PHRASE_CONTROLS_OPEN_INDEX:-}"
 scenario_status="started; no captures completed yet"
 
 write_notes() {
@@ -30,13 +34,21 @@ Peekaboo/window-capture helpers used by feature UX reviews.
 
 Captured sections: phrase, tracks, track, mixer, scenes, library.
 
+Phrase controls open index: ${phrase_controls_open_index:-none}.
+
 Status from this script run: ${scenario_status}.
 
 If captures are missing, inspect \`scenario-actions.log\`,
 \`peekaboo-actions.err\`, and \`app-open.log\` in this folder.
 NOTES
 }
-trap write_notes EXIT
+
+cleanup() {
+  launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
+  defaults delete "$bundle_id" VisualScenarioCommandFile >/dev/null 2>&1 || true
+  write_notes
+}
+trap cleanup EXIT
 
 write_visual_command() {
   local state="$1"
@@ -77,11 +89,19 @@ wait_for_status() {
 
 drive_workspace() {
   local workspace="$1"
-  write_visual_command "workspace=$workspace
+  local command="workspace=$workspace
 transport=stop
 masterGain=1
 meterPeak=0"
+  if [ "$workspace" = "phrase" ] && [ -n "$phrase_controls_open_index" ]; then
+    command="${command}
+phraseControlsOpenIndex=$phrase_controls_open_index"
+  fi
+  write_visual_command "$command"
   wait_for_status workspace "$workspace" 3
+  if [ "$workspace" = "phrase" ] && [ -n "$phrase_controls_open_index" ]; then
+    wait_for_status phraseControlsOpenIndex "$phrase_controls_open_index" 3
+  fi
 }
 
 fallback_click_workspace() {
@@ -119,6 +139,7 @@ show_workspace() {
 }
 
 mkdir -p "$output_dir"
+mkdir -p "$app_command_dir"
 rm -f "$command_file" "$status_file"
 
 "$PEEKABOO_BIN" app list --json --no-remote \
@@ -129,6 +150,8 @@ rm -f "$command_file" "$status_file"
 sleep 1
 
 launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
+defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
+export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
 
 (
   cd "$REPO_ROOT"
@@ -155,5 +178,4 @@ for section in "${sections[@]}"; do
 done
 
 scenario_status="completed app surface captures"
-launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
 sleep 0.2

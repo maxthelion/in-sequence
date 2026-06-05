@@ -32,6 +32,7 @@ enum VisualScenarioCommandRunner {
 
     static func runIfConfigured(
         section: Binding<WorkspaceSection>,
+        visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
         engineController: EngineController
     ) async {
@@ -53,6 +54,7 @@ enum VisualScenarioCommandRunner {
                 apply(
                     command: parse(payload),
                     section: section,
+                    visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex,
                     session: session,
                     engineController: engineController
                 )
@@ -61,6 +63,7 @@ enum VisualScenarioCommandRunner {
             writeStatus(
                 to: statusURL,
                 section: section.wrappedValue,
+                visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex.wrappedValue,
                 session: session,
                 engineController: engineController
             )
@@ -124,6 +127,7 @@ enum VisualScenarioCommandRunner {
     private static func apply(
         command: [String: String],
         section: Binding<WorkspaceSection>,
+        visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
         engineController: EngineController
     ) {
@@ -164,6 +168,8 @@ enum VisualScenarioCommandRunner {
         )
         applyPhraseNavigationFixture(
             command: command,
+            section: section,
+            visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex,
             session: session,
             engineController: engineController
         )
@@ -222,6 +228,7 @@ enum VisualScenarioCommandRunner {
     private static func writeStatus(
         to statusURL: URL,
         section: WorkspaceSection,
+        visualPhraseControlsOpenIndex: Int?,
         session: SequencerDocumentSession,
         engineController: EngineController
     ) {
@@ -255,6 +262,7 @@ enum VisualScenarioCommandRunner {
         transport=\(engineController.isRunning ? "play" : "stop")
         phraseCount=\(phrases.count)
         phraseNames=\(phrases.map(\.name).joined(separator: "|"))
+        phraseControlsOpenIndex=\(visualPhraseControlsOpenIndex.map(String.init) ?? "none")
         currentPhraseName=\(currentPhraseName ?? "none")
         queuedPhraseName=\(queuedPhraseName ?? "none")
         phraseQueueEnabled=\(engineController.isRunning && !phrases.isEmpty)
@@ -858,6 +866,8 @@ enum VisualScenarioCommandRunner {
 
     private static func applyPhraseNavigationFixture(
         command: [String: String],
+        section: Binding<WorkspaceSection>,
+        visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
         engineController: EngineController
     ) {
@@ -892,6 +902,18 @@ enum VisualScenarioCommandRunner {
         if let nowIndex = Int(command["phraseNowIndex"] ?? ""),
            let phraseID = phraseID(at: nowIndex, session: session) {
             _ = engineController.switchPhraseNow(phraseID)
+        }
+
+        switch command["phraseControlsOpenIndex"] {
+        case "none", "close":
+            visualPhraseControlsOpenIndex.wrappedValue = nil
+        case let rawIndex?:
+            if let index = Int(rawIndex) {
+                section.wrappedValue = .phrase
+                visualPhraseControlsOpenIndex.wrappedValue = index
+            }
+        default:
+            break
         }
     }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PhraseWorkspaceView: View {
     @Binding var document: SeqAIDocument
+    @Binding private var visualControlsOpenIndex: Int?
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
 
@@ -15,6 +16,14 @@ struct PhraseWorkspaceView: View {
     private let actionColumnWidth: CGFloat = 92
     private let gridSpacing: CGFloat = 10
     private let trackPageSize = 8
+
+    init(
+        document: Binding<SeqAIDocument>,
+        visualControlsOpenIndex: Binding<Int?> = .constant(nil)
+    ) {
+        self._document = document
+        self._visualControlsOpenIndex = visualControlsOpenIndex
+    }
 
     private var phrases: [PhraseModel] { session.store.phrases }
     private var tracks: [StepSequenceTrack] { session.store.tracks }
@@ -74,6 +83,10 @@ struct PhraseWorkspaceView: View {
                 selectedLayerID = session.store.patternLayer?.id ?? layers.first?.id ?? "pattern"
             }
             clampTrackPage()
+            applyVisualControlsOpenIndex()
+        }
+        .onChange(of: visualControlsOpenIndex) {
+            applyVisualControlsOpenIndex()
         }
         .onChange(of: session.store.selectedTrackID) {
             syncTrackPageToSelection()
@@ -84,6 +97,7 @@ struct PhraseWorkspaceView: View {
         .onChange(of: phrases.map(\.id)) {
             dismissInvalidEditorTarget()
             phraseControlsState.reconcile(availablePhraseIDs: phrases.map(\.id))
+            applyVisualControlsOpenIndex()
         }
         .onChange(of: tracks.map(\.id)) {
             dismissInvalidEditorTarget()
@@ -91,6 +105,21 @@ struct PhraseWorkspaceView: View {
         .onChange(of: layers.map(\.id)) {
             dismissInvalidEditorTarget()
         }
+    }
+
+    private func applyVisualControlsOpenIndex() {
+        guard let visualControlsOpenIndex else {
+            return
+        }
+
+        guard phrases.indices.contains(visualControlsOpenIndex) else {
+            phraseControlsState.close()
+            return
+        }
+
+        let phraseID = phrases[visualControlsOpenIndex].id
+        session.setSelectedPhraseID(phraseID)
+        phraseControlsState.openControls(for: phraseID)
     }
 
     private var layerBar: some View {
