@@ -74,6 +74,8 @@
 		295A4BEED435806DC5E40E53 /* InspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BDE0286507605D92758E623 /* InspectorView.swift */; };
 		2987BC3A8BE7E469E498B535 /* SessionDestinationMacroTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC3216D89B7D3D550E597D4 /* SessionDestinationMacroTests.swift */; };
 		29E9B826109E864A16A899E8 /* ScalarCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A96D2E2F787B4A142F0A38 /* ScalarCellPreview.swift */; };
+		D30000000000000000000005 /* DAWNoteNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000006 /* DAWNoteNameTests.swift */; };
+		D30000000000000000000007 /* DrumGroupRoutingEditorDraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000008 /* DrumGroupRoutingEditorDraftTests.swift */; };
 		A1B2C3D4E5F60123456789AC /* AtomicInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60123456789AB /* AtomicInt.swift */; };
 		D10100000000000000000007 /* AudioDeviceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000002 /* AudioDeviceCatalog.swift */; };
 		D10100000000000000000008 /* AudioDeviceSwitchCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000003 /* AudioDeviceSwitchCoordinator.swift */; };
@@ -389,6 +391,7 @@
 		EF68319EF3742400D231D417 /* Project+TrackSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A8F2166C41E5989FD7D215B /* Project+TrackSources.swift */; };
 		F0ECEA6CF5DA8BB42E920898 /* GeneratedNotesPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDFE72A7FA378105CE76032 /* GeneratedNotesPreview.swift */; };
 		F1428161593D4E6AD52F3315 /* AddDrumGroupSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A66C09FE881E5045D6383E /* AddDrumGroupSheet.swift */; };
+		D30000000000000000000003 /* DrumGroupRoutingEditorDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000004 /* DrumGroupRoutingEditorDraft.swift */; };
 		F2873CBFB0F90A9D00B19847 /* AudioInstrumentChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4976F7F2DD944611264495D /* AudioInstrumentChoice.swift */; };
 		F33EBA199BD503315A15BD87 /* MasterBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0E42BEA92B81913A563DA5 /* MasterBus.swift */; };
 		F3BD3C15B233A27E35B0F202 /* SliceMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8D6E8D88966A1807311AD39 /* SliceMarker.swift */; };
@@ -416,6 +419,7 @@
 		FED7FAE0594DE381CC9C0065 /* MIDISession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11C18CFCCF62EB805A0EAADC /* MIDISession.swift */; };
 		FF0B5EFE43B9EF4C928B4CE6 /* TrackMacroDescriptorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07412D3EE3BCFAC6322F2DC4 /* TrackMacroDescriptorTests.swift */; };
 		FF0E1A8B761188143DF58D72 /* SequencerAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2BC3CC6385D68B4CC44C164 /* SequencerAIApp.swift */; };
+		D30000000000000000000001 /* DAWNoteName.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000002 /* DAWNoteName.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1392,6 +1396,10 @@
 		D14D36481855CDB4DD04A150 /* TickClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickClock.swift; sourceTree = "<group>"; };
 		D1E3FB4C385173913DA4B8DB /* 2026-05-08T10-46-20Z-work-observer-completed.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T10-46-20Z-work-observer-completed.md"; sourceTree = "<group>"; };
 		D2C5D83464F4C20C3C8FD4C3 /* 2026-04-22-track-macro-parameters.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-22-track-macro-parameters.md"; sourceTree = "<group>"; };
+		D30000000000000000000002 /* DAWNoteName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAWNoteName.swift; sourceTree = "<group>"; };
+		D30000000000000000000004 /* DrumGroupRoutingEditorDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumGroupRoutingEditorDraft.swift; sourceTree = "<group>"; };
+		D30000000000000000000006 /* DAWNoteNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAWNoteNameTests.swift; sourceTree = "<group>"; };
+		D30000000000000000000008 /* DrumGroupRoutingEditorDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumGroupRoutingEditorDraftTests.swift; sourceTree = "<group>"; };
 		D31EC90B484ACD21E40D33A4 /* PlaybackInertSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackInertSelectionTests.swift; sourceTree = "<group>"; };
 		D32F57DA3D87087348022AD5 /* settings.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = settings.yaml; sourceTree = "<group>"; };
 		D3340EF666D61129D72591A4 /* 2026-05-08T10-06-45Z-build-completed.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T10-06-45Z-build-completed.md"; sourceTree = "<group>"; };
@@ -1901,6 +1909,7 @@
 				79FCBEAFEF521EA170293990 /* ChordID.swift */,
 				04C1FDAAD0E676E3CF660AB3 /* Chords.swift */,
 				D4E843105F96BC3538CF4728 /* DrumKitNoteMap.swift */,
+				D30000000000000000000002 /* DAWNoteName.swift */,
 				131B7214EF5754DCA87EDA52 /* DrumKitPreset.swift */,
 				91565F621731C389E795A498 /* Euclidean.swift */,
 				F914F0725C56D93D279B5590 /* Scale.swift */,
@@ -2709,6 +2718,7 @@
 			isa = PBXGroup;
 			children = (
 				A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */,
+				D30000000000000000000008 /* DrumGroupRoutingEditorDraftTests.swift */,
 				F30664B65174D4DBC1A81EB5 /* MacroPickerCandidateRankerTests.swift */,
 				2CBCB8E4F9E187F153308E8E /* MixerMasterOutputTests.swift */,
 				05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */,
@@ -2744,6 +2754,7 @@
 			isa = PBXGroup;
 			children = (
 				F0A66C09FE881E5045D6383E /* AddDrumGroupSheet.swift */,
+				D30000000000000000000004 /* DrumGroupRoutingEditorDraft.swift */,
 			);
 			path = DrumGroup;
 			sourceTree = "<group>";
@@ -3620,6 +3631,7 @@
 			isa = PBXGroup;
 			children = (
 				C3D255BAF257E78267B5E832 /* ChordsTests.swift */,
+				D30000000000000000000006 /* DAWNoteNameTests.swift */,
 				CD744CCDFC9A3A90E909A8B9 /* ScalesTests.swift */,
 				ADEA6D90DE06F9CD1503FAF0 /* StyleProfilesTests.swift */,
 			);
@@ -4372,7 +4384,9 @@
 				73272D3EF8E45A6651AB5F0C /* DestinationSlicerTests.swift in Sources */,
 				2957E2D27D11FD9C8A9D4302 /* DestinationSummaryTests.swift in Sources */,
 				34C061180124AB5984B7EF5D /* DestinationTests.swift in Sources */,
+				D30000000000000000000005 /* DAWNoteNameTests.swift in Sources */,
 				97A4BC6A4B8C2546532589A5 /* DrumGroupPlanFactoryTests.swift in Sources */,
+				D30000000000000000000007 /* DrumGroupRoutingEditorDraftTests.swift in Sources */,
 				234F2E739F42503F583DDE9C /* DrumKitPresetSampleTests.swift in Sources */,
 				F11100000000000000000004 /* EngineControllerAudioInputPublicationTests.swift in Sources */,
 				8A1E3F634371502518510AC9 /* EngineControllerDeltaDispatchTests.swift in Sources */,
@@ -4521,6 +4535,7 @@
 				C91FB5C671AA6F8F0800FF70 /* AUWindowHost.swift in Sources */,
 				9CAAE66D969C385F887A58F9 /* AddDestinationSheet.swift in Sources */,
 				F1428161593D4E6AD52F3315 /* AddDrumGroupSheet.swift in Sources */,
+				D30000000000000000000003 /* DrumGroupRoutingEditorDraft.swift in Sources */,
 				0070528B27D72E54D9AF6181 /* AlgoPreview.swift in Sources */,
 				56F1C4D87E10B591B22F20A2 /* AlgorithmSummaryCard.swift in Sources */,
 				D7026E29D862915C2B3D0E97 /* AppSupportBootstrap.swift in Sources */,
@@ -4557,6 +4572,7 @@
 				8D388C560640B8F5A18DD3F4 /* DestinationSummary.swift in Sources */,
 				3A3A015CEE1FE4CBD087F985 /* DrumGroupPlan.swift in Sources */,
 				7CAFC81CB0B468221FC5C3DF /* DrumKitNoteMap.swift in Sources */,
+				D30000000000000000000001 /* DAWNoteName.swift in Sources */,
 				46C1105DADE78059A0749B58 /* DrumKitPreset.swift in Sources */,
 				A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */,
 				E7A3A42EDF7463BA24BE1327 /* EngineControllerRoutingHelpers.swift in Sources */,
