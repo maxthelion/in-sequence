@@ -256,14 +256,15 @@ struct TransportBar: View {
                         phrase: phrase,
                         isCurrent: engineController.isRunning && phrase.id == engineController.currentPhraseID,
                         isQueued: phrase.id == engineController.queuedPhraseID,
-                        queueEnabled: engineController.isRunning,
+                        queueEnabled: engineController.isRunning && session.canSwitchBasisPhrase(to: phrase.id),
+                        nowEnabled: session.canSwitchBasisPhrase(to: phrase.id),
                         onQueue: {
-                            if engineController.queuePhrase(phrase.id) {
+                            if session.queuePhrase(phrase.id) {
                                 phrasePickerPresented = false
                             }
                         },
                         onNow: {
-                            if engineController.switchPhraseNow(phrase.id) {
+                            if session.switchPhraseNow(phrase.id) {
                                 phrasePickerPresented = false
                             }
                         }
@@ -302,11 +303,11 @@ struct TransportBar: View {
             let phraseID = phrases[index].id
             switch parts[0] {
             case "queue":
-                if engineController.queuePhrase(phraseID) {
+                if session.queuePhrase(phraseID) {
                     phrasePickerPresented = false
                 }
             case "now":
-                if engineController.switchPhraseNow(phraseID) {
+                if session.switchPhraseNow(phraseID) {
                     phrasePickerPresented = false
                 }
             default:
@@ -325,6 +326,7 @@ private struct PhraseNavigationRow: View {
     let isCurrent: Bool
     let isQueued: Bool
     let queueEnabled: Bool
+    let nowEnabled: Bool
     let onQueue: () -> Void
     let onNow: () -> Void
 
@@ -345,6 +347,12 @@ private struct PhraseNavigationRow: View {
         queueEnabled
             ? "Queue \(phrase.name) for the next phrase cycle"
             : "Queueing is available during playback"
+    }
+
+    private var nowHelp: String {
+        nowEnabled
+            ? "Switch to \(phrase.name) now"
+            : "Save Back or Revert pending perform edits before switching basis phrase"
     }
 
     var body: some View {
@@ -376,8 +384,9 @@ private struct PhraseNavigationRow: View {
 
             Button("Now", action: onNow)
                 .buttonStyle(PhraseActionButtonStyle(accent: StudioTheme.cyan))
-                .help("Switch to \(phrase.name) now")
-                .accessibilityLabel("Switch to \(phrase.name) now. Switch immediately and clear any queued phrase")
+                .disabled(!nowEnabled)
+                .help(nowHelp)
+                .accessibilityLabel("Switch to \(phrase.name) now. \(nowHelp)")
         }
         .padding(9)
         .background(

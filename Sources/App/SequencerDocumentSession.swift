@@ -32,6 +32,7 @@ final class SequencerDocumentSession {
     let snapshotPublisher: SessionSnapshotPublisher
     var revision: UInt64 = 0
     var trackFillPreviewState: TrackFillPreviewState = .inactive
+    var phrasePerformOverlay = PhrasePerformOverlayState()
 
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
@@ -125,19 +126,45 @@ final class SequencerDocumentSession {
     }
 
     func publishSnapshot(changed change: SnapshotChange? = nil) {
+        let compileState = overlayAppliedCompileInput()
         let newSnapshot: PlaybackSnapshot
         if let change {
             newSnapshot = SequencerSnapshotCompiler.compile(
                 changed: change,
                 previous: snapshotPublisher.snapshot,
-                state: store.compileInput()
+                state: compileState
             )
         } else {
-            newSnapshot = SequencerSnapshotCompiler.compile(state: store.compileInput())
+            newSnapshot = SequencerSnapshotCompiler.compile(state: compileState)
         }
         engineController.apply(playbackSnapshot: newSnapshot)
         snapshotPublisher.replace(newSnapshot)
         revision = store.revision
+    }
+
+    private func overlayAppliedCompileInput() -> LiveSequencerStoreState {
+        let state = store.compileInput()
+        guard phrasePerformOverlay.isDirty,
+              let basisPhraseID = phrasePerformOverlay.basisPhraseID,
+              let phrase = state.phrasesByID[basisPhraseID]
+        else {
+            return state
+        }
+
+        var phrasesByID = state.phrasesByID
+        phrasesByID[basisPhraseID] = phrasePerformOverlay.applying(to: phrase)
+        return LiveSequencerStoreState(
+            tracks: state.tracks,
+            trackGroups: state.trackGroups,
+            generatorPool: state.generatorPool,
+            clipPool: state.clipPool,
+            sliceSetPool: state.sliceSetPool,
+            layers: state.layers,
+            patternBanksByTrackID: state.patternBanksByTrackID,
+            phrasesByID: phrasesByID,
+            phraseOrder: state.phraseOrder,
+            selectedPhraseID: state.selectedPhraseID
+        )
     }
 
     func scheduleFlushToDocument() {
@@ -181,6 +208,7 @@ final class SequencerDocumentSession {
             return
         }
         clearTrackFillPreview(reason: .documentChanged)
+        phrasePerformOverlay.clear()
         revision = store.revision
         // apply(documentModel:) compiles and installs a fresh snapshot internally.
         // We also update the publisher so UI visualisers see the new state immediately.

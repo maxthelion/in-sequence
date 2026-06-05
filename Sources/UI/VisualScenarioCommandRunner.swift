@@ -896,12 +896,12 @@ enum VisualScenarioCommandRunner {
 
         if let queueIndex = Int(command["phraseQueueIndex"] ?? ""),
            let phraseID = phraseID(at: queueIndex, session: session) {
-            _ = engineController.queuePhrase(phraseID)
+            _ = session.queuePhrase(phraseID)
         }
 
         if let nowIndex = Int(command["phraseNowIndex"] ?? ""),
            let phraseID = phraseID(at: nowIndex, session: session) {
-            _ = engineController.switchPhraseNow(phraseID)
+            _ = session.switchPhraseNow(phraseID)
         }
 
         switch command["phraseControlsOpenIndex"] {

@@ -89,6 +89,8 @@
 		F11100000000000000000004 /* EngineControllerAudioInputPublicationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11100000000000000000003 /* EngineControllerAudioInputPublicationTests.swift */; };
 		F1AA00000000000000000001 /* TrackFillPreviewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000002 /* TrackFillPreviewState.swift */; };
 		F1AA00000000000000000003 /* SequencerDocumentSession+TrackFillPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000004 /* SequencerDocumentSession+TrackFillPreview.swift */; };
+		F2AA00000000000000000001 /* PhrasePerformOverlayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000002 /* PhrasePerformOverlayState.swift */; };
+		F2AA00000000000000000003 /* PhrasePerformOverlaySessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2AA00000000000000000004 /* PhrasePerformOverlaySessionTests.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
 		30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567FDBC3AA9E0A6F1D99AFBB /* AppSupportBootstrapTests.swift */; };
 		30ED3E0739DC51F020DBA586 /* TrackSourceEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5901836476E9360606315D /* TrackSourceEditorView.swift */; };
@@ -1068,6 +1070,8 @@
 		F1AA00000000000000000004 /* SequencerDocumentSession+TrackFillPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SequencerDocumentSession+TrackFillPreview.swift"; sourceTree = "<group>"; };
 		F1AA00000000000000000006 /* TrackFillPreviewSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewSessionTests.swift; sourceTree = "<group>"; };
 		F1AA00000000000000000008 /* TrackFillPreviewEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewEngineTests.swift; sourceTree = "<group>"; };
+		F2AA00000000000000000002 /* PhrasePerformOverlayState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhrasePerformOverlayState.swift; sourceTree = "<group>"; };
+		F2AA00000000000000000004 /* PhrasePerformOverlaySessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhrasePerformOverlaySessionTests.swift; sourceTree = "<group>"; };
 		8F0D67CB46A93BAA898BD9BE /* EngineControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerTests.swift; sourceTree = "<group>"; };
 		F10100000000000000000000 /* EngineControllerPhraseNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerPhraseNavigationTests.swift; sourceTree = "<group>"; };
 		8F137F909E951888DD11F5C7 /* 2026-05-08T09-27-08Z-holistic-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T09-27-08Z-holistic-observer-cadence.md"; sourceTree = "<group>"; };
@@ -2333,6 +2337,7 @@
 				E2983B1B1D605847576E2029 /* SessionBatchHelperTests.swift */,
 				0EC3216D89B7D3D550E597D4 /* SessionDestinationMacroTests.swift */,
 				EED001000000000000000002 /* PhrasePolicySessionTests.swift */,
+				F2AA00000000000000000004 /* PhrasePerformOverlaySessionTests.swift */,
 				1B1DBE1A94E5A98378041201 /* SessionMacroSlotTests.swift */,
 				82A3535947AAA3671C9B3D2A /* SessionSnapshotPublisherTests.swift */,
 				C7D67B1477FA156C5DB921E8 /* SessionTestSupport.swift */,
@@ -3633,6 +3638,7 @@
 				9BCE2D45E5C0442BDBB40D75 /* SequencerDocumentSession+Mutations.swift */,
 				D98B1A82B412D3E96A590032 /* SequencerDocumentSession+SendBusMutations.swift */,
 				F1AA00000000000000000004 /* SequencerDocumentSession+TrackFillPreview.swift */,
+				F2AA00000000000000000002 /* PhrasePerformOverlayState.swift */,
 				BA410BB96AE3DBC3C2696FFD /* SequencerDocumentSession+TrackSourceSlotModifiers.swift */,
 				6A722A3FE340A068B514DB7E /* SequencerDocumentSessionRegistry.swift */,
 				B9F5315493DF8287EC5F7B71 /* SessionSnapshotPublisher.swift */,
@@ -4497,6 +4503,7 @@
 				3673592D97299B3CE70000BD /* SessionBatchHelperTests.swift in Sources */,
 				2987BC3A8BE7E469E498B535 /* SessionDestinationMacroTests.swift in Sources */,
 				EED001000000000000000001 /* PhrasePolicySessionTests.swift in Sources */,
+				F2AA00000000000000000003 /* PhrasePerformOverlaySessionTests.swift in Sources */,
 				B64A40000000000000000004 /* PhraseButtonControlPresentationTests.swift in Sources */,
 				0077E4E53A46E6D3A4D36087 /* SessionMacroSlotTests.swift in Sources */,
 				A165D88338847DD38B45532D /* SessionSnapshotPublisherTests.swift in Sources */,
@@ -4704,6 +4711,7 @@
 				01EC6B69C4C6C3920A0A1908 /* SequencerDocumentSession+Mutations.swift in Sources */,
 				16679621CC800C9444F4A96B /* SequencerDocumentSession+SendBusMutations.swift in Sources */,
 				F1AA00000000000000000003 /* SequencerDocumentSession+TrackFillPreview.swift in Sources */,
+				F2AA00000000000000000001 /* PhrasePerformOverlayState.swift in Sources */,
 				FA34FEB78C73F50663B33DBE /* SequencerDocumentSession+TrackSourceSlotModifiers.swift in Sources */,
 				9A128CC4D3BA0FFACD33E45C /* SequencerDocumentSession.swift in Sources */,
 				B6863061684526E1768461AF /* SequencerDocumentSessionRegistry.swift in Sources */,

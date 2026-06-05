@@ -45,6 +45,14 @@ extension SequencerDocumentSession {
         pendingBatchChange.formUnion(change)
     }
 
+    private func publishPhrasePerformOverlayChange(phraseID: UUID?) {
+        if let phraseID {
+            publishSnapshot(changed: .phrase(phraseID))
+        } else {
+            publishSnapshot(changed: .full)
+        }
+    }
+
     // MARK: - Batch helper
 
     /// Run multiple typed mutations against the live store and publish exactly one
@@ -473,6 +481,26 @@ extension SequencerDocumentSession {
         }
     }
 
+    func canSwitchBasisPhrase(to phraseID: UUID) -> Bool {
+        !phrasePerformOverlay.blocksBasisSwitch(to: phraseID)
+    }
+
+    @discardableResult
+    func queuePhrase(_ phraseID: UUID) -> Bool {
+        guard canSwitchBasisPhrase(to: phraseID) else {
+            return false
+        }
+        return engineController.queuePhrase(phraseID)
+    }
+
+    @discardableResult
+    func switchPhraseNow(_ phraseID: UUID) -> Bool {
+        guard canSwitchBasisPhrase(to: phraseID) else {
+            return false
+        }
+        return engineController.switchPhraseNow(phraseID)
+    }
+
     // MARK: - Selection
 
     /// Set the selected track ID, publish a snapshot. Always `.snapshotOnly` —
@@ -494,6 +522,9 @@ extension SequencerDocumentSession {
 
     /// Set the selected phrase ID, publish a snapshot. Always `.snapshotOnly`.
     func setSelectedPhraseID(_ id: UUID) {
+        guard !phrasePerformOverlay.blocksBasisSwitch(to: id) else {
+            return
+        }
         store.setSelectedPhraseID(id)
         guard store.revision > revision else { return }
         if isInBatch {
@@ -505,6 +536,9 @@ extension SequencerDocumentSession {
 
     /// Set both selected phrase ID and selected track ID atomically.
     func setSelectedPhraseAndTrackID(phraseID: UUID, trackID: UUID) {
+        guard !phrasePerformOverlay.blocksBasisSwitch(to: phraseID) else {
+            return
+        }
         let selectedPhraseBefore = store.selectedPhraseID
         let selectedTrackBefore = store.selectedTrackID
 
@@ -557,12 +591,73 @@ extension SequencerDocumentSession {
         var p = store.exportToProject()
         p.removePhrase(id: phraseID)
         store.replacePhrases(p.phrases, selectedPhraseID: p.selectedPhraseID)
+        let clearedOverlay = phrasePerformOverlay.reconcile(availablePhraseIDs: p.phrases.map(\.id))
         guard store.revision > revision else { return }
         guard !isInBatch else { return }
         dispatchImpact(.snapshotOnly)
+        if clearedOverlay {
+            publishPhrasePerformOverlayChange(phraseID: phraseID)
+        }
     }
 
     // MARK: - Phrase cell content
+
+    func phraseWithPerformOverlay(_ phrase: PhraseModel) -> PhraseModel {
+        phrasePerformOverlay.applying(to: phrase)
+    }
+
+    func performOverlayCell(phraseID: UUID, layerID: String, trackID: UUID) -> PhraseCell? {
+        phrasePerformOverlay.cell(phraseID: phraseID, layerID: layerID, trackID: trackID)
+    }
+
+    @discardableResult
+    func stagePhrasePerformCell(
+        _ cell: PhraseCell,
+        layerID: String,
+        trackIDs: [UUID],
+        basisPhraseID: UUID
+    ) -> Bool {
+        let changed = phrasePerformOverlay.stage(
+            cell,
+            basisPhraseID: basisPhraseID,
+            layerID: layerID,
+            trackIDs: trackIDs
+        )
+        guard changed else {
+            return false
+        }
+        publishPhrasePerformOverlayChange(phraseID: basisPhraseID)
+        return true
+    }
+
+    @discardableResult
+    func savePhrasePerformOverlayBack() -> Bool {
+        guard phrasePerformOverlay.isDirty,
+              let targetPhraseID = phrasePerformOverlay.basisPhraseID,
+              store.phrases.contains(where: { $0.id == targetPhraseID })
+        else {
+            phrasePerformOverlay.clear()
+            publishPhrasePerformOverlayChange(phraseID: nil)
+            return false
+        }
+
+        let assignments = phrasePerformOverlay.stagedAssignments
+        let changed = mutatePhrase(id: targetPhraseID) { phrase in
+            for assignment in assignments {
+                phrase.setCell(assignment.cell, for: assignment.layerID, trackID: assignment.trackID)
+            }
+        }
+
+        phrasePerformOverlay.clear()
+        publishPhrasePerformOverlayChange(phraseID: targetPhraseID)
+        return changed
+    }
+
+    func revertPhrasePerformOverlay() {
+        let phraseID = phrasePerformOverlay.basisPhraseID
+        phrasePerformOverlay.clear()
+        publishPhrasePerformOverlayChange(phraseID: phraseID)
+    }
 
     /// Set a phrase cell for the given layer and track IDs. Publishes one snapshot.
     func setPhraseCell(

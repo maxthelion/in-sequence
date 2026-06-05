@@ -118,12 +118,13 @@ struct TracksMatrixView: View {
     }
 
     private var editingPhrase: PhraseModel {
-        TracksBasisPhraseResolver.resolvePhrase(
+        let basisPhrase = TracksBasisPhraseResolver.resolvePhrase(
             engineBasisPhraseID: engineController.basisPhraseID,
             selectedPhraseID: session.store.selectedPhraseID,
             selectedPhrase: session.store.selectedPhrase,
             phrases: session.store.phrases
         )
+        return session.phraseWithPerformOverlay(basisPhrase)
     }
 
     private var editingPhraseID: UUID {
@@ -154,6 +155,9 @@ struct TracksMatrixView: View {
             ) {
                 VStack(alignment: .leading, spacing: 18) {
                     actionBar
+                    if session.phrasePerformOverlay.isDirty {
+                        performOverlayTransactionStrip
+                    }
 
                     if tracks.isEmpty {
                         StudioPlaceholderTile(
@@ -391,6 +395,67 @@ struct TracksMatrixView: View {
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
+    private var performOverlayTransactionStrip: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.amber)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("UNSAVED PERFORM EDITS")
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.amber)
+
+                    Text(performOverlayStatusText)
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            Button("Save Back") {
+                session.savePhrasePerformOverlayBack()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(StudioTheme.amber)
+            .disabled(!canSavePhrasePerformOverlay)
+            .help(canSavePhrasePerformOverlay ? "Save staged perform edits back to the basis phrase" : "Basis phrase is no longer available")
+
+            Button("Revert") {
+                session.revertPhrasePerformOverlay()
+            }
+            .buttonStyle(.bordered)
+            .help("Discard staged perform edits")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+        )
+        .accessibilityIdentifier("phrase-perform-overlay-transaction")
+    }
+
+    private var canSavePhrasePerformOverlay: Bool {
+        guard let phraseID = session.phrasePerformOverlay.basisPhraseID else {
+            return false
+        }
+        return session.store.phrases.contains(where: { $0.id == phraseID })
+    }
+
+    private var performOverlayStatusText: String {
+        let count = session.phrasePerformOverlay.stagedCellCount
+        let phraseName = session.phrasePerformOverlay.basisPhraseID
+            .flatMap { phraseID in session.store.phrases.first(where: { $0.id == phraseID })?.name }
+            ?? "missing phrase"
+        return "\(count) staged cell\(count == 1 ? "" : "s") for \(phraseName)"
+    }
+
     private var performSelectionSummary: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
@@ -577,48 +642,48 @@ struct TracksMatrixView: View {
         switch cell {
         case .inheritDefault:
             let seedValue = editingPhrase.resolvedValue(for: layer, at: address)
-            session.setPhraseCell(
+            session.stagePhrasePerformCell(
                 .single(cycledValue(seedValue, for: layer)),
                 layerID: layer.id,
                 trackIDs: recipientTrackIDs,
-                phraseID: editingPhraseID
+                basisPhraseID: editingPhraseID
             )
         case let .single(value):
-            session.setPhraseCell(
+            session.stagePhrasePerformCell(
                 .single(cycledValue(value, for: layer)),
                 layerID: layer.id,
                 trackIDs: recipientTrackIDs,
-                phraseID: editingPhraseID
+                basisPhraseID: editingPhraseID
             )
         case let .bars(values):
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentBarIndexInPhrase, nextValues.count - 1)
             nextValues[index] = cycledValue(nextValues[index], for: layer)
-            session.setPhraseCell(
+            session.stagePhrasePerformCell(
                 .bars(nextValues),
                 layerID: layer.id,
                 trackIDs: recipientTrackIDs,
-                phraseID: editingPhraseID
+                basisPhraseID: editingPhraseID
             )
         case let .steps(values):
             guard !values.isEmpty else { return }
             var nextValues = values
             let index = min(currentStepIndexInPhrase, nextValues.count - 1)
             nextValues[index] = cycledValue(nextValues[index], for: layer)
-            session.setPhraseCell(
+            session.stagePhrasePerformCell(
                 .steps(nextValues),
                 layerID: layer.id,
                 trackIDs: recipientTrackIDs,
-                phraseID: editingPhraseID
+                basisPhraseID: editingPhraseID
             )
         case .curve:
             let seedValue = editingPhrase.resolvedValue(for: layer, at: address)
-            session.setPhraseCell(
+            session.stagePhrasePerformCell(
                 .single(cycledValue(seedValue, for: layer)),
                 layerID: layer.id,
                 trackIDs: recipientTrackIDs,
-                phraseID: editingPhraseID
+                basisPhraseID: editingPhraseID
             )
         }
     }
