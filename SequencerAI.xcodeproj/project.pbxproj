@@ -76,6 +76,7 @@
 		29E9B826109E864A16A899E8 /* ScalarCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A96D2E2F787B4A142F0A38 /* ScalarCellPreview.swift */; };
 		D30000000000000000000005 /* DAWNoteNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000006 /* DAWNoteNameTests.swift */; };
 		D30000000000000000000007 /* DrumGroupRoutingEditorDraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000008 /* DrumGroupRoutingEditorDraftTests.swift */; };
+		D30500000000000000000001 /* DrumKitMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30500000000000000000002 /* DrumKitMatrixView.swift */; };
 		A1B2C3D4E5F60123456789AC /* AtomicInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60123456789AB /* AtomicInt.swift */; };
 		D10100000000000000000007 /* AudioDeviceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000002 /* AudioDeviceCatalog.swift */; };
 		D10100000000000000000008 /* AudioDeviceSwitchCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000003 /* AudioDeviceSwitchCoordinator.swift */; };
@@ -1398,6 +1399,7 @@
 		D2C5D83464F4C20C3C8FD4C3 /* 2026-04-22-track-macro-parameters.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-22-track-macro-parameters.md"; sourceTree = "<group>"; };
 		D30000000000000000000002 /* DAWNoteName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAWNoteName.swift; sourceTree = "<group>"; };
 		D30000000000000000000004 /* DrumGroupRoutingEditorDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumGroupRoutingEditorDraft.swift; sourceTree = "<group>"; };
+		D30500000000000000000002 /* DrumKitMatrixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKitMatrixView.swift; sourceTree = "<group>"; };
 		D30000000000000000000006 /* DAWNoteNameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAWNoteNameTests.swift; sourceTree = "<group>"; };
 		D30000000000000000000008 /* DrumGroupRoutingEditorDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumGroupRoutingEditorDraftTests.swift; sourceTree = "<group>"; };
 		D31EC90B484ACD21E40D33A4 /* PlaybackInertSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackInertSelectionTests.swift; sourceTree = "<group>"; };
@@ -2755,6 +2757,7 @@
 			children = (
 				F0A66C09FE881E5045D6383E /* AddDrumGroupSheet.swift */,
 				D30000000000000000000004 /* DrumGroupRoutingEditorDraft.swift */,
+				D30500000000000000000002 /* DrumKitMatrixView.swift */,
 			);
 			path = DrumGroup;
 			sourceTree = "<group>";
@@ -4572,6 +4575,7 @@
 				8D388C560640B8F5A18DD3F4 /* DestinationSummary.swift in Sources */,
 				3A3A015CEE1FE4CBD087F985 /* DrumGroupPlan.swift in Sources */,
 				7CAFC81CB0B468221FC5C3DF /* DrumKitNoteMap.swift in Sources */,
+				D30500000000000000000001 /* DrumKitMatrixView.swift in Sources */,
 				D30000000000000000000001 /* DAWNoteName.swift in Sources */,
 				46C1105DADE78059A0749B58 /* DrumKitPreset.swift in Sources */,
 				A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */,

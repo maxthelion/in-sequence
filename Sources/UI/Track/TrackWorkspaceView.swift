@@ -42,67 +42,87 @@ struct TrackWorkspaceView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            trackHeader
-
-            if track.trackType == .audioInput {
-                AudioInputRuntimePanel(
-                    track: track,
-                    runtime: engineController.audioInputRuntime(for: track.id),
-                    accent: sourceAccent
-                )
-            } else if track.trackType == .slice {
-                SliceTrackWorkspaceView(
-                    document: $document,
-                    accent: sourceAccent,
-                    stepGridWorkspaceModel: stepGridWorkspaceModel
-                )
-            } else {
-                HStack(alignment: .top, spacing: 18) {
-                    TrackSourceEditorView(document: $document, accent: sourceAccent)
-                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
-                        .layoutPriority(1)
-
-                    destinationColumn
-                        .frame(width: 320, alignment: .topLeading)
+        workspaceContent
+            .onChange(of: isEditingSelectedTrackName) {
+                if isEditingSelectedTrackName {
+                    trackNameFieldFocused = true
                 }
             }
-        }
-        .padding(20)
-        .onChange(of: isEditingSelectedTrackName) {
-            if isEditingSelectedTrackName {
-                trackNameFieldFocused = true
+            .onChange(of: track.id) {
+                if let editingTrackID, editingTrackID != track.id {
+                    self.editingTrackID = nil
+                    draftTrackName = ""
+                }
+                stepGridWorkspaceModel.reset()
             }
-        }
-        .onChange(of: track.id) {
-            if let editingTrackID, editingTrackID != track.id {
-                self.editingTrackID = nil
-                draftTrackName = ""
-            }
-            stepGridWorkspaceModel.reset()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .drumPartWorkspaceHeaderVisualCommand)) { notification in
-            guard let command = notification.object as? String else { return }
+            .onReceive(NotificationCenter.default.publisher(for: .drumPartWorkspaceHeaderVisualCommand)) { notification in
+                guard let command = notification.object as? String else { return }
 
-            switch command {
-            case "rename-on":
-                editingTrackID = track.id
-                draftTrackName = track.name
-                trackNameFieldFocused = true
-            case "rename-off":
-                editingTrackID = nil
-                draftTrackName = ""
-                trackNameFieldFocused = false
-            case "open-kit-view":
-                if let drumPartHeaderModel {
-                    kitNavigationState = DrumKitWorkspaceNavigationState(
-                        groupID: drumPartHeaderModel.groupID,
-                        originatingPartID: drumPartHeaderModel.currentPartID
+                switch command {
+                case "rename-on":
+                    editingTrackID = track.id
+                    draftTrackName = track.name
+                    trackNameFieldFocused = true
+                case "rename-off":
+                    editingTrackID = nil
+                    draftTrackName = ""
+                    trackNameFieldFocused = false
+                case "open-kit-view":
+                    if let drumPartHeaderModel {
+                        kitNavigationState = DrumKitWorkspaceNavigationState(
+                            groupID: drumPartHeaderModel.groupID,
+                            originatingPartID: drumPartHeaderModel.currentPartID
+                        )
+                    }
+                default:
+                    break
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var workspaceContent: some View {
+        if let kitNavigationState {
+            DrumKitMatrixView(
+                document: $document,
+                navigationState: kitNavigationState,
+                onBack: {
+                    session.setSelectedTrackID(kitNavigationState.originatingPartID)
+                    self.kitNavigationState = nil
+                },
+                onSelectPart: { partID in
+                    session.setSelectedTrackID(partID)
+                    self.kitNavigationState = nil
+                }
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 18) {
+                trackHeader
+
+                if track.trackType == .audioInput {
+                    AudioInputRuntimePanel(
+                        track: track,
+                        runtime: engineController.audioInputRuntime(for: track.id),
+                        accent: sourceAccent
                     )
+                } else if track.trackType == .slice {
+                    SliceTrackWorkspaceView(
+                        document: $document,
+                        accent: sourceAccent,
+                        stepGridWorkspaceModel: stepGridWorkspaceModel
+                    )
+                } else {
+                    HStack(alignment: .top, spacing: 18) {
+                        TrackSourceEditorView(document: $document, accent: sourceAccent)
+                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+                            .layoutPriority(1)
+
+                        destinationColumn
+                            .frame(width: 320, alignment: .topLeading)
+                    }
                 }
-            default:
-                break
             }
+            .padding(20)
         }
     }
 
@@ -347,6 +367,7 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
 
 extension Notification.Name {
     static let drumPartWorkspaceHeaderVisualCommand = Notification.Name("SequencerAIDrumPartWorkspaceHeaderVisualCommand")
+    static let drumKitMatrixVisualCommand = Notification.Name("SequencerAIDrumKitMatrixVisualCommand")
 }
 
 private extension Color {

@@ -86,14 +86,22 @@ struct DrumGroupRoutingEditorDraft: Equatable {
     var rows: [MemberRow]
 
     init?(project: Project, groupID: TrackGroupID) {
-        guard let group = project.trackGroups.first(where: { $0.id == groupID }) else {
+        self.init(groupID: groupID, trackGroups: project.trackGroups, tracks: project.tracks)
+    }
+
+    init?(
+        groupID: TrackGroupID,
+        trackGroups: [TrackGroup],
+        tracks: [StepSequenceTrack]
+    ) {
+        guard let group = trackGroups.first(where: { $0.id == groupID }) else {
             return nil
         }
 
         var seenMemberIDs: Set<UUID> = []
         let rows = group.memberIDs.compactMap { memberID -> MemberRow? in
             guard seenMemberIDs.insert(memberID).inserted,
-                  let track = project.tracks.first(where: { $0.id == memberID })
+                  let track = tracks.first(where: { $0.id == memberID })
             else {
                 return nil
             }

@@ -9,6 +9,11 @@ enum VisualScenarioCommandRunner {
     private static var drumPartHeaderRenameVisualState = false
     private static var drumPartHeaderOpenKitOriginPartName: String?
     private static var drumPartHeaderOpenKitOriginGroupName: String?
+    private static var drumKitMatrixVisualState = false
+    private static var drumKitMatrixRoutingEditorVisualState = false
+    private static var drumKitMatrixGroupID: TrackGroupID?
+    private static var drumKitMatrixOriginatingPartID: UUID?
+    private static var drumKitMatrixDisplayStepCount = 16
 
     static func runIfConfigured(
         section: Binding<WorkspaceSection>,
@@ -109,6 +114,7 @@ enum VisualScenarioCommandRunner {
             engineController: engineController
         )
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
+        applyDrumKitMatrixCommand(command: command, session: session)
 
         switch command["transport"] {
         case "play":
@@ -189,6 +195,7 @@ enum VisualScenarioCommandRunner {
             tracks: session.store.tracks,
             trackGroups: session.store.trackGroups
         )
+        let drumKitMatrixModel = currentDrumKitMatrixModel(session: session)
         let status = """
         workspace=\(section.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
@@ -214,6 +221,17 @@ enum VisualScenarioCommandRunner {
         drumPartHeaderRenameVisualState=\(drumPartHeaderRenameVisualState)
         drumPartHeaderOpenKitOriginPartName=\(drumPartHeaderOpenKitOriginPartName ?? "none")
         drumPartHeaderOpenKitOriginGroupName=\(drumPartHeaderOpenKitOriginGroupName ?? "none")
+        drumKitMatrixVisible=\(drumKitMatrixVisualState)
+        drumKitMatrixRoutingEditorVisible=\(drumKitMatrixRoutingEditorVisualState)
+        drumKitMatrixGroupName=\(drumKitMatrixModel?.groupName ?? "none")
+        drumKitMatrixMemberCount=\(drumKitMatrixModel?.rows.count ?? 0)
+        drumKitMatrixMemberNames=\(drumKitMatrixModel.map { $0.rows.map(\.partName).joined(separator: "|") } ?? "none")
+        drumKitMatrixPatternBadges=\(drumKitMatrixModel.map { $0.rows.map(\.patternBadge).joined(separator: "|") } ?? "none")
+        drumKitMatrixSourceModes=\(drumKitMatrixModel.map { $0.rows.map { $0.sourceMode.rawValue }.joined(separator: "|") } ?? "none")
+        drumKitMatrixPreviewKinds=\(drumKitMatrixModel.map(matrixPreviewKinds) ?? "none")
+        drumKitMatrixPatternMismatch=\(drumKitMatrixModel?.hasPatternMismatch ?? false)
+        drumKitMatrixStaleMemberCount=\(drumKitMatrixModel?.staleMemberCount ?? 0)
+        drumKitMatrixDisplayStepCount=\(drumKitMatrixModel?.displayStepCount ?? drumKitMatrixDisplayStepCount)
         selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
         selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
         selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
@@ -255,6 +273,78 @@ enum VisualScenarioCommandRunner {
         try? status.write(to: statusURL, atomically: true, encoding: .utf8)
     }
 
+    private static func currentDrumKitMatrixModel(session: SequencerDocumentSession) -> DrumKitMatrixModel? {
+        guard drumKitMatrixVisualState,
+              let groupID = drumKitMatrixGroupID,
+              let originatingPartID = drumKitMatrixOriginatingPartID
+        else {
+            return nil
+        }
+
+        return DrumKitMatrixModel(
+            groupID: groupID,
+            originatingPartID: originatingPartID,
+            displayStepCount: drumKitMatrixDisplayStepCount,
+            tracks: session.store.tracks,
+            trackGroups: session.store.trackGroups,
+            layers: session.store.layers,
+            selectedPhrase: session.store.selectedPhrase,
+            patternBanks: Array(session.store.patternBanksByTrackID.values),
+            clipPool: session.store.clipPool,
+            generatorPool: session.store.generatorPool
+        )
+    }
+
+    private static func matrixPreviewKinds(_ model: DrumKitMatrixModel) -> String {
+        model.rows.map { row in
+            switch row.preview {
+            case let .steps(steps, _, overflow):
+                return "steps\(steps.count)\(overflow ? "+" : "")"
+            case let .limited(badge, _):
+                return badge
+            }
+        }
+        .joined(separator: "|")
+    }
+
+    private static func applyDrumKitMatrixCommand(
+        command: [String: String],
+        session: SequencerDocumentSession
+    ) {
+        guard let rawCommand = command["drumKitMatrixCommand"] else { return }
+
+        switch rawCommand {
+        case "display16", "display-16":
+            drumKitMatrixDisplayStepCount = 16
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "display-16")
+        case "display32", "display-32":
+            drumKitMatrixDisplayStepCount = 32
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "display-32")
+        case "openRouting", "open-routing":
+            drumKitMatrixRoutingEditorVisualState = true
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "open-routing")
+        case "closeRouting", "close-routing":
+            drumKitMatrixRoutingEditorVisualState = false
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-routing")
+        case "back":
+            drumKitMatrixVisualState = false
+            drumKitMatrixRoutingEditorVisualState = false
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "back")
+        default:
+            if rawCommand.hasPrefix("selectIndex:"),
+               let rawIndex = rawCommand.split(separator: ":").last,
+               let selectedIndex = Int(rawIndex) {
+                drumKitMatrixVisualState = false
+                drumKitMatrixRoutingEditorVisualState = false
+                NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "select-index:\(selectedIndex)")
+            }
+        }
+
+        if let mutation = command["drumKitMatrixMutation"] {
+            applyDrumKitMatrixMutation(mutation, session: session)
+        }
+    }
+
     private static func applyDrumPartHeaderFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
@@ -263,12 +353,17 @@ enum VisualScenarioCommandRunner {
         guard command["drumPartHeaderFixture"] != nil ||
               command["drumPartHeaderSelectedIndex"] != nil ||
               command["drumPartHeaderRename"] != nil ||
-              command["drumPartHeaderOpenKitView"] != nil
+              command["drumPartHeaderOpenKitView"] != nil ||
+              command["drumKitMatrixFixture"] != nil
         else { return }
 
         section.wrappedValue = .track
         drumPartHeaderOpenKitOriginPartName = nil
         drumPartHeaderOpenKitOriginGroupName = nil
+        drumKitMatrixVisualState = false
+        drumKitMatrixRoutingEditorVisualState = false
+        drumKitMatrixGroupID = nil
+        drumKitMatrixOriginatingPartID = nil
 
         switch command["drumPartHeaderFixture"] {
         case "kit", "group", "drumGroup":
@@ -301,6 +396,11 @@ enum VisualScenarioCommandRunner {
             break
         }
 
+        if let matrixFixture = command["drumKitMatrixFixture"],
+           let groupID = session.store.selectedTrack.groupID {
+            applyDrumKitMatrixFixture(matrixFixture, groupID: groupID, session: session)
+        }
+
         switch command["drumPartHeaderRename"] {
         case "on", "true", "editing":
             drumPartHeaderRenameVisualState = true
@@ -320,7 +420,19 @@ enum VisualScenarioCommandRunner {
             )
             drumPartHeaderOpenKitOriginPartName = model?.currentPartName
             drumPartHeaderOpenKitOriginGroupName = model?.groupName
+            drumKitMatrixVisualState = model != nil
+            drumKitMatrixRoutingEditorVisualState = false
+            drumKitMatrixGroupID = model?.groupID
+            drumKitMatrixOriginatingPartID = model?.currentPartID
+            drumKitMatrixDisplayStepCount = Int(command["drumKitMatrixDisplayStepCount"] ?? "") == 32 ? 32 : 16
             NotificationCenter.default.post(name: .drumPartWorkspaceHeaderVisualCommand, object: "open-kit-view")
+
+            if drumKitMatrixDisplayStepCount == 32 {
+                NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "display-32")
+            }
+            if let mutation = command["drumKitMatrixMutation"] {
+                applyDrumKitMatrixMutation(mutation, session: session)
+            }
         }
     }
 
@@ -363,6 +475,90 @@ enum VisualScenarioCommandRunner {
         }
     }
 
+    private static func applyDrumKitMatrixFixture(
+        _ fixture: String,
+        groupID: TrackGroupID,
+        session: SequencerDocumentSession
+    ) {
+        switch fixture {
+        case "mixedPatterns", "mixed":
+            session.batch(impact: .snapshotOnly, changed: .full) { store in
+                var project = store.exportToProject()
+                guard let group = project.trackGroups.first(where: { $0.id == groupID }),
+                      let phraseIndex = project.phrases.firstIndex(where: { $0.id == project.selectedPhraseID })
+                else { return }
+
+                let resolvedMemberIDs = group.memberIDs.filter { memberID in
+                    project.tracks.contains(where: { $0.id == memberID })
+                }
+                for (index, memberID) in resolvedMemberIDs.enumerated() {
+                    project.phrases[phraseIndex].setPatternIndex(index == 1 ? 1 : 0, for: memberID, layers: project.layers)
+                }
+                store.importFromProject(project)
+            }
+        case "generatorAndReadOnly", "readOnly":
+            session.batch(impact: .snapshotOnly, changed: .full) { store in
+                var project = store.exportToProject()
+                guard let group = project.trackGroups.first(where: { $0.id == groupID }),
+                      let phraseIndex = project.phrases.firstIndex(where: { $0.id == project.selectedPhraseID })
+                else { return }
+
+                let resolvedMemberIDs = group.memberIDs.filter { memberID in
+                    project.tracks.contains(where: { $0.id == memberID })
+                }
+                if let readOnlyTrackID = resolvedMemberIDs.dropFirst().first {
+                    let readOnlyClip = ClipPoolEntry(
+                        id: UUID(),
+                        name: "Matrix Read Only Slice",
+                        trackType: .monoMelodic,
+                        content: .sliceTriggers(
+                            stepPattern: [true, false, false, false],
+                            sliceIndexes: [0, 0, 0, 0],
+                            stepModes: [.single, .single, .single, .single],
+                            stepParameters: [.default, .default, .default, .default]
+                        )
+                    )
+                    project.clipPool.append(readOnlyClip)
+                    project.setPatternSourceRef(.clip(readOnlyClip.id), for: readOnlyTrackID, slotIndex: 0)
+                    project.phrases[phraseIndex].setPatternIndex(0, for: readOnlyTrackID, layers: project.layers)
+                }
+                if let generatorTrackID = resolvedMemberIDs.dropFirst(2).first {
+                    _ = project.createBlankGeneratorSource(trackID: generatorTrackID, slotIndex: 0)
+                    project.phrases[phraseIndex].setPatternIndex(0, for: generatorTrackID, layers: project.layers)
+                }
+                store.importFromProject(project)
+            }
+        default:
+            break
+        }
+    }
+
+    private static func applyDrumKitMatrixMutation(_ mutation: String, session: SequencerDocumentSession) {
+        guard let groupID = drumKitMatrixGroupID else { return }
+
+        switch mutation {
+        case "zeroMembers", "zero":
+            session.batch(impact: .snapshotOnly, changed: .full) { store in
+                var project = store.exportToProject()
+                guard let groupIndex = project.trackGroups.firstIndex(where: { $0.id == groupID }) else { return }
+                project.trackGroups[groupIndex].memberIDs = []
+                store.importFromProject(project)
+            }
+        case "staleMember", "stale":
+            session.batch(impact: .snapshotOnly, changed: .full) { store in
+                var project = store.exportToProject()
+                guard let groupIndex = project.trackGroups.firstIndex(where: { $0.id == groupID }) else { return }
+                let resolvedMemberIDs = project.trackGroups[groupIndex].memberIDs.filter { memberID in
+                    project.tracks.contains(where: { $0.id == memberID })
+                }
+                project.trackGroups[groupIndex].memberIDs = Array(resolvedMemberIDs.prefix(2)) + [UUID()]
+                store.importFromProject(project)
+            }
+        default:
+            break
+        }
+    }
+
     private static func ensureDrumPartHeaderFixtureGroup(session: SequencerDocumentSession) -> TrackGroup {
         if let existing = session.store.trackGroups.first(where: { $0.name == "808 Bones" }),
            existing.memberIDs.count >= 6 {
@@ -385,7 +581,7 @@ enum VisualScenarioCommandRunner {
             sharedDestination: nil
         )
         _ = session.addDrumGroup(plan: plan)
-        return session.store.trackGroups.first(where: { $0.name == "808 Bones" })
+        return session.store.trackGroups.first(where: { $0.name == "808 Bones" && $0.memberIDs.count >= 6 })
             ?? session.store.trackGroups.last
             ?? TrackGroup(name: "808 Bones", color: "#C06030")
     }

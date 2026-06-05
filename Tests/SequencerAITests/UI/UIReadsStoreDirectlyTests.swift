@@ -536,3 +536,243 @@ final class DrumPartWorkspaceHeaderModelTests: XCTestCase {
         )
     }
 }
+
+final class DrumKitMatrixModelTests: XCTestCase {
+    func test_rowsFollowMemberIDOrderAndShowActivePatternBadges() throws {
+        var fixture = makeMatrixFixture()
+        fixture.phrase.setPatternIndex(2, for: fixture.kick.id, layers: fixture.layers)
+        fixture.phrase.setPatternIndex(2, for: fixture.snare.id, layers: fixture.layers)
+        fixture.phrase.setPatternIndex(2, for: fixture.hat.id, layers: fixture.layers)
+
+        let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
+
+        XCTAssertEqual(model.rows.map(\.memberID), [fixture.snare.id, fixture.kick.id, fixture.hat.id])
+        XCTAssertEqual(model.rows.map(\.partName), ["Snare", "Kick", "Closed Hat"])
+        XCTAssertEqual(model.rows.map(\.patternBadge), ["P3", "P3", "P3"])
+        XCTAssertFalse(model.hasPatternMismatch)
+    }
+
+    func test_mixedActivePatternSlotsShowMismatchAndDivergentBadges() throws {
+        var fixture = makeMatrixFixture()
+        fixture.phrase.setPatternIndex(0, for: fixture.snare.id, layers: fixture.layers)
+        fixture.phrase.setPatternIndex(1, for: fixture.kick.id, layers: fixture.layers)
+        fixture.phrase.setPatternIndex(0, for: fixture.hat.id, layers: fixture.layers)
+
+        let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
+
+        XCTAssertTrue(model.hasPatternMismatch)
+        XCTAssertEqual(model.rows.map(\.patternBadge), ["P1", "P2", "P1"])
+        XCTAssertEqual(model.rows.map(\.isDivergentPattern), [false, true, false])
+    }
+
+    func test_clipRowsExposeReadOnlyStepPreviewWithoutMutationIntent() throws {
+        let fixture = makeMatrixFixture()
+
+        let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
+        let snare = try XCTUnwrap(model.rows.first)
+
+        guard case let .steps(steps, sourceLength, overflow) = snare.preview else {
+            return XCTFail("Expected a clip step preview")
+        }
+        XCTAssertEqual(sourceLength, 16)
+        XCTAssertFalse(overflow)
+        XCTAssertEqual(steps.prefix(8), [true, false, false, false, true, false, false, false])
+    }
+
+    func test_generatorAndNonStepClipRowsUseLimitedReadOnlyTreatment() throws {
+        var fixture = makeMatrixFixture()
+        let generatorID = UUID()
+        fixture.generatorPool = [
+            GeneratorPoolEntry.makeDefault(
+                id: generatorID,
+                name: "Euclidean Hat",
+                kind: .monoGenerator,
+                trackType: .monoMelodic
+            )
+        ]
+        fixture.patternBanks = [
+            TrackPatternBank(trackID: fixture.snare.id, slots: [
+                TrackPatternSlot(slotIndex: 0, sourceRef: .clip(fixture.snareClip.id)),
+            ]),
+            TrackPatternBank(trackID: fixture.kick.id, slots: [
+                TrackPatternSlot(slotIndex: 0, sourceRef: .clip(fixture.readOnlyClip.id)),
+            ]),
+            TrackPatternBank(trackID: fixture.hat.id, slots: [
+                TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generatorID)),
+            ]),
+        ]
+
+        let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
+
+        guard case let .limited(kickBadge, kickDetail) = model.rows[1].preview else {
+            return XCTFail("Expected non-step clip to be read-only")
+        }
+        XCTAssertEqual(kickBadge, "RO")
+        XCTAssertEqual(kickDetail, "Read-only source")
+
+        guard case let .limited(hatBadge, hatDetail) = model.rows[2].preview else {
+            return XCTFail("Expected generator row to be limited")
+        }
+        XCTAssertEqual(hatBadge, "GEN")
+        XCTAssertEqual(hatDetail, "Generator source")
+    }
+
+    func test_stepDisplayIsBoundedTo16And32WithOverflowTreatment() throws {
+        let fixture = makeMatrixFixture(snareLength: 40)
+
+        let sixteen = try XCTUnwrap(fixture.model(displayStepCount: 15))
+        XCTAssertEqual(sixteen.displayStepCount, 16)
+        guard case let .steps(sixteenSteps, sixteenSourceLength, sixteenOverflow) = sixteen.rows[0].preview else {
+            return XCTFail("Expected sixteen-step preview")
+        }
+        XCTAssertEqual(sixteenSteps.count, 16)
+        XCTAssertEqual(sixteenSourceLength, 40)
+        XCTAssertTrue(sixteenOverflow)
+
+        let thirtyTwo = try XCTUnwrap(fixture.model(displayStepCount: 32))
+        XCTAssertEqual(thirtyTwo.displayStepCount, 32)
+        guard case let .steps(thirtyTwoSteps, thirtyTwoSourceLength, thirtyTwoOverflow) = thirtyTwo.rows[0].preview else {
+            return XCTFail("Expected thirty-two-step preview")
+        }
+        XCTAssertEqual(thirtyTwoSteps.count, 32)
+        XCTAssertEqual(thirtyTwoSourceLength, 40)
+        XCTAssertTrue(thirtyTwoOverflow)
+    }
+
+    func test_zeroMemberAndStaleMemberGroupsStayCompact() throws {
+        var fixture = makeMatrixFixture()
+        fixture.group.memberIDs = []
+        let empty = try XCTUnwrap(fixture.model(displayStepCount: 16))
+        XCTAssertTrue(empty.rows.isEmpty)
+        XCTAssertEqual(empty.staleMemberCount, 0)
+        XCTAssertEqual(empty.memberCountLabel, "0 parts")
+
+        fixture.group.memberIDs = [fixture.snare.id, UUID(), fixture.kick.id]
+        let stale = try XCTUnwrap(fixture.model(displayStepCount: 16))
+        XCTAssertEqual(stale.rows.map(\.memberID), [fixture.snare.id, fixture.kick.id])
+        XCTAssertEqual(stale.staleMemberCount, 1)
+    }
+
+    private struct MatrixFixture {
+        var group: TrackGroup
+        var kick: StepSequenceTrack
+        var snare: StepSequenceTrack
+        var hat: StepSequenceTrack
+        var layers: [PhraseLayerDefinition]
+        var phrase: PhraseModel
+        var patternBanks: [TrackPatternBank]
+        var clipPool: [ClipPoolEntry]
+        var generatorPool: [GeneratorPoolEntry]
+        var snareClip: ClipPoolEntry
+        var readOnlyClip: ClipPoolEntry
+
+        func model(displayStepCount: Int) -> DrumKitMatrixModel? {
+            DrumKitMatrixModel(
+                groupID: group.id,
+                originatingPartID: kick.id,
+                displayStepCount: displayStepCount,
+                tracks: [hat, kick, snare],
+                trackGroups: [group],
+                layers: layers,
+                selectedPhrase: phrase,
+                patternBanks: patternBanks,
+                clipPool: clipPool,
+                generatorPool: generatorPool
+            )
+        }
+    }
+
+    private func makeMatrixFixture(snareLength: Int = 16) -> MatrixFixture {
+        let groupID = UUID()
+        let kick = makeTrack(name: "Kick", groupID: groupID, stepPattern: [true, false, false, false])
+        let snare = makeTrack(name: "Snare", groupID: groupID, stepPattern: [false, false, true, false])
+        let hat = makeTrack(name: "Closed Hat", groupID: groupID, stepPattern: [true, true, false, true])
+        let group = TrackGroup(
+            id: groupID,
+            name: "808 Bones",
+            color: "#C06030",
+            memberIDs: [snare.id, kick.id, hat.id]
+        )
+        let tracks = [kick, snare, hat]
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(tracks: tracks, layers: layers)
+        let snareClip = makeNoteGridClip(name: "Snare Clip", length: snareLength)
+        let kickClip = makeNoteGridClip(name: "Kick Clip", length: 16)
+        let hatClip = makeNoteGridClip(name: "Hat Clip", length: 16)
+        let readOnlyClip = ClipPoolEntry(
+            id: UUID(),
+            name: "Read Only Slice",
+            trackType: .monoMelodic,
+            content: .sliceTriggers(
+                stepPattern: [true, false, false, false],
+                sliceIndexes: [0, 0, 0, 0],
+                stepModes: [.single, .single, .single, .single],
+                stepParameters: [.default, .default, .default, .default]
+            )
+        )
+
+        return MatrixFixture(
+            group: group,
+            kick: kick,
+            snare: snare,
+            hat: hat,
+            layers: layers,
+            phrase: phrase,
+            patternBanks: [
+                TrackPatternBank(trackID: snare.id, slots: [
+                    TrackPatternSlot(slotIndex: 0, sourceRef: .clip(snareClip.id)),
+                    TrackPatternSlot(slotIndex: 1, sourceRef: .clip(snareClip.id)),
+                    TrackPatternSlot(slotIndex: 2, sourceRef: .clip(snareClip.id)),
+                ]),
+                TrackPatternBank(trackID: kick.id, slots: [
+                    TrackPatternSlot(slotIndex: 0, sourceRef: .clip(kickClip.id)),
+                    TrackPatternSlot(slotIndex: 1, sourceRef: .clip(kickClip.id)),
+                    TrackPatternSlot(slotIndex: 2, sourceRef: .clip(kickClip.id)),
+                ]),
+                TrackPatternBank(trackID: hat.id, slots: [
+                    TrackPatternSlot(slotIndex: 0, sourceRef: .clip(hatClip.id)),
+                    TrackPatternSlot(slotIndex: 1, sourceRef: .clip(hatClip.id)),
+                    TrackPatternSlot(slotIndex: 2, sourceRef: .clip(hatClip.id)),
+                ]),
+            ],
+            clipPool: [snareClip, kickClip, hatClip, readOnlyClip],
+            generatorPool: [],
+            snareClip: snareClip,
+            readOnlyClip: readOnlyClip
+        )
+    }
+
+    private func makeTrack(name: String, groupID: TrackGroupID, stepPattern: [Bool]) -> StepSequenceTrack {
+        StepSequenceTrack(
+            name: name,
+            trackType: .monoMelodic,
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: stepPattern,
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+    }
+
+    private func makeNoteGridClip(name: String, length: Int) -> ClipPoolEntry {
+        ClipPoolEntry(
+            id: UUID(),
+            name: name,
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: length,
+                steps: (0..<length).map { index in
+                    guard index.isMultiple(of: 4) else { return .empty }
+                    return ClipStep(
+                        main: ClipLane(
+                            chance: 1,
+                            notes: [ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)]
+                        ),
+                        fill: nil
+                    )
+                }
+            )
+        )
+    }
+}
