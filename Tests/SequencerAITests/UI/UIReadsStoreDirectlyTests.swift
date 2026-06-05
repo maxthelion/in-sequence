@@ -140,6 +140,11 @@ final class UIReadsStoreDirectlyTests: XCTestCase {
         assertNoExportDuring(session.store) {
             let track = session.store.selectedTrack
             _ = session.store.routesSourced(from: track.id).count
+            _ = DrumPartWorkspaceHeaderModel(
+                selectedTrack: track,
+                tracks: session.store.tracks,
+                trackGroups: session.store.trackGroups
+            )
         }
     }
 
@@ -325,5 +330,209 @@ final class UIReadsStoreDirectlyTests: XCTestCase {
         XCTAssertEqual(session.store.tracks.count, 1)
         XCTAssertEqual(session.store.exportToProjectCallCount, exportsBefore,
             "Reading tracks after removeSelectedTrack must not call exportToProject")
+    }
+}
+
+final class DrumPartWorkspaceHeaderModelTests: XCTestCase {
+    func test_nonKitTrackDoesNotProduceHeaderModel() {
+        let track = makeTrack(name: "Lead")
+
+        let model = DrumPartWorkspaceHeaderModel(
+            selectedTrack: track,
+            tracks: [track],
+            trackGroups: []
+        )
+
+        XCTAssertNil(model)
+    }
+
+    func test_firstMiddleAndLastNavigationIsBoundedInMemberIDOrder() throws {
+        let fixture = makeThreePartFixture()
+
+        let first = try XCTUnwrap(DrumPartWorkspaceHeaderModel(
+            selectedTrack: fixture.snare,
+            tracks: fixture.globalTracks,
+            trackGroups: [fixture.group]
+        ))
+        XCTAssertNil(first.previousPartID)
+        XCTAssertEqual(first.nextPartID, fixture.kick.id)
+        XCTAssertEqual(first.positionLabel, "1 of 3")
+
+        let middle = try XCTUnwrap(DrumPartWorkspaceHeaderModel(
+            selectedTrack: fixture.kick,
+            tracks: fixture.globalTracks,
+            trackGroups: [fixture.group]
+        ))
+        XCTAssertEqual(middle.previousPartID, fixture.snare.id)
+        XCTAssertEqual(middle.nextPartID, fixture.hat.id)
+        XCTAssertEqual(middle.positionLabel, "2 of 3")
+
+        let last = try XCTUnwrap(DrumPartWorkspaceHeaderModel(
+            selectedTrack: fixture.hat,
+            tracks: fixture.globalTracks,
+            trackGroups: [fixture.group]
+        ))
+        XCTAssertEqual(last.previousPartID, fixture.kick.id)
+        XCTAssertNil(last.nextPartID)
+        XCTAssertEqual(last.positionLabel, "3 of 3")
+    }
+
+    func test_oneMemberGroupDisablesBothDirections() throws {
+        let groupID = UUID()
+        let kick = makeTrack(name: "Kick", groupID: groupID)
+        let group = TrackGroup(id: groupID, name: "One Shot", memberIDs: [kick.id])
+
+        let model = try XCTUnwrap(DrumPartWorkspaceHeaderModel(
+            selectedTrack: kick,
+            tracks: [kick],
+            trackGroups: [group]
+        ))
+
+        XCTAssertNil(model.previousPartID)
+        XCTAssertNil(model.nextPartID)
+        XCTAssertEqual(model.positionLabel, "1 of 1")
+    }
+
+    func test_siblingOrderComesFromMemberIDsNotNamesOrGlobalTrackOrder() throws {
+        let fixture = makeThreePartFixture()
+
+        let model = try XCTUnwrap(DrumPartWorkspaceHeaderModel(
+            selectedTrack: fixture.kick,
+            tracks: fixture.globalTracks,
+            trackGroups: [fixture.group]
+        ))
+
+        XCTAssertEqual(fixture.globalTracks.map(\.id), [fixture.hat.id, fixture.kick.id, fixture.snare.id])
+        XCTAssertEqual(fixture.group.memberIDs, [fixture.snare.id, fixture.kick.id, fixture.hat.id])
+        XCTAssertEqual(model.previousPartID, fixture.snare.id)
+        XCTAssertEqual(model.nextPartID, fixture.hat.id)
+    }
+
+    func test_missingOrStaleGroupDoesNotProduceHeaderModel() {
+        let groupID = UUID()
+        let track = makeTrack(name: "Kick", groupID: groupID)
+        let unrelatedGroup = TrackGroup(id: UUID(), name: "Other Kit", memberIDs: [track.id])
+
+        XCTAssertNil(DrumPartWorkspaceHeaderModel(
+            selectedTrack: track,
+            tracks: [track],
+            trackGroups: []
+        ))
+        XCTAssertNil(DrumPartWorkspaceHeaderModel(
+            selectedTrack: track,
+            tracks: [track],
+            trackGroups: [unrelatedGroup]
+        ))
+    }
+
+    func test_selectedTrackOmittedFromMemberIDsDoesNotProduceHeaderModel() {
+        let groupID = UUID()
+        let selected = makeTrack(name: "Kick", groupID: groupID)
+        let sibling = makeTrack(name: "Snare", groupID: groupID)
+        let group = TrackGroup(id: groupID, name: "Broken Kit", memberIDs: [sibling.id])
+
+        XCTAssertNil(DrumPartWorkspaceHeaderModel(
+            selectedTrack: selected,
+            tracks: [selected, sibling],
+            trackGroups: [group]
+        ))
+    }
+
+    func test_staleSiblingIDsAreSkippedWithoutDeadNavigationTargets() throws {
+        let groupID = UUID()
+        let staleID = UUID()
+        let kick = makeTrack(name: "Kick", groupID: groupID)
+        let hat = makeTrack(name: "Hat", groupID: groupID)
+        let group = TrackGroup(id: groupID, name: "Dusty Kit", memberIDs: [staleID, kick.id, hat.id])
+
+        let model = try XCTUnwrap(DrumPartWorkspaceHeaderModel(
+            selectedTrack: hat,
+            tracks: [hat, kick],
+            trackGroups: [group]
+        ))
+
+        XCTAssertEqual(model.previousPartID, kick.id)
+        XCTAssertNil(model.nextPartID)
+        XCTAssertEqual(model.positionLabel, "2 of 2")
+    }
+
+    func test_longReadOnlyPartNamesArePreservedInModel() throws {
+        let groupID = UUID()
+        let longName = "Generator Driven Closed Hat With A Very Long Performance Name"
+        let generatorBackedPart = makeTrack(name: longName, groupID: groupID)
+        let sibling = makeTrack(name: "Rim", groupID: groupID)
+        let group = TrackGroup(
+            id: groupID,
+            name: "808 Bones With Extra Long Kit Name",
+            color: "#C06030",
+            memberIDs: [generatorBackedPart.id, sibling.id]
+        )
+
+        let model = try XCTUnwrap(DrumPartWorkspaceHeaderModel(
+            selectedTrack: generatorBackedPart,
+            tracks: [sibling, generatorBackedPart],
+            trackGroups: [group]
+        ))
+
+        XCTAssertEqual(model.currentPartName, longName)
+        XCTAssertNil(model.previousPartID)
+        XCTAssertEqual(model.nextPartID, sibling.id)
+        XCTAssertEqual(model.groupName, "808 Bones With Extra Long Kit Name")
+        XCTAssertEqual(model.groupColorHex, "#C06030")
+    }
+
+    func test_openKitNavigationStateRetainsOriginatingPart() {
+        let groupID = UUID()
+        let partID = UUID()
+
+        let state = DrumKitWorkspaceNavigationState(
+            groupID: groupID,
+            originatingPartID: partID
+        )
+
+        XCTAssertEqual(state.groupID, groupID)
+        XCTAssertEqual(state.originatingPartID, partID)
+    }
+
+    private struct ThreePartFixture {
+        let group: TrackGroup
+        let kick: StepSequenceTrack
+        let snare: StepSequenceTrack
+        let hat: StepSequenceTrack
+        let globalTracks: [StepSequenceTrack]
+    }
+
+    private func makeThreePartFixture() -> ThreePartFixture {
+        let groupID = UUID()
+        let kick = makeTrack(name: "Z Kick", groupID: groupID)
+        let snare = makeTrack(name: "A Snare", groupID: groupID)
+        let hat = makeTrack(name: "M Hat", groupID: groupID)
+        let group = TrackGroup(
+            id: groupID,
+            name: "808 Bones",
+            color: "#C06030",
+            memberIDs: [snare.id, kick.id, hat.id]
+        )
+
+        return ThreePartFixture(
+            group: group,
+            kick: kick,
+            snare: snare,
+            hat: hat,
+            globalTracks: [hat, kick, snare]
+        )
+    }
+
+    private func makeTrack(name: String, groupID: TrackGroupID? = nil) -> StepSequenceTrack {
+        StepSequenceTrack(
+            name: name,
+            trackType: .monoMelodic,
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true, false, false, false],
+            destination: groupID == nil ? .none : .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
     }
 }

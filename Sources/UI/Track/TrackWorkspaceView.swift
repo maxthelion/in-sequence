@@ -7,10 +7,19 @@ struct TrackWorkspaceView: View {
     @State private var editingTrackID: UUID?
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
     @State private var draftTrackName = ""
+    @State private var kitNavigationState: DrumKitWorkspaceNavigationState?
     @FocusState private var trackNameFieldFocused: Bool
 
     private var track: StepSequenceTrack {
         session.store.selectedTrack
+    }
+
+    private var drumPartHeaderModel: DrumPartWorkspaceHeaderModel? {
+        DrumPartWorkspaceHeaderModel(
+            selectedTrack: track,
+            tracks: session.store.tracks,
+            trackGroups: session.store.trackGroups
+        )
     }
 
     private var outboundRouteCount: Int {
@@ -92,29 +101,55 @@ struct TrackWorkspaceView: View {
         }
     }
 
+    @ViewBuilder
     private var trackHeader: some View {
+        if let drumPartHeaderModel {
+            DrumPartWorkspaceHeader(
+                model: drumPartHeaderModel,
+                title: { trackNameEditor },
+                onSelectPart: { session.setSelectedTrackID($0) },
+                onOpenKitView: {
+                    kitNavigationState = DrumKitWorkspaceNavigationState(
+                        groupID: drumPartHeaderModel.groupID,
+                        originatingPartID: drumPartHeaderModel.currentPartID
+                    )
+                }
+            )
+        } else {
+            defaultTrackHeader
+        }
+    }
+
+    private var defaultTrackHeader: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
-                if isEditingSelectedTrackName {
-                    TextField("Track Name", text: $draftTrackName)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($trackNameFieldFocused)
-                        .studioText(.display)
-                        .onSubmit {
-                            commitTrackName()
-                        }
-                } else {
-                    Text(track.name)
-                        .studioText(.display)
-                        .foregroundStyle(StudioTheme.text)
-                        .onTapGesture(count: 2) {
-                            editingTrackID = track.id
-                            draftTrackName = track.name
-                        }
-                }
+                trackNameEditor
             }
 
             Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var trackNameEditor: some View {
+        if isEditingSelectedTrackName {
+            TextField("Track Name", text: $draftTrackName)
+                .textFieldStyle(.roundedBorder)
+                .focused($trackNameFieldFocused)
+                .studioText(.display)
+                .onSubmit {
+                    commitTrackName()
+                }
+        } else {
+            Text(track.name)
+                .studioText(.display)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .onTapGesture(count: 2) {
+                    editingTrackID = track.id
+                    draftTrackName = track.name
+                }
         }
     }
 
@@ -131,6 +166,175 @@ struct TrackWorkspaceView: View {
         }
         self.editingTrackID = nil
         draftTrackName = ""
+    }
+}
+
+struct DrumKitWorkspaceNavigationState: Equatable {
+    var groupID: TrackGroupID
+    var originatingPartID: UUID
+}
+
+struct DrumPartWorkspaceHeaderModel: Equatable {
+    var groupID: TrackGroupID
+    var groupName: String
+    var groupColorHex: String
+    var currentPartID: UUID
+    var currentPartName: String
+    var currentIndex: Int
+    var memberCount: Int
+    var previousPartID: UUID?
+    var nextPartID: UUID?
+
+    var positionLabel: String {
+        "\(currentIndex + 1) of \(memberCount)"
+    }
+
+    init?(
+        selectedTrack: StepSequenceTrack,
+        tracks: [StepSequenceTrack],
+        trackGroups: [TrackGroup]
+    ) {
+        guard let groupID = selectedTrack.groupID,
+              let group = trackGroups.first(where: { $0.id == groupID })
+        else {
+            return nil
+        }
+
+        let tracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+        let orderedMembers = group.memberIDs.compactMap { tracksByID[$0] }
+        guard let selectedIndex = orderedMembers.firstIndex(where: { $0.id == selectedTrack.id }) else {
+            return nil
+        }
+
+        self.groupID = group.id
+        groupName = group.name
+        groupColorHex = group.color
+        currentPartID = selectedTrack.id
+        currentPartName = selectedTrack.name
+        currentIndex = selectedIndex
+        memberCount = orderedMembers.count
+        previousPartID = selectedIndex > 0 ? orderedMembers[selectedIndex - 1].id : nil
+        nextPartID = selectedIndex < orderedMembers.count - 1 ? orderedMembers[selectedIndex + 1].id : nil
+    }
+}
+
+private struct DrumPartWorkspaceHeader<Title: View>: View {
+    let model: DrumPartWorkspaceHeaderModel
+    @ViewBuilder let title: () -> Title
+    let onSelectPart: (UUID) -> Void
+    let onOpenKitView: () -> Void
+
+    private var accent: Color {
+        Color(hex: model.groupColorHex) ?? StudioTheme.success
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                partNavigationButton(
+                    systemImage: "chevron.left",
+                    title: "Previous Part",
+                    targetID: model.previousPartID
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    title()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(model.positionLabel)
+                        .studioText(.eyebrowBold)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+
+                partNavigationButton(
+                    systemImage: "chevron.right",
+                    title: "Next Part",
+                    targetID: model.nextPartID
+                )
+
+                Spacer(minLength: 16)
+
+                VStack(alignment: .trailing, spacing: 7) {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 9, height: 9)
+
+                        Text("Kit: \(model.groupName)")
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .frame(maxWidth: 220, alignment: .trailing)
+
+                    Button {
+                        onOpenKitView()
+                    } label: {
+                        Label("Open Kit View", systemImage: "square.grid.3x3")
+                            .studioText(.labelBold)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .foregroundStyle(accent)
+                    .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                    )
+                    .help("Open the kit matrix from \(model.currentPartName)")
+                }
+                .frame(maxWidth: 240, alignment: .trailing)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+
+            Rectangle()
+                .fill(accent)
+                .frame(height: 3)
+        }
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: 1)
+        )
+    }
+
+    private func partNavigationButton(systemImage: String, title: String, targetID: UUID?) -> some View {
+        Button {
+            if let targetID {
+                onSelectPart(targetID)
+            }
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .bold))
+                .frame(width: 34, height: 34)
+                .foregroundStyle(targetID == nil ? StudioTheme.mutedText.opacity(0.35) : StudioTheme.text)
+                .background(Color.white.opacity(targetID == nil ? 0.025 : StudioOpacity.subtleFill), in: Circle())
+                .overlay(Circle().stroke(targetID == nil ? StudioTheme.border.opacity(0.45) : StudioTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(targetID == nil)
+        .help(title)
+        .accessibilityLabel(title)
+    }
+}
+
+private extension Color {
+    init?(hex: String) {
+        var string = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        string = string.replacingOccurrences(of: "#", with: "")
+        guard string.count == 6, let value = UInt64(string, radix: 16) else {
+            return nil
+        }
+
+        self.init(
+            red: Double((value & 0xFF0000) >> 16) / 255.0,
+            green: Double((value & 0x00FF00) >> 8) / 255.0,
+            blue: Double(value & 0x0000FF) / 255.0
+        )
     }
 }
 
