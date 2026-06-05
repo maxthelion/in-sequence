@@ -143,6 +143,43 @@ final class ProjectNormalizationTests: XCTestCase {
         XCTAssertEqual(project.patternBanks.map(\.trackID), [track.id])
     }
 
+    func test_sync_prunes_track_group_mappings_to_current_member_ids() {
+        let track = StepSequenceTrack.default
+        let staleMemberID = UUID()
+        let group = TrackGroup(
+            name: "Drums",
+            memberIDs: [track.id, staleMemberID],
+            sharedDestination: .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0),
+            noteMapping: [track.id: 0, staleMemberID: 2],
+            channelMapping: [track.id: 0, staleMemberID: 1]
+        )
+
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            trackGroups: [group],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [],
+            layers: PhraseLayerDefinition.defaultSet(for: [track]),
+            routes: [],
+            patternBanks: [TrackPatternBank.default(for: track, initialClipID: nil)],
+            selectedTrackID: track.id,
+            phrases: [
+                PhraseModel.default(
+                    tracks: [track],
+                    layers: PhraseLayerDefinition.defaultSet(for: [track]),
+                    generatorPool: GeneratorPoolEntry.defaultPool,
+                    clipPool: []
+                )
+            ],
+            selectedPhraseID: UUID()
+        )
+
+        XCTAssertEqual(project.trackGroups[0].memberIDs, [track.id])
+        XCTAssertEqual(project.trackGroups[0].noteMapping, [track.id: 0])
+        XCTAssertEqual(project.trackGroups[0].channelMapping, [track.id: 0])
+    }
+
     private func generatorPoolJSON() throws -> String {
         try jsonString(for: GeneratorPoolEntry.defaultPool)
     }

@@ -14,7 +14,9 @@ final class TrackGroupTests: XCTestCase {
         XCTAssertEqual(decoded.id, id)
         XCTAssertEqual(decoded.memberIDs, [])
         XCTAssertNil(decoded.sharedDestination)
+        XCTAssertEqual(decoded.triggerMappingMode, .perNote)
         XCTAssertEqual(decoded.noteMapping, [:])
+        XCTAssertEqual(decoded.channelMapping, [:])
         XCTAssertFalse(decoded.mute)
         XCTAssertFalse(decoded.solo)
     }
@@ -29,7 +31,9 @@ final class TrackGroupTests: XCTestCase {
             color: "#123456",
             memberIDs: [memberA, memberB],
             sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: -12),
-            noteMapping: [memberA: 36, memberB: 38],
+            triggerMappingMode: .perChannel,
+            noteMapping: [memberA: 0, memberB: 2],
+            channelMapping: [memberA: 0, memberB: 1],
             mute: true,
             solo: true
         )
@@ -57,8 +61,30 @@ final class TrackGroupTests: XCTestCase {
         XCTAssertEqual(decoded.color, "#8AA")
         XCTAssertEqual(decoded.memberIDs, [])
         XCTAssertNil(decoded.sharedDestination)
+        XCTAssertEqual(decoded.triggerMappingMode, .perNote)
         XCTAssertEqual(decoded.noteMapping, [:])
+        XCTAssertEqual(decoded.channelMapping, [:])
         XCTAssertFalse(decoded.mute)
         XCTAssertFalse(decoded.solo)
+    }
+
+    func test_older_track_group_documents_decode_mapping_contract_defaults() throws {
+        let memberA = UUID()
+        let memberB = UUID()
+        let id = UUID()
+        let json = """
+        {
+          "id": "\(id.uuidString)",
+          "name": "Legacy Drums",
+          "memberIDs": ["\(memberA.uuidString)", "\(memberB.uuidString)"],
+          "noteMapping": ["\(memberA.uuidString)", 0, "\(memberB.uuidString)", 2]
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(TrackGroup.self, from: json)
+
+        XCTAssertEqual(decoded.triggerMappingMode, .perNote)
+        XCTAssertEqual(decoded.noteMapping, [memberA: 0, memberB: 2])
+        XCTAssertEqual(decoded.channelMapping, [:])
     }
 }

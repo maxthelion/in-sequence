@@ -106,6 +106,28 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         XCTAssertEqual(group.sharedDestination, .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0))
     }
 
+    func test_shared_midi_destination_seeds_note_offsets_and_channels_by_member_order() {
+        var project = Project.empty
+        var plan = DrumGroupPlan.templated(from: .kit808)
+        plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+
+        let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
+
+        guard let groupID, let group = project.trackGroups.first(where: { $0.id == groupID }) else {
+            return XCTFail("expected a new group")
+        }
+        let expectedNoteMapping = Dictionary(uniqueKeysWithValues: zip(group.memberIDs, plan.members).map { memberID, member in
+            (memberID, Int(DrumKitNoteMap.note(for: member.tag)) - DrumKitNoteMap.baselineNote)
+        })
+        let expectedChannelMapping = Dictionary(uniqueKeysWithValues: group.memberIDs.enumerated().map { index, memberID in
+            (memberID, UInt8(index))
+        })
+
+        XCTAssertEqual(group.triggerMappingMode, .perNote)
+        XCTAssertEqual(group.noteMapping, expectedNoteMapping)
+        XCTAssertEqual(group.channelMapping, expectedChannelMapping)
+    }
+
     func test_shared_destination_with_mixed_routing_respects_per_member_flag() {
         var project = Project.empty
         var plan = DrumGroupPlan.templated(from: .kit808)
@@ -133,6 +155,32 @@ final class ProjectAddDrumGroupTests: XCTestCase {
             XCTAssertNotEqual(track.destination, .inheritGroup)
             XCTAssertNotEqual(track.destination, .none)
         }
+    }
+
+    func test_no_shared_destination_keeps_sample_and_internal_defaults_with_empty_group_mappings() {
+        var project = Project.empty
+        let emptyPattern = Array(repeating: false, count: 16)
+        let plan = DrumGroupPlan(
+            name: "Mixed Local Kit",
+            color: "#8AA",
+            members: [
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: emptyPattern),
+                DrumGroupPlan.Member(tag: "cowbell", trackName: "Cowbell", seedPattern: emptyPattern),
+            ],
+            prepopulateClips: false,
+            sharedDestination: nil
+        )
+
+        let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
+
+        guard let groupID, let group = project.trackGroups.first(where: { $0.id == groupID }) else {
+            return XCTFail("expected a new group")
+        }
+        let newTracks = Array(project.tracks.suffix(plan.members.count))
+        XCTAssertEqual(newTracks[0].destination.kind, .sample)
+        XCTAssertEqual(newTracks[1].destination.kind, .internalSampler)
+        XCTAssertEqual(group.noteMapping, [:])
+        XCTAssertEqual(group.channelMapping, [:])
     }
 
     func test_each_member_gets_one_clip_pool_entry_and_one_pattern_bank() {

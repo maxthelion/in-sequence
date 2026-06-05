@@ -207,6 +207,9 @@ static func normalize(
             synced.noteMapping = group.noteMapping.filter { memberID, _ in
                 synced.memberIDs.contains(memberID)
             }
+            synced.channelMapping = group.channelMapping.filter { memberID, _ in
+                synced.memberIDs.contains(memberID)
+            }
             return synced
         }
         if !phrases.contains(where: { $0.id == selectedPhraseID }) {

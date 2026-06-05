@@ -69,14 +69,32 @@ extension Project {
 
         tracks.append(contentsOf: newTracks)
         patternBanks.append(contentsOf: newBanks)
+        let memberIDs = newTracks.map(\.id)
+        let usesSharedMIDI: Bool = {
+            guard case .some(.midi) = plan.sharedDestination else {
+                return false
+            }
+            return true
+        }()
+        let noteMapping: [UUID: Int] = usesSharedMIDI
+            ? Dictionary(uniqueKeysWithValues: zip(memberIDs, plan.members).map { memberID, member in
+                (memberID, Int(DrumKitNoteMap.note(for: member.tag)) - DrumKitNoteMap.baselineNote)
+            })
+            : [:]
+        let channelMapping: [UUID: UInt8] = usesSharedMIDI
+            ? Dictionary(uniqueKeysWithValues: memberIDs.enumerated().map { index, memberID in
+                (memberID, UInt8(index % 16))
+            })
+            : [:]
         trackGroups.append(
             TrackGroup(
                 id: groupID,
                 name: plan.name,
                 color: plan.color,
-                memberIDs: newTracks.map(\.id),
+                memberIDs: memberIDs,
                 sharedDestination: plan.sharedDestination,
-                noteMapping: [:]
+                noteMapping: noteMapping,
+                channelMapping: channelMapping
             )
         )
         selectedTrackID = newTracks.first?.id ?? selectedTrackID
