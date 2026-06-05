@@ -159,6 +159,89 @@ final class SessionBatchHelperTests: XCTestCase {
 
         SequencerDocumentSessionRegistry.unregister(session)
     }
+
+    func test_drumGroupMappingMutations_publishSnapshotWithoutDocumentApply() throws {
+        let groupID = UUID()
+        let memberID = UUID()
+        let member = StepSequenceTrack(
+            id: memberID,
+            name: "Kick",
+            trackType: .monoMelodic,
+            pitches: [36],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        let port = MIDIEndpointName(displayName: "Kit Out", isVirtual: false)
+        let project = Self.makeDrumGroupProject(
+            tracks: [member],
+            group: TrackGroup(
+                id: groupID,
+                name: "Kit",
+                memberIDs: [memberID],
+                sharedDestination: .midi(port: port, channel: 9, noteOffset: 12),
+                triggerMappingMode: .perNote,
+                noteMapping: [memberID: 0],
+                channelMapping: [memberID: 0]
+            )
+        )
+        let box = DocumentBox(document: SeqAIDocument(project: project))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { box.document },
+                set: { box.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        session.activate()
+        let documentApplyCalls = engine.applyDocumentModelCallCount
+        let snapshotApplyCalls = engine.applyPlaybackSnapshotCallCount
+
+        session.setDrumGroupTriggerMappingMode(.perChannel, groupID: groupID)
+        session.setDrumGroupMemberNoteOffset(24, trackID: memberID)
+        session.setDrumGroupMemberMIDIChannel(4, trackID: memberID)
+
+        XCTAssertEqual(
+            engine.applyDocumentModelCallCount,
+            documentApplyCalls,
+            "Mapping-only drum-group edits must not rebuild the document engine graph"
+        )
+        XCTAssertGreaterThan(engine.applyPlaybackSnapshotCallCount, snapshotApplyCalls)
+        XCTAssertEqual(session.store.trackGroups[0].triggerMappingMode, .perChannel)
+        XCTAssertEqual(session.store.trackGroups[0].noteMapping[memberID], 24)
+        XCTAssertEqual(session.store.trackGroups[0].channelMapping[memberID], 4)
+        XCTAssertEqual(
+            session.snapshotPublisher.snapshot.resolvedDestination(for: memberID),
+            ResolvedTrackDestination(
+                destination: .midi(port: port, channel: 4, noteOffset: 0),
+                pitchOffset: 0
+            )
+        )
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    private static func makeDrumGroupProject(tracks: [StepSequenceTrack], group: TrackGroup) -> Project {
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(tracks: tracks, layers: layers, generatorPool: [], clipPool: [])
+        return Project(
+            version: 1,
+            tracks: tracks,
+            trackGroups: [group],
+            generatorPool: [],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [],
+            selectedTrackID: tracks[0].id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+    }
 }
 
 @MainActor

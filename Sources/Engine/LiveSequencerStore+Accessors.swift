@@ -244,6 +244,26 @@ extension LiveSequencerStore {
             ?? .none
     }
 
+    /// The playback destination plus any pitch offset contributed by drum-group
+    /// trigger mapping. Mirrors `Project.resolvedPlaybackDestination(for:)`.
+    func resolvedPlaybackDestination(for trackID: UUID) -> Project.ResolvedPlaybackDestination {
+        guard let track = tracks.first(where: { $0.id == trackID }) else {
+            return Project.ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
+        }
+
+        guard case .inheritGroup = track.destination else {
+            return Project.ResolvedPlaybackDestination(destination: track.destination, pitchOffset: 0)
+        }
+
+        guard let groupID = track.groupID,
+              let group = trackGroups.first(where: { $0.id == groupID })
+        else {
+            return Project.ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
+        }
+
+        return Project.resolveInheritedPlaybackDestination(trackID: trackID, group: group)
+    }
+
     /// The destination used for voice-snapshot comparison (strips transient
     /// state before comparison).
     ///

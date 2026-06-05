@@ -804,6 +804,85 @@ extension SequencerDocumentSession {
         }
     }
 
+    func setDrumGroupSharedDestination(_ destination: Destination?, groupID: TrackGroupID) {
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            p.setGroupSharedDestinationWithMacros(destination, groupID: groupID)
+            p.syncMacroLayers()
+            s.writeBackProjectStructure(from: p, trackGroups: true, clips: true)
+        }
+    }
+
+    func setDrumGroupMemberInheritsDestination(
+        _ inheritsGroupDestination: Bool,
+        trackID: UUID,
+        ownDestination: Destination = .none
+    ) {
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            p.setDrumGroupMemberInheritsDestination(
+                inheritsGroupDestination,
+                trackID: trackID,
+                ownDestination: ownDestination
+            )
+            p.syncMacroLayers()
+            s.writeBackProjectStructure(from: p, trackGroups: true, clips: true)
+        }
+    }
+
+    func setDrumGroupTriggerMappingMode(_ mode: DrumTriggerMappingMode, groupID: TrackGroupID) {
+        let changed = store.mutateTrackGroup(id: groupID) { group in
+            group.triggerMappingMode = mode
+        }
+        guard changed else { return }
+        if isInBatch {
+            recordBatchChange(.full)
+            return
+        }
+        dispatchImpact(.snapshotOnly, changed: .full)
+    }
+
+    func setDrumGroupMemberNoteOffset(_ offset: Int, trackID: UUID) {
+        guard let groupID = store.tracks.first(where: { $0.id == trackID })?.groupID else {
+            return
+        }
+        let changed = store.mutateTrackGroup(id: groupID) { group in
+            guard group.memberIDs.contains(trackID) else { return }
+            group.noteMapping[trackID] = offset
+        }
+        guard changed else { return }
+        if isInBatch {
+            recordBatchChange(.full)
+            return
+        }
+        dispatchImpact(.snapshotOnly, changed: .full)
+    }
+
+    func setDrumGroupMemberMIDIChannel(_ channel: UInt8, trackID: UUID) {
+        guard let groupID = store.tracks.first(where: { $0.id == trackID })?.groupID else {
+            return
+        }
+        let changed = store.mutateTrackGroup(id: groupID) { group in
+            guard group.memberIDs.contains(trackID) else { return }
+            group.channelMapping[trackID] = min(channel, 15)
+        }
+        guard changed else { return }
+        if isInBatch {
+            recordBatchChange(.full)
+            return
+        }
+        dispatchImpact(.snapshotOnly, changed: .full)
+    }
+
+    func applyDrumGroupRoutingDraft(_ draft: Project.DrumGroupRoutingDraft) {
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            p.applyDrumGroupRoutingDraft(draft)
+            p.syncMacroLayers()
+            s.writeBackProjectStructure(from: p, trackGroups: true, clips: true)
+        }
+    }
+
     /// Write an AU state blob for a track or group destination.
     ///
     /// `impact` is `.scopedRuntime(.auState(...))` — the blob is written into the

@@ -39,6 +39,15 @@ extension Project {
     /// - All other destinations: remove sampler built-ins.
     mutating func setDestinationWithMacros(_ destination: Destination, for trackID: UUID) {
         setEditedDestination(destination, for: trackID)
+        syncBuiltinMacrosForResolvedDestination(destination, for: trackID)
+    }
+
+    mutating func setTrackDestinationWithMacros(_ destination: Destination, for trackID: UUID) {
+        setDestination(destination, for: .track(trackID))
+        syncBuiltinMacrosForResolvedDestination(destination, for: trackID)
+    }
+
+    mutating func syncBuiltinMacrosForResolvedDestination(_ destination: Destination, for trackID: UUID) {
         syncBuiltinMacros(for: trackID, newDestination: destination)
     }
 

@@ -868,6 +868,149 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(resolved.pitchOffset, 0)
     }
 
+    func test_effective_destination_per_channel_uses_shared_midi_port_and_member_channel() {
+        let controller = EngineController(client: nil, endpoint: nil)
+        let groupID = UUID()
+        let memberID = UUID()
+        let track = StepSequenceTrack(
+            id: memberID,
+            name: "Clap",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let port = MIDIEndpointName(displayName: "Kit Port", isVirtual: false)
+        let group = TrackGroup(
+            id: groupID,
+            name: "Kit",
+            memberIDs: [memberID],
+            sharedDestination: .midi(port: port, channel: 9, noteOffset: 12),
+            triggerMappingMode: .perChannel,
+            noteMapping: [memberID: 24],
+            channelMapping: [memberID: 4]
+        )
+        let phrase = PhraseModel.default(tracks: [track])
+        let document = Project(
+            version: 1,
+            tracks: [track],
+            trackGroups: [group],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        controller.apply(documentModel: document)
+
+        let resolved = controller.effectiveDestination(for: memberID)
+        XCTAssertEqual(resolved.destination, .midi(port: port, channel: 4, noteOffset: 0))
+        XCTAssertEqual(resolved.pitchOffset, 0)
+    }
+
+    func test_effective_destination_per_channel_fails_safe_without_midi_shared_destination() {
+        let groupID = UUID()
+        let memberID = UUID()
+        let track = StepSequenceTrack(
+            id: memberID,
+            name: "Tom",
+            pitches: [60],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let phrase = PhraseModel.default(tracks: [track])
+        let nilShared = Project(
+            version: 1,
+            tracks: [track],
+            trackGroups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "Kit",
+                    memberIDs: [memberID],
+                    sharedDestination: nil,
+                    triggerMappingMode: .perChannel,
+                    channelMapping: [memberID: 3]
+                )
+            ],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        let nonMIDIShared = Project(
+            version: 1,
+            tracks: [track],
+            trackGroups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "Kit",
+                    memberIDs: [memberID],
+                    sharedDestination: .sample(sampleID: UUID(), settings: .default),
+                    triggerMappingMode: .perChannel,
+                    channelMapping: [memberID: 3]
+                )
+            ],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        XCTAssertEqual(EngineController.effectiveDestination(for: memberID, in: nilShared).destination, .none)
+        XCTAssertEqual(EngineController.effectiveDestination(for: memberID, in: nonMIDIShared).destination, .none)
+    }
+
+    func test_effective_destination_individual_mode_respects_own_destination_and_fails_inherited_marker_safe() {
+        let groupID = UUID()
+        let inherited = StepSequenceTrack(
+            id: UUID(),
+            name: "Inherited",
+            pitches: [60],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let ownDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Own", isVirtual: false),
+            channel: 6,
+            noteOffset: 7
+        )
+        let own = StepSequenceTrack(
+            id: UUID(),
+            name: "Own",
+            pitches: [60],
+            stepPattern: [true],
+            destination: ownDestination,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 2
+        )
+        let group = TrackGroup(
+            id: groupID,
+            name: "Kit",
+            memberIDs: [inherited.id, own.id],
+            sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: 0),
+            triggerMappingMode: .individual
+        )
+        let phrase = PhraseModel.default(tracks: [inherited, own])
+        let document = Project(
+            version: 1,
+            tracks: [inherited, own],
+            trackGroups: [group],
+            selectedTrackID: inherited.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        XCTAssertEqual(EngineController.effectiveDestination(for: inherited.id, in: document).destination, .none)
+        XCTAssertEqual(EngineController.effectiveDestination(for: own.id, in: document).destination, ownDestination)
+    }
+
     func test_multiple_audio_tracks_all_play_when_transport_ticks() {
         var createdSinks: [CapturingAudioSink] = []
         let controller = EngineController(

@@ -321,6 +321,66 @@ final class StoreAccessorHelpersTests: XCTestCase {
         }
     }
 
+    func test_resolvedPlaybackDestination_matchesProjectForDrumGroupMappingModes() {
+        let groupID = UUID()
+        let inheritedID = UUID()
+        let ownID = UUID()
+        let inherited = StepSequenceTrack(
+            id: inheritedID,
+            name: "Inherited",
+            pitches: [60],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 96,
+            gateLength: 4
+        )
+        let ownDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Own", isVirtual: false),
+            channel: 7,
+            noteOffset: 3
+        )
+        let own = StepSequenceTrack(
+            id: ownID,
+            name: "Own",
+            pitches: [60],
+            stepPattern: [true],
+            destination: ownDestination,
+            groupID: groupID,
+            velocity: 96,
+            gateLength: 4
+        )
+        let group = TrackGroup(
+            id: groupID,
+            name: "Kit",
+            memberIDs: [inheritedID, ownID],
+            sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: 12),
+            triggerMappingMode: .perChannel,
+            noteMapping: [inheritedID: 24],
+            channelMapping: [inheritedID: 5]
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [inherited, own])
+        let phrase = PhraseModel.default(tracks: [inherited, own], layers: layers, generatorPool: [], clipPool: [])
+        let project = Project(
+            version: 1,
+            tracks: [inherited, own],
+            trackGroups: [group],
+            generatorPool: [],
+            clipPool: [],
+            layers: layers,
+            selectedTrackID: inheritedID,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        let store = LiveSequencerStore(project: project)
+
+        for track in project.tracks {
+            let storeResolved = store.resolvedPlaybackDestination(for: track.id)
+            let projectResolved = project.resolvedPlaybackDestination(for: track.id)
+            XCTAssertEqual(storeResolved, projectResolved, "Mismatch for \(track.name)")
+        }
+    }
+
     // MARK: - voiceSnapshotDestination(for:)
 
     func test_voiceSnapshotDestination_matchesProject() {

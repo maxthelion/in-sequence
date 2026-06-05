@@ -1,6 +1,52 @@
 import Foundation
 
 extension Project {
+    struct ResolvedPlaybackDestination: Equatable, Sendable {
+        var destination: Destination
+        var pitchOffset: Int
+    }
+
+    struct DrumGroupRoutingDraft: Equatable, Sendable {
+        struct MemberRoute: Equatable, Sendable {
+            var memberID: UUID
+            var inheritsGroupDestination: Bool
+            var ownDestination: Destination?
+            var noteOffset: Int
+            var midiChannel: UInt8
+
+            init(
+                memberID: UUID,
+                inheritsGroupDestination: Bool,
+                ownDestination: Destination? = nil,
+                noteOffset: Int,
+                midiChannel: UInt8
+            ) {
+                self.memberID = memberID
+                self.inheritsGroupDestination = inheritsGroupDestination
+                self.ownDestination = ownDestination
+                self.noteOffset = noteOffset
+                self.midiChannel = midiChannel
+            }
+        }
+
+        var groupID: TrackGroupID
+        var sharedDestination: Destination?
+        var triggerMappingMode: DrumTriggerMappingMode
+        var members: [MemberRoute]
+
+        init(
+            groupID: TrackGroupID,
+            sharedDestination: Destination?,
+            triggerMappingMode: DrumTriggerMappingMode,
+            members: [MemberRoute]
+        ) {
+            self.groupID = groupID
+            self.sharedDestination = sharedDestination
+            self.triggerMappingMode = triggerMappingMode
+            self.members = members
+        }
+    }
+
     func routesSourced(from trackID: UUID) -> [Route] {
         routes.filter { route in
             switch route.source {
@@ -50,6 +96,24 @@ extension Project {
             ?? .none
     }
 
+    func resolvedPlaybackDestination(for trackID: UUID) -> ResolvedPlaybackDestination {
+        guard let track = tracks.first(where: { $0.id == trackID }) else {
+            return ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
+        }
+
+        guard case .inheritGroup = track.destination else {
+            return ResolvedPlaybackDestination(destination: track.destination, pitchOffset: 0)
+        }
+
+        guard let groupID = track.groupID,
+              let group = trackGroups.first(where: { $0.id == groupID })
+        else {
+            return ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
+        }
+
+        return Self.resolveInheritedPlaybackDestination(trackID: trackID, group: group)
+    }
+
     mutating func setDestination(_ destination: Destination, for target: DestinationWriteTarget) {
         switch target {
         case .track(let trackID):
@@ -93,6 +157,90 @@ extension Project {
         let updated = (destination(for: target) ?? .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0))
             .settingMIDINoteOffset(noteOffset)
         setDestination(updated, for: target)
+    }
+
+    mutating func setGroupSharedDestinationWithMacros(_ destination: Destination?, groupID: TrackGroupID) {
+        guard let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID }) else {
+            return
+        }
+
+        if let destination {
+            setDestination(destination, for: .group(groupID))
+        } else {
+            trackGroups[groupIndex].sharedDestination = nil
+        }
+
+        let inheritedMemberIDs = trackGroups[groupIndex].memberIDs.filter { memberID in
+            tracks.first(where: { $0.id == memberID })?.destination == .inheritGroup
+        }
+        let destinationForMacros = destination ?? .none
+        for memberID in inheritedMemberIDs {
+            syncBuiltinMacrosForResolvedDestination(destinationForMacros, for: memberID)
+        }
+    }
+
+    mutating func setDrumGroupMemberInheritsDestination(
+        _ inheritsGroupDestination: Bool,
+        trackID: UUID,
+        ownDestination: Destination = .none
+    ) {
+        guard let trackIndex = tracks.firstIndex(where: { $0.id == trackID }),
+              let groupID = tracks[trackIndex].groupID,
+              let group = trackGroups.first(where: { $0.id == groupID }),
+              group.memberIDs.contains(trackID)
+        else {
+            return
+        }
+
+        if inheritsGroupDestination {
+            tracks[trackIndex].destination = .inheritGroup
+            syncBuiltinMacrosForResolvedDestination(group.sharedDestination ?? .none, for: trackID)
+        } else {
+            setTrackDestinationWithMacros(ownDestination, for: trackID)
+        }
+    }
+
+    mutating func setDrumGroupTriggerMappingMode(_ mode: DrumTriggerMappingMode, groupID: TrackGroupID) {
+        guard let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID }) else {
+            return
+        }
+        trackGroups[groupIndex].triggerMappingMode = mode
+    }
+
+    mutating func setDrumGroupMemberNoteOffset(_ offset: Int, trackID: UUID) {
+        guard let groupIndex = drumGroupIndex(containing: trackID) else {
+            return
+        }
+        trackGroups[groupIndex].noteMapping[trackID] = offset
+    }
+
+    mutating func setDrumGroupMemberMIDIChannel(_ channel: UInt8, trackID: UUID) {
+        guard let groupIndex = drumGroupIndex(containing: trackID) else {
+            return
+        }
+        trackGroups[groupIndex].channelMapping[trackID] = min(channel, 15)
+    }
+
+    mutating func applyDrumGroupRoutingDraft(_ draft: DrumGroupRoutingDraft) {
+        guard trackGroups.contains(where: { $0.id == draft.groupID }) else {
+            return
+        }
+
+        setGroupSharedDestinationWithMacros(draft.sharedDestination, groupID: draft.groupID)
+        setDrumGroupTriggerMappingMode(draft.triggerMappingMode, groupID: draft.groupID)
+
+        for member in draft.members {
+            guard drumGroupIndex(containing: member.memberID, in: draft.groupID) != nil else {
+                continue
+            }
+            setDrumGroupMemberInheritsDestination(
+                member.inheritsGroupDestination,
+                trackID: member.memberID,
+                ownDestination: member.ownDestination ?? .none
+            )
+            setDrumGroupMemberNoteOffset(member.noteOffset, trackID: member.memberID)
+            setDrumGroupMemberMIDIChannel(member.midiChannel, trackID: member.memberID)
+        }
     }
 
     func tracksInGroup(_ groupID: TrackGroupID) -> [StepSequenceTrack] {
@@ -178,6 +326,47 @@ extension Project {
         if tracks[trackIndex].destination == .inheritGroup {
             NSLog("Track %@ left group %@ while inheriting destination; resetting to .none", tracks[trackIndex].name, trackGroups[groupIndex].name)
             tracks[trackIndex].destination = .none
+        }
+    }
+
+    static func resolveInheritedPlaybackDestination(
+        trackID: UUID,
+        group: TrackGroup
+    ) -> ResolvedPlaybackDestination {
+        switch group.triggerMappingMode {
+        case .perNote:
+            guard let sharedDestination = group.sharedDestination else {
+                return ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
+            }
+            return ResolvedPlaybackDestination(
+                destination: sharedDestination,
+                pitchOffset: group.noteMapping[trackID] ?? 0
+            )
+
+        case .perChannel:
+            guard case let .midi(port, _, _) = group.sharedDestination else {
+                return ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
+            }
+            return ResolvedPlaybackDestination(
+                destination: .midi(port: port, channel: group.channelMapping[trackID] ?? 0, noteOffset: 0),
+                pitchOffset: 0
+            )
+
+        case .individual:
+            return ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
+        }
+    }
+
+    private func drumGroupIndex(containing trackID: UUID) -> Int? {
+        guard let groupID = tracks.first(where: { $0.id == trackID })?.groupID else {
+            return nil
+        }
+        return drumGroupIndex(containing: trackID, in: groupID)
+    }
+
+    private func drumGroupIndex(containing trackID: UUID, in groupID: TrackGroupID) -> Int? {
+        trackGroups.firstIndex { group in
+            group.id == groupID && group.memberIDs.contains(trackID)
         }
     }
 }

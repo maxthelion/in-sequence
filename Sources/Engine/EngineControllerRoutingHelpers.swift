@@ -58,22 +58,8 @@ extension EngineController {
     }
 
     static func effectiveDestination(for trackID: UUID, in documentModel: Project) -> (destination: Destination, pitchOffset: Int) {
-        guard let track = documentModel.tracks.first(where: { $0.id == trackID }) else {
-            return (.none, 0)
-        }
-
-        if case .inheritGroup = track.destination {
-            guard let groupID = track.groupID,
-                  let group = documentModel.trackGroups.first(where: { $0.id == groupID }),
-                  let sharedDestination = group.sharedDestination
-            else {
-                return (.none, 0)
-            }
-
-            return (sharedDestination, group.noteMapping[trackID] ?? 0)
-        }
-
-        return (track.destination, 0)
+        let resolved = documentModel.resolvedPlaybackDestination(for: trackID)
+        return (resolved.destination, resolved.pitchOffset)
     }
 
     static func audioOutputKey(for track: StepSequenceTrack, in documentModel: Project) -> AudioOutputKey? {

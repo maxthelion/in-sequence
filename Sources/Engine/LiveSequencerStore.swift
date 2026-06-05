@@ -283,6 +283,23 @@ final class LiveSequencerStore {
         return true
     }
 
+    /// Mutate a track group in the ordered group list by ID.
+    ///
+    /// - Returns: `true` if the group existed and the closure produced a change.
+    @discardableResult
+    func mutateTrackGroup(id: TrackGroupID, _ update: (inout TrackGroup) -> Void) -> Bool {
+        guard let index = storeTrackGroups.firstIndex(where: { $0.id == id }) else {
+            return false
+        }
+        let before = storeTrackGroups[index]
+        update(&storeTrackGroups[index])
+        guard storeTrackGroups[index] != before else {
+            return false
+        }
+        revision &+= 1
+        return true
+    }
+
     /// Mutate a generator pool entry by ID.
     ///
     /// - Returns: `true` if the generator existed and the closure produced a change.

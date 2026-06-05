@@ -189,24 +189,21 @@ enum SequencerSnapshotCompiler {
         trackGroups: [TrackGroup]
     ) -> [UUID: ResolvedTrackDestination] {
         Dictionary(uniqueKeysWithValues: tracks.map { track in
-            if case .inheritGroup = track.destination {
-                guard let groupID = track.groupID,
-                      let group = trackGroups.first(where: { $0.id == groupID }),
-                      let sharedDestination = group.sharedDestination
-                else {
-                    return (track.id, ResolvedTrackDestination(destination: .none, pitchOffset: 0))
-                }
-
-                return (
-                    track.id,
-                    ResolvedTrackDestination(
-                        destination: sharedDestination,
-                        pitchOffset: group.noteMapping[track.id] ?? 0
-                    )
-                )
+            guard case .inheritGroup = track.destination else {
+                return (track.id, ResolvedTrackDestination(destination: track.destination, pitchOffset: 0))
             }
 
-            return (track.id, ResolvedTrackDestination(destination: track.destination, pitchOffset: 0))
+            guard let groupID = track.groupID,
+                  let group = trackGroups.first(where: { $0.id == groupID })
+            else {
+                return (track.id, ResolvedTrackDestination(destination: .none, pitchOffset: 0))
+            }
+
+            let resolved = Project.resolveInheritedPlaybackDestination(trackID: track.id, group: group)
+            return (
+                track.id,
+                ResolvedTrackDestination(destination: resolved.destination, pitchOffset: resolved.pitchOffset)
+            )
         })
     }
 

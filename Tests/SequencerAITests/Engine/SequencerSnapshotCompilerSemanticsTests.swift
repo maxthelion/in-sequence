@@ -51,6 +51,84 @@ final class SequencerSnapshotCompilerSemanticsTests: XCTestCase {
         XCTAssertEqual(Array(trackState.patternSlotIndex.prefix(2)), [0, 1])
     }
 
+    func test_compiler_resolves_drum_group_per_note_per_channel_and_own_destination_overrides() throws {
+        let groupID = UUID()
+        let perNoteID = UUID()
+        let perChannelID = UUID()
+        let ownID = UUID()
+        let port = MIDIEndpointName(displayName: "Kit Port", isVirtual: false)
+        let perNote = Self.makeTrack(id: perNoteID, name: "Kick", destination: .inheritGroup, groupID: groupID)
+        let perChannel = Self.makeTrack(id: perChannelID, name: "Snare", destination: .inheritGroup, groupID: groupID)
+        let ownDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Own", isVirtual: false),
+            channel: 2,
+            noteOffset: 5
+        )
+        let own = Self.makeTrack(id: ownID, name: "Hat", destination: ownDestination, groupID: groupID)
+        var project = Self.makeProject(
+            tracks: [perNote, perChannel, own],
+            group: TrackGroup(
+                id: groupID,
+                name: "Kit",
+                memberIDs: [perNoteID, perChannelID, ownID],
+                sharedDestination: .midi(port: port, channel: 9, noteOffset: 8),
+                triggerMappingMode: .perNote,
+                noteMapping: [perNoteID: 12],
+                channelMapping: [perChannelID: 4]
+            )
+        )
+
+        var snapshot = SequencerSnapshotCompiler.compile(project: project)
+        XCTAssertEqual(
+            snapshot.resolvedDestination(for: perNoteID),
+            ResolvedTrackDestination(destination: .midi(port: port, channel: 9, noteOffset: 8), pitchOffset: 12)
+        )
+        XCTAssertEqual(snapshot.resolvedDestination(for: ownID), ResolvedTrackDestination(destination: ownDestination, pitchOffset: 0))
+
+        project.trackGroups[0].triggerMappingMode = .perChannel
+        snapshot = SequencerSnapshotCompiler.compile(project: project)
+
+        XCTAssertEqual(
+            snapshot.resolvedDestination(for: perChannelID),
+            ResolvedTrackDestination(destination: .midi(port: port, channel: 4, noteOffset: 0), pitchOffset: 0)
+        )
+        XCTAssertEqual(
+            snapshot.resolvedDestination(for: perNoteID),
+            ResolvedTrackDestination(destination: .midi(port: port, channel: 0, noteOffset: 0), pitchOffset: 0),
+            "Missing per-channel mappings must fall back to channel 1 without using note offsets"
+        )
+        XCTAssertEqual(snapshot.resolvedDestination(for: ownID), ResolvedTrackDestination(destination: ownDestination, pitchOffset: 0))
+    }
+
+    func test_compiler_fails_safe_for_incompatible_drum_group_mapping_modes() {
+        let groupID = UUID()
+        let memberID = UUID()
+        let track = Self.makeTrack(id: memberID, name: "Tom", destination: .inheritGroup, groupID: groupID)
+        var project = Self.makeProject(
+            tracks: [track],
+            group: TrackGroup(
+                id: groupID,
+                name: "Kit",
+                memberIDs: [memberID],
+                sharedDestination: .sample(sampleID: UUID(), settings: .default),
+                triggerMappingMode: .perChannel,
+                channelMapping: [memberID: 6]
+            )
+        )
+
+        var snapshot = SequencerSnapshotCompiler.compile(project: project)
+        XCTAssertEqual(snapshot.resolvedDestination(for: memberID), ResolvedTrackDestination(destination: .none, pitchOffset: 0))
+
+        project.trackGroups[0].sharedDestination = nil
+        snapshot = SequencerSnapshotCompiler.compile(project: project)
+        XCTAssertEqual(snapshot.resolvedDestination(for: memberID), ResolvedTrackDestination(destination: .none, pitchOffset: 0))
+
+        project.trackGroups[0].sharedDestination = .midi(port: .sequencerAIOut, channel: 9, noteOffset: 0)
+        project.trackGroups[0].triggerMappingMode = .individual
+        snapshot = SequencerSnapshotCompiler.compile(project: project)
+        XCTAssertEqual(snapshot.resolvedDestination(for: memberID), ResolvedTrackDestination(destination: .none, pitchOffset: 0))
+    }
+
     // MARK: - New: generator source resolves via snapshot generator pool
 
     /// A slot with `.generator` source compiles to a `.generator` SlotProgram that
@@ -377,5 +455,42 @@ final class SequencerSnapshotCompilerSemanticsTests: XCTestCase {
             "ClipB buffer must resolve TrackB's binding (0.75), not TrackA's binding")
         XCTAssertNil(overridesB[bindingAID],
             "ClipB buffer must not contain TrackA's binding ID")
+    }
+
+    private static func makeTrack(
+        id: UUID,
+        name: String,
+        destination: Destination,
+        groupID: UUID?
+    ) -> StepSequenceTrack {
+        StepSequenceTrack(
+            id: id,
+            name: name,
+            trackType: .monoMelodic,
+            pitches: [60],
+            stepPattern: [true],
+            destination: destination,
+            groupID: groupID,
+            velocity: 96,
+            gateLength: 4
+        )
+    }
+
+    private static func makeProject(tracks: [StepSequenceTrack], group: TrackGroup) -> Project {
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(tracks: tracks, layers: layers, generatorPool: [], clipPool: [])
+        return Project(
+            version: 1,
+            tracks: tracks,
+            trackGroups: [group],
+            generatorPool: [],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [],
+            selectedTrackID: tracks[0].id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
     }
 }

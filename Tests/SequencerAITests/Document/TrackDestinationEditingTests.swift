@@ -96,6 +96,206 @@ final class TrackDestinationEditingTests: XCTestCase {
         )
     }
 
+    func test_set_group_shared_destination_syncs_inherited_member_macros() {
+        let groupID = UUID()
+        let kick = StepSequenceTrack(
+            name: "Kick",
+            trackType: .monoMelodic,
+            pitches: [36],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        let snare = StepSequenceTrack(
+            name: "Snare",
+            trackType: .monoMelodic,
+            pitches: [38],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        var model = makeModel(
+            tracks: [kick, snare],
+            groups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "Kit",
+                    memberIDs: [kick.id, snare.id],
+                    sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: 0)
+                )
+            ]
+        )
+        let sampleDestination = Destination.sample(sampleID: UUID(), settings: .default)
+
+        model.setGroupSharedDestinationWithMacros(sampleDestination, groupID: groupID)
+        model.syncMacroLayers()
+
+        XCTAssertEqual(model.trackGroups[0].sharedDestination, sampleDestination)
+        XCTAssertEqual(model.tracks.map(\.destination), [.inheritGroup, .inheritGroup])
+        XCTAssertEqual(model.tracks[0].macros.count, BuiltinMacroKind.allCases.count)
+        XCTAssertEqual(model.tracks[1].macros.count, BuiltinMacroKind.allCases.count)
+        XCTAssertTrue(model.layers.contains { layer in
+            if case let .macroParam(trackID, _) = layer.target {
+                return trackID == kick.id
+            }
+            return false
+        })
+    }
+
+    func test_resolved_destination_preserves_write_target_while_playback_applies_mapping() {
+        let groupID = UUID()
+        let memberID = UUID()
+        let member = StepSequenceTrack(
+            id: memberID,
+            name: "Kick",
+            trackType: .monoMelodic,
+            pitches: [36],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        let port = MIDIEndpointName(displayName: "Kit Out", isVirtual: false)
+        let sharedDestination = Destination.midi(port: port, channel: 9, noteOffset: 12)
+        let model = makeModel(
+            tracks: [member],
+            groups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "Kit",
+                    memberIDs: [memberID],
+                    sharedDestination: sharedDestination,
+                    triggerMappingMode: .perChannel,
+                    noteMapping: [memberID: 24],
+                    channelMapping: [memberID: 4]
+                )
+            ]
+        )
+
+        XCTAssertEqual(model.resolvedDestination(for: memberID), sharedDestination)
+        XCTAssertEqual(
+            model.resolvedPlaybackDestination(for: memberID),
+            Project.ResolvedPlaybackDestination(
+                destination: .midi(port: port, channel: 4, noteOffset: 0),
+                pitchOffset: 0
+            )
+        )
+    }
+
+    func test_drum_group_member_inherit_toggle_sets_own_destination() {
+        let groupID = UUID()
+        let hat = StepSequenceTrack(
+            name: "Hat",
+            trackType: .monoMelodic,
+            pitches: [42],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        var model = makeModel(
+            tracks: [hat],
+            groups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "Kit",
+                    memberIDs: [hat.id],
+                    sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: 0)
+                )
+            ]
+        )
+        let ownDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Own", isVirtual: false),
+            channel: 4,
+            noteOffset: 3
+        )
+
+        model.setDrumGroupMemberInheritsDestination(false, trackID: hat.id, ownDestination: ownDestination)
+
+        XCTAssertEqual(model.tracks[0].destination, ownDestination)
+        XCTAssertEqual(
+            model.trackGroups[0].sharedDestination,
+            .midi(port: .sequencerAIOut, channel: 9, noteOffset: 0)
+        )
+
+        model.setDrumGroupMemberInheritsDestination(true, trackID: hat.id)
+
+        XCTAssertEqual(model.tracks[0].destination, .inheritGroup)
+    }
+
+    func test_apply_drum_group_routing_draft_updates_destination_mode_and_mappings_atomically() {
+        let groupID = UUID()
+        let kick = StepSequenceTrack(
+            name: "Kick",
+            trackType: .monoMelodic,
+            pitches: [36],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        let snare = StepSequenceTrack(
+            name: "Snare",
+            trackType: .monoMelodic,
+            pitches: [38],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        var model = makeModel(
+            tracks: [kick, snare],
+            groups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "Kit",
+                    memberIDs: [kick.id, snare.id],
+                    sharedDestination: .midi(port: .sequencerAIOut, channel: 9, noteOffset: 1),
+                    noteMapping: [kick.id: 0, snare.id: 2],
+                    channelMapping: [kick.id: 0, snare.id: 1]
+                )
+            ]
+        )
+        let ownDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Snare Out", isVirtual: false),
+            channel: 2,
+            noteOffset: 5
+        )
+        let nextSharedDestination = Destination.midi(
+            port: MIDIEndpointName(displayName: "Kit Out", isVirtual: false),
+            channel: 8,
+            noteOffset: 6
+        )
+        let draft = Project.DrumGroupRoutingDraft(
+            groupID: groupID,
+            sharedDestination: nextSharedDestination,
+            triggerMappingMode: .perChannel,
+            members: [
+                .init(memberID: kick.id, inheritsGroupDestination: true, noteOffset: 12, midiChannel: 3),
+                .init(memberID: snare.id, inheritsGroupDestination: false, ownDestination: ownDestination, noteOffset: 14, midiChannel: 20)
+            ]
+        )
+
+        model.applyDrumGroupRoutingDraft(draft)
+
+        XCTAssertEqual(model.trackGroups[0].sharedDestination, nextSharedDestination)
+        XCTAssertEqual(model.trackGroups[0].triggerMappingMode, .perChannel)
+        XCTAssertEqual(model.trackGroups[0].noteMapping[kick.id], 12)
+        XCTAssertEqual(model.trackGroups[0].noteMapping[snare.id], 14)
+        XCTAssertEqual(model.trackGroups[0].channelMapping[kick.id], 3)
+        XCTAssertEqual(model.trackGroups[0].channelMapping[snare.id], 15)
+        XCTAssertEqual(model.tracks[0].destination, .inheritGroup)
+        XCTAssertEqual(model.tracks[1].destination, ownDestination)
+    }
+
     private func makeModel(
         tracks: [StepSequenceTrack],
         groups: [TrackGroup] = []
