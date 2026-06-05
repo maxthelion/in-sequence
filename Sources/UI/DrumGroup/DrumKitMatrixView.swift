@@ -636,31 +636,31 @@ private struct DrumGroupRoutingEditorSheet: View {
 
                 Spacer()
 
-                Button("Cancel") {
+                Button {
                     draft.cancel()
                     onCancel()
                     dismiss()
+                } label: {
+                    Text("Cancel")
+                        .studioText(.labelBold)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(DrumGroupRoutingEditorButtonStyle())
 
-                Button("Apply") {
+                Button {
                     guard let projectDraft = draft.projectDraft() else { return }
                     onApply(projectDraft)
                     dismiss()
+                } label: {
+                    Text("Apply")
+                        .studioText(.labelBold)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
+                .buttonStyle(DrumGroupRoutingEditorButtonStyle(accent: StudioTheme.success, isProminent: true))
                 .disabled(!draft.canApply)
             }
 
             destinationSection
 
-            Picker("Mode", selection: $draft.triggerMappingMode) {
-                Text("Per Note").tag(DrumTriggerMappingMode.perNote)
-                Text("Per Channel").tag(DrumTriggerMappingMode.perChannel)
-                Text("Individual").tag(DrumTriggerMappingMode.individual)
-            }
-            .pickerStyle(.segmented)
+            DrumGroupRoutingModeControl(selection: $draft.triggerMappingMode)
 
             warningsAndErrors
 
@@ -702,36 +702,79 @@ private struct DrumGroupRoutingEditorSheet: View {
     }
 
     private var destinationSection: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Shared Destination")
-                    .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.mutedText)
+        let storedForGroupedModesOnly = draft.triggerMappingMode == .individual
+
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text("Shared Destination")
+                        .studioText(.eyebrowBold)
+                        .foregroundStyle(StudioTheme.mutedText)
+
+                    if storedForGroupedModesOnly {
+                        Text("Stored for grouped modes")
+                            .studioText(.eyebrow)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(
+                                Color.white.opacity(StudioOpacity.subtleFill),
+                                in: Capsule()
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                            )
+                    }
+                }
+
                 Text(draft.sharedDestination?.summary ?? "No shared destination")
                     .studioText(.body)
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(storedForGroupedModesOnly ? StudioTheme.mutedText : StudioTheme.text)
                     .lineLimit(2)
+
+                if storedForGroupedModesOnly {
+                    Text("Individual mode uses each part's own destination.")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
             }
 
             Spacer()
 
-            Button("Change") {
+            Button {
                 isPresentingDestinationPicker = true
+            } label: {
+                Text("Change")
+                    .studioText(.labelBold)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(DrumGroupRoutingEditorButtonStyle())
+            .disabled(storedForGroupedModesOnly)
+            .help(storedForGroupedModesOnly ? "Switch to Per Note or Per Channel to edit the stored shared destination." : "Change shared destination")
 
             if draft.sharedDestination != nil {
-                Button("Clear") {
+                Button {
                     draft.sharedDestination = nil
+                } label: {
+                    Text("Clear")
+                        .studioText(.labelBold)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(DrumGroupRoutingEditorButtonStyle())
+                .disabled(storedForGroupedModesOnly)
+                .help(storedForGroupedModesOnly ? "Switch to Per Note or Per Channel to clear the stored shared destination." : "Clear shared destination")
             }
         }
         .padding(14)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(
+            Color.white.opacity(storedForGroupedModesOnly ? 0.015 : StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(
+                    StudioTheme.border.opacity(storedForGroupedModesOnly ? 0.65 : 1),
+                    lineWidth: 1
+                )
         )
     }
 
@@ -878,6 +921,104 @@ private struct DrumGroupRoutingEditorSheet: View {
     }
 }
 
+private struct DrumGroupRoutingModeControl: View {
+    @Binding var selection: DrumTriggerMappingMode
+
+    private let modes: [(title: String, mode: DrumTriggerMappingMode)] = [
+        ("Per Note", .perNote),
+        ("Per Channel", .perChannel),
+        ("Individual", .individual),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Mode".uppercased())
+                .studioText(.eyebrow)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 4) {
+                ForEach(modes.indices, id: \.self) { index in
+                    modeButton(modes[index])
+                }
+            }
+            .padding(3)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: 1)
+            )
+        }
+    }
+
+    private func modeButton(_ option: (title: String, mode: DrumTriggerMappingMode)) -> some View {
+        let isSelected = selection == option.mode
+
+        return Button {
+            selection = option.mode
+        } label: {
+            Text(option.title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity, minHeight: 30)
+                .padding(.horizontal, 10)
+                .background(
+                    isSelected ? StudioTheme.cyan.opacity(StudioOpacity.selectedFill) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(isSelected ? StudioTheme.cyan.opacity(0.72) : Color.clear, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Routing mode \(option.title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+}
+
+private struct DrumGroupRoutingEditorButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    var accent: Color = StudioTheme.cyan
+    var isProminent = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+            .lineLimit(1)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 28)
+            .background(
+                backgroundFill(isPressed: configuration.isPressed),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .opacity(isEnabled ? 1 : 0.48)
+    }
+
+    private func backgroundFill(isPressed: Bool) -> Color {
+        if isProminent {
+            return accent.opacity(isPressed ? StudioOpacity.accentStroke : StudioOpacity.selectedFill)
+        }
+        return Color.white.opacity(isPressed ? StudioOpacity.mutedFill : StudioOpacity.subtleFill)
+    }
+
+    private var borderColor: Color {
+        if isProminent {
+            return accent.opacity(isEnabled ? 0.72 : StudioOpacity.softStroke)
+        }
+        return StudioTheme.border.opacity(isEnabled ? 0.9 : 0.65)
+    }
+}
+
 private struct DrumGroupRoutingEditorRow: View {
     let draftMode: DrumTriggerMappingMode
     @Binding var row: DrumGroupRoutingEditorDraft.MemberRow
@@ -902,7 +1043,11 @@ private struct DrumGroupRoutingEditorRow: View {
             .frame(width: 210, alignment: .leading)
 
             if draftMode != .individual {
-                Toggle("Inherit", isOn: $row.inheritsGroupDestination)
+                Toggle(isOn: $row.inheritsGroupDestination) {
+                    Text("Inherit")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
                     .toggleStyle(.switch)
                     .frame(width: 86)
             } else {
