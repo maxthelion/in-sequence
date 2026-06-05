@@ -206,6 +206,7 @@ enum VisualScenarioCommandRunner {
         selectedTrackType=\(session.store.selectedTrack.trackType.rawValue)
         selectedTrackGroupName=\(drumPartHeaderModel?.groupName ?? "none")
         drumPartHeaderVisible=\(drumPartHeaderModel != nil)
+        drumPartHeaderCurrentPartName=\(drumPartHeaderModel?.currentPartName ?? "none")
         drumPartHeaderPosition=\(drumPartHeaderModel?.positionLabel ?? "none")
         drumPartHeaderPreviousEnabled=\(drumPartHeaderModel?.previousPartID != nil)
         drumPartHeaderNextEnabled=\(drumPartHeaderModel?.nextPartID != nil)
@@ -266,18 +267,30 @@ enum VisualScenarioCommandRunner {
         else { return }
 
         section.wrappedValue = .track
+        drumPartHeaderOpenKitOriginPartName = nil
+        drumPartHeaderOpenKitOriginGroupName = nil
 
         switch command["drumPartHeaderFixture"] {
         case "kit", "group", "drumGroup":
             let group = ensureDrumPartHeaderFixtureGroup(session: session)
             let requestedIndex = Int(command["drumPartHeaderSelectedIndex"] ?? "") ?? 2
-            let resolvedMemberIDs = group.memberIDs.filter { memberID in
-                session.store.tracks.contains(where: { $0.id == memberID })
+            selectDrumPartHeaderMember(in: group, requestedIndex: requestedIndex, session: session)
+        case "generator", "generatorReadOnly", "readOnly":
+            let group = ensureDrumPartHeaderFixtureGroup(session: session)
+            let requestedIndex = Int(command["drumPartHeaderSelectedIndex"] ?? "") ?? 2
+            if let selectedPartID = selectDrumPartHeaderMember(in: group, requestedIndex: requestedIndex, session: session) {
+                ensureGeneratorSource(trackID: selectedPartID, session: session)
             }
-            if !resolvedMemberIDs.isEmpty {
-                let clampedIndex = min(max(0, requestedIndex), resolvedMemberIDs.count - 1)
-                session.setSelectedTrackID(resolvedMemberIDs[clampedIndex])
-            }
+        case "oneMember", "single":
+            let group = ensureOneMemberDrumPartHeaderFixtureGroup(session: session)
+            selectDrumPartHeaderMember(in: group, requestedIndex: 0, session: session)
+        case "longNames", "longName":
+            let group = ensureLongNameDrumPartHeaderFixtureGroup(session: session)
+            let requestedIndex = Int(command["drumPartHeaderSelectedIndex"] ?? "") ?? 0
+            selectDrumPartHeaderMember(in: group, requestedIndex: requestedIndex, session: session)
+        case "staleGroup", "stale", "unresolved":
+            let selectedID = ensureStaleDrumPartHeaderFixture(session: session)
+            session.setSelectedTrackID(selectedID)
         case "nonKit", "fallback":
             if let nonKitTrack = session.store.tracks.first(where: { $0.groupID == nil }) {
                 session.setSelectedTrackID(nonKitTrack.id)
@@ -311,6 +324,45 @@ enum VisualScenarioCommandRunner {
         }
     }
 
+    @discardableResult
+    private static func selectDrumPartHeaderMember(
+        in group: TrackGroup,
+        requestedIndex: Int,
+        session: SequencerDocumentSession
+    ) -> UUID? {
+        let resolvedMemberIDs = group.memberIDs.filter { memberID in
+            session.store.tracks.contains(where: { $0.id == memberID })
+        }
+        guard !resolvedMemberIDs.isEmpty else {
+            return nil
+        }
+
+        let clampedIndex = min(max(0, requestedIndex), resolvedMemberIDs.count - 1)
+        let selectedID = resolvedMemberIDs[clampedIndex]
+        session.setSelectedTrackID(selectedID)
+        return selectedID
+    }
+
+    private static func ensureGeneratorSource(trackID: UUID, session: SequencerDocumentSession) {
+        let selectedPattern = session.store.selectedPattern(for: trackID)
+        if selectedPattern.sourceRef.mode == .generator,
+           session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil {
+            return
+        }
+
+        session.batch(impact: .snapshotOnly, changed: .patternBank(trackID)) { store in
+            var project = store.exportToProject()
+            _ = project.createBlankGeneratorSource(trackID: trackID, slotIndex: 0)
+            for generator in project.generatorPool where !store.generatorPool.contains(where: { $0.id == generator.id }) {
+                store.appendGenerator(generator)
+            }
+            guard let bank = project.patternBanks.first(where: { $0.trackID == trackID }) else {
+                return
+            }
+            store.setPatternBank(trackID: trackID, bank: bank)
+        }
+    }
+
     private static func ensureDrumPartHeaderFixtureGroup(session: SequencerDocumentSession) -> TrackGroup {
         if let existing = session.store.trackGroups.first(where: { $0.name == "808 Bones" }),
            existing.memberIDs.count >= 6 {
@@ -336,6 +388,111 @@ enum VisualScenarioCommandRunner {
         return session.store.trackGroups.first(where: { $0.name == "808 Bones" })
             ?? session.store.trackGroups.last
             ?? TrackGroup(name: "808 Bones", color: "#C06030")
+    }
+
+    private static func ensureOneMemberDrumPartHeaderFixtureGroup(session: SequencerDocumentSession) -> TrackGroup {
+        let groupName = "Solo Knock"
+        if let existing = session.store.trackGroups.first(where: { $0.name == groupName }),
+           existing.memberIDs.count == 1 {
+            return existing
+        }
+
+        let seedPattern = Array(repeating: false, count: 16)
+        let plan = DrumGroupPlan(
+            name: groupName,
+            color: "#3A8F7A",
+            members: [
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: seedPattern),
+            ],
+            prepopulateClips: false,
+            sharedDestination: nil
+        )
+        _ = session.addDrumGroup(plan: plan)
+        return session.store.trackGroups.first(where: { $0.name == groupName })
+            ?? session.store.trackGroups.last
+            ?? TrackGroup(name: groupName, color: "#3A8F7A")
+    }
+
+    private static func ensureLongNameDrumPartHeaderFixtureGroup(session: SequencerDocumentSession) -> TrackGroup {
+        let groupName = "Warehouse Breakbeat Kit With Extremely Long Saved Name"
+        if let existing = session.store.trackGroups.first(where: { $0.name == groupName }),
+           !existing.memberIDs.isEmpty {
+            return existing
+        }
+
+        let seedPattern = Array(repeating: false, count: 16)
+        let plan = DrumGroupPlan(
+            name: groupName,
+            color: "#5A7FD6",
+            members: [
+                DrumGroupPlan.Member(
+                    tag: "hat-closed",
+                    trackName: "Generator Driven Closed Hat With A Very Long Performance Name",
+                    seedPattern: seedPattern
+                ),
+                DrumGroupPlan.Member(
+                    tag: "rim",
+                    trackName: "Rim Shot With Long Alternate Layer Name",
+                    seedPattern: seedPattern
+                ),
+            ],
+            prepopulateClips: false,
+            sharedDestination: nil
+        )
+        _ = session.addDrumGroup(plan: plan)
+        return session.store.trackGroups.first(where: { $0.name == groupName })
+            ?? session.store.trackGroups.last
+            ?? TrackGroup(name: groupName, color: "#5A7FD6")
+    }
+
+    private static func ensureStaleDrumPartHeaderFixture(session: SequencerDocumentSession) -> UUID {
+        let staleGroupID = TrackGroupID()
+        let trackID = UUID()
+        let staleTrack = StepSequenceTrack(
+            id: trackID,
+            name: "Unresolved Kit Part",
+            trackType: .monoMelodic,
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: Array(repeating: false, count: 16),
+            groupID: staleGroupID,
+            velocity: StepSequenceTrack.default.velocity,
+            gateLength: StepSequenceTrack.default.gateLength
+        )
+        let staleClip = ClipPoolEntry(
+            id: UUID(),
+            name: "Unresolved Kit Part",
+            trackType: .monoMelodic,
+            content: .stepSequence(
+                stepPattern: Array(repeating: false, count: 16),
+                pitches: [DrumKitNoteMap.baselineNote]
+            )
+        )
+        let staleBank = TrackPatternBank.default(for: staleTrack, initialClipID: staleClip.id)
+
+        session.batch(impact: .snapshotOnly, changed: .full) { store in
+            var project = store.exportToProject()
+            let removedTrackIDs = Set(project.tracks.filter { $0.name == staleTrack.name }.map(\.id))
+            project.tracks.removeAll { $0.name == staleTrack.name }
+            project.patternBanks.removeAll { removedTrackIDs.contains($0.trackID) || $0.trackID == staleTrack.id }
+            project.clipPool.removeAll { $0.name == staleClip.name }
+            project.tracks.append(staleTrack)
+            project.clipPool.append(staleClip)
+            project.patternBanks.append(staleBank)
+            project.trackGroups.removeAll { $0.id == staleGroupID || $0.name == "Unresolved Kit" }
+            project.trackGroups.append(
+                TrackGroup(
+                    id: UUID(),
+                    name: "Unresolved Kit",
+                    color: "#777777",
+                    memberIDs: [staleTrack.id]
+                )
+            )
+            project.selectedTrackID = staleTrack.id
+            project.syncPhrasesWithTracks()
+            store.importFromProject(project)
+        }
+
+        return trackID
     }
 
     private static func applyPhraseNavigationFixture(

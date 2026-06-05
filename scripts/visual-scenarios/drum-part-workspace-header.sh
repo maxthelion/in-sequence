@@ -40,7 +40,9 @@ production window screenshots with the shared Peekaboo/window-capture helpers.
 
 Captured states: middle grouped part, first grouped part disabled previous,
 last grouped part disabled next, rename editing in the header, Open Kit View
-retained-origin command, and non-kit fallback header.
+retained-origin command, non-kit fallback header, generator/read-only selected
+member with sibling navigation still available, one-member bounded controls,
+long kit/part names, and stale/unresolved group fallback.
 
 Status from this script run: ${scenario_status}.
 
@@ -195,6 +197,20 @@ drumPartHeaderRename=off
 drumPartHeaderOpenKitView=true" "drumPartHeaderPosition" "3 of 6"
 
 capture_state "$pid" "06-non-kit-fallback" "drumPartHeaderFixture=nonKit
+drumPartHeaderRename=off" "drumPartHeaderVisible" "false"
+
+capture_state "$pid" "07-generator-read-only-sibling-navigation" "drumPartHeaderFixture=generatorReadOnly
+drumPartHeaderSelectedIndex=2
+drumPartHeaderRename=off" "selectedPatternHasGenerator" "true"
+
+capture_state "$pid" "08-one-member-bounded-controls" "drumPartHeaderFixture=oneMember
+drumPartHeaderRename=off" "drumPartHeaderMemberCount" "1"
+
+capture_state "$pid" "09-long-names-truncation" "drumPartHeaderFixture=longNames
+drumPartHeaderSelectedIndex=0
+drumPartHeaderRename=off" "selectedTrackGroupName" "Warehouse Breakbeat Kit With Extremely Long Saved Name"
+
+capture_state "$pid" "10-stale-unresolved-group-fallback" "drumPartHeaderFixture=staleGroup
 drumPartHeaderRename=off" "drumPartHeaderVisible" "false"
 
 scenario_status="completed drum part workspace header captures"
