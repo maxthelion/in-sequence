@@ -293,6 +293,18 @@ final class EngineControllerTests: XCTestCase {
         stoppedController.engageNoteRepeat(trackID: trackID)
         XCTAssertNil(try XCTUnwrap(stoppedController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
 
+        let runningStopController = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        runningStopController.apply(documentModel: project)
+        runningStopController.start()
+        XCTAssertTrue(runningStopController.isRunning)
+        runningStopController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(runningStopController.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+
+        runningStopController.stop()
+        XCTAssertFalse(runningStopController.isRunning)
+        runningStopController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNil(try XCTUnwrap(runningStopController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
+
         let applyController = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
         applyController.apply(documentModel: project)
         applyController.processTick(tickIndex: 0, now: 0)
@@ -301,6 +313,16 @@ final class EngineControllerTests: XCTestCase {
         applyController.releaseNoteRepeat(trackID: trackID)
 
         applyController.apply(documentModel: project)
+        applyController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNil(try XCTUnwrap(applyController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
+
+        applyController.releaseNoteRepeat(trackID: trackID)
+        applyController.processTick(tickIndex: 0, now: 0)
+        applyController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(applyController.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        applyController.releaseNoteRepeat(trackID: trackID)
+
+        applyController.apply(playbackSnapshot: SequencerSnapshotCompiler.compile(project: project))
         applyController.engageNoteRepeat(trackID: trackID)
         XCTAssertNil(try XCTUnwrap(applyController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
 
@@ -314,6 +336,70 @@ final class EngineControllerTests: XCTestCase {
         fillPreviewController.apply(trackFillPreview: TrackFillPreviewPlaybackSnapshot(activeTrackID: trackID))
         fillPreviewController.engageNoteRepeat(trackID: trackID)
         XCTAssertNil(try XCTUnwrap(fillPreviewController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
+    }
+
+    func test_noteRepeatCaptureCacheClearsOnPhraseSwitchBeforeReengage() throws {
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        var nextPhrase = try XCTUnwrap(project.phrases.first)
+        nextPhrase.id = UUID(uuidString: "71717171-7171-7171-7171-717171717171")!
+        nextPhrase.name = "Phrase B"
+        project.phrases.append(nextPhrase)
+
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        controller.releaseNoteRepeat(trackID: trackID)
+
+        XCTAssertTrue(controller.switchPhraseNow(nextPhrase.id))
+        controller.engageNoteRepeat(trackID: trackID)
+
+        XCTAssertNil(try XCTUnwrap(controller.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
+    }
+
+    func test_noteRepeatCaptureCacheClearsOnAuditionOverrideBeforeReengage() throws {
+        let (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        let auditionOverride = PseudoClipState(
+            sourceTrackID: trackID,
+            startStep: 0,
+            lengthSteps: 1,
+            noteGrid: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 74, velocity: 110, lengthSteps: 2)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        controller.releaseNoteRepeat(trackID: trackID)
+
+        controller.setAuditionOverride(auditionOverride, for: trackID)
+        controller.engageNoteRepeat(trackID: trackID)
+
+        XCTAssertNil(try XCTUnwrap(controller.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
     }
 
     func test_setBPM_reaches_executor_within_two_ticks() {

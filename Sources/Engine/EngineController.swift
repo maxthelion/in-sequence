@@ -837,7 +837,7 @@ final class EngineController: RouterDispatcher {
             state.phraseCycleStartTick = cycleStartTick
             state.currentPhraseCompletedCycles = 0
         }
-        tickState.invalidatePreparedTick(resetGeneratedStates: true)
+        invalidatePreparedPlaybackOutput(resetGeneratedStates: true)
         eventQueue.clear()
         publishPhraseNavigationStateIfChanged(updatedState)
         return true
@@ -1115,6 +1115,7 @@ final class EngineController: RouterDispatcher {
 
     func setAuditionOverride(_ state: PseudoClipState?, for trackID: UUID) {
         tickState.setAuditionOverride(state, for: trackID)
+        clearNoteRepeatCaptureCaches()
         eventQueue.clear()
     }
 
@@ -1201,7 +1202,7 @@ final class EngineController: RouterDispatcher {
         }
 
         if shouldInvalidatePreparedTick || shouldResetGeneratedStates {
-            tickState.invalidatePreparedTick(resetGeneratedStates: shouldResetGeneratedStates)
+            invalidatePreparedPlaybackOutput(resetGeneratedStates: shouldResetGeneratedStates)
         }
     }
 
@@ -1977,7 +1978,7 @@ final class EngineController: RouterDispatcher {
         // Note injection uses the typed preparedNotesByBlockID path only; no params to sync.
         // Reset generator evaluation state and prepared-tick index so the next prepareTick
         // re-evaluates from the new document model.
-        tickState.invalidatePreparedTick(resetGeneratedStates: true)
+        invalidatePreparedPlaybackOutput(resetGeneratedStates: true)
     }
 
     private func syncMidiOutputs(for documentModel: Project) {
@@ -2654,6 +2655,11 @@ final class EngineController: RouterDispatcher {
             preparedNoteRepeatCapturesByStepIndex.removeAll()
             currentNoteRepeatCapturesByTrackID.removeAll()
         }
+    }
+
+    private func invalidatePreparedPlaybackOutput(resetGeneratedStates: Bool) {
+        tickState.invalidatePreparedTick(resetGeneratedStates: resetGeneratedStates)
+        clearNoteRepeatCaptureCaches()
     }
 
     private func recordPreparedNoteRepeatCaptures(
