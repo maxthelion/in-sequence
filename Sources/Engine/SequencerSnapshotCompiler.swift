@@ -115,7 +115,17 @@ enum SequencerSnapshotCompiler {
                 )
             })
         } else {
-            for phraseID in changed.phraseIDs {
+            let changedPhraseIDs = changed.phraseIDs.union(
+                state.phrasesByID.values.compactMap { phrase in
+                    guard let mapID = phrase.stepOrderAssignment?.mapID,
+                          changed.stepOrderMapIDs.contains(mapID)
+                    else {
+                        return nil
+                    }
+                    return phrase.id
+                }
+            )
+            for phraseID in changedPhraseIDs {
                 guard let phrase = state.phrasesByID[phraseID] else {
                     return compile(state: state)
                 }

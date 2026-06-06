@@ -24,6 +24,14 @@ final class SnapshotChangeTypeTests: XCTestCase {
         XCTAssertTrue(change.requiresPlaybackSnapshotInstall)
     }
 
+    func test_stepOrderMapChange_requiresPlaybackSnapshotInstall() {
+        let id = UUID(uuidString: "77777777-8888-9999-aaaa-bbbbbbbbbbbb")!
+        let change = SnapshotChange.stepOrderMap(id)
+
+        XCTAssertEqual(change.stepOrderMapIDs, [id])
+        XCTAssertTrue(change.requiresPlaybackSnapshotInstall)
+    }
+
     func test_fullRebuildDominatesNarrowChanges() {
         let id = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
         let merged = SnapshotChange.full.union(.clip(id))

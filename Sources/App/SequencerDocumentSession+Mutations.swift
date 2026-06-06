@@ -269,13 +269,18 @@ extension SequencerDocumentSession {
     }
 
     @discardableResult
-    func mutateStepOrderMap(id: StepOrderMapID, _ update: (inout StepOrderMap) -> Void) -> Bool {
+    func mutateStepOrderMap(
+        id: StepOrderMapID,
+        changed change: SnapshotChange = .none,
+        _ update: (inout StepOrderMap) -> Void
+    ) -> Bool {
         let changed = store.mutateStepOrderMap(id: id, update)
         guard changed else { return false }
         if isInBatch {
+            recordBatchChange(change)
             return true
         }
-        dispatchImpact(.snapshotOnly, changed: .none)
+        dispatchImpact(.snapshotOnly, changed: change)
         return true
     }
 
@@ -288,7 +293,7 @@ extension SequencerDocumentSession {
 
     @discardableResult
     func setStepOrderMapValues(id: StepOrderMapID, values: [UInt8]) -> Bool {
-        mutateStepOrderMap(id: id) { map in
+        mutateStepOrderMap(id: id, changed: .stepOrderMap(id)) { map in
             map = map.withValues(values)
         }
     }

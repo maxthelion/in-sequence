@@ -79,6 +79,68 @@ final class StepOrderPersistenceTests: XCTestCase {
         XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 5), 5)
     }
 
+    func test_sessionStepOrderMapValueEditUpdatesLiveSnapshotsForAssignedPhrases() throws {
+        let secondPhraseID = UUID(uuidString: "99999999-8888-7777-6666-555555555555")!
+        var project = Project.empty
+        project.stepOrderMaps = [
+            StepOrderMap(id: mapID, name: "Editable", values: StepOrderMap.identityValues)
+        ]
+        project.phrases[0].lengthBars = 1
+        project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+        var secondPhrase = project.phrases[0]
+        secondPhrase.id = secondPhraseID
+        secondPhrase.name = "Phrase B"
+        project.phrases.append(secondPhrase)
+
+        let box = DocumentBox(project: project)
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        defer {
+            SequencerDocumentSessionRegistry.unregister(session)
+        }
+        session.activate()
+
+        assertSnapshotStepOrderMap(
+            engine.currentPlaybackSnapshotForTesting,
+            phraseID: project.phrases[0].id,
+            expected: StepOrderMap.identityValues
+        )
+        assertSnapshotStepOrderMap(
+            engine.currentPlaybackSnapshotForTesting,
+            phraseID: secondPhraseID,
+            expected: StepOrderMap.identityValues
+        )
+
+        let snapshotApplyCount = engine.applyPlaybackSnapshotCallCount
+        XCTAssertTrue(session.setStepOrderMapValues(id: mapID, values: remapValues))
+
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotApplyCount + 1)
+        assertSnapshotStepOrderMap(
+            engine.currentPlaybackSnapshotForTesting,
+            phraseID: project.phrases[0].id,
+            expected: remapValues
+        )
+        assertSnapshotStepOrderMap(
+            engine.currentPlaybackSnapshotForTesting,
+            phraseID: secondPhraseID,
+            expected: remapValues
+        )
+        assertSnapshotStepOrderMap(
+            session.snapshotPublisher.snapshot,
+            phraseID: project.phrases[0].id,
+            expected: remapValues
+        )
+        assertSnapshotStepOrderMap(
+            session.snapshotPublisher.snapshot,
+            phraseID: secondPhraseID,
+            expected: remapValues
+        )
+    }
+
     func test_compilerRejectsDecodedStepOrderMapsWithOutOfRangeValues() throws {
         var project = Project.empty
         project.phrases[0].lengthBars = 1
@@ -398,6 +460,20 @@ final class StepOrderPersistenceTests: XCTestCase {
         XCTAssertNil(phraseBuffer.stepOrderMap, file: file, line: line)
         XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 0), 0, file: file, line: line)
         XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 5), 5, file: file, line: line)
+    }
+
+    private func assertSnapshotStepOrderMap(
+        _ snapshot: PlaybackSnapshot,
+        phraseID: UUID,
+        expected: [UInt8],
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard let phraseBuffer = snapshot.phraseBuffer(for: phraseID) else {
+            XCTFail("Expected phrase buffer for \(phraseID)", file: file, line: line)
+            return
+        }
+        XCTAssertEqual(phraseBuffer.stepOrderMap, expected, file: file, line: line)
     }
 
     private func assertStepOrderEditFlushes(
