@@ -3,10 +3,10 @@ import SwiftUI
 struct WorkspaceDetailView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
+    @Binding var tracksMode: TracksWorkspaceMode
     var scenesResetToken: Int = 0
     var visualPhraseControlsOpenIndex: Binding<Int?> = .constant(nil)
     @State private var liveLayerID = "pattern"
-    @State private var tracksMode: TracksWorkspaceMode = .edit
     @Environment(SequencerDocumentSession.self) private var session
 
     var body: some View {
@@ -58,9 +58,10 @@ struct WorkspaceDetailView: View {
 private struct WorkspaceDetailPreview: View {
     @State private var document = SeqAIDocument()
     @State private var section: WorkspaceSection = .track
+    @State private var tracksMode: TracksWorkspaceMode = .edit
 
     var body: some View {
-        WorkspaceDetailView(document: $document, section: $section)
+        WorkspaceDetailView(document: $document, section: $section, tracksMode: $tracksMode)
             .padding()
             .background(StudioTheme.background)
             .environment(EngineController(client: nil, endpoint: nil))

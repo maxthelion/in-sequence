@@ -32,6 +32,7 @@ enum VisualScenarioCommandRunner {
 
     static func runIfConfigured(
         section: Binding<WorkspaceSection>,
+        tracksMode: Binding<TracksWorkspaceMode>,
         visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
         engineController: EngineController
@@ -54,6 +55,7 @@ enum VisualScenarioCommandRunner {
                 apply(
                     command: parse(payload),
                     section: section,
+                    tracksMode: tracksMode,
                     visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex,
                     session: session,
                     engineController: engineController
@@ -63,6 +65,7 @@ enum VisualScenarioCommandRunner {
             writeStatus(
                 to: statusURL,
                 section: section.wrappedValue,
+                tracksMode: tracksMode.wrappedValue,
                 visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex.wrappedValue,
                 session: session,
                 engineController: engineController
@@ -127,6 +130,7 @@ enum VisualScenarioCommandRunner {
     private static func apply(
         command: [String: String],
         section: Binding<WorkspaceSection>,
+        tracksMode: Binding<TracksWorkspaceMode>,
         visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
         engineController: EngineController
@@ -134,6 +138,12 @@ enum VisualScenarioCommandRunner {
         if let workspace = command["workspace"],
            let requestedSection = WorkspaceSection(rawValue: workspace) {
             section.wrappedValue = requestedSection
+        }
+
+        if let requestedTracksMode = command["tracksMode"],
+           let mode = TracksWorkspaceMode(rawValue: requestedTracksMode) {
+            tracksMode.wrappedValue = mode
+            section.wrappedValue = .tracks
         }
 
         if let addTrack = command["addTrack"],
@@ -173,6 +183,7 @@ enum VisualScenarioCommandRunner {
             session: session,
             engineController: engineController
         )
+        applyPhrasePerformOverlayFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
 
@@ -228,6 +239,7 @@ enum VisualScenarioCommandRunner {
     private static func writeStatus(
         to statusURL: URL,
         section: WorkspaceSection,
+        tracksMode: TracksWorkspaceMode,
         visualPhraseControlsOpenIndex: Int?,
         session: SequencerDocumentSession,
         engineController: EngineController
@@ -257,8 +269,15 @@ enum VisualScenarioCommandRunner {
             trackGroups: session.store.trackGroups
         )
         let drumKitMatrixModel = currentDrumKitMatrixModel(session: session)
+        let phrasePerformOverlayBasisName = session.phrasePerformOverlay.basisPhraseID.flatMap { phraseID in
+            phrases.first { $0.id == phraseID }?.name
+        }
+        let canSavePhrasePerformOverlay = session.phrasePerformOverlay.basisPhraseID.map { phraseID in
+            phrases.contains { $0.id == phraseID }
+        } ?? false
         let status = """
         workspace=\(section.rawValue)
+        tracksMode=\(tracksMode.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
         phraseCount=\(phrases.count)
         phraseNames=\(phrases.map(\.name).joined(separator: "|"))
@@ -267,6 +286,11 @@ enum VisualScenarioCommandRunner {
         queuedPhraseName=\(queuedPhraseName ?? "none")
         phraseQueueEnabled=\(engineController.isRunning && !phrases.isEmpty)
         phraseNowEnabled=\(!phrases.isEmpty)
+        phrasePerformOverlayDirty=\(session.phrasePerformOverlay.isDirty)
+        phrasePerformOverlayBasisPhraseName=\(phrasePerformOverlayBasisName ?? "none")
+        stagedCellCount=\(session.phrasePerformOverlay.stagedCellCount)
+        phrasePerformOverlayCanSaveBack=\(canSavePhrasePerformOverlay)
+        phrasePerformOverlayCanRevert=\(session.phrasePerformOverlay.isDirty)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -348,6 +372,41 @@ enum VisualScenarioCommandRunner {
         """
 
         try? status.write(to: statusURL, atomically: true, encoding: .utf8)
+    }
+
+    private static func applyPhrasePerformOverlayFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        tracksMode: Binding<TracksWorkspaceMode>,
+        session: SequencerDocumentSession
+    ) {
+        guard let overlayCommand = command["phrasePerformOverlay"] else { return }
+
+        switch overlayCommand {
+        case "dirtyOneCell", "dirty-one-cell":
+            guard let phrase = phraseForPerformOverlayFixture(session: session),
+                  let trackID = session.store.tracks.first?.id,
+                  let muteLayer = session.store.layers.first(where: { $0.target == .mute })
+            else { return }
+
+            section.wrappedValue = .tracks
+            tracksMode.wrappedValue = .perform
+            session.setSelectedTrackID(trackID)
+            _ = session.stagePhrasePerformCell(
+                .single(.bool(true)),
+                layerID: muteLayer.id,
+                trackIDs: [trackID],
+                basisPhraseID: phrase.id
+            )
+        case "revert", "clear":
+            session.revertPhrasePerformOverlay()
+        default:
+            break
+        }
+    }
+
+    private static func phraseForPerformOverlayFixture(session: SequencerDocumentSession) -> PhraseModel? {
+        session.store.phrases.first { $0.name == "Phrase A" } ?? session.store.phrases.first
     }
 
     private static func currentDrumKitMatrixModel(session: SequencerDocumentSession) -> DrumKitMatrixModel? {
