@@ -21,6 +21,76 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertFalse(controller.isRunning)
     }
 
+    func test_noteRepeatCommandsActivateClipBackedRuntimeStateAndReleaseIdempotently() {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let (project, trackID, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false])
+
+        controller.apply(documentModel: project)
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+
+        controller.engageNoteRepeat(trackID: trackID)
+        let activeSnapshot = controller.noteRepeatRuntimeSnapshot(for: trackID)
+        XCTAssertEqual(activeSnapshot?.trackID, trackID)
+        XCTAssertEqual(activeSnapshot?.engagedAtTickIndex, 0)
+
+        controller.processTick(tickIndex: 0, now: 0)
+        XCTAssertEqual(controller.noteRepeatRuntimeSnapshot(for: trackID), activeSnapshot)
+
+        controller.stop()
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+
+        controller.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+
+        controller.releaseNoteRepeat(trackID: trackID)
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+
+        controller.releaseNoteRepeat(trackID: trackID)
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+    }
+
+    func test_noteRepeatCommandsNoOpForMissingAndGeneratorBackedTracks() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        var (project, trackID, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true])
+        let generator = try XCTUnwrap(
+            GeneratorPoolEntry.defaultPool.first { $0.trackType == project.tracks[0].trackType }
+        )
+        project.patternBanks = [
+            TrackPatternBank(
+                trackID: trackID,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+            )
+        ]
+
+        controller.apply(documentModel: project)
+
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.engageNoteRepeat(trackID: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!)
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertTrue(controller.activeNoteRepeatTrackIDsForTesting.isEmpty)
+    }
+
+    func test_noteRepeatRuntimeStateIsIndependentPerTrack() {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutputFactory: { CountingAudioSink() })
+        let project = Self.twoClipTrackProject()
+        let firstTrackID = project.tracks[0].id
+        let secondTrackID = project.tracks[1].id
+
+        controller.apply(documentModel: project)
+
+        controller.engageNoteRepeat(trackID: firstTrackID)
+        controller.engageNoteRepeat(trackID: secondTrackID)
+
+        XCTAssertEqual(controller.activeNoteRepeatTrackIDsForTesting, [firstTrackID, secondTrackID])
+
+        controller.releaseNoteRepeat(trackID: firstTrackID)
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: firstTrackID))
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: secondTrackID))
+        XCTAssertEqual(controller.activeNoteRepeatTrackIDsForTesting, [secondTrackID])
+    }
+
     func test_setBPM_reaches_executor_within_two_ticks() {
         let controller = EngineController(client: nil, endpoint: nil)
 
@@ -35,6 +105,80 @@ final class EngineControllerTests: XCTestCase {
 
         controller.stop()
         XCTAssertEqual(controller.executor?.currentBPM, 120)
+    }
+
+    private static func twoClipTrackProject() -> Project {
+        let first = StepSequenceTrack(
+            id: UUID(uuidString: "10101010-1010-1010-1010-101010101010")!,
+            name: "First",
+            pitches: [60],
+            stepPattern: [true],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 100,
+            gateLength: 4
+        )
+        let second = StepSequenceTrack(
+            id: UUID(uuidString: "20202020-2020-2020-2020-202020202020")!,
+            name: "Second",
+            pitches: [64],
+            stepPattern: [true],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
+            velocity: 100,
+            gateLength: 4
+        )
+        let firstClip = ClipPoolEntry(
+            id: UUID(uuidString: "30303030-3030-3030-3030-303030303030")!,
+            name: "First Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let secondClip = ClipPoolEntry(
+            id: UUID(uuidString: "40404040-4040-4040-4040-404040404040")!,
+            name: "Second Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 64, velocity: 100, lengthSteps: 4)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let tracks = [first, second]
+        let clips = [firstClip, secondClip]
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(tracks: tracks, layers: layers, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: clips)
+        return Project(
+            version: 1,
+            tracks: tracks,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: clips,
+            layers: layers,
+            routes: [],
+            patternBanks: [
+                TrackPatternBank(
+                    trackID: first.id,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(firstClip.id))]
+                ),
+                TrackPatternBank(
+                    trackID: second.id,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(secondClip.id))]
+                ),
+            ],
+            selectedTrackID: first.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
     }
 
     func test_apply_document_model_updates_note_generator_params() {

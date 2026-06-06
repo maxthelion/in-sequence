@@ -17,12 +17,26 @@ final class EngineController: RouterDispatcher {
         let pitchOffset: Int
     }
 
+    struct NoteRepeatRuntimeSnapshot: Equatable, Sendable {
+        let trackID: UUID
+        let engagedAtTickIndex: UInt64
+    }
+
     private struct PhraseNavigationState: Equatable {
         var currentPhraseID: UUID?
         var queuedPhraseID: UUID?
         var basisPhraseID: UUID?
         var phraseCycleStartTick: UInt64 = 0
         var currentPhraseCompletedCycles: Int = 0
+    }
+
+    private struct ActiveNoteRepeatRuntime: Equatable, Sendable {
+        let trackID: UUID
+        let engagedAtTickIndex: UInt64
+
+        var snapshot: NoteRepeatRuntimeSnapshot {
+            NoteRepeatRuntimeSnapshot(trackID: trackID, engagedAtTickIndex: engagedAtTickIndex)
+        }
     }
 
     private let midiClient: MIDIClient?
@@ -78,6 +92,8 @@ final class EngineController: RouterDispatcher {
     private let routerDispatch = RouterDispatchState()
     @ObservationIgnored
     private var phraseNavigationState = PhraseNavigationState()
+    @ObservationIgnored
+    private var activeNoteRepeatsByTrackID: [UUID: ActiveNoteRepeatRuntime] = [:]
     private(set) var chordContextByLane: [String: Chord] = [:]
 
     private(set) var currentPhraseID: UUID?
@@ -388,6 +404,7 @@ final class EngineController: RouterDispatcher {
 
     func stop() {
         guard isRunning else {
+            clearAllNoteRepeats()
             return
         }
 
@@ -400,6 +417,7 @@ final class EngineController: RouterDispatcher {
         lastNoteTriggerCount = 0
         sampleEngine.stop()
         tickState.resetRuntimeState()
+        clearAllNoteRepeats()
         clearQueuedPhraseOnStop(snapshot: tickState.currentPlaybackSnapshot())
     }
 
@@ -636,6 +654,26 @@ final class EngineController: RouterDispatcher {
         _ = commandQueue.enqueue(.setParam(blockID: blockID, paramKey: paramKey, value: value))
     }
 
+    func engageNoteRepeat(trackID: UUID) {
+        let snapshot = tickState.currentPlaybackSnapshot()
+        guard supportsNoteRepeat(trackID: trackID, in: snapshot) else {
+            return
+        }
+
+        withStateLock {
+            activeNoteRepeatsByTrackID[trackID] = ActiveNoteRepeatRuntime(
+                trackID: trackID,
+                engagedAtTickIndex: transportTickIndex
+            )
+        }
+    }
+
+    func releaseNoteRepeat(trackID: UUID) {
+        withStateLock {
+            activeNoteRepeatsByTrackID.removeValue(forKey: trackID)
+        }
+    }
+
     func apply(documentModel: Project) {
         documentApplyLock.lock()
         defer { documentApplyLock.unlock() }
@@ -659,6 +697,7 @@ final class EngineController: RouterDispatcher {
             snapshot: compiledSnapshot,
             cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
         )
+        reconcileNoteRepeats(with: compiledSnapshot)
         apply(deltas: deltas, documentModel: documentModel)
     }
 
@@ -674,6 +713,7 @@ final class EngineController: RouterDispatcher {
             snapshot: playbackSnapshot,
             cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
         )
+        reconcileNoteRepeats(with: playbackSnapshot)
     }
 
     func apply(trackFillPreview snapshot: TrackFillPreviewPlaybackSnapshot) {
@@ -709,6 +749,14 @@ final class EngineController: RouterDispatcher {
     /// Test hook: exposes whether the internal event queue is empty.
     /// Use to assert that prepared events were cleared after a snapshot swap.
     var eventQueueIsEmpty: Bool { eventQueue.isEmpty }
+
+    func noteRepeatRuntimeSnapshot(for trackID: UUID) -> NoteRepeatRuntimeSnapshot? {
+        withStateLock { activeNoteRepeatsByTrackID[trackID]?.snapshot }
+    }
+
+    var activeNoteRepeatTrackIDsForTesting: Set<UUID> {
+        withStateLock { Set(activeNoteRepeatsByTrackID.keys) }
+    }
 
     @ObservationIgnored
     private(set) var phraseNavigationPublicationCountForTesting = 0
@@ -2559,6 +2607,55 @@ final class EngineController: RouterDispatcher {
         stateLock.lock()
         defer { stateLock.unlock() }
         return body()
+    }
+
+    private func clearAllNoteRepeats() {
+        withStateLock {
+            activeNoteRepeatsByTrackID.removeAll()
+        }
+    }
+
+    private func reconcileNoteRepeats(with snapshot: PlaybackSnapshot) {
+        withStateLock {
+            activeNoteRepeatsByTrackID = activeNoteRepeatsByTrackID.filter { trackID, _ in
+                supportsNoteRepeat(trackID: trackID, in: snapshot)
+            }
+        }
+    }
+
+    private func supportsNoteRepeat(trackID: UUID, in snapshot: PlaybackSnapshot) -> Bool {
+        guard snapshot.tracks.contains(where: { $0.id == trackID }),
+              let position = noteRepeatPlaybackPosition(in: snapshot),
+              let resolved = snapshot.resolvedStep(
+                  phraseID: position.phraseID,
+                  trackID: trackID,
+                  stepInPhrase: position.stepInPhrase
+              ),
+              let program = snapshot.sourceProgram(for: trackID)
+        else {
+            return false
+        }
+
+        switch program.slotProgram(at: resolved.slotIndex) {
+        case let .clip(clipID, _, _):
+            return snapshot.clipEntry(id: clipID) != nil
+        case .generator, .empty:
+            return false
+        }
+    }
+
+    private func noteRepeatPlaybackPosition(in snapshot: PlaybackSnapshot) -> (phraseID: UUID, stepInPhrase: Int)? {
+        phraseNavigationLock.lock()
+        let currentPhraseID = phraseNavigationState.currentPhraseID
+        phraseNavigationLock.unlock()
+
+        let phraseID = validPhraseID(currentPhraseID, in: snapshot) ?? firstValidPhraseID(in: snapshot) ?? snapshot.selectedPhraseID
+        guard let phraseBuffer = snapshot.phraseBuffer(for: phraseID) else {
+            return nil
+        }
+
+        let stepCount = max(1, phraseBuffer.stepCount)
+        return (phraseID, Int(transportTickIndex % UInt64(stepCount)))
     }
 
     private func syncMasterBusPerformanceOverlay(for masterBus: MasterBusState) {
