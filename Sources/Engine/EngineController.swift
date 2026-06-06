@@ -147,6 +147,23 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    private func scheduledAudioTime(for scheduledHostTime: TimeInterval) -> AVAudioTime {
+        AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, scheduledHostTime)))
+    }
+
+    private func publishNoteActivity(uptime: TimeInterval, count: Int) {
+        guard count > 0 else {
+            return
+        }
+
+        publishToMain { [weak self] in
+            guard let self else { return }
+            guard uptime >= self.lastNoteTriggerUptime else { return }
+            self.lastNoteTriggerUptime = uptime
+            self.lastNoteTriggerCount = count
+        }
+    }
+
     private func mutatePhraseNavigationState(
         _ body: (inout PhraseNavigationState) -> Void
     ) -> PhraseNavigationState? {
@@ -1421,9 +1438,6 @@ final class EngineController: RouterDispatcher {
                 return nested
             }
         }
-        let newNoteTrigger: (uptime: TimeInterval, count: Int)? =
-            triggeredNoteCount > 0 ? (now, triggeredNoteCount) : nil
-
         // Publish UI-observed state on the main thread so @Observable's
         // synchronous notification callbacks don't re-enter main while the
         // main thread is blocked in clock.stop()'s queue.sync.
@@ -1434,11 +1448,8 @@ final class EngineController: RouterDispatcher {
             }
             self.transportTickIndex = completedStep
             self.transportPosition = newTransportPosition
-            if let trigger = newNoteTrigger {
-                self.lastNoteTriggerUptime = trigger.uptime
-                self.lastNoteTriggerCount = trigger.count
-            }
         }
+        publishNoteActivity(uptime: now, count: triggeredNoteCount)
 
         for runtime in audioRuntimes.values
             where !runtime.mix.isMuted
@@ -1543,6 +1554,9 @@ final class EngineController: RouterDispatcher {
                     continue
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
+                // TrackPlaybackSink is immediate-only today. The queued host time is
+                // retained for ownership/cancellation evidence; sink-level AU timing
+                // needs a future contract extension before it can be claimed.
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .routedAU(trackID, destination, notes, bpm, stepsPerBar):
@@ -1550,6 +1564,7 @@ final class EngineController: RouterDispatcher {
                     continue
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
+                // Routed AU output shares the immediate TrackPlaybackSink contract.
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .chordContextBroadcast(lane, chord):
@@ -1563,7 +1578,12 @@ final class EngineController: RouterDispatcher {
             case let .sampleTrigger(trackID, sampleID, settings, _):
                 guard let sample = sampleLibrary.sample(id: sampleID) else { continue }
                 guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
-                _ = sampleEngine.play(sampleURL: url, settings: settings, trackID: trackID, at: nil)
+                _ = sampleEngine.play(
+                    sampleURL: url,
+                    settings: settings,
+                    trackID: trackID,
+                    at: scheduledAudioTime(for: event.scheduledHostTime)
+                )
 
             case let .sliceTrigger(trackID, sampleURL, startFrame, endFrame, settings, reverse, stepParameters, _):
                 _ = sampleEngine.playSlice(
@@ -1572,7 +1592,7 @@ final class EngineController: RouterDispatcher {
                     endFrame: AVAudioFramePosition(endFrame),
                     settings: settings,
                     trackID: trackID,
-                    at: nil,
+                    at: scheduledAudioTime(for: event.scheduledHostTime),
                     reverse: reverse,
                     stepParameters: stepParameters
                 )
@@ -2750,6 +2770,8 @@ final class EngineController: RouterDispatcher {
         }
 
         let secondsPerStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
+        var noteActivityCount = 0
+        var latestNoteActivityHostTime = anchorHostTime
         for activeRepeat in activeRepeats {
             guard supportsNoteRepeat(trackID: activeRepeat.trackID, in: snapshot),
                   let capturedStep = activeRepeat.capturedStep,
@@ -2784,10 +2806,13 @@ final class EngineController: RouterDispatcher {
                         noteCount: capturedStep.notes.count
                     )
                 )
+                noteActivityCount += capturedStep.notes.count
+                latestNoteActivityHostTime = max(latestNoteActivityHostTime, scheduledHostTime)
             }
 
             recordScheduledNoteRepeatOutputs(scheduledOutputs, for: activeRepeat.trackID)
         }
+        publishNoteActivity(uptime: latestNoteActivityHostTime, count: noteActivityCount)
     }
 
     private func dispatchNoteRepeatOutput(

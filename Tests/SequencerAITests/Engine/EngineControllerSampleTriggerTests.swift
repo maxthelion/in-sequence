@@ -4,8 +4,8 @@ import AVFoundation
 
 final class EngineControllerSampleTriggerTests: XCTestCase {
     private final class SpySamplePlaybackSink: SamplePlaybackSink {
-        var playCalls: [(URL, SamplerSettings, UUID)] = []
-        var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, Bool, SliceTriggerStepParameters?)] = []
+        var playCalls: [(URL, SamplerSettings, UUID, AVAudioTime?)] = []
+        var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, AVAudioTime?, Bool, SliceTriggerStepParameters?)] = []
         var prepareTrackCalls: [UUID] = []
         var setTrackMixCalls: [(UUID, Double, Double)] = []
         var removeTrackCalls: [UUID] = []
@@ -15,7 +15,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             prepareTrackCalls.append(trackID)
         }
         func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? {
-            playCalls.append((sampleURL, settings, trackID))
+            playCalls.append((sampleURL, settings, trackID, when))
             return nil
         }
         func playSlice(
@@ -28,7 +28,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             reverse: Bool,
             stepParameters: SliceTriggerStepParameters?
         ) -> VoiceHandle? {
-            playSliceCalls.append((sampleURL, startFrame, endFrame, settings, trackID, reverse, stepParameters))
+            playSliceCalls.append((sampleURL, startFrame, endFrame, settings, trackID, when, reverse, stepParameters))
             return nil
         }
         func setTrackMix(trackID: UUID, level: Double, pan: Double) {
@@ -141,6 +141,88 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         }
 
         XCTAssertEqual(spy.playCalls.count, 4, "manual processTick driving should dispatch one sample trigger per fired step")
+    }
+
+    func test_noteRepeatSampleDestinationPassesDistinctScheduledTimesForSixtyFourthRepeats() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+        let trackID = UUID(uuidString: "51515151-6565-6565-6565-515151515151")!
+        var track = StepSequenceTrack(
+            id: trackID,
+            name: "Repeat Sample",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [false],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        track.noteRepeatInterval = .oneSixtyFourth
+        let clip = ClipPoolEntry(
+            id: UUID(uuidString: "62626262-6565-6565-6565-626262626262")!,
+            name: "Sample Repeat Source",
+            trackType: track.trackType,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(
+                            chance: 1,
+                            notes: [ClipStepNote(pitch: DrumKitNoteMap.baselineNote, velocity: 100, lengthSteps: 1)]
+                        ),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(
+            tracks: [track],
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip]
+        )
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [
+                TrackPatternBank(
+                    trackID: track.id,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+                )
+            ],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        spy.playCalls.removeAll()
+        controller.engageNoteRepeat(trackID: track.id)
+        controller.processTick(tickIndex: 1, now: 1)
+
+        let repeatTimes = spy.playCalls.map(\.3)
+        XCTAssertEqual(repeatTimes.count, 4)
+        XCTAssertTrue(repeatTimes.allSatisfy { $0 != nil })
+        let scheduledSeconds = repeatTimes.compactMap { when in
+            when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+        }
+        XCTAssertEqual(scheduledSeconds.count, 4)
+        zip(scheduledSeconds, [1.0, 1.03125, 1.0625, 1.09375]).forEach { actual, expected in
+            XCTAssertEqual(actual, expected, accuracy: 0.000001)
+        }
+        XCTAssertEqual(Set(scheduledSeconds).count, 4, "1/64 repeats must not collapse into one dispatch time")
     }
 
     func test_trackMix_appliedToSampleEngineOnDocumentApply() {
@@ -423,7 +505,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(call?.2, 300)
         XCTAssertEqual(call?.3.gain ?? 0, 1, accuracy: 1e-9)
         XCTAssertEqual(call?.4, track.id)
-        XCTAssertEqual(call?.5, true)
+        XCTAssertEqual(call?.6, true)
     }
 
     func test_slicerDestination_appliesPerStepSamplePlayerParameters() {
@@ -499,12 +581,12 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(call?.3.gain ?? 0, 5, accuracy: 1e-9)
         XCTAssertEqual(call?.3.transpose, 3)
         XCTAssertEqual(call?.3.voiceMode, .polyphonic)
-        XCTAssertEqual(call?.5, true)
-        XCTAssertEqual(call?.6?.pan, -0.25)
-        XCTAssertEqual(call?.6?.filter, 0.35)
-        XCTAssertEqual(call?.6?.attackMs, 12)
-        XCTAssertEqual(call?.6?.releaseMs, 80)
-        XCTAssertEqual(call?.6?.choke, false)
+        XCTAssertEqual(call?.6, true)
+        XCTAssertEqual(call?.7?.pan, -0.25)
+        XCTAssertEqual(call?.7?.filter, 0.35)
+        XCTAssertEqual(call?.7?.attackMs, 12)
+        XCTAssertEqual(call?.7?.releaseMs, 80)
+        XCTAssertEqual(call?.7?.choke, false)
     }
 
     func test_slicerDestination_appliesMicroTimingAtSampleRate() {

@@ -443,6 +443,30 @@ final class EngineControllerTests: XCTestCase {
         }
     }
 
+    func test_noteRepeatOnlyPlaybackPublishesTransportNoteActivity() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        project.tracks[0].noteRepeatInterval = .oneSixtyFourth
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        sink.resetPlayedEvents()
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.processTick(tickIndex: 1, now: 1)
+
+        XCTAssertEqual(sink.playedEvents.count, 4)
+        XCTAssertEqual(controller.lastNoteTriggerCount, 4)
+        XCTAssertEqual(controller.lastNoteTriggerUptime, 1.09375, accuracy: 0.000001)
+    }
+
     func test_noteRepeatRetriggersDoNotAdvanceMainStepCounterAndUnrelatedTrackKeepsTiming() {
         var createdSinks: [CountingAudioSink] = []
         let controller = EngineController(
@@ -574,6 +598,57 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: trackID).count, 4)
 
         controller.stop()
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertEqual(controller.pendingRepeatOwnedEventCountForTesting(trackID: trackID), 0)
+    }
+
+    func test_noteRepeatShutdownClearsProjectCloseRuntimeState() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        project.tracks[0].noteRepeatInterval = .oneSixtyFourth
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.processTick(tickIndex: 1, now: 1)
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+
+        controller.shutdown()
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertEqual(controller.pendingRepeatOwnedEventCountForTesting(trackID: trackID), 0)
+    }
+
+    func test_noteRepeatPlaybackPipelineRebuildClearsRuntimeStateEvenWhenClipSourceStillSupportsRepeat() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        project.tracks[0].noteRepeatInterval = .oneSixtyFourth
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.processTick(tickIndex: 1, now: 1)
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+
+        project.tracks[0].destination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
+        controller.apply(documentModel: project)
 
         XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
         XCTAssertEqual(controller.pendingRepeatOwnedEventCountForTesting(trackID: trackID), 0)
