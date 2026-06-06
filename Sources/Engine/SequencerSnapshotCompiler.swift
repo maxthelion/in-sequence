@@ -435,7 +435,7 @@ enum SequencerSnapshotCompiler {
         else {
             return nil
         }
-        return map.values
+        return map.validatedCompiledValues
     }
 
     private static func scalarDouble(from value: PhraseCellValue, layer: PhraseLayerDefinition) -> Double {

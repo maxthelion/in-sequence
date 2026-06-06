@@ -43,6 +43,15 @@ struct StepOrderMap: Codable, Equatable, Hashable, Identifiable, Sendable {
         StepOrderMap(id: id, name: name, values: values)
     }
 
+    var validatedCompiledValues: [UInt8]? {
+        guard values.count == Self.stepCount,
+              values.allSatisfy({ $0 < UInt8(Self.stepCount) })
+        else {
+            return nil
+        }
+        return values
+    }
+
     private static func fixedLengthValues(_ values: [UInt8]) -> [UInt8] {
         var fixed = Array(values.prefix(stepCount))
         if fixed.count < stepCount {

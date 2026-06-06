@@ -79,6 +79,26 @@ final class StepOrderPersistenceTests: XCTestCase {
         XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 5), 5)
     }
 
+    func test_compilerRejectsStepOrderMapsWithOutOfRangeValues() throws {
+        var project = Project.empty
+        project.phrases[0].lengthBars = 1
+        var invalidValues = remapValues
+        invalidValues[5] = 16
+        project.stepOrderMaps = [
+            StepOrderMap(id: mapID, name: "Invalid", values: invalidValues)
+        ]
+        project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+
+        let data = try JSONEncoder().encode(project)
+        let decoded = try JSONDecoder().decode(Project.self, from: data)
+        let snapshot = SequencerSnapshotCompiler.compile(project: decoded)
+        let phraseBuffer = try XCTUnwrap(snapshot.phraseBuffer(for: decoded.selectedPhraseID))
+
+        XCTAssertEqual(decoded.stepOrderMaps[0].values[5], 16)
+        XCTAssertNil(phraseBuffer.stepOrderMap)
+        XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 5), 5)
+    }
+
     func test_stepOrderMapValuesAreFixedToSixteenEntriesOnInitAndDecode() throws {
         let shortMap = StepOrderMap(id: mapID, name: "Short", values: [3, 2, 1])
         XCTAssertEqual(shortMap.values.count, 16)
