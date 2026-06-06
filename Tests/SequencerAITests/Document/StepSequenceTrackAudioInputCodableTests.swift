@@ -2,6 +2,41 @@ import XCTest
 @testable import SequencerAI
 
 final class StepSequenceTrackAudioInputCodableTests: XCTestCase {
+    func test_noteRepeatIntervalsExposeOnlyAcceptedV1Values() {
+        XCTAssertEqual(NoteRepeatInterval.allCases.map(\.rawValue), ["1/16", "1/32", "1/64"])
+    }
+
+    func test_noteRepeatInterval_roundTripsAllAcceptedValues() throws {
+        for interval in NoteRepeatInterval.allCases {
+            var track = StepSequenceTrack.default
+            track.noteRepeatInterval = interval
+
+            let decoded = try JSONDecoder().decode(StepSequenceTrack.self, from: JSONEncoder().encode(track))
+
+            XCTAssertEqual(decoded.noteRepeatInterval, interval)
+        }
+    }
+
+    func test_legacyTrackWithoutNoteRepeatInterval_decodesWithDefault() throws {
+        let legacyData = try encodedTrackData(removingKeys: ["noteRepeatInterval"])
+
+        let decoded = try JSONDecoder().decode(StepSequenceTrack.self, from: legacyData)
+
+        XCTAssertEqual(decoded.noteRepeatInterval, .oneSixteenth)
+    }
+
+    func test_invalidNoteRepeatInterval_decodesWithDefault() throws {
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(StepSequenceTrack.default)) as? [String: Any]
+        )
+        object["noteRepeatInterval"] = "1/128"
+        let data = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(StepSequenceTrack.self, from: data)
+
+        XCTAssertEqual(decoded.noteRepeatInterval, .oneSixteenth)
+    }
+
     func test_legacyTrackWithoutAudioInputFields_decodesWithDefaults() throws {
         let legacyData = try encodedTrackData(removingKeys: ["recordBarLength", "inputChannel"])
 

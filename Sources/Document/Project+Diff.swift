@@ -112,7 +112,8 @@ private extension StepSequenceTrack {
         velocity != previous.velocity ||
         gateLength != previous.gateLength ||
         recordBarLength != previous.recordBarLength ||
-        inputChannel != previous.inputChannel
+        inputChannel != previous.inputChannel ||
+        noteRepeatInterval != previous.noteRepeatInterval
     }
 }
 

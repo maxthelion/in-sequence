@@ -1,5 +1,24 @@
 import Foundation
 
+enum NoteRepeatInterval: String, Codable, CaseIterable, Sendable {
+    case oneSixteenth = "1/16"
+    case oneThirtySecond = "1/32"
+    case oneSixtyFourth = "1/64"
+
+    static let defaultValue: NoteRepeatInterval = .oneSixteenth
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try? container.decode(String.self)
+        self = rawValue.flatMap(Self.init(rawValue:)) ?? Self.defaultValue
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
 struct StepSequenceTrack: Codable, Equatable, Sendable {
     var id: UUID
     var name: String
@@ -20,6 +39,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var filter: SamplerFilterSettings
     var recordBarLength: Int
     var inputChannel: AudioInputChannel
+    var noteRepeatInterval: NoteRepeatInterval
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -38,6 +58,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case filter
         case recordBarLength
         case inputChannel
+        case noteRepeatInterval
     }
 
     static let allowedRecordBarLengths: Set<Int> = [1, 2, 4, 8]
@@ -60,7 +81,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         macros: [],
         filter: .init(),
         recordBarLength: Self.defaultRecordBarLength,
-        inputChannel: Self.defaultInputChannel
+        inputChannel: Self.defaultInputChannel,
+        noteRepeatInterval: NoteRepeatInterval.defaultValue
     )
 
     init(
@@ -79,7 +101,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         macros: [TrackMacroBinding] = [],
         filter: SamplerFilterSettings = .init(),
         recordBarLength: Int = Self.defaultRecordBarLength,
-        inputChannel: AudioInputChannel = Self.defaultInputChannel
+        inputChannel: AudioInputChannel = Self.defaultInputChannel,
+        noteRepeatInterval: NoteRepeatInterval = NoteRepeatInterval.defaultValue
     ) {
         self.id = id
         self.name = name
@@ -97,6 +120,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.filter = filter
         self.recordBarLength = Self.normalizedRecordBarLength(recordBarLength)
         self.inputChannel = inputChannel
+        self.noteRepeatInterval = noteRepeatInterval
     }
 
     var activeStepCount: Int {
@@ -165,6 +189,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         let decodedRecordBarLength = try container.decodeIfPresent(Int.self, forKey: .recordBarLength)
         recordBarLength = Self.normalizedRecordBarLength(decodedRecordBarLength ?? Self.defaultRecordBarLength)
         inputChannel = (try? container.decodeIfPresent(AudioInputChannel.self, forKey: .inputChannel)) ?? Self.defaultInputChannel
+        noteRepeatInterval = (try? container.decodeIfPresent(NoteRepeatInterval.self, forKey: .noteRepeatInterval)) ?? .defaultValue
     }
 
     func encode(to encoder: Encoder) throws {
@@ -187,6 +212,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             try container.encode(recordBarLength, forKey: .recordBarLength)
             try container.encode(inputChannel, forKey: .inputChannel)
         }
+        try container.encode(noteRepeatInterval, forKey: .noteRepeatInterval)
     }
 
     var defaultDestination: Destination {

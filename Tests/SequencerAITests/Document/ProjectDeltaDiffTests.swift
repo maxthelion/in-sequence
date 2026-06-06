@@ -57,6 +57,18 @@ final class ProjectDeltaDiffTests: XCTestCase {
         )
     }
 
+    func test_noteRepeatIntervalChange_producesTrackParameterChanged() {
+        let before = Project.empty
+        var after = before
+        let trackID = after.selectedTrack.id
+        after.tracks[after.selectedTrackIndex].noteRepeatInterval = .oneThirtySecond
+
+        XCTAssertEqual(
+            after.deltas(from: before),
+            [.trackParameterChanged(trackID: trackID)]
+        )
+    }
+
     func test_track_insertion_produces_tracksInsertedOrRemoved() {
         let before = Project.empty
         var after = before

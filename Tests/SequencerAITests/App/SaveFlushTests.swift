@@ -86,6 +86,69 @@ final class SaveFlushTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_noteRepeatIntervalEdit_flushesAsNormalDocumentEdit() throws {
+        let (baseProject, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        let doc = SeqAIDocument(project: baseProject)
+        let box = DocumentBox(document: doc)
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: EngineController(client: nil, endpoint: nil),
+            debounceInterval: .seconds(100)
+        )
+
+        XCTAssertTrue(session.setTrackNoteRepeatInterval(.oneSixtyFourth, trackID: trackID))
+
+        XCTAssertEqual(
+            session.store.tracks.first(where: { $0.id == trackID })?.noteRepeatInterval,
+            .oneSixtyFourth
+        )
+        XCTAssertEqual(
+            box.document.project.tracks.first(where: { $0.id == trackID })?.noteRepeatInterval,
+            .oneSixteenth,
+            "document.project should be stale before the normal flush"
+        )
+
+        session.flushToDocumentSync()
+
+        XCTAssertEqual(
+            box.document.project.tracks.first(where: { $0.id == trackID })?.noteRepeatInterval,
+            .oneSixtyFourth
+        )
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_noteRepeatEngageRelease_doNotFlushOrPersistRuntimeState() throws {
+        var (baseProject, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        baseProject.tracks[0].noteRepeatInterval = .oneThirtySecond
+        let doc = SeqAIDocument(project: baseProject)
+        let box = DocumentBox(document: doc)
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        session.activate()
+        let baseline = box.document.project
+
+        engine.engageNoteRepeat(trackID: trackID)
+        let active = try XCTUnwrap(engine.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertEqual(active.interval, .oneThirtySecond)
+
+        engine.releaseNoteRepeat(trackID: trackID)
+        session.flushToDocumentSync()
+
+        XCTAssertEqual(box.document.project, baseline)
+        XCTAssertNil(engine.noteRepeatRuntimeSnapshot(for: trackID))
+
+        let encoded = String(decoding: try JSONEncoder().encode(box.document.project), as: UTF8.self)
+        XCTAssertFalse(encoded.contains("activeNoteRepeat"))
+        XCTAssertFalse(encoded.contains("engagedAtTickIndex"))
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     // MARK: - snapshot(contentType:) cancels pending debounce
 
     func test_snapshotPreHook_cancelsPendingDebounceTask() throws {

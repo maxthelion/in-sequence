@@ -162,6 +162,13 @@ extension SequencerDocumentSession {
         return true
     }
 
+    @discardableResult
+    func setTrackNoteRepeatInterval(_ interval: NoteRepeatInterval, trackID: UUID) -> Bool {
+        mutateTrack(id: trackID) { track in
+            track.noteRepeatInterval = interval
+        }
+    }
+
     // MARK: - Generator mutations
 
     /// Mutate a generator pool entry by ID, then dispatch impact.

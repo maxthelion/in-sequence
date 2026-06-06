@@ -20,6 +20,7 @@ final class EngineController: RouterDispatcher {
     struct NoteRepeatRuntimeSnapshot: Equatable, Sendable {
         let trackID: UUID
         let engagedAtTickIndex: UInt64
+        let interval: NoteRepeatInterval
     }
 
     private struct PhraseNavigationState: Equatable {
@@ -33,9 +34,14 @@ final class EngineController: RouterDispatcher {
     private struct ActiveNoteRepeatRuntime: Equatable, Sendable {
         let trackID: UUID
         let engagedAtTickIndex: UInt64
+        let interval: NoteRepeatInterval
 
         var snapshot: NoteRepeatRuntimeSnapshot {
-            NoteRepeatRuntimeSnapshot(trackID: trackID, engagedAtTickIndex: engagedAtTickIndex)
+            NoteRepeatRuntimeSnapshot(
+                trackID: trackID,
+                engagedAtTickIndex: engagedAtTickIndex,
+                interval: interval
+            )
         }
     }
 
@@ -656,21 +662,24 @@ final class EngineController: RouterDispatcher {
 
     func engageNoteRepeat(trackID: UUID) {
         let snapshot = tickState.currentPlaybackSnapshot()
-        guard supportsNoteRepeat(trackID: trackID, in: snapshot) else {
+        guard supportsNoteRepeat(trackID: trackID, in: snapshot),
+              let track = snapshot.tracks.first(where: { $0.id == trackID })
+        else {
             return
         }
 
         withStateLock {
             activeNoteRepeatsByTrackID[trackID] = ActiveNoteRepeatRuntime(
                 trackID: trackID,
-                engagedAtTickIndex: transportTickIndex
+                engagedAtTickIndex: transportTickIndex,
+                interval: track.noteRepeatInterval
             )
         }
     }
 
     func releaseNoteRepeat(trackID: UUID) {
         withStateLock {
-            activeNoteRepeatsByTrackID.removeValue(forKey: trackID)
+            activeNoteRepeatsByTrackID[trackID] = nil
         }
     }
 

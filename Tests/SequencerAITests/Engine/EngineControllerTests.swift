@@ -91,6 +91,26 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(controller.activeNoteRepeatTrackIDsForTesting, [secondTrackID])
     }
 
+    func test_noteRepeatEngageSnapshotsStoredIntervalUntilNextEngagement() {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        var (project, trackID, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true])
+        project.tracks[0].noteRepeatInterval = .oneThirtySecond
+        controller.apply(documentModel: project)
+
+        controller.engageNoteRepeat(trackID: trackID)
+        XCTAssertEqual(controller.noteRepeatRuntimeSnapshot(for: trackID)?.interval, .oneThirtySecond)
+
+        project.tracks[0].noteRepeatInterval = .oneSixtyFourth
+        controller.apply(documentModel: project)
+
+        XCTAssertEqual(controller.noteRepeatRuntimeSnapshot(for: trackID)?.interval, .oneThirtySecond)
+
+        controller.releaseNoteRepeat(trackID: trackID)
+        controller.engageNoteRepeat(trackID: trackID)
+
+        XCTAssertEqual(controller.noteRepeatRuntimeSnapshot(for: trackID)?.interval, .oneSixtyFourth)
+    }
+
     func test_noteRepeatReconciliationClearsUnsupportedTrackAndKeepsUnrelatedActiveTrack() throws {
         let controller = EngineController(client: nil, endpoint: nil, audioOutputFactory: { CountingAudioSink() })
         var project = Self.twoClipTrackProject()
