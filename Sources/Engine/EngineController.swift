@@ -29,6 +29,12 @@ final class EngineController: RouterDispatcher {
         let notes: [NoteEvent]
     }
 
+    struct NoteRepeatScheduledOutput: Equatable, Sendable {
+        let stepIndex: UInt64
+        let scheduledHostTime: TimeInterval
+        let noteCount: Int
+    }
+
     private struct PhraseNavigationState: Equatable {
         var currentPhraseID: UUID?
         var queuedPhraseID: UUID?
@@ -42,6 +48,7 @@ final class EngineController: RouterDispatcher {
         let engagedAtTickIndex: UInt64
         let interval: NoteRepeatInterval
         let capturedStep: NoteRepeatCapturedStep?
+        var scheduledOutputs: [NoteRepeatScheduledOutput] = []
 
         var snapshot: NoteRepeatRuntimeSnapshot {
             NoteRepeatRuntimeSnapshot(
@@ -422,13 +429,15 @@ final class EngineController: RouterDispatcher {
     }
 
     func stop() {
+        let now = ProcessInfo.processInfo.systemUptime
         guard isRunning else {
             clearNoteRepeatCaptureCaches()
-            clearAllNoteRepeats()
+            clearAllNoteRepeats(now: now)
             return
         }
 
-        flushAllPendingMIDINoteOffs(now: ProcessInfo.processInfo.systemUptime)
+        clearAllNoteRepeats(now: now)
+        flushAllPendingMIDINoteOffs(now: now)
         clock.stop()
         let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
         hosts.forEach { $0.stop() }
@@ -438,7 +447,7 @@ final class EngineController: RouterDispatcher {
         sampleEngine.stop()
         tickState.resetRuntimeState()
         clearNoteRepeatCaptureCaches()
-        clearAllNoteRepeats()
+        clearAllNoteRepeats(now: now)
         clearQueuedPhraseOnStop(snapshot: tickState.currentPlaybackSnapshot())
     }
 
@@ -618,15 +627,20 @@ final class EngineController: RouterDispatcher {
     func shutdown(completion: @escaping () -> Void) {
         shutdownObserver?()
         log("shutdown start")
+        let now = ProcessInfo.processInfo.systemUptime
         let hosts = withStateLock { Self.uniqueHosts(Array(trackRuntime.audioOutputsByTrackID.values)) }
         if isRunning {
-            flushAllPendingMIDINoteOffs(now: ProcessInfo.processInfo.systemUptime)
+            clearAllNoteRepeats(now: now)
+            flushAllPendingMIDINoteOffs(now: now)
             clock.stop()
             isRunning = false
             lastNoteTriggerUptime = 0
             lastNoteTriggerCount = 0
         } else if tickState.hasPreparedTick() {
+            clearAllNoteRepeats(now: now)
             clock.stop()
+        } else {
+            clearAllNoteRepeats(now: now)
         }
 
         sampleEngine.stop()
@@ -683,6 +697,7 @@ final class EngineController: RouterDispatcher {
             return
         }
 
+        cleanupNoteRepeats(for: [trackID], now: ProcessInfo.processInfo.systemUptime, clearActiveState: true)
         withStateLock {
             activeNoteRepeatsByTrackID[trackID] = ActiveNoteRepeatRuntime(
                 trackID: trackID,
@@ -691,12 +706,12 @@ final class EngineController: RouterDispatcher {
                 capturedStep: currentNoteRepeatCapturesByTrackID[trackID]
             )
         }
+        invalidatePreparedNoteRepeatScheduling()
     }
 
     func releaseNoteRepeat(trackID: UUID) {
-        withStateLock {
-            activeNoteRepeatsByTrackID[trackID] = nil
-        }
+        cleanupNoteRepeats(for: [trackID], now: ProcessInfo.processInfo.systemUptime, clearActiveState: true)
+        invalidatePreparedNoteRepeatScheduling()
     }
 
     func apply(documentModel: Project) {
@@ -780,6 +795,14 @@ final class EngineController: RouterDispatcher {
 
     func noteRepeatRuntimeSnapshot(for trackID: UUID) -> NoteRepeatRuntimeSnapshot? {
         withStateLock { activeNoteRepeatsByTrackID[trackID]?.snapshot }
+    }
+
+    func noteRepeatScheduledOutputsForTesting(for trackID: UUID) -> [NoteRepeatScheduledOutput] {
+        withStateLock { activeNoteRepeatsByTrackID[trackID]?.scheduledOutputs ?? [] }
+    }
+
+    func pendingRepeatOwnedEventCountForTesting(trackID: UUID) -> Int {
+        eventQueue.repeatOwnedEventCount(for: trackID)
     }
 
     var activeNoteRepeatTrackIDsForTesting: Set<UUID> {
@@ -1285,6 +1308,7 @@ final class EngineController: RouterDispatcher {
             prepareTick(upcomingStep: tickIndex, now: now)
         }
         promotePreparedNoteRepeatCapture(for: tickIndex)
+        scheduleActiveNoteRepeatsForCurrentTick(tickIndex: tickIndex, now: now)
         dispatchTick()
         prepareTick(upcomingStep: tickIndex &+ 1, now: now)
         tickState.markPreparedTick(tickIndex &+ 1)
@@ -1297,7 +1321,8 @@ final class EngineController: RouterDispatcher {
             audioOutputs,
             generatorIDs,
             chordContexts,
-            effectiveMutedTrackIDs
+            effectiveMutedTrackIDs,
+            activeNoteRepeatTrackIDs
         ) = withStateLock {
             (
                 self.executor,
@@ -1305,7 +1330,8 @@ final class EngineController: RouterDispatcher {
                 self.trackRuntime.audioOutputsByTrackID,
                 self.trackRuntime.generatorIDsByTrackID,
                 self.chordContextByLane,
-                self.trackRuntime.effectiveMutedTrackIDs
+                self.trackRuntime.effectiveMutedTrackIDs,
+                Set(self.activeNoteRepeatsByTrackID.keys)
             )
         }
         let prepareInputs = tickState.readPrepareInputs()
@@ -1335,6 +1361,7 @@ final class EngineController: RouterDispatcher {
         var nextClipCaptureService = clipCaptureService
         let harmonicSidechainChord = chordContexts["default"]
         var preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
+        var capturableNotesByBlockID: [BlockID: [NoteEvent]] = [:]
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         for track in playbackSnapshot.tracks {
             guard let generatorBlockID = generatorIDs[track.id] else {
@@ -1366,13 +1393,15 @@ final class EngineController: RouterDispatcher {
                 nextGeneratedStates[track.id] = state
                 nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
             }
-            preparedNotesByBlockID[generatorBlockID] = notes.map(Self.noteEvent(from:))
+            let noteEvents = notes.map(Self.noteEvent(from:))
+            capturableNotesByBlockID[generatorBlockID] = noteEvents
+            preparedNotesByBlockID[generatorBlockID] = activeNoteRepeatTrackIDs.contains(track.id) ? [] : noteEvents
         }
         let outputs = executor.tick(now: now, preparedNotesByBlockID: preparedNotesByBlockID)
         recordPreparedNoteRepeatCaptures(
             stepIndex: upcomingStep,
             generatorIDsByTrackID: generatorIDs,
-            preparedNotesByBlockID: preparedNotesByBlockID
+            preparedNotesByBlockID: capturableNotesByBlockID
         )
         let newCurrentBPM = executor.currentBPM
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
@@ -1411,7 +1440,11 @@ final class EngineController: RouterDispatcher {
             }
         }
 
-        for runtime in audioRuntimes.values where !runtime.mix.isMuted && !currentLayerSnapshot.isMuted(runtime.trackID) {
+        for runtime in audioRuntimes.values
+            where !runtime.mix.isMuted
+                && !currentLayerSnapshot.isMuted(runtime.trackID)
+                && !activeNoteRepeatTrackIDs.contains(runtime.trackID)
+        {
             guard case let .notes(events)? = outputs[runtime.generatorBlockID]?["notes"],
                   audioOutputs[runtime.trackID] != nil
             else {
@@ -1437,6 +1470,7 @@ final class EngineController: RouterDispatcher {
         for track in playbackSnapshot.tracks {
             guard !effectiveMutedTrackIDs.contains(track.id),
                   !currentLayerSnapshot.isMuted(track.id),
+                  !activeNoteRepeatTrackIDs.contains(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"],
                   !events.isEmpty
@@ -1480,6 +1514,7 @@ final class EngineController: RouterDispatcher {
         let trackInputs = playbackSnapshot.tracks.compactMap { track -> RouterTickInput? in
             guard !effectiveMutedTrackIDs.contains(track.id),
                   !currentLayerSnapshot.isMuted(track.id),
+                  !activeNoteRepeatTrackIDs.contains(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"]
             else {
@@ -1598,6 +1633,8 @@ final class EngineController: RouterDispatcher {
     }
 
     private func buildPipeline(for documentModel: Project) throws {
+        clearAllNoteRepeats()
+        clearNoteRepeatCaptureCaches()
         var blocks: [BlockID: Block] = [:]
         var wiring: [BlockID: [PortID: (BlockID, PortID)]] = [:]
         var generatorIDs: [UUID: BlockID] = [:]
@@ -1676,7 +1713,8 @@ final class EngineController: RouterDispatcher {
         bpm: Double,
         snapshot: PlaybackSnapshot,
         layerSnapshot: LayerSnapshot,
-        effectiveMutedTrackIDs: Set<UUID>
+        effectiveMutedTrackIDs: Set<UUID>,
+        repeatOwnerTrackID: UUID? = nil
     ) {
         for (destination, notes) in routerDispatch.noteEvents where !notes.isEmpty {
             flushRoutedNotes(
@@ -1685,7 +1723,8 @@ final class EngineController: RouterDispatcher {
                 bpm: bpm,
                 snapshot: snapshot,
                 layerSnapshot: layerSnapshot,
-                effectiveMutedTrackIDs: effectiveMutedTrackIDs
+                effectiveMutedTrackIDs: effectiveMutedTrackIDs,
+                repeatOwnerTrackID: repeatOwnerTrackID
             )
         }
 
@@ -1720,7 +1759,8 @@ final class EngineController: RouterDispatcher {
                     payload: .chordContextBroadcast(
                         lane: broadcastTag ?? lane ?? "default",
                         chord: chord
-                    )
+                    ),
+                    repeatOwnerTrackID: repeatOwnerTrackID
                 )
             )
         }
@@ -1735,7 +1775,8 @@ final class EngineController: RouterDispatcher {
         bpm: Double,
         snapshot: PlaybackSnapshot,
         layerSnapshot: LayerSnapshot,
-        effectiveMutedTrackIDs: Set<UUID>
+        effectiveMutedTrackIDs: Set<UUID>,
+        repeatOwnerTrackID: UUID? = nil
     ) {
         switch destination {
         case let .midi(port, channel, noteOffset):
@@ -1768,7 +1809,8 @@ final class EngineController: RouterDispatcher {
                 track: track,
                 snapshot: snapshot,
                 layerSnapshot: layerSnapshot,
-                effectiveMutedTrackIDs: effectiveMutedTrackIDs
+                effectiveMutedTrackIDs: effectiveMutedTrackIDs,
+                repeatOwnerTrackID: repeatOwnerTrackID
             )
 
         case let .trackInput(trackID, tag):
@@ -1785,7 +1827,8 @@ final class EngineController: RouterDispatcher {
                 track: track,
                 snapshot: snapshot,
                 layerSnapshot: layerSnapshot,
-                effectiveMutedTrackIDs: effectiveMutedTrackIDs
+                effectiveMutedTrackIDs: effectiveMutedTrackIDs,
+                repeatOwnerTrackID: repeatOwnerTrackID
             )
 
         case .chordContext:
@@ -1801,7 +1844,8 @@ final class EngineController: RouterDispatcher {
         track: StepSequenceTrack?,
         snapshot: PlaybackSnapshot,
         layerSnapshot: LayerSnapshot,
-        effectiveMutedTrackIDs: Set<UUID>
+        effectiveMutedTrackIDs: Set<UUID>,
+        repeatOwnerTrackID: UUID? = nil
     ) {
         switch destination {
         case let .midi(port, channel, noteOffset):
@@ -1834,7 +1878,8 @@ final class EngineController: RouterDispatcher {
                         notes: Self.shifted(notes, by: pitchOffset),
                         bpm: bpm,
                         stepsPerBar: stepsPerBar
-                    )
+                    ),
+                    repeatOwnerTrackID: repeatOwnerTrackID
                 )
             )
 
@@ -1856,7 +1901,8 @@ final class EngineController: RouterDispatcher {
                 stepsPerBar: stepsPerBar,
                 bpm: bpm,
                 now: routerDispatch.dispatchNow,
-                eventQueue: eventQueue
+                eventQueue: eventQueue,
+                repeatOwnerTrackID: repeatOwnerTrackID
             )
 
         case .internalSampler, .sample, .inheritGroup, .none:
@@ -2644,10 +2690,9 @@ final class EngineController: RouterDispatcher {
         return body()
     }
 
-    private func clearAllNoteRepeats() {
-        withStateLock {
-            activeNoteRepeatsByTrackID.removeAll()
-        }
+    private func clearAllNoteRepeats(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        let trackIDs = withStateLock { Set(activeNoteRepeatsByTrackID.keys) }
+        cleanupNoteRepeats(for: trackIDs, now: now, clearActiveState: true)
     }
 
     private func clearNoteRepeatCaptureCaches() {
@@ -2660,6 +2705,246 @@ final class EngineController: RouterDispatcher {
     private func invalidatePreparedPlaybackOutput(resetGeneratedStates: Bool) {
         tickState.invalidatePreparedTick(resetGeneratedStates: resetGeneratedStates)
         clearNoteRepeatCaptureCaches()
+    }
+
+    private func invalidatePreparedNoteRepeatScheduling() {
+        tickState.invalidatePreparedTick(resetGeneratedStates: false)
+        eventQueue.clear()
+    }
+
+    private func scheduleActiveNoteRepeatsForCurrentTick(tickIndex: UInt64, now: TimeInterval) {
+        let (executor, effectiveMutedTrackIDs) = withStateLock {
+            (self.executor, self.trackRuntime.effectiveMutedTrackIDs)
+        }
+        guard let executor else {
+            return
+        }
+
+        let snapshot = tickState.currentPlaybackSnapshot()
+        let playbackPhrase = playbackPhraseForPrepare(upcomingStep: tickIndex, snapshot: snapshot)
+        let layerSnapshot = snapshot.layerSnapshot(
+            phraseID: playbackPhrase.phraseID,
+            stepInPhrase: playbackPhrase.stepInPhrase
+        )
+        scheduleActiveNoteRepeats(
+            anchorTickIndex: tickIndex,
+            anchorHostTime: now,
+            bpm: executor.currentBPM,
+            snapshot: snapshot,
+            layerSnapshot: layerSnapshot,
+            effectiveMutedTrackIDs: effectiveMutedTrackIDs
+        )
+    }
+
+    private func scheduleActiveNoteRepeats(
+        anchorTickIndex: UInt64,
+        anchorHostTime: TimeInterval,
+        bpm: Double,
+        snapshot: PlaybackSnapshot,
+        layerSnapshot: LayerSnapshot,
+        effectiveMutedTrackIDs: Set<UUID>
+    ) {
+        let activeRepeats = withStateLock { Array(activeNoteRepeatsByTrackID.values) }
+        guard !activeRepeats.isEmpty else {
+            return
+        }
+
+        let secondsPerStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
+        for activeRepeat in activeRepeats {
+            guard supportsNoteRepeat(trackID: activeRepeat.trackID, in: snapshot),
+                  let capturedStep = activeRepeat.capturedStep,
+                  !capturedStep.notes.isEmpty,
+                  let track = snapshot.tracks.first(where: { $0.id == activeRepeat.trackID }),
+                  !effectiveMutedTrackIDs.contains(activeRepeat.trackID),
+                  !layerSnapshot.isMuted(activeRepeat.trackID)
+            else {
+                continue
+            }
+
+            let triggerCount = activeRepeat.interval.v1TriggerCountPerStep
+            let triggerSpacing = secondsPerStep / Double(max(1, triggerCount))
+            var scheduledOutputs: [NoteRepeatScheduledOutput] = []
+
+            for triggerIndex in 0..<triggerCount {
+                let scheduledHostTime = anchorHostTime + (Double(triggerIndex) * triggerSpacing)
+                dispatchNoteRepeatOutput(
+                    notes: capturedStep.notes,
+                    for: track,
+                    at: scheduledHostTime,
+                    anchorTickIndex: anchorTickIndex,
+                    bpm: bpm,
+                    snapshot: snapshot,
+                    layerSnapshot: layerSnapshot,
+                    effectiveMutedTrackIDs: effectiveMutedTrackIDs
+                )
+                scheduledOutputs.append(
+                    NoteRepeatScheduledOutput(
+                        stepIndex: anchorTickIndex,
+                        scheduledHostTime: scheduledHostTime,
+                        noteCount: capturedStep.notes.count
+                    )
+                )
+            }
+
+            recordScheduledNoteRepeatOutputs(scheduledOutputs, for: activeRepeat.trackID)
+        }
+    }
+
+    private func dispatchNoteRepeatOutput(
+        notes: [NoteEvent],
+        for track: StepSequenceTrack,
+        at scheduledHostTime: TimeInterval,
+        anchorTickIndex: UInt64,
+        bpm: Double,
+        snapshot: PlaybackSnapshot,
+        layerSnapshot: LayerSnapshot,
+        effectiveMutedTrackIDs: Set<UUID>
+    ) {
+        let resolved = snapshot.resolvedDestination(for: track.id)
+        switch resolved.destination {
+        case let .midi(port, channel, noteOffset):
+            guard port != nil,
+                  let midiOut = withStateLock({ trackRuntime.midiOutBlocksByTrackID[track.id] })
+            else {
+                break
+            }
+            midiOut.apply(paramKey: "channel", value: .number(Double(channel)))
+            midiOut.apply(paramKey: "noteOffset", value: .number(Double(noteOffset + resolved.pitchOffset)))
+            _ = midiOut.tick(
+                context: TickContext(
+                    tickIndex: anchorTickIndex,
+                    bpm: bpm,
+                    inputs: ["notes": .notes(notes)],
+                    now: scheduledHostTime,
+                    preparedNotesByBlockID: [:]
+                )
+            )
+
+        case .auInstrument:
+            let audioOutputs = withStateLock { trackRuntime.audioOutputsByTrackID }
+            guard audioOutputs[track.id] != nil else {
+                break
+            }
+            eventQueue.enqueue(
+                ScheduledEvent(
+                    scheduledHostTime: scheduledHostTime,
+                    payload: .trackAU(
+                        trackID: track.id,
+                        destination: resolved.destination,
+                        notes: Self.shifted(notes, by: resolved.pitchOffset),
+                        bpm: bpm,
+                        stepsPerBar: stepsPerBar
+                    ),
+                    repeatOwnerTrackID: track.id
+                )
+            )
+
+        case let .sample(sampleID, settings):
+            for _ in notes {
+                eventQueue.enqueue(
+                    ScheduledEvent(
+                        scheduledHostTime: scheduledHostTime,
+                        payload: .sampleTrigger(
+                            trackID: track.id,
+                            sampleID: sampleID,
+                            settings: settings,
+                            scheduledHostTime: scheduledHostTime
+                        ),
+                        repeatOwnerTrackID: track.id
+                    )
+                )
+            }
+
+        case let .slicer(sliceSetID, settings):
+            EngineSlicerDispatcher.enqueueSliceTriggers(
+                for: notes,
+                trackID: track.id,
+                sliceSetID: sliceSetID,
+                settings: settings,
+                snapshot: snapshot,
+                sampleLibrary: sampleLibrary,
+                sampleLibraryRoot: sampleLibraryRoot,
+                stepsPerBar: stepsPerBar,
+                bpm: bpm,
+                now: scheduledHostTime,
+                eventQueue: eventQueue,
+                repeatOwnerTrackID: track.id
+            )
+
+        case .internalSampler, .inheritGroup, .none:
+            break
+        }
+
+        routerDispatch.beginTick(now: scheduledHostTime)
+        router.tick([RouterTickInput(sourceTrack: track.id, notes: notes, chordContext: nil)])
+        flushRoutedEvents(
+            bpm: bpm,
+            snapshot: snapshot,
+            layerSnapshot: layerSnapshot,
+            effectiveMutedTrackIDs: effectiveMutedTrackIDs,
+            repeatOwnerTrackID: track.id
+        )
+    }
+
+    private func recordScheduledNoteRepeatOutputs(
+        _ outputs: [NoteRepeatScheduledOutput],
+        for trackID: UUID
+    ) {
+        guard !outputs.isEmpty else {
+            return
+        }
+
+        withStateLock {
+            guard var activeRepeat = activeNoteRepeatsByTrackID[trackID] else {
+                return
+            }
+            activeRepeat.scheduledOutputs.append(contentsOf: outputs)
+            if activeRepeat.scheduledOutputs.count > 64 {
+                activeRepeat.scheduledOutputs = Array(activeRepeat.scheduledOutputs.suffix(64))
+            }
+            activeNoteRepeatsByTrackID[trackID] = activeRepeat
+        }
+    }
+
+    private func cleanupNoteRepeats(
+        for trackIDs: Set<UUID>,
+        now: TimeInterval,
+        clearActiveState: Bool
+    ) {
+        guard !trackIDs.isEmpty else {
+            return
+        }
+
+        eventQueue.cancelRepeatOwnedEvents(for: trackIDs)
+        flushRepeatPendingOutput(for: trackIDs, now: now)
+
+        withStateLock {
+            for trackID in trackIDs {
+                if clearActiveState {
+                    activeNoteRepeatsByTrackID.removeValue(forKey: trackID)
+                } else if var activeRepeat = activeNoteRepeatsByTrackID[trackID] {
+                    activeRepeat.scheduledOutputs.removeAll()
+                    activeNoteRepeatsByTrackID[trackID] = activeRepeat
+                }
+            }
+        }
+    }
+
+    private func flushRepeatPendingOutput(for trackIDs: Set<UUID>, now: TimeInterval) {
+        let (midiOutBlocks, routedOutputs) = withStateLock {
+            (
+                trackRuntime.midiOutBlocksByTrackID,
+                routerDispatch.midiOutputs
+            )
+        }
+
+        for trackID in trackIDs {
+            midiOutBlocks[trackID]?.flushPendingNoteOffs(now: now)
+        }
+
+        // Routed MIDI outputs are destination-owned rather than source-track-owned today.
+        // Repeats therefore use a conservative no-leak cleanup contract for routed note-offs.
+        routedOutputs.values.forEach { $0.flushPendingNoteOffs(now: now) }
     }
 
     private func recordPreparedNoteRepeatCaptures(
@@ -2692,10 +2977,17 @@ final class EngineController: RouterDispatcher {
     }
 
     private func reconcileNoteRepeats(with snapshot: PlaybackSnapshot) {
-        withStateLock {
-            activeNoteRepeatsByTrackID = activeNoteRepeatsByTrackID.filter { trackID, _ in
-                supportsNoteRepeat(trackID: trackID, in: snapshot)
-            }
+        let unsupportedTrackIDs = withStateLock {
+            Set(activeNoteRepeatsByTrackID.keys.filter { trackID in
+                !supportsNoteRepeat(trackID: trackID, in: snapshot)
+            })
+        }
+        if !unsupportedTrackIDs.isEmpty {
+            cleanupNoteRepeats(
+                for: unsupportedTrackIDs,
+                now: ProcessInfo.processInfo.systemUptime,
+                clearActiveState: true
+            )
         }
     }
 

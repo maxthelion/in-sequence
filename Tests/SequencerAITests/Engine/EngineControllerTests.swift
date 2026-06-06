@@ -402,6 +402,222 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertNil(try XCTUnwrap(controller.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
     }
 
+    func test_noteRepeatSchedulerMapsIntervalsToV1TriggerCounts() {
+        let cases: [(NoteRepeatInterval, Int)] = [
+            (.oneSixteenth, 1),
+            (.oneThirtySecond, 2),
+            (.oneSixtyFourth, 4),
+        ]
+
+        for (interval, expectedCount) in cases {
+            let sink = CountingAudioSink()
+            let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+            var (project, trackID) = Self.noteRepeatClipProject(
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                        fill: nil
+                    )
+                ]
+            )
+            project.tracks[0].noteRepeatInterval = interval
+
+            controller.apply(documentModel: project)
+            controller.processTick(tickIndex: 0, now: 0)
+            sink.resetPlayedEvents()
+            controller.engageNoteRepeat(trackID: trackID)
+            controller.processTick(tickIndex: 1, now: 1)
+
+            XCTAssertEqual(sink.playedEvents.count, expectedCount, "interval \(interval.rawValue)")
+            XCTAssertEqual(
+                sink.playedEvents.flatMap { $0 }.map(\.pitch),
+                Array(repeating: UInt8(62), count: expectedCount)
+            )
+
+            let scheduledAtCurrentStep = controller.noteRepeatScheduledOutputsForTesting(for: trackID)
+                .filter { $0.stepIndex == 1 }
+            XCTAssertEqual(scheduledAtCurrentStep.count, expectedCount)
+            XCTAssertEqual(scheduledAtCurrentStep.map(\.scheduledHostTime), (0..<expectedCount).map {
+                1 + (Double($0) * 0.125 / Double(expectedCount))
+            })
+        }
+    }
+
+    func test_noteRepeatRetriggersDoNotAdvanceMainStepCounterAndUnrelatedTrackKeepsTiming() {
+        var createdSinks: [CountingAudioSink] = []
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioOutputFactory: {
+                let sink = CountingAudioSink()
+                createdSinks.append(sink)
+                return sink
+            }
+        )
+        let project = Self.noteRepeatTimingProject(firstInterval: .oneSixtyFourth)
+        let repeatTrackID = project.tracks[0].id
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        createdSinks.forEach { $0.resetPlayedEvents() }
+
+        controller.engageNoteRepeat(trackID: repeatTrackID)
+        controller.processTick(tickIndex: 1, now: 1)
+
+        XCTAssertEqual(controller.transportTickIndex, 1)
+        XCTAssertEqual(createdSinks[0].playedEvents.flatMap { $0 }.map(\.pitch), [60, 60, 60, 60])
+        XCTAssertEqual(createdSinks[1].playedEvents.flatMap { $0 }.map(\.pitch), [72])
+    }
+
+    func test_noteRepeatReleaseInsidePreparedStepCancelsPendingRepeatAndResumesNormalOutput() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        project.tracks[0].noteRepeatInterval = .oneSixtyFourth
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.processTick(tickIndex: 1, now: 1)
+        XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: trackID).count, 4)
+
+        controller.releaseNoteRepeat(trackID: trackID)
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertEqual(controller.pendingRepeatOwnedEventCountForTesting(trackID: trackID), 0)
+
+        sink.resetPlayedEvents()
+        controller.processTick(tickIndex: 2, now: 2)
+        XCTAssertEqual(sink.playedEvents.flatMap { $0 }.map(\.pitch), [62])
+    }
+
+    func test_noteRepeatReleaseAtStepBoundaryDoesNotDoubleOrDropUnrelatedOutput() {
+        var createdSinks: [CountingAudioSink] = []
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioOutputFactory: {
+                let sink = CountingAudioSink()
+                createdSinks.append(sink)
+                return sink
+            }
+        )
+        let project = Self.noteRepeatTimingProject(firstInterval: .oneThirtySecond)
+        let repeatTrackID = project.tracks[0].id
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: repeatTrackID)
+        controller.processTick(tickIndex: 1, now: 1)
+
+        controller.releaseNoteRepeat(trackID: repeatTrackID)
+        createdSinks.forEach { $0.resetPlayedEvents() }
+        controller.processTick(tickIndex: 2, now: 2)
+
+        XCTAssertEqual(createdSinks[0].playedEvents.flatMap { $0 }.map(\.pitch), [60])
+        XCTAssertEqual(createdSinks[1].playedEvents.flatMap { $0 }.map(\.pitch), [72])
+    }
+
+    func test_noteRepeatRapidReleaseReengageDoesNotReplayStaleScheduledOutput() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        project.tracks[0].noteRepeatInterval = .oneThirtySecond
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.processTick(tickIndex: 1, now: 1)
+        XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: trackID).map(\.stepIndex), [1, 1])
+
+        controller.releaseNoteRepeat(trackID: trackID)
+        controller.engageNoteRepeat(trackID: trackID)
+        sink.resetPlayedEvents()
+        controller.processTick(tickIndex: 2, now: 2)
+
+        XCTAssertEqual(sink.playedEvents.flatMap { $0 }.map(\.pitch), [62, 62])
+        XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: trackID).map(\.stepIndex), [2, 2])
+    }
+
+    func test_noteRepeatTransportStopClearsActiveStateAndPendingRepeatOutput() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        project.tracks[0].noteRepeatInterval = .oneSixtyFourth
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.processTick(tickIndex: 1, now: 1)
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: trackID).count, 4)
+
+        controller.stop()
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertEqual(controller.pendingRepeatOwnedEventCountForTesting(trackID: trackID), 0)
+    }
+
+    func test_noteRepeatSourceChangeCleansOnlyAffectedTrackRepeatOutput() throws {
+        var createdSinks: [CountingAudioSink] = []
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioOutputFactory: {
+                let sink = CountingAudioSink()
+                createdSinks.append(sink)
+                return sink
+            }
+        )
+        var project = Self.noteRepeatTimingProject(firstInterval: .oneSixtyFourth, secondInterval: .oneThirtySecond)
+        let firstTrackID = project.tracks[0].id
+        let secondTrackID = project.tracks[1].id
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: firstTrackID)
+        controller.engageNoteRepeat(trackID: secondTrackID)
+        controller.processTick(tickIndex: 1, now: 1)
+        XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: firstTrackID).count, 4)
+        XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: secondTrackID).count, 2)
+
+        let firstGenerator = try XCTUnwrap(
+            GeneratorPoolEntry.defaultPool.first { $0.trackType == project.tracks[0].trackType }
+        )
+        project.patternBanks[0] = TrackPatternBank(
+            trackID: firstTrackID,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(firstGenerator.id))]
+        )
+
+        controller.apply(documentModel: project)
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: firstTrackID))
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: secondTrackID))
+        XCTAssertEqual(controller.pendingRepeatOwnedEventCountForTesting(trackID: firstTrackID), 0)
+        XCTAssertEqual(controller.noteRepeatScheduledOutputsForTesting(for: secondTrackID).count, 2)
+    }
+
     func test_setBPM_reaches_executor_within_two_ticks() {
         let controller = EngineController(client: nil, endpoint: nil)
 
@@ -469,6 +685,91 @@ final class EngineControllerTests: XCTestCase {
         let clips = [firstClip, secondClip]
         let layers = PhraseLayerDefinition.defaultSet(for: tracks)
         let phrase = PhraseModel.default(tracks: tracks, layers: layers, generatorPool: GeneratorPoolEntry.defaultPool, clipPool: clips)
+        return Project(
+            version: 1,
+            tracks: tracks,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: clips,
+            layers: layers,
+            routes: [],
+            patternBanks: [
+                TrackPatternBank(
+                    trackID: first.id,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(firstClip.id))]
+                ),
+                TrackPatternBank(
+                    trackID: second.id,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(secondClip.id))]
+                ),
+            ],
+            selectedTrackID: first.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+    }
+
+    private static func noteRepeatTimingProject(
+        firstInterval: NoteRepeatInterval,
+        secondInterval: NoteRepeatInterval = .oneSixteenth
+    ) -> Project {
+        var first = StepSequenceTrack(
+            id: UUID(uuidString: "11111111-5151-5151-5151-515151515151")!,
+            name: "Repeat First",
+            pitches: [60],
+            stepPattern: [true],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 100,
+            gateLength: 4
+        )
+        first.noteRepeatInterval = firstInterval
+        var second = StepSequenceTrack(
+            id: UUID(uuidString: "22222222-5151-5151-5151-515151515151")!,
+            name: "Normal Second",
+            pitches: [72],
+            stepPattern: [true],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.testInstrument.audioComponentID, stateBlob: nil),
+            velocity: 100,
+            gateLength: 4
+        )
+        second.noteRepeatInterval = secondInterval
+
+        let firstClip = ClipPoolEntry(
+            id: UUID(uuidString: "33333333-5151-5151-5151-515151515151")!,
+            name: "First Repeat Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let secondClip = ClipPoolEntry(
+            id: UUID(uuidString: "44444444-5151-5151-5151-515151515151")!,
+            name: "Second Normal Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 100, lengthSteps: 4)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let tracks = [first, second]
+        let clips = [firstClip, secondClip]
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(
+            tracks: tracks,
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: clips
+        )
         return Project(
             version: 1,
             tracks: tracks,

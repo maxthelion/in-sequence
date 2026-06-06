@@ -99,6 +99,32 @@ final class EventQueueTests: XCTestCase {
         XCTAssertEqual(a, b)
         XCTAssertNotEqual(a, c)
     }
+
+    func test_cancelRepeatOwnedEvents_removesOnlyMatchingTrackEvents() {
+        let queue = EventQueue()
+        let trackA = UUID()
+        let trackB = UUID()
+        let chord = Chord(root: 60, chordType: "majorTriad", scale: "major")
+        let ordinary = ScheduledEvent(
+            scheduledHostTime: 0,
+            payload: .chordContextBroadcast(lane: "ordinary", chord: chord)
+        )
+        let ownedA = ScheduledEvent(
+            scheduledHostTime: 1,
+            payload: .chordContextBroadcast(lane: "a", chord: chord),
+            repeatOwnerTrackID: trackA
+        )
+        let ownedB = ScheduledEvent(
+            scheduledHostTime: 2,
+            payload: .chordContextBroadcast(lane: "b", chord: chord),
+            repeatOwnerTrackID: trackB
+        )
+
+        queue.enqueue([ordinary, ownedA, ownedB])
+
+        XCTAssertEqual(queue.cancelRepeatOwnedEvents(for: [trackA]), 1)
+        XCTAssertEqual(queue.drain(), [ordinary, ownedB])
+    }
 }
 
 private final class LockedLaneStore: @unchecked Sendable {

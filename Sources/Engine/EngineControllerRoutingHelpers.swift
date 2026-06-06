@@ -57,6 +57,10 @@ extension EngineController {
         return "\(bar):\(beat):\(step)"
     }
 
+    static func secondsPerStep(bpm: Double, stepsPerBar: Int) -> TimeInterval {
+        (60 / max(1, bpm)) * (4 / Double(max(1, stepsPerBar)))
+    }
+
     static func effectiveDestination(for trackID: UUID, in documentModel: Project) -> (destination: Destination, pitchOffset: Int) {
         let resolved = documentModel.resolvedPlaybackDestination(for: trackID)
         return (resolved.destination, resolved.pitchOffset)

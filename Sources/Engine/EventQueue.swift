@@ -37,6 +37,31 @@ final class EventQueue {
         lock.unlock()
     }
 
+    @discardableResult
+    func cancelRepeatOwnedEvents(for trackIDs: Set<UUID>) -> Int {
+        guard !trackIDs.isEmpty else {
+            return 0
+        }
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        let originalCount = events.count
+        events.removeAll { event in
+            guard let owner = event.repeatOwnerTrackID else {
+                return false
+            }
+            return trackIDs.contains(owner)
+        }
+        return originalCount - events.count
+    }
+
+    func repeatOwnedEventCount(for trackID: UUID) -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return events.filter { $0.repeatOwnerTrackID == trackID }.count
+    }
+
     var count: Int {
         lock.lock()
         defer { lock.unlock() }

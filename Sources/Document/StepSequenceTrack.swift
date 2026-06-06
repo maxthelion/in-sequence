@@ -7,6 +7,17 @@ enum NoteRepeatInterval: String, Codable, CaseIterable, Sendable {
 
     static let defaultValue: NoteRepeatInterval = .oneSixteenth
 
+    var v1TriggerCountPerStep: Int {
+        switch self {
+        case .oneSixteenth:
+            return 1
+        case .oneThirtySecond:
+            return 2
+        case .oneSixtyFourth:
+            return 4
+        }
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try? container.decode(String.self)

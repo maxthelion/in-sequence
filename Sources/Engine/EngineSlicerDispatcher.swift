@@ -12,7 +12,8 @@ enum EngineSlicerDispatcher {
         stepsPerBar: Int,
         bpm: Double,
         now: TimeInterval,
-        eventQueue: EventQueue
+        eventQueue: EventQueue,
+        repeatOwnerTrackID: UUID? = nil
     ) {
         guard let sliceSet = snapshot.sliceSet(id: sliceSetID),
               let sampleID = sliceSet.sampleID,
@@ -60,7 +61,8 @@ enum EngineSlicerDispatcher {
                     reverse: marker.reverse || stepParameters.reverse,
                     stepParameters: stepParameters,
                     scheduledHostTime: now
-                )
+                ),
+                repeatOwnerTrackID: repeatOwnerTrackID
             ))
         }
     }

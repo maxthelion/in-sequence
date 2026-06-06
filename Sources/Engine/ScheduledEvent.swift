@@ -25,4 +25,15 @@ struct ScheduledEvent: Equatable, Sendable {
 
     let scheduledHostTime: TimeInterval
     let payload: Payload
+    let repeatOwnerTrackID: UUID?
+
+    init(
+        scheduledHostTime: TimeInterval,
+        payload: Payload,
+        repeatOwnerTrackID: UUID? = nil
+    ) {
+        self.scheduledHostTime = scheduledHostTime
+        self.payload = payload
+        self.repeatOwnerTrackID = repeatOwnerTrackID
+    }
 }
