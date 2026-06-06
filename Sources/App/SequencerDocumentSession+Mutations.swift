@@ -255,6 +255,55 @@ extension SequencerDocumentSession {
         setEditedDestination(.slicer(sliceSetID: sliceSetID, settings: settings.clamped), for: trackID)
     }
 
+    // MARK: - Step Order map mutations
+
+    @discardableResult
+    func appendStepOrderMap(_ map: StepOrderMap) -> Bool {
+        let changed = store.appendStepOrderMap(map)
+        guard changed else { return false }
+        if isInBatch {
+            return true
+        }
+        dispatchImpact(.snapshotOnly, changed: .none)
+        return true
+    }
+
+    @discardableResult
+    func mutateStepOrderMap(id: StepOrderMapID, _ update: (inout StepOrderMap) -> Void) -> Bool {
+        let changed = store.mutateStepOrderMap(id: id, update)
+        guard changed else { return false }
+        if isInBatch {
+            return true
+        }
+        dispatchImpact(.snapshotOnly, changed: .none)
+        return true
+    }
+
+    @discardableResult
+    func renameStepOrderMap(id: StepOrderMapID, name: String) -> Bool {
+        mutateStepOrderMap(id: id) { map in
+            map = map.renamed(name)
+        }
+    }
+
+    @discardableResult
+    func setStepOrderMapValues(id: StepOrderMapID, values: [UInt8]) -> Bool {
+        mutateStepOrderMap(id: id) { map in
+            map = map.withValues(values)
+        }
+    }
+
+    @discardableResult
+    func deleteUnusedStepOrderMap(id: StepOrderMapID) -> Bool {
+        let changed = store.deleteUnusedStepOrderMap(id: id)
+        guard changed else { return false }
+        if isInBatch {
+            return true
+        }
+        dispatchImpact(.snapshotOnly, changed: .none)
+        return true
+    }
+
     func applySlicerAnalysis(
         sliceSet: SliceSet,
         sampleLengthFrames: Int64,
@@ -513,6 +562,30 @@ extension SequencerDocumentSession {
     func setPhraseLoopEnabled(_ enabled: Bool, phraseID: UUID) -> Bool {
         mutatePhrase(id: phraseID) { phrase in
             phrase.loopEnabled = enabled
+        }
+    }
+
+    @discardableResult
+    func setStepOrderAssignment(
+        phraseID: UUID,
+        mapID: StepOrderMapID?,
+        isEnabled: Bool
+    ) -> Bool {
+        mutatePhrase(id: phraseID) { phrase in
+            phrase.stepOrderAssignment = mapID.map {
+                StepOrderAssignment(mapID: $0, isEnabled: isEnabled)
+            }
+        }
+    }
+
+    @discardableResult
+    func setPhraseStepOrderEnabled(_ enabled: Bool, phraseID: UUID) -> Bool {
+        mutatePhrase(id: phraseID) { phrase in
+            guard var assignment = phrase.stepOrderAssignment else {
+                return
+            }
+            assignment.isEnabled = enabled
+            phrase.stepOrderAssignment = assignment
         }
     }
 

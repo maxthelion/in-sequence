@@ -85,6 +85,9 @@
 		D1010000000000000000000A /* AudioDeviceSwitchCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */; };
 		D1010000000000000000000B /* MainAudioGraphDeviceSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */; };
 		D10200000000000000000002 /* StepSequenceTrackAudioInputCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10200000000000000000001 /* StepSequenceTrackAudioInputCodableTests.swift */; };
+		A16000000000000000000002 /* StepOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16000000000000000000001 /* StepOrder.swift */; };
+		A16000000000000000000004 /* Project+StepOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16000000000000000000003 /* Project+StepOrder.swift */; };
+		A16000000000000000000006 /* StepOrderPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16000000000000000000005 /* StepOrderPersistenceTests.swift */; };
 		F11100000000000000000002 /* AudioInputCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11100000000000000000001 /* AudioInputCaptureStore.swift */; };
 		F11100000000000000000004 /* EngineControllerAudioInputPublicationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11100000000000000000003 /* EngineControllerAudioInputPublicationTests.swift */; };
 		F1AA00000000000000000001 /* TrackFillPreviewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AA00000000000000000002 /* TrackFillPreviewState.swift */; };
@@ -713,6 +716,9 @@
 		D10100000000000000000005 /* AudioDeviceSwitchCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceSwitchCoordinatorTests.swift; sourceTree = "<group>"; };
 		D10100000000000000000006 /* MainAudioGraphDeviceSwitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAudioGraphDeviceSwitchTests.swift; sourceTree = "<group>"; };
 		D10200000000000000000001 /* StepSequenceTrackAudioInputCodableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSequenceTrackAudioInputCodableTests.swift; sourceTree = "<group>"; };
+		A16000000000000000000001 /* StepOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepOrder.swift; sourceTree = "<group>"; };
+		A16000000000000000000003 /* Project+StepOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+StepOrder.swift"; sourceTree = "<group>"; };
+		A16000000000000000000005 /* StepOrderPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepOrderPersistenceTests.swift; sourceTree = "<group>"; };
 		3CBBE661BFC976779D2F2326 /* SlicerWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlicerWaveformView.swift; sourceTree = "<group>"; };
 		3D2B37E3ABA39D512CDEA526 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		3D5DAA79C924F4223888B858 /* validated-screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "validated-screen.png"; sourceTree = "<group>"; };
@@ -1661,6 +1667,7 @@
 				B375A9FBAE3604545F0076B7 /* Project+Phrases.swift */,
 				CCBD20AD88DE07BAAA0DD021 /* Project+Selection.swift */,
 				DE64F92B33688D09F5981F45 /* Project+SliceSets.swift */,
+				A16000000000000000000003 /* Project+StepOrder.swift */,
 				773F90C630CF113A01EEBE27 /* Project+TrackMacros.swift */,
 				602521066F31995FF617B8F8 /* Project+Tracks.swift */,
 				3A8F2166C41E5989FD7D215B /* Project+TrackSources.swift */,
@@ -1675,6 +1682,7 @@
 				BA48BEBA4D1C9B9469683BD5 /* SliceSet.swift */,
 				42D94B671AB39329D57A4A19 /* StepAlgo.swift */,
 				12009DF37212B76194BA1705 /* StepAlgo+Kind.swift */,
+				A16000000000000000000001 /* StepOrder.swift */,
 				93B4E6922FA07FB39E8227BD /* StepSequenceTrack.swift */,
 				1A7C2A156C9AA0191029A381 /* TrackGroup.swift */,
 				6F0ECACAA4DC5C06F12D3E2A /* TrackMacroDescriptor.swift */,
@@ -3707,6 +3715,7 @@
 				ADB00C99A84C85E15BD9FFFF /* ProjectSetSelectedTrackTypeTests.swift */,
 				DACB397CC4F2DC842016C458 /* ProjectSetSlotBypassedTests.swift */,
 				DE79EF03E5A9AF235CA0AC31 /* ProjectSliceSetPoolTests.swift */,
+				A16000000000000000000005 /* StepOrderPersistenceTests.swift */,
 				F37ED4F8564EB456EEF5D966 /* ProjectSwitchAttachedGeneratorTests.swift */,
 				1525ED94BCDEB1DFAEAD1B2C /* ProjectTrackMacroTests.swift */,
 				331B0D6DF5D2261BD79B0BD5 /* ProjectTrackSamplerFilterMacrosTests.swift */,
@@ -4524,6 +4533,7 @@
 				7FCBEA8A63FB2A7CEB0623BC /* SourceRefNormalizationTests.swift in Sources */,
 				80ABD317AEF70A8302FFA72D /* StepAlgoKindTests.swift in Sources */,
 				E5D850D36A04C9A9F10EE2E8 /* StepAlgoTests.swift in Sources */,
+				A16000000000000000000006 /* StepOrderPersistenceTests.swift in Sources */,
 				AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */,
 				9047ABCFD6409B1CA3174E1B /* StepGridCoordinatorTests.swift in Sources */,
 				73B67EA8D19A040669F174B2 /* UnifiedStepCellTests.swift in Sources */,
@@ -4686,6 +4696,7 @@
 				C24268F8CBB721A896EBCEF7 /* Project+Phrases.swift in Sources */,
 				570A8ECB1C9DC9BC5038F7CB /* Project+Selection.swift in Sources */,
 				6854C9529C10CFEB5B3BC41F /* Project+SliceSets.swift in Sources */,
+				A16000000000000000000004 /* Project+StepOrder.swift in Sources */,
 				AFEC910ED207BA5E8F1AADA9 /* Project+TrackMacros.swift in Sources */,
 				EF68319EF3742400D231D417 /* Project+TrackSources.swift in Sources */,
 				785629B018B6587B52D24358 /* Project+Tracks.swift in Sources */,
@@ -4745,6 +4756,7 @@
 				8DCD01BB3949E7F1BF5F86C7 /* StepAlgo+Kind.swift in Sources */,
 				599E343AB49551157311BCEA /* StepAlgo.swift in Sources */,
 				F727C7F3E6D0B71E5AAA52B6 /* StepAlgoEditor.swift in Sources */,
+				A16000000000000000000002 /* StepOrder.swift in Sources */,
 				F43201A8167FFD01A80AA72D /* StepClipboard.swift in Sources */,
 				AB4F73DD6140C7006961B57A /* StepCellContent.swift in Sources */,
 				D7B5D7AB2A0F50127D7E80F2 /* StepGridCoordinator.swift in Sources */,

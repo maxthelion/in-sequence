@@ -111,6 +111,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         }
     }
     var loopEnabled: Bool
+    var stepOrderAssignment: StepOrderAssignment?
     var cells: [PhraseCellAssignment]
 
     init(
@@ -120,6 +121,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         stepsPerBar: Int,
         repeatCount: Int = 1,
         loopEnabled: Bool = false,
+        stepOrderAssignment: StepOrderAssignment? = nil,
         cells: [PhraseCellAssignment]
     ) {
         self.id = id
@@ -128,6 +130,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         self.stepsPerBar = max(1, stepsPerBar)
         self.repeatCount = Self.clampedRepeatCount(repeatCount)
         self.loopEnabled = loopEnabled
+        self.stepOrderAssignment = stepOrderAssignment
         self.cells = cells
     }
 
@@ -138,6 +141,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         case stepsPerBar
         case repeatCount
         case loopEnabled
+        case stepOrderAssignment
         case cells
     }
 
@@ -149,6 +153,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         stepsPerBar = max(1, try container.decode(Int.self, forKey: .stepsPerBar))
         repeatCount = Self.clampedRepeatCount(try container.decodeIfPresent(Int.self, forKey: .repeatCount) ?? 1)
         loopEnabled = try container.decodeIfPresent(Bool.self, forKey: .loopEnabled) ?? false
+        stepOrderAssignment = try container.decodeIfPresent(StepOrderAssignment.self, forKey: .stepOrderAssignment)
         cells = try container.decode([PhraseCellAssignment].self, forKey: .cells)
     }
 
@@ -320,6 +325,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
             stepsPerBar: max(1, stepsPerBar),
             repeatCount: repeatCount,
             loopEnabled: loopEnabled,
+            stepOrderAssignment: stepOrderAssignment,
             cells: normalizedCells
         )
     }

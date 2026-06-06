@@ -159,6 +159,7 @@ final class SequencerDocumentSession {
             generatorPool: state.generatorPool,
             clipPool: state.clipPool,
             sliceSetPool: state.sliceSetPool,
+            stepOrderMaps: state.stepOrderMaps,
             layers: state.layers,
             patternBanksByTrackID: state.patternBanksByTrackID,
             phrasesByID: phrasesByID,

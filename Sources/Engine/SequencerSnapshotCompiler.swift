@@ -20,7 +20,16 @@ enum SequencerSnapshotCompiler {
         })
         let phraseBuffers = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { id -> (UUID, PhrasePlaybackBuffer)? in
             guard let phrase = state.phrasesByID[id] else { return nil }
-            return (phrase.id, compilePhraseBuffer(for: phrase, layers: state.layers, trackPrograms: trackPrograms, tracks: state.tracks))
+            return (
+                phrase.id,
+                compilePhraseBuffer(
+                    for: phrase,
+                    stepOrderMaps: state.stepOrderMaps,
+                    layers: state.layers,
+                    trackPrograms: trackPrograms,
+                    tracks: state.tracks
+                )
+            )
         })
 
         return PlaybackSnapshot(
@@ -98,6 +107,7 @@ enum SequencerSnapshotCompiler {
                     phraseID,
                     compilePhraseBuffer(
                         for: phrase,
+                        stepOrderMaps: state.stepOrderMaps,
                         layers: state.layers,
                         trackPrograms: trackProgramsByTrackID,
                         tracks: tracks
@@ -111,6 +121,7 @@ enum SequencerSnapshotCompiler {
                 }
                 phraseBuffersByID[phraseID] = compilePhraseBuffer(
                     for: phrase,
+                    stepOrderMaps: state.stepOrderMaps,
                     layers: state.layers,
                     trackPrograms: trackProgramsByTrackID,
                     tracks: tracks
@@ -153,6 +164,7 @@ enum SequencerSnapshotCompiler {
             generatorPool: project.generatorPool,
             clipPool: project.clipPool,
             sliceSetPool: project.sliceSetPool,
+            stepOrderMaps: project.stepOrderMaps,
             layers: project.layers,
             patternBanksByTrackID: banksByID,
             phrasesByID: phrasesByID,
@@ -320,6 +332,7 @@ enum SequencerSnapshotCompiler {
 
     private static func compilePhraseBuffer(
         for phrase: PhraseModel,
+        stepOrderMaps: [StepOrderMap],
         layers: [PhraseLayerDefinition],
         trackPrograms: [UUID: TrackSourceProgram],
         tracks: [StepSequenceTrack]
@@ -407,8 +420,22 @@ enum SequencerSnapshotCompiler {
             stepCount: stepCount,
             repeatCount: phrase.repeatCount,
             loopEnabled: phrase.loopEnabled,
+            stepOrderMap: compiledStepOrderMap(for: phrase, in: stepOrderMaps),
             trackStates: trackStates
         )
+    }
+
+    private static func compiledStepOrderMap(
+        for phrase: PhraseModel,
+        in stepOrderMaps: [StepOrderMap]
+    ) -> [UInt8]? {
+        guard let assignment = phrase.stepOrderAssignment,
+              assignment.isEnabled,
+              let map = stepOrderMaps.first(where: { $0.id == assignment.mapID })
+        else {
+            return nil
+        }
+        return map.values
     }
 
     private static func scalarDouble(from value: PhraseCellValue, layer: PhraseLayerDefinition) -> Double {
