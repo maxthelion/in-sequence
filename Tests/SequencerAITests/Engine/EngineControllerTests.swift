@@ -137,6 +137,185 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(controller.activeNoteRepeatTrackIDsForTesting, [secondTrackID])
     }
 
+    func test_noteRepeatEngageCapturesCurrentPreparedClipStepMaterial() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                ),
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 74, velocity: 113, lengthSteps: 6)]),
+                    fill: nil
+                )
+            ]
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+
+        let captured = try XCTUnwrap(controller.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        XCTAssertEqual(captured.stepIndex, 0)
+        XCTAssertEqual(captured.notes, [
+            NoteEvent(pitch: 62, velocity: 91, length: 3, gate: true, voiceTag: nil)
+        ])
+    }
+
+    func test_noteRepeatCaptureUsesFillLaneWhenResolvedStepHasFillEnabled() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 80, lengthSteps: 2)]),
+                    fill: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 118, lengthSteps: 5)])
+                )
+            ],
+            fillEnabled: true
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+
+        let captured = try XCTUnwrap(controller.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        XCTAssertEqual(captured.notes, [
+            NoteEvent(pitch: 72, velocity: 118, length: 5, gate: true, voiceTag: nil)
+        ])
+    }
+
+    func test_noteRepeatCapturePreservesPreparedProbabilityResultWithoutRerolling() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 0, notes: [ClipStepNote(pitch: 67, velocity: 111, lengthSteps: 4)]),
+                    fill: nil
+                )
+            ]
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+
+        let captured = try XCTUnwrap(controller.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        XCTAssertEqual(captured.stepIndex, 0)
+        XCTAssertTrue(captured.notes.isEmpty)
+    }
+
+    func test_noteRepeatEngageCapturesEmptyCurrentStepAsSilence() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                .empty,
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 76, velocity: 100, lengthSteps: 4)]),
+                    fill: nil
+                )
+            ]
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+
+        let captured = try XCTUnwrap(controller.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        XCTAssertEqual(captured.stepIndex, 0)
+        XCTAssertTrue(captured.notes.isEmpty)
+    }
+
+    func test_noteRepeatUnsupportedGeneratorTrackDoesNotCapturePreparedMaterial() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        var (project, trackID, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true])
+        let generator = try XCTUnwrap(
+            GeneratorPoolEntry.defaultPool.first { $0.trackType == project.tracks[0].trackType }
+        )
+        project.patternBanks = [
+            TrackPatternBank(
+                trackID: trackID,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+            )
+        ]
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: trackID))
+        XCTAssertTrue(controller.activeNoteRepeatTrackIDsForTesting.isEmpty)
+    }
+
+    func test_noteRepeatEngageReleaseDoesNotMutatePersistedProjectState() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+        let originalProject = project
+        let encodedBefore = try Self.persistedProjectData(project)
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.releaseNoteRepeat(trackID: trackID)
+
+        XCTAssertEqual(project, originalProject)
+        XCTAssertEqual(try Self.persistedProjectData(project), encodedBefore)
+        let encoded = String(decoding: encodedBefore, as: UTF8.self)
+        XCTAssertFalse(encoded.contains("activeNoteRepeat"))
+        XCTAssertFalse(encoded.contains("capturedStep"))
+    }
+
+    func test_noteRepeatCaptureCachesClearOnStopApplyAndTrackFillPreviewChanges() throws {
+        let (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                    fill: nil
+                )
+            ]
+        )
+
+        let stoppedController = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        stoppedController.apply(documentModel: project)
+        stoppedController.processTick(tickIndex: 0, now: 0)
+        stoppedController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(stoppedController.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        stoppedController.releaseNoteRepeat(trackID: trackID)
+
+        stoppedController.stop()
+        stoppedController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNil(try XCTUnwrap(stoppedController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
+
+        let applyController = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        applyController.apply(documentModel: project)
+        applyController.processTick(tickIndex: 0, now: 0)
+        applyController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(applyController.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        applyController.releaseNoteRepeat(trackID: trackID)
+
+        applyController.apply(documentModel: project)
+        applyController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNil(try XCTUnwrap(applyController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
+
+        let fillPreviewController = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        fillPreviewController.apply(documentModel: project)
+        fillPreviewController.processTick(tickIndex: 0, now: 0)
+        fillPreviewController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNotNil(fillPreviewController.noteRepeatRuntimeSnapshot(for: trackID)?.capturedStep)
+        fillPreviewController.releaseNoteRepeat(trackID: trackID)
+
+        fillPreviewController.apply(trackFillPreview: TrackFillPreviewPlaybackSnapshot(activeTrackID: trackID))
+        fillPreviewController.engageNoteRepeat(trackID: trackID)
+        XCTAssertNil(try XCTUnwrap(fillPreviewController.noteRepeatRuntimeSnapshot(for: trackID)).capturedStep)
+    }
+
     func test_setBPM_reaches_executor_within_two_ticks() {
         let controller = EngineController(client: nil, endpoint: nil)
 
@@ -225,6 +404,67 @@ final class EngineControllerTests: XCTestCase {
             phrases: [phrase],
             selectedPhraseID: phrase.id
         )
+    }
+
+    private static func noteRepeatClipProject(
+        steps: [ClipStep],
+        fillEnabled: Bool = false
+    ) -> (Project, UUID) {
+        let trackID = UUID(uuidString: "51515151-5151-5151-5151-515151515151")!
+        let clipID = UUID(uuidString: "61616161-6161-6161-6161-616161616161")!
+        let track = StepSequenceTrack(
+            id: trackID,
+            name: "Repeat Clip",
+            pitches: [48],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 70,
+            gateLength: 1
+        )
+        let clip = ClipPoolEntry(
+            id: clipID,
+            name: "Repeat Source",
+            trackType: .monoMelodic,
+            content: .noteGrid(lengthSteps: max(1, steps.count), steps: steps)
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        var phrase = PhraseModel.default(
+            tracks: [track],
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip]
+        )
+        if fillEnabled,
+           let fillLayer = layers.first(where: { $0.target == .macroRow("fill-flag") })
+        {
+            phrase.setCell(.single(.bool(true)), for: fillLayer.id, trackID: track.id)
+        }
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        return (
+            Project(
+                version: 1,
+                tracks: [track],
+                generatorPool: GeneratorPoolEntry.defaultPool,
+                clipPool: [clip],
+                layers: layers,
+                routes: [],
+                patternBanks: [patternBank],
+                selectedTrackID: track.id,
+                phrases: [phrase],
+                selectedPhraseID: phrase.id
+            ),
+            trackID
+        )
+    }
+
+    private static func persistedProjectData(_ project: Project) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(project)
     }
 
     func test_apply_document_model_updates_note_generator_params() {

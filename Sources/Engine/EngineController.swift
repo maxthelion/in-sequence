@@ -21,6 +21,12 @@ final class EngineController: RouterDispatcher {
         let trackID: UUID
         let engagedAtTickIndex: UInt64
         let interval: NoteRepeatInterval
+        let capturedStep: NoteRepeatCapturedStep?
+    }
+
+    struct NoteRepeatCapturedStep: Equatable, Sendable {
+        let stepIndex: UInt64
+        let notes: [NoteEvent]
     }
 
     private struct PhraseNavigationState: Equatable {
@@ -35,12 +41,14 @@ final class EngineController: RouterDispatcher {
         let trackID: UUID
         let engagedAtTickIndex: UInt64
         let interval: NoteRepeatInterval
+        let capturedStep: NoteRepeatCapturedStep?
 
         var snapshot: NoteRepeatRuntimeSnapshot {
             NoteRepeatRuntimeSnapshot(
                 trackID: trackID,
                 engagedAtTickIndex: engagedAtTickIndex,
-                interval: interval
+                interval: interval,
+                capturedStep: capturedStep
             )
         }
     }
@@ -100,6 +108,10 @@ final class EngineController: RouterDispatcher {
     private var phraseNavigationState = PhraseNavigationState()
     @ObservationIgnored
     private var activeNoteRepeatsByTrackID: [UUID: ActiveNoteRepeatRuntime] = [:]
+    @ObservationIgnored
+    private var preparedNoteRepeatCapturesByStepIndex: [UInt64: [UUID: NoteRepeatCapturedStep]] = [:]
+    @ObservationIgnored
+    private var currentNoteRepeatCapturesByTrackID: [UUID: NoteRepeatCapturedStep] = [:]
     private(set) var chordContextByLane: [String: Chord] = [:]
 
     private(set) var currentPhraseID: UUID?
@@ -401,6 +413,7 @@ final class EngineController: RouterDispatcher {
         try? sampleEngine.start()
 
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
+        promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
         isRunning = true
         clock.start { [weak self] tickIndex, now in
@@ -410,6 +423,7 @@ final class EngineController: RouterDispatcher {
 
     func stop() {
         guard isRunning else {
+            clearNoteRepeatCaptureCaches()
             clearAllNoteRepeats()
             return
         }
@@ -423,6 +437,7 @@ final class EngineController: RouterDispatcher {
         lastNoteTriggerCount = 0
         sampleEngine.stop()
         tickState.resetRuntimeState()
+        clearNoteRepeatCaptureCaches()
         clearAllNoteRepeats()
         clearQueuedPhraseOnStop(snapshot: tickState.currentPlaybackSnapshot())
     }
@@ -672,7 +687,8 @@ final class EngineController: RouterDispatcher {
             activeNoteRepeatsByTrackID[trackID] = ActiveNoteRepeatRuntime(
                 trackID: trackID,
                 engagedAtTickIndex: transportTickIndex,
-                interval: track.noteRepeatInterval
+                interval: track.noteRepeatInterval,
+                capturedStep: currentNoteRepeatCapturesByTrackID[trackID]
             )
         }
     }
@@ -706,6 +722,7 @@ final class EngineController: RouterDispatcher {
             snapshot: compiledSnapshot,
             cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
         )
+        clearNoteRepeatCaptureCaches()
         reconcileNoteRepeats(with: compiledSnapshot)
         apply(deltas: deltas, documentModel: documentModel)
     }
@@ -722,12 +739,14 @@ final class EngineController: RouterDispatcher {
             snapshot: playbackSnapshot,
             cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
         )
+        clearNoteRepeatCaptureCaches()
         reconcileNoteRepeats(with: playbackSnapshot)
     }
 
     func apply(trackFillPreview snapshot: TrackFillPreviewPlaybackSnapshot) {
         tickState.installTrackFillPreviewSnapshot(snapshot)
         eventQueue.clear()
+        clearNoteRepeatCaptureCaches()
     }
 
     /// Exposes the current playback snapshot for test assertions.
@@ -1264,6 +1283,7 @@ final class EngineController: RouterDispatcher {
         if needsBootstrap {
             prepareTick(upcomingStep: tickIndex, now: now)
         }
+        promotePreparedNoteRepeatCapture(for: tickIndex)
         dispatchTick()
         prepareTick(upcomingStep: tickIndex &+ 1, now: now)
         tickState.markPreparedTick(tickIndex &+ 1)
@@ -1348,6 +1368,11 @@ final class EngineController: RouterDispatcher {
             preparedNotesByBlockID[generatorBlockID] = notes.map(Self.noteEvent(from:))
         }
         let outputs = executor.tick(now: now, preparedNotesByBlockID: preparedNotesByBlockID)
+        recordPreparedNoteRepeatCaptures(
+            stepIndex: upcomingStep,
+            generatorIDsByTrackID: generatorIDs,
+            preparedNotesByBlockID: preparedNotesByBlockID
+        )
         let newCurrentBPM = executor.currentBPM
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
         let newTransportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
@@ -2621,6 +2646,42 @@ final class EngineController: RouterDispatcher {
     private func clearAllNoteRepeats() {
         withStateLock {
             activeNoteRepeatsByTrackID.removeAll()
+        }
+    }
+
+    private func clearNoteRepeatCaptureCaches() {
+        withStateLock {
+            preparedNoteRepeatCapturesByStepIndex.removeAll()
+            currentNoteRepeatCapturesByTrackID.removeAll()
+        }
+    }
+
+    private func recordPreparedNoteRepeatCaptures(
+        stepIndex: UInt64,
+        generatorIDsByTrackID: [UUID: BlockID],
+        preparedNotesByBlockID: [BlockID: [NoteEvent]]
+    ) {
+        let captures: [UUID: NoteRepeatCapturedStep] = Dictionary(
+            uniqueKeysWithValues: generatorIDsByTrackID.compactMap { trackID, blockID -> (UUID, NoteRepeatCapturedStep)? in
+                guard let notes = preparedNotesByBlockID[blockID] else {
+                    return nil
+                }
+                return (trackID, NoteRepeatCapturedStep(stepIndex: stepIndex, notes: notes))
+            }
+        )
+        withStateLock {
+            preparedNoteRepeatCapturesByStepIndex[stepIndex] = captures
+            let oldestRetainedStep = stepIndex > 4 ? stepIndex - 4 : 0
+            preparedNoteRepeatCapturesByStepIndex = preparedNoteRepeatCapturesByStepIndex.filter {
+                $0.key >= oldestRetainedStep
+            }
+        }
+    }
+
+    private func promotePreparedNoteRepeatCapture(for stepIndex: UInt64) {
+        withStateLock {
+            currentNoteRepeatCapturesByTrackID = preparedNoteRepeatCapturesByStepIndex[stepIndex] ?? [:]
+            preparedNoteRepeatCapturesByStepIndex = preparedNoteRepeatCapturesByStepIndex.filter { $0.key >= stepIndex }
         }
     }
 
