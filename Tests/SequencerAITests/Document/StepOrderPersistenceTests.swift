@@ -79,45 +79,91 @@ final class StepOrderPersistenceTests: XCTestCase {
         XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 5), 5)
     }
 
-    func test_compilerRejectsStepOrderMapsWithOutOfRangeValues() throws {
+    func test_compilerRejectsDecodedStepOrderMapsWithOutOfRangeValues() throws {
         var project = Project.empty
         project.phrases[0].lengthBars = 1
-        var invalidValues = remapValues
-        invalidValues[5] = 16
-        project.stepOrderMaps = [
-            StepOrderMap(id: mapID, name: "Invalid", values: invalidValues)
-        ]
+        project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Invalid", values: remapValues)]
         project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+        var object = try JSONObject(from: project)
+        object["stepOrderMaps"] = [
+            [
+                "id": mapID.uuidString,
+                "name": "Invalid",
+                "values": [0, 1, 2, 3, 4, 16, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            ]
+        ]
 
-        let data = try JSONEncoder().encode(project)
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
         let decoded = try JSONDecoder().decode(Project.self, from: data)
         let snapshot = SequencerSnapshotCompiler.compile(project: decoded)
         let phraseBuffer = try XCTUnwrap(snapshot.phraseBuffer(for: decoded.selectedPhraseID))
 
         XCTAssertEqual(decoded.stepOrderMaps[0].values[5], 16)
+        XCTAssertEqual(decoded.stepOrderMaps[0].validationIssue, .outOfRange(values: [16]))
         XCTAssertNil(phraseBuffer.stepOrderMap)
         XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 5), 5)
     }
 
-    func test_stepOrderMapValuesAreFixedToSixteenEntriesOnInitAndDecode() throws {
-        let shortMap = StepOrderMap(id: mapID, name: "Short", values: [3, 2, 1])
-        XCTAssertEqual(shortMap.values.count, 16)
-        XCTAssertEqual(Array(shortMap.values.prefix(3)), [3, 2, 1])
-        XCTAssertEqual(Array(shortMap.values.dropFirst(3)), Array(StepOrderMap.identityValues.dropFirst(3)))
+    func test_decodedWrongLengthStepOrderMapLoadsButDoesNotCompileActiveMap() throws {
+        var project = Project.empty
+        project.phrases[0].lengthBars = 1
+        project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Short", values: StepOrderMap.identityValues)]
+        project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+        var object = try JSONObject(from: project)
+        object["stepOrderMaps"] = [
+            [
+                "id": mapID.uuidString,
+                "name": "Short",
+                "values": [3, 2, 1]
+            ]
+        ]
 
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        let decoded = try JSONDecoder().decode(Project.self, from: data)
+        let snapshot = SequencerSnapshotCompiler.compile(project: decoded)
+        let phraseBuffer = try XCTUnwrap(snapshot.phraseBuffer(for: decoded.selectedPhraseID))
+
+        XCTAssertEqual(decoded.stepOrderMaps[0].values, [3, 2, 1])
+        XCTAssertEqual(decoded.stepOrderMaps[0].validationIssue, .wrongLength(actual: 3))
+        XCTAssertNil(phraseBuffer.stepOrderMap)
+        XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 2), 2)
+    }
+
+    func test_decodedNumericallyCorruptStepOrderMapLoadsAsInvalidQuarantine() throws {
         let json = """
         {
           "id": "\(mapID.uuidString)",
-          "name": "Long",
-          "values": [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,9,9]
+          "name": "Corrupt",
+          "values": [0,1,2,300,4,5,6,7,8,9,10,11,12,13,14,15]
         }
         """
+
         let decoded = try JSONDecoder().decode(StepOrderMap.self, from: Data(json.utf8))
-        XCTAssertEqual(decoded.values.count, 16)
-        XCTAssertEqual(decoded.values, [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
+
+        XCTAssertEqual(decoded.values, [])
+        XCTAssertEqual(decoded.validationIssue, .wrongLength(actual: 0))
+        XCTAssertNil(decoded.validatedCompiledValues)
     }
 
-    func test_projectHelpers_deleteOnlyUnusedStepOrderMaps() {
+    func test_projectHelpers_rejectInvalidStepOrderMapCreationAndUpdate() {
+        var project = Project.empty
+
+        project.appendStepOrderMap(StepOrderMap(id: mapID, name: "Short", values: [0, 1, 2]))
+        XCTAssertNil(project.stepOrderMap(id: mapID))
+
+        project.appendStepOrderMap(StepOrderMap(id: mapID, name: "Valid", values: StepOrderMap.identityValues))
+        XCTAssertEqual(project.stepOrderMap(id: mapID)?.values, StepOrderMap.identityValues)
+
+        var invalidValues = StepOrderMap.identityValues
+        invalidValues[4] = 16
+        project.setStepOrderMapValues(id: mapID, values: invalidValues)
+        XCTAssertEqual(project.stepOrderMap(id: mapID)?.values, StepOrderMap.identityValues)
+
+        project.setStepOrderMapValues(id: mapID, values: remapValues)
+        XCTAssertEqual(project.stepOrderMap(id: mapID)?.values, remapValues)
+    }
+
+    func test_projectHelpers_deleteOnlyUnusedStepOrderMapsWithBlockedReason() {
         var project = Project.empty
         project.stepOrderMaps = [
             StepOrderMap(id: mapID, name: "Assigned"),
@@ -125,10 +171,45 @@ final class StepOrderPersistenceTests: XCTestCase {
         ]
         project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: false)
 
+        let assignedStatus = project.stepOrderMapDeletionStatus(id: mapID)
+        XCTAssertFalse(assignedStatus.canDelete)
+        XCTAssertEqual(assignedStatus.assignmentCount, 1)
+        XCTAssertEqual(assignedStatus.assignedPhraseIDs, [project.phrases[0].id])
+        XCTAssertEqual(assignedStatus.blockedReason, .assignedToPhrases(count: 1))
         XCTAssertFalse(project.deleteUnusedStepOrderMap(id: mapID))
         XCTAssertNotNil(project.stepOrderMap(id: mapID))
+
+        let unusedStatus = project.stepOrderMapDeletionStatus(id: secondMapID)
+        XCTAssertTrue(unusedStatus.canDelete)
+        XCTAssertNil(unusedStatus.blockedReason)
         XCTAssertTrue(project.deleteUnusedStepOrderMap(id: secondMapID))
         XCTAssertNil(project.stepOrderMap(id: secondMapID))
+    }
+
+    func test_compilerResolvesMissingDeletedDisabledUnassignedAndUnsupportedStepOrderStatesToSequential() throws {
+        var project = Project.empty
+        project.phrases[0].lengthBars = 1
+        project.stepOrderMaps = [
+            StepOrderMap(id: mapID, name: "Break Fold", values: remapValues)
+        ]
+
+        project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: secondMapID, isEnabled: true)
+        assertCompiledStepOrderIsSequential(project)
+
+        project.stepOrderMaps.removeAll()
+        project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+        assertCompiledStepOrderIsSequential(project)
+
+        project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Break Fold", values: remapValues)]
+        project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: false)
+        assertCompiledStepOrderIsSequential(project)
+
+        project.phrases[0].stepOrderAssignment = nil
+        assertCompiledStepOrderIsSequential(project)
+
+        project.phrases[0].lengthBars = 2
+        project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+        assertCompiledStepOrderIsSequential(project)
     }
 
     func test_codablePayloadDoesNotContainRuntimePendingStepOrderState() throws {
@@ -145,6 +226,36 @@ final class StepOrderPersistenceTests: XCTestCase {
     }
 
     func test_sessionDurableStepOrderEditsFlushThroughDocumentSnapshot() throws {
+        try assertStepOrderEditFlushes(
+            makeProject: {
+                Project.empty
+            },
+            edit: { session, _ in
+                XCTAssertTrue(session.appendStepOrderMap(StepOrderMap(id: mapID, name: "Created", values: remapValues)))
+            },
+            assertStaleDocument: { project in
+                XCTAssertNil(project.stepOrderMap(id: mapID))
+            },
+            assertFlushedProject: { project in
+                XCTAssertEqual(project.stepOrderMap(id: mapID)?.values, remapValues)
+            }
+        )
+
+        try assertStepOrderEditFlushes(
+            makeProject: {
+                Project.empty
+            },
+            edit: { session, _ in
+                XCTAssertFalse(session.appendStepOrderMap(StepOrderMap(id: mapID, name: "Invalid", values: [0, 1, 2])))
+            },
+            assertStaleDocument: { project in
+                XCTAssertNil(project.stepOrderMap(id: mapID))
+            },
+            assertFlushedProject: { project in
+                XCTAssertNil(project.stepOrderMap(id: mapID))
+            }
+        )
+
         try assertStepOrderEditFlushes(
             makeProject: {
                 var project = Project.empty
@@ -216,6 +327,28 @@ final class StepOrderPersistenceTests: XCTestCase {
         try assertStepOrderEditFlushes(
             makeProject: {
                 var project = Project.empty
+                project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Assigned")]
+                project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: false)
+                return project
+            },
+            edit: { session, _ in
+                let status = session.stepOrderMapDeletionStatus(id: mapID)
+                XCTAssertFalse(status.canDelete)
+                XCTAssertEqual(status.assignmentCount, 1)
+                XCTAssertEqual(status.blockedReason, .assignedToPhrases(count: 1))
+                XCTAssertFalse(session.deleteUnusedStepOrderMap(id: mapID))
+            },
+            assertStaleDocument: { project in
+                XCTAssertNotNil(project.stepOrderMap(id: mapID))
+            },
+            assertFlushedProject: { project in
+                XCTAssertNotNil(project.stepOrderMap(id: mapID))
+            }
+        )
+
+        try assertStepOrderEditFlushes(
+            makeProject: {
+                var project = Project.empty
                 project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Enable")]
                 project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: false)
                 return project
@@ -230,6 +363,41 @@ final class StepOrderPersistenceTests: XCTestCase {
                 XCTAssertEqual(project.selectedPhrase.stepOrderAssignment?.isEnabled, true)
             }
         )
+
+        try assertStepOrderEditFlushes(
+            makeProject: {
+                var project = Project.empty
+                project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Reject Invalid", values: StepOrderMap.identityValues)]
+                return project
+            },
+            edit: { session, project in
+                var invalidValues = remapValues
+                invalidValues[0] = 99
+                XCTAssertFalse(session.setStepOrderMapValues(id: mapID, values: invalidValues))
+                XCTAssertEqual(session.stepOrderMapDeletionStatus(id: mapID).canDelete, true)
+            },
+            assertStaleDocument: { project in
+                XCTAssertEqual(project.stepOrderMap(id: mapID)?.values, StepOrderMap.identityValues)
+            },
+            assertFlushedProject: { project in
+                XCTAssertEqual(project.stepOrderMap(id: mapID)?.values, StepOrderMap.identityValues)
+            }
+        )
+    }
+
+    private func assertCompiledStepOrderIsSequential(
+        _ project: Project,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let snapshot = SequencerSnapshotCompiler.compile(project: project)
+        guard let phraseBuffer = snapshot.phraseBuffer(for: project.selectedPhraseID) else {
+            XCTFail("Expected selected phrase buffer", file: file, line: line)
+            return
+        }
+        XCTAssertNil(phraseBuffer.stepOrderMap, file: file, line: line)
+        XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 0), 0, file: file, line: line)
+        XCTAssertEqual(phraseBuffer.sourceStepIndex(for: 5), 5, file: file, line: line)
     }
 
     private func assertStepOrderEditFlushes(

@@ -6,11 +6,22 @@ extension Project {
     }
 
     func stepOrderMapUsageCount(id: StepOrderMapID) -> Int {
-        phrases.filter { $0.stepOrderAssignment?.mapID == id }.count
+        stepOrderMapDeletionStatus(id: id).assignmentCount
+    }
+
+    func stepOrderMapDeletionStatus(id: StepOrderMapID) -> StepOrderMapDeletionStatus {
+        StepOrderMapDeletionStatus(
+            mapID: id,
+            assignedPhraseIDs: phrases.compactMap { phrase in
+                phrase.stepOrderAssignment?.mapID == id ? phrase.id : nil
+            }
+        )
     }
 
     mutating func appendStepOrderMap(_ map: StepOrderMap) {
-        guard stepOrderMap(id: map.id) == nil else {
+        guard map.isValid,
+              stepOrderMap(id: map.id) == nil
+        else {
             return
         }
         stepOrderMaps.append(map)
@@ -24,7 +35,9 @@ extension Project {
     }
 
     mutating func setStepOrderMapValues(id: StepOrderMapID, values: [UInt8]) {
-        guard let index = stepOrderMaps.firstIndex(where: { $0.id == id }) else {
+        guard StepOrderMap.isValidValues(values),
+              let index = stepOrderMaps.firstIndex(where: { $0.id == id })
+        else {
             return
         }
         stepOrderMaps[index] = stepOrderMaps[index].withValues(values)
@@ -32,7 +45,7 @@ extension Project {
 
     @discardableResult
     mutating func deleteUnusedStepOrderMap(id: StepOrderMapID) -> Bool {
-        guard stepOrderMapUsageCount(id: id) == 0,
+        guard stepOrderMapDeletionStatus(id: id).canDelete,
               let index = stepOrderMaps.firstIndex(where: { $0.id == id })
         else {
             return false

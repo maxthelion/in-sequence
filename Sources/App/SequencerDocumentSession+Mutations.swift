@@ -293,6 +293,10 @@ extension SequencerDocumentSession {
         }
     }
 
+    func stepOrderMapDeletionStatus(id: StepOrderMapID) -> StepOrderMapDeletionStatus {
+        store.stepOrderMapDeletionStatus(id: id)
+    }
+
     @discardableResult
     func deleteUnusedStepOrderMap(id: StepOrderMapID) -> Bool {
         let changed = store.deleteUnusedStepOrderMap(id: id)

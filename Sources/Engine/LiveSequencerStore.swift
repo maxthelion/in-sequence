@@ -365,6 +365,9 @@ final class LiveSequencerStore {
 
     @discardableResult
     func appendStepOrderMap(_ map: StepOrderMap) -> Bool {
+        guard map.isValid else {
+            return false
+        }
         if storeStepOrderMapsByID[map.id] == map {
             return false
         }
@@ -383,7 +386,9 @@ final class LiveSequencerStore {
         }
         let before = map
         update(&map)
-        guard map != before else {
+        guard map.isValid,
+              map != before
+        else {
             return false
         }
         storeStepOrderMapsByID[id] = map
@@ -391,10 +396,19 @@ final class LiveSequencerStore {
         return true
     }
 
+    func stepOrderMapDeletionStatus(id: StepOrderMapID) -> StepOrderMapDeletionStatus {
+        StepOrderMapDeletionStatus(
+            mapID: id,
+            assignedPhraseIDs: storePhrasesByID.values.compactMap { phrase in
+                phrase.stepOrderAssignment?.mapID == id ? phrase.id : nil
+            }.sorted { $0.uuidString < $1.uuidString }
+        )
+    }
+
     @discardableResult
     func deleteUnusedStepOrderMap(id: StepOrderMapID) -> Bool {
         guard storeStepOrderMapsByID[id] != nil,
-              !storePhrasesByID.values.contains(where: { $0.stepOrderAssignment?.mapID == id })
+              stepOrderMapDeletionStatus(id: id).canDelete
         else {
             return false
         }

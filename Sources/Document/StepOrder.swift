@@ -2,6 +2,35 @@ import Foundation
 
 typealias StepOrderMapID = UUID
 
+enum StepOrderMapValidationIssue: Equatable, Hashable, Sendable {
+    case wrongLength(actual: Int)
+    case outOfRange(values: [UInt8])
+}
+
+enum StepOrderMapDeletionBlockReason: Equatable, Hashable, Sendable {
+    case assignedToPhrases(count: Int)
+}
+
+struct StepOrderMapDeletionStatus: Equatable, Hashable, Sendable {
+    var mapID: StepOrderMapID
+    var assignedPhraseIDs: [UUID]
+
+    var assignmentCount: Int {
+        assignedPhraseIDs.count
+    }
+
+    var canDelete: Bool {
+        assignedPhraseIDs.isEmpty
+    }
+
+    var blockedReason: StepOrderMapDeletionBlockReason? {
+        guard !canDelete else {
+            return nil
+        }
+        return .assignedToPhrases(count: assignmentCount)
+    }
+}
+
 struct StepOrderMap: Codable, Equatable, Hashable, Identifiable, Sendable {
     static let stepCount = 16
     static let identityValues: [UInt8] = Array(0..<UInt8(stepCount))
@@ -17,7 +46,7 @@ struct StepOrderMap: Codable, Equatable, Hashable, Identifiable, Sendable {
     ) {
         self.id = id
         self.name = name
-        self.values = Self.fixedLengthValues(values)
+        self.values = values
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -28,10 +57,11 @@ struct StepOrderMap: Codable, Equatable, Hashable, Identifiable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedValues = try container.decode([Int].self, forKey: .values)
         self.init(
             id: try container.decode(StepOrderMapID.self, forKey: .id),
             name: try container.decode(String.self, forKey: .name),
-            values: try container.decode([UInt8].self, forKey: .values)
+            values: Self.quarantinedDecodedValues(decodedValues)
         )
     }
 
@@ -43,21 +73,36 @@ struct StepOrderMap: Codable, Equatable, Hashable, Identifiable, Sendable {
         StepOrderMap(id: id, name: name, values: values)
     }
 
-    var validatedCompiledValues: [UInt8]? {
-        guard values.count == Self.stepCount,
-              values.allSatisfy({ $0 < UInt8(Self.stepCount) })
-        else {
-            return nil
+    var validationIssue: StepOrderMapValidationIssue? {
+        guard values.count == Self.stepCount else {
+            return .wrongLength(actual: values.count)
         }
-        return values
+
+        let invalidValues = values.filter { $0 >= UInt8(Self.stepCount) }
+        guard invalidValues.isEmpty else {
+            return .outOfRange(values: invalidValues)
+        }
+
+        return nil
     }
 
-    private static func fixedLengthValues(_ values: [UInt8]) -> [UInt8] {
-        var fixed = Array(values.prefix(stepCount))
-        if fixed.count < stepCount {
-            fixed.append(contentsOf: identityValues.dropFirst(fixed.count))
+    var isValid: Bool {
+        validationIssue == nil
+    }
+
+    var validatedCompiledValues: [UInt8]? {
+        isValid ? values : nil
+    }
+
+    static func isValidValues(_ values: [UInt8]) -> Bool {
+        values.count == stepCount && values.allSatisfy { $0 < UInt8(stepCount) }
+    }
+
+    private static func quarantinedDecodedValues(_ values: [Int]) -> [UInt8] {
+        guard values.allSatisfy({ (0...Int(UInt8.max)).contains($0) }) else {
+            return []
         }
-        return fixed
+        return values.map(UInt8.init)
     }
 }
 

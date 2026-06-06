@@ -431,6 +431,7 @@ enum SequencerSnapshotCompiler {
     ) -> [UInt8]? {
         guard let assignment = phrase.stepOrderAssignment,
               assignment.isEnabled,
+              phrase.stepCount == StepOrderMap.stepCount,
               let map = stepOrderMaps.first(where: { $0.id == assignment.mapID })
         else {
             return nil
