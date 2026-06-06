@@ -8,7 +8,7 @@ func layerAccent(_ layerID: String) -> Color {
         return StudioTheme.success
     case "tension", "transpose", "swing":
         return StudioTheme.amber
-    case "volume", "intensity", "density", "variance":
+    case "volume", "intensity", "density", "variance", "fx-send":
         return StudioTheme.cyan
     default:
         // Macro param layers follow the convention "macro-<trackID>-<bindingID>".

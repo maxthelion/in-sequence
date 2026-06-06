@@ -14,8 +14,9 @@ struct PhraseWorkspaceView: View {
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
     private let actionColumnWidth: CGFloat = 92
+    private let matrixGutterWidth = PhraseMatrixLayoutPresentation.matrixGutterWidth
     private let gridSpacing: CGFloat = 10
-    private let trackPageSize = 8
+    private let trackPageSize = PhraseMatrixLayoutPresentation.trackPageSize
 
     init(
         document: Binding<SeqAIDocument>,
@@ -28,20 +29,33 @@ struct PhraseWorkspaceView: View {
     private var phrases: [PhraseModel] { session.store.phrases }
     private var tracks: [StepSequenceTrack] { session.store.tracks }
     private var layers: [PhraseLayerDefinition] { session.store.layers }
+    private var matrixSelectableLayers: [PhraseLayerDefinition] {
+        let selectableLayers = PhraseLayerSelectorPresentation.selectableLayers(from: layers)
+        return selectableLayers.isEmpty ? layers : selectableLayers
+    }
     private var selectedTrack: StepSequenceTrack { session.store.selectedTrack }
 
     private var selectedLayer: PhraseLayerDefinition {
-        session.store.layer(id: selectedLayerID)
-            ?? layers.first
+        matrixSelectableLayers.first { $0.id == selectedLayerID }
+            ?? matrixSelectableLayers.first
             ?? PhraseLayerDefinition.defaultSet(for: tracks).first!
     }
 
     private var selectedLayerIndex: Int {
-        layers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
+        matrixSelectableLayers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
     }
 
     private var trackPageCount: Int {
-        max(1, Int(ceil(Double(tracks.count) / Double(trackPageSize))))
+        matrixLayout.pageCount
+    }
+
+    private var matrixLayout: PhraseMatrixLayoutPresentation {
+        PhraseMatrixLayoutPresentation(trackCount: tracks.count, pageIndex: trackPage)
+    }
+
+    private var trackGridWidth: CGFloat {
+        let columnCount = CGFloat(trackPageSize)
+        return columnCount * trackColumnWidth + max(0, columnCount - 1) * gridSpacing
     }
 
     private var visibleTrackSlots: [StepSequenceTrack?] {
@@ -52,8 +66,8 @@ struct PhraseWorkspaceView: View {
 
     private var phraseControlsPanelWidth: CGFloat {
         let trackSlotsWidth = CGFloat(visibleTrackSlots.count) * trackColumnWidth
-        let interiorSpacing = CGFloat(max(visibleTrackSlots.count, 1)) * gridSpacing
-        return phraseColumnWidth + interiorSpacing + trackSlotsWidth
+        let interiorSpacing = CGFloat(trackPageSize + 2) * gridSpacing
+        return phraseColumnWidth + (matrixGutterWidth * 2) + interiorSpacing + trackSlotsWidth
     }
 
     var body: some View {
@@ -79,20 +93,27 @@ struct PhraseWorkspaceView: View {
             .presentationBackground(.clear)
         }
         .onAppear {
-            if session.store.layer(id: selectedLayerID) == nil {
-                selectedLayerID = session.store.patternLayer?.id ?? layers.first?.id ?? "pattern"
-            }
+            reconcileSelectedLayer()
             clampTrackPage()
             applyVisualControlsOpenIndex()
+            postRenderedMatrixVisualState(isVisible: true)
+        }
+        .onDisappear {
+            postRenderedMatrixVisualState(isVisible: false)
         }
         .onChange(of: visualControlsOpenIndex) {
             applyVisualControlsOpenIndex()
         }
         .onChange(of: session.store.selectedTrackID) {
             syncTrackPageToSelection()
+            postRenderedMatrixVisualState(isVisible: true)
         }
         .onChange(of: tracks.count) {
             clampTrackPage()
+            postRenderedMatrixVisualState(isVisible: true)
+        }
+        .onChange(of: trackPage) {
+            postRenderedMatrixVisualState(isVisible: true)
         }
         .onChange(of: phrases.map(\.id)) {
             dismissInvalidEditorTarget()
@@ -104,7 +125,23 @@ struct PhraseWorkspaceView: View {
         }
         .onChange(of: layers.map(\.id)) {
             dismissInvalidEditorTarget()
+            reconcileSelectedLayer()
+            postRenderedMatrixVisualState(isVisible: true)
         }
+        .onChange(of: selectedLayerID) {
+            postRenderedMatrixVisualState(isVisible: true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .phraseMatrixVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            applyMatrixVisualCommand(command)
+        }
+    }
+
+    private func reconcileSelectedLayer() {
+        if matrixSelectableLayers.contains(where: { $0.id == selectedLayerID }) {
+            return
+        }
+        selectedLayerID = matrixSelectableLayers.first?.id ?? session.store.patternLayer?.id ?? layers.first?.id ?? "pattern"
     }
 
     private func applyVisualControlsOpenIndex() {
@@ -123,76 +160,71 @@ struct PhraseWorkspaceView: View {
     }
 
     private var layerBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                cycleLayer(by: -1)
-            } label: {
-                Image(systemName: "chevron.left")
-                    .studioText(.chromeLabel)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
+        HStack(spacing: gridSpacing) {
+            Color.clear
+                .frame(width: phraseColumnWidth, height: 44)
 
-            HStack(spacing: 10) {
-                Text(selectedLayer.name.uppercased())
+            Color.clear
+                .frame(width: matrixGutterWidth, height: 44)
+
+            layerSelectorRegion
+                .frame(width: trackGridWidth, height: 44)
+
+            Color.clear
+                .frame(width: matrixGutterWidth, height: 44)
+
+            Color.clear
+                .frame(width: actionColumnWidth, height: 44)
+        }
+    }
+
+    private var layerSelectorRegion: some View {
+        let presentation = PhraseLayerSelectorPresentation(
+            layerName: PhraseLayerSelectorPresentation.displayName(for: selectedLayer),
+            subtitle: layerSubtitle(selectedLayer),
+            indexLabel: "\(selectedLayerIndex + 1) / \(max(matrixSelectableLayers.count, 1))"
+        )
+
+        return HStack(spacing: 8) {
+            layerCycleButton(systemImage: "chevron.left", action: { cycleLayer(by: -1) })
+
+            HStack(spacing: 8) {
+                Text(presentation.displayName)
                     .studioText(.bodyBold)
                     .tracking(1.0)
                     .foregroundStyle(StudioTheme.text)
+                    .lineLimit(PhraseLayerSelectorPresentation.lineLimit)
+                    .truncationMode(.tail)
+                    .help(presentation.layerName)
+                    .layoutPriority(1)
 
                 Rectangle()
                     .fill(layerAccent(selectedLayer.id))
-                    .frame(width: 28, height: 3)
+                    .frame(width: 24, height: 3)
                     .clipShape(Capsule())
 
-                Text(layerSubtitle(selectedLayer))
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
+                Text(presentation.indexLabel)
                     .studioText(.eyebrowBold)
                     .foregroundStyle(layerAccent(selectedLayer.id))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
+                    .lineLimit(1)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
                     .background(layerAccent(selectedLayer.id).opacity(StudioOpacity.hoverFill), in: Capsule())
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(layerAccent(selectedLayer.id).opacity(StudioOpacity.subtleStroke), lineWidth: 1)
-            )
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(presentation.accessibilityLabel)
 
-            Button {
-                cycleLayer(by: 1)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .studioText(.chromeLabel)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            HStack(spacing: 8) {
-                trackPageButton(systemImage: "chevron.left", action: { cycleTrackPage(by: -1) }, isEnabled: trackPage > 0)
-
-                Text("Tracks \(trackPage + 1) / \(trackPageCount)")
-                    .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-
-                trackPageButton(systemImage: "chevron.right", action: { cycleTrackPage(by: 1) }, isEnabled: trackPage < trackPageCount - 1)
-            }
+            layerCycleButton(systemImage: "chevron.right", action: { cycleLayer(by: 1) })
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(width: PhraseLayerSelectorPresentation.fixedOuterWidth)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(layerAccent(selectedLayer.id).opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+        )
+        .accessibilityIdentifier("phrase-layer-selector")
     }
 
     private func cycleLayer(by delta: Int) {
@@ -200,8 +232,13 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        let nextIndex = (selectedLayerIndex + delta + layers.count) % layers.count
-        selectedLayerID = layers[nextIndex].id
+        let selectableLayers = matrixSelectableLayers
+        guard !selectableLayers.isEmpty else {
+            return
+        }
+
+        let nextIndex = (selectedLayerIndex + delta + selectableLayers.count) % selectableLayers.count
+        selectedLayerID = selectableLayers[nextIndex].id
     }
 
     private func cycleTrackPage(by delta: Int) {
@@ -217,7 +254,52 @@ struct PhraseWorkspaceView: View {
 
     private func clampTrackPage() {
         trackPage = min(max(trackPage, 0), trackPageCount - 1)
-        syncTrackPageToSelection()
+    }
+
+    private func applyMatrixVisualCommand(_ command: String) {
+        if command.hasPrefix("page-index:"),
+           let rawPageIndex = command.split(separator: ":").last,
+           let pageIndex = Int(rawPageIndex) {
+            trackPage = min(max(pageIndex, 0), trackPageCount - 1)
+            return
+        }
+
+        if command.hasPrefix("layer-id:") {
+            let layerID = String(command.dropFirst("layer-id:".count))
+            if matrixSelectableLayers.contains(where: { $0.id == layerID }) {
+                selectedLayerID = layerID
+            }
+            return
+        }
+
+        if command.hasPrefix("layer-index:"),
+           let rawIndex = command.split(separator: ":").last,
+           let index = Int(rawIndex),
+           matrixSelectableLayers.indices.contains(index) {
+            selectedLayerID = matrixSelectableLayers[index].id
+        }
+    }
+
+    private func postRenderedMatrixVisualState(isVisible: Bool) {
+        let layout = matrixLayout
+        NotificationCenter.default.post(
+            name: .phraseMatrixRenderedVisualState,
+            object: nil,
+            userInfo: [
+                "visible": isVisible,
+                "pageIndex": isVisible ? layout.pageIndex : 0,
+                "pageCount": isVisible ? layout.pageCount : 0,
+                "trackCount": isVisible ? tracks.count : 0,
+                "previousEnabled": isVisible && layout.arrow(for: .previous).isEnabled,
+                "nextEnabled": isVisible && layout.arrow(for: .next).isEnabled,
+                "previousOccupancy": isVisible ? layout.arrow(for: .previous).adjacentTrackCount : 0,
+                "nextOccupancy": isVisible ? layout.arrow(for: .next).adjacentTrackCount : 0,
+                "selectedLayerID": isVisible ? selectedLayer.id : "none",
+                "selectedLayerName": isVisible ? PhraseLayerSelectorPresentation.displayName(for: selectedLayer) : "none",
+                "selectorWidth": isVisible ? PhraseLayerSelectorPresentation.fixedOuterWidth : 0,
+                "trackGridWidth": isVisible ? trackGridWidth : 0,
+            ]
+        )
     }
 
     private func dismissInvalidEditorTarget() {
@@ -251,18 +333,53 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    @ViewBuilder
-    private func trackPageButton(systemImage: String, action: @escaping () -> Void, isEnabled: Bool) -> some View {
+    private func layerCycleButton(systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(StudioOpacity.ghostStroke))
-                .frame(width: 28, height: 28)
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 24, height: 24)
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                 .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .disabled(!isEnabled)
+    }
+
+    private func trackPageArrow(_ direction: PhraseMatrixPageDirection) -> some View {
+        let presentation = matrixLayout.arrow(for: direction)
+        let systemImage = direction == .previous ? "chevron.left" : "chevron.right"
+
+        return Button {
+            cycleTrackPage(by: direction == .previous ? -1 : 1)
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .fill(Color.white.opacity(presentation.isEnabled ? StudioOpacity.subtleFill : 0.015))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                            .stroke(StudioTheme.border.opacity(presentation.isEnabled ? StudioOpacity.mediumStroke : StudioOpacity.ghostStroke), lineWidth: 1)
+                    )
+
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(presentation.isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(StudioOpacity.ghostStroke))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if let occupancyHint = presentation.occupancyHint {
+                    Text(occupancyHint)
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white)
+                        .frame(width: 15, height: 15)
+                        .background(layerAccent(selectedLayer.id), in: Circle())
+                        .offset(x: 3, y: -3)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(!presentation.isEnabled)
+        .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityIdentifier(direction == .previous ? "phrase-matrix-page-previous" : "phrase-matrix-page-next")
     }
 
     private var matrix: some View {
@@ -271,6 +388,9 @@ struct PhraseWorkspaceView: View {
                 HStack(spacing: gridSpacing) {
                     Color.clear
                         .frame(width: phraseColumnWidth, height: 52)
+
+                    trackPageArrow(.previous)
+                        .frame(width: matrixGutterWidth, height: 52)
 
                     ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
                         Group {
@@ -291,6 +411,9 @@ struct PhraseWorkspaceView: View {
                         }
                         .frame(width: trackColumnWidth)
                     }
+
+                    trackPageArrow(.next)
+                        .frame(width: matrixGutterWidth, height: 52)
 
                     Color.clear
                         .frame(width: actionColumnWidth, height: 52)
@@ -317,6 +440,9 @@ struct PhraseWorkspaceView: View {
                                 phraseControlsState.toggleControls(for: phrase.id)
                             }
                             .frame(width: phraseColumnWidth)
+
+                            PhraseMatrixGutterCell()
+                                .frame(width: matrixGutterWidth)
 
                             ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
                                 Group {
@@ -348,6 +474,9 @@ struct PhraseWorkspaceView: View {
                                 }
                                 .frame(width: trackColumnWidth)
                             }
+
+                            PhraseMatrixGutterCell()
+                                .frame(width: matrixGutterWidth)
 
                             PhraseRowActions(
                                 canRemove: phrases.count > 1,
@@ -442,6 +571,13 @@ private struct PhraseRowActions: View {
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
+    }
+}
+
+private struct PhraseMatrixGutterCell: View {
+    var body: some View {
+        Color.clear
+            .accessibilityHidden(true)
     }
 }
 

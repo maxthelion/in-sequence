@@ -384,6 +384,7 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
             ("tension", "Tension", .scalar, 0...1, .macroRow("tension")),
             ("register", "Register", .scalar, 0...1, .macroRow("register")),
             ("variance", "Variance", .scalar, 0...1, .macroRow("variance")),
+            ("fx-send", "FX Send", .scalar, 0...1, .macroRow("fx-send")),
             ("brightness", "Brightness", .scalar, 0...1, .macroRow("brightness")),
             ("fill-flag", "Fill", .boolean, 0...1, .macroRow("fill-flag")),
             ("swing", "Swing", .scalar, 0...1, .macroRow("swing-amount")),
@@ -454,6 +455,7 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
              "tension",
              "register",
              "variance",
+             "fx-send",
              "brightness",
              "swing":
             return .scalar(0)

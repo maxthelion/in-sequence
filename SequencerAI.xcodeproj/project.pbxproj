@@ -191,6 +191,7 @@
 		6C66703D23737075A1530E07 /* GeneratorParamsEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398E48D9FF308E99F8F8FB03 /* GeneratorParamsEditorView.swift */; };
 		6CB52A740B10CFF5E933F890 /* AUPresetDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF6AFF87A1E07040BD36E4F /* AUPresetDescriptor.swift */; };
 		6CC8F8D7C3A0D1060FEFE0C0 /* PhraseWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6685502B2713380D3804AD6 /* PhraseWorkspaceView.swift */; };
+		D35000000000000000000001 /* PhraseMatrixLayoutPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35000000000000000000002 /* PhraseMatrixLayoutPresentation.swift */; };
 		6D6469477940F080168A93CD /* AUAudioUnitFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A9B06103BC536482F2F540 /* AUAudioUnitFactory.swift */; };
 		6F6F86BF92A2F0E984201AEE /* ProjectAttachNewGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6CC65391D8DDD5FD5350FE3 /* ProjectAttachNewGeneratorTests.swift */; };
 		6F7F8106530D3057916778DC /* ObservationGranularityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */; };
@@ -301,6 +302,7 @@
 		AFC19BBB90A6238AA8CD7416 /* PresetBrowserSheetViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */; };
 		B64A40000000000000000002 /* PhraseButtonControlPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64A40000000000000000001 /* PhraseButtonControlPresentation.swift */; };
 		B64A40000000000000000004 /* PhraseButtonControlPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64A40000000000000000003 /* PhraseButtonControlPresentationTests.swift */; };
+		D35000000000000000000003 /* PhraseMatrixLayoutPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35000000000000000000004 /* PhraseMatrixLayoutPresentationTests.swift */; };
 		AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766C257A66BCD3812FAC00F4 /* StepGridTapLatencyTests.swift */; };
 		AFEC910ED207BA5E8F1AADA9 /* Project+TrackMacros.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773F90C630CF113A01EEBE27 /* Project+TrackMacros.swift */; };
 		B04D33E65E6D0FF3E2FBD89E /* SamplerFilterSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47991C72ED92062FA4C7B60 /* SamplerFilterSettings.swift */; };
@@ -1263,6 +1265,8 @@
 		B64A40000000000000000001 /* PhraseButtonControlPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseButtonControlPresentation.swift; sourceTree = "<group>"; };
 		B64A40000000000000000003 /* PhraseButtonControlPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseButtonControlPresentationTests.swift; sourceTree = "<group>"; };
 		B6685502B2713380D3804AD6 /* PhraseWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseWorkspaceView.swift; sourceTree = "<group>"; };
+		D35000000000000000000002 /* PhraseMatrixLayoutPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseMatrixLayoutPresentation.swift; sourceTree = "<group>"; };
+		D35000000000000000000004 /* PhraseMatrixLayoutPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseMatrixLayoutPresentationTests.swift; sourceTree = "<group>"; };
 		B668ECDFFB6A13DE71CEBB1D /* validated-windows.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "validated-windows.json"; sourceTree = "<group>"; };
 		B698555B717FC33A33579951 /* WaveformDownsamplerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformDownsamplerTests.swift; sourceTree = "<group>"; };
 		B6C4A4610862E6E62FAF72CA /* intent.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = intent.md; sourceTree = "<group>"; };
@@ -2025,6 +2029,7 @@
 				2F66D53850064B8D47A58EDE /* PhraseCellEditorSheet.swift */,
 				D4DE847F1A4F5E88F5159E35 /* PhraseCellPreview.swift */,
 				A2B25BBA0A63F5333205728D /* PhraseLayerPresentation.swift */,
+				D35000000000000000000002 /* PhraseMatrixLayoutPresentation.swift */,
 				B64A40000000000000000001 /* PhraseButtonControlPresentation.swift */,
 				B6685502B2713380D3804AD6 /* PhraseWorkspaceView.swift */,
 				570F5DAF2012F23A03ED7F62 /* PreferencesView.swift */,
@@ -2742,6 +2747,7 @@
 				02D931EDA9E4E80A888C2990 /* PresetBrowserSheetViewModelTests.swift */,
 				B5690E8FE8F2FADF13A6A0D3 /* PresetStepperTests.swift */,
 				B64A40000000000000000003 /* PhraseButtonControlPresentationTests.swift */,
+				D35000000000000000000004 /* PhraseMatrixLayoutPresentationTests.swift */,
 				1624C29AA598742CFB6E4069 /* SamplerDestinationWidgetTests.swift */,
 				BF8772C8554BBCE9F9C6026A /* StudioTypographyTests.swift */,
 				034C9347D990B68BE91CFA66 /* TrackPerformSelectionStateTests.swift */,
@@ -4505,6 +4511,7 @@
 				EED001000000000000000001 /* PhrasePolicySessionTests.swift in Sources */,
 				F2AA00000000000000000003 /* PhrasePerformOverlaySessionTests.swift in Sources */,
 				B64A40000000000000000004 /* PhraseButtonControlPresentationTests.swift in Sources */,
+				D35000000000000000000003 /* PhraseMatrixLayoutPresentationTests.swift in Sources */,
 				0077E4E53A46E6D3A4D36087 /* SessionMacroSlotTests.swift in Sources */,
 				A165D88338847DD38B45532D /* SessionSnapshotPublisherTests.swift in Sources */,
 				64645F74EDC54A22604EE436 /* SessionTestSupport.swift in Sources */,
@@ -4652,6 +4659,7 @@
 				C39AE6739C236830B159A194 /* PhraseCurvePreview.swift in Sources */,
 				726EFF2A1AC34B8E4EAC979F /* PhraseLayer+Values.swift in Sources */,
 				94B0EB5599FB87ADC565B50E /* PhraseLayerPresentation.swift in Sources */,
+				D35000000000000000000001 /* PhraseMatrixLayoutPresentation.swift in Sources */,
 				4AAF9900316F1DA8AAC11F03 /* PhraseModel.swift in Sources */,
 				FD3B9E87ADA540AEE60F3CA4 /* PhrasePlaybackBuffer.swift in Sources */,
 				6CC8F8D7C3A0D1060FEFE0C0 /* PhraseWorkspaceView.swift in Sources */,

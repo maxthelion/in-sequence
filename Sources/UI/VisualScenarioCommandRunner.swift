@@ -16,6 +16,18 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedDisplayStepCount = 16
     private static var drumKitMatrixRenderedGroupName = "none"
     private static var drumKitMatrixRenderedMemberCount = 0
+    private static var phraseMatrixRenderedVisible = false
+    private static var phraseMatrixPageIndex = 0
+    private static var phraseMatrixPageCount = 0
+    private static var phraseMatrixTrackCount = 0
+    private static var phraseMatrixPreviousEnabled = false
+    private static var phraseMatrixNextEnabled = false
+    private static var phraseMatrixPreviousOccupancy = 0
+    private static var phraseMatrixNextOccupancy = 0
+    private static var phraseMatrixSelectedLayerID = "none"
+    private static var phraseMatrixSelectedLayerName = "none"
+    private static var phraseMatrixSelectorWidth: CGFloat = 0
+    private static var phraseMatrixTrackGridWidth: CGFloat = 0
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
     private static var drumGroupRoutingEditorCanApply = false
@@ -110,6 +122,27 @@ enum VisualScenarioCommandRunner {
                 drumGroupRoutingEditorChannelInputs = userInfo["channelInputs"] as? String ?? "none"
             }
         }
+        NotificationCenter.default.addObserver(
+            forName: .phraseMatrixRenderedVisualState,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let userInfo = notification.userInfo else { return }
+            Task { @MainActor in
+                phraseMatrixRenderedVisible = userInfo["visible"] as? Bool ?? false
+                phraseMatrixPageIndex = userInfo["pageIndex"] as? Int ?? 0
+                phraseMatrixPageCount = userInfo["pageCount"] as? Int ?? 0
+                phraseMatrixTrackCount = userInfo["trackCount"] as? Int ?? 0
+                phraseMatrixPreviousEnabled = userInfo["previousEnabled"] as? Bool ?? false
+                phraseMatrixNextEnabled = userInfo["nextEnabled"] as? Bool ?? false
+                phraseMatrixPreviousOccupancy = userInfo["previousOccupancy"] as? Int ?? 0
+                phraseMatrixNextOccupancy = userInfo["nextOccupancy"] as? Int ?? 0
+                phraseMatrixSelectedLayerID = userInfo["selectedLayerID"] as? String ?? "none"
+                phraseMatrixSelectedLayerName = userInfo["selectedLayerName"] as? String ?? "none"
+                phraseMatrixSelectorWidth = userInfo["selectorWidth"] as? CGFloat ?? 0
+                phraseMatrixTrackGridWidth = userInfo["trackGridWidth"] as? CGFloat ?? 0
+            }
+        }
     }
 
     private static func parse(_ payload: String) -> [String: String] {
@@ -183,6 +216,7 @@ enum VisualScenarioCommandRunner {
             session: session,
             engineController: engineController
         )
+        applyPhraseMatrixFixture(command: command, section: section, session: session)
         applyPhrasePerformOverlayFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
@@ -291,6 +325,18 @@ enum VisualScenarioCommandRunner {
         stagedCellCount=\(session.phrasePerformOverlay.stagedCellCount)
         phrasePerformOverlayCanSaveBack=\(canSavePhrasePerformOverlay)
         phrasePerformOverlayCanRevert=\(session.phrasePerformOverlay.isDirty)
+        phraseMatrixRenderedVisible=\(phraseMatrixRenderedVisible)
+        phraseMatrixPageIndex=\(phraseMatrixPageIndex)
+        phraseMatrixPageCount=\(phraseMatrixPageCount)
+        phraseMatrixTrackCount=\(phraseMatrixTrackCount)
+        phraseMatrixPreviousEnabled=\(phraseMatrixPreviousEnabled)
+        phraseMatrixNextEnabled=\(phraseMatrixNextEnabled)
+        phraseMatrixPreviousOccupancy=\(phraseMatrixPreviousOccupancy)
+        phraseMatrixNextOccupancy=\(phraseMatrixNextOccupancy)
+        phraseMatrixSelectedLayerID=\(phraseMatrixSelectedLayerID)
+        phraseMatrixSelectedLayerName=\(phraseMatrixSelectedLayerName)
+        phraseMatrixSelectorWidth=\(phraseMatrixSelectorWidth)
+        phraseMatrixTrackGridWidth=\(phraseMatrixTrackGridWidth)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -407,6 +453,39 @@ enum VisualScenarioCommandRunner {
 
     private static func phraseForPerformOverlayFixture(session: SequencerDocumentSession) -> PhraseModel? {
         session.store.phrases.first { $0.name == "Phrase A" } ?? session.store.phrases.first
+    }
+
+    private static func applyPhraseMatrixFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["phraseMatrixTrackCount"] != nil ||
+              command["phraseMatrixPageIndex"] != nil ||
+              command["phraseMatrixLayerID"] != nil ||
+              command["phraseMatrixLayerIndex"] != nil
+        else { return }
+
+        section.wrappedValue = .phrase
+
+        if let rawTrackCount = command["phraseMatrixTrackCount"],
+           let trackCount = Int(rawTrackCount) {
+            ensureTrackCount(trackCount, session: session)
+        }
+
+        if let rawPageIndex = command["phraseMatrixPageIndex"],
+           let pageIndex = Int(rawPageIndex) {
+            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "page-index:\(pageIndex)")
+        }
+
+        if let layerID = command["phraseMatrixLayerID"] {
+            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "layer-id:\(layerID)")
+        }
+
+        if let rawLayerIndex = command["phraseMatrixLayerIndex"],
+           let layerIndex = Int(rawLayerIndex) {
+            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "layer-index:\(layerIndex)")
+        }
     }
 
     private static func currentDrumKitMatrixModel(session: SequencerDocumentSession) -> DrumKitMatrixModel? {
