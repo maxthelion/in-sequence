@@ -12,9 +12,44 @@ struct PhrasePlaybackBuffer: Equatable, Sendable {
     let stepCount: Int
     let repeatCount: Int
     let loopEnabled: Bool
+    let stepOrderMap: [UInt8]?
     let trackStates: [UUID: TrackPhrasePlaybackBuffer]
+
+    init(
+        phraseID: UUID,
+        stepCount: Int,
+        repeatCount: Int,
+        loopEnabled: Bool,
+        stepOrderMap: [UInt8]? = nil,
+        trackStates: [UUID: TrackPhrasePlaybackBuffer]
+    ) {
+        self.phraseID = phraseID
+        self.stepCount = max(1, stepCount)
+        self.repeatCount = repeatCount
+        self.loopEnabled = loopEnabled
+        self.stepOrderMap = stepOrderMap
+        self.trackStates = trackStates
+    }
 
     func trackState(for trackID: UUID) -> TrackPhrasePlaybackBuffer? {
         trackStates[trackID]
     }
+
+    func sourceStepIndex(for outputStepIndex: Int) -> Int {
+        let normalizedOutputStep = ((outputStepIndex % stepCount) + stepCount) % stepCount
+        guard let stepOrderMap,
+              stepCount == Self.stepOrderMapLength,
+              stepOrderMap.count == Self.stepOrderMapLength
+        else {
+            return normalizedOutputStep
+        }
+
+        let sourceStepIndex = Int(stepOrderMap[normalizedOutputStep])
+        guard (0..<stepCount).contains(sourceStepIndex) else {
+            return normalizedOutputStep
+        }
+        return sourceStepIndex
+    }
+
+    private static let stepOrderMapLength = 16
 }

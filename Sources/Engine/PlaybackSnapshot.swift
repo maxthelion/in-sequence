@@ -1,6 +1,7 @@
 import Foundation
 
 struct ResolvedTrackPlaybackStep: Equatable, Sendable {
+    let sourceStepIndex: Int
     let slotIndex: Int
     let mute: Bool
     let fillEnabled: Bool
@@ -75,25 +76,27 @@ struct PlaybackSnapshot: Equatable, Sendable {
             return nil
         }
 
-        let normalizedIndex = ((stepInPhrase % phraseBuffer.stepCount) + phraseBuffer.stepCount) % phraseBuffer.stepCount
-        let slotIndex = Int(trackState.patternSlotIndex[normalizedIndex])
+        let outputStepIndex = ((stepInPhrase % phraseBuffer.stepCount) + phraseBuffer.stepCount) % phraseBuffer.stepCount
+        let sourceStepIndex = phraseBuffer.sourceStepIndex(for: outputStepIndex)
+        let slotIndex = Int(trackState.patternSlotIndex[sourceStepIndex])
         var resolvedMacros = Dictionary(
-            uniqueKeysWithValues: zip(program.macroBindingIDs, trackState.macroValues[normalizedIndex])
+            uniqueKeysWithValues: zip(program.macroBindingIDs, trackState.macroValues[outputStepIndex])
         )
 
         if case let .clip(clipID, _, _) = program.slotProgram(at: slotIndex),
            let clip = clipBuffersByID[clipID]
         {
-            let clipStep = ((normalizedIndex % clip.lengthSteps) + clip.lengthSteps) % clip.lengthSteps
+            let clipStep = ((sourceStepIndex % clip.lengthSteps) + clip.lengthSteps) % clip.lengthSteps
             for (bindingID, value) in clip.macroOverrides(at: clipStep) {
                 resolvedMacros[bindingID] = value
             }
         }
 
         return ResolvedTrackPlaybackStep(
+            sourceStepIndex: sourceStepIndex,
             slotIndex: slotIndex,
-            mute: trackState.mute[normalizedIndex],
-            fillEnabled: trackState.fillEnabled[normalizedIndex],
+            mute: trackState.mute[outputStepIndex],
+            fillEnabled: trackState.fillEnabled[outputStepIndex],
             macroValues: resolvedMacros
         )
     }

@@ -2571,7 +2571,7 @@ final class EngineController: RouterDispatcher {
             }
             let sourceNotes = GeneratedSourceEvaluator.evaluateSourceStep(
                 for: generator.params,
-                stepIndex: stepIndex,
+                stepIndex: resolved.sourceStepIndex,
                 clipChoices: playbackSnapshot.clipPool,
                 rng: &rng
             )
@@ -2585,7 +2585,7 @@ final class EngineController: RouterDispatcher {
             return GeneratedSourceEvaluator.processSourceNotes(
                 sourceNotes,
                 through: processor.params,
-                stepIndex: stepIndex,
+                stepIndex: resolved.sourceStepIndex,
                 clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,
@@ -2600,7 +2600,7 @@ final class EngineController: RouterDispatcher {
             let effectiveFillEnabled = resolved.fillEnabled || trackFillPreview.isActive(for: trackID)
             let sourceNotes = GeneratedSourceEvaluator.resolveClipStep(
                 for: clip,
-                stepIndex: stepIndex,
+                stepIndex: resolved.sourceStepIndex,
                 fillEnabled: effectiveFillEnabled,
                 rng: &rng
             )
@@ -2614,7 +2614,7 @@ final class EngineController: RouterDispatcher {
             return GeneratedSourceEvaluator.processSourceNotes(
                 sourceNotes,
                 through: processor.params,
-                stepIndex: stepIndex,
+                stepIndex: resolved.sourceStepIndex,
                 clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,

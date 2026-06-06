@@ -62,6 +62,48 @@ final class PlaybackSnapshotBuffersOnlyTests: XCTestCase {
         XCTAssertTrue(notesAtStep1.isEmpty, "Step 1 should produce no notes for an empty clip step")
     }
 
+    func test_resolvedStep_usesSequentialSourceSteps_withoutStepOrderMap() throws {
+        let (snapshot, trackID) = makeStepOrderFixtureSnapshot(stepOrderMap: nil)
+
+        for outputStep in 0..<16 {
+            let resolved = try XCTUnwrap(snapshot.resolvedStep(
+                phraseID: snapshot.selectedPhraseID,
+                trackID: trackID,
+                stepInPhrase: outputStep
+            ))
+
+            XCTAssertEqual(resolved.sourceStepIndex, outputStep)
+            XCTAssertEqual(resolved.slotIndex, outputStep)
+        }
+    }
+
+    func test_resolvedStep_usesCompiledStepOrderMap_forSourceReads() throws {
+        let acceptedRemap: [UInt8] = [0, 1, 2, 3, 3, 3, 3, 3, 7, 8, 9, 0, 1, 2, 3, 3]
+        let (snapshot, trackID) = makeStepOrderFixtureSnapshot(stepOrderMap: acceptedRemap)
+
+        for outputStep in 0..<16 {
+            let resolved = try XCTUnwrap(snapshot.resolvedStep(
+                phraseID: snapshot.selectedPhraseID,
+                trackID: trackID,
+                stepInPhrase: outputStep
+            ))
+            let expectedSourceStep = Int(acceptedRemap[outputStep])
+
+            XCTAssertEqual(resolved.sourceStepIndex, expectedSourceStep)
+            XCTAssertEqual(resolved.slotIndex, expectedSourceStep)
+        }
+
+        let outputStep11 = try XCTUnwrap(snapshot.resolvedStep(
+            phraseID: snapshot.selectedPhraseID,
+            trackID: trackID,
+            stepInPhrase: 11
+        ))
+        XCTAssertEqual(outputStep11.sourceStepIndex, 0)
+        XCTAssertTrue(outputStep11.fillEnabled, "Phrase-layer fill timing stays anchored to output step 11")
+        XCTAssertFalse(snapshot.layerSnapshot(phraseID: snapshot.selectedPhraseID, stepInPhrase: 0).isFillEnabled(trackID))
+        XCTAssertTrue(snapshot.layerSnapshot(phraseID: snapshot.selectedPhraseID, stepInPhrase: 11).isFillEnabled(trackID))
+    }
+
     // MARK: - 3. Generator source resolution uses snapshot's generatorPool
 
     func test_tickResolution_forGenerator_usesSnapshotGeneratorPool() throws {
@@ -176,6 +218,52 @@ final class PlaybackSnapshotBuffersOnlyTests: XCTestCase {
 }
 
 // MARK: - Helpers
+
+private func makeStepOrderFixtureSnapshot(stepOrderMap: [UInt8]?) -> (PlaybackSnapshot, UUID) {
+    let phraseID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+    let trackID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+    let stepCount = 16
+    var fillEnabled = [Bool](repeating: false, count: stepCount)
+    fillEnabled[11] = true
+
+    let trackState = TrackPhrasePlaybackBuffer(
+        patternSlotIndex: (0..<stepCount).map(UInt8.init),
+        mute: [Bool](repeating: false, count: stepCount),
+        fillEnabled: fillEnabled,
+        macroValues: [[Double]](repeating: [], count: stepCount)
+    )
+    let phraseBuffer = PhrasePlaybackBuffer(
+        phraseID: phraseID,
+        stepCount: stepCount,
+        repeatCount: 1,
+        loopEnabled: false,
+        stepOrderMap: stepOrderMap,
+        trackStates: [trackID: trackState]
+    )
+    let program = TrackSourceProgram(
+        trackID: trackID,
+        slotPrograms: [SlotProgram](repeating: .empty, count: stepCount),
+        macroBindingIDs: [],
+        macroDefaults: [:]
+    )
+
+    return (
+        PlaybackSnapshot(
+            selectedPhraseID: phraseID,
+            clipPool: [],
+            sliceSetPool: [],
+            generatorPool: [],
+            tracks: [],
+            resolvedDestinationsByTrackID: [:],
+            trackOrder: [trackID],
+            phraseOrder: [phraseID],
+            clipBuffersByID: [:],
+            trackProgramsByTrackID: [trackID: program],
+            phraseBuffersByID: [phraseID: phraseBuffer]
+        ),
+        trackID
+    )
+}
 
 /// A project with a single generator-mode slot (no clip).
 private func makeGeneratorProject(generatorID: UUID) -> (Project, UUID, UUID) {
