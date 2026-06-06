@@ -91,6 +91,32 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(controller.activeNoteRepeatTrackIDsForTesting, [secondTrackID])
     }
 
+    func test_noteRepeatReconciliationClearsUnsupportedTrackAndKeepsUnrelatedActiveTrack() throws {
+        let controller = EngineController(client: nil, endpoint: nil, audioOutputFactory: { CountingAudioSink() })
+        var project = Self.twoClipTrackProject()
+        let firstTrackID = project.tracks[0].id
+        let secondTrackID = project.tracks[1].id
+
+        controller.apply(documentModel: project)
+        controller.engageNoteRepeat(trackID: firstTrackID)
+        controller.engageNoteRepeat(trackID: secondTrackID)
+        XCTAssertEqual(controller.activeNoteRepeatTrackIDsForTesting, [firstTrackID, secondTrackID])
+
+        let firstGenerator = try XCTUnwrap(
+            GeneratorPoolEntry.defaultPool.first { $0.trackType == project.tracks[0].trackType }
+        )
+        project.patternBanks[0] = TrackPatternBank(
+            trackID: firstTrackID,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(firstGenerator.id))]
+        )
+
+        controller.apply(documentModel: project)
+
+        XCTAssertNil(controller.noteRepeatRuntimeSnapshot(for: firstTrackID))
+        XCTAssertNotNil(controller.noteRepeatRuntimeSnapshot(for: secondTrackID))
+        XCTAssertEqual(controller.activeNoteRepeatTrackIDsForTesting, [secondTrackID])
+    }
+
     func test_setBPM_reaches_executor_within_two_ticks() {
         let controller = EngineController(client: nil, endpoint: nil)
 
