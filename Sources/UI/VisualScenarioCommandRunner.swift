@@ -29,6 +29,8 @@ enum VisualScenarioCommandRunner {
     private static var phraseMatrixSelectorWidth: CGFloat = 0
     private static var phraseMatrixTrackGridWidth: CGFloat = 0
     private static var trackPerformLayerMode = TrackPerformLayerMode.pattern.rawValue
+    private static var trackPerformLayerSelectorVisible = false
+    private static var trackPerformLayerVariant = "none"
     private static var stepOrderFixtureState = "none"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
@@ -221,6 +223,7 @@ enum VisualScenarioCommandRunner {
         applyStepOrderFixture(command: command, section: section, session: session, engineController: engineController)
         applyPhraseMatrixFixture(command: command, section: section, session: session)
         applyPhrasePerformOverlayFixture(command: command, section: section, tracksMode: tracksMode, session: session)
+        applyTrackPerformLayerMatrixFixture(command: command, section: section, tracksMode: tracksMode)
         applyNoteRepeatPerformFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
@@ -404,6 +407,8 @@ enum VisualScenarioCommandRunner {
         selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
         selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
         trackPerformLayerMode=\(trackPerformLayerMode)
+        trackPerformLayerSelectorVisible=\(trackPerformLayerSelectorVisible)
+        trackPerformLayerVariant=\(trackPerformLayerVariant)
         selectedNoteRepeatAvailable=\(session.isNoteRepeatAvailable(trackID: session.store.selectedTrackID))
         selectedNoteRepeatStoredInterval=\(session.store.selectedTrack.noteRepeatInterval.rawValue)
         selectedNoteRepeatActive=\(selectedNoteRepeatSnapshot != nil)
@@ -525,6 +530,50 @@ enum VisualScenarioCommandRunner {
         session.store.phrases.first { $0.name == "Phrase A" } ?? session.store.phrases.first
     }
 
+    private static func applyTrackPerformLayerMatrixFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        tracksMode: Binding<TracksWorkspaceMode>
+    ) {
+        guard command["trackPerformLayerSelector"] != nil ||
+              command["trackPerformLayer"] != nil ||
+              command["trackPerformLayerVariant"] != nil
+        else { return }
+
+        section.wrappedValue = .tracks
+        tracksMode.wrappedValue = .perform
+
+        switch command["trackPerformLayerSelector"] {
+        case "open", "visible", "true":
+            trackPerformLayerSelectorVisible = true
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "open-layer-selector")
+        case "close", "hidden", "false":
+            trackPerformLayerSelectorVisible = false
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "close-layer-selector")
+        default:
+            break
+        }
+
+        if let rawLayer = command["trackPerformLayer"],
+           let layer = TrackPerformLayerMode(rawValue: rawLayer) {
+            trackPerformLayerMode = layer.rawValue
+
+            if let variant = command["trackPerformLayerVariant"],
+               layer.inlineVariantLabels.contains(variant) {
+                trackPerformLayerVariant = variant
+                trackPerformLayerSelectorVisible = false
+                NotificationCenter.default.post(
+                    name: .trackPerformVisualCommand,
+                    object: "select-variant:\(layer.rawValue):\(variant)"
+                )
+            } else if command["trackPerformLayerSelector"] == nil {
+                trackPerformLayerVariant = "none"
+                trackPerformLayerSelectorVisible = false
+                NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "select-layer:\(layer.rawValue)")
+            }
+        }
+    }
+
     private static func applyNoteRepeatPerformFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
@@ -553,7 +602,8 @@ enum VisualScenarioCommandRunner {
             session.setSelectedTrackID(session.store.tracks[clampedIndex].id)
         }
 
-        if let rawLayer = command["trackPerformLayer"],
+        if command["trackPerformLayerVariant"] == nil,
+           let rawLayer = command["trackPerformLayer"],
            let layer = TrackPerformLayerMode(rawValue: rawLayer) {
             trackPerformLayerMode = layer.rawValue
             NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "layer:\(layer.rawValue)")

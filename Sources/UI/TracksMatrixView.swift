@@ -88,6 +88,8 @@ struct TracksMatrixView: View {
     @State private var performSelection = TrackPerformSelectionState()
     @State private var performRuntimeOverlay = TrackPerformRuntimeOverlayState()
     @State private var performLayerMode = TrackPerformLayerMode.pattern
+    @State private var performLayerVariantLabel: String?
+    @State private var isPresentingPerformLayerSelection = false
 
     private let columns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -115,6 +117,11 @@ struct TracksMatrixView: View {
         }
 
         return session.store.layer(id: layerID) ?? selectedLayer
+    }
+
+    private var activePerformLayerLabel: String {
+        let suffix = performLayerVariantLabel.map { " - \($0)" } ?? ""
+        return "\(performLayerMode.label)\(suffix)"
     }
 
     private var editingPhrase: PhraseModel {
@@ -166,7 +173,11 @@ struct TracksMatrixView: View {
                             accent: StudioTheme.cyan
                         )
                     } else {
-                        matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
+                        if isPerforming && isPresentingPerformLayerSelection {
+                            performLayerSelectionSurface
+                        } else {
+                            matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
+                        }
                     }
                 }
             }
@@ -209,12 +220,16 @@ struct TracksMatrixView: View {
         }
         .onChange(of: isPerforming) { _, isNowPerforming in
             if !isNowPerforming {
+                isPresentingPerformLayerSelection = false
                 cleanupPerformRuntime()
             }
         }
         .onChange(of: performLayerMode) { oldValue, newValue in
             if oldValue == .noteRepeat, newValue != .noteRepeat {
                 cleanupNoteRepeatRuntime()
+            }
+            if !newValue.inlineVariantLabels.contains(performLayerVariantLabel ?? "") {
+                performLayerVariantLabel = nil
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .trackPerformVisualCommand)) { notification in
@@ -365,23 +380,36 @@ struct TracksMatrixView: View {
     }
 
     private var performLayerControl: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        Button {
+            isPresentingPerformLayerSelection = true
+        } label: {
             HStack(spacing: 8) {
-                Text("PERFORM LAYER")
-                    .studioText(.micro)
-                    .tracking(0.8)
+                Image(systemName: performLayerMode.symbolName)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 28, height: 28)
+                    .background(performLayerMode.accent.opacity(StudioOpacity.selectedFill), in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("PERFORM LAYER")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
+
+                    Text(activePerformLayerLabel.uppercased())
+                        .studioText(.labelBold)
+                        .foregroundStyle(performLayerMode.accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+
+                Image(systemName: isPresentingPerformLayerSelection ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(StudioTheme.mutedText)
-
-                Text(performLayerMode.subtitle.uppercased())
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(performLayerMode.accent)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
             }
-
-            TrackPerformLayerModePicker(selection: $performLayerMode)
         }
+        .buttonStyle(.plain)
+        .frame(width: 210, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
@@ -389,6 +417,8 @@ struct TracksMatrixView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(performLayerMode.accent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
         )
+        .accessibilityIdentifier("track-perform-layer-button")
+        .help("Choose the Tracks performance layer")
     }
 
     private var basisPhrasePill: some View {
@@ -540,6 +570,73 @@ struct TracksMatrixView: View {
         selectedLayerID = layers[nextIndex].id
     }
 
+    private var performLayerSelectionSurface: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("CHOOSE TRACK LAYER")
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.amber)
+
+                    Text("Track cards return after a layer or inline variant is selected.")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Spacer(minLength: 8)
+
+                Button {
+                    isPresentingPerformLayerSelection = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: 28, height: 28)
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("Return to track cards")
+            }
+
+            LazyVGrid(columns: performLayerSelectionColumns, alignment: .leading, spacing: 12) {
+                ForEach(TrackPerformLayerMode.allCases) { mode in
+                    TrackPerformLayerOptionCard(
+                        mode: mode,
+                        selectedMode: performLayerMode,
+                        selectedVariantLabel: performLayerVariantLabel,
+                        onSelectPlain: {
+                            choosePerformLayer(mode, variantLabel: nil)
+                        },
+                        onSelectVariant: { variant in
+                            choosePerformLayer(mode, variantLabel: variant)
+                        }
+                    )
+                }
+            }
+        }
+        .padding(14)
+        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+        )
+        .accessibilityIdentifier("track-perform-layer-selection-surface")
+    }
+
+    private var performLayerSelectionColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 160, maximum: 260), spacing: 12), count: 4)
+    }
+
+    private func choosePerformLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
+        performLayerMode = mode
+        performLayerVariantLabel = variantLabel
+        isPresentingPerformLayerSelection = false
+    }
+
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if !ungroupedTracks.isEmpty {
@@ -570,6 +667,7 @@ struct TracksMatrixView: View {
                     patternIndex: session.store.selectedPatternIndex(for: track.id),
                     layer: layer,
                     activePerformLayer: activePerformLayer,
+                    activePerformVariantLabel: performLayerVariantLabel,
                     cell: cell,
                     resolvedValue: resolvedValue,
                     valueSummary: valueLabel(resolvedValue, layer: layer),
@@ -778,9 +876,34 @@ struct TracksMatrixView: View {
     }
 
     private func applyTrackPerformVisualCommand(_ command: String) {
+        if command == "open-layer-selector" {
+            isPresentingPerformLayerSelection = true
+            return
+        }
+
+        if command == "close-layer-selector" {
+            isPresentingPerformLayerSelection = false
+            return
+        }
+
+        if let rawMode = command.removingPrefix("select-layer:"),
+           let mode = TrackPerformLayerMode(rawValue: rawMode) {
+            choosePerformLayer(mode, variantLabel: nil)
+            return
+        }
+
+        if let rawSelection = command.removingPrefix("select-variant:") {
+            let parts = rawSelection.split(separator: ":", maxSplits: 1).map(String.init)
+            guard parts.count == 2,
+                  let mode = TrackPerformLayerMode(rawValue: parts[0])
+            else { return }
+            choosePerformLayer(mode, variantLabel: parts[1])
+            return
+        }
+
         if let rawMode = command.removingPrefix("layer:"),
            let mode = TrackPerformLayerMode(rawValue: rawMode) {
-            performLayerMode = mode
+            choosePerformLayer(mode, variantLabel: nil)
             return
         }
 
@@ -874,6 +997,174 @@ private struct TrackPerformRuntimeControlState: Equatable, Identifiable {
     var id: TrackPerformBinaryControl { control }
 }
 
+private struct TrackPerformLayerOptionCard: View {
+    let mode: TrackPerformLayerMode
+    let selectedMode: TrackPerformLayerMode
+    let selectedVariantLabel: String?
+    let onSelectPlain: () -> Void
+    let onSelectVariant: (String) -> Void
+
+    private var accent: Color { mode.accent }
+    private var isSelectedPlain: Bool {
+        selectedMode == mode && selectedVariantLabel == nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: mode.symbolName)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 28, height: 28)
+                    .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mode.label.uppercased())
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(mode.subtitle)
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                }
+            }
+
+            if mode.hasInlineVariants {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 44), spacing: 6)], alignment: .leading, spacing: 6) {
+                    ForEach(mode.inlineVariantLabels, id: \.self) { variant in
+                        Button {
+                            onSelectVariant(variant)
+                        } label: {
+                            Text(variant)
+                                .studioText(.microEmphasis)
+                                .foregroundStyle(isSelectedVariant(variant) ? StudioTheme.text : StudioTheme.mutedText)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                                .frame(maxWidth: .infinity, minHeight: 26)
+                                .background(
+                                    isSelectedVariant(variant)
+                                        ? accent.opacity(StudioOpacity.selectedFill)
+                                        : Color.white.opacity(StudioOpacity.subtleFill),
+                                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                                        .stroke(isSelectedVariant(variant) ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } else {
+                Button {
+                    onSelectPlain()
+                } label: {
+                    Text(isSelectedPlain ? "ACTIVE" : "SELECT")
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                        .foregroundStyle(isSelectedPlain ? StudioTheme.text : StudioTheme.mutedText)
+                        .frame(maxWidth: .infinity, minHeight: 28)
+                        .background(
+                            isSelectedPlain
+                                ? accent.opacity(StudioOpacity.selectedFill)
+                                : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                                .stroke(isSelectedPlain ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: mode.hasInlineVariants ? 146 : 116, alignment: .topLeading)
+        .background(cardFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(cardStroke, lineWidth: selectedMode == mode ? 2 : 1)
+        )
+        .accessibilityElement(children: .contain)
+    }
+
+    private var cardFill: Color {
+        selectedMode == mode ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill)
+    }
+
+    private var cardStroke: Color {
+        selectedMode == mode ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border
+    }
+
+    private func isSelectedVariant(_ variant: String) -> Bool {
+        selectedMode == mode && selectedVariantLabel == variant
+    }
+}
+
+private struct TrackPerformPlaceholderLayerCard: View {
+    let mode: TrackPerformLayerMode
+    let variantLabel: String?
+    let accent: Color
+
+    private var title: String {
+        let suffix = variantLabel.map { " - \($0)" } ?? ""
+        return "\(mode.label)\(suffix)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: mode.symbolName)
+                    .font(.system(size: 16, weight: .bold))
+                    .frame(width: 28, height: 28)
+                    .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title.uppercased())
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text("SELECTED LAYER")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+            }
+
+            Text(placeholderDetail)
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+        )
+    }
+
+    private var placeholderDetail: String {
+        switch mode {
+        case .stepOrder:
+            return "Map selection is visible here; map authoring remains outside this perform slice."
+        case .pan:
+            return "Pan is selected for the matrix; live pan controls are not wired in this slice."
+        case .latch:
+            return "Latch is selected for the matrix; detailed latch targets are not wired in this slice."
+        case .mute, .pattern, .fill, .noteRepeat, .volume:
+            return "\(mode.label) is selected."
+        }
+    }
+}
+
 private struct TrackPerformLatchModePicker: View {
     @Binding var selection: TrackPerformLatchMode
 
@@ -920,57 +1211,13 @@ private struct TrackPerformLatchModePicker: View {
     }
 }
 
-private struct TrackPerformLayerModePicker: View {
-    @Binding var selection: TrackPerformLayerMode
-
-    var body: some View {
-        HStack(spacing: 3) {
-            ForEach(TrackPerformLayerMode.allCases) { mode in
-                Button {
-                    selection = mode
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: mode.symbolName)
-                            .font(.system(size: 10, weight: .bold))
-
-                        Text(mode.label.uppercased())
-                            .studioText(.micro)
-                            .tracking(0.8)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
-                    }
-                    .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.text.opacity(0.68))
-                    .frame(width: 82, height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .fill(selection == mode ? mode.accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(0.02))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(selection == mode ? mode.accent.opacity(StudioOpacity.mediumStroke) : Color.white.opacity(StudioOpacity.borderFaint), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(mode.label))
-                .help("\(mode.label) layer")
-            }
-        }
-        .padding(3)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-        )
-        .accessibilityIdentifier("track-perform-layer-mode")
-    }
-}
-
 private struct TrackMatrixCard: View {
     let track: StepSequenceTrack
     let group: TrackGroup?
     let patternIndex: Int
     let layer: PhraseLayerDefinition
     let activePerformLayer: TrackPerformLayerMode?
+    let activePerformVariantLabel: String?
     let cell: PhraseCell
     let resolvedValue: PhraseCellValue
     let valueSummary: String
@@ -1031,6 +1278,14 @@ private struct TrackMatrixCard: View {
 
     private var isRuntimeLayerCard: Bool {
         activePerformLayer?.binaryControl != nil
+    }
+
+    private var activeLayerLabel: String {
+        guard let activePerformLayer else {
+            return layer.name
+        }
+        let suffix = activePerformVariantLabel.map { " - \($0)" } ?? ""
+        return "\(activePerformLayer.label)\(suffix)"
     }
 
     var body: some View {
@@ -1142,6 +1397,7 @@ private struct TrackMatrixCard: View {
                 state: runtimeControlState,
                 latchMode: activePerformLayer == .noteRepeat ? .momentary : latchMode,
                 accent: layerAccentColor,
+                selectedVariantLabel: activePerformVariantLabel,
                 authoredSummary: activePerformLayer.phraseLayerID == nil ? nil : valueSummary,
                 storedInterval: activePerformLayer == .noteRepeat ? noteRepeatStoredInterval : nil,
                 activeRepeatSnapshot: activePerformLayer == .noteRepeat ? noteRepeatActiveSnapshot : nil,
@@ -1149,13 +1405,26 @@ private struct TrackMatrixCard: View {
                 onRelease: { onReleaseRuntimeControl(control) },
                 onChangeInterval: onChangeNoteRepeatInterval
             )
+        } else if let activePerformLayer, activePerformLayer.phraseLayerID == nil {
+            TrackPerformPlaceholderLayerCard(
+                mode: activePerformLayer,
+                variantLabel: activePerformVariantLabel,
+                accent: layerAccentColor
+            )
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
-                    Text(cell.editMode.label.uppercased())
+                    Text(activeLayerLabel.uppercased())
                         .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(layerAccentColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Text(cell.editMode.label.uppercased())
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
 
                     Spacer(minLength: 0)
@@ -1213,6 +1482,7 @@ private struct TrackPerformRuntimeLayerControl: View {
     let state: TrackPerformRuntimeControlState
     let latchMode: TrackPerformLatchMode
     let accent: Color
+    let selectedVariantLabel: String?
     let authoredSummary: String?
     let storedInterval: NoteRepeatInterval?
     let activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
@@ -1304,6 +1574,15 @@ private struct TrackPerformRuntimeLayerControl: View {
             }
 
             HStack(spacing: 6) {
+                if let selectedVariantLabel {
+                    Text("SEL \(selectedVariantLabel.uppercased())")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+
                 if let authoredSummary {
                     Text("BASE \(authoredSummary.uppercased())")
                         .studioText(.micro)
@@ -1495,12 +1774,22 @@ private extension TrackPerformLatchMode {
 private extension TrackPerformLayerMode {
     var accent: Color {
         switch self {
+        case .mute:
+            return StudioTheme.success
         case .pattern:
             return StudioTheme.violet
         case .fill:
             return StudioTheme.success
         case .noteRepeat:
             return StudioTheme.cyan
+        case .stepOrder:
+            return StudioTheme.amber
+        case .volume:
+            return StudioTheme.cyan
+        case .pan:
+            return StudioTheme.violet
+        case .latch:
+            return StudioTheme.amber
         }
     }
 }

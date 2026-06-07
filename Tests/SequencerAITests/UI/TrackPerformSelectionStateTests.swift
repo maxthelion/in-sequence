@@ -61,14 +61,30 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertTrue(selection.isEmpty)
     }
 
-    func test_performLayerModesExposePatternFillAndNoteRepeat() {
-        XCTAssertEqual(TrackPerformLayerMode.allCases, [.pattern, .fill, .noteRepeat])
+    func test_performLayerModesExposeTrackLayerSelectorInventory() {
+        XCTAssertEqual(TrackPerformLayerMode.allCases, [.mute, .pattern, .fill, .noteRepeat, .stepOrder, .volume, .pan, .latch])
+        XCTAssertEqual(TrackPerformLayerMode.mute.phraseLayerID, "mute")
+        XCTAssertNil(TrackPerformLayerMode.mute.binaryControl)
         XCTAssertEqual(TrackPerformLayerMode.pattern.phraseLayerID, "pattern")
         XCTAssertNil(TrackPerformLayerMode.pattern.binaryControl)
         XCTAssertEqual(TrackPerformLayerMode.fill.phraseLayerID, "fill-flag")
         XCTAssertEqual(TrackPerformLayerMode.fill.binaryControl, .fill)
         XCTAssertNil(TrackPerformLayerMode.noteRepeat.phraseLayerID)
         XCTAssertEqual(TrackPerformLayerMode.noteRepeat.binaryControl, .noteRepeat)
+        XCTAssertNil(TrackPerformLayerMode.stepOrder.phraseLayerID)
+        XCTAssertNil(TrackPerformLayerMode.stepOrder.binaryControl)
+        XCTAssertEqual(TrackPerformLayerMode.volume.phraseLayerID, "volume")
+        XCTAssertNil(TrackPerformLayerMode.volume.binaryControl)
+        XCTAssertNil(TrackPerformLayerMode.pan.phraseLayerID)
+        XCTAssertNil(TrackPerformLayerMode.latch.phraseLayerID)
+    }
+
+    func test_performLayerModesExposeInlineVariantsOnFirstSelectionSurface() {
+        XCTAssertEqual(TrackPerformLayerMode.pattern.inlineVariantLabels, (1...16).map { "P\($0)" })
+        XCTAssertEqual(TrackPerformLayerMode.noteRepeat.inlineVariantLabels, ["Off", "1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"])
+        XCTAssertEqual(TrackPerformLayerMode.stepOrder.inlineVariantLabels, ["Off", "Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"])
+        XCTAssertTrue(TrackPerformLayerMode.mute.inlineVariantLabels.isEmpty)
+        XCTAssertTrue(TrackPerformLayerMode.volume.inlineVariantLabels.isEmpty)
     }
 
     func test_authoredEditFromSelectedSourceFansOutToSelectedTracksOnly() throws {

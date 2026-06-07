@@ -76,65 +76,121 @@ enum TrackPerformLatchMode: String, CaseIterable, Equatable, Identifiable {
 }
 
 enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifiable {
+    case mute
     case pattern
     case fill
     case noteRepeat
+    case stepOrder
+    case volume
+    case pan
+    case latch
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
+        case .mute:
+            return "Mute"
         case .pattern:
             return "Pattern"
         case .fill:
             return "Fill"
         case .noteRepeat:
-            return "Repeat"
+            return "Note Repeat"
+        case .stepOrder:
+            return "Step Order"
+        case .volume:
+            return "Volume"
+        case .pan:
+            return "Pan"
+        case .latch:
+            return "Latch"
         }
     }
 
     var subtitle: String {
         switch self {
+        case .mute:
+            return "track mute"
         case .pattern:
             return "pattern slot"
         case .fill:
             return "runtime fill"
         case .noteRepeat:
             return "runtime repeat"
+        case .stepOrder:
+            return "step remap"
+        case .volume:
+            return "track volume"
+        case .pan:
+            return "track pan"
+        case .latch:
+            return "hold overrides"
         }
     }
 
     var symbolName: String {
         switch self {
+        case .mute:
+            return "speaker.slash.fill"
         case .pattern:
             return "square.grid.2x2"
         case .fill:
             return "sparkles"
         case .noteRepeat:
             return "repeat"
+        case .stepOrder:
+            return "arrow.triangle.swap"
+        case .volume:
+            return "slider.horizontal.3"
+        case .pan:
+            return "dot.radiowaves.left.and.right"
+        case .latch:
+            return "lock.fill"
         }
     }
 
     var phraseLayerID: String? {
         switch self {
+        case .mute:
+            return "mute"
         case .pattern:
             return "pattern"
         case .fill:
             return "fill-flag"
-        case .noteRepeat:
+        case .volume:
+            return "volume"
+        case .noteRepeat, .stepOrder, .pan, .latch:
             return nil
         }
     }
 
     var binaryControl: TrackPerformBinaryControl? {
         switch self {
-        case .pattern:
+        case .mute, .pattern, .volume, .stepOrder, .pan, .latch:
             return nil
         case .fill:
             return .fill
         case .noteRepeat:
             return .noteRepeat
         }
+    }
+
+    var inlineVariantLabels: [String] {
+        switch self {
+        case .pattern:
+            return (1...16).map { "P\($0)" }
+        case .noteRepeat:
+            return ["Off", "1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"]
+        case .stepOrder:
+            return ["Off", "Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"]
+        case .mute, .fill, .volume, .pan, .latch:
+            return []
+        }
+    }
+
+    var hasInlineVariants: Bool {
+        !inlineVariantLabels.isEmpty
     }
 }
 
