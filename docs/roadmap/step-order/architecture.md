@@ -233,4 +233,3 @@ The builder spec/plan should include coverage for:
 This accepted architecture closes the architecture artifact gap only. Step
 Order remains not builder-ready until accepted `spec.md`, `plan.md`, and
 `implementation-handoff.md` exist.
-

@@ -190,4 +190,3 @@ The accepted architecture resolves assignment scope as phrase-only v1 and map
 ownership as a top-level named project pool. If later PM work wants per-track
 enablement or project-wide scope in v1, that should be a new product decision
 and likely a UX rework, not an implementation assumption.
-
