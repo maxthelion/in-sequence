@@ -1,0 +1,23 @@
+{
+  "name": "two-bar-120-head-bleed",
+  "sampleRate": 44100,
+  "durationSeconds": 4.18,
+  "transients": [
+    { "seconds": 0.18, "role": "kick" },
+    { "seconds": 0.68, "role": "snare" },
+    { "seconds": 1.18, "role": "kick" },
+    { "seconds": 1.68, "role": "snare" },
+    { "seconds": 2.18, "role": "kick" },
+    { "seconds": 2.68, "role": "snare" },
+    { "seconds": 3.18, "role": "kick" },
+    { "seconds": 3.68, "role": "snare" }
+  ],
+  "expected": {
+    "topBpm": 120.0,
+    "topBars": 2,
+    "topStartSeconds": 0.18,
+    "topEndSeconds": 4.18,
+    "minCompositeScore": 0.95,
+    "warnings": []
+  }
+}

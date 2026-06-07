@@ -1,0 +1,24 @@
+{
+  "name": "two-bar-120-tail-bleed-80ms",
+  "sampleRate": 44100,
+  "durationSeconds": 4.08,
+  "transients": [
+    { "seconds": 0.0, "role": "kick" },
+    { "seconds": 0.5, "role": "snare" },
+    { "seconds": 1.0, "role": "kick" },
+    { "seconds": 1.5, "role": "snare" },
+    { "seconds": 2.0, "role": "kick" },
+    { "seconds": 2.5, "role": "snare" },
+    { "seconds": 3.0, "role": "kick" },
+    { "seconds": 3.5, "role": "snare" },
+    { "seconds": 4.06, "role": "unknown" }
+  ],
+  "expected": {
+    "topBpm": 120.0,
+    "topBars": 2,
+    "topStartSeconds": 0.0,
+    "topEndSeconds": 4.0,
+    "minCompositeScore": 0.90,
+    "warnings": []
+  }
+}

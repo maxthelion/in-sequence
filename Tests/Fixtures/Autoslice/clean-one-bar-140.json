@@ -1,0 +1,19 @@
+{
+  "name": "clean-one-bar-140",
+  "sampleRate": 44100,
+  "durationSeconds": 1.714286,
+  "transients": [
+    { "seconds": 0.0, "role": "kick" },
+    { "seconds": 0.428571, "role": "snare" },
+    { "seconds": 0.857143, "role": "kick" },
+    { "seconds": 1.285714, "role": "snare" }
+  ],
+  "expected": {
+    "topBpm": 140.0,
+    "topBars": 1,
+    "topStartSeconds": 0.0,
+    "topEndSeconds": 1.714286,
+    "minCompositeScore": 0.99,
+    "warnings": []
+  }
+}

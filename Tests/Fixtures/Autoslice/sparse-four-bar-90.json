@@ -1,0 +1,19 @@
+{
+  "name": "sparse-four-bar-90",
+  "sampleRate": 44100,
+  "durationSeconds": 10.666667,
+  "transients": [
+    { "seconds": 0.0, "role": "kick" },
+    { "seconds": 2.666667, "role": "snare" },
+    { "seconds": 5.333333, "role": "kick" },
+    { "seconds": 8.0, "role": "snare" }
+  ],
+  "expected": {
+    "topBpm": 90.0,
+    "topBars": 4,
+    "topStartSeconds": 0.0,
+    "topEndSeconds": 10.666667,
+    "minCompositeScore": 0.98,
+    "warnings": []
+  }
+}

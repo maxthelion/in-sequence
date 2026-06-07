@@ -1,0 +1,19 @@
+{
+  "name": "unknown-roles",
+  "sampleRate": 44100,
+  "durationSeconds": 4.0,
+  "transients": [
+    { "seconds": 0.0, "role": "unknown" },
+    { "seconds": 1.0, "role": "unknown" },
+    { "seconds": 2.0, "role": "unknown" },
+    { "seconds": 3.0, "role": "unknown" }
+  ],
+  "expected": {
+    "topBpm": 120.0,
+    "topBars": 2,
+    "topStartSeconds": 0.0,
+    "topEndSeconds": 4.0,
+    "minCompositeScore": 1.0,
+    "warnings": []
+  }
+}
