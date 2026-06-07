@@ -35,6 +35,17 @@ struct PhrasePlaybackBuffer: Equatable, Sendable {
         trackStates[trackID]
     }
 
+    func withStepOrderMap(_ stepOrderMap: [UInt8]?) -> PhrasePlaybackBuffer {
+        PhrasePlaybackBuffer(
+            phraseID: phraseID,
+            stepCount: stepCount,
+            repeatCount: repeatCount,
+            loopEnabled: loopEnabled,
+            stepOrderMap: stepOrderMap,
+            trackStates: trackStates
+        )
+    }
+
     func sourceStepIndex(for outputStepIndex: Int) -> Int {
         let normalizedOutputStep = ((outputStepIndex % stepCount) + stepCount) % stepCount
         guard let stepOrderMap,

@@ -63,6 +63,7 @@ final class SequencerDocumentSession {
             initial: SequencerSnapshotCompiler.compile(state: initialStore.compileInput())
         )
         self.revision = store.revision
+        installStepOrderToggleAppliedHandler()
         SequencerDocumentSessionRegistry.register(self)
         applyStoredAudioDevicePreferenceIfNeeded()
     }
@@ -84,6 +85,7 @@ final class SequencerDocumentSession {
             initial: SequencerSnapshotCompiler.compile(state: initialStore.compileInput())
         )
         self.revision = store.revision
+        installStepOrderToggleAppliedHandler()
         SequencerDocumentSessionRegistry.register(self)
         applyStoredAudioDevicePreferenceIfNeeded()
     }
@@ -102,6 +104,20 @@ final class SequencerDocumentSession {
         // compile call; the cost is one stateLock read on the main thread.
         engineController.apply(documentModel: store.exportToProject())
         snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
+    }
+
+    private func installStepOrderToggleAppliedHandler() {
+        engineController.stepOrderToggleAppliedHandler = { [weak self] request in
+            if Thread.isMainThread {
+                MainActor.assumeIsolated {
+                    self?.applyResolvedStepOrderToggle(request)
+                }
+            } else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.applyResolvedStepOrderToggle(request)
+                }
+            }
+        }
     }
 
     private func applyStoredAudioDevicePreferenceIfNeeded() {
@@ -210,6 +226,7 @@ final class SequencerDocumentSession {
         }
         clearTrackFillPreview(reason: .documentChanged)
         phrasePerformOverlay.clear()
+        engineController.clearPendingStepOrderToggle()
         revision = store.revision
         // apply(documentModel:) compiles and installs a fresh snapshot internally.
         // We also update the publisher so UI visualisers see the new state immediately.

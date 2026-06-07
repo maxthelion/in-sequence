@@ -257,6 +257,85 @@ extension SequencerDocumentSession {
 
     // MARK: - Step Order map mutations
 
+    var stepOrderPendingToggle: StepOrderPendingToggleRequest? {
+        engineController.stepOrderPendingToggle
+    }
+
+    func stepOrderToggleState(phraseID: UUID) -> StepOrderToggleState {
+        if let pending = engineController.stepOrderPendingToggle,
+           pending.phraseID == phraseID {
+            return pending.requestedEnabled ? .pendingOn : .pendingOff
+        }
+
+        guard let phrase = store.phrases.first(where: { $0.id == phraseID }),
+              let assignment = phrase.stepOrderAssignment,
+              phrase.stepCount == StepOrderMap.stepCount,
+              let map = store.stepOrderMaps.first(where: { $0.id == assignment.mapID }),
+              map.isValid
+        else {
+            return .unavailable
+        }
+
+        return assignment.isEnabled ? .on : .off
+    }
+
+    private func enabledStepOrderMapValues(phraseID: UUID) -> [UInt8]? {
+        guard let phrase = store.phrases.first(where: { $0.id == phraseID }),
+              let assignment = phrase.stepOrderAssignment,
+              phrase.stepCount == StepOrderMap.stepCount,
+              let map = store.stepOrderMaps.first(where: { $0.id == assignment.mapID })
+        else {
+            return nil
+        }
+        return map.validatedCompiledValues
+    }
+
+    private func reconcilePendingStepOrderToggle() {
+        guard let pending = engineController.stepOrderPendingToggle else {
+            return
+        }
+
+        if enabledStepOrderMapValues(phraseID: pending.phraseID) == nil {
+            engineController.clearPendingStepOrderToggle(phraseID: pending.phraseID)
+        }
+    }
+
+    @discardableResult
+    func requestPhraseStepOrderEnabled(_ enabled: Bool, phraseID: UUID) -> Bool {
+        guard enabledStepOrderMapValues(phraseID: phraseID) != nil else {
+            engineController.clearPendingStepOrderToggle(phraseID: phraseID)
+            return false
+        }
+
+        if engineController.isRunning {
+            let mapValues = enabled ? enabledStepOrderMapValues(phraseID: phraseID) : nil
+            return engineController.requestStepOrderEnabled(
+                enabled,
+                phraseID: phraseID,
+                enabledMapValues: mapValues
+            )
+        }
+
+        engineController.clearPendingStepOrderToggle(phraseID: phraseID)
+        return setPhraseStepOrderEnabled(enabled, phraseID: phraseID)
+    }
+
+    func applyResolvedStepOrderToggle(_ request: StepOrderPendingToggleRequest) {
+        let changed = store.mutatePhrase(id: request.phraseID) { phrase in
+            guard var assignment = phrase.stepOrderAssignment else {
+                return
+            }
+            assignment.isEnabled = request.requestedEnabled
+            phrase.stepOrderAssignment = assignment
+        }
+        guard changed else {
+            return
+        }
+        revision = store.revision
+        snapshotPublisher.replace(engineController.currentPlaybackSnapshotForTesting)
+        scheduleFlushToDocument()
+    }
+
     @discardableResult
     func appendStepOrderMap(_ map: StepOrderMap) -> Bool {
         let changed = store.appendStepOrderMap(map)
@@ -293,9 +372,13 @@ extension SequencerDocumentSession {
 
     @discardableResult
     func setStepOrderMapValues(id: StepOrderMapID, values: [UInt8]) -> Bool {
-        mutateStepOrderMap(id: id, changed: .stepOrderMap(id)) { map in
+        let changed = mutateStepOrderMap(id: id, changed: .stepOrderMap(id)) { map in
             map = map.withValues(values)
         }
+        if changed {
+            reconcilePendingStepOrderToggle()
+        }
+        return changed
     }
 
     func stepOrderMapDeletionStatus(id: StepOrderMapID) -> StepOrderMapDeletionStatus {
@@ -306,6 +389,7 @@ extension SequencerDocumentSession {
     func deleteUnusedStepOrderMap(id: StepOrderMapID) -> Bool {
         let changed = store.deleteUnusedStepOrderMap(id: id)
         guard changed else { return false }
+        reconcilePendingStepOrderToggle()
         if isInBatch {
             return true
         }
@@ -555,9 +639,13 @@ extension SequencerDocumentSession {
 
     @discardableResult
     func setPhraseBarCount(_ barCount: Int, phraseID: UUID) -> Bool {
-        mutatePhrase(id: phraseID) { phrase in
+        let changed = mutatePhrase(id: phraseID) { phrase in
             phrase.lengthBars = barCount
         }
+        if changed {
+            reconcilePendingStepOrderToggle()
+        }
+        return changed
     }
 
     @discardableResult
@@ -580,22 +668,30 @@ extension SequencerDocumentSession {
         mapID: StepOrderMapID?,
         isEnabled: Bool
     ) -> Bool {
-        mutatePhrase(id: phraseID) { phrase in
+        let changed = mutatePhrase(id: phraseID) { phrase in
             phrase.stepOrderAssignment = mapID.map {
                 StepOrderAssignment(mapID: $0, isEnabled: isEnabled)
             }
         }
+        if changed {
+            reconcilePendingStepOrderToggle()
+        }
+        return changed
     }
 
     @discardableResult
     func setPhraseStepOrderEnabled(_ enabled: Bool, phraseID: UUID) -> Bool {
-        mutatePhrase(id: phraseID) { phrase in
+        let changed = mutatePhrase(id: phraseID) { phrase in
             guard var assignment = phrase.stepOrderAssignment else {
                 return
             }
             assignment.isEnabled = enabled
             phrase.stepOrderAssignment = assignment
         }
+        if changed {
+            reconcilePendingStepOrderToggle()
+        }
+        return changed
     }
 
     func canSwitchBasisPhrase(to phraseID: UUID) -> Bool {

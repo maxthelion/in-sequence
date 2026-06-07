@@ -56,6 +56,24 @@ struct PlaybackSnapshot: Equatable, Sendable {
         phraseBuffersByID[phraseID]
     }
 
+    func replacingPhraseBuffer(_ phraseBuffer: PhrasePlaybackBuffer) -> PlaybackSnapshot {
+        var phraseBuffers = phraseBuffersByID
+        phraseBuffers[phraseBuffer.phraseID] = phraseBuffer
+        return PlaybackSnapshot(
+            selectedPhraseID: selectedPhraseID,
+            clipPool: clipPool,
+            sliceSetPool: sliceSetPool,
+            generatorPool: generatorPool,
+            tracks: tracks,
+            resolvedDestinationsByTrackID: resolvedDestinationsByTrackID,
+            trackOrder: trackOrder,
+            phraseOrder: phraseOrder,
+            clipBuffersByID: clipBuffersByID,
+            trackProgramsByTrackID: trackProgramsByTrackID,
+            phraseBuffersByID: phraseBuffers
+        )
+    }
+
     func sourceProgram(for trackID: UUID) -> TrackSourceProgram? {
         trackProgramsByTrackID[trackID]
     }

@@ -380,6 +380,40 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         XCTAssertFalse(childNames.contains("basisPhraseID"))
         XCTAssertFalse(childNames.contains("phraseCycleStartTick"))
     }
+
+    func test_stepOrderPendingToggleAppliesBeforeFirstBoundaryStepIsDispatched() throws {
+        let stepOrderMap: [UInt8] = [3, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0]
+        let fixture = makeStepOrderBoundaryFixture(isEnabled: false, stepOrderMap: stepOrderMap)
+        startEngineForManualTicks(fixture.controller)
+
+        XCTAssertTrue(fixture.controller.requestStepOrderEnabled(
+            true,
+            phraseID: fixture.phraseID,
+            enabledMapValues: stepOrderMap
+        ))
+        XCTAssertEqual(fixture.controller.stepOrderPendingToggle, StepOrderPendingToggleRequest(phraseID: fixture.phraseID, requestedEnabled: true))
+        XCTAssertNil(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.phraseID)?.stepOrderMap)
+
+        for tickIndex in 0..<15 {
+            fixture.controller.processTick(tickIndex: UInt64(tickIndex), now: TimeInterval(tickIndex) / 10)
+        }
+
+        XCTAssertEqual(fixture.sink.playedPitches, Array(60...74))
+        XCTAssertEqual(fixture.controller.stepOrderPendingToggle, StepOrderPendingToggleRequest(phraseID: fixture.phraseID, requestedEnabled: true))
+        XCTAssertNil(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.phraseID)?.stepOrderMap)
+
+        fixture.controller.processTick(tickIndex: 15, now: 1.5)
+
+        XCTAssertEqual(fixture.sink.playedPitches, Array(60...75))
+        XCTAssertNil(fixture.controller.stepOrderPendingToggle)
+        XCTAssertEqual(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.phraseID)?.stepOrderMap, stepOrderMap)
+
+        fixture.controller.processTick(tickIndex: 16, now: 1.6)
+
+        XCTAssertEqual(fixture.sink.playedPitches.last, 63)
+
+        fixture.controller.stop()
+    }
 }
 
 private struct PhraseNavigationFixture {
@@ -387,6 +421,12 @@ private struct PhraseNavigationFixture {
     let sink: PhraseNavigationAudioSink
     let project: Project
     let phrases: [PhraseModel]
+}
+
+private struct StepOrderBoundaryFixture {
+    let controller: EngineController
+    let sink: PhraseNavigationAudioSink
+    let phraseID: UUID
 }
 
 private func makePhraseNavigationFixture(
@@ -445,6 +485,89 @@ private func makePhraseNavigationFixture(
     )
     controller.apply(documentModel: project)
     return PhraseNavigationFixture(controller: controller, sink: sink, project: project, phrases: phrases)
+}
+
+private func makeStepOrderBoundaryFixture(
+    isEnabled: Bool,
+    stepOrderMap: [UInt8]
+) -> StepOrderBoundaryFixture {
+    let sink = PhraseNavigationAudioSink()
+    let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink, stepsPerBar: 16)
+    let trackID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+    let mapID = UUID(uuidString: "66666666-7777-8888-9999-aaaaaaaaaaaa")!
+    let track = StepSequenceTrack(
+        id: trackID,
+        name: "Step Order Boundary Track",
+        pitches: [60],
+        stepPattern: Array(repeating: true, count: 16),
+        destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+        velocity: 100,
+        gateLength: 1
+    )
+    let layers = PhraseLayerDefinition.defaultSet(for: [track])
+    var phrase = PhraseModel.default(
+        tracks: [track],
+        layers: layers,
+        generatorPool: GeneratorPoolEntry.defaultPool,
+        clipPool: []
+    )
+    phrase.lengthBars = 1
+    phrase.stepsPerBar = 16
+    phrase.stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: isEnabled)
+
+    var clipPool: [ClipPoolEntry] = []
+    var slots: [TrackPatternSlot] = []
+    for step in 0..<16 {
+        let clipID = UUID(uuidString: String(format: "bbbbbbbb-%04d-0000-0000-000000000000", step))!
+        clipPool.append(
+            ClipPoolEntry(
+                id: clipID,
+                name: "Source Step \(step)",
+                trackType: track.trackType,
+                content: .noteGrid(
+                    lengthSteps: 16,
+                    steps: (0..<16).map { clipStep in
+                        guard clipStep == step else { return .empty }
+                        return ClipStep(
+                            main: ClipLane(
+                                chance: 1,
+                                notes: [
+                                    ClipStepNote(
+                                        pitch: 60 + step,
+                                        velocity: 100,
+                                        lengthSteps: 1
+                                    )
+                                ]
+                            ),
+                            fill: nil
+                        )
+                    }
+                )
+            )
+        )
+        slots.append(TrackPatternSlot(slotIndex: step, sourceRef: .clip(clipID)))
+    }
+    phrase.setCell(
+        .steps((0..<16).map { .index($0) }),
+        for: "pattern",
+        trackID: trackID
+    )
+
+    let project = Project(
+        version: 1,
+        tracks: [track],
+        generatorPool: GeneratorPoolEntry.defaultPool,
+        clipPool: clipPool,
+        layers: layers,
+        routes: [],
+        patternBanks: [TrackPatternBank(trackID: trackID, slots: slots)],
+        stepOrderMaps: [StepOrderMap(id: mapID, name: "Boundary", values: stepOrderMap)],
+        selectedTrackID: trackID,
+        phrases: [phrase],
+        selectedPhraseID: phrase.id
+    )
+    controller.apply(documentModel: project)
+    return StepOrderBoundaryFixture(controller: controller, sink: sink, phraseID: phrase.id)
 }
 
 private func startEngineForManualTicks(_ controller: EngineController) {

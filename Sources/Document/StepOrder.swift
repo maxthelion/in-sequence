@@ -115,3 +115,21 @@ struct StepOrderAssignment: Codable, Equatable, Hashable, Sendable {
         self.isEnabled = isEnabled
     }
 }
+
+struct StepOrderPendingToggleRequest: Equatable, Hashable, Sendable {
+    var phraseID: UUID
+    var requestedEnabled: Bool
+
+    init(phraseID: UUID, requestedEnabled: Bool) {
+        self.phraseID = phraseID
+        self.requestedEnabled = requestedEnabled
+    }
+}
+
+enum StepOrderToggleState: Equatable, Hashable, Sendable {
+    case unavailable
+    case off
+    case on
+    case pendingOn
+    case pendingOff
+}
