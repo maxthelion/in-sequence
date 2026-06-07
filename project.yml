@@ -79,6 +79,9 @@ targets:
     platform: macOS
     sources:
       - path: Tests/SequencerAITests
+    resources:
+      - path: Tests/Fixtures/Autoslice
+        type: folder
     dependencies:
       - target: SequencerAI
     settings:

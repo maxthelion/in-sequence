@@ -1,0 +1,33 @@
+{
+  "name": "role-weighting-ranking",
+  "sampleRate": 44100,
+  "durationSeconds": 4.2,
+  "transients": [
+    { "seconds": 0.0, "role": "kick" },
+    { "seconds": 0.5, "role": "snare" },
+    { "seconds": 1.0, "role": "kick" },
+    { "seconds": 1.5, "role": "snare" },
+    { "seconds": 2.0, "role": "kick" },
+    { "seconds": 2.5, "role": "snare" },
+    { "seconds": 3.0, "role": "kick" },
+    { "seconds": 3.5, "role": "snare" },
+    { "seconds": 0.005, "role": "hat" },
+    { "seconds": 0.517821, "role": "hat" },
+    { "seconds": 0.646026, "role": "hat" },
+    { "seconds": 1.158846, "role": "hat" },
+    { "seconds": 1.415256, "role": "hat" },
+    { "seconds": 1.671667, "role": "hat" },
+    { "seconds": 2.056282, "role": "hat" },
+    { "seconds": 2.569103, "role": "hat" },
+    { "seconds": 2.953718, "role": "hat" },
+    { "seconds": 3.210128, "role": "hat" }
+  ],
+  "expected": {
+    "topBpm": 120.0,
+    "topBars": 2,
+    "topStartSeconds": 0.0,
+    "topEndSeconds": 4.0,
+    "minCompositeScore": 0.80,
+    "warnings": []
+  }
+}
