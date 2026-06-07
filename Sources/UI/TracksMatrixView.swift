@@ -1377,7 +1377,7 @@ private struct TrackPerformRuntimeLayerControl: View {
     private var stateLabel: String {
         if !state.isAvailable {
             if mode == .noteRepeat {
-                return "Unavailable"
+                return "No Clip"
             }
             return "UNAVAILABLE"
         }
