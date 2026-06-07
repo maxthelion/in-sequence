@@ -29,6 +29,7 @@ enum VisualScenarioCommandRunner {
     private static var phraseMatrixSelectorWidth: CGFloat = 0
     private static var phraseMatrixTrackGridWidth: CGFloat = 0
     private static var trackPerformLayerMode = TrackPerformLayerMode.pattern.rawValue
+    private static var stepOrderFixtureState = "none"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
     private static var drumGroupRoutingEditorCanApply = false
@@ -217,6 +218,7 @@ enum VisualScenarioCommandRunner {
             session: session,
             engineController: engineController
         )
+        applyStepOrderFixture(command: command, section: section, session: session, engineController: engineController)
         applyPhraseMatrixFixture(command: command, section: section, session: session)
         applyPhrasePerformOverlayFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyNoteRepeatPerformFixture(command: command, section: section, tracksMode: tracksMode, session: session)
@@ -289,6 +291,11 @@ enum VisualScenarioCommandRunner {
         let selectedAudioInputReadout = engineController.audioInputRoutingReadoutForTesting(trackID: session.store.selectedTrackID)
         let audioInputTrackCount = session.store.tracks.filter { $0.trackType == .audioInput }.count
         let phrases = session.store.phrases
+        let stepOrderStatus = currentStepOrderStatus(
+            phrases: phrases,
+            visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex,
+            session: session
+        )
         let currentPhraseName = engineController.currentPhraseID.flatMap { phraseID in
             phrases.first { $0.id == phraseID }?.name
         }
@@ -322,6 +329,14 @@ enum VisualScenarioCommandRunner {
         phraseCount=\(phrases.count)
         phraseNames=\(phrases.map(\.name).joined(separator: "|"))
         phraseControlsOpenIndex=\(visualPhraseControlsOpenIndex.map(String.init) ?? "none")
+        stepOrderStatus=\(stepOrderStatus.status)
+        stepOrderActiveMap=\(stepOrderStatus.activeMap)
+        stepOrderMapCount=\(session.store.stepOrderMaps.count)
+        stepOrderMapNames=\(session.store.stepOrderMaps.map(\.name).joined(separator: "|"))
+        stepOrderAssignedMapID=\(stepOrderStatus.assignedMapID)
+        stepOrderPendingToggle=\(stepOrderStatus.pendingToggle)
+        stepOrderFixtureState=\(stepOrderFixtureState)
+        stepOrderMapDeletionStates=\(stepOrderMapDeletionStates(session: session))
         currentPhraseName=\(currentPhraseName ?? "none")
         queuedPhraseName=\(queuedPhraseName ?? "none")
         phraseQueueEnabled=\(engineController.isRunning && !phrases.isEmpty)
@@ -431,6 +446,48 @@ enum VisualScenarioCommandRunner {
         """
 
         try? status.write(to: statusURL, atomically: true, encoding: .utf8)
+    }
+
+    private static func currentStepOrderStatus(
+        phrases: [PhraseModel],
+        visualPhraseControlsOpenIndex: Int?,
+        session: SequencerDocumentSession
+    ) -> (status: String, activeMap: String, assignedMapID: String, pendingToggle: String) {
+        let phrase: PhraseModel?
+        if let visualPhraseControlsOpenIndex,
+           phrases.indices.contains(visualPhraseControlsOpenIndex) {
+            phrase = phrases[visualPhraseControlsOpenIndex]
+        } else {
+            phrase = phrases.first { $0.id == session.store.selectedPhraseID }
+        }
+
+        guard let phrase else {
+            return ("none", "none", "none", "none")
+        }
+
+        let presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: session.store.stepOrderMaps,
+            toggleState: session.stepOrderToggleState(phraseID: phrase.id)
+        )
+        let pendingToggle = session.stepOrderPendingToggle.map { pending in
+            "\(pending.phraseID.uuidString):\(pending.requestedEnabled ? "on" : "off")"
+        } ?? "none"
+        return (
+            presentation.statusLabel,
+            presentation.activeMapName,
+            presentation.assignedMapID?.uuidString ?? "none",
+            pendingToggle
+        )
+    }
+
+    private static func stepOrderMapDeletionStates(session: SequencerDocumentSession) -> String {
+        session.store.stepOrderMaps
+            .map { map in
+                let status = session.stepOrderMapDeletionStatus(id: map.id)
+                return "\(map.name):\(status.canDelete ? "deleteAvailable" : "deleteBlocked")"
+            }
+            .joined(separator: "|")
     }
 
     private static func applyPhrasePerformOverlayFixture(
@@ -1122,6 +1179,84 @@ enum VisualScenarioCommandRunner {
                 section.wrappedValue = .phrase
                 visualPhraseControlsOpenIndex.wrappedValue = index
             }
+        default:
+            break
+        }
+    }
+
+    private static func applyStepOrderFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession,
+        engineController: EngineController
+    ) {
+        guard let fixture = command["stepOrderFixture"] else { return }
+
+        if engineController.isRunning {
+            engineController.stop()
+        }
+        engineController.clearPendingStepOrderToggle()
+
+        let assignedID = UUID(uuidString: "10000000-0000-4000-8000-000000000101") ?? UUID()
+        let unusedID = UUID(uuidString: "10000000-0000-4000-8000-000000000102") ?? UUID()
+        let invalidID = UUID(uuidString: "10000000-0000-4000-8000-000000000103") ?? UUID()
+        let missingID = UUID(uuidString: "10000000-0000-4000-8000-000000000104") ?? UUID()
+        let remapValues: [UInt8] = [0, 1, 2, 3, 3, 3, 3, 3, 7, 8, 9, 0, 1, 2, 3, 3]
+        let assignedMap = StepOrderMap(id: assignedID, name: "Break Fold", values: remapValues)
+        let unusedMap = StepOrderMap(id: unusedID, name: "Unused Identity")
+        let invalidMap = StepOrderMap(id: invalidID, name: "Short Saved Map", values: [0, 1, 2])
+
+        var project = session.store.exportToProject()
+        guard !project.phrases.isEmpty else { return }
+
+        let phraseIndex = project.selectedPhraseIndex
+        var phrase = project.phrases[phraseIndex]
+        phrase.lengthBars = 1
+        phrase.stepsPerBar = StepOrderMap.stepCount
+        phrase.stepOrderAssignment = nil
+        project.stepOrderMaps = []
+
+        switch fixture {
+        case "unassigned", "supportedUnassigned":
+            break
+        case "assignedOff", "populatedEditor", "deleteBlocked", "deleteAvailable":
+            project.stepOrderMaps = [assignedMap, unusedMap]
+            phrase.stepOrderAssignment = StepOrderAssignment(mapID: assignedID, isEnabled: false)
+        case "assignedOn":
+            project.stepOrderMaps = [assignedMap, unusedMap]
+            phrase.stepOrderAssignment = StepOrderAssignment(mapID: assignedID, isEnabled: true)
+        case "pendingOn":
+            project.stepOrderMaps = [assignedMap, unusedMap]
+            phrase.stepOrderAssignment = StepOrderAssignment(mapID: assignedID, isEnabled: false)
+        case "pendingOff":
+            project.stepOrderMaps = [assignedMap, unusedMap]
+            phrase.stepOrderAssignment = StepOrderAssignment(mapID: assignedID, isEnabled: true)
+        case "invalid", "invalidMap":
+            project.stepOrderMaps = [invalidMap, unusedMap]
+            phrase.stepOrderAssignment = StepOrderAssignment(mapID: invalidID, isEnabled: true)
+        case "missing", "missingAssignedMap":
+            project.stepOrderMaps = [unusedMap]
+            phrase.stepOrderAssignment = StepOrderAssignment(mapID: missingID, isEnabled: true)
+        default:
+            return
+        }
+
+        project.phrases[phraseIndex] = phrase
+        project.selectedPhraseID = phrase.id
+        stepOrderFixtureState = fixture
+
+        session.batch(impact: .snapshotOnly, changed: .full) { store in
+            store.importFromProject(project)
+        }
+        section.wrappedValue = .phrase
+
+        switch fixture {
+        case "pendingOn":
+            engineController.start()
+            _ = session.requestPhraseStepOrderEnabled(true, phraseID: phrase.id)
+        case "pendingOff":
+            engineController.start()
+            _ = session.requestPhraseStepOrderEnabled(false, phraseID: phrase.id)
         default:
             break
         }
