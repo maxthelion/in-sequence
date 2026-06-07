@@ -28,6 +28,7 @@ enum VisualScenarioCommandRunner {
     private static var phraseMatrixSelectedLayerName = "none"
     private static var phraseMatrixSelectorWidth: CGFloat = 0
     private static var phraseMatrixTrackGridWidth: CGFloat = 0
+    private static var trackPerformLayerMode = TrackPerformLayerMode.pattern.rawValue
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
     private static var drumGroupRoutingEditorCanApply = false
@@ -218,6 +219,7 @@ enum VisualScenarioCommandRunner {
         )
         applyPhraseMatrixFixture(command: command, section: section, session: session)
         applyPhrasePerformOverlayFixture(command: command, section: section, tracksMode: tracksMode, session: session)
+        applyNoteRepeatPerformFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
 
@@ -294,6 +296,10 @@ enum VisualScenarioCommandRunner {
             phrases.first { $0.id == phraseID }?.name
         }
         let selectedPattern = session.store.selectedPattern(for: session.store.selectedTrackID)
+        let selectedNoteRepeatSnapshot = engineController.noteRepeatRuntimeSnapshot(for: session.store.selectedTrackID)
+        let activeNoteRepeatTrackNames = session.store.tracks.compactMap { track in
+            engineController.noteRepeatRuntimeSnapshot(for: track.id) == nil ? nil : track.name
+        }
         let activeFillPreviewTrack = session.trackFillPreviewState.activeTrackID.flatMap { activeTrackID in
             session.store.tracks.first { $0.id == activeTrackID }
         }
@@ -309,7 +315,7 @@ enum VisualScenarioCommandRunner {
         let canSavePhrasePerformOverlay = session.phrasePerformOverlay.basisPhraseID.map { phraseID in
             phrases.contains { $0.id == phraseID }
         } ?? false
-        let status = """
+        let status: String = """
         workspace=\(section.rawValue)
         tracksMode=\(tracksMode.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
@@ -382,6 +388,13 @@ enum VisualScenarioCommandRunner {
         selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
         selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
         selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
+        trackPerformLayerMode=\(trackPerformLayerMode)
+        selectedNoteRepeatAvailable=\(session.isNoteRepeatAvailable(trackID: session.store.selectedTrackID))
+        selectedNoteRepeatStoredInterval=\(session.store.selectedTrack.noteRepeatInterval.rawValue)
+        selectedNoteRepeatActive=\(selectedNoteRepeatSnapshot != nil)
+        selectedNoteRepeatActiveInterval=\(selectedNoteRepeatSnapshot?.interval.rawValue ?? "none")
+        selectedNoteRepeatCapturedStepNoteCount=\(selectedNoteRepeatSnapshot?.capturedStep?.notes.count ?? 0)
+        noteRepeatActiveTrackNames=\(activeNoteRepeatTrackNames.isEmpty ? "none" : activeNoteRepeatTrackNames.joined(separator: "|"))
         selectedTrackFillPreviewAvailable=\(session.isTrackFillPreviewAvailable(trackID: session.store.selectedTrackID))
         selectedTrackFillPreviewActive=\(session.trackFillPreviewState.isActive(for: session.store.selectedTrackID))
         fillPreviewActiveTrackName=\(activeFillPreviewTrack?.name ?? "none")
@@ -453,6 +466,65 @@ enum VisualScenarioCommandRunner {
 
     private static func phraseForPerformOverlayFixture(session: SequencerDocumentSession) -> PhraseModel? {
         session.store.phrases.first { $0.name == "Phrase A" } ?? session.store.phrases.first
+    }
+
+    private static func applyNoteRepeatPerformFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        tracksMode: Binding<TracksWorkspaceMode>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["trackPerformLayer"] != nil ||
+              command["noteRepeatSelectedTrackIndex"] != nil ||
+              command["noteRepeatSource"] != nil ||
+              command["noteRepeatInterval"] != nil ||
+              command["noteRepeatAction"] != nil ||
+              command["noteRepeatEnsureSecondClipTrack"] == "true"
+        else { return }
+
+        section.wrappedValue = .tracks
+        tracksMode.wrappedValue = .perform
+
+        if command["noteRepeatEnsureSecondClipTrack"] == "true" {
+            ensureTrackCount(2, session: session)
+        }
+
+        if let rawIndex = command["noteRepeatSelectedTrackIndex"],
+           let selectedIndex = Int(rawIndex) {
+            ensureTrackCount(selectedIndex + 1, session: session)
+            let clampedIndex = min(max(0, selectedIndex), session.store.tracks.count - 1)
+            session.setSelectedTrackID(session.store.tracks[clampedIndex].id)
+        }
+
+        if let rawLayer = command["trackPerformLayer"],
+           let layer = TrackPerformLayerMode(rawValue: rawLayer) {
+            trackPerformLayerMode = layer.rawValue
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "layer:\(layer.rawValue)")
+        }
+
+        if let sourceState = command["noteRepeatSource"] {
+            applyTrackFillSource(sourceState, session: session)
+        }
+
+        if let rawInterval = command["noteRepeatInterval"],
+           let interval = NoteRepeatInterval(rawValue: rawInterval) {
+            session.setTrackNoteRepeatInterval(interval, trackID: session.store.selectedTrackID)
+        }
+
+        switch command["noteRepeatAction"] {
+        case "press", "hold", "active", "engage":
+            trackPerformLayerMode = TrackPerformLayerMode.noteRepeat.rawValue
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "layer:\(TrackPerformLayerMode.noteRepeat.rawValue)")
+            let trackID = session.store.selectedTrackID
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "press:\(trackID.uuidString)")
+        case "release", "inactive", "off":
+            let trackID = session.store.selectedTrackID
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "release:\(trackID.uuidString)")
+        case "clear":
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "clear-note-repeat")
+        default:
+            break
+        }
     }
 
     private static func applyPhraseMatrixFixture(

@@ -388,6 +388,7 @@ extension Notification.Name {
     static let drumGroupRoutingEditorRenderedVisualState = Notification.Name("SequencerAIDrumGroupRoutingEditorRenderedVisualState")
     static let phraseMatrixVisualCommand = Notification.Name("SequencerAIPhraseMatrixVisualCommand")
     static let phraseMatrixRenderedVisualState = Notification.Name("SequencerAIPhraseMatrixRenderedVisualState")
+    static let trackPerformVisualCommand = Notification.Name("SequencerAITrackPerformVisualCommand")
 }
 
 private extension Color {

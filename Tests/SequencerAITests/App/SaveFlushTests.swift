@@ -149,6 +149,102 @@ final class SaveFlushTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_noteRepeatAvailabilityRequiresClipBackedSelectedPattern() throws {
+        let (baseProject, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        let doc = SeqAIDocument(project: baseProject)
+        let box = DocumentBox(document: doc)
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: EngineController(client: nil, endpoint: nil),
+            debounceInterval: .seconds(100)
+        )
+        let slotIndex = session.store.selectedPatternIndex(for: trackID)
+        let generator = try XCTUnwrap(session.store.compatibleGenerators(for: session.store.selectedTrack).first)
+
+        XCTAssertTrue(session.isNoteRepeatAvailable(trackID: trackID))
+
+        session.assignGeneratorSource(generator.id, to: trackID, slotIndex: slotIndex)
+        XCTAssertFalse(session.isNoteRepeatAvailable(trackID: trackID))
+
+        _ = session.createBlankClipSource(trackID: trackID, slotIndex: slotIndex)
+        XCTAssertTrue(session.isNoteRepeatAvailable(trackID: trackID))
+
+        session.removeSelectedSlotSource(trackID: trackID, slotIndex: slotIndex)
+        XCTAssertFalse(session.isNoteRepeatAvailable(trackID: trackID))
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_noteRepeatSessionCommandsAreRuntimeOnlyAndSnapshotIntervalOnEngage() {
+        let (baseProject, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        let doc = SeqAIDocument(project: baseProject)
+        let box = DocumentBox(document: doc)
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        session.activate()
+        let documentBefore = box.document.project
+        let revisionBefore = session.revision
+        let playbackSnapshotApplyCallsBefore = engine.applyPlaybackSnapshotCallCount
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+
+        XCTAssertTrue(session.setTrackNoteRepeatInterval(.oneThirtySecond, trackID: trackID))
+        session.flushToDocumentSync()
+        let documentAfterIntervalEdit = box.document.project
+        let revisionAfterIntervalEdit = session.revision
+        let playbackSnapshotApplyCallsAfterIntervalEdit = engine.applyPlaybackSnapshotCallCount
+        let documentApplyCallsAfterIntervalEdit = engine.applyDocumentModelCallCount
+
+        XCTAssertNotEqual(documentAfterIntervalEdit, documentBefore)
+        XCTAssertNotEqual(revisionAfterIntervalEdit, revisionBefore)
+        XCTAssertTrue(session.engageNoteRepeat(trackID: trackID))
+        XCTAssertEqual(engine.noteRepeatRuntimeSnapshot(for: trackID)?.interval, .oneThirtySecond)
+
+        XCTAssertTrue(session.setTrackNoteRepeatInterval(.oneSixtyFourth, trackID: trackID))
+        XCTAssertEqual(engine.noteRepeatRuntimeSnapshot(for: trackID)?.interval, .oneThirtySecond)
+
+        session.releaseNoteRepeat(trackID: trackID)
+        XCTAssertNil(engine.noteRepeatRuntimeSnapshot(for: trackID))
+
+        XCTAssertTrue(session.engageNoteRepeat(trackID: trackID))
+        XCTAssertEqual(engine.noteRepeatRuntimeSnapshot(for: trackID)?.interval, .oneSixtyFourth)
+        session.releaseNoteRepeat(trackID: trackID)
+
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, playbackSnapshotApplyCallsAfterIntervalEdit + 1)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsAfterIntervalEdit)
+
+        session.flushToDocumentSync()
+        XCTAssertEqual(session.revision, revisionAfterIntervalEdit + 1)
+        XCTAssertEqual(box.document.project.tracks.first(where: { $0.id == trackID })?.noteRepeatInterval, .oneSixtyFourth)
+        XCTAssertNil(engine.noteRepeatRuntimeSnapshot(for: trackID))
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_unsupportedNoteRepeatEngageIsSafeNoOp() throws {
+        let (baseProject, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        let doc = SeqAIDocument(project: baseProject)
+        let box = DocumentBox(document: doc)
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        let slotIndex = session.store.selectedPatternIndex(for: trackID)
+        let generator = try XCTUnwrap(session.store.compatibleGenerators(for: session.store.selectedTrack).first)
+
+        session.assignGeneratorSource(generator.id, to: trackID, slotIndex: slotIndex)
+
+        XCTAssertFalse(session.engageNoteRepeat(trackID: trackID))
+        XCTAssertNil(engine.noteRepeatRuntimeSnapshot(for: trackID))
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     // MARK: - snapshot(contentType:) cancels pending debounce
 
     func test_snapshotPreHook_cancelsPendingDebounceTask() throws {

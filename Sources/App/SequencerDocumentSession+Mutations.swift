@@ -169,6 +169,34 @@ extension SequencerDocumentSession {
         }
     }
 
+    func isNoteRepeatAvailable(trackID: UUID) -> Bool {
+        guard store.tracks.contains(where: { $0.id == trackID }) else {
+            return false
+        }
+
+        let pattern = store.selectedPattern(for: trackID)
+        guard pattern.sourceRef.mode == .clip else {
+            return false
+        }
+
+        return store.clipEntry(id: pattern.sourceRef.clipID) != nil
+    }
+
+    @discardableResult
+    func engageNoteRepeat(trackID: UUID) -> Bool {
+        guard isNoteRepeatAvailable(trackID: trackID) else {
+            engineController.releaseNoteRepeat(trackID: trackID)
+            return false
+        }
+
+        engineController.engageNoteRepeat(trackID: trackID)
+        return true
+    }
+
+    func releaseNoteRepeat(trackID: UUID) {
+        engineController.releaseNoteRepeat(trackID: trackID)
+    }
+
     // MARK: - Generator mutations
 
     /// Mutate a generator pool entry by ID, then dispatch impact.

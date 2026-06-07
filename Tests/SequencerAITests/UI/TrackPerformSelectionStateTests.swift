@@ -246,6 +246,10 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         )
         XCTAssertTrue(overlay.isMomentaryPressed(.fill, trackID: sourceTrackID))
         XCTAssertTrue(overlay.isMomentaryPressed(.fill, trackID: capturedTrackID))
+        XCTAssertEqual(
+            Set(overlay.momentaryRecipientTrackIDs(control: .fill, sourceTrackID: sourceTrackID)),
+            [sourceTrackID, capturedTrackID]
+        )
 
         selection.clear()
         selection.add(sourceTrackID)
@@ -256,6 +260,27 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertFalse(overlay.isActive(.fill, trackID: sourceTrackID))
         XCTAssertFalse(overlay.isActive(.fill, trackID: capturedTrackID))
         XCTAssertFalse(overlay.isActive(.fill, trackID: laterSelectedTrackID))
+    }
+
+    func test_runtimeOverlay_canActivateExplicitMomentaryRecipientsForSupportedRepeatOnly() {
+        let sourceTrackID = UUID()
+        let supportedTrackID = UUID()
+        let unsupportedTrackID = UUID()
+        var overlay = TrackPerformRuntimeOverlayState(latchMode: .momentary)
+
+        overlay.activate(
+            control: .noteRepeat,
+            sourceTrackID: sourceTrackID,
+            recipientTrackIDs: [sourceTrackID, supportedTrackID]
+        )
+
+        XCTAssertTrue(overlay.isActive(.noteRepeat, trackID: sourceTrackID))
+        XCTAssertTrue(overlay.isActive(.noteRepeat, trackID: supportedTrackID))
+        XCTAssertFalse(overlay.isActive(.noteRepeat, trackID: unsupportedTrackID))
+        XCTAssertEqual(
+            Set(overlay.activeTrackIDs(.noteRepeat, orderedTrackIDs: [sourceTrackID, supportedTrackID, unsupportedTrackID])),
+            [sourceTrackID, supportedTrackID]
+        )
     }
 
     func test_runtimeOverlay_cleanupOnTeardownClearsLatchedAndMomentaryState() {

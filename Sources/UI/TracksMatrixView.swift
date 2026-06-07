@@ -212,6 +212,15 @@ struct TracksMatrixView: View {
                 cleanupPerformRuntime()
             }
         }
+        .onChange(of: performLayerMode) { oldValue, newValue in
+            if oldValue == .noteRepeat, newValue != .noteRepeat {
+                cleanupNoteRepeatRuntime()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .trackPerformVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            applyTrackPerformVisualCommand(command)
+        }
         .onDisappear {
             cleanupPerformRuntime()
         }
@@ -226,7 +235,9 @@ struct TracksMatrixView: View {
                 basisPhrasePill
                 if isPerforming {
                     performSelectionSummary
-                    performLatchModeControl
+                    if performLayerMode != .noteRepeat {
+                        performLatchModeControl
+                    }
                 }
                 performToggleButton
             }
@@ -240,7 +251,9 @@ struct TracksMatrixView: View {
                     basisPhrasePill
                     if isPerforming {
                         performSelectionSummary
-                        performLatchModeControl
+                        if performLayerMode != .noteRepeat {
+                            performLatchModeControl
+                        }
                     }
                     performToggleButton
                     Spacer()
@@ -568,6 +581,8 @@ struct TracksMatrixView: View {
                     runtimeControlState: activePerformLayer?.binaryControl.map {
                         runtimeControlState(for: track.id, control: $0)
                     },
+                    noteRepeatStoredInterval: track.noteRepeatInterval,
+                    noteRepeatActiveSnapshot: engineController.noteRepeatRuntimeSnapshot(for: track.id),
                     onTogglePerformSelection: {
                         performSelection.toggle(track.id)
                     },
@@ -576,7 +591,10 @@ struct TracksMatrixView: View {
                         activateRuntimeControl(control, sourceTrackID: track.id)
                     },
                     onReleaseRuntimeControl: { control in
-                        performRuntimeOverlay.releaseMomentary(control: control, sourceTrackID: track.id)
+                        releaseRuntimeControl(control, sourceTrackID: track.id)
+                    },
+                    onChangeNoteRepeatInterval: { interval in
+                        session.setTrackNoteRepeatInterval(interval, trackID: track.id)
                     }
                 ) {
                     session.setSelectedTrackID(track.id)
@@ -591,9 +609,12 @@ struct TracksMatrixView: View {
     }
 
     private func runtimeControlState(for trackID: UUID, control: TrackPerformBinaryControl) -> TrackPerformRuntimeControlState {
-        TrackPerformRuntimeControlState(
+        let isEngineActive = control == .noteRepeat && engineController.noteRepeatRuntimeSnapshot(for: trackID) != nil
+        let isAvailable = control == .noteRepeat ? session.isNoteRepeatAvailable(trackID: trackID) : true
+        return TrackPerformRuntimeControlState(
             control: control,
-            isActive: performRuntimeOverlay.isActive(control, trackID: trackID),
+            isAvailable: isAvailable,
+            isActive: isEngineActive || performRuntimeOverlay.isActive(control, trackID: trackID),
             isLatched: performRuntimeOverlay.isLatched(control, trackID: trackID),
             isMomentaryPressed: performRuntimeOverlay.isMomentaryPressed(control, trackID: trackID)
         )
@@ -698,19 +719,99 @@ struct TracksMatrixView: View {
     }
 
     private func activateRuntimeControl(_ control: TrackPerformBinaryControl, sourceTrackID: UUID) {
-        performRuntimeOverlay.activate(
-            control: control,
+        let orderedTrackIDs = session.store.tracks.map(\.id)
+        let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
             sourceTrackID: sourceTrackID,
-            orderedTrackIDs: session.store.tracks.map(\.id),
+            orderedTrackIDs: orderedTrackIDs,
             selection: performSelection
         )
+
+        switch control {
+        case .fill:
+            performRuntimeOverlay.activate(
+                control: control,
+                sourceTrackID: sourceTrackID,
+                recipientTrackIDs: recipientTrackIDs
+            )
+        case .noteRepeat:
+            let supportedTrackIDs = recipientTrackIDs.filter { session.isNoteRepeatAvailable(trackID: $0) }
+            guard !supportedTrackIDs.isEmpty else {
+                return
+            }
+
+            performRuntimeOverlay.activate(
+                control: control,
+                sourceTrackID: sourceTrackID,
+                recipientTrackIDs: supportedTrackIDs
+            )
+            supportedTrackIDs.forEach { session.engageNoteRepeat(trackID: $0) }
+        }
+    }
+
+    private func releaseRuntimeControl(_ control: TrackPerformBinaryControl, sourceTrackID: UUID) {
+        if control == .noteRepeat {
+            let activeTrackIDs = performRuntimeOverlay.momentaryRecipientTrackIDs(
+                control: control,
+                sourceTrackID: sourceTrackID
+            )
+            activeTrackIDs.forEach { session.releaseNoteRepeat(trackID: $0) }
+        }
+        performRuntimeOverlay.releaseMomentary(control: control, sourceTrackID: sourceTrackID)
     }
 
     private func cleanupPerformRuntime() {
+        cleanupNoteRepeatRuntime()
         performSelection.clear()
         performRuntimeOverlay.cleanupRuntime()
     }
 
+    private func cleanupNoteRepeatRuntime() {
+        let overlayActiveTrackIDs = performRuntimeOverlay
+            .activeTrackIDs(.noteRepeat, orderedTrackIDs: session.store.tracks.map(\.id))
+        let engineActiveTrackIDs = session.store.tracks.compactMap { track in
+            engineController.noteRepeatRuntimeSnapshot(for: track.id) == nil ? nil : track.id
+        }
+        let activeTrackIDs = Array(Set(overlayActiveTrackIDs + engineActiveTrackIDs))
+        activeTrackIDs.forEach { session.releaseNoteRepeat(trackID: $0) }
+        performRuntimeOverlay.clearRuntime(control: .noteRepeat, trackIDs: activeTrackIDs)
+        performRuntimeOverlay.releaseAllMomentary(control: .noteRepeat)
+    }
+
+    private func applyTrackPerformVisualCommand(_ command: String) {
+        if let rawMode = command.removingPrefix("layer:"),
+           let mode = TrackPerformLayerMode(rawValue: rawMode) {
+            performLayerMode = mode
+            return
+        }
+
+        if let rawTrackID = command.removingPrefix("press:"),
+           let trackID = UUID(uuidString: rawTrackID) {
+            performLayerMode = .noteRepeat
+            activateRuntimeControl(.noteRepeat, sourceTrackID: trackID)
+            return
+        }
+
+        if let rawTrackID = command.removingPrefix("release:"),
+           let trackID = UUID(uuidString: rawTrackID) {
+            releaseRuntimeControl(.noteRepeat, sourceTrackID: trackID)
+            return
+        }
+
+        if command == "clear-note-repeat" {
+            cleanupNoteRepeatRuntime()
+            performRuntimeOverlay.releaseAllMomentary(control: .noteRepeat)
+        }
+    }
+
+}
+
+private extension String {
+    func removingPrefix(_ prefix: String) -> String? {
+        guard hasPrefix(prefix) else {
+            return nil
+        }
+        return String(dropFirst(prefix.count))
+    }
 }
 
 private struct GroupedTrackSection: Identifiable {
@@ -765,6 +866,7 @@ private struct GroupSectionView<Grid: View>: View {
 
 private struct TrackPerformRuntimeControlState: Equatable, Identifiable {
     let control: TrackPerformBinaryControl
+    let isAvailable: Bool
     let isActive: Bool
     let isLatched: Bool
     let isMomentaryPressed: Bool
@@ -878,9 +980,12 @@ private struct TrackMatrixCard: View {
     let isPerforming: Bool
     let latchMode: TrackPerformLatchMode
     let runtimeControlState: TrackPerformRuntimeControlState?
+    let noteRepeatStoredInterval: NoteRepeatInterval
+    let noteRepeatActiveSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
     let onTogglePerformSelection: () -> Void
     let onActivateRuntimeControl: (TrackPerformBinaryControl) -> Void
     let onReleaseRuntimeControl: (TrackPerformBinaryControl) -> Void
+    let onChangeNoteRepeatInterval: (NoteRepeatInterval) -> Void
     let onTap: () -> Void
 
     private var accent: Color {
@@ -1035,11 +1140,14 @@ private struct TrackMatrixCard: View {
             TrackPerformRuntimeLayerControl(
                 mode: activePerformLayer,
                 state: runtimeControlState,
-                latchMode: latchMode,
+                latchMode: activePerformLayer == .noteRepeat ? .momentary : latchMode,
                 accent: layerAccentColor,
                 authoredSummary: activePerformLayer.phraseLayerID == nil ? nil : valueSummary,
+                storedInterval: activePerformLayer == .noteRepeat ? noteRepeatStoredInterval : nil,
+                activeRepeatSnapshot: activePerformLayer == .noteRepeat ? noteRepeatActiveSnapshot : nil,
                 onActivate: { onActivateRuntimeControl(control) },
-                onRelease: { onReleaseRuntimeControl(control) }
+                onRelease: { onReleaseRuntimeControl(control) },
+                onChangeInterval: onChangeNoteRepeatInterval
             )
         } else {
             VStack(alignment: .leading, spacing: 8) {
@@ -1106,13 +1214,31 @@ private struct TrackPerformRuntimeLayerControl: View {
     let latchMode: TrackPerformLatchMode
     let accent: Color
     let authoredSummary: String?
+    let storedInterval: NoteRepeatInterval?
+    let activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
     let onActivate: () -> Void
     let onRelease: () -> Void
+    let onChangeInterval: (NoteRepeatInterval) -> Void
 
     @State private var isTrackingMomentaryPress = false
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 8) {
+            triggerSurface
+
+            if let storedInterval {
+                intervalPicker(storedInterval)
+            }
+        }
+        .help(helpText)
+    }
+
+    @ViewBuilder
+    private var triggerSurface: some View {
+        if !state.isAvailable {
+            label
+                .opacity(0.68)
+        } else {
             switch latchMode {
             case .latched:
                 Button {
@@ -1148,7 +1274,6 @@ private struct TrackPerformRuntimeLayerControl: View {
                 }
             }
         }
-        .help("\(mode.label) \(latchMode.label)")
     }
 
     private var label: some View {
@@ -1190,7 +1315,7 @@ private struct TrackPerformRuntimeLayerControl: View {
 
                 Spacer(minLength: 0)
 
-                Text(latchMode.actionBarLabel)
+                Text(mode == .noteRepeat ? noteRepeatModeBadge : latchMode.actionBarLabel)
                     .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(state.isActive ? StudioTheme.text : StudioTheme.mutedText)
@@ -1210,6 +1335,35 @@ private struct TrackPerformRuntimeLayerControl: View {
         )
     }
 
+    private func intervalPicker(_ storedInterval: NoteRepeatInterval) -> some View {
+        HStack(spacing: 6) {
+            ForEach(NoteRepeatInterval.allCases, id: \.rawValue) { interval in
+                Button {
+                    onChangeInterval(interval)
+                } label: {
+                    Text(interval.rawValue)
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                        .foregroundStyle(interval == storedInterval ? StudioTheme.text : StudioTheme.mutedText)
+                        .frame(maxWidth: .infinity, minHeight: 26)
+                        .background(
+                            interval == storedInterval
+                                ? accent.opacity(StudioOpacity.selectedFill)
+                                : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                                .stroke(interval == storedInterval ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(intervalHelp(for: interval, storedInterval: storedInterval))
+            }
+        }
+        .accessibilityIdentifier("note-repeat-interval-picker")
+    }
+
     private var leadingSymbolName: String {
         if state.isMomentaryPressed {
             return "hand.tap.fill"
@@ -1221,6 +1375,9 @@ private struct TrackPerformRuntimeLayerControl: View {
     }
 
     private var stateLabel: String {
+        if !state.isAvailable {
+            return "UNAVAILABLE"
+        }
         if state.isMomentaryPressed {
             return "HELD"
         }
@@ -1234,10 +1391,13 @@ private struct TrackPerformRuntimeLayerControl: View {
     }
 
     private var labelForeground: Color {
-        state.isActive ? StudioTheme.text : StudioTheme.mutedText
+        state.isActive && state.isAvailable ? StudioTheme.text : StudioTheme.mutedText
     }
 
     private var labelBackground: Color {
+        if !state.isAvailable {
+            return Color.white.opacity(StudioOpacity.subtleFill)
+        }
         if state.isMomentaryPressed {
             return StudioTheme.amber.opacity(StudioOpacity.selectedFill)
         }
@@ -1248,6 +1408,9 @@ private struct TrackPerformRuntimeLayerControl: View {
     }
 
     private var labelStroke: Color {
+        if !state.isAvailable {
+            return StudioTheme.border
+        }
         if state.isMomentaryPressed {
             return StudioTheme.amber.opacity(0.9)
         }
@@ -1255,6 +1418,36 @@ private struct TrackPerformRuntimeLayerControl: View {
             return accent.opacity(0.7)
         }
         return StudioTheme.border
+    }
+
+    private var noteRepeatModeBadge: String {
+        guard let storedInterval else {
+            return "MOM"
+        }
+        if let activeInterval = activeRepeatSnapshot?.interval, activeInterval != storedInterval {
+            return "LIVE \(activeInterval.rawValue)"
+        }
+        return storedInterval.rawValue
+    }
+
+    private var helpText: String {
+        if !state.isAvailable {
+            return "\(mode.label) is available for clip-backed tracks only in v1."
+        }
+        guard mode == .noteRepeat, let storedInterval else {
+            return "\(mode.label) \(latchMode.label)"
+        }
+        if let activeInterval = activeRepeatSnapshot?.interval, activeInterval != storedInterval {
+            return "Repeat is using \(activeInterval.rawValue). Next engagement will use \(storedInterval.rawValue)."
+        }
+        return "Hold Repeat. Stored interval \(storedInterval.rawValue)."
+    }
+
+    private func intervalHelp(for interval: NoteRepeatInterval, storedInterval: NoteRepeatInterval) -> String {
+        if activeRepeatSnapshot != nil, interval != storedInterval {
+            return "Set next Repeat engagement to \(interval.rawValue); active Repeat keeps its captured interval."
+        }
+        return "Set Repeat interval to \(interval.rawValue)."
     }
 
     private func endMomentaryPressIfNeeded() {

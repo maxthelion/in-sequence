@@ -198,6 +198,15 @@ struct TrackPerformRuntimeOverlayState: Equatable {
         isLatched(control, trackID: trackID) || isMomentaryPressed(control, trackID: trackID)
     }
 
+    func activeTrackIDs(_ control: TrackPerformBinaryControl, orderedTrackIDs: [UUID]) -> [UUID] {
+        orderedTrackIDs.filter { isActive(control, trackID: $0) }
+    }
+
+    func momentaryRecipientTrackIDs(control: TrackPerformBinaryControl, sourceTrackID: UUID) -> [UUID] {
+        let key = TrackPerformMomentaryPressKey(control: control, sourceTrackID: sourceTrackID)
+        return Array(momentaryRecipientsByPress[key] ?? [])
+    }
+
     func isLatched(_ control: TrackPerformBinaryControl, trackID: UUID) -> Bool {
         latchedTrackIDsByControl[control]?.contains(trackID) == true
     }
@@ -248,12 +257,34 @@ struct TrackPerformRuntimeOverlayState: Equatable {
         }
     }
 
+    mutating func activate(
+        control: TrackPerformBinaryControl,
+        sourceTrackID: UUID,
+        recipientTrackIDs: [UUID]
+    ) {
+        switch latchMode {
+        case .momentary:
+            let key = TrackPerformMomentaryPressKey(control: control, sourceTrackID: sourceTrackID)
+            if momentaryRecipientsByPress[key] == nil {
+                momentaryRecipientsByPress[key] = Set(recipientTrackIDs)
+            }
+        case .latched:
+            toggleRuntime(control: control, trackIDs: recipientTrackIDs)
+        }
+    }
+
     mutating func releaseMomentary(
         control: TrackPerformBinaryControl,
         sourceTrackID: UUID
     ) {
         let key = TrackPerformMomentaryPressKey(control: control, sourceTrackID: sourceTrackID)
         momentaryRecipientsByPress.removeValue(forKey: key)
+    }
+
+    mutating func releaseAllMomentary(control: TrackPerformBinaryControl) {
+        momentaryRecipientsByPress = momentaryRecipientsByPress.filter { key, _ in
+            key.control != control
+        }
     }
 
     mutating func cleanupRuntime() {
