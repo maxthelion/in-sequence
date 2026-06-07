@@ -104,6 +104,182 @@ final class PlaybackSnapshotBuffersOnlyTests: XCTestCase {
         XCTAssertTrue(snapshot.layerSnapshot(phraseID: snapshot.selectedPhraseID, stepInPhrase: 11).isFillEnabled(trackID))
     }
 
+    func test_stepOrderPlaybackResolution_remapsSourceReadsForEveryPlayableTrack() throws {
+        let acceptedRemap: [UInt8] = [0, 1, 2, 3, 3, 3, 3, 3, 7, 8, 9, 0, 1, 2, 3, 3]
+        let fixture = makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: true)
+        let snapshot = SequencerSnapshotCompiler.compile(project: fixture.project)
+        let phraseID = fixture.project.selectedPhraseID
+
+        for outputStep in 0..<16 {
+            let expectedSourceStep = Int(acceptedRemap[outputStep])
+
+            for track in fixture.tracks {
+                let resolved = try XCTUnwrap(snapshot.resolvedStep(
+                    phraseID: phraseID,
+                    trackID: track.id,
+                    stepInPhrase: outputStep
+                ))
+
+                XCTAssertEqual(resolved.sourceStepIndex, expectedSourceStep)
+                XCTAssertEqual(resolved.slotIndex, expectedSourceStep)
+
+                var rng = SystemRandomNumberGenerator()
+                var state = GeneratedSourceEvaluationState()
+                let notes = EngineController.resolvedStepNotes(
+                    for: track.id,
+                    in: snapshot,
+                    phraseID: phraseID,
+                    stepIndex: outputStep,
+                    chordContext: nil,
+                    state: &state,
+                    rng: &rng
+                )
+                XCTAssertEqual(notes.map(\.pitch), [track.pitchBase + expectedSourceStep])
+            }
+        }
+    }
+
+    func test_stepOrderPlaybackResolution_keepsPhraseLayerTimingOnOutputStep() throws {
+        let acceptedRemap: [UInt8] = [0, 1, 2, 3, 3, 3, 3, 3, 7, 8, 9, 0, 1, 2, 3, 3]
+        let fixture = makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: true)
+        let snapshot = SequencerSnapshotCompiler.compile(project: fixture.project)
+        let phraseID = fixture.project.selectedPhraseID
+        let track = fixture.tracks[0]
+
+        let outputStep11 = try XCTUnwrap(snapshot.resolvedStep(
+            phraseID: phraseID,
+            trackID: track.id,
+            stepInPhrase: 11
+        ))
+        XCTAssertEqual(outputStep11.sourceStepIndex, 0)
+        XCTAssertEqual(outputStep11.slotIndex, 0)
+        XCTAssertTrue(outputStep11.fillEnabled)
+        XCTAssertEqual(try XCTUnwrap(outputStep11.macroValues[track.macroBindingID]), 11, accuracy: 0.0001)
+
+        let layerStep0 = snapshot.layerSnapshot(phraseID: phraseID, stepInPhrase: 0)
+        XCTAssertFalse(layerStep0.isMuted(track.id))
+        XCTAssertFalse(layerStep0.isFillEnabled(track.id))
+        XCTAssertEqual(try XCTUnwrap(layerStep0.macroValue(trackID: track.id, bindingID: track.macroBindingID)), 0, accuracy: 0.0001)
+
+        let layerStep11 = snapshot.layerSnapshot(phraseID: phraseID, stepInPhrase: 11)
+        XCTAssertTrue(layerStep11.isMuted(track.id))
+        XCTAssertTrue(layerStep11.isFillEnabled(track.id))
+        XCTAssertEqual(try XCTUnwrap(layerStep11.macroValue(trackID: track.id, bindingID: track.macroBindingID)), 11, accuracy: 0.0001)
+    }
+
+    func test_stepOrderPlaybackResolution_fallsBackToSequentialForInactiveUnavailableOrUnsupportedStates() throws {
+        let acceptedRemap: [UInt8] = [0, 1, 2, 3, 3, 3, 3, 3, 7, 8, 9, 0, 1, 2, 3, 3]
+        let cases: [(String, Project)] = [
+            (
+                "disabled",
+                makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: false).project
+            ),
+            (
+                "unassigned",
+                makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: true) { project, _ in
+                    project.phrases[0].stepOrderAssignment = nil
+                }.project
+            ),
+            (
+                "missing map",
+                makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: true) { project, mapID in
+                    project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+                    project.stepOrderMaps.removeAll()
+                }.project
+            ),
+            (
+                "invalid map",
+                makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: true) { project, mapID in
+                    project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Invalid", values: [0, 1, 2])]
+                    project.phrases[0].stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+                }.project
+            ),
+            (
+                "unsupported phrase length",
+                makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: true) { project, _ in
+                    project.phrases[0].lengthBars = 2
+                }.project
+            )
+        ]
+
+        for (name, project) in cases {
+            let snapshot = SequencerSnapshotCompiler.compile(project: project)
+            let phraseBuffer = try XCTUnwrap(snapshot.phraseBuffer(for: project.selectedPhraseID), name)
+            XCTAssertNil(phraseBuffer.stepOrderMap, name)
+
+            for track in project.tracks {
+                for outputStep in 0..<16 {
+                    let resolved = try XCTUnwrap(snapshot.resolvedStep(
+                        phraseID: project.selectedPhraseID,
+                        trackID: track.id,
+                        stepInPhrase: outputStep
+                    ), name)
+                    XCTAssertEqual(resolved.sourceStepIndex, outputStep, name)
+                    XCTAssertEqual(resolved.slotIndex, outputStep, name)
+                }
+            }
+        }
+    }
+
+    func test_stepOrderPlaybackResolution_doesNotAffectUnassignedPhrasesOrAuthoredState() throws {
+        let acceptedRemap: [UInt8] = [0, 1, 2, 3, 3, 3, 3, 3, 7, 8, 9, 0, 1, 2, 3, 3]
+        var fixture = makeCompiledStepOrderPlaybackProject(stepOrderMap: acceptedRemap, isEnabled: true)
+        var unrelatedPhrase = fixture.project.phrases[0]
+        unrelatedPhrase.id = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
+        unrelatedPhrase.name = "Unassigned Phrase"
+        unrelatedPhrase.stepOrderAssignment = nil
+        fixture.project.phrases.append(unrelatedPhrase)
+        fixture.project.selectedPhraseID = unrelatedPhrase.id
+        fixture.project.masterBus.masterOutputGain = 0.42
+
+        let authoredBefore = fixture.project
+        let snapshot = SequencerSnapshotCompiler.compile(project: fixture.project)
+        let assignedPhraseID = authoredBefore.phrases[0].id
+        let unassignedPhraseID = unrelatedPhrase.id
+
+        for outputStep in 0..<16 {
+            let assigned = try XCTUnwrap(snapshot.resolvedStep(
+                phraseID: assignedPhraseID,
+                trackID: fixture.tracks[0].id,
+                stepInPhrase: outputStep
+            ))
+            XCTAssertEqual(assigned.sourceStepIndex, Int(acceptedRemap[outputStep]))
+
+            let unassigned = try XCTUnwrap(snapshot.resolvedStep(
+                phraseID: unassignedPhraseID,
+                trackID: fixture.tracks[0].id,
+                stepInPhrase: outputStep
+            ))
+            XCTAssertEqual(unassigned.sourceStepIndex, outputStep)
+            XCTAssertEqual(unassigned.slotIndex, outputStep)
+        }
+
+        var rng = SystemRandomNumberGenerator()
+        var state = GeneratedSourceEvaluationState()
+        _ = EngineController.resolvedStepNotes(
+            for: fixture.tracks[0].id,
+            in: snapshot,
+            phraseID: assignedPhraseID,
+            stepIndex: 11,
+            chordContext: nil,
+            state: &state,
+            rng: &rng
+        )
+        _ = EngineController.resolvedStepNotes(
+            for: fixture.tracks[0].id,
+            in: snapshot,
+            phraseID: unassignedPhraseID,
+            stepIndex: 11,
+            chordContext: nil,
+            state: &state,
+            rng: &rng
+        )
+
+        XCTAssertEqual(fixture.project, authoredBefore)
+        XCTAssertEqual(snapshot.selectedPhraseID, unassignedPhraseID)
+        XCTAssertEqual(authoredBefore.masterBus.masterOutputGain, 0.42, accuracy: 0.0001)
+    }
+
     // MARK: - 3. Generator source resolution uses snapshot's generatorPool
 
     func test_tickResolution_forGenerator_usesSnapshotGeneratorPool() throws {
@@ -219,6 +395,17 @@ final class PlaybackSnapshotBuffersOnlyTests: XCTestCase {
 
 // MARK: - Helpers
 
+private struct StepOrderPlaybackFixture {
+    struct PlayableTrack {
+        let id: UUID
+        let pitchBase: Int
+        let macroBindingID: UUID
+    }
+
+    var project: Project
+    let tracks: [PlayableTrack]
+}
+
 private func makeStepOrderFixtureSnapshot(stepOrderMap: [UInt8]?) -> (PlaybackSnapshot, UUID) {
     let phraseID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
     let trackID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
@@ -262,6 +449,157 @@ private func makeStepOrderFixtureSnapshot(stepOrderMap: [UInt8]?) -> (PlaybackSn
             phraseBuffersByID: [phraseID: phraseBuffer]
         ),
         trackID
+    )
+}
+
+private func makeCompiledStepOrderPlaybackProject(
+    stepOrderMap: [UInt8],
+    isEnabled: Bool,
+    mutate: (inout Project, UUID) -> Void = { _, _ in }
+) -> StepOrderPlaybackFixture {
+    let mapID = UUID(uuidString: "99999999-9999-9999-9999-999999999999")!
+    let firstTrackID = UUID(uuidString: "aaaaaaaa-0000-0000-0000-000000000001")!
+    let secondTrackID = UUID(uuidString: "aaaaaaaa-0000-0000-0000-000000000002")!
+
+    let firstBinding = TrackMacroBinding(
+        descriptor: stepMarkerMacroDescriptor(
+            id: UUID(uuidString: "dddddddd-0000-0000-0000-000000000001")!
+        ),
+        slotIndex: 0
+    )
+    let secondBinding = TrackMacroBinding(
+        descriptor: stepMarkerMacroDescriptor(
+            id: UUID(uuidString: "dddddddd-0000-0000-0000-000000000002")!
+        ),
+        slotIndex: 0
+    )
+    let firstTrack = StepSequenceTrack(
+        id: firstTrackID,
+        name: "Lead",
+        pitches: [60],
+        stepPattern: Array(repeating: true, count: 16),
+        destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+        velocity: 100,
+        gateLength: 4,
+        macros: [firstBinding]
+    )
+    let secondTrack = StepSequenceTrack(
+        id: secondTrackID,
+        name: "Counter",
+        pitches: [80],
+        stepPattern: Array(repeating: true, count: 16),
+        destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+        velocity: 100,
+        gateLength: 4,
+        macros: [secondBinding]
+    )
+    let tracks = [firstTrack, secondTrack]
+    let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+    var phrase = PhraseModel.default(
+        tracks: tracks,
+        layers: layers,
+        generatorPool: GeneratorPoolEntry.defaultPool,
+        clipPool: []
+    )
+    phrase.lengthBars = 1
+    phrase.stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: isEnabled)
+
+    let trackDescriptors = [
+        (track: firstTrack, pitchBase: 60, binding: firstBinding),
+        (track: secondTrack, pitchBase: 80, binding: secondBinding)
+    ]
+
+    var clipPool: [ClipPoolEntry] = []
+    var patternBanks: [TrackPatternBank] = []
+    for descriptor in trackDescriptors {
+        var slots: [TrackPatternSlot] = []
+        for step in 0..<16 {
+            let clipID = UUID(uuidString: String(format: "bbbbbbbb-%04d-%04d-0000-000000000000", descriptor.pitchBase, step))!
+            clipPool.append(
+                ClipPoolEntry(
+                    id: clipID,
+                    name: "\(descriptor.track.name) Step \(step)",
+                    trackType: descriptor.track.trackType,
+                    content: .noteGrid(
+                        lengthSteps: 16,
+                        steps: (0..<16).map { clipStep in
+                            guard clipStep == step else { return .empty }
+                            return ClipStep(
+                                main: ClipLane(
+                                    chance: 1,
+                                    notes: [
+                                        ClipStepNote(
+                                            pitch: descriptor.pitchBase + step,
+                                            velocity: 100,
+                                            lengthSteps: 1
+                                        )
+                                    ]
+                                ),
+                                fill: nil
+                            )
+                        }
+                    )
+                )
+            )
+            slots.append(TrackPatternSlot(slotIndex: step, sourceRef: .clip(clipID)))
+        }
+        patternBanks.append(TrackPatternBank(trackID: descriptor.track.id, slots: slots))
+        phrase.setCell(
+            .steps((0..<16).map { .index($0) }),
+            for: "pattern",
+            trackID: descriptor.track.id
+        )
+        phrase.setCell(
+            .steps((0..<16).map { .scalar(Double($0)) }),
+            for: "macro-\(descriptor.track.id.uuidString)-\(descriptor.binding.id.uuidString)",
+            trackID: descriptor.track.id
+        )
+    }
+
+    phrase.setCell(
+        .steps((0..<16).map { .bool($0 == 11) }),
+        for: "fill-flag",
+        trackID: firstTrackID
+    )
+    phrase.setCell(
+        .steps((0..<16).map { .bool($0 == 11) }),
+        for: "mute",
+        trackID: firstTrackID
+    )
+
+    var project = Project(
+        version: 1,
+        tracks: tracks,
+        generatorPool: GeneratorPoolEntry.defaultPool,
+        clipPool: clipPool,
+        layers: layers,
+        routes: [],
+        patternBanks: patternBanks,
+        stepOrderMaps: [StepOrderMap(id: mapID, name: "Break Fold", values: stepOrderMap)],
+        selectedTrackID: firstTrackID,
+        phrases: [phrase],
+        selectedPhraseID: phrase.id
+    )
+    mutate(&project, mapID)
+
+    return StepOrderPlaybackFixture(
+        project: project,
+        tracks: [
+            .init(id: firstTrackID, pitchBase: 60, macroBindingID: firstBinding.id),
+            .init(id: secondTrackID, pitchBase: 80, macroBindingID: secondBinding.id)
+        ]
+    )
+}
+
+private func stepMarkerMacroDescriptor(id: UUID) -> TrackMacroDescriptor {
+    TrackMacroDescriptor(
+        id: id,
+        displayName: "Step Marker",
+        minValue: 0,
+        maxValue: 15,
+        defaultValue: 0,
+        valueType: .scalar,
+        source: .auParameter(address: 1, identifier: "step-marker-\(id.uuidString)")
     )
 }
 
