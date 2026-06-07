@@ -375,6 +375,61 @@ final class StepOrderPersistenceTests: XCTestCase {
         XCTAssertEqual(session.store.phrases.first(where: { $0.id == secondPhraseID })?.stepOrderAssignment?.isEnabled, false)
     }
 
+    func test_sessionStepOrderPendingOnAppliesEditedAssignedMapValuesAtBoundary() throws {
+        let editedValues: [UInt8] = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        var project = makeRuntimeStepOrderProject(isEnabled: false)
+        project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Editable Pending", values: remapValues)]
+
+        let box = DocumentBox(project: project)
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        defer {
+            engine.stop()
+            SequencerDocumentSessionRegistry.unregister(session)
+        }
+        session.activate()
+        engine.start()
+        engine.clock.stop()
+
+        XCTAssertTrue(session.requestPhraseStepOrderEnabled(true, phraseID: project.selectedPhraseID))
+        XCTAssertEqual(session.stepOrderToggleState(phraseID: project.selectedPhraseID), .pendingOn)
+        XCTAssertNil(engine.currentPlaybackSnapshotForTesting.phraseBuffer(for: project.selectedPhraseID)?.stepOrderMap)
+
+        XCTAssertTrue(session.setStepOrderMapValues(id: mapID, values: editedValues))
+        XCTAssertEqual(session.store.stepOrderMaps.first(where: { $0.id == mapID })?.values, editedValues)
+        XCTAssertEqual(session.stepOrderToggleState(phraseID: project.selectedPhraseID), .pendingOn)
+        XCTAssertNil(engine.currentPlaybackSnapshotForTesting.phraseBuffer(for: project.selectedPhraseID)?.stepOrderMap)
+
+        for tickIndex in 0..<15 {
+            engine.processTick(tickIndex: UInt64(tickIndex), now: TimeInterval(tickIndex) / 10)
+        }
+
+        XCTAssertEqual(session.stepOrderToggleState(phraseID: project.selectedPhraseID), .pendingOn)
+        XCTAssertNil(engine.currentPlaybackSnapshotForTesting.phraseBuffer(for: project.selectedPhraseID)?.stepOrderMap)
+
+        engine.processTick(tickIndex: 15, now: 1.5)
+
+        XCTAssertNil(session.stepOrderPendingToggle)
+        XCTAssertEqual(session.stepOrderToggleState(phraseID: project.selectedPhraseID), .on)
+        assertSnapshotStepOrderMap(
+            engine.currentPlaybackSnapshotForTesting,
+            phraseID: project.selectedPhraseID,
+            expected: editedValues
+        )
+        XCTAssertEqual(
+            engine.currentPlaybackSnapshotForTesting
+                .phraseBuffer(for: project.selectedPhraseID)?
+                .sourceStepIndex(for: 0),
+            15
+        )
+        XCTAssertEqual(session.store.phrases.first(where: { $0.id == project.selectedPhraseID })?.stepOrderAssignment?.isEnabled, true)
+        XCTAssertEqual(session.store.stepOrderMaps.first(where: { $0.id == mapID })?.values, editedValues)
+    }
+
     func test_sessionStepOrderPendingOffContinuesActiveMapUntilBoundary() throws {
         var project = makeRuntimeStepOrderProject(isEnabled: true)
         project.stepOrderMaps = [StepOrderMap(id: mapID, name: "Pending Off", values: remapValues)]

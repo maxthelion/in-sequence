@@ -295,8 +295,16 @@ extension SequencerDocumentSession {
             return
         }
 
-        if enabledStepOrderMapValues(phraseID: pending.phraseID) == nil {
+        guard let mapValues = enabledStepOrderMapValues(phraseID: pending.phraseID) else {
             engineController.clearPendingStepOrderToggle(phraseID: pending.phraseID)
+            return
+        }
+
+        if pending.requestedEnabled {
+            engineController.refreshPendingStepOrderEnabledMapValues(
+                phraseID: pending.phraseID,
+                enabledMapValues: mapValues
+            )
         }
     }
 

@@ -974,6 +974,26 @@ final class EngineController: RouterDispatcher {
     }
 
     @discardableResult
+    func refreshPendingStepOrderEnabledMapValues(phraseID: UUID, enabledMapValues: [UInt8]) -> Bool {
+        guard StepOrderMap.isValidValues(enabledMapValues) else {
+            return false
+        }
+
+        stepOrderPendingLock.lock()
+        defer { stepOrderPendingLock.unlock() }
+        guard var payload = pendingStepOrderTogglePayload,
+              payload.request.phraseID == phraseID,
+              payload.request.requestedEnabled
+        else {
+            return false
+        }
+
+        payload.enabledMapValues = enabledMapValues
+        pendingStepOrderTogglePayload = payload
+        return true
+    }
+
+    @discardableResult
     func switchPhraseNow(_ phraseID: UUID) -> Bool {
         let snapshot = tickState.currentPlaybackSnapshot()
         guard snapshot.phraseBuffer(for: phraseID) != nil else {

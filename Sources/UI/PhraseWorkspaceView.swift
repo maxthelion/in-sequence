@@ -990,16 +990,27 @@ private struct StepOrderPhraseWorkflowPanel: View {
         return maps.first { $0.id == resolvedEditorMapID }
     }
 
+    private var unavailableReason: String? {
+        guard case .unavailable(let reason) = presentation.status else {
+            return nil
+        }
+        return reason
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
-            HStack(alignment: .top, spacing: 14) {
-                mapPicker
-                    .frame(width: 260, alignment: .topLeading)
+            if let unavailableReason {
+                unavailableBlocker(unavailableReason)
+            } else {
+                HStack(alignment: .top, spacing: 14) {
+                    mapPicker
+                        .frame(width: 260, alignment: .topLeading)
 
-                editor
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    editor
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
             }
         }
         .padding(12)
@@ -1051,7 +1062,7 @@ private struct StepOrderPhraseWorkflowPanel: View {
                         )
                 }
 
-                Text("\(presentation.activeMapName) - \(presentation.activeMapDetail). \(presentation.statusSummary)")
+                Text(statusSummaryText)
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .lineLimit(2)
@@ -1060,31 +1071,62 @@ private struct StepOrderPhraseWorkflowPanel: View {
 
             Spacer(minLength: 10)
 
-            Button {
-                onRequestEnabled(presentation.nextToggleValue)
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: toggleIconName)
-                        .font(.system(size: 14, weight: .bold))
-                    Text(presentation.statusLabel)
-                        .studioText(.labelBold)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+            if unavailableReason == nil {
+                Button {
+                    onRequestEnabled(presentation.nextToggleValue)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: toggleIconName)
+                            .font(.system(size: 14, weight: .bold))
+                        Text(presentation.statusLabel)
+                            .studioText(.labelBold)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .foregroundStyle(presentation.canToggle ? StudioTheme.text : StudioTheme.mutedText)
+                    .frame(width: 126, height: 34)
+                    .background(statusAccent.opacity(presentation.canToggle ? StudioOpacity.selectedFill : StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(statusAccent.opacity(presentation.canToggle ? 0.7 : StudioOpacity.ghostStroke), lineWidth: 1)
+                    )
                 }
-                .foregroundStyle(presentation.canToggle ? StudioTheme.text : StudioTheme.mutedText)
-                .frame(width: 126, height: 34)
-                .background(statusAccent.opacity(presentation.canToggle ? StudioOpacity.selectedFill : StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(statusAccent.opacity(presentation.canToggle ? 0.7 : StudioOpacity.ghostStroke), lineWidth: 1)
-                )
+                .buttonStyle(.plain)
+                .disabled(!presentation.canToggle)
+                .accessibilityLabel(presentation.toggleAccessibilityLabel)
+                .accessibilityHint(toggleHint)
+                .accessibilityIdentifier("step-order-toggle-\(phrase.id.uuidString)")
             }
-            .buttonStyle(.plain)
-            .disabled(!presentation.canToggle)
-            .accessibilityLabel(presentation.toggleAccessibilityLabel)
-            .accessibilityHint(toggleHint)
-            .accessibilityIdentifier("step-order-toggle-\(phrase.id.uuidString)")
         }
+    }
+
+    private var statusSummaryText: String {
+        if unavailableReason != nil {
+            return presentation.statusSummary
+        }
+        return "\(presentation.activeMapName) - \(presentation.activeMapDetail). \(presentation.statusSummary)"
+    }
+
+    private func unavailableBlocker(_ reason: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(StudioTheme.amber)
+
+            Text(reason)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+        )
+        .accessibilityLabel("Step Order unavailable, \(reason)")
+        .accessibilityIdentifier("step-order-unavailable-blocker-\(phrase.id.uuidString)")
     }
 
     private var mapPicker: some View {

@@ -162,6 +162,59 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
         XCTAssertTrue(presentation.toggleAccessibilityLabel.contains("scope Phrase"))
     }
 
+    func test_stepOrderSurfacePresentsValidAssignedOffOnAndPendingOffStates() {
+        let mapID = UUID()
+        let map = StepOrderMap(id: mapID, name: "Break Fold")
+        var phrase = makePhrase(lengthBars: 1)
+        phrase.stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: false)
+
+        var presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [map],
+            toggleState: .off
+        )
+        XCTAssertEqual(presentation.status, .off)
+        XCTAssertEqual(presentation.statusLabel, "Off")
+        XCTAssertEqual(presentation.statusSummary, "Break Fold is assigned and ready.")
+        XCTAssertTrue(presentation.canToggle)
+        XCTAssertTrue(presentation.nextToggleValue)
+        XCTAssertEqual(
+            presentation.toggleAccessibilityLabel,
+            "Step Order Off, scope Phrase, active map Break Fold"
+        )
+
+        phrase.stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: true)
+        presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [map],
+            toggleState: .on
+        )
+        XCTAssertEqual(presentation.status, .on)
+        XCTAssertEqual(presentation.statusLabel, "On")
+        XCTAssertEqual(presentation.statusSummary, "Break Fold remaps source-step reads for this phrase.")
+        XCTAssertTrue(presentation.canToggle)
+        XCTAssertFalse(presentation.nextToggleValue)
+        XCTAssertEqual(
+            presentation.toggleAccessibilityLabel,
+            "Step Order On, scope Phrase, active map Break Fold"
+        )
+
+        presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [map],
+            toggleState: .pendingOff
+        )
+        XCTAssertEqual(presentation.status, .pendingOff)
+        XCTAssertEqual(presentation.statusLabel, "Pending Off")
+        XCTAssertEqual(presentation.statusSummary, "Will turn off at the next phrase boundary.")
+        XCTAssertTrue(presentation.canToggle)
+        XCTAssertTrue(presentation.nextToggleValue)
+        XCTAssertEqual(
+            presentation.toggleAccessibilityLabel,
+            "Step Order Pending Off, scope Phrase, active map Break Fold"
+        )
+    }
+
     func test_stepOrderPresentationLabelsIdentityRowsDeleteBlocksFocusAndWrap() {
         let assignedID = UUID()
         let unusedID = UUID()
