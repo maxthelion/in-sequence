@@ -102,11 +102,130 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
         XCTAssertEqual(PhraseButtonControlPresentation.repeatValueLabel(999), "64")
     }
 
-    private func makePhrase(name: String = "Phrase A") -> PhraseModel {
+    func test_stepOrderSurfaceSeparatesUnassignedUnavailableInvalidAndPendingStates() {
+        let validMapID = UUID()
+        let invalidMapID = UUID()
+        let missingMapID = UUID()
+        let validMap = StepOrderMap(id: validMapID, name: "Break Fold")
+        let invalidMap = StepOrderMap(id: invalidMapID, name: "Short", values: [0, 1, 2])
+
+        var phrase = makePhrase(lengthBars: 1)
+        var presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [validMap],
+            toggleState: .unavailable
+        )
+        XCTAssertEqual(presentation.status, .unassigned)
+        XCTAssertEqual(presentation.statusLabel, "Unassigned")
+        XCTAssertEqual(presentation.scopeLabel, "Phrase")
+        XCTAssertFalse(presentation.canToggle)
+
+        phrase.lengthBars = 2
+        phrase.stepOrderAssignment = StepOrderAssignment(mapID: validMapID, isEnabled: false)
+        presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [validMap],
+            toggleState: .off
+        )
+        XCTAssertEqual(presentation.status, .unavailable("16-step phrases only"))
+        XCTAssertEqual(presentation.statusLabel, "Unavailable")
+
+        phrase.lengthBars = 1
+        phrase.stepOrderAssignment = StepOrderAssignment(mapID: invalidMapID, isEnabled: true)
+        presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [validMap, invalidMap],
+            toggleState: .unavailable
+        )
+        XCTAssertEqual(presentation.status, .invalid("Invalid: 3 steps saved"))
+        XCTAssertEqual(presentation.statusLabel, "Invalid")
+        XCTAssertFalse(presentation.canToggle)
+
+        phrase.stepOrderAssignment = StepOrderAssignment(mapID: missingMapID, isEnabled: true)
+        presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [validMap],
+            toggleState: .unavailable
+        )
+        XCTAssertEqual(presentation.status, .invalid("Assigned map is missing"))
+
+        phrase.stepOrderAssignment = StepOrderAssignment(mapID: validMapID, isEnabled: false)
+        presentation = StepOrderPhraseSurfacePresentation(
+            phrase: phrase,
+            maps: [validMap],
+            toggleState: .pendingOn
+        )
+        XCTAssertEqual(presentation.status, .pendingOn)
+        XCTAssertEqual(presentation.statusLabel, "Pending On")
+        XCTAssertTrue(presentation.canToggle)
+        XCTAssertFalse(presentation.nextToggleValue)
+        XCTAssertTrue(presentation.toggleAccessibilityLabel.contains("scope Phrase"))
+    }
+
+    func test_stepOrderPresentationLabelsIdentityRowsDeleteBlocksFocusAndWrap() {
+        let assignedID = UUID()
+        let unusedID = UUID()
+        let phraseID = UUID()
+        let assignedMap = StepOrderMap(id: assignedID, name: "Identity")
+        let unusedMap = StepOrderMap(id: unusedID, name: "Variation", values: [0, 1, 2, 3, 3, 3, 3, 3, 7, 8, 9, 0, 1, 2, 3, 3])
+        let assignment = StepOrderAssignment(mapID: assignedID, isEnabled: false)
+
+        let assignedRow = StepOrderMapRowPresentation(
+            map: assignedMap,
+            deletionStatus: StepOrderMapDeletionStatus(mapID: assignedID, assignedPhraseIDs: [phraseID]),
+            currentPhraseAssignment: assignment
+        )
+        XCTAssertEqual(assignedRow.detailLabel, "Pass-through / no remap")
+        XCTAssertEqual(assignedRow.usageLabel, "1 phrase")
+        XCTAssertTrue(assignedRow.isAssignedToCurrentPhrase)
+        XCTAssertFalse(assignedRow.canDelete)
+        XCTAssertEqual(assignedRow.deleteBlockedReason, "Assigned to 1 phrase")
+        XCTAssertTrue(assignedRow.accessibilityLabel.contains("delete blocked"))
+
+        let unusedRow = StepOrderMapRowPresentation(
+            map: unusedMap,
+            deletionStatus: StepOrderMapDeletionStatus(mapID: unusedID, assignedPhraseIDs: []),
+            currentPhraseAssignment: assignment
+        )
+        XCTAssertEqual(unusedRow.detailLabel, "Remap active")
+        XCTAssertEqual(unusedRow.usageLabel, "0 phrases")
+        XCTAssertFalse(unusedRow.isAssignedToCurrentPhrase)
+        XCTAssertTrue(unusedRow.canDelete)
+        XCTAssertNil(unusedRow.deleteBlockedReason)
+
+        XCTAssertEqual(
+            StepOrderPhraseSurfacePresentation.outputStepAccessibilityLabel(outputIndex: 4, sourceIndex: 3),
+            "Output step 5 reads source step 4"
+        )
+        XCTAssertEqual(
+            StepOrderPhraseSurfacePresentation.sourceStepAccessibilityLabel(sourceIndex: 7, selectedOutputIndex: 4),
+            "Assign source step 8 to output step 5"
+        )
+        XCTAssertEqual(
+            StepOrderPhraseSurfacePresentation.stepCandidateValues(),
+            Array(0..<StepOrderMap.stepCount)
+        )
+        XCTAssertEqual(StepOrderPhraseSurfacePresentation.advancedOutputIndex(after: 14), 15)
+        XCTAssertEqual(StepOrderPhraseSurfacePresentation.advancedOutputIndex(after: 15), 0)
+        XCTAssertFalse(StepOrderPhraseSurfacePresentation.didWrapAfterEditing(outputIndex: 14))
+        XCTAssertTrue(StepOrderPhraseSurfacePresentation.didWrapAfterEditing(outputIndex: 15))
+    }
+
+    func test_stepOrderNewMapNameSkipsExistingNames() {
+        let maps = [
+            StepOrderMap(name: "Step Order 1"),
+            StepOrderMap(name: "Step Order 2"),
+            StepOrderMap(name: "Custom"),
+        ]
+
+        XCTAssertEqual(StepOrderPhraseSurfacePresentation.newMapName(existingMaps: maps), "Step Order 4")
+    }
+
+    private func makePhrase(name: String = "Phrase A", lengthBars: Int = 8) -> PhraseModel {
         PhraseModel(
             id: UUID(),
             name: name,
-            lengthBars: 8,
+            lengthBars: lengthBars,
             stepsPerBar: 16,
             cells: []
         )
