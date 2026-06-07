@@ -414,6 +414,50 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
 
         fixture.controller.stop()
     }
+
+    func test_stepOrderPendingToggleWaitsForRequestedPhraseBoundary() throws {
+        let stepOrderMap: [UInt8] = [3, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0]
+        let fixture = makePhraseSpecificStepOrderBoundaryFixture(stepOrderMap: stepOrderMap)
+        startEngineForManualTicks(fixture.controller)
+
+        XCTAssertTrue(fixture.controller.requestStepOrderEnabled(
+            true,
+            phraseID: fixture.pendingPhraseID,
+            enabledMapValues: stepOrderMap
+        ))
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.currentPhraseID)
+        XCTAssertEqual(fixture.controller.stepOrderPendingToggle, StepOrderPendingToggleRequest(phraseID: fixture.pendingPhraseID, requestedEnabled: true))
+        XCTAssertNil(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.pendingPhraseID)?.stepOrderMap)
+
+        for tickIndex in 0..<15 {
+            fixture.controller.processTick(tickIndex: UInt64(tickIndex), now: TimeInterval(tickIndex) / 10)
+        }
+
+        XCTAssertEqual(fixture.controller.stepOrderPendingToggle, StepOrderPendingToggleRequest(phraseID: fixture.pendingPhraseID, requestedEnabled: true))
+        XCTAssertNil(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.pendingPhraseID)?.stepOrderMap)
+
+        fixture.controller.processTick(tickIndex: 15, now: 1.5)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.currentPhraseID)
+        XCTAssertEqual(fixture.controller.stepOrderPendingToggle, StepOrderPendingToggleRequest(phraseID: fixture.pendingPhraseID, requestedEnabled: true))
+        XCTAssertNil(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.pendingPhraseID)?.stepOrderMap)
+
+        XCTAssertTrue(fixture.controller.queuePhrase(fixture.pendingPhraseID))
+        for tickIndex in 16..<31 {
+            fixture.controller.processTick(tickIndex: UInt64(tickIndex), now: TimeInterval(tickIndex) / 10)
+        }
+
+        XCTAssertEqual(fixture.controller.stepOrderPendingToggle, StepOrderPendingToggleRequest(phraseID: fixture.pendingPhraseID, requestedEnabled: true))
+        XCTAssertNil(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.pendingPhraseID)?.stepOrderMap)
+
+        fixture.controller.processTick(tickIndex: 31, now: 3.1)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.pendingPhraseID)
+        XCTAssertNil(fixture.controller.stepOrderPendingToggle)
+        XCTAssertEqual(fixture.controller.currentPlaybackSnapshotForTesting.phraseBuffer(for: fixture.pendingPhraseID)?.stepOrderMap, stepOrderMap)
+
+        fixture.controller.stop()
+    }
 }
 
 private struct PhraseNavigationFixture {
@@ -427,6 +471,13 @@ private struct StepOrderBoundaryFixture {
     let controller: EngineController
     let sink: PhraseNavigationAudioSink
     let phraseID: UUID
+}
+
+private struct PhraseSpecificStepOrderBoundaryFixture {
+    let controller: EngineController
+    let sink: PhraseNavigationAudioSink
+    let currentPhraseID: UUID
+    let pendingPhraseID: UUID
 }
 
 private func makePhraseNavigationFixture(
@@ -568,6 +619,128 @@ private func makeStepOrderBoundaryFixture(
     )
     controller.apply(documentModel: project)
     return StepOrderBoundaryFixture(controller: controller, sink: sink, phraseID: phrase.id)
+}
+
+private func makePhraseSpecificStepOrderBoundaryFixture(
+    stepOrderMap: [UInt8]
+) -> PhraseSpecificStepOrderBoundaryFixture {
+    let sink = PhraseNavigationAudioSink()
+    let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink, stepsPerBar: 16)
+    let trackID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+    let mapID = UUID(uuidString: "66666666-7777-8888-9999-aaaaaaaaaaaa")!
+    let currentPhraseID = UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")!
+    let pendingPhraseID = UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2")!
+    let track = StepSequenceTrack(
+        id: trackID,
+        name: "Phrase-Specific Step Order Track",
+        pitches: [60],
+        stepPattern: Array(repeating: true, count: 16),
+        destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+        velocity: 100,
+        gateLength: 1
+    )
+    let layers = PhraseLayerDefinition.defaultSet(for: [track])
+    var currentPhrase = stepOrderBoundaryPhrase(
+        id: currentPhraseID,
+        name: "Current",
+        track: track,
+        layers: layers,
+        mapID: mapID,
+        isEnabled: false
+    )
+    currentPhrase.loopEnabled = true
+    let pendingPhrase = stepOrderBoundaryPhrase(
+        id: pendingPhraseID,
+        name: "Pending",
+        track: track,
+        layers: layers,
+        mapID: mapID,
+        isEnabled: false
+    )
+    let (clipPool, slots) = stepOrderBoundaryClipPoolAndSlots(track: track)
+    let project = Project(
+        version: 1,
+        tracks: [track],
+        generatorPool: GeneratorPoolEntry.defaultPool,
+        clipPool: clipPool,
+        layers: layers,
+        routes: [],
+        patternBanks: [TrackPatternBank(trackID: trackID, slots: slots)],
+        stepOrderMaps: [StepOrderMap(id: mapID, name: "Boundary", values: stepOrderMap)],
+        selectedTrackID: trackID,
+        phrases: [currentPhrase, pendingPhrase],
+        selectedPhraseID: currentPhraseID
+    )
+    controller.apply(documentModel: project)
+    return PhraseSpecificStepOrderBoundaryFixture(
+        controller: controller,
+        sink: sink,
+        currentPhraseID: currentPhraseID,
+        pendingPhraseID: pendingPhraseID
+    )
+}
+
+private func stepOrderBoundaryPhrase(
+    id: UUID,
+    name: String,
+    track: StepSequenceTrack,
+    layers: [PhraseLayerDefinition],
+    mapID: StepOrderMapID,
+    isEnabled: Bool
+) -> PhraseModel {
+    var phrase = PhraseModel.default(
+        tracks: [track],
+        layers: layers,
+        generatorPool: GeneratorPoolEntry.defaultPool,
+        clipPool: []
+    )
+    phrase.id = id
+    phrase.name = name
+    phrase.lengthBars = 1
+    phrase.stepsPerBar = 16
+    phrase.stepOrderAssignment = StepOrderAssignment(mapID: mapID, isEnabled: isEnabled)
+    phrase.setCell(
+        .steps((0..<16).map { .index($0) }),
+        for: "pattern",
+        trackID: track.id
+    )
+    return phrase
+}
+
+private func stepOrderBoundaryClipPoolAndSlots(track: StepSequenceTrack) -> ([ClipPoolEntry], [TrackPatternSlot]) {
+    var clipPool: [ClipPoolEntry] = []
+    var slots: [TrackPatternSlot] = []
+    for step in 0..<16 {
+        let clipID = UUID(uuidString: String(format: "bbbbbbbb-%04d-0000-0000-000000000000", step))!
+        clipPool.append(
+            ClipPoolEntry(
+                id: clipID,
+                name: "Source Step \(step)",
+                trackType: track.trackType,
+                content: .noteGrid(
+                    lengthSteps: 16,
+                    steps: (0..<16).map { clipStep in
+                        guard clipStep == step else { return .empty }
+                        return ClipStep(
+                            main: ClipLane(
+                                chance: 1,
+                                notes: [
+                                    ClipStepNote(
+                                        pitch: 60 + step,
+                                        velocity: 100,
+                                        lengthSteps: 1
+                                    )
+                                ]
+                            ),
+                            fill: nil
+                        )
+                    }
+                )
+            )
+        )
+        slots.append(TrackPatternSlot(slotIndex: step, sourceRef: .clip(clipID)))
+    }
+    return (clipPool, slots)
 }
 
 private func startEngineForManualTicks(_ controller: EngineController) {

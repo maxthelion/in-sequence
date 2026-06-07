@@ -302,11 +302,12 @@ final class EngineController: RouterDispatcher {
     private func playbackPhraseForPrepare(
         upcomingStep: UInt64,
         snapshot: PlaybackSnapshot
-    ) -> (phraseID: UUID, stepInPhrase: Int, didEnterPhraseBoundary: Bool) {
+    ) -> (phraseID: UUID, stepInPhrase: Int, didEnterPhraseBoundary: Bool, completedPhraseID: UUID?) {
         let fallbackPhraseID = firstValidPhraseID(in: snapshot)
         var playbackPhraseID = fallbackPhraseID ?? snapshot.selectedPhraseID
         var stepInPhrase = 0
         var didEnterPhraseBoundary = false
+        var completedPhraseID: UUID?
         let updatedState = mutatePhraseNavigationState { state in
             if validPhraseID(state.currentPhraseID, in: snapshot) == nil {
                 state.currentPhraseID = fallbackPhraseID
@@ -329,6 +330,7 @@ final class EngineController: RouterDispatcher {
 
             if stepInPhrase == 0, upcomingStep != state.phraseCycleStartTick {
                 didEnterPhraseBoundary = true
+                completedPhraseID = playbackPhraseID
                 if let queuedPhraseID = state.queuedPhraseID,
                    snapshot.phraseBuffer(for: queuedPhraseID) != nil {
                     state.currentPhraseID = queuedPhraseID
@@ -367,7 +369,7 @@ final class EngineController: RouterDispatcher {
             }
         }
         publishPhraseNavigationStateIfChanged(updatedState)
-        return (playbackPhraseID, stepInPhrase, didEnterPhraseBoundary)
+        return (playbackPhraseID, stepInPhrase, didEnterPhraseBoundary, completedPhraseID)
     }
 
     private func pendingStepOrderPayload() -> PendingStepOrderTogglePayload? {
@@ -395,6 +397,8 @@ final class EngineController: RouterDispatcher {
     }
 
     private func applyPendingStepOrderToggleAtPhraseBoundary(
+        completedPhraseID: UUID,
+        enteredPhraseID: UUID,
         in snapshot: PlaybackSnapshot
     ) -> (snapshot: PlaybackSnapshot, appliedRequest: StepOrderPendingToggleRequest?) {
         guard let payload = pendingStepOrderPayload() else {
@@ -419,6 +423,11 @@ final class EngineController: RouterDispatcher {
             stepOrderMap = values
         } else {
             stepOrderMap = nil
+        }
+        guard payload.request.phraseID == completedPhraseID ||
+            payload.request.phraseID == enteredPhraseID
+        else {
+            return (snapshot, nil)
         }
 
         _ = clearPendingStepOrderPayload(matching: payload.request.phraseID)
@@ -1469,8 +1478,12 @@ final class EngineController: RouterDispatcher {
             return
         }
         let playbackPhrase = playbackPhraseForPrepare(upcomingStep: upcomingStep, snapshot: playbackSnapshot)
-        if playbackPhrase.didEnterPhraseBoundary {
-            let boundaryApplication = applyPendingStepOrderToggleAtPhraseBoundary(in: playbackSnapshot)
+        if playbackPhrase.didEnterPhraseBoundary, let completedPhraseID = playbackPhrase.completedPhraseID {
+            let boundaryApplication = applyPendingStepOrderToggleAtPhraseBoundary(
+                completedPhraseID: completedPhraseID,
+                enteredPhraseID: playbackPhrase.phraseID,
+                in: playbackSnapshot
+            )
             if boundaryApplication.snapshot != playbackSnapshot {
                 playbackSnapshot = boundaryApplication.snapshot
                 tickState.installPlaybackSnapshot(
