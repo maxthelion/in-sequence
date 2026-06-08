@@ -10,6 +10,8 @@ struct PhraseWorkspaceView: View {
     @State private var editingCellTarget: PhraseCellEditorTarget?
     @State private var trackPage = 0
     @State private var phraseControlsState = PhraseButtonControlsState()
+    @State private var performanceLayerSelection = PerformanceLayerSelectionState()
+    @State private var isPresentingPerformanceLayerSelection = false
 
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
@@ -45,6 +47,19 @@ struct PhraseWorkspaceView: View {
         matrixSelectableLayers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
     }
 
+    private var activeMatrixLayer: PhraseLayerDefinition? {
+        guard let layerID = performanceLayerSelection.mode.phraseLayerID else {
+            return nil
+        }
+
+        return matrixSelectableLayers.first { $0.id == layerID }
+            ?? layers.first { $0.id == layerID }
+    }
+
+    private var activeLayerAccent: Color {
+        activeMatrixLayer.map { layerAccent($0.id) } ?? performanceLayerSelection.mode.selectorAccent
+    }
+
     private var trackPageCount: Int {
         matrixLayout.pageCount
     }
@@ -75,11 +90,15 @@ struct PhraseWorkspaceView: View {
             StudioPanel(
                 title: "Phrase Matrix",
                 eyebrow: "Project-scoped layers across the top, phrases down the rows, one cell per track and layer.",
-                accent: layerAccent(selectedLayer.id)
+                accent: activeLayerAccent
             ) {
                 VStack(alignment: .leading, spacing: 16) {
                     layerBar
-                    matrix
+                    if isPresentingPerformanceLayerSelection {
+                        performanceLayerSelectionSurface
+                    } else {
+                        matrix
+                    }
                 }
             }
         }
@@ -131,6 +150,17 @@ struct PhraseWorkspaceView: View {
         .onChange(of: selectedLayerID) {
             postRenderedMatrixVisualState(isVisible: true)
         }
+        .onChange(of: performanceLayerSelection.mode) {
+            if let layerID = performanceLayerSelection.mode.phraseLayerID,
+               matrixSelectableLayers.contains(where: { $0.id == layerID }) {
+                selectedLayerID = layerID
+            }
+            performanceLayerSelection.reconcileVariant()
+            postRenderedMatrixVisualState(isVisible: true)
+        }
+        .onChange(of: performanceLayerSelection.variantLabel) {
+            postRenderedMatrixVisualState(isVisible: true)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .phraseMatrixVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
             applyMatrixVisualCommand(command)
@@ -179,52 +209,51 @@ struct PhraseWorkspaceView: View {
     }
 
     private var layerSelectorRegion: some View {
-        let presentation = PhraseLayerSelectorPresentation(
-            layerName: PhraseLayerSelectorPresentation.displayName(for: selectedLayer),
-            subtitle: layerSubtitle(selectedLayer),
-            indexLabel: "\(selectedLayerIndex + 1) / \(max(matrixSelectableLayers.count, 1))"
-        )
-
-        return HStack(spacing: 8) {
-            layerCycleButton(systemImage: "chevron.left", action: { cycleLayer(by: -1) })
-
+        Button {
+            isPresentingPerformanceLayerSelection = true
+        } label: {
             HStack(spacing: 8) {
-                Text(presentation.displayName)
-                    .studioText(.bodyBold)
-                    .tracking(1.0)
+                Image(systemName: performanceLayerSelection.mode.symbolName)
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(StudioTheme.text)
-                    .lineLimit(PhraseLayerSelectorPresentation.lineLimit)
-                    .truncationMode(.tail)
-                    .help(presentation.layerName)
-                    .layoutPriority(1)
+                    .frame(width: 28, height: 28)
+                    .background(activeLayerAccent.opacity(StudioOpacity.selectedFill), in: Circle())
 
-                Rectangle()
-                    .fill(layerAccent(selectedLayer.id))
-                    .frame(width: 24, height: 3)
-                    .clipShape(Capsule())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("PHRASE LAYER")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
 
-                Text(presentation.indexLabel)
-                    .studioText(.eyebrowBold)
-                    .foregroundStyle(layerAccent(selectedLayer.id))
-                    .lineLimit(1)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(layerAccent(selectedLayer.id).opacity(StudioOpacity.hoverFill), in: Capsule())
+                    Text(performanceLayerSelection.activeLabel.uppercased())
+                        .studioText(.labelBold)
+                        .foregroundStyle(activeLayerAccent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(performanceLayerSelection.mode.subtitle)
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: isPresentingPerformanceLayerSelection ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(StudioTheme.mutedText)
             }
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel(presentation.accessibilityLabel)
-
-            layerCycleButton(systemImage: "chevron.right", action: { cycleLayer(by: 1) })
         }
+        .buttonStyle(.plain)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .frame(width: PhraseLayerSelectorPresentation.fixedOuterWidth)
+        .frame(maxWidth: .infinity)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(layerAccent(selectedLayer.id).opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
         )
         .accessibilityIdentifier("phrase-layer-selector")
+        .help("Choose the Phrase performance layer")
     }
 
     private func cycleLayer(by delta: Int) {
@@ -257,6 +286,36 @@ struct PhraseWorkspaceView: View {
     }
 
     private func applyMatrixVisualCommand(_ command: String) {
+        if command == "open-layer-selector" {
+            isPresentingPerformanceLayerSelection = true
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
+        if command == "close-layer-selector" {
+            isPresentingPerformanceLayerSelection = false
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
+        if command.hasPrefix("select-layer:") {
+            let rawMode = String(command.dropFirst("select-layer:".count))
+            if let mode = TrackPerformLayerMode(rawValue: rawMode) {
+                choosePerformanceLayer(mode, variantLabel: nil)
+            }
+            return
+        }
+
+        if command.hasPrefix("select-variant:") {
+            let rawSelection = String(command.dropFirst("select-variant:".count))
+            let parts = rawSelection.split(separator: ":", maxSplits: 1).map(String.init)
+            guard parts.count == 2,
+                  let mode = TrackPerformLayerMode(rawValue: parts[0])
+            else { return }
+            choosePerformanceLayer(mode, variantLabel: parts[1])
+            return
+        }
+
         if command.hasPrefix("page-index:"),
            let rawPageIndex = command.split(separator: ":").last,
            let pageIndex = Int(rawPageIndex) {
@@ -268,6 +327,9 @@ struct PhraseWorkspaceView: View {
             let layerID = String(command.dropFirst("layer-id:".count))
             if matrixSelectableLayers.contains(where: { $0.id == layerID }) {
                 selectedLayerID = layerID
+                if let mode = TrackPerformLayerMode.allCases.first(where: { $0.phraseLayerID == layerID }) {
+                    performanceLayerSelection.select(mode, variantLabel: nil)
+                }
             }
             return
         }
@@ -277,11 +339,15 @@ struct PhraseWorkspaceView: View {
            let index = Int(rawIndex),
            matrixSelectableLayers.indices.contains(index) {
             selectedLayerID = matrixSelectableLayers[index].id
+            if let mode = TrackPerformLayerMode.allCases.first(where: { $0.phraseLayerID == selectedLayerID }) {
+                performanceLayerSelection.select(mode, variantLabel: nil)
+            }
         }
     }
 
     private func postRenderedMatrixVisualState(isVisible: Bool) {
         let layout = matrixLayout
+        let activeLayer = activeMatrixLayer
         NotificationCenter.default.post(
             name: .phraseMatrixRenderedVisualState,
             object: nil,
@@ -294,10 +360,13 @@ struct PhraseWorkspaceView: View {
                 "nextEnabled": isVisible && layout.arrow(for: .next).isEnabled,
                 "previousOccupancy": isVisible ? layout.arrow(for: .previous).adjacentTrackCount : 0,
                 "nextOccupancy": isVisible ? layout.arrow(for: .next).adjacentTrackCount : 0,
-                "selectedLayerID": isVisible ? selectedLayer.id : "none",
-                "selectedLayerName": isVisible ? PhraseLayerSelectorPresentation.displayName(for: selectedLayer) : "none",
+                "selectedLayerID": isVisible ? activeLayer?.id ?? "virtual" : "none",
+                "selectedLayerName": isVisible ? performanceLayerSelection.activeLabel : "none",
                 "selectorWidth": isVisible ? PhraseLayerSelectorPresentation.fixedOuterWidth : 0,
                 "trackGridWidth": isVisible ? trackGridWidth : 0,
+                "performLayerMode": isVisible ? performanceLayerSelection.mode.rawValue : "none",
+                "performLayerSelectorVisible": isVisible && isPresentingPerformanceLayerSelection,
+                "performLayerVariant": isVisible ? performanceLayerSelection.variantLabel ?? "none" : "none",
             ]
         )
     }
@@ -319,17 +388,18 @@ struct PhraseWorkspaceView: View {
     private func handleSingleTap(on phraseID: UUID, trackID: UUID) {
         session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
 
-        if selectedLayer.valueType == .boolean {
+        if activeMatrixLayer?.valueType == .boolean {
             toggleBooleanCell(phraseID: phraseID, trackID: trackID)
         }
     }
 
     private func openCellEditor(phraseID: UUID, trackID: UUID) {
+        guard let activeMatrixLayer else { return }
         session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
         editingCellTarget = PhraseCellEditorTarget(
             phraseID: phraseID,
             trackID: trackID,
-            layerID: selectedLayer.id
+            layerID: activeMatrixLayer.id
         )
     }
 
@@ -370,7 +440,7 @@ struct PhraseWorkspaceView: View {
                         .font(.system(size: 8, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.white)
                         .frame(width: 15, height: 15)
-                        .background(layerAccent(selectedLayer.id), in: Circle())
+                        .background(activeLayerAccent, in: Circle())
                         .offset(x: 3, y: -3)
                         .accessibilityHidden(true)
                 }
@@ -385,6 +455,8 @@ struct PhraseWorkspaceView: View {
     private var matrix: some View {
         ScrollView([.horizontal, .vertical], showsIndicators: true) {
             VStack(alignment: .leading, spacing: gridSpacing) {
+                let activeLayer = activeMatrixLayer
+                let accent = activeLayerAccent
                 HStack(spacing: gridSpacing) {
                     Color.clear
                         .frame(width: phraseColumnWidth, height: 52)
@@ -401,7 +473,7 @@ struct PhraseWorkspaceView: View {
                                     PhraseMatrixTrackHeaderCell(
                                         track: track,
                                         isSelected: selectedTrack.id == track.id,
-                                        accent: track.groupID == nil ? layerAccent(selectedLayer.id) : StudioTheme.success
+                                        accent: track.groupID == nil ? accent : StudioTheme.success
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -447,14 +519,26 @@ struct PhraseWorkspaceView: View {
                             ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
                                 Group {
                                     if let track {
-                                        PhraseGridCell(
-                                            layer: selectedLayer,
-                                            cell: phrase.cell(for: selectedLayer.id, trackID: track.id),
-                                            phrase: phrase,
-                                            track: track,
-                                            isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
-                                            accent: layerAccent(selectedLayer.id)
-                                        )
+                                        Group {
+                                            if let activeLayer {
+                                                PhraseGridCell(
+                                                    layer: activeLayer,
+                                                    cell: phrase.cell(for: activeLayer.id, trackID: track.id),
+                                                    phrase: phrase,
+                                                    track: track,
+                                                    isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
+                                                    accent: accent
+                                                )
+                                            } else {
+                                                PhrasePerformancePlaceholderCell(
+                                                    selection: performanceLayerSelection,
+                                                    phrase: phrase,
+                                                    track: track,
+                                                    isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
+                                                    accent: accent
+                                                )
+                                            }
+                                        }
                                         .contentShape(Rectangle())
                                         .gesture(
                                             TapGesture(count: 2)
@@ -462,7 +546,9 @@ struct PhraseWorkspaceView: View {
                                                 .onEnded { value in
                                                     switch value {
                                                     case .first:
-                                                        openCellEditor(phraseID: phrase.id, trackID: track.id)
+                                                        if activeLayer != nil {
+                                                            openCellEditor(phraseID: phrase.id, trackID: track.id)
+                                                        }
                                                     case .second:
                                                         handleSingleTap(on: phrase.id, trackID: track.id)
                                                     }
@@ -548,8 +634,8 @@ struct PhraseWorkspaceView: View {
     }
 
     private func toggleBooleanCell(phraseID: UUID, trackID: UUID) {
-        guard selectedLayer.valueType == .boolean else {
-            assertionFailure("toggleBooleanCell called for non-boolean layer \(selectedLayer.id)")
+        guard let selectedLayer = activeMatrixLayer, selectedLayer.valueType == .boolean else {
+            assertionFailure("toggleBooleanCell called without an active boolean phrase layer")
             return
         }
 
@@ -569,6 +655,78 @@ struct PhraseWorkspaceView: View {
                 phrase.setCell(.steps(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
             }
         }
+    }
+
+    private var performanceLayerSelectionSurface: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("CHOOSE PHRASE LAYER")
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.amber)
+
+                    Text("Phrase rows return after a layer or inline variant is selected.")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Spacer(minLength: 8)
+
+                Button {
+                    isPresentingPerformanceLayerSelection = false
+                    postRenderedMatrixVisualState(isVisible: true)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: 28, height: 28)
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("Return to phrase rows")
+            }
+
+            LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 12) {
+                ForEach(TrackPerformLayerMode.allCases) { mode in
+                    PerformanceLayerOptionCard(
+                        mode: mode,
+                        selectedMode: performanceLayerSelection.mode,
+                        selectedVariantLabel: performanceLayerSelection.variantLabel,
+                        onSelectPlain: {
+                            choosePerformanceLayer(mode, variantLabel: nil)
+                        },
+                        onSelectVariant: { variant in
+                            choosePerformanceLayer(mode, variantLabel: variant)
+                        }
+                    )
+                }
+            }
+        }
+        .padding(14)
+        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+        )
+        .accessibilityIdentifier("phrase-performance-layer-selection-surface")
+    }
+
+    private var performanceLayerSelectionColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 160, maximum: 260), spacing: 12), count: 4)
+    }
+
+    private func choosePerformanceLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
+        performanceLayerSelection.select(mode, variantLabel: variantLabel)
+        if let layerID = mode.phraseLayerID,
+           matrixSelectableLayers.contains(where: { $0.id == layerID }) {
+            selectedLayerID = layerID
+        }
+        isPresentingPerformanceLayerSelection = false
+        postRenderedMatrixVisualState(isVisible: true)
     }
 }
 
@@ -1629,6 +1787,69 @@ private struct PhraseGridCell: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(accent.opacity(isSelected ? 0.6 : 0.12), lineWidth: 1)
         )
+    }
+}
+
+private struct PhrasePerformancePlaceholderCell: View {
+    let selection: PerformanceLayerSelectionState
+    let phrase: PhraseModel
+    let track: StepSequenceTrack
+    let isSelected: Bool
+    let accent: Color
+
+    private var title: String {
+        selection.activeLabel.uppercased()
+    }
+
+    private var detail: String {
+        switch selection.mode {
+        case .noteRepeat:
+            return "Repeat target"
+        case .stepOrder:
+            return "Step map"
+        case .pan:
+            return "Pan target"
+        case .latch:
+            return "Latch target"
+        case .mute, .pattern, .fill, .volume:
+            return "\(phrase.name) / \(track.name)"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: selection.mode.symbolName)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(accent)
+
+                Text(title)
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+                    .foregroundStyle(accent)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+            }
+
+            Text(detail)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Text("Selection only")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .padding(10)
+        .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(accent.opacity(isSelected ? 0.6 : 0.18), lineWidth: 1)
+        )
+        .accessibilityLabel("\(phrase.name), \(track.name), \(selection.activeLabel), selection only")
     }
 }
 

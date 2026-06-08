@@ -28,6 +28,9 @@ enum VisualScenarioCommandRunner {
     private static var phraseMatrixSelectedLayerName = "none"
     private static var phraseMatrixSelectorWidth: CGFloat = 0
     private static var phraseMatrixTrackGridWidth: CGFloat = 0
+    private static var phrasePerformLayerMode = TrackPerformLayerMode.pattern.rawValue
+    private static var phrasePerformLayerSelectorVisible = false
+    private static var phrasePerformLayerVariant = "none"
     private static var trackPerformLayerMode = TrackPerformLayerMode.pattern.rawValue
     private static var trackPerformLayerSelectorVisible = false
     private static var trackPerformLayerVariant = "none"
@@ -145,6 +148,9 @@ enum VisualScenarioCommandRunner {
                 phraseMatrixSelectedLayerName = userInfo["selectedLayerName"] as? String ?? "none"
                 phraseMatrixSelectorWidth = userInfo["selectorWidth"] as? CGFloat ?? 0
                 phraseMatrixTrackGridWidth = userInfo["trackGridWidth"] as? CGFloat ?? 0
+                phrasePerformLayerMode = userInfo["performLayerMode"] as? String ?? TrackPerformLayerMode.pattern.rawValue
+                phrasePerformLayerSelectorVisible = userInfo["performLayerSelectorVisible"] as? Bool ?? false
+                phrasePerformLayerVariant = userInfo["performLayerVariant"] as? String ?? "none"
             }
         }
     }
@@ -361,6 +367,9 @@ enum VisualScenarioCommandRunner {
         phraseMatrixSelectedLayerName=\(phraseMatrixSelectedLayerName)
         phraseMatrixSelectorWidth=\(phraseMatrixSelectorWidth)
         phraseMatrixTrackGridWidth=\(phraseMatrixTrackGridWidth)
+        phrasePerformLayerMode=\(phrasePerformLayerMode)
+        phrasePerformLayerSelectorVisible=\(phrasePerformLayerSelectorVisible)
+        phrasePerformLayerVariant=\(phrasePerformLayerVariant)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -642,7 +651,10 @@ enum VisualScenarioCommandRunner {
         guard command["phraseMatrixTrackCount"] != nil ||
               command["phraseMatrixPageIndex"] != nil ||
               command["phraseMatrixLayerID"] != nil ||
-              command["phraseMatrixLayerIndex"] != nil
+              command["phraseMatrixLayerIndex"] != nil ||
+              command["phrasePerformLayerSelector"] != nil ||
+              command["phrasePerformLayer"] != nil ||
+              command["phrasePerformLayerVariant"] != nil
         else { return }
 
         section.wrappedValue = .phrase
@@ -664,6 +676,36 @@ enum VisualScenarioCommandRunner {
         if let rawLayerIndex = command["phraseMatrixLayerIndex"],
            let layerIndex = Int(rawLayerIndex) {
             NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "layer-index:\(layerIndex)")
+        }
+
+        switch command["phrasePerformLayerSelector"] {
+        case "open", "visible", "true":
+            phrasePerformLayerSelectorVisible = true
+            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "open-layer-selector")
+        case "close", "hidden", "false":
+            phrasePerformLayerSelectorVisible = false
+            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "close-layer-selector")
+        default:
+            break
+        }
+
+        if let rawLayer = command["phrasePerformLayer"],
+           let layer = TrackPerformLayerMode(rawValue: rawLayer) {
+            phrasePerformLayerMode = layer.rawValue
+
+            if let variant = command["phrasePerformLayerVariant"],
+               layer.inlineVariantLabels.contains(variant) {
+                phrasePerformLayerVariant = variant
+                phrasePerformLayerSelectorVisible = false
+                NotificationCenter.default.post(
+                    name: .phraseMatrixVisualCommand,
+                    object: "select-variant:\(layer.rawValue):\(variant)"
+                )
+            } else if command["phrasePerformLayerSelector"] == nil {
+                phrasePerformLayerVariant = "none"
+                phrasePerformLayerSelectorVisible = false
+                NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "select-layer:\(layer.rawValue)")
+            }
         }
     }
 

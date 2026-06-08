@@ -37,6 +37,7 @@
 		11CD21EF821C953235E27B22 /* PitchAlgo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C530A909C4B6D2D1C09882D /* PitchAlgo.swift */; };
 		1202559EE8FF1B88A7120E92 /* ProjectSelectedSlotSourceHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81507BD145B6A02AF26175D1 /* ProjectSelectedSlotSourceHelpersTests.swift */; };
 		1297D30DD6B295C596BB62AB /* TracksMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0097C26CE717B68546B671EB /* TracksMatrixView.swift */; };
+		D45E00000000000000000001 /* PerformanceLayerSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45E00000000000000000002 /* PerformanceLayerSelector.swift */; };
 		1509687785CD80E997F309DE /* GeneratedSourceEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B433910D2FD5A19E98CD11FC /* GeneratedSourceEvaluator.swift */; };
 		16163F2E83F6190EAE85C8DA /* SliceSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA48BEBA4D1C9B9469683BD5 /* SliceSet.swift */; };
 		16679621CC800C9444F4A96B /* SequencerDocumentSession+SendBusMutations.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98B1A82B412D3E96A590032 /* SequencerDocumentSession+SendBusMutations.swift */; };
@@ -1434,6 +1435,7 @@
 		D47417C5EF49EC0F59E5989C /* ClipContentPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipContentPreview.swift; sourceTree = "<group>"; };
 		D4A05E73C01DBE84630AC297 /* 2026-05-08-p0-track-performance-overlay-keep-feedback-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08-p0-track-performance-overlay-keep-feedback-review.md"; sourceTree = "<group>"; };
 		D4DE847F1A4F5E88F5159E35 /* PhraseCellPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseCellPreview.swift; sourceTree = "<group>"; };
+		D45E00000000000000000002 /* PerformanceLayerSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceLayerSelector.swift; sourceTree = "<group>"; };
 		D4E843105F96BC3538CF4728 /* DrumKitNoteMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKitNoteMap.swift; sourceTree = "<group>"; };
 		D5D1CF2CF9B2CFB2E1E05E41 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		D5F3F7AE0282D0D00C43CD84 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -2044,6 +2046,7 @@
 				A2B25BBA0A63F5333205728D /* PhraseLayerPresentation.swift */,
 				D35000000000000000000002 /* PhraseMatrixLayoutPresentation.swift */,
 				B64A40000000000000000001 /* PhraseButtonControlPresentation.swift */,
+				D45E00000000000000000002 /* PerformanceLayerSelector.swift */,
 				B6685502B2713380D3804AD6 /* PhraseWorkspaceView.swift */,
 				570F5DAF2012F23A03ED7F62 /* PreferencesView.swift */,
 				8AD75155580076544C43CCDF /* RouteEditorSheet.swift */,
@@ -4681,6 +4684,7 @@
 				FD3B9E87ADA540AEE60F3CA4 /* PhrasePlaybackBuffer.swift in Sources */,
 				6CC8F8D7C3A0D1060FEFE0C0 /* PhraseWorkspaceView.swift in Sources */,
 				B64A40000000000000000002 /* PhraseButtonControlPresentation.swift in Sources */,
+				D45E00000000000000000001 /* PerformanceLayerSelector.swift in Sources */,
 				0FA7416A5483DD84C3FBC9C6 /* PitchAlgo+Kind.swift in Sources */,
 				11CD21EF821C953235E27B22 /* PitchAlgo.swift in Sources */,
 				775EF05EA93FDF55B31D5D9C /* PitchAlgoEditor.swift in Sources */,

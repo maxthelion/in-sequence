@@ -87,6 +87,47 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertTrue(TrackPerformLayerMode.volume.inlineVariantLabels.isEmpty)
     }
 
+    func test_performanceLayerSelectionStateKeepsOnlyValidInlineVariants() {
+        var selection = PerformanceLayerSelectionState(mode: .pattern, variantLabel: "P4")
+        XCTAssertEqual(selection.mode, .pattern)
+        XCTAssertEqual(selection.variantLabel, "P4")
+        XCTAssertEqual(selection.activeLabel, "Pattern - P4")
+
+        selection.select(.noteRepeat, variantLabel: "Roll")
+        XCTAssertEqual(selection.mode, .noteRepeat)
+        XCTAssertEqual(selection.variantLabel, "Roll")
+        XCTAssertEqual(selection.activeLabel, "Note Repeat - Roll")
+
+        selection.select(.volume, variantLabel: "Roll")
+        XCTAssertEqual(selection.mode, .volume)
+        XCTAssertNil(selection.variantLabel)
+        XCTAssertEqual(selection.activeLabel, "Volume")
+
+        selection.select(.stepOrder, variantLabel: "Missing")
+        XCTAssertEqual(selection.mode, .stepOrder)
+        XCTAssertNil(selection.variantLabel)
+    }
+
+    func test_performanceLayerSelectionStateSupportsTracksAndPhraseSurfaces() {
+        var phraseSelection = PerformanceLayerSelectionState()
+        XCTAssertEqual(phraseSelection.mode.phraseLayerID, "pattern")
+        XCTAssertEqual(phraseSelection.activeLabel, "Pattern")
+
+        phraseSelection.select(.stepOrder, variantLabel: "Break Fold")
+        XCTAssertNil(phraseSelection.mode.phraseLayerID)
+        XCTAssertEqual(phraseSelection.variantLabel, "Break Fold")
+        XCTAssertEqual(phraseSelection.activeLabel, "Step Order - Break Fold")
+
+        var tracksSelection = PerformanceLayerSelectionState(mode: .noteRepeat, variantLabel: "Roll")
+        XCTAssertNil(tracksSelection.mode.phraseLayerID)
+        XCTAssertEqual(tracksSelection.activeLabel, "Note Repeat - Roll")
+
+        tracksSelection.select(.fill, variantLabel: "Roll")
+        XCTAssertEqual(tracksSelection.mode.phraseLayerID, "fill-flag")
+        XCTAssertNil(tracksSelection.variantLabel)
+        XCTAssertEqual(tracksSelection.activeLabel, "Fill")
+    }
+
     func test_authoredEditFromSelectedSourceFansOutToSelectedTracksOnly() throws {
         let project = makeThreeTrackProject()
         let session = makeSession(project: project)

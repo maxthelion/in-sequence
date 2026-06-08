@@ -194,6 +194,32 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
     }
 }
 
+struct PerformanceLayerSelectionState: Equatable {
+    private(set) var mode: TrackPerformLayerMode
+    private(set) var variantLabel: String?
+
+    init(mode: TrackPerformLayerMode = .pattern, variantLabel: String? = nil) {
+        self.mode = mode
+        self.variantLabel = mode.inlineVariantLabels.contains(variantLabel ?? "") ? variantLabel : nil
+    }
+
+    var activeLabel: String {
+        let suffix = variantLabel.map { " - \($0)" } ?? ""
+        return "\(mode.label)\(suffix)"
+    }
+
+    mutating func select(_ mode: TrackPerformLayerMode, variantLabel: String?) {
+        self.mode = mode
+        self.variantLabel = mode.inlineVariantLabels.contains(variantLabel ?? "") ? variantLabel : nil
+    }
+
+    mutating func reconcileVariant() {
+        if !mode.inlineVariantLabels.contains(variantLabel ?? "") {
+            variantLabel = nil
+        }
+    }
+}
+
 enum TrackPerformBinaryControl: String, CaseIterable, Equatable, Hashable, Identifiable {
     case fill
     case noteRepeat
