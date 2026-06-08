@@ -1,4 +1,5 @@
 import AVFoundation
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -187,6 +188,10 @@ enum VisualScenarioCommandRunner {
            let mode = TracksWorkspaceMode(rawValue: requestedTracksMode) {
             tracksMode.wrappedValue = mode
             section.wrappedValue = .tracks
+        }
+
+        if let rawWindowFrame = command["windowFrame"] {
+            applyWindowFrame(rawWindowFrame)
         }
 
         if let addTrack = command["addTrack"],
@@ -1455,6 +1460,21 @@ enum VisualScenarioCommandRunner {
         while session.store.tracks.count < count {
             session.appendTrack(trackType: .monoMelodic)
         }
+    }
+
+    private static func applyWindowFrame(_ rawFrame: String) {
+        let values = rawFrame
+            .split(separator: ",")
+            .compactMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        guard values.count == 4,
+              let window = NSApplication.shared.windows.first(where: { $0.isVisible })
+                ?? NSApplication.shared.windows.first
+        else { return }
+
+        window.setFrame(
+            NSRect(x: values[0], y: values[1], width: values[2], height: values[3]),
+            display: true
+        )
     }
 
     private static func ensurePhraseCount(_ count: Int, session: SequencerDocumentSession) {

@@ -117,6 +117,7 @@ capture_state() {
 
 show_default_phrase_surface() {
   write_visual_command "workspace=phrase
+windowFrame=$window_bounds
 phraseMatrixTrackCount=$track_count
 phraseMatrixPhraseCount=$phrase_count
 phrasePerformLayer=pattern
@@ -131,6 +132,7 @@ transport=stop"
 
 show_layer_selection_surface() {
   write_visual_command "workspace=phrase
+windowFrame=$window_bounds
 phraseMatrixTrackCount=$track_count
 phraseMatrixPhraseCount=$phrase_count
 phrasePerformLayerSelector=open"
@@ -143,6 +145,7 @@ phrasePerformLayerSelector=open"
 
 select_step_order_break_fold_variant() {
   write_visual_command "workspace=phrase
+windowFrame=$window_bounds
 phraseMatrixTrackCount=$track_count
 phraseMatrixPhraseCount=$phrase_count
 phrasePerformLayer=stepOrder
@@ -193,8 +196,6 @@ fi
 
 keep_only_pid "$pid"
 ensure_new_document "$pid"
-IFS=, read -r window_x window_y window_width window_height <<< "$window_bounds"
-set_window_bounds "$pid" "$window_x" "$window_y" "$window_width" "$window_height"
 
 show_default_phrase_surface
 sleep 0.8
