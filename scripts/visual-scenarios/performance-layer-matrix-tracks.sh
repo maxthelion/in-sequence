@@ -23,6 +23,8 @@ esac
 status_file="${command_file}.status"
 scenario_status="started; no captures completed yet"
 app_path="${SEQUENCER_AI_APP_PATH:-}"
+window_bounds="${PERFORMANCE_LAYER_MATRIX_WINDOW_BOUNDS:-120,80,980,720}"
+track_count="${PERFORMANCE_LAYER_MATRIX_TRACK_COUNT:-10}"
 
 write_notes() {
   mkdir -p "$output_dir"
@@ -33,6 +35,8 @@ Feature worktree: \`${REPO_ROOT}\`
 Command file: \`${command_file}\`
 Status file: \`${status_file}\`
 App path override: \`${app_path:-none}\`
+Window bounds: \`${window_bounds}\`
+Fixture track count: \`${track_count}\`
 
 This scenario opens the built SequencerAI app directly when
 \`SEQUENCER_AI_APP_PATH\` is provided, otherwise through
@@ -113,6 +117,7 @@ capture_state() {
 show_default_track_cards() {
   write_visual_command "workspace=tracks
 tracksMode=perform
+trackPerformTrackCount=$track_count
 trackPerformLayer=pattern
 transport=stop"
 
@@ -126,6 +131,7 @@ transport=stop"
 show_layer_selection_surface() {
   write_visual_command "workspace=tracks
 tracksMode=perform
+trackPerformTrackCount=$track_count
 trackPerformLayerSelector=open"
 
   wait_for_status workspace tracks 10
@@ -137,6 +143,7 @@ trackPerformLayerSelector=open"
 select_note_repeat_roll_variant() {
   write_visual_command "workspace=tracks
 tracksMode=perform
+trackPerformTrackCount=$track_count
 trackPerformLayer=noteRepeat
 trackPerformLayerVariant=Roll"
 
@@ -186,6 +193,8 @@ fi
 
 keep_only_pid "$pid"
 ensure_new_document "$pid"
+IFS=, read -r window_x window_y window_width window_height <<< "$window_bounds"
+set_window_bounds "$pid" "$window_x" "$window_y" "$window_width" "$window_height"
 
 show_default_track_cards
 sleep 0.8

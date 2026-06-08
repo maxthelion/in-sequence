@@ -229,7 +229,7 @@ enum VisualScenarioCommandRunner {
         applyStepOrderFixture(command: command, section: section, session: session, engineController: engineController)
         applyPhraseMatrixFixture(command: command, section: section, session: session)
         applyPhrasePerformOverlayFixture(command: command, section: section, tracksMode: tracksMode, session: session)
-        applyTrackPerformLayerMatrixFixture(command: command, section: section, tracksMode: tracksMode)
+        applyTrackPerformLayerMatrixFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyNoteRepeatPerformFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
@@ -542,15 +542,22 @@ enum VisualScenarioCommandRunner {
     private static func applyTrackPerformLayerMatrixFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
-        tracksMode: Binding<TracksWorkspaceMode>
+        tracksMode: Binding<TracksWorkspaceMode>,
+        session: SequencerDocumentSession
     ) {
         guard command["trackPerformLayerSelector"] != nil ||
               command["trackPerformLayer"] != nil ||
-              command["trackPerformLayerVariant"] != nil
+              command["trackPerformLayerVariant"] != nil ||
+              command["trackPerformTrackCount"] != nil
         else { return }
 
         section.wrappedValue = .tracks
         tracksMode.wrappedValue = .perform
+
+        if let rawTrackCount = command["trackPerformTrackCount"],
+           let trackCount = Int(rawTrackCount) {
+            ensureTrackCount(trackCount, session: session)
+        }
 
         switch command["trackPerformLayerSelector"] {
         case "open", "visible", "true":
@@ -649,6 +656,7 @@ enum VisualScenarioCommandRunner {
         session: SequencerDocumentSession
     ) {
         guard command["phraseMatrixTrackCount"] != nil ||
+              command["phraseMatrixPhraseCount"] != nil ||
               command["phraseMatrixPageIndex"] != nil ||
               command["phraseMatrixLayerID"] != nil ||
               command["phraseMatrixLayerIndex"] != nil ||
@@ -662,6 +670,11 @@ enum VisualScenarioCommandRunner {
         if let rawTrackCount = command["phraseMatrixTrackCount"],
            let trackCount = Int(rawTrackCount) {
             ensureTrackCount(trackCount, session: session)
+        }
+
+        if let rawPhraseCount = command["phraseMatrixPhraseCount"],
+           let phraseCount = Int(rawPhraseCount) {
+            ensurePhraseCount(phraseCount, session: session)
         }
 
         if let rawPageIndex = command["phraseMatrixPageIndex"],
@@ -1442,6 +1455,63 @@ enum VisualScenarioCommandRunner {
         while session.store.tracks.count < count {
             session.appendTrack(trackType: .monoMelodic)
         }
+    }
+
+    private static func ensurePhraseCount(_ count: Int, session: SequencerDocumentSession) {
+        let targetCount = min(max(count, 1), 12)
+        session.batch(impact: .snapshotOnly, changed: .full) { store in
+            var project = store.exportToProject()
+            project.syncPhrasesWithTracks()
+            while project.phrases.count < targetCount {
+                project.appendPhrase()
+            }
+
+            let tracks = project.tracks
+            let layers = project.layers
+            let patternLayerID = layers.first(where: { $0.target == .patternIndex })?.id
+            let muteLayerID = layers.first(where: { $0.target == .mute })?.id
+            let fillLayerID = layers.first(where: {
+                if case .macroRow("fill-flag") = $0.target {
+                    return true
+                }
+                return false
+            })?.id
+
+            for phraseIndex in project.phrases.indices.prefix(targetCount) {
+                var phrase = project.phrases[phraseIndex]
+                phrase.name = visualPhraseName(at: phraseIndex)
+                phrase.lengthBars = [8, 4, 12, 2, 6][phraseIndex % 5]
+                phrase.repeatCount = [1, 2, 0, 4, 1][phraseIndex % 5]
+                phrase.loopEnabled = phraseIndex == 2
+
+                for (trackIndex, track) in tracks.enumerated() {
+                    if let patternLayerID {
+                        phrase.setCell(.single(.index((phraseIndex + trackIndex) % 4)), for: patternLayerID, trackID: track.id)
+                    }
+                    if let muteLayerID, (phraseIndex + trackIndex).isMultiple(of: 5) {
+                        phrase.setCell(.single(.bool(true)), for: muteLayerID, trackID: track.id)
+                    }
+                    if let fillLayerID, (phraseIndex + trackIndex).isMultiple(of: 4) {
+                        phrase.setCell(.single(.bool(true)), for: fillLayerID, trackID: track.id)
+                    }
+                }
+
+                project.phrases[phraseIndex] = phrase.synced(with: tracks, layers: layers)
+            }
+
+            if let firstPhraseID = project.phrases.first?.id {
+                project.selectedPhraseID = firstPhraseID
+            }
+            store.importFromProject(project)
+        }
+    }
+
+    private static func visualPhraseName(at index: Int) -> String {
+        let names = ["Phrase A", "Phrase B", "Breakdown", "Build", "Drop", "Outro"]
+        if names.indices.contains(index) {
+            return names[index]
+        }
+        return "Phrase \(index + 1)"
     }
 
     private static func applyTrackFillSource(_ sourceState: String, session: SequencerDocumentSession) {

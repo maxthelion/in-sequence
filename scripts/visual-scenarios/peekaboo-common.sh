@@ -199,6 +199,26 @@ ensure_new_document() {
   wait_for_window_title "$pid" "Untitled"
 }
 
+set_window_bounds() {
+  local pid="$1"
+  local x="$2"
+  local y="$3"
+  local width="$4"
+  local height="$5"
+
+  osascript <<APPLESCRIPT
+tell application "System Events"
+  tell process "$APP_NAME"
+    set frontmost to true
+    set position of window 1 to {$x, $y}
+    set size of window 1 to {$width, $height}
+  end tell
+end tell
+APPLESCRIPT
+  sleep 0.4
+  action_log "Set window bounds for pid ${pid}: x=${x} y=${y} width=${width} height=${height}"
+}
+
 capture_window() {
   local pid="$1"
   local output="$2"
