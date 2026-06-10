@@ -104,6 +104,9 @@ enum AudioInputChannel: Codable, Equatable, Hashable, Sendable {
     }
 
     init(from decoder: Decoder) throws {
+        // Unknown values decode as the stereo default rather than throwing —
+        // a single unrecognized channel setting must not fail the whole
+        // track (and with it the whole document).
         // Legacy documents stored a bare string ("mono1" / "mono2" / "stereo").
         if let single = try? decoder.singleValueContainer().decode(String.self) {
             switch single {
@@ -111,30 +114,20 @@ enum AudioInputChannel: Codable, Equatable, Hashable, Sendable {
                 self = .mono(channel: 0)
             case "mono2":
                 self = .mono(channel: 1)
-            case "stereo":
-                self = .stereo(firstChannel: 0)
             default:
-                throw DecodingError.dataCorrupted(DecodingError.Context(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Unknown legacy AudioInputChannel value: \(single)"
-                ))
+                self = .stereo(firstChannel: 0)
             }
             return
         }
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let mode = try container.decode(String.self, forKey: .mode)
-        let channel = try container.decodeIfPresent(Int.self, forKey: .channel) ?? 0
+        let mode = (try? container.decode(String.self, forKey: .mode)) ?? "stereo"
+        let channel = (try? container.decodeIfPresent(Int.self, forKey: .channel)).flatMap { $0 } ?? 0
         switch mode {
         case "mono":
             self = AudioInputChannel.mono(channel: channel).normalized
-        case "stereo":
-            self = AudioInputChannel.stereo(firstChannel: channel).normalized
         default:
-            throw DecodingError.dataCorrupted(DecodingError.Context(
-                codingPath: decoder.codingPath,
-                debugDescription: "Unknown AudioInputChannel mode: \(mode)"
-            ))
+            self = AudioInputChannel.stereo(firstChannel: channel).normalized
         }
     }
 

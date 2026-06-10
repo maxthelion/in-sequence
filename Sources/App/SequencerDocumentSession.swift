@@ -90,10 +90,11 @@ final class SequencerDocumentSession {
         self.revision = store.revision
         installStepOrderToggleAppliedHandler()
         SequencerDocumentSessionRegistry.register(self)
-        // Synchronous here: injected engines are test stubs (no CoreAudio),
-        // and deferring would land the apply mid-test at a nondeterministic
-        // point. The production initializer defers instead.
-        applyStoredAudioDevicePreferenceIfNeeded()
+        // No stored-device-preference apply here: this initializer exists for
+        // tests, and applying the user's real device preference reads real
+        // UserDefaults and can stall for minutes inside CoreAudio HAL calls
+        // (observed: single tests taking 450s). Device-switch behavior is
+        // covered by tests that drive the coordinator explicitly.
     }
 
     deinit {
@@ -194,7 +195,11 @@ final class SequencerDocumentSession {
         flushTask?.cancel()
         let interval = debounceInterval
         flushTask = Task { @MainActor [weak self] in
+            // try? swallows CancellationError, so a cancelled task would fall
+            // through and flush immediately — one full document export per
+            // mutation during rapid gestures instead of one per debounce.
             try? await Task.sleep(for: interval)
+            guard !Task.isCancelled else { return }
             self?.flushToDocumentSync()
         }
     }

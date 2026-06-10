@@ -210,58 +210,22 @@ extension LiveSequencerStore {
     // MARK: - Destinations
 
     /// Determines whether the effective destination for a track is owned by
-    /// the track itself or by its group.
-    ///
-    /// Matches `Project.destinationWriteTarget(for:)`.
+    /// the track itself or by its group. Delegates to `Project`'s single
+    /// implementation.
     func destinationWriteTarget(for trackID: UUID) -> Project.DestinationWriteTarget {
-        guard let track = tracks.first(where: { $0.id == trackID }) else {
-            return .track(trackID)
-        }
-        if case .inheritGroup = track.destination,
-           let groupID = track.groupID,
-           trackGroups.contains(where: { $0.id == groupID })
-        {
-            return .group(groupID)
-        }
-        return .track(trackID)
+        Project.destinationWriteTarget(for: trackID, tracks: tracks, trackGroups: trackGroups)
     }
 
     /// The destination that governs the resolved audio/MIDI output for a
-    /// track, resolving group inheritance.
-    ///
-    /// Matches `Project.resolvedDestination(for:)`.
+    /// track, resolving group inheritance. Delegates to `Project`.
     func resolvedDestination(for trackID: UUID) -> Destination {
-        let target = destinationWriteTarget(for: trackID)
-        let resolved: Destination?
-        switch target {
-        case .track(let tid):
-            resolved = tracks.first(where: { $0.id == tid })?.destination
-        case .group(let gid):
-            resolved = trackGroups.first(where: { $0.id == gid })?.sharedDestination
-        }
-        return resolved
-            ?? tracks.first(where: { $0.id == trackID })?.destination
-            ?? .none
+        Project.resolvedDestination(for: trackID, tracks: tracks, trackGroups: trackGroups)
     }
 
-    /// The playback destination plus any pitch offset contributed by drum-group
-    /// trigger mapping. Mirrors `Project.resolvedPlaybackDestination(for:)`.
+    /// The playback destination plus any pitch offset contributed by
+    /// drum-group trigger mapping. Delegates to `Project`.
     func resolvedPlaybackDestination(for trackID: UUID) -> Project.ResolvedPlaybackDestination {
-        guard let track = tracks.first(where: { $0.id == trackID }) else {
-            return Project.ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
-        }
-
-        guard case .inheritGroup = track.destination else {
-            return Project.ResolvedPlaybackDestination(destination: track.destination, pitchOffset: 0)
-        }
-
-        guard let groupID = track.groupID,
-              let group = trackGroups.first(where: { $0.id == groupID })
-        else {
-            return Project.ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
-        }
-
-        return Project.resolveInheritedPlaybackDestination(trackID: trackID, group: group)
+        Project.resolvedPlaybackDestination(for: trackID, tracks: tracks, trackGroups: trackGroups)
     }
 
     /// The destination used for voice-snapshot comparison (strips transient

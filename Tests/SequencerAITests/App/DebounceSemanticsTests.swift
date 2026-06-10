@@ -68,6 +68,58 @@ final class DebounceSemanticsTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    /// A cancelled debounce task must die silently — `try? Task.sleep`
+    /// swallows the cancellation error, so without an explicit isCancelled
+    /// guard the cancelled task would flush immediately on every re-edit.
+    func test_cancelledDebounceTask_doesNotFlushEarly() async throws {
+        let (baseProject, _, clipID) = makeLiveStoreProject(clipPitch: 60)
+        let doc = SeqAIDocument(project: baseProject)
+        let box = DebounceDocumentBox(document: doc)
+
+        let session = SequencerDocumentSession(
+            document: box.binding,
+            engineController: EngineController(client: nil, endpoint: nil),
+            debounceInterval: .seconds(10)
+        )
+
+        session.mutateProject {
+            $0.updateClipEntry(id: clipID) { entry in
+                entry.content = .noteGrid(
+                    lengthSteps: 1,
+                    steps: [ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 100, lengthSteps: 4)]),
+                        fill: nil
+                    )]
+                )
+            }
+        }
+
+        // Second mutation cancels the first 10s debounce and schedules a new
+        // one. The cancelled task wakes from its sleep immediately; it must
+        // not flush.
+        session.mutateProject {
+            $0.updateClipEntry(id: clipID) { entry in
+                entry.content = .noteGrid(
+                    lengthSteps: 1,
+                    steps: [ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 99, velocity: 100, lengthSteps: 4)]),
+                        fill: nil
+                    )]
+                )
+            }
+        }
+
+        try await Task.sleep(for: .milliseconds(120))
+
+        XCTAssertEqual(
+            box.document.project.clipEntry(id: clipID)?.pitchPool,
+            [60],
+            "cancelled debounce task flushed early; document should be untouched until the live 10s debounce fires"
+        )
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     // MARK: - flushToDocumentSync cancels pending debounce task
 
     func test_flushToDocumentSync_cancelsPendingDebounce_noDoubleWrite() {

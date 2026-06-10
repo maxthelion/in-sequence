@@ -67,7 +67,18 @@ extension Project {
         return trackGroups.first(where: { $0.id == groupID })
     }
 
-    func destinationWriteTarget(for trackID: UUID) -> DestinationWriteTarget {
+    // MARK: - Destination resolution (single home)
+    //
+    // The static overloads are the one implementation of write-target and
+    // destination resolution; the instance methods and
+    // LiveSequencerStore's accessors both delegate here so the logic cannot
+    // drift between the document and the live store.
+
+    static func destinationWriteTarget(
+        for trackID: UUID,
+        tracks: [StepSequenceTrack],
+        trackGroups: [TrackGroup]
+    ) -> DestinationWriteTarget {
         guard let track = tracks.first(where: { $0.id == trackID }) else {
             return .track(trackID)
         }
@@ -80,7 +91,11 @@ extension Project {
         return .track(trackID)
     }
 
-    func destination(for target: DestinationWriteTarget) -> Destination? {
+    static func destination(
+        for target: DestinationWriteTarget,
+        tracks: [StepSequenceTrack],
+        trackGroups: [TrackGroup]
+    ) -> Destination? {
         switch target {
         case .track(let trackID):
             return tracks.first(where: { $0.id == trackID })?.destination
@@ -89,14 +104,22 @@ extension Project {
         }
     }
 
-    func resolvedDestination(for trackID: UUID) -> Destination {
-        let target = destinationWriteTarget(for: trackID)
-        return destination(for: target)
+    static func resolvedDestination(
+        for trackID: UUID,
+        tracks: [StepSequenceTrack],
+        trackGroups: [TrackGroup]
+    ) -> Destination {
+        let target = destinationWriteTarget(for: trackID, tracks: tracks, trackGroups: trackGroups)
+        return destination(for: target, tracks: tracks, trackGroups: trackGroups)
             ?? tracks.first(where: { $0.id == trackID })?.destination
             ?? .none
     }
 
-    func resolvedPlaybackDestination(for trackID: UUID) -> ResolvedPlaybackDestination {
+    static func resolvedPlaybackDestination(
+        for trackID: UUID,
+        tracks: [StepSequenceTrack],
+        trackGroups: [TrackGroup]
+    ) -> ResolvedPlaybackDestination {
         guard let track = tracks.first(where: { $0.id == trackID }) else {
             return ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
         }
@@ -111,7 +134,23 @@ extension Project {
             return ResolvedPlaybackDestination(destination: .none, pitchOffset: 0)
         }
 
-        return Self.resolveInheritedPlaybackDestination(trackID: trackID, group: group)
+        return resolveInheritedPlaybackDestination(trackID: trackID, group: group)
+    }
+
+    func destinationWriteTarget(for trackID: UUID) -> DestinationWriteTarget {
+        Self.destinationWriteTarget(for: trackID, tracks: tracks, trackGroups: trackGroups)
+    }
+
+    func destination(for target: DestinationWriteTarget) -> Destination? {
+        Self.destination(for: target, tracks: tracks, trackGroups: trackGroups)
+    }
+
+    func resolvedDestination(for trackID: UUID) -> Destination {
+        Self.resolvedDestination(for: trackID, tracks: tracks, trackGroups: trackGroups)
+    }
+
+    func resolvedPlaybackDestination(for trackID: UUID) -> ResolvedPlaybackDestination {
+        Self.resolvedPlaybackDestination(for: trackID, tracks: tracks, trackGroups: trackGroups)
     }
 
     mutating func setDestination(_ destination: Destination, for target: DestinationWriteTarget) {

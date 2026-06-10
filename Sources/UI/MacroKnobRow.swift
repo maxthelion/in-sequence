@@ -128,7 +128,6 @@ private struct MacroKnob: View {
     @State private var displayValue: Double
 
     private let knobSize: CGFloat = 40
-    private let dragSensitivity = StudioDrag.fullRangeTravel
 
     init(binding: TrackMacroBinding, value: Double, onChange: @escaping (Double) -> Void) {
         self.binding = binding
@@ -161,20 +160,12 @@ private struct MacroKnob: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in
-                        if dragStartValue == nil {
-                            dragStartValue = displayValue
-                        }
-                        let delta = -drag.translation.height / dragSensitivity
-                        let range = binding.descriptor.maxValue - binding.descriptor.minValue
-                        let newValue = (dragStartValue ?? displayValue) + delta * range
-                        displayValue = min(max(newValue, binding.descriptor.minValue), binding.descriptor.maxValue)
-                    }
-                    .onEnded { _ in
-                        dragStartValue = nil
-                        onChange(displayValue)
-                    }
+                StudioDrag.verticalValueGesture(
+                    value: $displayValue,
+                    dragStart: $dragStartValue,
+                    range: binding.descriptor.minValue...binding.descriptor.maxValue,
+                    onCommit: onChange
+                )
             )
 
             Text(binding.displayName)

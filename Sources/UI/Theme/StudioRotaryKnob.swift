@@ -14,8 +14,6 @@ struct StudioRotaryKnob: View {
     @State private var dragStartValue: Double?
     @State private var displayValue: Double
 
-    private let dragSensitivity = StudioDrag.fullRangeTravel
-
     init(
         title: String,
         value: Double,
@@ -61,20 +59,12 @@ struct StudioRotaryKnob: View {
             }
             .contentShape(Circle())
             .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in
-                        if dragStartValue == nil {
-                            dragStartValue = displayValue
-                        }
-                        let delta = -drag.translation.height / dragSensitivity
-                        let span = range.upperBound - range.lowerBound
-                        let next = (dragStartValue ?? displayValue) + delta * span
-                        displayValue = min(max(next, range.lowerBound), range.upperBound)
-                    }
-                    .onEnded { _ in
-                        dragStartValue = nil
-                        onChange(displayValue)
-                    }
+                StudioDrag.verticalValueGesture(
+                    value: $displayValue,
+                    dragStart: $dragStartValue,
+                    range: range,
+                    onCommit: onChange
+                )
             )
 
             Text(title.uppercased())

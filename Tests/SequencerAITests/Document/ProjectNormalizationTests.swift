@@ -180,6 +180,17 @@ final class ProjectNormalizationTests: XCTestCase {
         XCTAssertEqual(project.trackGroups[0].channelMapping, [track.id: 0])
     }
 
+    func test_decode_with_empty_tracks_array_falls_back_to_default_track() throws {
+        let json = """
+        {"version": 1, "tracks": []}
+        """
+        let project = try JSONDecoder().decode(Project.self, from: Data(json.utf8))
+
+        XCTAssertEqual(project.tracks.count, 1)
+        XCTAssertEqual(project.selectedTrackID, project.tracks[0].id)
+        XCTAssertFalse(project.phrases.isEmpty)
+    }
+
     private func generatorPoolJSON() throws -> String {
         try jsonString(for: GeneratorPoolEntry.defaultPool)
     }

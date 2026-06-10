@@ -121,7 +121,10 @@ static func normalize(
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let resolvedVersion = try container.decode(Int.self, forKey: .version)
-        let resolvedTracks = try container.decode([StepSequenceTrack].self, forKey: .tracks)
+        // A project always has at least one track; an empty array (corrupt or
+        // hand-edited document) would crash selected-track normalization.
+        let decodedTracks = try container.decode([StepSequenceTrack].self, forKey: .tracks)
+        let resolvedTracks = decodedTracks.isEmpty ? [StepSequenceTrack.default] : decodedTracks
         let resolvedTrackGroups = try container.decodeIfPresent([TrackGroup].self, forKey: .trackGroups) ?? []
         let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
         let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []

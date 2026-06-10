@@ -97,4 +97,29 @@ enum StudioDrag {
     /// Shared vertical-drag sensitivity for value editing (knobs and cells):
     /// pixels of travel for a full-range sweep.
     static let fullRangeTravel: Double = 200
+
+    /// The one vertical drag-to-value gesture all knobs share: dragging the
+    /// full `fullRangeTravel` height sweeps the full range; the value clamps
+    /// to the range; release commits via `onCommit`.
+    static func verticalValueGesture(
+        value: Binding<Double>,
+        dragStart: Binding<Double?>,
+        range: ClosedRange<Double>,
+        onCommit: @escaping (Double) -> Void
+    ) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { drag in
+                if dragStart.wrappedValue == nil {
+                    dragStart.wrappedValue = value.wrappedValue
+                }
+                let delta = -drag.translation.height / fullRangeTravel
+                let span = range.upperBound - range.lowerBound
+                let next = (dragStart.wrappedValue ?? value.wrappedValue) + delta * span
+                value.wrappedValue = min(max(next, range.lowerBound), range.upperBound)
+            }
+            .onEnded { _ in
+                dragStart.wrappedValue = nil
+                onCommit(value.wrappedValue)
+            }
+    }
 }

@@ -43,6 +43,9 @@ final class AudioInputChannelTests: XCTestCase {
         XCTAssertEqual(try decode("mono1"), .mono(channel: 0))
         XCTAssertEqual(try decode("mono2"), .mono(channel: 1))
         XCTAssertEqual(try decode("stereo"), .stereo(firstChannel: 0))
+        // Unknown values fall back to the stereo default instead of failing
+        // the whole track decode.
+        XCTAssertEqual(try decode("wat"), .stereo(firstChannel: 0))
     }
 
     func test_options_follow_device_channel_count() {

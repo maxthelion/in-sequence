@@ -76,7 +76,6 @@ struct MacroSlotKnob: View {
     @State private var displayValue: Double
 
     private let knobSize: CGFloat = 40
-    private let dragSensitivity = StudioDrag.fullRangeTravel
 
     init(
         slotIndex: Int,
@@ -108,23 +107,15 @@ struct MacroSlotKnob: View {
         return (displayValue - descriptor.minValue) / range
     }
 
+    // Only attached when a descriptor exists (see the .gesture including:
+    // mask in body), so the fallback range never drives a live edit.
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { drag in
-                guard let descriptor else { return }
-                let delta = -drag.translation.height / dragSensitivity
-                let range = descriptor.maxValue - descriptor.minValue
-                if dragStartValue == nil {
-                    dragStartValue = displayValue
-                }
-                let nextValue = (dragStartValue ?? displayValue) + delta * range
-                displayValue = min(max(nextValue, descriptor.minValue), descriptor.maxValue)
-            }
-            .onEnded { _ in
-                guard descriptor != nil else { return }
-                dragStartValue = nil
-                onChange(displayValue)
-            }
+        StudioDrag.verticalValueGesture(
+            value: $displayValue,
+            dragStart: $dragStartValue,
+            range: (descriptor?.minValue ?? 0)...(descriptor?.maxValue ?? 1),
+            onCommit: onChange
+        )
     }
 
     var body: some View {
