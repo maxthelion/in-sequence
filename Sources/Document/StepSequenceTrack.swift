@@ -74,7 +74,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
 
     static let allowedRecordBarLengths: Set<Int> = [1, 2, 4, 8]
     static let defaultRecordBarLength = 2
-    static let defaultInputChannel = AudioInputChannel.stereo
+    static let defaultInputChannel = AudioInputChannel.stereo(firstChannel: 0)
 
     static let `default` = StepSequenceTrack(
         id: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),

@@ -2247,9 +2247,9 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(runtime.waveformBuckets, [0, 0.5, 0.25])
         XCTAssertFalse(runtime.isSilent)
 
-        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono2))
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 1)))
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
-        XCTAssertEqual(runtime.selectedInputChannel, .mono2)
+        XCTAssertEqual(runtime.selectedInputChannel, .mono(channel: 1))
         XCTAssertEqual(runtime.routeState, .available)
     }
 
@@ -2261,21 +2261,21 @@ final class EngineControllerTests: XCTestCase {
         let trackID = project.selectedTrackID
         controller.apply(documentModel: project)
 
-        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 0)))
         var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
-        XCTAssertEqual(runtime.selectedInputChannel, .mono1)
+        XCTAssertEqual(runtime.selectedInputChannel, .mono(channel: 0))
 
         project.tracks[project.selectedTrackIndex].recordBarLength = 4
         controller.apply(documentModel: project)
 
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
-        XCTAssertEqual(runtime.selectedInputChannel, .stereo)
+        XCTAssertEqual(runtime.selectedInputChannel, .stereo(firstChannel: 0))
 
-        project.tracks[project.selectedTrackIndex].inputChannel = .mono2
+        project.tracks[project.selectedTrackIndex].inputChannel = .mono(channel: 1)
         controller.apply(documentModel: project)
 
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
-        XCTAssertEqual(runtime.selectedInputChannel, .mono2)
+        XCTAssertEqual(runtime.selectedInputChannel, .mono(channel: 1))
         XCTAssertEqual(runtime.routeState, .available)
     }
 
@@ -2289,11 +2289,11 @@ final class EngineControllerTests: XCTestCase {
 
         XCTAssertFalse(controller.armAudioInput(trackID: trackID))
         var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
-        XCTAssertEqual(runtime.selectedInputChannel, .stereo)
+        XCTAssertEqual(runtime.selectedInputChannel, .stereo(firstChannel: 0))
         XCTAssertEqual(runtime.routeState, .silentUnavailable)
         XCTAssertTrue(runtime.isSilent)
 
-        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 0)))
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertEqual(runtime.routeState, .available)
         XCTAssertFalse(runtime.isSilent)
@@ -2621,7 +2621,7 @@ final class EngineControllerTests: XCTestCase {
 
         let readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         XCTAssertEqual(readout.requestedSource, .input)
-        XCTAssertEqual(readout.selectedChannel, .stereo)
+        XCTAssertEqual(readout.selectedChannel, .stereo(firstChannel: 0))
         XCTAssertNotNil(readout.dryDestination)
         XCTAssertEqual(readout.outputVolume, 0.65, accuracy: 0.0001)
         XCTAssertEqual(readout.pan, -0.25, accuracy: 0.0001)
@@ -2962,19 +2962,19 @@ final class EngineControllerTests: XCTestCase {
         let trackID = project.selectedTrackID
         controller.apply(documentModel: project)
 
-        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 0)))
         var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
-        XCTAssertEqual(readout.selectedChannel, .mono1)
+        XCTAssertEqual(readout.selectedChannel, .mono(channel: 0))
         XCTAssertEqual(readout.requestedSource, .input)
 
-        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono2))
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 1)))
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
-        XCTAssertEqual(readout.selectedChannel, .mono2)
+        XCTAssertEqual(readout.selectedChannel, .mono(channel: 1))
         XCTAssertEqual(readout.requestedSource, .input)
 
-        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .stereo))
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .stereo(firstChannel: 0)))
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
-        XCTAssertEqual(readout.selectedChannel, .stereo)
+        XCTAssertEqual(readout.selectedChannel, .stereo(firstChannel: 0))
         XCTAssertEqual(readout.requestedSource, .input)
     }
 
@@ -2987,7 +2987,7 @@ final class EngineControllerTests: XCTestCase {
         controller.apply(documentModel: project)
 
         var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
-        XCTAssertEqual(readout.selectedChannel, .stereo)
+        XCTAssertEqual(readout.selectedChannel, .stereo(firstChannel: 0))
         XCTAssertEqual(readout.requestedSource, .silent)
         XCTAssertEqual(readout.connectedSource, .silent)
         XCTAssertEqual(readout.outputVolume, 0, accuracy: 0.0001)
@@ -2995,9 +2995,9 @@ final class EngineControllerTests: XCTestCase {
         let invalidRuntime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertEqual(invalidRuntime.armState, .idle)
 
-        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono1))
+        XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 0)))
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
-        XCTAssertEqual(readout.selectedChannel, .mono1)
+        XCTAssertEqual(readout.selectedChannel, .mono(channel: 0))
         XCTAssertEqual(readout.requestedSource, .input)
         XCTAssertTrue(readout.connectedSource == .input || readout.connectedSource == .silent)
     }

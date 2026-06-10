@@ -2735,14 +2735,7 @@ final class EngineController: RouterDispatcher {
         for channel: AudioInputChannel,
         availableChannelCount: Int
     ) -> AudioInputRouteState {
-        let requiredChannels: Int
-        switch channel {
-        case .mono1:
-            requiredChannels = 1
-        case .mono2, .stereo:
-            requiredChannels = 2
-        }
-        return availableChannelCount >= requiredChannels ? .available : .silentUnavailable
+        availableChannelCount >= channel.requiredChannelCount ? .available : .silentUnavailable
     }
 
     /// Push per-track fader state to `sampleEngine`. Called from `syncAudioOutputs`

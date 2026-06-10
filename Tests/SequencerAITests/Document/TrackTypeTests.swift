@@ -26,10 +26,35 @@ final class TrackTypeTests: XCTestCase {
 
 final class AudioInputChannelTests: XCTestCase {
     func test_values_round_trip() throws {
-        for channel in AudioInputChannel.allCases {
+        let channels: [AudioInputChannel] = [
+            .mono(channel: 0), .mono(channel: 7), .stereo(firstChannel: 0), .stereo(firstChannel: 12),
+        ]
+        for channel in channels {
             let data = try JSONEncoder().encode(channel)
             let decoded = try JSONDecoder().decode(AudioInputChannel.self, from: data)
             XCTAssertEqual(decoded, channel)
         }
+    }
+
+    func test_legacy_string_values_decode() throws {
+        func decode(_ raw: String) throws -> AudioInputChannel {
+            try JSONDecoder().decode(AudioInputChannel.self, from: Data("\"\(raw)\"".utf8))
+        }
+        XCTAssertEqual(try decode("mono1"), .mono(channel: 0))
+        XCTAssertEqual(try decode("mono2"), .mono(channel: 1))
+        XCTAssertEqual(try decode("stereo"), .stereo(firstChannel: 0))
+    }
+
+    func test_options_follow_device_channel_count() {
+        XCTAssertEqual(AudioInputChannel.monoOptions(channelCount: 0), [])
+        XCTAssertEqual(AudioInputChannel.monoOptions(channelCount: 3).count, 3)
+        XCTAssertEqual(AudioInputChannel.stereoOptions(channelCount: 1), [])
+        XCTAssertEqual(
+            AudioInputChannel.stereoOptions(channelCount: 8),
+            [.stereo(firstChannel: 0), .stereo(firstChannel: 2), .stereo(firstChannel: 4), .stereo(firstChannel: 6)]
+        )
+        XCTAssertEqual(AudioInputChannel.stereo(firstChannel: 3).normalized, .stereo(firstChannel: 2))
+        XCTAssertEqual(AudioInputChannel.mono(channel: 5).requiredChannelCount, 6)
+        XCTAssertEqual(AudioInputChannel.stereo(firstChannel: 6).requiredChannelCount, 8)
     }
 }

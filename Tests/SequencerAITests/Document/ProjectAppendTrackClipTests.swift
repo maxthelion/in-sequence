@@ -55,7 +55,7 @@ final class ProjectAppendTrackClipTests: XCTestCase {
         let bank = project.patternBank(for: newTrack.id)
         XCTAssertEqual(project.clipPool.count, priorClipCount)
         XCTAssertEqual(newTrack.recordBarLength, 2)
-        XCTAssertEqual(newTrack.inputChannel, .stereo)
+        XCTAssertEqual(newTrack.inputChannel, .stereo(firstChannel: 0))
         XCTAssertNil(bank.slots.first?.sourceRef.clipID)
         XCTAssertNil(bank.attachedGeneratorID)
     }

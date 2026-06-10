@@ -1676,7 +1676,7 @@ enum VisualScenarioCommandRunner {
             _ = engineController.setAudioInputMonitorMode(trackID: trackID, mode: .loop)
         case "invalid-route":
             engineController.audioInputAvailableChannelCountOverrideForTesting = 1
-            session.setAudioInputChannel(trackID: trackID, channel: .stereo)
+            session.setAudioInputChannel(trackID: trackID, channel: .stereo(firstChannel: 0))
             _ = engineController.setAudioInputMonitorMode(trackID: trackID, mode: .input)
             _ = engineController.cancelAudioInputArm(trackID: trackID)
             _ = engineController.armAudioInput(trackID: trackID, pendingStartTick: 16)

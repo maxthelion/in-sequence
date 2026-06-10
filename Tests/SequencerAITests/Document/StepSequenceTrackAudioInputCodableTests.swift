@@ -43,7 +43,7 @@ final class StepSequenceTrackAudioInputCodableTests: XCTestCase {
         let decoded = try JSONDecoder().decode(StepSequenceTrack.self, from: legacyData)
 
         XCTAssertEqual(decoded.recordBarLength, 2)
-        XCTAssertEqual(decoded.inputChannel, .stereo)
+        XCTAssertEqual(decoded.inputChannel, .stereo(firstChannel: 0))
     }
 
     func test_recordBarLength_isConstrainedToAllowedBarCounts() throws {
@@ -66,7 +66,7 @@ final class StepSequenceTrackAudioInputCodableTests: XCTestCase {
             velocity: 100,
             gateLength: 4,
             recordBarLength: 4,
-            inputChannel: .mono2
+            inputChannel: .mono(channel: 1)
         )
         let project = Project(
             version: 1,
@@ -83,7 +83,7 @@ final class StepSequenceTrackAudioInputCodableTests: XCTestCase {
 
         XCTAssertEqual(decodedTrack.trackType, .audioInput)
         XCTAssertEqual(decodedTrack.recordBarLength, 4)
-        XCTAssertEqual(decodedTrack.inputChannel, .mono2)
+        XCTAssertEqual(decodedTrack.inputChannel, .mono(channel: 1))
         XCTAssertTrue(encodedJSON.contains("recordBarLength"))
         XCTAssertTrue(encodedJSON.contains("inputChannel"))
         XCTAssertFalse(encodedJSON.contains("captureBuffer"))

@@ -124,7 +124,7 @@ final class MainAudioGraph {
         let loopPlayer = AVAudioPlayerNode()
         var requestedSource: AudioInputMonitorSource = .silent
         var connectedSource: AudioInputMonitorSource = .silent
-        var selectedChannel: AudioInputChannel = .stereo
+        var selectedChannel: AudioInputChannel = .stereo(firstChannel: 0)
         var outputBusID: UUID?
         var isCaptureTapInstalled = false
         var scheduledLoopFrameCount: AVAudioFrameCount?
@@ -1009,7 +1009,11 @@ final class MainAudioGraph {
                 host.outputMixer.outputVolume = 0
                 return
             }
-            engine.connect(engine.inputNode, to: host.outputMixer, format: inputFormat)
+            applyInputChannelMapOnMain(
+                for: host.selectedChannel,
+                deviceChannelCount: Int(inputFormat.channelCount)
+            )
+            engine.connect(engine.inputNode, to: host.outputMixer, format: engine.inputNode.inputFormat(forBus: 0))
             host.connectedSource = .input
 
         case .loop:
@@ -1019,6 +1023,29 @@ final class MainAudioGraph {
         case .silent:
             host.connectedSource = .silent
         }
+    }
+
+    /// Select which device channels feed the input node via the input unit's
+    /// channel map. Mono duplicates the chosen channel to both client
+    /// channels; stereo maps the chosen pair. A default selection (stereo
+    /// 1-2) clears the map. Channel-map behavior varies by device/driver —
+    /// validated against real interfaces rather than unit tests.
+    @MainActor
+    private func applyInputChannelMapOnMain(for channel: AudioInputChannel, deviceChannelCount: Int) {
+        let map: [NSNumber]?
+        switch channel.normalized {
+        case let .mono(deviceChannel):
+            let clamped = min(deviceChannel, max(0, deviceChannelCount - 1))
+            map = [NSNumber(value: clamped), NSNumber(value: clamped)]
+        case let .stereo(firstChannel):
+            if firstChannel == 0 {
+                map = nil
+            } else {
+                let first = min(firstChannel, max(0, deviceChannelCount - 2))
+                map = [NSNumber(value: first), NSNumber(value: first + 1)]
+            }
+        }
+        engine.inputNode.auAudioUnit.channelMap = map
     }
 
     @MainActor

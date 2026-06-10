@@ -539,18 +539,17 @@ private struct AudioInputRuntimePanel: View {
                     .frame(width: 140)
 
                     StudioSegmentedControl(
-                        title: "Input",
-                        selection: channelBinding,
-                        segments: AudioInputChannel.allCases.map { channel in
-                            StudioSegment(
-                                title: channel.label,
-                                value: channel,
-                                isEnabled: availableChannels >= channel.requiredChannelCount
-                            )
-                        },
+                        title: "Mode",
+                        selection: channelModeBinding,
+                        segments: [
+                            StudioSegment(title: "Mono", value: false),
+                            StudioSegment(title: "Stereo", value: true, isEnabled: availableChannels >= 2),
+                        ],
                         accent: StudioTheme.cyan
                     )
-                    .frame(width: 200)
+                    .frame(width: 130)
+
+                    inputChannelPicker
                 }
                 .disabled(runtime == nil)
 
@@ -597,8 +596,72 @@ private struct AudioInputRuntimePanel: View {
     }
 
     private var channelRequirementLabel: String {
-        let selected = runtime?.selectedInputChannel ?? track.inputChannel
-        return selected.requiredChannelCount == 1 ? "1 CHANNEL" : "2 CHANNELS"
+        let required = (runtime?.selectedInputChannel ?? track.inputChannel).requiredChannelCount
+        return "\(required) CHANNEL\(required == 1 ? "" : "S")"
+    }
+
+    private var selectedChannel: AudioInputChannel {
+        runtime?.selectedInputChannel ?? track.inputChannel
+    }
+
+    /// Channel (or pair) choices generated from the connected device's
+    /// reported input count — generic over any interface.
+    private var inputChannelPicker: some View {
+        let options = selectedChannel.isStereo
+            ? AudioInputChannel.stereoOptions(channelCount: availableChannels)
+            : AudioInputChannel.monoOptions(channelCount: availableChannels)
+
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("INPUT")
+                .studioText(.eyebrow)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Menu {
+                ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+                    Button(option.label) {
+                        session.setAudioInputChannel(trackID: track.id, channel: option)
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(selectedChannel.label)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .padding(.horizontal, 10)
+                .frame(minWidth: 92, minHeight: 30)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: 1)
+                )
+            }
+            .menuStyle(.borderlessButton)
+            .disabled(options.isEmpty)
+            .help(options.isEmpty ? "The interface reports no usable inputs" : "Choose the device input")
+        }
+    }
+
+    private var channelModeBinding: Binding<Bool> {
+        Binding(
+            get: { selectedChannel.isStereo },
+            set: { wantsStereo in
+                let current = selectedChannel
+                guard wantsStereo != current.isStereo else { return }
+                let next: AudioInputChannel
+                switch current {
+                case let .mono(channel):
+                    next = AudioInputChannel.stereo(firstChannel: channel).normalized
+                case let .stereo(firstChannel):
+                    next = .mono(channel: firstChannel)
+                }
+                session.setAudioInputChannel(trackID: track.id, channel: next)
+            }
+        )
     }
 
     private var recordBarsBinding: Binding<Int> {
