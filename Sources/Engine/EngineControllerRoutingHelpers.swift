@@ -80,13 +80,23 @@ extension EngineController {
     }
 
     static func effectiveMixerMuteState(for documentModel: Project) -> EffectiveMixerMuteState {
-        let validBusIDs = Set(documentModel.buses.map(\.id))
-        let soloedBusIDs = Set(documentModel.buses.filter { $0.mix.isSoloed }.map(\.id))
-        let soloedTrackIDs = Set(documentModel.tracks.filter { $0.mix.isSoloed }.map(\.id))
+        effectiveMixerMuteState(tracks: documentModel.tracks, buses: documentModel.buses)
+    }
+
+    /// Slice-based overload safe for SwiftUI render paths: reads only the
+    /// track and bus arrays, so callers never need to build a full `Project`
+    /// (and never touch mutating export instrumentation) inside `body`.
+    static func effectiveMixerMuteState(
+        tracks: [StepSequenceTrack],
+        buses: [MixerBus]
+    ) -> EffectiveMixerMuteState {
+        let validBusIDs = Set(buses.map(\.id))
+        let soloedBusIDs = Set(buses.filter { $0.mix.isSoloed }.map(\.id))
+        let soloedTrackIDs = Set(tracks.filter { $0.mix.isSoloed }.map(\.id))
         let isSoloActive = !soloedBusIDs.isEmpty || !soloedTrackIDs.isEmpty
 
-        var mutedBusIDs = Set(documentModel.buses.filter { $0.mix.isMuted }.map(\.id))
-        var mutedTrackIDs = Set(documentModel.tracks.filter { $0.mix.isMuted }.map(\.id))
+        var mutedBusIDs = Set(buses.filter { $0.mix.isMuted }.map(\.id))
+        var mutedTrackIDs = Set(tracks.filter { $0.mix.isMuted }.map(\.id))
 
         guard isSoloActive else {
             return EffectiveMixerMuteState(
@@ -96,7 +106,7 @@ extension EngineController {
             )
         }
 
-        let soloedTrackIDsByBus = Dictionary(grouping: documentModel.tracks.filter { track in
+        let soloedTrackIDsByBus = Dictionary(grouping: tracks.filter { track in
             guard soloedTrackIDs.contains(track.id),
                   let outputBusID = track.outputBusID,
                   validBusIDs.contains(outputBusID)
@@ -106,13 +116,13 @@ extension EngineController {
             return true
         }, by: { $0.outputBusID! })
 
-        for bus in documentModel.buses {
+        for bus in buses {
             if !bus.mix.isSoloed && soloedTrackIDsByBus[bus.id, default: []].isEmpty {
                 mutedBusIDs.insert(bus.id)
             }
         }
 
-        for track in documentModel.tracks {
+        for track in tracks {
             if track.mix.isMuted {
                 mutedTrackIDs.insert(track.id)
                 continue

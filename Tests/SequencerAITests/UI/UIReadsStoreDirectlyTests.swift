@@ -56,6 +56,34 @@ final class UIReadsStoreDirectlyTests: XCTestCase {
         }
     }
 
+    /// MixerView's solo/mute banner state must come from the slice overload,
+    /// never from a full project export inside `body` (the 2026-06-10 mixer
+    /// beachball: exportToProject mutates observable instrumentation, and an
+    /// observable write during view update livelocks the render graph).
+    func test_mixerView_muteStatePath_doesNotCallExportToProject() {
+        let (session, _) = makeSession()
+        assertNoExportDuring(session.store) {
+            _ = EngineController.effectiveMixerMuteState(
+                tracks: session.store.tracks,
+                buses: session.store.buses
+            )
+        }
+    }
+
+    /// The slice overload must stay equivalent to the Project-based one.
+    func test_effectiveMixerMuteState_overloads_agree() {
+        let (session, _) = makeSession()
+        session.setTrackSoloed(true, trackID: session.store.tracks[0].id)
+
+        let project = session.store.exportToProject()
+        let fromProject = EngineController.effectiveMixerMuteState(for: project)
+        let fromSlices = EngineController.effectiveMixerMuteState(tracks: project.tracks, buses: project.buses)
+
+        XCTAssertEqual(fromProject.isSoloActive, fromSlices.isSoloActive)
+        XCTAssertEqual(fromProject.mutedTrackIDs, fromSlices.mutedTrackIDs)
+        XCTAssertEqual(fromProject.mutedBusIDs, fromSlices.mutedBusIDs)
+    }
+
     /// Mutating a track's mix level via the session typed API, then re-reading
     /// the updated value from the store, must not trigger exportToProject.
     func test_mixerView_editThenRead_doesNotCallExportToProject() {

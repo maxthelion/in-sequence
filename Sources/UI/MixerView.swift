@@ -57,7 +57,7 @@ struct MixerView<TrailingContent: View>: View {
         let tracks = session.store.tracks
         let buses = session.store.buses
         let selectedTrackID = session.store.selectedTrackID
-        let muteState = EngineController.effectiveMixerMuteState(for: session.store.exportToProject())
+        let muteState = EngineController.effectiveMixerMuteState(tracks: tracks, buses: buses)
 
         VStack(alignment: .leading, spacing: 12) {
             if muteState.isSoloActive {

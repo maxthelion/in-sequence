@@ -186,14 +186,20 @@ final class LiveSequencerStore {
 
     /// Test observer — fired at the start of every `exportToProject()` call.
     /// Nil in production; set by test code to count or assert on invocations.
-    var exportToProjectObserver: (() -> Void)?
+    @ObservationIgnored var exportToProjectObserver: (() -> Void)?
 
     /// Monotonically increasing counter of `exportToProject()` invocations.
     ///
     /// Read this in tests via `assertNoExportDuring(_:_:)` to verify that a
     /// code path does not perform a full project export. Production code should
     /// never read this counter.
-    private(set) var exportToProjectCallCount: Int = 0
+    ///
+    /// `@ObservationIgnored` because `exportToProject()` mutates it: on an
+    /// `@Observable` class an observable write here means any
+    /// `exportToProject()` call reached from a SwiftUI `body` mutates observed
+    /// state mid-render, which can livelock the AttributeGraph (the
+    /// 2026-06-10 mixer beachball).
+    @ObservationIgnored private(set) var exportToProjectCallCount: Int = 0
 
     /// Reconstruct a `Project` value from resident fields.
     ///
