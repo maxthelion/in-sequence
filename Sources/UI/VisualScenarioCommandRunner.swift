@@ -36,6 +36,8 @@ enum VisualScenarioCommandRunner {
     private static var trackPerformLayerSelectorVisible = false
     private static var trackPerformLayerVariant = "none"
     private static var stepOrderFixtureState = "none"
+    private static var trackSourceTabState = "none"
+    private static var scenesModeState = "none"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
     private static var drumGroupRoutingEditorCanApply = false
@@ -238,6 +240,8 @@ enum VisualScenarioCommandRunner {
         applyNoteRepeatPerformFixture(command: command, section: section, tracksMode: tracksMode, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
+        applyTrackSourceTabCommand(command: command, section: section)
+        applyScenesModeCommand(command: command, section: section)
 
         switch command["transport"] {
         case "play":
@@ -350,6 +354,8 @@ enum VisualScenarioCommandRunner {
         stepOrderAssignedMapID=\(stepOrderStatus.assignedMapID)
         stepOrderPendingToggle=\(stepOrderStatus.pendingToggle)
         stepOrderFixtureState=\(stepOrderFixtureState)
+        trackSourceTab=\(trackSourceTabState)
+        scenesMode=\(scenesModeState)
         stepOrderMapDeletionStates=\(stepOrderMapDeletionStates(session: session))
         currentPhraseName=\(currentPhraseName ?? "none")
         queuedPhraseName=\(queuedPhraseName ?? "none")
@@ -916,6 +922,46 @@ enum VisualScenarioCommandRunner {
             if let mutation = command["drumKitMatrixMutation"] {
                 applyDrumKitMatrixMutation(mutation, session: session)
             }
+        }
+    }
+
+    /// Drives the Source/Modifier/History tab on the track editor without
+    /// coordinate clicks. Posts repeatedly because the editor view may not
+    /// exist yet right after the section switch.
+    private static func applyTrackSourceTabCommand(
+        command: [String: String],
+        section: Binding<WorkspaceSection>
+    ) {
+        guard let rawTab = command["trackSourceTab"],
+              TrackSourceEditorTab(rawValue: rawTab) != nil
+        else { return }
+
+        section.wrappedValue = .track
+        trackSourceTabState = rawTab
+        postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:\(rawTab)")
+    }
+
+    /// Drives the Scenes workspace Browse/Edit ↔ Perform mode.
+    private static func applyScenesModeCommand(
+        command: [String: String],
+        section: Binding<WorkspaceSection>
+    ) {
+        guard let rawMode = command["scenesMode"],
+              ScenesWorkspaceMode(rawValue: rawMode) != nil
+        else { return }
+
+        section.wrappedValue = .scenes
+        scenesModeState = rawMode
+        postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(rawMode)")
+    }
+
+    private static func postRepeatedVisualCommand(name: Notification.Name, object: String) {
+        NotificationCenter.default.post(name: name, object: object)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            NotificationCenter.default.post(name: name, object: object)
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            NotificationCenter.default.post(name: name, object: object)
         }
     }
 
