@@ -200,8 +200,37 @@ final class MainAudioGraph {
         finalOutputMixer
     }
 
+    /// Live input may only be touched once the user has already granted mic
+    /// access. Touching `engine.inputNode` without a grant raises the system
+    /// TCC prompt (or kills the app without a usage description) — and debug
+    /// builds are ad-hoc signed, so grants do not survive rebuilds. The QA
+    /// capture harness must never block on that prompt; routes fall back to
+    /// silent/unavailable until the UI's explicit request flow runs.
+    /// xcodebuild's test host accesses input promptlessly, so engine tests
+    /// opt back in via the override.
+    static var liveAudioInputAuthorizedOverrideForTesting: Bool?
+
+    static var liveAudioInputAuthorized: Bool {
+        liveAudioInputAuthorizedOverrideForTesting
+            ?? (AVCaptureDevice.authorizationStatus(for: .audio) == .authorized)
+    }
+
+    /// Tests that assert input-routing bookkeeping set this so the `.input`
+    /// monitor source marks itself connected WITHOUT touching
+    /// `engine.inputNode` — real input access from tests both risks the TCC
+    /// prompt and has been observed stalling for minutes inside CoreAudio.
+    static var simulateAudioInputConnectionForTesting = false
+
+    /// True while the underlying AVAudioEngine is running. Player nodes throw
+    /// NSException (uncatchable from Swift) if started against a stopped
+    /// engine — callers must check this before `play()`.
+    var isEngineRunning: Bool {
+        engine.isRunning
+    }
+
     var availableInputChannelCount: Int {
-        Int(engine.inputNode.inputFormat(forBus: 0).channelCount)
+        guard Self.liveAudioInputAuthorized else { return 0 }
+        return Int(engine.inputNode.inputFormat(forBus: 0).channelCount)
     }
 
     func syncAudioInputRoutings(_ requests: [AudioInputRoutingRequest]) {
@@ -989,7 +1018,7 @@ final class MainAudioGraph {
         requestedSource: AudioInputMonitorSource
     ) {
         removeAudioInputCaptureTapOnMain(host: host)
-        if host.connectedSource == .input {
+        if host.connectedSource == .input, !Self.simulateAudioInputConnectionForTesting {
             engine.disconnectNodeOutput(engine.inputNode)
         }
         if host.connectedSource == .loop {
@@ -1003,6 +1032,15 @@ final class MainAudioGraph {
 
         switch requestedSource {
         case .input:
+            if Self.simulateAudioInputConnectionForTesting {
+                host.connectedSource = .input
+                return
+            }
+            guard Self.liveAudioInputAuthorized else {
+                host.connectedSource = .silent
+                host.outputMixer.outputVolume = 0
+                return
+            }
             let inputFormat = engine.inputNode.inputFormat(forBus: 0)
             guard inputFormat.channelCount > 0 else {
                 host.connectedSource = .silent
@@ -1052,7 +1090,7 @@ final class MainAudioGraph {
     private func teardownAudioInputRoutingOnMain(trackID: UUID) {
         guard let host = audioInputRoutingHosts.removeValue(forKey: trackID) else { return }
 
-        if host.connectedSource == .input {
+        if host.connectedSource == .input, !Self.simulateAudioInputConnectionForTesting {
             engine.disconnectNodeOutput(engine.inputNode)
         }
         removeAudioInputCaptureTapOnMain(host: host)

@@ -556,8 +556,8 @@ private struct AudioInputRuntimePanel: View {
                 AudioInputSignalPanel(runtime: runtime, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
             }
         }
-        .task {
-            await requestMicrophoneAccessIfNeeded()
+        .onAppear {
+            micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
         }
     }
 
@@ -577,6 +577,15 @@ private struct AudioInputRuntimePanel: View {
                 .buttonStyle(.link)
                 .studioText(.micro)
             }
+        } else if micAccess == .notDetermined {
+            // The system prompt only ever appears from this explicit action —
+            // never on appear, so unattended sessions are never blocked.
+            Button("Enable Microphone") {
+                Task { await requestMicrophoneAccessIfNeeded() }
+            }
+            .buttonStyle(.link)
+            .studioText(.microEmphasis)
+            .tint(StudioTheme.amber)
         } else if !canArmInput, !isArmedOrRecording {
             Text(availableChannels == 0 ? "NO INPUTS ON INTERFACE" : "INPUT NEEDS \(channelRequirementLabel)")
                 .studioText(.microEmphasis)

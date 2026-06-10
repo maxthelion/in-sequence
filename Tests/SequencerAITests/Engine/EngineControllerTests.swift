@@ -4,6 +4,19 @@ import XCTest
 @testable import SequencerAI
 
 final class EngineControllerTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Simulated, not real, input connection: real engine.inputNode access
+        // from tests risks the TCC prompt and stalls for minutes inside
+        // CoreAudio. Routing bookkeeping still reports .input.
+        MainAudioGraph.simulateAudioInputConnectionForTesting = true
+    }
+
+    override func tearDown() {
+        MainAudioGraph.simulateAudioInputConnectionForTesting = false
+        super.tearDown()
+    }
+
     func test_init_registers_core_blocks_and_builds_default_pipeline() {
         let controller = EngineController(client: nil, endpoint: nil)
 
@@ -2866,6 +2879,14 @@ final class EngineControllerTests: XCTestCase {
 
     @MainActor
     func test_audioInputRouting_documentOutputBusMutationPreservesActiveSendFanoutWhileRunning() throws {
+        // This test starts the real engine and asserts live node wiring, so
+        // it needs a genuine (not simulated) input connection.
+        MainAudioGraph.simulateAudioInputConnectionForTesting = false
+        MainAudioGraph.liveAudioInputAuthorizedOverrideForTesting = true
+        defer {
+            MainAudioGraph.liveAudioInputAuthorizedOverrideForTesting = nil
+            MainAudioGraph.simulateAudioInputConnectionForTesting = true
+        }
         let graph = MainAudioGraph()
         let controller = EngineController(client: nil, endpoint: nil, mainAudioGraph: graph)
         controller.audioInputAvailableChannelCountOverrideForTesting = 2
