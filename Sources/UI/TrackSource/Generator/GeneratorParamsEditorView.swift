@@ -64,12 +64,8 @@ struct GeneratorParamsEditorView: View {
         } else {
             switch generator.params {
             case let .mono(trigger, _, shape):
-                sourceEditorContainer(title: "Generator Source", eyebrow: "Used when this slot is set to Generator") {
+                sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(stepDisplayLabel(trigger.stepStage))
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-
                         StepAlgoEditor(stage: trigger.stepStage) { nextStage in
                             onUpdate(.mono(trigger: .native(nextStage), pitch: monoPitchStage, shape: shape))
                         }
@@ -81,12 +77,8 @@ struct GeneratorParamsEditorView: View {
                 }
 
             case let .poly(trigger, _, shape):
-                sourceEditorContainer(title: "Generator Source", eyebrow: "Used when this slot is set to Generator") {
+                sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(stepDisplayLabel(trigger.stepStage))
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-
                         StepAlgoEditor(stage: trigger.stepStage) { nextStage in
                             onUpdate(.poly(trigger: .native(nextStage), pitches: polyPitchNodes, shape: shape))
                         }
@@ -106,12 +98,8 @@ struct GeneratorParamsEditorView: View {
                 )
 
             case let .slice(trigger, sliceIndexes):
-                sourceEditorContainer(title: "Generator Source", eyebrow: "Used when this slot is set to Generator") {
+                sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(stepDisplayLabel(trigger.stepStage))
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-
                         StepAlgoEditor(stage: trigger.stepStage) { nextStage in
                             onUpdate(.slice(trigger: .native(nextStage), sliceIndexes: sliceIndexes))
                         }

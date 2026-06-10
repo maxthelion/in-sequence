@@ -23,24 +23,20 @@ struct AddDrumGroupSheet: View {
     }
 
     var body: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 18) {
-                header
-                templateSection
-                tracksSection
-                optionsSection
-                Spacer(minLength: 0)
-                footer
-            }
-            .padding(20)
+        StudioModal(
+            title: "Add Drum Group",
+            subtitle: "Start blank or from a preset, then optionally attach one shared destination for the group.",
+            minWidth: 680,
+            minHeight: 560,
+            onClose: onCancel
+        ) {
+            templateSection
+            tracksSection
+            optionsSection
+            Spacer(minLength: 0)
+            footer
         }
-        .frame(minWidth: 680, minHeight: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(StudioTheme.stageFill)
-        .presentationBackground(.clear)
         .sheet(
             isPresented: $isPresentingDestinationPicker,
             onDismiss: handleDestinationSheetDismiss
@@ -54,18 +50,6 @@ struct AddDrumGroupSheet: View {
                 plan.sharedDestination = destination
             }
             .presentationBackground(.clear)
-        }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Add Drum Group")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-
-            Text("Start blank or from a preset, then optionally attach one shared destination for the group.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
         }
     }
 
@@ -251,11 +235,6 @@ struct AddDrumGroupSheet: View {
     private var footer: some View {
         HStack {
             Spacer()
-
-            Button("Cancel") {
-                onCancel()
-            }
-            .buttonStyle(.bordered)
 
             Button("Create Group") {
                 onCreate(plan)

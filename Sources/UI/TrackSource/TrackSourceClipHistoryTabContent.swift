@@ -5,6 +5,7 @@ struct TrackSourceClipHistoryTabContent: View {
     let accent: Color
     let sourceSummary: String
     let isDestinationMode: Bool
+    var isTransportRunning = true
     let onSaveClip: () -> Void
 
     var body: some View {
@@ -90,7 +91,8 @@ struct TrackSourceClipHistoryTabContent: View {
             ClipHistoryPianoRollPreview(
                 content: model.previewContent,
                 lengthSteps: model.previewLengthSteps,
-                accent: accent
+                accent: accent,
+                isTransportRunning: isTransportRunning
             )
             .frame(minHeight: 190)
         }
@@ -296,6 +298,7 @@ private struct ClipHistoryPianoRollPreview: View {
     let content: ClipContent?
     let lengthSteps: Int
     let accent: Color
+    var isTransportRunning = true
 
     private var notes: [ClipNote] {
         clipNotes(from: content)
@@ -348,7 +351,7 @@ private struct ClipHistoryPianoRollPreview: View {
                 }
 
                 if notes.isEmpty {
-                    Text("Waiting for live notes.")
+                    Text(isTransportRunning ? "Waiting for live notes." : "Press play to record live history.")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)

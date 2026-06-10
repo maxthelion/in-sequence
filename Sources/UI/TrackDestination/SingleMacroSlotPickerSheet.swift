@@ -13,22 +13,19 @@ struct SingleMacroSlotPickerSheet: View {
     @State private var pollTask: Task<Void, Never>?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
-
-            Divider()
-
+        StudioModal(
+            title: "Assign Macro \(slotIndex + 1)",
+            subtitle: "Choose one AU parameter for this macro slot.",
+            minWidth: 420,
+            minHeight: 480,
+            onClose: { dismiss() }
+        ) {
             if let params {
                 pickerContent(params: params.filter { !currentBindingAddresses.contains($0.address) })
             } else {
                 loadingContent
             }
         }
-        .frame(minWidth: 420, minHeight: 480)
-        .background(StudioTheme.background)
         .onAppear {
             reloadParameters()
             startPollingIfNeeded()
@@ -36,27 +33,6 @@ struct SingleMacroSlotPickerSheet: View {
         .onDisappear {
             pollTask?.cancel()
             pollTask = nil
-        }
-    }
-
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Assign Macro \(slotIndex + 1)")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(StudioTheme.text)
-
-                Text("Choose one AU parameter for this macro slot.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-
-            Spacer()
-
-            Button("Close") {
-                dismiss()
-            }
-            .buttonStyle(.bordered)
         }
     }
 
@@ -85,7 +61,6 @@ struct SingleMacroSlotPickerSheet: View {
                             Text(params.isEmpty ? "No assignable parameters available." : "No parameters match \"\(searchText)\".")
                                 .studioText(.body)
                                 .foregroundStyle(StudioTheme.mutedText)
-                                .padding(.horizontal, 20)
                                 .padding(.vertical, 12)
                         } else {
                             ForEach(filteredRest, id: \.address) { param in
@@ -108,8 +83,7 @@ struct SingleMacroSlotPickerSheet: View {
                 .textFieldStyle(.plain)
         }
         .padding(8)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 20)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge))
         .padding(.vertical, 10)
     }
 
@@ -128,7 +102,6 @@ struct SingleMacroSlotPickerSheet: View {
             .studioText(.eyebrow)
             .tracking(0.8)
             .foregroundStyle(StudioTheme.mutedText)
-            .padding(.horizontal, 20)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(StudioTheme.background)
@@ -166,7 +139,6 @@ struct SingleMacroSlotPickerSheet: View {
             onSelect(param)
             dismiss()
         }
-        .padding(.horizontal, 20)
         .padding(.vertical, 8)
     }
 

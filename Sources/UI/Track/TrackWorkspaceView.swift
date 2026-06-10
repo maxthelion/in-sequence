@@ -185,6 +185,35 @@ struct TrackWorkspaceView: View {
             }
 
             Spacer()
+
+            if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
+                TrackFillPreviewControl(
+                    presentation: fillPreviewPresentation,
+                    accent: StudioTheme.amber,
+                    toggle: toggleFillPreview
+                )
+            }
+        }
+    }
+
+    private var fillPreviewPresentation: TrackFillPreviewHeaderPresentation {
+        let pattern = session.store.selectedPattern(for: track.id)
+        return TrackFillPreviewHeaderPresentation.resolve(
+            sourceMode: pattern.sourceRef.mode,
+            currentClip: session.store.clipEntry(id: pattern.sourceRef.clipID),
+            selectedTrackID: track.id,
+            previewState: session.trackFillPreviewState
+        )
+    }
+
+    private func toggleFillPreview() {
+        guard fillPreviewPresentation.isEnabled else {
+            return
+        }
+        if fillPreviewPresentation.isActive {
+            session.disableTrackFillPreview(for: track.id)
+        } else {
+            session.enableSelectedTrackFillPreview()
         }
     }
 

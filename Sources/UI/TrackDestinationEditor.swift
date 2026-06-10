@@ -59,7 +59,7 @@ struct TrackDestinationEditor: View {
         }
         .sheet(isPresented: $showingMacroPickerSheet) {
             macroPickerSheet
-                .presentationBackground(.ultraThinMaterial)
+                .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingPresetBrowser) {
             PresetBrowserSheet(
@@ -77,7 +77,7 @@ struct TrackDestinationEditor: View {
             ) { descriptor in
                 assignMacro(descriptor, to: request.slotIndex)
             }
-            .presentationBackground(.ultraThinMaterial)
+            .presentationBackground(.clear)
         }
         .task(id: presetReadoutRefreshKey) {
             refreshPresetReadout()

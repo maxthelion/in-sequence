@@ -162,15 +162,6 @@ struct TrackSourceEditorView: View {
         return playhead.clipStepIndex(clipStepCount: clip.content.stepCount)
     }
 
-    private var fillPreviewPresentation: TrackFillPreviewHeaderPresentation {
-        TrackFillPreviewHeaderPresentation.resolve(
-            sourceMode: selectedSourceMode,
-            currentClip: currentClip,
-            selectedTrackID: track.id,
-            previewState: session.trackFillPreviewState
-        )
-    }
-
     private var orderedMacros: [TrackMacroBinding] {
         track.macros.sorted { $0.slotIndex < $1.slotIndex }
     }
@@ -267,7 +258,7 @@ struct TrackSourceEditorView: View {
             ) { descriptor in
                 assignMacro(descriptor, to: request.slotIndex)
             }
-            .presentationBackground(.ultraThinMaterial)
+            .presentationBackground(.clear)
         }
         .overlay(alignment: .bottomTrailing) {
             if let clipHistoryToast {
@@ -320,23 +311,14 @@ struct TrackSourceEditorView: View {
     }
 
     private var trackSourceHeader: some View {
-        HStack(alignment: .top, spacing: 10) {
-            TrackSourceSlotWellTabBar(
-                selectedTab: $selectedTab,
-                sourceState: sourceDisplayState,
-                modifierState: modifierDisplayState,
-                historyState: historyDisplayState,
-                accent: accent
-            )
-            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-
-            TrackFillPreviewHeaderControl(
-                presentation: fillPreviewPresentation,
-                accent: StudioTheme.amber,
-                toggle: toggleFillPreview
-            )
-            .frame(width: 250, alignment: .trailing)
-        }
+        TrackSourceSlotWellTabBar(
+            selectedTab: $selectedTab,
+            sourceState: sourceDisplayState,
+            modifierState: modifierDisplayState,
+            historyState: historyDisplayState,
+            accent: accent
+        )
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
         .padding(.trailing, 10)
         .padding(.bottom, 8)
         .background(Color.white.opacity(StudioOpacity.subtleFill))
@@ -376,17 +358,6 @@ struct TrackSourceEditorView: View {
             onRemoveSource: removeSource,
             onUpdateGeneratorParams: updateSourceGeneratorParams
         )
-    }
-
-    private func toggleFillPreview() {
-        guard fillPreviewPresentation.isEnabled else {
-            return
-        }
-        if fillPreviewPresentation.isActive {
-            session.disableTrackFillPreview(for: track.id)
-        } else {
-            session.enableSelectedTrackFillPreview()
-        }
     }
 
     private func updateSourcePickerStep(_ action: TrackSourceContainedSourcePickerNavigationAction) {
@@ -452,6 +423,7 @@ struct TrackSourceEditorView: View {
                 accent: StudioTheme.success,
                 sourceSummary: clipHistorySourceSummary,
                 isDestinationMode: clipHistoryDestinationMode,
+                isTransportRunning: engineController.isRunning,
                 onSaveClip: enterClipHistoryDestinationMode
             )
             .onAppear {
@@ -808,82 +780,6 @@ struct TrackSourceEditorView: View {
     }
 }
 
-private struct TrackFillPreviewHeaderControl: View {
-    let presentation: TrackFillPreviewHeaderPresentation
-    let accent: Color
-    let toggle: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button(action: toggle) {
-                HStack(spacing: 7) {
-                    Image(systemName: presentation.isActive ? "waveform.path.ecg.rectangle.fill" : "waveform.path.ecg.rectangle")
-                        .imageScale(.small)
-                    Text(presentation.buttonTitle)
-                        .studioText(.labelBold)
-                    Text(presentation.isActive ? "ON" : "OFF")
-                        .studioText(.microEmphasis)
-                        .padding(.vertical, 2)
-                        .padding(.horizontal, 6)
-                        .background(
-                            badgeFill,
-                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        )
-                }
-                .foregroundStyle(foreground)
-                .frame(maxWidth: .infinity, minHeight: 34)
-                .padding(.horizontal, 10)
-                .background(
-                    backgroundFill,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .stroke(border, lineWidth: presentation.isActive ? 1.5 : 1)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(!presentation.isEnabled)
-            .accessibilityLabel(presentation.accessibilityLabel)
-            .accessibilityValue(presentation.isActive ? "On" : "Off")
-
-            Text(presentation.statusText)
-                .studioText(.micro)
-                .foregroundStyle(presentation.isEnabled ? StudioTheme.mutedText : StudioTheme.amber)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var foreground: Color {
-        if !presentation.isEnabled {
-            return StudioTheme.mutedText.opacity(StudioOpacity.ghostStroke)
-        }
-        return presentation.isActive ? StudioTheme.text : StudioTheme.mutedText
-    }
-
-    private var backgroundFill: Color {
-        if !presentation.isEnabled {
-            return Color.white.opacity(StudioOpacity.subtleFill)
-        }
-        return presentation.isActive ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)
-    }
-
-    private var border: Color {
-        if !presentation.isEnabled {
-            return StudioTheme.border
-        }
-        return presentation.isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border
-    }
-
-    private var badgeFill: Color {
-        if !presentation.isEnabled {
-            return StudioTheme.border
-        }
-        return presentation.isActive ? accent.opacity(StudioOpacity.accentFill) : Color.white.opacity(StudioOpacity.borderSubtle)
-    }
-}
-
 @MainActor
 @Observable
 final class ClipHistoryTransferViewModel {
@@ -1205,65 +1101,3 @@ final class ClipHistoryTransferViewModel {
     }
 }
 
-private struct GeneratorSelectionSheet: View {
-    let title: String
-    let generators: [GeneratorPoolEntry]
-    let onSelect: (GeneratorPoolEntry) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            StudioPanel(title: title, eyebrow: "Choose a compatible generator for this slot.", accent: StudioTheme.cyan) {
-                VStack(alignment: .leading, spacing: 12) {
-                    if generators.isEmpty {
-                        Text("No compatible generators are available.")
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 10) {
-                                ForEach(generators) { generator in
-                                    Button {
-                                        onSelect(generator)
-                                        dismiss()
-                                    } label: {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(generator.name)
-                                                .studioText(.bodyBold)
-                                                .foregroundStyle(StudioTheme.text)
-                                            Text(generator.kind.label)
-                                                .studioText(.label)
-                                                .foregroundStyle(StudioTheme.mutedText)
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(12)
-                                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                                                .stroke(StudioTheme.border, lineWidth: 1)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                        .frame(maxHeight: 320)
-                    }
-
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .buttonStyle(.plain)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.mutedText)
-                }
-            }
-            .padding(24)
-            .frame(minWidth: 520, minHeight: 360)
-        }
-    }
-}

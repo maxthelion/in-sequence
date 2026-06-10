@@ -16,8 +16,13 @@ struct PresetBrowserSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
+        StudioModal(
+            title: "Presets",
+            subtitle: auDisplayName,
+            minWidth: 480,
+            minHeight: 520,
+            onClose: { dismiss() }
+        ) {
             searchField
 
             if viewModel.isReady {
@@ -30,9 +35,6 @@ struct PresetBrowserSheet: View {
                 errorToast(error)
             }
         }
-        .padding(20)
-        .frame(minWidth: 480, minHeight: 520)
-        .background(StudioTheme.background)
         .onAppear {
             viewModel.reloadAsync()
             startPolling()
@@ -50,27 +52,6 @@ struct PresetBrowserSheet: View {
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Presets")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(StudioTheme.text)
-
-                Text(auDisplayName)
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-
-            Spacer()
-
-            Button("Close") {
-                dismiss()
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
@@ -81,42 +62,60 @@ struct PresetBrowserSheet: View {
     }
 
     private var listBody: some View {
-        List {
-            Section("Factory") {
-                if viewModel.filteredFactory.isEmpty {
-                    Text(viewModel.factory.isEmpty ? "No factory presets" : "No matches")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                } else {
-                    ForEach(viewModel.filteredFactory) { descriptor in
-                        AUPresetRowView(
-                            descriptor: descriptor,
-                            isLoaded: viewModel.loadedID == descriptor.id
-                        ) {
-                            viewModel.load(descriptor)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                Section {
+                    if viewModel.filteredFactory.isEmpty {
+                        emptySectionText(viewModel.factory.isEmpty ? "No factory presets" : "No matches")
+                    } else {
+                        ForEach(viewModel.filteredFactory) { descriptor in
+                            AUPresetRowView(
+                                descriptor: descriptor,
+                                isLoaded: viewModel.loadedID == descriptor.id
+                            ) {
+                                viewModel.load(descriptor)
+                            }
                         }
                     }
+                } header: {
+                    sectionHeader("Factory")
                 }
-            }
 
-            Section("User") {
-                if viewModel.filteredUser.isEmpty {
-                    Text(viewModel.user.isEmpty ? "No user presets" : "No matches")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                } else {
-                    ForEach(viewModel.filteredUser) { descriptor in
-                        AUPresetRowView(
-                            descriptor: descriptor,
-                            isLoaded: viewModel.loadedID == descriptor.id
-                        ) {
-                            viewModel.load(descriptor)
+                Section {
+                    if viewModel.filteredUser.isEmpty {
+                        emptySectionText(viewModel.user.isEmpty ? "No user presets" : "No matches")
+                    } else {
+                        ForEach(viewModel.filteredUser) { descriptor in
+                            AUPresetRowView(
+                                descriptor: descriptor,
+                                isLoaded: viewModel.loadedID == descriptor.id
+                            ) {
+                                viewModel.load(descriptor)
+                            }
                         }
                     }
+                } header: {
+                    sectionHeader("User")
                 }
             }
         }
-        .listStyle(.inset)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .studioText(.eyebrow)
+            .tracking(0.8)
+            .foregroundStyle(StudioTheme.mutedText)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(StudioTheme.background)
+    }
+
+    private func emptySectionText(_ message: String) -> some View {
+        Text(message)
+            .studioText(.label)
+            .foregroundStyle(StudioTheme.mutedText)
+            .padding(.vertical, 8)
     }
 
     private var loadingPlaceholder: some View {

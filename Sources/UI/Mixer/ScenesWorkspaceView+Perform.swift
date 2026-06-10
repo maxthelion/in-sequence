@@ -192,11 +192,9 @@ extension ScenesWorkspaceView {
                             .foregroundStyle(StudioTheme.mutedText)
                     }
                     Spacer()
-                    Button("Cancel") {
+                    StudioModalCloseButton {
                         scenePerformSlotPickerRequest = nil
                     }
-                    .buttonStyle(.bordered)
-                    .tint(StudioTheme.amber)
                 }
 
                 ScrollView {

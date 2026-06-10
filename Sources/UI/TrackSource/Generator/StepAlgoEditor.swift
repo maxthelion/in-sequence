@@ -4,39 +4,70 @@ struct StepAlgoEditor: View {
     let stage: StepStage
     let onChange: (StepStage) -> Void
 
-    private var kind: StepAlgoKind { stage.algo.kind }
+    @State private var showsSecondaryParameters = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Picker(
-                "Trigger Type",
-                selection: Binding(
-                    get: { kind },
-                    set: { onChange(StepStage(algo: $0.defaultAlgo(current: stage.algo), basePitch: stage.basePitch)) }
-                )
-            ) {
-                ForEach(StepAlgoKind.allCases) { kind in
-                    Text(kind.title).tag(kind)
-                }
-            }
-            .pickerStyle(.segmented)
+        switch stage.algo {
+        case let .euclidean(pulses, steps, offset):
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 18) {
+                    StudioRotaryKnob(
+                        title: "Pulses",
+                        value: Double(pulses),
+                        range: 0...Double(steps),
+                        accent: StudioTheme.cyan,
+                        size: 56
+                    ) {
+                        onChange(StepStage(algo: .euclidean(pulses: Int($0.rounded()), steps: steps, offset: offset), basePitch: stage.basePitch))
+                    }
 
-            SourceParameterStepperRow(title: "Base Pitch", value: stage.basePitch, range: 0...127) {
-                onChange(StepStage(algo: stage.algo, basePitch: $0))
-            }
+                    if showsSecondaryParameters {
+                        StudioRotaryKnob(
+                            title: "Steps",
+                            value: Double(steps),
+                            range: 1...32,
+                            accent: StudioTheme.violet
+                        ) { newValue in
+                            let nextSteps = Int(newValue.rounded())
+                            onChange(StepStage(algo: .euclidean(pulses: min(pulses, nextSteps), steps: nextSteps, offset: offset), basePitch: stage.basePitch))
+                        }
 
-            switch stage.algo {
-            case let .euclidean(pulses, steps, offset):
-                VStack(alignment: .leading, spacing: 12) {
-                    SourceParameterStepperRow(title: "Pulses", value: pulses, range: 0...steps) {
-                        onChange(StepStage(algo: .euclidean(pulses: $0, steps: steps, offset: offset), basePitch: stage.basePitch))
+                        StudioRotaryKnob(
+                            title: "Offset",
+                            value: Double(offset),
+                            range: -32...32,
+                            accent: StudioTheme.violet
+                        ) {
+                            onChange(StepStage(algo: .euclidean(pulses: pulses, steps: steps, offset: Int($0.rounded())), basePitch: stage.basePitch))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Pitch",
+                            value: Double(stage.basePitch),
+                            range: 0...127,
+                            accent: StudioTheme.amber
+                        ) {
+                            onChange(StepStage(algo: stage.algo, basePitch: Int($0.rounded())))
+                        }
                     }
-                    SourceParameterStepperRow(title: "Steps", value: steps, range: 1...32) { nextSteps in
-                        onChange(StepStage(algo: .euclidean(pulses: min(pulses, nextSteps), steps: nextSteps, offset: offset), basePitch: stage.basePitch))
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            showsSecondaryParameters.toggle()
+                        }
+                    } label: {
+                        Image(systemName: showsSecondaryParameters ? "chevron.left.2" : "ellipsis")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .frame(width: 26, height: 26)
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                            .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
                     }
-                    SourceParameterStepperRow(title: "Offset", value: offset, range: -32...32) {
-                        onChange(StepStage(algo: .euclidean(pulses: pulses, steps: steps, offset: $0), basePitch: stage.basePitch))
-                    }
+                    .buttonStyle(.plain)
+                    .help(showsSecondaryParameters ? "Hide extra parameters" : "Show steps, offset, and pitch")
+                    .accessibilityLabel(showsSecondaryParameters ? "Hide extra parameters" : "Show extra parameters")
                 }
             }
         }

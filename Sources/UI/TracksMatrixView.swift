@@ -181,7 +181,18 @@ struct TracksMatrixView: View {
             }
         }
         .sheet(isPresented: $isPresentingCreateTrack) {
-            CreateTrackSheet(document: $document, onOpenTrack: onOpenTrack)
+            CreateTrackSheet(
+                document: $document,
+                onOpenTrack: onOpenTrack,
+                onPickSliceTrack: {
+                    isPresentingCreateTrack = false
+                    isPresentingAddSliceTrack = true
+                },
+                onPickDrumGroup: {
+                    isPresentingCreateTrack = false
+                    isPresentingAddDrumGroup = true
+                }
+            )
         }
         .sheet(isPresented: $isPresentingAddSliceTrack) {
             AddSliceTrackSheet(
@@ -238,73 +249,17 @@ struct TracksMatrixView: View {
     }
 
     private var actionBar: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                createTrackButtons
-                Spacer()
-                layerControl
-                basisPhrasePill
-                if isPerforming {
-                    performSelectionSummary
-                    if performLayerSelection.mode != .noteRepeat {
-                        performLatchModeControl
-                    }
-                }
-                performToggleButton
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    createTrackButtons
-                }
-                HStack(spacing: 10) {
-                    layerControl
-                    basisPhrasePill
-                    if isPerforming {
-                        performSelectionSummary
-                        if performLayerSelection.mode != .noteRepeat {
-                            performLatchModeControl
-                        }
-                    }
-                    performToggleButton
-                    Spacer()
+        HStack(spacing: 12) {
+            layerControl
+            basisPhrasePill
+            Spacer()
+            if isPerforming {
+                performSelectionSummary
+                if performLayerSelection.mode != .noteRepeat {
+                    performLatchModeControl
                 }
             }
-        }
-    }
-
-    private var createTrackButtons: some View {
-        Group {
-            Button("Add Mono") {
-                session.appendTrack(trackType: .monoMelodic)
-                onOpenTrack()
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.cyan)
-
-            Button("Add Poly") {
-                session.appendTrack(trackType: .polyMelodic)
-                onOpenTrack()
-            }
-            .buttonStyle(.bordered)
-
-            Button("Add Input") {
-                session.appendTrack(trackType: .audioInput)
-                onOpenTrack()
-            }
-            .buttonStyle(.bordered)
-            .disabled(!session.canAppendAudioInputTrack)
-            .help(session.canAppendAudioInputTrack ? "Add audio input track" : "One audio input track is available in this version")
-
-            Button("New Slice Track") {
-                isPresentingAddSliceTrack = true
-            }
-            .buttonStyle(.bordered)
-
-            Button("Add Drum Group") {
-                isPresentingAddDrumGroup = true
-            }
-            .buttonStyle(.bordered)
+            performToggleButton
         }
     }
 
@@ -598,19 +553,15 @@ struct TracksMatrixView: View {
                 .help("Return to track cards")
             }
 
-            LazyVGrid(columns: performLayerSelectionColumns, alignment: .leading, spacing: 12) {
-                ForEach(TrackPerformLayerMode.allCases) { mode in
-                    PerformanceLayerOptionCard(
-                        mode: mode,
-                        selectedMode: performLayerSelection.mode,
-                        selectedVariantLabel: performLayerSelection.variantLabel,
-                        onSelectPlain: {
-                            choosePerformLayer(mode, variantLabel: nil)
-                        },
-                        onSelectVariant: { variant in
-                            choosePerformLayer(mode, variantLabel: variant)
-                        }
-                    )
+            LazyVGrid(columns: performLayerSelectionColumns, alignment: .leading, spacing: 10) {
+                ForEach(PerformanceLayerOption.all) { option in
+                    PerformanceLayerOptionCell(
+                        option: option,
+                        isSelected: performLayerSelection.mode == option.mode
+                            && performLayerSelection.variantLabel == option.variantLabel
+                    ) {
+                        choosePerformLayer(option)
+                    }
                 }
             }
         }
@@ -624,10 +575,24 @@ struct TracksMatrixView: View {
     }
 
     private var performLayerSelectionColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 160, maximum: 260), spacing: 12), count: 4)
+        Array(repeating: GridItem(.flexible(minimum: 84, maximum: 190), spacing: 10), count: 8)
     }
 
-    private func choosePerformLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
+    private func choosePerformLayer(_ option: PerformanceLayerOption) {
+        let isAlreadySelected = performLayerSelection.mode == option.mode
+            && performLayerSelection.variantLabel == option.variantLabel
+        if isAlreadySelected, option.variantLabel != nil {
+            // Variant cells toggle: off returns to normal pattern playback.
+            performLayerSelection.select(.pattern, variantLabel: nil)
+        } else {
+            performLayerSelection.select(option.mode, variantLabel: option.variantLabel)
+        }
+        isPresentingPerformLayerSelection = false
+    }
+
+    /// Idempotent variant used by visual automation commands: always selects,
+    /// never toggles off.
+    private func setPerformLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
         performLayerSelection.select(mode, variantLabel: variantLabel)
         isPresentingPerformLayerSelection = false
     }
@@ -698,7 +663,38 @@ struct TracksMatrixView: View {
                     }
                 }
             }
+
+            if group == nil, !isPerforming {
+                addTrackCard
+            }
         }
+    }
+
+    private var addTrackCard: some View {
+        Button {
+            isPresentingCreateTrack = true
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(StudioTheme.success)
+                    .frame(width: 34, height: 34)
+                    .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: Circle())
+                Text("Add Track")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+            }
+            .frame(maxWidth: .infinity, minHeight: 132)
+            .padding(12)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(StudioTheme.success.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+            )
+        }
+        .buttonStyle(.plain)
+        .help("Add a track")
+        .accessibilityLabel("Add a track")
     }
 
     private func runtimeControlState(for trackID: UUID, control: TrackPerformBinaryControl) -> TrackPerformRuntimeControlState {
@@ -883,7 +879,7 @@ struct TracksMatrixView: View {
 
         if let rawMode = command.removingPrefix("select-layer:"),
            let mode = TrackPerformLayerMode(rawValue: rawMode) {
-            choosePerformLayer(mode, variantLabel: nil)
+            setPerformLayer(mode, variantLabel: nil)
             return
         }
 
@@ -892,13 +888,13 @@ struct TracksMatrixView: View {
             guard parts.count == 2,
                   let mode = TrackPerformLayerMode(rawValue: parts[0])
             else { return }
-            choosePerformLayer(mode, variantLabel: parts[1])
+            setPerformLayer(mode, variantLabel: parts[1])
             return
         }
 
         if let rawMode = command.removingPrefix("layer:"),
            let mode = TrackPerformLayerMode(rawValue: rawMode) {
-            choosePerformLayer(mode, variantLabel: nil)
+            setPerformLayer(mode, variantLabel: nil)
             return
         }
 
@@ -1045,8 +1041,6 @@ private struct TrackPerformPlaceholderLayerCard: View {
             return "Map selection is visible here; map authoring remains outside this perform slice."
         case .pan:
             return "Pan is selected for the matrix; live pan controls are not wired in this slice."
-        case .latch:
-            return "Latch is selected for the matrix; detailed latch targets are not wired in this slice."
         case .mute, .pattern, .fill, .noteRepeat, .volume:
             return "\(mode.label) is selected."
         }
@@ -1694,40 +1688,57 @@ private struct CreateTrackSheet: View {
     @Environment(SequencerDocumentSession.self) private var session
     @Binding var document: SeqAIDocument
     let onOpenTrack: () -> Void
+    let onPickSliceTrack: () -> Void
+    let onPickDrumGroup: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Create Track")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-
-            Text("Choose the kind of track to append to the matrix. You can rename and edit the destination in the Track workspace right after creation.")
-                .studioText(.subtitleMuted)
-                .foregroundStyle(StudioTheme.mutedText)
-
+        StudioModal(
+            title: "Create Track",
+            subtitle: "Choose the kind of track to append to the matrix.",
+            minWidth: 560,
+            onClose: { dismiss() }
+        ) {
             HStack(spacing: 12) {
-                createButton(title: "Mono", detail: "Single melodic lane", type: .monoMelodic, accent: StudioTheme.cyan)
-                createButton(title: "Poly", detail: "Chord-capable lane", type: .polyMelodic, accent: StudioTheme.amber)
-                createButton(title: "Slice", detail: "Sample/slice trigger lane", type: .slice, accent: StudioTheme.violet)
+                createButton(title: "Mono", detail: "Single melodic lane", accent: StudioTheme.cyan) {
+                    appendAndOpen(.monoMelodic)
+                }
+                createButton(title: "Poly", detail: "Chord-capable lane", accent: StudioTheme.amber) {
+                    appendAndOpen(.polyMelodic)
+                }
+                createButton(title: "Slice", detail: "Sample/slice trigger lane", accent: StudioTheme.violet) {
+                    onPickSliceTrack()
+                }
                 createButton(
                     title: "Input",
                     detail: session.canAppendAudioInputTrack ? "Audio input lane" : "Already in project",
-                    type: .audioInput,
-                    accent: StudioTheme.success
-                )
+                    accent: StudioTheme.success,
+                    isEnabled: session.canAppendAudioInputTrack,
+                    disabledHelp: "One audio input track is available in this version"
+                ) {
+                    appendAndOpen(.audioInput)
+                }
+                createButton(title: "Drum Group", detail: "Grouped drum part tracks", accent: StudioTheme.amber) {
+                    onPickDrumGroup()
+                }
             }
         }
-        .padding(24)
-        .frame(minWidth: 560)
-        .background(StudioTheme.chrome)
     }
 
-    private func createButton(title: String, detail: String, type: TrackType, accent: Color) -> some View {
-        Button {
-            session.appendTrack(trackType: type)
-            dismiss()
-            onOpenTrack()
-        } label: {
+    private func appendAndOpen(_ type: TrackType) {
+        session.appendTrack(trackType: type)
+        dismiss()
+        onOpenTrack()
+    }
+
+    private func createButton(
+        title: String,
+        detail: String,
+        accent: Color,
+        isEnabled: Bool = true,
+        disabledHelp: String = "",
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 Text(title)
                     .studioText(.title)
@@ -1746,8 +1757,8 @@ private struct CreateTrackSheet: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(type == .audioInput && !session.canAppendAudioInputTrack)
-        .help(type == .audioInput && !session.canAppendAudioInputTrack ? "One audio input track is available in this version" : "")
+        .disabled(!isEnabled)
+        .help(isEnabled ? "" : disabledHelp)
     }
 }
 

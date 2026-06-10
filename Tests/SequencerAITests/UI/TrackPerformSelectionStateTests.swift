@@ -62,7 +62,7 @@ final class TrackPerformSelectionStateTests: XCTestCase {
     }
 
     func test_performLayerModesExposeTrackLayerSelectorInventory() {
-        XCTAssertEqual(TrackPerformLayerMode.allCases, [.mute, .pattern, .fill, .noteRepeat, .stepOrder, .volume, .pan, .latch])
+        XCTAssertEqual(TrackPerformLayerMode.allCases, [.mute, .pattern, .fill, .noteRepeat, .stepOrder, .volume, .pan])
         XCTAssertEqual(TrackPerformLayerMode.mute.phraseLayerID, "mute")
         XCTAssertNil(TrackPerformLayerMode.mute.binaryControl)
         XCTAssertEqual(TrackPerformLayerMode.pattern.phraseLayerID, "pattern")
@@ -76,22 +76,31 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(TrackPerformLayerMode.volume.phraseLayerID, "volume")
         XCTAssertNil(TrackPerformLayerMode.volume.binaryControl)
         XCTAssertNil(TrackPerformLayerMode.pan.phraseLayerID)
-        XCTAssertNil(TrackPerformLayerMode.latch.phraseLayerID)
     }
 
     func test_performLayerModesExposeInlineVariantsOnFirstSelectionSurface() {
-        XCTAssertEqual(TrackPerformLayerMode.pattern.inlineVariantLabels, (1...16).map { "P\($0)" })
-        XCTAssertEqual(TrackPerformLayerMode.noteRepeat.inlineVariantLabels, ["Off", "1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"])
-        XCTAssertEqual(TrackPerformLayerMode.stepOrder.inlineVariantLabels, ["Off", "Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"])
+        XCTAssertTrue(TrackPerformLayerMode.pattern.inlineVariantLabels.isEmpty)
+        XCTAssertEqual(TrackPerformLayerMode.noteRepeat.inlineVariantLabels, ["1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"])
+        XCTAssertEqual(TrackPerformLayerMode.stepOrder.inlineVariantLabels, ["Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"])
         XCTAssertTrue(TrackPerformLayerMode.mute.inlineVariantLabels.isEmpty)
         XCTAssertTrue(TrackPerformLayerMode.volume.inlineVariantLabels.isEmpty)
+    }
+
+    func test_performanceLayerOptionsFlattenVariantsIntoFullCells() {
+        let options = PerformanceLayerOption.all
+        XCTAssertTrue(options.contains(PerformanceLayerOption(mode: .pattern, variantLabel: nil)))
+        XCTAssertTrue(options.contains(PerformanceLayerOption(mode: .noteRepeat, variantLabel: "1/16")))
+        XCTAssertTrue(options.contains(PerformanceLayerOption(mode: .stepOrder, variantLabel: "Break Fold")))
+        XCTAssertFalse(options.contains(PerformanceLayerOption(mode: .noteRepeat, variantLabel: nil)))
+        let plainModes = options.filter { $0.variantLabel == nil }.map(\.mode)
+        XCTAssertEqual(plainModes, [.mute, .pattern, .fill, .volume, .pan])
     }
 
     func test_performanceLayerSelectionStateKeepsOnlyValidInlineVariants() {
         var selection = PerformanceLayerSelectionState(mode: .pattern, variantLabel: "P4")
         XCTAssertEqual(selection.mode, .pattern)
-        XCTAssertEqual(selection.variantLabel, "P4")
-        XCTAssertEqual(selection.activeLabel, "Pattern - P4")
+        XCTAssertNil(selection.variantLabel)
+        XCTAssertEqual(selection.activeLabel, "Pattern")
 
         selection.select(.noteRepeat, variantLabel: "Roll")
         XCTAssertEqual(selection.mode, .noteRepeat)

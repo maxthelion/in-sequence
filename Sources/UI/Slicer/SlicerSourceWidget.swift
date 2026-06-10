@@ -96,7 +96,7 @@ struct SlicerSourceWidget: View {
                     library: library,
                     onCommit: commitEditedSliceSet
                 )
-                .presentationBackground(.ultraThinMaterial)
+                .presentationBackground(.clear)
             }
         }
     }

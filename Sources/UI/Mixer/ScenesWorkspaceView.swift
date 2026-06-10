@@ -99,7 +99,7 @@ struct ScenesWorkspaceView: View {
         }
         .sheet(item: $auMacroSlotPickerRequest) { request in
             sceneAUMacroSlotPickerSheet(request)
-                .presentationBackground(.ultraThinMaterial)
+                .presentationBackground(.clear)
         }
         .sheet(item: $sceneMacroTargetPickerRequest) { request in
             sceneMacroTargetPickerSheet(request)
@@ -113,24 +113,21 @@ struct ScenesWorkspaceView: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Scenes")
-                    .studioText(.display)
-                    .foregroundStyle(StudioTheme.text)
-                Text("\(masterBus.scenes.count) master bus scenes")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+            Text("Scenes")
+                .studioText(.display)
+                .foregroundStyle(StudioTheme.text)
 
             Spacer()
 
-            Picker("Mode", selection: $mode) {
-                ForEach(ScenesWorkspaceMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
+            Button {
+                mode = mode == .perform ? .browseEdit : .perform
+            } label: {
+                Label("Perform", systemImage: mode == .perform ? "record.circle.fill" : "record.circle")
+                    .studioText(.labelBold)
+                    .frame(minWidth: 96)
             }
-            .pickerStyle(.segmented)
-            .frame(width: 260)
+            .buttonStyle(.borderedProminent)
+            .tint(mode == .perform ? StudioTheme.amber : StudioTheme.cyan)
         }
     }
 
@@ -145,33 +142,13 @@ struct ScenesWorkspaceView: View {
 
     private var sceneBrowser: some View {
         StudioPanel(title: "Scene Library", accent: StudioTheme.amber) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
-                    Text("\(masterBus.scenes.count) scenes")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Spacer()
-                    addSceneButton
+            LazyVGrid(columns: sceneColumns, spacing: 12) {
+                ForEach(masterBus.scenes) { scene in
+                    sceneCard(scene)
                 }
-
-                LazyVGrid(columns: sceneColumns, spacing: 12) {
-                    ForEach(masterBus.scenes) { scene in
-                        sceneCard(scene)
-                    }
-                    addSceneCard
-                }
+                addSceneCard
             }
         }
-    }
-
-    private var addSceneButton: some View {
-        Button {
-            openNewScene()
-        } label: {
-            Label("Add Scene", systemImage: "plus")
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(StudioTheme.success)
     }
 
     private var addSceneCard: some View {
@@ -189,6 +166,7 @@ struct ScenesWorkspaceView: View {
                     .foregroundStyle(StudioTheme.text)
             }
             .frame(maxWidth: .infinity, minHeight: 132)
+            .padding(12)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -533,24 +511,14 @@ struct ScenesWorkspaceView: View {
 
     @ViewBuilder
     private func sceneMacroTargetPickerSheet(_ request: SceneMacroTargetPickerRequest) -> some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
+        StudioModal(
+            title: "M\(request.slotIndex + 1)",
+            minWidth: 420,
+            minHeight: 260,
+            onClose: { sceneMacroTargetPickerRequest = nil }
+        ) {
             if let scene = masterBus.scene(id: request.sceneID) {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Text("M\(request.slotIndex + 1)")
-                            .studioText(.title)
-                            .foregroundStyle(StudioTheme.text)
-                        Spacer()
-                        Button("Cancel") {
-                            sceneMacroTargetPickerRequest = nil
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(StudioTheme.cyan)
-                    }
-
                     let nativeTargets = macroTargets(for: scene)
                     if !nativeTargets.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
@@ -593,16 +561,12 @@ struct ScenesWorkspaceView: View {
                         StudioPlaceholderTile(title: "No Assignable Targets", detail: "Add an insert", accent: StudioTheme.cyan)
                     }
                 }
-                .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 StudioPlaceholderTile(title: "Scene Missing", detail: "Select another scene", accent: StudioTheme.cyan)
-                    .padding(20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
-        .frame(minWidth: 420, minHeight: 260)
-        .background(StudioTheme.stageFill)
     }
 
     private func assignSceneMacroTarget(

@@ -35,28 +35,24 @@ struct PhraseCellEditorSheet: View {
     }
 
     var body: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            Group {
-                if let phrase, let track, let layer {
-                    StudioPanel(
-                        title: "Cell Editor",
-                        eyebrow: "\(phrase.name) • \(track.name) • \(layer.name)",
-                        accent: accent
-                    ) {
-                        cellEditor(phrase: phrase, track: track, layer: layer)
-                    }
-                    .padding(24)
-                    .frame(minWidth: 680, minHeight: 420)
-                } else {
-                    Color.clear
-                        .frame(width: 1, height: 1)
-                        .onAppear {
-                            dismiss()
-                        }
+        Group {
+            if let phrase, let track, let layer {
+                StudioModal(
+                    title: "Cell Editor",
+                    subtitle: "\(phrase.name) • \(track.name) • \(layer.name)",
+                    accent: accent,
+                    minWidth: 680,
+                    minHeight: 420,
+                    onClose: { dismiss() }
+                ) {
+                    cellEditor(phrase: phrase, track: track, layer: layer)
                 }
+            } else {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .onAppear {
+                        dismiss()
+                    }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -73,7 +69,7 @@ struct PhraseCellEditorSheet: View {
 
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                ForEach(layer.availableModes, id: \.self) { mode in
+                ForEach(availableModes(phrase: phrase, track: track, layer: layer), id: \.self) { mode in
                     Button {
                         mutatePhrase(phraseID: phrase.id) { mutablePhrase in
                             mutablePhrase.setCellMode(mode, for: layer, trackID: track.id)
@@ -318,5 +314,26 @@ struct PhraseCellEditorSheet: View {
 
     private func mutatePhrase(phraseID: UUID, _ update: (inout PhraseModel) -> Void) {
         session.mutatePhrase(id: phraseID, update)
+    }
+
+    /// Inherit is only offered when this cell follows a phrase whose same
+    /// track/layer cell has an explicit value to inherit from.
+    private func availableModes(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) -> [PhraseCellEditMode] {
+        var modes = layer.availableModes
+        let phrases = session.store.phrases
+        let hasPredecessorValue: Bool = {
+            guard let index = phrases.firstIndex(where: { $0.id == phrase.id }), index > 0 else {
+                return false
+            }
+            return phrases[index - 1].cell(for: layer.id, trackID: track.id).editMode != .inheritDefault
+        }()
+        if !hasPredecessorValue {
+            modes.removeAll { $0 == .inheritDefault }
+        }
+        return modes
     }
 }

@@ -8,42 +8,20 @@ struct AddDestinationSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var selectionMode: SelectionMode = .choices
-    @State private var selectedAudioInstrument: AudioInstrumentChoice = .builtInSynth
 
     private var sanitizedAudioInstrumentChoices: [AudioInstrumentChoice] {
         AudioInstrumentChoice.deduplicated(audioInstrumentChoices)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(selectionMode == .choices ? "Add Destination" : "Choose AU Instrument")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(StudioTheme.text)
-
-                    Text(selectionMode == .choices
-                         ? "Pick one output path for this track."
-                         : "Select the Audio Unit to host for this track.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-
-                Spacer()
-
-                if selectionMode == .audioUnit {
-                    Button("Back") {
-                        selectionMode = .choices
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                Button("Cancel") {
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
-            }
-
+        StudioModal(
+            title: selectionMode == .choices ? "Add Destination" : "Choose AU Instrument",
+            subtitle: selectionMode == .choices
+                ? "Pick one output path for this track."
+                : "Select the Audio Unit to host for this track.",
+            minWidth: 440,
+            onClose: { dismiss() }
+        ) {
             if selectionMode == .choices {
                 VStack(alignment: .leading, spacing: 10) {
                     optionButton(
@@ -57,7 +35,6 @@ struct AddDestinationSheet: View {
                         title: "AU Instrument",
                         detail: "Host an Audio Unit instrument inside the app."
                     ) {
-                        selectedAudioInstrument = sanitizedAudioInstrumentChoices.first ?? .builtInSynth
                         selectionMode = .audioUnit
                     }
 
@@ -85,38 +62,21 @@ struct AddDestinationSheet: View {
                     }
                 }
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    Picker("Instrument", selection: $selectedAudioInstrument) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
                         ForEach(sanitizedAudioInstrumentChoices, id: \.id) { choice in
-                            Text(choice.displayName).tag(choice)
+                            optionButton(
+                                title: choice.displayName,
+                                detail: "Host this Audio Unit inside the app."
+                            ) {
+                                commit(.auInstrument(componentID: choice.audioComponentID, stateBlob: nil))
+                            }
                         }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-
-                    HStack {
-                        Text(selectedAudioInstrument.displayName)
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                        Spacer()
-                        Button("Use Instrument") {
-                            commit(.auInstrument(componentID: selectedAudioInstrument.audioComponentID, stateBlob: nil))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(StudioTheme.success)
                     }
                 }
-                .padding(16)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: 1)
-                )
+                .frame(maxHeight: 420)
             }
         }
-        .padding(24)
-        .frame(minWidth: 440)
-        .background(StudioTheme.stageFill)
     }
 
     private var defaultSampleDestination: Destination {

@@ -25,15 +25,14 @@ struct RouteEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Route Editor")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(StudioTheme.text)
-                Spacer()
-                Toggle("Enabled", isOn: $route.enabled)
-                    .toggleStyle(.switch)
-            }
+        StudioModal(
+            title: "Route Editor",
+            minWidth: 560,
+            minHeight: 520,
+            onClose: { dismiss() }
+        ) {
+            Toggle("Enabled", isOn: $route.enabled)
+                .toggleStyle(.switch)
 
             Form {
                 Section("Source") {
@@ -116,14 +115,10 @@ struct RouteEditorSheet: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
 
             HStack {
                 Spacer()
-                Button("Cancel") {
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
-
                 Button("Save") {
                     onSave(route)
                     dismiss()
@@ -132,9 +127,6 @@ struct RouteEditorSheet: View {
                 .tint(StudioTheme.cyan)
             }
         }
-        .padding(20)
-        .frame(minWidth: 560, minHeight: 520)
-        .background(StudioTheme.background)
     }
 
     private var sourceKindBinding: Binding<RouteSourceKind> {

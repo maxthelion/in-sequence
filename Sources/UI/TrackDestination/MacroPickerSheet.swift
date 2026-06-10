@@ -37,65 +37,42 @@ struct MacroPickerSheet: View {
     private let maxBindings = 8
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
-
-            Divider()
-
+        StudioModal(
+            title: "Macros",
+            subtitle: subtitleText,
+            minWidth: 420,
+            minHeight: 480,
+            onClose: { dismiss() }
+        ) {
             switch mode {
             case let .auPicker(params):
-                auPickerContent(params: params)
+                VStack(alignment: .leading, spacing: 0) {
+                    auPickerContent(params: params)
+
+                    HStack {
+                        Spacer()
+                        Button("Confirm") { commitSelection() }
+                            .buttonStyle(.borderedProminent)
+                            .tint(StudioTheme.success)
+                    }
+                    .padding(.top, 12)
+                }
             case let .builtinReadOnly(bindings):
                 builtinReadOnlyContent(bindings: bindings)
             }
         }
-        .frame(minWidth: 420, minHeight: 480)
         .task {
             // Pre-select currently-bound parameters.
             selectedAddresses = currentBindingAddresses
         }
     }
 
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Macros")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(StudioTheme.text)
-
-                switch mode {
-                case .auPicker:
-                    Text("\(selectedAddresses.count) of up to \(maxBindings) selected")
-                        .studioText(.body)
-                        .foregroundStyle(selectedAddresses.count >= maxBindings ? StudioTheme.amber : StudioTheme.mutedText)
-                case .builtinReadOnly:
-                    Text("Built-in macros for this device are pre-assigned and cannot be removed.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-            }
-
-            Spacer()
-
-            if case .builtinReadOnly = mode {
-                Button("Done") { dismiss() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(StudioTheme.success)
-            } else {
-                HStack(spacing: 10) {
-                    Button("Cancel") { dismiss() }
-                        .buttonStyle(.bordered)
-
-                    Button("Confirm") { commitSelection() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(StudioTheme.success)
-                }
-            }
+    private var subtitleText: String {
+        switch mode {
+        case .auPicker:
+            return "\(selectedAddresses.count) of up to \(maxBindings) selected"
+        case .builtinReadOnly:
+            return "Built-in macros for this device are pre-assigned and cannot be removed."
         }
     }
 
@@ -126,7 +103,6 @@ struct MacroPickerSheet: View {
                             Text("No parameters match \"\(searchText)\".")
                                 .studioText(.body)
                                 .foregroundStyle(StudioTheme.mutedText)
-                                .padding(.horizontal, 20)
                                 .padding(.vertical, 12)
                         } else {
                             ForEach(filteredRest, id: \.address) { param in
@@ -150,7 +126,6 @@ struct MacroPickerSheet: View {
         }
         .padding(8)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 20)
         .padding(.vertical, 10)
     }
 
@@ -159,7 +134,6 @@ struct MacroPickerSheet: View {
             .studioText(.eyebrow)
             .tracking(0.8)
             .foregroundStyle(StudioTheme.mutedText)
-            .padding(.horizontal, 20)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(StudioTheme.background)
@@ -204,7 +178,6 @@ struct MacroPickerSheet: View {
                 selectedAddresses.insert(param.address)
             }
         }
-        .padding(.horizontal, 20)
         .padding(.vertical, 8)
         .background(isSelected ? StudioTheme.success.opacity(0.06) : Color.clear)
     }
@@ -240,7 +213,6 @@ struct MacroPickerSheet: View {
 
             Spacer()
         }
-        .padding(.horizontal, 20)
         .padding(.vertical, 8)
     }
 

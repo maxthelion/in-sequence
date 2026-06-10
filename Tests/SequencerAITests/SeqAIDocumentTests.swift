@@ -15,6 +15,7 @@ final class ProjectTests: XCTestCase {
             "tension",
             "register",
             "variance",
+            "fx-send",
             "brightness",
             "fill-flag",
             "swing",
@@ -59,7 +60,7 @@ final class ProjectTests: XCTestCase {
         let newTrack = model.selectedTrack
 
         XCTAssertEqual(model.tracks.count, 2)
-        XCTAssertEqual(model.layers.count, 12)
+        XCTAssertEqual(model.layers.count, 13)
         XCTAssertEqual(model.selectedPhrase.cell(for: "pattern", trackID: newTrack.id), .inheritDefault)
         XCTAssertEqual(model.layers.first(where: { $0.id == "pattern" })?.defaultValue(for: newTrack.id), .index(0))
         XCTAssertEqual(model.layers.first(where: { $0.id == "volume" })?.defaultValue(for: newTrack.id), .scalar(newTrack.mix.level * 127))

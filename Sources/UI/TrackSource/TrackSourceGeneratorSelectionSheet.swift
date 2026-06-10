@@ -8,18 +8,20 @@ struct TrackSourceGeneratorSelectionSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            StudioPanel(title: title, eyebrow: "Choose a compatible generator for this slot.", accent: StudioTheme.cyan) {
-                VStack(alignment: .leading, spacing: 12) {
-                    if generators.isEmpty {
-                        Text("No compatible generators are available.")
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    } else {
-                        ScrollView {
+        StudioModal(
+            title: title,
+            subtitle: "Choose a compatible generator for this slot.",
+            minWidth: 520,
+            minHeight: 360,
+            onClose: { dismiss() }
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                if generators.isEmpty {
+                    Text("No compatible generators are available.")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                } else {
+                    ScrollView {
                             VStack(alignment: .leading, spacing: 10) {
                                 ForEach(generators) { generator in
                                     Button {
@@ -56,18 +58,8 @@ struct TrackSourceGeneratorSelectionSheet: View {
                             }
                         }
                         .frame(maxHeight: 320)
-                    }
-
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .buttonStyle(.plain)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.mutedText)
                 }
             }
-            .padding(24)
-            .frame(minWidth: 520, minHeight: 360)
         }
     }
 }

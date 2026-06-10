@@ -482,12 +482,9 @@ struct MixerWorkspaceView: View {
                         .studioText(.title)
                         .foregroundStyle(StudioTheme.text)
                     Spacer()
-                    Button("Done") {
+                    StudioModalCloseButton {
                         addSendFXRequest = nil
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(busID == .sendA ? StudioTheme.cyan : StudioTheme.violet)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {

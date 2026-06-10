@@ -220,9 +220,7 @@ struct ClipContentPreview: View {
         VStack(alignment: .leading, spacing: 12) {
             clipHeaderControls(lengthSteps: lengthSteps, steps: steps)
 
-            controlGroup(title: "Layer") {
-                editorLayerStrip
-            }
+            layerLineControl
 
             if let selectedMacroLayer {
                 let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
@@ -412,21 +410,15 @@ struct ClipContentPreview: View {
 
     private func clipHeaderControls(lengthSteps: Int, steps: [ClipStep]) -> some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("CLIP")
-                        .studioText(.bodyEmphasis)
-                        .tracking(1.1)
-                        .foregroundStyle(StudioTheme.text)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("CLIP")
+                    .studioText(.bodyEmphasis)
+                    .tracking(1.1)
+                    .foregroundStyle(StudioTheme.text)
 
-                    Rectangle()
-                        .fill(StudioTheme.violet)
-                        .frame(width: 36, height: 2)
-                }
-
-                Text("Pattern editor")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
+                Rectangle()
+                    .fill(StudioTheme.violet)
+                    .frame(width: 36, height: 2)
             }
 
             HStack(alignment: .top, spacing: 16) {
@@ -471,10 +463,10 @@ struct ClipContentPreview: View {
         steps: [ClipStep]
     ) -> some View {
         HStack(alignment: .bottom, spacing: 12) {
-            Text(summaryText(lengthSteps: lengthSteps, page: page, pageCount: pageCount, steps: steps))
-                .studioText(.body)
+            Text("\(noteCount(in: steps)) notes")
+                .studioText(.micro)
                 .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
+                .monospacedDigit()
 
             Spacer(minLength: 12)
 
@@ -500,109 +492,87 @@ struct ClipContentPreview: View {
         }
     }
 
-    @ViewBuilder
-    private var editorLayerStrip: some View {
-        LazyVGrid(columns: layerGridColumns, alignment: .leading, spacing: 8) {
-            ForEach(ClipEditorMode.allCases) { mode in
-                layerButton(
-                    eyebrow: selectedLane.title,
-                    title: mode.title,
-                    accent: selectedLane.accent,
-                    isSelected: selectedLayer == .mode(mode),
-                    isPlaceholder: false
-                ) {
-                    selectedLayer = .mode(mode)
-                }
+    /// Single-line layer selector: chevrons step through trigger/velocity/
+    /// chance and any assigned macro lanes without spending grid rows.
+    private var layerLineControl: some View {
+        HStack(spacing: 10) {
+            VStack(spacing: 2) {
+                layerCycleButton(systemName: "chevron.up", delta: -1)
+                layerCycleButton(systemName: "chevron.down", delta: 1)
             }
 
-            ForEach(0..<layerGridModePlaceholderCount, id: \.self) { _ in
-                Color.clear
-                    .frame(minHeight: 48)
-                    .accessibilityHidden(true)
-            }
-
-            ForEach(macroSlots.prefix(layerGridColumnCount)) { slot in
-                let tab = macroLayerTab(for: slot)
-                let isSelected = tab.map { selectedLayer == .macro(index: $0.macroIndex) } ?? false
-                layerButton(
-                    eyebrow: "M\(slot.slotIndex + 1)",
-                    title: slot.binding?.displayName ?? "Assign",
-                    accent: StudioTheme.cyan,
-                    isSelected: isSelected,
-                    isPlaceholder: slot.binding == nil,
-                    isEnabled: slot.binding != nil || onAssignMacroSlot != nil
-                ) {
-                    if let tab {
-                        selectedLayer = .macro(index: tab.macroIndex)
-                    } else {
-                        onAssignMacroSlot?(slot.slotIndex)
-                    }
-                }
-            }
-
-            ForEach(0..<macroLayerPlaceholderCount, id: \.self) { _ in
-                Color.clear
-                    .frame(minHeight: 48)
-                    .accessibilityHidden(true)
-            }
-        }
-    }
-
-    private var layerGridColumnCount: Int { 8 }
-
-    private var layerGridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 64), spacing: 8, alignment: .topLeading), count: layerGridColumnCount)
-    }
-
-    private var layerGridModePlaceholderCount: Int {
-        max(0, layerGridColumnCount - ClipEditorMode.allCases.count)
-    }
-
-    private var macroLayerPlaceholderCount: Int {
-        max(0, layerGridColumnCount - min(macroSlots.count, layerGridColumnCount))
-    }
-
-    private func layerButton(
-        eyebrow: String,
-        title: String,
-        accent: Color,
-        isSelected: Bool,
-        isPlaceholder: Bool,
-        isEnabled: Bool = true,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(eyebrow)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("LAYER")
                     .studioText(.eyebrow)
-                    .foregroundStyle(isPlaceholder ? StudioTheme.mutedText : StudioTheme.text)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
 
-                Text(title)
+                Text(currentLayerTitle)
                     .studioText(.labelBold)
-                    .foregroundStyle(isPlaceholder ? StudioTheme.mutedText : StudioTheme.text)
+                    .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(
-                        isPlaceholder
-                            ? StudioTheme.border.opacity(StudioOpacity.subtleStroke)
-                            : (isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke)),
-                        style: StrokeStyle(lineWidth: 1, dash: isPlaceholder ? [4, 3] : [])
-                    )
-            )
+
+            Spacer(minLength: 0)
+
+            if let firstUnassignedSlot = macroSlots.first(where: { $0.binding == nil }),
+               onAssignMacroSlot != nil {
+                Button {
+                    onAssignMacroSlot?(firstUnassignedSlot.slotIndex)
+                } label: {
+                    Label("Assign Macro", systemImage: "plus")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .buttonStyle(.plain)
+                .help("Assign macro M\(firstUnassignedSlot.slotIndex + 1)")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: 1)
+        )
+    }
+
+    private var orderedEditorLayers: [ClipEditorLayer] {
+        ClipEditorMode.allCases.map { ClipEditorLayer.mode($0) }
+            + macroLayerTabs.map { ClipEditorLayer.macro(index: $0.macroIndex) }
+    }
+
+    private var currentLayerTitle: String {
+        switch selectedLayer {
+        case let .mode(mode):
+            return mode.title
+        case let .macro(index):
+            let tab = macroLayerTabs.first { $0.macroIndex == index }
+            return tab.map { "M\($0.slotIndex + 1) · \($0.binding.displayName)" } ?? "Macro"
+        }
+    }
+
+    private func layerCycleButton(systemName: String, delta: Int) -> some View {
+        Button {
+            let layers = orderedEditorLayers
+            guard !layers.isEmpty else { return }
+            let currentIndex = layers.firstIndex(of: selectedLayer) ?? 0
+            selectedLayer = layers[(currentIndex + delta + layers.count) % layers.count]
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 8, weight: .black))
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 18, height: 13)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: 1)
+                )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.45)
+        .help(delta < 0 ? "Previous layer" : "Next layer")
+        .accessibilityLabel(delta < 0 ? "Previous layer" : "Next layer")
     }
 
     private var selectedMode: ClipEditorMode {
@@ -707,17 +677,6 @@ struct ClipContentPreview: View {
             return (0...divisionCount).map { index in
                 minValue + ((maxValue - minValue) * Double(index) / Double(divisionCount))
             }
-        }
-    }
-
-    private func controlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            content()
         }
     }
 
@@ -862,14 +821,6 @@ struct ClipContentPreview: View {
         }
     }
 
-    private func summaryText(lengthSteps: Int, page: Int, pageCount: Int, steps: [ClipStep]) -> String {
-        if let selectedMacroBinding {
-            return "\(selectedMacroBinding.displayName) macro lane • \(lengthSteps) steps. Tap a cell to set a per-step override, or long-press to clear it."
-        }
-        let laneLabel = selectedLane == .main ? "Normal lane" : "Fill lane"
-        let pageLabel = pageCount > 1 ? "Page \(page + 1) of \(pageCount)" : "Single page"
-        return "\(laneLabel) • \(selectedMode.title) view • \(pageLabel) • \(noteCount(in: steps)) notes across \(lengthSteps) steps."
-    }
 
     private func stepVisualState(for step: ClipStep, lane: ClipEditorLane) -> StepVisualState {
         lane.lane(in: step) == nil ? .off : lane.activeState

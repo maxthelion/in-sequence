@@ -83,7 +83,6 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
     case stepOrder
     case volume
     case pan
-    case latch
 
     var id: String { rawValue }
 
@@ -103,8 +102,6 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
             return "Volume"
         case .pan:
             return "Pan"
-        case .latch:
-            return "Latch"
         }
     }
 
@@ -124,8 +121,6 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
             return "track volume"
         case .pan:
             return "track pan"
-        case .latch:
-            return "hold overrides"
         }
     }
 
@@ -145,8 +140,6 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
             return "slider.horizontal.3"
         case .pan:
             return "dot.radiowaves.left.and.right"
-        case .latch:
-            return "lock.fill"
         }
     }
 
@@ -160,14 +153,14 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
             return "fill-flag"
         case .volume:
             return "volume"
-        case .noteRepeat, .stepOrder, .pan, .latch:
+        case .noteRepeat, .stepOrder, .pan:
             return nil
         }
     }
 
     var binaryControl: TrackPerformBinaryControl? {
         switch self {
-        case .mute, .pattern, .volume, .stepOrder, .pan, .latch:
+        case .mute, .pattern, .volume, .stepOrder, .pan:
             return nil
         case .fill:
             return .fill
@@ -178,19 +171,40 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
 
     var inlineVariantLabels: [String] {
         switch self {
-        case .pattern:
-            return (1...16).map { "P\($0)" }
         case .noteRepeat:
-            return ["Off", "1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"]
+            return ["1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"]
         case .stepOrder:
-            return ["Off", "Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"]
-        case .mute, .fill, .volume, .pan, .latch:
+            return ["Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"]
+        case .mute, .pattern, .fill, .volume, .pan:
             return []
         }
     }
 
     var hasInlineVariants: Bool {
         !inlineVariantLabels.isEmpty
+    }
+}
+
+/// One selectable cell in the performance layer matrix. Plain layers are one
+/// cell each; variant layers (note repeat, step order) contribute one cell per
+/// variant so every option is a full-size toggle.
+struct PerformanceLayerOption: Identifiable, Equatable {
+    let mode: TrackPerformLayerMode
+    let variantLabel: String?
+
+    var id: String { "\(mode.rawValue):\(variantLabel ?? "-")" }
+
+    var title: String {
+        variantLabel ?? mode.label
+    }
+
+    static var all: [PerformanceLayerOption] {
+        TrackPerformLayerMode.allCases.flatMap { mode -> [PerformanceLayerOption] in
+            if mode.hasInlineVariants {
+                return mode.inlineVariantLabels.map { PerformanceLayerOption(mode: mode, variantLabel: $0) }
+            }
+            return [PerformanceLayerOption(mode: mode, variantLabel: nil)]
+        }
     }
 }
 

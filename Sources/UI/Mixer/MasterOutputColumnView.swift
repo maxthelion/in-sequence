@@ -182,12 +182,9 @@ struct MasterOutputColumnView: View {
                         .studioText(.title)
                         .foregroundStyle(StudioTheme.text)
                     Spacer()
-                    Button("Done") {
+                    StudioModalCloseButton {
                         isAddFXPresented = false
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(StudioTheme.cyan)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {

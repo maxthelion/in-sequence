@@ -263,12 +263,9 @@ struct MixerBusStrip: View {
                         .studioText(.title)
                         .foregroundStyle(StudioTheme.text)
                     Spacer()
-                    Button("Done") {
+                    StudioModalCloseButton {
                         isAddFXPresented = false
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(accent)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {

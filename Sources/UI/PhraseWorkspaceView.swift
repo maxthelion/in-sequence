@@ -12,6 +12,7 @@ struct PhraseWorkspaceView: View {
     @State private var phraseControlsState = PhraseButtonControlsState()
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
+    @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
 
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
@@ -301,7 +302,7 @@ struct PhraseWorkspaceView: View {
         if command.hasPrefix("select-layer:") {
             let rawMode = String(command.dropFirst("select-layer:".count))
             if let mode = TrackPerformLayerMode(rawValue: rawMode) {
-                choosePerformanceLayer(mode, variantLabel: nil)
+                setPerformanceLayer(mode, variantLabel: nil)
             }
             return
         }
@@ -312,7 +313,7 @@ struct PhraseWorkspaceView: View {
             guard parts.count == 2,
                   let mode = TrackPerformLayerMode(rawValue: parts[0])
             else { return }
-            choosePerformanceLayer(mode, variantLabel: parts[1])
+            setPerformanceLayer(mode, variantLabel: parts[1])
             return
         }
 
@@ -391,6 +392,51 @@ struct PhraseWorkspaceView: View {
         if activeMatrixLayer?.valueType == .boolean {
             toggleBooleanCell(phraseID: phraseID, trackID: trackID)
         }
+    }
+
+    /// Vertical drag on a scalar cell edits its value in place, the same way
+    /// velocity bars edit on the step sequencer. Dragging an inherited cell
+    /// converts it to a single explicit value.
+    private func scalarDragGesture(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition?
+    ) -> some Gesture {
+        DragGesture(minimumDistance: 6)
+            .onChanged { drag in
+                guard let layer, layer.valueType == .scalar else {
+                    return
+                }
+                let span = layer.maxValue - layer.minValue
+                guard span > 0 else {
+                    return
+                }
+
+                if scalarDragBase?.phraseID != phrase.id || scalarDragBase?.trackID != track.id {
+                    let base: Double
+                    switch phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0) {
+                    case let .scalar(value):
+                        base = value
+                    case let .index(index):
+                        base = Double(index)
+                    case let .bool(isOn):
+                        base = isOn ? layer.maxValue : layer.minValue
+                    }
+                    scalarDragBase = (phrase.id, track.id, base)
+                }
+
+                guard let dragBase = scalarDragBase else {
+                    return
+                }
+                let next = dragBase.value + Double(-drag.translation.height) / 120 * span
+                let clamped = min(max(next, layer.minValue), layer.maxValue)
+                session.mutatePhrase(id: phrase.id) { mutablePhrase in
+                    mutablePhrase.setCell(.single(.scalar(clamped)), for: layer.id, trackID: track.id)
+                }
+            }
+            .onEnded { _ in
+                scalarDragBase = nil
+            }
     }
 
     private func openCellEditor(phraseID: UUID, trackID: UUID) {
@@ -554,6 +600,9 @@ struct PhraseWorkspaceView: View {
                                                     }
                                                 }
                                         )
+                                        .simultaneousGesture(
+                                            scalarDragGesture(phrase: phrase, track: track, layer: activeLayer)
+                                        )
                                     } else {
                                         PhraseGridEmptyCell()
                                     }
@@ -690,19 +739,15 @@ struct PhraseWorkspaceView: View {
                 .help("Return to phrase rows")
             }
 
-            LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 12) {
-                ForEach(TrackPerformLayerMode.allCases) { mode in
-                    PerformanceLayerOptionCard(
-                        mode: mode,
-                        selectedMode: performanceLayerSelection.mode,
-                        selectedVariantLabel: performanceLayerSelection.variantLabel,
-                        onSelectPlain: {
-                            choosePerformanceLayer(mode, variantLabel: nil)
-                        },
-                        onSelectVariant: { variant in
-                            choosePerformanceLayer(mode, variantLabel: variant)
-                        }
-                    )
+            LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 10) {
+                ForEach(PerformanceLayerOption.all) { option in
+                    PerformanceLayerOptionCell(
+                        option: option,
+                        isSelected: performanceLayerSelection.mode == option.mode
+                            && performanceLayerSelection.variantLabel == option.variantLabel
+                    ) {
+                        choosePerformanceLayer(option)
+                    }
                 }
             }
         }
@@ -716,12 +761,31 @@ struct PhraseWorkspaceView: View {
     }
 
     private var performanceLayerSelectionColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 160, maximum: 260), spacing: 12), count: 4)
+        Array(repeating: GridItem(.flexible(minimum: 84, maximum: 190), spacing: 10), count: 8)
     }
 
-    private func choosePerformanceLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
+    private func choosePerformanceLayer(_ option: PerformanceLayerOption) {
+        let isAlreadySelected = performanceLayerSelection.mode == option.mode
+            && performanceLayerSelection.variantLabel == option.variantLabel
+        if isAlreadySelected, option.variantLabel != nil {
+            // Variant cells toggle: off returns to normal pattern playback.
+            performanceLayerSelection.select(.pattern, variantLabel: nil)
+        } else {
+            performanceLayerSelection.select(option.mode, variantLabel: option.variantLabel)
+        }
+        if let layerID = performanceLayerSelection.mode.phraseLayerID,
+           matrixSelectableLayers.contains(where: { $0.id == layerID }) {
+            selectedLayerID = layerID
+        }
+        isPresentingPerformanceLayerSelection = false
+        postRenderedMatrixVisualState(isVisible: true)
+    }
+
+    /// Idempotent variant used by visual automation commands: always selects,
+    /// never toggles off.
+    private func setPerformanceLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
         performanceLayerSelection.select(mode, variantLabel: variantLabel)
-        if let layerID = mode.phraseLayerID,
+        if let layerID = performanceLayerSelection.mode.phraseLayerID,
            matrixSelectableLayers.contains(where: { $0.id == layerID }) {
             selectedLayerID = layerID
         }
@@ -1809,8 +1873,6 @@ private struct PhrasePerformancePlaceholderCell: View {
             return "Step map"
         case .pan:
             return "Pan target"
-        case .latch:
-            return "Latch target"
         case .mute, .pattern, .fill, .volume:
             return "\(phrase.name) / \(track.name)"
         }

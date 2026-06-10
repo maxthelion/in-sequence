@@ -5,13 +5,6 @@ struct TransportBar: View {
     @Environment(SequencerDocumentSession.self) private var session
     @State private var phrasePickerPresented = false
 
-    private var bpmBinding: Binding<Double> {
-        Binding(
-            get: { engineController.currentBPM },
-            set: { engineController.setBPM($0) }
-        )
-    }
-
     private var transportModeBinding: Binding<TransportMode> {
         Binding(
             get: { engineController.transportMode },
@@ -106,14 +99,19 @@ struct TransportBar: View {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            Slider(value: bpmBinding, in: 40...300)
-                .frame(width: 120)
-                .tint(StudioTheme.cyan)
+            HStack(spacing: 6) {
+                Text(String(format: "%.0f", engineController.currentBPM))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.text)
 
-            Text(String(format: "%.0f", engineController.currentBPM))
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
+                VStack(spacing: 2) {
+                    bpmStepButton(systemName: "plus", delta: 1)
+                    bpmStepButton(systemName: "minus", delta: -1)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("transport-bpm")
 
             TransportModePicker(selection: transportModeBinding)
 
@@ -152,6 +150,27 @@ struct TransportBar: View {
             Capsule()
                 .stroke(StudioTheme.border, lineWidth: 1)
         )
+    }
+
+    private func bpmStepButton(systemName: String, delta: Double) -> some View {
+        Button {
+            let next = (engineController.currentBPM + delta).rounded()
+            engineController.setBPM(min(300, max(40, next)))
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 8, weight: .black))
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 18, height: 13)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(delta > 0 ? "Increase BPM" : "Decrease BPM")
+        .accessibilityLabel(delta > 0 ? "Increase BPM" : "Decrease BPM")
     }
 
     private var phraseNavigationControl: some View {
@@ -203,8 +222,8 @@ struct TransportBar: View {
                     .layoutPriority(-1)
                 }
 
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .bold))
+                Image(systemName: "square.grid.3x3")
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .padding(.horizontal, 10)
@@ -224,61 +243,14 @@ struct TransportBar: View {
         .help(phrases.isEmpty ? "No phrases available" : phraseControlHelp)
         .accessibilityLabel(phraseControlHelp)
         .accessibilityIdentifier("transport-phrase-navigation")
-        .popover(isPresented: $phrasePickerPresented, arrowEdge: .bottom) {
-            phrasePicker
+        .sheet(isPresented: $phrasePickerPresented) {
+            PhraseLaunchGridSheet(onClose: { phrasePickerPresented = false })
         }
         .onReceive(NotificationCenter.default.publisher(for: .transportPhraseNavigationVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
             applyVisualPhraseNavigationCommand(command)
         }
         .layoutPriority(1)
-    }
-
-    private var phrasePicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Phrase Navigation")
-                        .studioText(.subtitle)
-                        .foregroundStyle(StudioTheme.text)
-                    Text(engineController.isRunning ? "Queue at the next cycle or switch now" : "Switch now or start playback before queueing")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-            }
-
-            VStack(spacing: 6) {
-                ForEach(phrases) { phrase in
-                    PhraseNavigationRow(
-                        phrase: phrase,
-                        isCurrent: engineController.isRunning && phrase.id == engineController.currentPhraseID,
-                        isQueued: phrase.id == engineController.queuedPhraseID,
-                        queueEnabled: engineController.isRunning && session.canSwitchBasisPhrase(to: phrase.id),
-                        nowEnabled: session.canSwitchBasisPhrase(to: phrase.id),
-                        onQueue: {
-                            if session.queuePhrase(phrase.id) {
-                                phrasePickerPresented = false
-                            }
-                        },
-                        onNow: {
-                            if session.switchPhraseNow(phrase.id) {
-                                phrasePickerPresented = false
-                            }
-                        }
-                    )
-                }
-            }
-        }
-        .padding(12)
-        .frame(width: 430)
-        .background(StudioTheme.stageFill)
-        .onExitCommand {
-            phrasePickerPresented = false
-        }
-        .accessibilityIdentifier("transport-phrase-picker")
     }
 
     private func phrase(for phraseID: UUID) -> PhraseModel? {
@@ -321,152 +293,6 @@ extension Notification.Name {
     static let transportPhraseNavigationVisualCommand = Notification.Name("SequencerAITransportPhraseNavigationVisualCommand")
 }
 
-private struct PhraseNavigationRow: View {
-    let phrase: PhraseModel
-    let isCurrent: Bool
-    let isQueued: Bool
-    let queueEnabled: Bool
-    let nowEnabled: Bool
-    let onQueue: () -> Void
-    let onNow: () -> Void
-
-    private var statusLabel: String {
-        switch (isCurrent, isQueued) {
-        case (true, true):
-            return "Current and queued"
-        case (true, false):
-            return "Current"
-        case (false, true):
-            return "Queued"
-        case (false, false):
-            return "Available"
-        }
-    }
-
-    private var queueHelp: String {
-        queueEnabled
-            ? "Queue \(phrase.name) for the next phrase cycle"
-            : "Queueing is available during playback"
-    }
-
-    private var nowHelp: String {
-        nowEnabled
-            ? "Switch to \(phrase.name) now"
-            : "Save Back or Revert pending perform edits before switching basis phrase"
-    }
-
-    var body: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(phrase.name)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .help(phrase.name)
-
-                HStack(spacing: 8) {
-                    statusBadge(label: statusLabel, systemName: statusSystemName)
-
-                    Text("\(phrase.lengthBars) bar\(phrase.lengthBars == 1 ? "" : "s")")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .monospacedDigit()
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button("Queue", action: onQueue)
-                .buttonStyle(PhraseActionButtonStyle(accent: StudioTheme.amber))
-                .disabled(!queueEnabled)
-                .help(queueHelp)
-                .accessibilityLabel("Queue \(phrase.name). \(queueHelp)")
-
-            Button("Now", action: onNow)
-                .buttonStyle(PhraseActionButtonStyle(accent: StudioTheme.cyan))
-                .disabled(!nowEnabled)
-                .help(nowHelp)
-                .accessibilityLabel("Switch to \(phrase.name) now. \(nowHelp)")
-        }
-        .padding(9)
-        .background(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .fill(rowFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(rowStroke, lineWidth: 1)
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("transport-phrase-row-\(phrase.id.uuidString)")
-    }
-
-    private var rowFill: Color {
-        if isCurrent {
-            return StudioTheme.cyan.opacity(StudioOpacity.subtleFill)
-        }
-        if isQueued {
-            return StudioTheme.amber.opacity(StudioOpacity.subtleFill)
-        }
-        return Color.white.opacity(0.02)
-    }
-
-    private var rowStroke: Color {
-        if isCurrent {
-            return StudioTheme.cyan.opacity(StudioOpacity.mediumStroke)
-        }
-        if isQueued {
-            return StudioTheme.amber.opacity(StudioOpacity.mediumStroke)
-        }
-        return StudioTheme.border
-    }
-
-    private var statusSystemName: String {
-        if isCurrent {
-            return "checkmark.circle.fill"
-        }
-        if isQueued {
-            return "clock.fill"
-        }
-        return "circle"
-    }
-
-    private func statusBadge(label: String, systemName: String) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: systemName)
-                .font(.system(size: 9, weight: .bold))
-            Text(label.uppercased())
-                .studioText(.microEmphasis)
-                .tracking(0.5)
-        }
-        .foregroundStyle(isCurrent ? StudioTheme.cyan : (isQueued ? StudioTheme.amber : StudioTheme.mutedText))
-        .lineLimit(1)
-        .accessibilityLabel(label)
-    }
-}
-
-private struct PhraseActionButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
-    let accent: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .studioText(.eyebrowBold)
-            .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .frame(minWidth: 58)
-            .background(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .fill(isEnabled ? accent.opacity(configuration.isPressed ? 0.26 : 0.14) : Color.white.opacity(0.018))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(isEnabled ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
-            )
-    }
-}
 
 private struct TransportModePicker: View {
     @Binding var selection: TransportMode
