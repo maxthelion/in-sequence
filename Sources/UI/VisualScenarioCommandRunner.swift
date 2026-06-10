@@ -698,6 +698,20 @@ enum VisualScenarioCommandRunner {
             ensurePhraseCount(phraseCount, session: session)
         }
 
+        // New documents only carry the pattern and mute layers; layer-variant
+        // captures need the full built-in set present before selecting one.
+        if command["phraseMatrixEnsureDefaultLayers"] == "true" {
+            session.batch(impact: .snapshotOnly, changed: .full) { store in
+                var project = store.exportToProject()
+                let existingLayerIDs = Set(project.layers.map(\.id))
+                let missing = PhraseLayerDefinition.defaultSet(for: project.tracks)
+                    .filter { !existingLayerIDs.contains($0.id) }
+                guard !missing.isEmpty else { return }
+                project.layers.append(contentsOf: missing)
+                store.importFromProject(project)
+            }
+        }
+
         var posts: [String] = []
 
         if let rawPageIndex = command["phraseMatrixPageIndex"],

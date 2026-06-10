@@ -46,7 +46,7 @@ CAPTURES=$(cat <<'TABLE'
 06-scenes-perform|workspace=scenes,scenesMode=perform|scenesMode=perform;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
 08-phrase-mute-layer|workspace=phrase,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerID=mute;transport=stop
-09-phrase-transpose-layer|workspace=phrase,phraseMatrixSelectedLayerID=transpose|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerID=transpose;transport=stop
+09-phrase-transpose-layer|workspace=phrase,phraseMatrixSelectedLayerID=transpose|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixEnsureDefaultLayers=true;phraseMatrixLayerID=transpose;transport=stop
 10-phrase-controls-open|workspace=phrase,phraseControlsOpenIndex=0|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseControlsOpenIndex=0;transport=stop
 11-phrase-perform-overlay|workspace=tracks,tracksMode=perform|tracksMode=perform;trackPerformTrackCount=6;phrasePerformOverlay=dirtyOneCell;transport=stop
 12-phrase-layer-selector-open|workspace=phrase,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phrasePerformLayerSelector=open;transport=stop
@@ -69,9 +69,9 @@ CAPTURES=$(cat <<'TABLE'
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
 30-drum-kit-matrix-32|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=32;transport=stop
 31-drum-kit-routing|workspace=track,drumGroupRoutingEditorRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=openRouting;drumGroupRoutingEditorState=channel;transport=stop
-32-step-order-unassigned|workspace=phrase,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;transport=stop
-33-step-order-assigned-on|workspace=phrase,stepOrderFixtureState=assignedOn|stepOrderFixture=assignedOn;transport=stop
-34-note-repeat-active|workspace=tracks,selectedNoteRepeatActive=true|tracksMode=perform;trackPerformTrackCount=4;trackPerformLayer=noteRepeat;noteRepeatEnsureSecondClipTrack=true;noteRepeatSelectedTrackIndex=0;noteRepeatSource=clip;noteRepeatInterval=repeat16;noteRepeatAction=press;transport=stop
+32-step-order-unassigned|workspace=phrase,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;phrasePerformLayer=stepOrder;transport=stop
+33-step-order-assigned-on|workspace=phrase,stepOrderFixtureState=assignedOn|stepOrderFixture=assignedOn;phrasePerformLayer=stepOrder;transport=stop
+34-note-repeat-active|workspace=tracks,selectedNoteRepeatActive=true|tracksMode=perform;trackPerformTrackCount=4;trackPerformLayer=noteRepeat;noteRepeatEnsureSecondClipTrack=true;noteRepeatSelectedTrackIndex=0;noteRepeatSource=clip;noteRepeatInterval=1/8;noteRepeatAction=press;transport=play
 TABLE
 )
 
