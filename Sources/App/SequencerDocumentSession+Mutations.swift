@@ -1381,8 +1381,21 @@ extension SequencerDocumentSession {
     }
 
     @discardableResult
-    func armAudioInputTrack(trackID: UUID) -> Bool {
-        engineController.armAudioInput(trackID: trackID)
+    func armAudioInputTrack(
+        trackID: UUID,
+        quantize: EngineController.AudioInputRecordQuantize = .bar
+    ) -> Bool {
+        engineController.armAudioInput(trackID: trackID, quantize: quantize)
+    }
+
+    @discardableResult
+    func setTrackRecordBarLength(_ bars: Int, trackID: UUID) -> Bool {
+        let normalized = StepSequenceTrack.normalizedRecordBarLength(bars)
+        let changed = mutateTrack(id: trackID) { track in
+            track.recordBarLength = normalized
+        }
+        let accepted = engineController.setAudioInputRecordBarLength(trackID: trackID, bars: normalized)
+        return changed || accepted
     }
 
     @discardableResult

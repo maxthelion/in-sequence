@@ -563,6 +563,12 @@ final class EngineController: RouterDispatcher {
         return result
     }
 
+    /// Called after the user grants microphone access so route states and
+    /// graph connections reflect the now-usable input device.
+    func microphoneAccessChanged() {
+        refreshAudioInputRouteStates()
+    }
+
     /// Recompute every audio-input runtime's route state against the current
     /// device's channel count, then resync graph routing.
     private func refreshAudioInputRouteStates() {
@@ -596,8 +602,17 @@ final class EngineController: RouterDispatcher {
         return withStateLock { Set(trackRuntime.audioInputRuntimes.keys) }
     }
 
+    enum AudioInputRecordQuantize: String, CaseIterable, Equatable, Sendable {
+        case bar
+        case phrase
+    }
+
     @discardableResult
-    func armAudioInput(trackID: UUID, pendingStartTick: UInt64? = nil) -> Bool {
+    func armAudioInput(
+        trackID: UUID,
+        quantize: AudioInputRecordQuantize = .bar,
+        pendingStartTick: UInt64? = nil
+    ) -> Bool {
         let selectedInputChannel = withStateLock { trackRuntime.audioInputRuntimes[trackID]?.selectedInputChannel }
         guard let selectedInputChannel,
               audioInputRouteState(for: selectedInputChannel) == .available
@@ -606,7 +621,14 @@ final class EngineController: RouterDispatcher {
             return false
         }
 
-        let scheduledStartTick = pendingStartTick ?? nextAudioInputBarBoundary(after: transportTickIndex)
+        let scheduledStartTick = pendingStartTick ?? {
+            switch quantize {
+            case .bar:
+                return nextAudioInputBarBoundary(after: transportTickIndex)
+            case .phrase:
+                return nextAudioInputPhraseBoundary(after: transportTickIndex)
+            }
+        }()
         let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.armState = .armed
             runtime.pendingStartTick = scheduledStartTick
@@ -2664,6 +2686,42 @@ final class EngineController: RouterDispatcher {
 
     private func isAudioInputBarBoundary(_ tickIndex: UInt64) -> Bool {
         tickIndex % UInt64(stepsPerBar) == 0
+    }
+
+    /// Next phrase-cycle boundary for quantized record starts. Uses the live
+    /// phrase navigation state (cycle start tick + current phrase length);
+    /// falls back to the next bar when no phrase is playing. A queued phrase
+    /// switch after arming can move the actual boundary — v1 records at the
+    /// boundary scheduled at arm time.
+    private func nextAudioInputPhraseBoundary(after tickIndex: UInt64) -> UInt64 {
+        let (cycleStart, phraseID): (UInt64, UUID?) = {
+            phraseNavigationLock.lock()
+            defer { phraseNavigationLock.unlock() }
+            return (phraseNavigationState.phraseCycleStartTick, phraseNavigationState.currentPhraseID)
+        }()
+
+        let snapshot = tickState.currentPlaybackSnapshot()
+        guard let phraseID,
+              let buffer = snapshot.phraseBuffer(for: phraseID),
+              buffer.stepCount > 0
+        else {
+            return nextAudioInputBarBoundary(after: tickIndex)
+        }
+
+        let phraseLength = UInt64(buffer.stepCount)
+        let sinceCycleStart = tickIndex >= cycleStart ? tickIndex &- cycleStart : 0
+        let intoPhrase = sinceCycleStart % phraseLength
+        let ticksUntilBoundary = intoPhrase == 0 ? phraseLength : phraseLength - intoPhrase
+        return tickIndex &+ ticksUntilBoundary
+    }
+
+    /// Push the document's record length into the live runtime so the next
+    /// arm uses it without waiting for a full document apply.
+    @discardableResult
+    func setAudioInputRecordBarLength(trackID: UUID, bars: Int) -> Bool {
+        updateAudioInputRuntime(trackID: trackID) { runtime in
+            runtime.recordBarLength = StepSequenceTrack.normalizedRecordBarLength(bars)
+        }
     }
 
     private func nextAudioInputBarBoundary(after tickIndex: UInt64) -> UInt64 {

@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 struct TrackWorkspaceView: View {
@@ -437,16 +438,23 @@ private struct AudioInputRuntimePanel: View {
     let runtime: EngineController.AudioInputTrackRuntime?
     let accent: Color
 
+    @State private var recordQuantize: EngineController.AudioInputRecordQuantize = .bar
+    @State private var micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
+
     private var monitorMode: EngineController.AudioInputMonitorMode {
         runtime?.monitorMode ?? .input
     }
 
     private var canArmInput: Bool {
-        runtime?.routeState == .available
+        runtime?.routeState == .available && micAccess != .denied && micAccess != .restricted
     }
 
     private var availableChannels: Int {
         engineController.audioInputAvailableChannels
+    }
+
+    private var recordBars: Int {
+        runtime?.recordBarLength ?? track.recordBarLength
     }
 
     private var isArmedOrRecording: Bool {
@@ -456,23 +464,33 @@ private struct AudioInputRuntimePanel: View {
     private var armButtonTitle: String {
         switch runtime?.armState ?? .idle {
         case .armed:
-            return "Armed — Cancel"
+            return "Armed — next \(recordQuantize == .bar ? "bar" : "phrase")"
         case .recording:
             return "Recording — Cancel"
         case .idle, .hasLoop:
-            return "ARM"
+            return "ARM \(recordBars) bar\(recordBars == 1 ? "" : "s")"
         }
+    }
+
+    private var armHelp: String {
+        if micAccess == .denied || micAccess == .restricted {
+            return "Microphone access is denied in System Settings"
+        }
+        guard canArmInput || isArmedOrRecording else {
+            return "Pick an input the interface provides to enable arming"
+        }
+        return "Records \(recordBars) bar\(recordBars == 1 ? "" : "s") starting at the next \(recordQuantize == .bar ? "bar" : "phrase")"
     }
 
     var body: some View {
         StudioPanel(title: "Audio Input", accent: accent) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
+                HStack(alignment: .bottom, spacing: 12) {
                     Button {
                         if isArmedOrRecording {
                             session.cancelAudioInputArm(trackID: track.id)
                         } else {
-                            session.armAudioInputTrack(trackID: track.id)
+                            session.armAudioInputTrack(trackID: track.id, quantize: recordQuantize)
                         }
                     } label: {
                         Label(armButtonTitle, systemImage: isArmedOrRecording ? "stop.circle.fill" : "record.circle")
@@ -482,16 +500,32 @@ private struct AudioInputRuntimePanel: View {
                     .buttonStyle(.borderedProminent)
                     .tint(isArmedOrRecording ? StudioTheme.amber : accent)
                     .disabled(!canArmInput && !isArmedOrRecording)
-                    .help(canArmInput || isArmedOrRecording ? "Records at the next bar" : "Pick an input the interface provides to enable arming")
+                    .help(armHelp)
 
-                    if !canArmInput, !isArmedOrRecording {
-                        Text(availableChannels == 0 ? "NO INPUTS ON INTERFACE" : "INPUT NEEDS \(channelRequirementLabel)")
-                            .studioText(.microEmphasis)
-                            .tracking(0.6)
-                            .foregroundStyle(StudioTheme.amber)
-                    }
+                    statusLabel
 
                     Spacer(minLength: 12)
+
+                    StudioSegmentedControl(
+                        title: "Length",
+                        selection: recordBarsBinding,
+                        segments: StepSequenceTrack.allowedRecordBarLengths.sorted().map {
+                            StudioSegment(title: "\($0)", value: $0)
+                        },
+                        accent: accent
+                    )
+                    .frame(width: 150)
+
+                    StudioSegmentedControl(
+                        title: "Start",
+                        selection: $recordQuantize,
+                        segments: [
+                            StudioSegment(title: "Bar", value: .bar),
+                            StudioSegment(title: "Phrase", value: .phrase),
+                        ],
+                        accent: accent
+                    )
+                    .frame(width: 140)
 
                     StudioSegmentedControl(
                         title: "Monitor",
@@ -502,7 +536,7 @@ private struct AudioInputRuntimePanel: View {
                         ],
                         accent: StudioTheme.amber
                     )
-                    .frame(width: 170)
+                    .frame(width: 140)
 
                     StudioSegmentedControl(
                         title: "Input",
@@ -516,18 +550,62 @@ private struct AudioInputRuntimePanel: View {
                         },
                         accent: StudioTheme.cyan
                     )
-                    .frame(width: 220)
+                    .frame(width: 200)
                 }
                 .disabled(runtime == nil)
 
                 AudioInputSignalPanel(runtime: runtime, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
             }
         }
+        .task {
+            await requestMicrophoneAccessIfNeeded()
+        }
+    }
+
+    @ViewBuilder
+    private var statusLabel: some View {
+        if micAccess == .denied || micAccess == .restricted {
+            HStack(spacing: 8) {
+                Text("MIC ACCESS DENIED")
+                    .studioText(.microEmphasis)
+                    .tracking(0.6)
+                    .foregroundStyle(StudioTheme.amber)
+                Button("Open Settings") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(.link)
+                .studioText(.micro)
+            }
+        } else if !canArmInput, !isArmedOrRecording {
+            Text(availableChannels == 0 ? "NO INPUTS ON INTERFACE" : "INPUT NEEDS \(channelRequirementLabel)")
+                .studioText(.microEmphasis)
+                .tracking(0.6)
+                .foregroundStyle(StudioTheme.amber)
+        }
+    }
+
+    private func requestMicrophoneAccessIfNeeded() async {
+        micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
+        guard micAccess == .notDetermined else { return }
+        let granted = await AVCaptureDevice.requestAccess(for: .audio)
+        micAccess = granted ? .authorized : .denied
+        if granted {
+            engineController.microphoneAccessChanged()
+        }
     }
 
     private var channelRequirementLabel: String {
         let selected = runtime?.selectedInputChannel ?? track.inputChannel
         return selected.requiredChannelCount == 1 ? "1 CHANNEL" : "2 CHANNELS"
+    }
+
+    private var recordBarsBinding: Binding<Int> {
+        Binding(
+            get: { recordBars },
+            set: { session.setTrackRecordBarLength($0, trackID: track.id) }
+        )
     }
 
     private var monitorBinding: Binding<EngineController.AudioInputMonitorMode> {

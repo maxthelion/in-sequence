@@ -2128,6 +2128,34 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(createdSinks[0].selectedInstrument, .testInstrument)
     }
 
+    /// Arming with phrase quantize schedules the record start at the next
+    /// phrase-cycle boundary; bar quantize keeps the next-bar behavior.
+    func test_armAudioInput_quantizesToBarOrPhrase() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        if let phraseIndex = project.phrases.firstIndex(where: { $0.id == project.selectedPhraseID }) {
+            project.phrases[phraseIndex].lengthBars = 2
+        }
+        controller.apply(documentModel: project)
+        for tick in 0...5 {
+            controller.processTick(tickIndex: UInt64(tick), now: TimeInterval(tick) * 0.1)
+        }
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, quantize: .bar))
+        let barArm = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(barArm.pendingStartTick, 16)
+
+        _ = controller.cancelAudioInputArm(trackID: trackID)
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, quantize: .phrase))
+        let phraseArm = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(phraseArm.pendingStartTick, 32)
+    }
+
     /// Switching the audio device must recompute audio-input route states:
     /// picking an interface with enough input channels should unlock arming
     /// without any other interaction (regression: route state stayed frozen
