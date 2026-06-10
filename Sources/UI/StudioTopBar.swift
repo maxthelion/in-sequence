@@ -50,7 +50,7 @@ struct StudioTopBar: View {
                 Spacer()
             }
         }
-        .padding(StudioMetrics.Spacing.section)
+        .padding(20)
         .background(StudioTheme.chrome.opacity(0.92), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chrome, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chrome, style: .continuous)
