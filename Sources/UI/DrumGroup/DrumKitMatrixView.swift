@@ -369,10 +369,10 @@ struct DrumKitMatrixView: View {
 
     @ViewBuilder
     private func matrixContent(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit Matrix", eyebrow: "Rows follow TrackGroup.memberIDs order.", accent: accent) {
+        StudioPanel(title: "Kit Matrix", accent: accent) {
             VStack(alignment: .leading, spacing: 12) {
                 if model.hasPatternMismatch {
-                    mismatchBanner
+                    mismatchBadge
                 }
 
                 if model.staleMemberCount > 0 {
@@ -388,22 +388,25 @@ struct DrumKitMatrixView: View {
         }
     }
 
-    private var mismatchBanner: some View {
-        HStack(spacing: 8) {
+    private var mismatchBadge: some View {
+        HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(StudioTheme.amber)
-            Text("Pattern mismatch: parts are showing different active pattern slots.")
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(2)
-            Spacer()
+            Text("PATTERN MISMATCH")
+                .studioText(.microEmphasis)
+                .tracking(0.6)
+                .foregroundStyle(StudioTheme.amber)
         }
-        .padding(StudioMetrics.Spacing.compact)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+            Capsule()
                 .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
         )
+        .help("Pattern mismatch: parts are showing different active pattern slots.")
+        .accessibilityLabel("Pattern mismatch: parts are showing different active pattern slots.")
     }
 
     private func staleMemberBanner(count: Int) -> some View {
@@ -437,19 +440,24 @@ struct DrumKitMatrixView: View {
         VStack(alignment: .leading, spacing: 7) {
             matrixHeaderRow
 
-            ForEach(rows) { row in
-                Button {
-                    onSelectPart(row.memberID)
-                } label: {
-                    DrumKitMatrixRowView(
-                        row: row,
-                        displayStepCount: displayStepCount,
-                        accent: accent
-                    )
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(rows) { row in
+                        Button {
+                            onSelectPart(row.memberID)
+                        } label: {
+                            DrumKitMatrixRowView(
+                                row: row,
+                                displayStepCount: displayStepCount,
+                                accent: accent
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .help("Open \(row.partName)")
+                    }
                 }
-                .buttonStyle(.plain)
-                .help("Open \(row.partName)")
             }
+            .scrollIndicators(.never)
         }
     }
 
@@ -601,6 +609,20 @@ private struct DrumKitMatrixStepCell: View {
     }
 }
 
+/// Human-readable destination label for routing editor surfaces. Sample
+/// destinations resolve to the library sample name when available instead of
+/// the raw hex ID; unresolved samples fall back to a short 4-char ID.
+private func drumRoutingDestinationLabel(_ destination: Destination) -> String {
+    if case let .sample(sampleID, settings) = destination {
+        let gainLabel = settings.gain == 0 ? "" : String(format: " • %+.1f dB", settings.gain)
+        if let sample = AudioSampleLibrary.shared.sample(id: sampleID) {
+            return "\(sample.name)\(gainLabel)"
+        }
+        return "Sample \(sampleID.uuidString.prefix(4))\(gainLabel)"
+    }
+    return destination.summary
+}
+
 private struct DrumGroupRoutingEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft: DrumGroupRoutingEditorDraft
@@ -623,41 +645,17 @@ private struct DrumGroupRoutingEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Edit Routing")
-                        .studioText(.display)
-                        .foregroundStyle(StudioTheme.text)
-                    Text(draft.groupName)
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-
-                Spacer()
-
-                Button {
-                    draft.cancel()
-                    onCancel()
-                    dismiss()
-                } label: {
-                    Text("Cancel")
-                        .studioText(.labelBold)
-                }
-                .buttonStyle(DrumGroupRoutingEditorButtonStyle())
-
-                Button {
-                    guard let projectDraft = draft.projectDraft() else { return }
-                    onApply(projectDraft)
-                    dismiss()
-                } label: {
-                    Text("Apply")
-                        .studioText(.labelBold)
-                }
-                .buttonStyle(DrumGroupRoutingEditorButtonStyle(accent: StudioTheme.success, isProminent: true))
-                .disabled(!draft.canApply)
+        StudioModal(
+            title: "Edit Routing",
+            subtitle: draft.groupName,
+            minWidth: 620,
+            minHeight: 520,
+            onClose: {
+                draft.cancel()
+                onCancel()
+                dismiss()
             }
-
+        ) {
             destinationSection
 
             DrumGroupRoutingModeControl(selection: $draft.triggerMappingMode)
@@ -671,11 +669,24 @@ private struct DrumGroupRoutingEditorSheet: View {
                     }
                 }
             }
+            .scrollIndicators(.never)
             .frame(maxHeight: 360)
+
+            HStack {
+                Spacer()
+
+                Button {
+                    guard let projectDraft = draft.projectDraft() else { return }
+                    onApply(projectDraft)
+                    dismiss()
+                } label: {
+                    Text("Apply")
+                        .studioText(.labelBold)
+                }
+                .buttonStyle(DrumGroupRoutingEditorButtonStyle(accent: StudioTheme.success, isProminent: true))
+                .disabled(!draft.canApply)
+            }
         }
-        .padding(StudioMetrics.Spacing.page)
-        .frame(minWidth: 620, minHeight: 520)
-        .background(StudioTheme.stageFill)
         .sheet(isPresented: $isPresentingDestinationPicker) {
             AddDestinationSheet(
                 trackHasGroup: false,
@@ -728,7 +739,7 @@ private struct DrumGroupRoutingEditorSheet: View {
                     }
                 }
 
-                Text(draft.sharedDestination?.summary ?? "No shared destination")
+                Text(draft.sharedDestination.map(drumRoutingDestinationLabel) ?? "No shared destination")
                     .studioText(.body)
                     .foregroundStyle(storedForGroupedModesOnly ? StudioTheme.mutedText : StudioTheme.text)
                     .lineLimit(2)
@@ -1035,7 +1046,7 @@ private struct DrumGroupRoutingEditorRow: View {
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
 
-                Text(row.inheritsGroupDestination ? "Inherits group" : (row.ownDestination?.summary ?? "Own destination required"))
+                Text(row.inheritsGroupDestination ? "Inherits group" : (row.ownDestination.map(drumRoutingDestinationLabel) ?? "Own destination required"))
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
                     .lineLimit(1)

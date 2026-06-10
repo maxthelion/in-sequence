@@ -98,12 +98,17 @@ struct TransportBar: View {
                 .studioText(.eyebrow)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+                .fixedSize()
+                .layoutPriority(2)
 
             HStack(spacing: 6) {
                 Text(String(format: "%.0f", engineController.currentBPM))
                     .studioText(.heading)
                     .monospacedDigit()
                     .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .fixedSize()
 
                 StudioStepperButtons(
                     upHelp: "Increase BPM",
@@ -114,8 +119,10 @@ struct TransportBar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("transport-bpm")
+            .layoutPriority(2)
 
             TransportModePicker(selection: transportModeBinding)
+                .layoutPriority(2)
 
             phraseNavigationControl
 
@@ -127,6 +134,9 @@ struct TransportBar: View {
                 .studioText(.metricValue)
                 .monospacedDigit()
                 .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .fixedSize()
+                .layoutPriority(2)
 
             Circle()
                 .fill(noteActivityIsHot ? StudioTheme.amber : StudioTheme.mutedText.opacity(0.35))
@@ -142,6 +152,8 @@ struct TransportBar: View {
                 .foregroundStyle(StudioTheme.mutedText)
                 .studioText(.label)
                 .lineLimit(1)
+                .truncationMode(.tail)
+                .layoutPriority(-1)
 
             Spacer()
         }
@@ -292,6 +304,8 @@ private struct TransportModePicker: View {
                     Text(mode.label)
                         .studioText(.eyebrow)
                         .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .fixedSize()
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(

@@ -419,10 +419,18 @@ struct TracksMatrixView: View {
             .disabled(!canSavePhrasePerformOverlay)
             .help(canSavePhrasePerformOverlay ? "Save staged perform edits back to the basis phrase" : "Basis phrase is no longer available")
 
-            Button("Revert") {
+            Button {
                 session.revertPhrasePerformOverlay()
+            } label: {
+                Text("Revert")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: 1))
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .help("Discard staged perform edits")
         }
         .padding(.horizontal, 12)
@@ -973,8 +981,8 @@ private struct TrackPerformPlaceholderLayerCard: View {
     let accent: Color
 
     private var title: String {
-        let suffix = variantLabel.map { " - \($0)" } ?? ""
-        return "\(mode.label)\(suffix)"
+        let suffix = variantLabel.map { " \($0)" } ?? ""
+        return "\(mode.compactLabel)\(suffix)"
     }
 
     var body: some View {
@@ -991,7 +999,7 @@ private struct TrackPerformPlaceholderLayerCard: View {
                         .tracking(0.8)
                         .foregroundStyle(accent)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                        .minimumScaleFactor(0.7)
 
                     Text("SELECTED LAYER")
                         .studioText(.micro)
@@ -1145,8 +1153,8 @@ private struct TrackMatrixCard: View {
         guard let activePerformLayer else {
             return layer.name
         }
-        let suffix = activePerformVariantLabel.map { " - \($0)" } ?? ""
-        return "\(activePerformLayer.label)\(suffix)"
+        let suffix = activePerformVariantLabel.map { " \($0)" } ?? ""
+        return "\(activePerformLayer.compactLabel)\(suffix)"
     }
 
     var body: some View {
@@ -1220,12 +1228,6 @@ private struct TrackMatrixCard: View {
                     .padding(.vertical, 6)
                     .background(accent.opacity(StudioOpacity.faintStroke), in: Capsule())
                     .lineLimit(1)
-            } else {
-                Text(track.defaultDestination.summary)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
             }
 
             activeLayerContent
@@ -1280,24 +1282,27 @@ private struct TrackMatrixCard: View {
                         .tracking(0.8)
                         .foregroundStyle(layerAccentColor)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .minimumScaleFactor(0.7)
 
                     Text(cell.editMode.label.uppercased())
                         .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.7)
 
                     Spacer(minLength: 0)
 
                     if isPerforming {
                         Text(isPerformSelected ? "LINKED" : "LIVE")
-                            .studioText(.micro)
-                            .tracking(0.8)
+                            .font(.system(size: 8, weight: .bold))
+                            .tracking(0.6)
                             .foregroundStyle(isPerformSelected ? StudioTheme.amber : layerAccentColor)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
                             .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                 }
 
@@ -1416,12 +1421,12 @@ private struct TrackPerformRuntimeLayerControl: View {
                     .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(mode.label.uppercased())
+                    Text(mode.compactLabel)
                         .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(accent)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .minimumScaleFactor(0.7)
 
                     Text(stateLabel)
                         .studioText(.title)
@@ -1476,16 +1481,18 @@ private struct TrackPerformRuntimeLayerControl: View {
     }
 
     private func intervalPicker(_ storedInterval: NoteRepeatInterval) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             ForEach(NoteRepeatInterval.allCases, id: \.rawValue) { interval in
                 Button {
                     onChangeInterval(interval)
                 } label: {
                     Text(interval.rawValue)
                         .studioText(.microEmphasis)
-                        .tracking(0.8)
+                        .tracking(0.4)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .foregroundStyle(interval == storedInterval ? StudioTheme.text : StudioTheme.mutedText)
-                        .frame(maxWidth: .infinity, minHeight: 26)
+                        .frame(maxWidth: .infinity, minHeight: 28)
                         .background(
                             interval == storedInterval
                                 ? accent.opacity(StudioOpacity.selectedFill)
@@ -1600,6 +1607,28 @@ private struct TrackPerformRuntimeLayerControl: View {
 
         isTrackingMomentaryPress = false
         onRelease()
+    }
+}
+
+private extension TrackPerformLayerMode {
+    /// Single-word label that fits the ~112pt matrix cards without truncation.
+    var compactLabel: String {
+        switch self {
+        case .mute:
+            return "MUTE"
+        case .pattern:
+            return "PATTERN"
+        case .fill:
+            return "FILL"
+        case .noteRepeat:
+            return "REPEAT"
+        case .stepOrder:
+            return "ORDER"
+        case .volume:
+            return "VOL"
+        case .pan:
+            return "PAN"
+        }
     }
 }
 

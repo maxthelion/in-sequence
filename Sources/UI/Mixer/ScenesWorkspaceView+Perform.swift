@@ -72,10 +72,10 @@ extension ScenesWorkspaceView {
                     Text(title.uppercased())
                         .studioText(.micro)
                         .tracking(0.8)
-                        .foregroundStyle(isDominant ? Color.white.opacity(0.72) : StudioTheme.amber)
+                        .foregroundStyle(isDominant ? StudioTheme.amber : StudioTheme.mutedText)
                     Text(scene.name)
                         .studioText(.title)
-                        .foregroundStyle(isDominant ? Color.white : StudioTheme.text)
+                        .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
                 }
                 Spacer()
@@ -88,16 +88,16 @@ extension ScenesWorkspaceView {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 9, weight: .bold))
                     }
-                    .foregroundStyle(isDominant ? Color.white.opacity(0.72) : StudioTheme.mutedText)
+                    .foregroundStyle(StudioTheme.mutedText)
                     .padding(.horizontal, 9)
                     .frame(height: 26)
                     .background(
-                        Color.white.opacity(isDominant ? StudioOpacity.borderSubtle : StudioOpacity.subtleFill),
+                        Color.white.opacity(StudioOpacity.subtleFill),
                         in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(isDominant ? Color.white.opacity(0.16) : StudioTheme.border, lineWidth: 1)
+                            .stroke(StudioTheme.border, lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -106,8 +106,12 @@ extension ScenesWorkspaceView {
             .padding(StudioMetrics.Spacing.comfortable)
             .contentShape(Rectangle())
             .background(
-                isDominant ? StudioTheme.background : Color.white.opacity(StudioOpacity.subtleFill),
+                isDominant ? StudioTheme.amber.opacity(StudioOpacity.faintStroke) : Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(isDominant ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
             )
             .onTapGesture {
                 engineController.setLiveMasterCrossfader(isA ? 0 : 1)

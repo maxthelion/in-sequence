@@ -487,7 +487,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private var matrix: some View {
-        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+        ScrollView([.horizontal, .vertical]) {
             VStack(alignment: .leading, spacing: gridSpacing) {
                 let activeLayer = activeMatrixLayer
                 let accent = activeLayerAccent
@@ -667,6 +667,7 @@ struct PhraseWorkspaceView: View {
             }
             .padding(.vertical, 2)
         }
+        .scrollIndicators(.never)
         .frame(minHeight: 280)
     }
 
