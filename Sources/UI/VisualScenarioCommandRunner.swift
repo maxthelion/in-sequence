@@ -52,6 +52,16 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixDisplayStepCount = 16
     private static var isObservingRenderedMatrixState = false
 
+    /// True when a command file is configured — i.e. the app is being driven
+    /// by the deterministic capture harness. UI must not trigger system
+    /// permission dialogs in this mode.
+    static var isConfigured: Bool {
+        let configuredPath = ProcessInfo.processInfo.environment[commandFileEnvironmentKey]
+            ?? UserDefaults.standard.string(forKey: commandFileDefaultsKey)
+        guard let rawPath = configuredPath else { return false }
+        return !rawPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     static func runIfConfigured(
         section: Binding<WorkspaceSection>,
         tracksMode: Binding<TracksWorkspaceMode>,

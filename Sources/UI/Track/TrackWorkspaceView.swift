@@ -588,6 +588,8 @@ private struct AudioInputRuntimePanel: View {
     private func requestMicrophoneAccessIfNeeded() async {
         micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
         guard micAccess == .notDetermined else { return }
+        // The capture harness must never trigger a system permission dialog.
+        guard !VisualScenarioCommandRunner.isConfigured else { return }
         let granted = await AVCaptureDevice.requestAccess(for: .audio)
         micAccess = granted ? .authorized : .denied
         if granted {
