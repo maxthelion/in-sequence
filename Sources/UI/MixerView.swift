@@ -66,7 +66,7 @@ struct MixerView<TrailingContent: View>: View {
                 }
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal, showsIndicators: true) {
                 HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
                     ForEach(tracks, id: \.id) { track in
                         MixerChannelStrip(
@@ -272,176 +272,145 @@ private struct MixerChannelStrip: View {
     let onRoute: (UUID?) -> Void
 
     @StateObject private var levelControl = ThrottledMixValue()
-    @StateObject private var panControl = ThrottledMixValue()
     @State private var activeSendEditor: SendSlot?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(track.name)
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                    Text(destinationLabel)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                if isSelected {
-                    Text("Selected")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(StudioTheme.cyan.opacity(StudioOpacity.softFill), in: Capsule())
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .bottom, spacing: 12) {
-                    VStack(alignment: .center, spacing: 8) {
-                        VerticalLevelFader(
-                            level: displayedLevel,
-                            isMuted: track.mix.isMuted,
-                            onBegin: { beginLevelDrag() },
-                            onChange: { updateLevel($0) },
-                            onEnd: { commitLevel() }
-                        )
-                        .frame(width: 36, height: 150)
-
-                        Text("\(Int((displayedLevel * 100).rounded()))%")
-                            .studioText(.eyebrow)
-                            .monospacedDigit()
-                            .foregroundStyle(StudioTheme.text)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Pan")
-                            .studioText(.eyebrow)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-
-                        HStack(spacing: 8) {
-                            Slider(
-                                value: Binding(
-                                    get: { displayedPan },
-                                    set: { updatePan($0) }
-                                ),
-                                in: -1...1,
-                                onEditingChanged: handlePanEditingChanged
-                            )
-                            .tint(StudioTheme.violet)
-                            .frame(width: 88)
-
-                            Text(panLabel)
-                                .studioText(.eyebrow)
-                                .monospacedDigit()
-                                .foregroundStyle(StudioTheme.text)
-                                .frame(width: 28, alignment: .trailing)
-                        }
-                    }
-                    .padding(.bottom, 4)
-                }
-
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Sends")
-                            .studioText(.eyebrow)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-                        Spacer()
-                        if let activeSendEditor {
-                            Text("\(track.name) \(activeSendEditor.title) \(sendPercent(activeSendEditor))")
-                                .studioText(.micro)
-                                .monospacedDigit()
-                                .foregroundStyle(activeSendEditor.accent)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                        } else {
-                            Text("Post fader")
-                                .studioText(.micro)
-                                .foregroundStyle(StudioTheme.mutedText)
-                        }
-                    }
-
-                    HStack(spacing: 10) {
-                        ForEach(SendSlot.allCases, id: \.self) { slot in
-                            SendAmountControl(
-                                slot: slot.rawValue,
-                                title: slot.title,
-                                trackName: track.name,
-                                value: sendValue(slot),
-                                accent: slot.accent,
-                                isEditing: Binding(
-                                    get: { activeSendEditor == slot },
-                                    set: { isPresented in
-                                        activeSendEditor = isPresented ? slot : nil
-                                    }
-                                ),
-                                onChange: { setSend(slot, value: $0) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            HStack(spacing: 8) {
-                MixerStripActionButton(
-                    title: track.mix.isMuted ? "Unmute" : "Mute",
-                    accent: StudioTheme.amber,
-                    isActive: track.mix.isMuted
-                ) {
-                    onToggleMute()
-                }
-
-                MixerStripActionButton(
-                    title: track.mix.isSoloed ? "Unsolo" : "Solo",
-                    accent: StudioTheme.amber,
-                    isActive: track.mix.isSoloed
-                ) {
-                    onToggleSolo()
-                }
-
-                MixerStripActionButton(
-                    title: "Edit",
-                    systemName: "slider.horizontal.3",
-                    accent: StudioTheme.cyan,
-                    minWidth: 46,
-                    action: onSelect
-                )
-            }
-
-            trackOutputSelector
-
-            Rectangle()
-                .fill(StudioTheme.border)
-                .frame(height: 1)
-
+        StudioMixerStrip(
+            accent: StudioTheme.cyan,
+            isHighlighted: isSelected,
+            dimsContent: isEffectivelyMuted && !track.mix.isMuted
+        ) {
             VStack(alignment: .leading, spacing: 4) {
-                Label("\(track.activeStepCount) active steps", systemImage: "square.grid.2x2")
-                    .studioText(.label)
+                Text(track.name)
+                    .studioText(.title)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Text(destinationLabel)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
-                Label("\(track.pitches.count) pitches", systemImage: "music.note")
-                    .studioText(.label)
+                    .lineLimit(1)
+            }
+        } processing: {
+            sendsSection
+        } levels: {
+            levelsSection
+        } actions: {
+            actionsRow
+        } footer: {
+            trackOutputSelector
+        }
+    }
+
+    private var sendsSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Sends")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
+                Spacer()
+                if let activeSendEditor {
+                    Text("\(activeSendEditor.rawValue) \(sendPercent(activeSendEditor))")
+                        .studioText(.micro)
+                        .monospacedDigit()
+                        .foregroundStyle(activeSendEditor.accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            }
+
+            HStack(spacing: 10) {
+                ForEach(SendSlot.allCases, id: \.self) { slot in
+                    SendAmountControl(
+                        slot: slot.rawValue,
+                        title: slot.title,
+                        trackName: track.name,
+                        value: sendValue(slot),
+                        accent: slot.accent,
+                        isEditing: Binding(
+                            get: { activeSendEditor == slot },
+                            set: { isPresented in
+                                activeSendEditor = isPresented ? slot : nil
+                            }
+                        ),
+                        onChange: { setSend(slot, value: $0) }
+                    )
+                }
             }
         }
-        .padding(StudioMetrics.Spacing.roomy)
-        .frame(width: 200, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel)
-                .fill(StudioTheme.panelFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel)
-                .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
-        )
-        .opacity(isEffectivelyMuted && !track.mix.isMuted ? 0.58 : 1)
+    }
+
+    private var levelsSection: some View {
+        HStack(alignment: .bottom, spacing: 12) {
+            VStack(alignment: .center, spacing: 8) {
+                VerticalLevelFader(
+                    level: displayedLevel,
+                    isMuted: track.mix.isMuted,
+                    onBegin: { beginLevelDrag() },
+                    onChange: { updateLevel($0) },
+                    onEnd: { commitLevel() }
+                )
+                .frame(
+                    width: StudioMixerStripMetrics.faderSize.width,
+                    height: StudioMixerStripMetrics.faderSize.height
+                )
+
+                Text(StudioLevelFormat.dBLabel(forLinear: displayedLevel))
+                    .studioText(.eyebrow)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.text)
+            }
+
+            StudioRotaryKnob(
+                title: "Pan",
+                value: displayedPan,
+                range: -1...1,
+                accent: StudioTheme.violet,
+                size: 40,
+                format: { Self.panLabel(for: $0) },
+                onChange: { setPan($0) }
+            )
+            .padding(.bottom, 4)
+        }
+    }
+
+    private var actionsRow: some View {
+        HStack(spacing: 6) {
+            MixerStripActionButton(
+                title: "",
+                systemName: track.mix.isMuted ? "speaker.slash.fill" : "speaker.slash",
+                accent: StudioTheme.amber,
+                isActive: track.mix.isMuted,
+                minWidth: 20
+            ) {
+                onToggleMute()
+            }
+            .help(track.mix.isMuted ? "Unmute" : "Mute")
+            .accessibilityLabel("\(track.name) mute")
+
+            MixerStripActionButton(
+                title: "",
+                systemName: "headphones",
+                accent: StudioTheme.amber,
+                isActive: track.mix.isSoloed,
+                minWidth: 20
+            ) {
+                onToggleSolo()
+            }
+            .help(track.mix.isSoloed ? "Unsolo" : "Solo")
+            .accessibilityLabel("\(track.name) solo")
+
+            MixerStripActionButton(
+                title: "",
+                systemName: "slider.horizontal.3",
+                accent: StudioTheme.cyan,
+                minWidth: 20,
+                action: onSelect
+            )
+            .help("Edit track")
+            .accessibilityLabel("\(track.name) edit")
+        }
     }
 
     private var trackOutputSelector: some View {
@@ -455,24 +424,21 @@ private struct MixerChannelStrip: View {
                 }
             }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "arrow.triangle.branch")
                     .font(.system(size: 11, weight: .semibold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Output")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Text(isRoutingApplying ? "Applying..." : outputTitle)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                }
-                Spacer()
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text(isRoutingApplying ? "Applying..." : outputTitle)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(StudioTheme.mutedText)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
@@ -481,6 +447,7 @@ private struct MixerChannelStrip: View {
         }
         .buttonStyle(.plain)
         .disabled(isRoutingApplying)
+        .help("Output routing")
         .accessibilityLabel("\(track.name) output")
         .accessibilityValue(isRoutingApplying ? "Applying" : outputTitle)
     }
@@ -504,11 +471,10 @@ private struct MixerChannelStrip: View {
     }
 
     private var displayedPan: Double {
-        panControl.rendered(committed: track.mix.clampedPan)
+        track.mix.clampedPan
     }
 
-    private var panLabel: String {
-        let value = displayedPan
+    static func panLabel(for value: Double) -> String {
         if value < -0.05 {
             return "L\(Int(abs(value) * 100))"
         }
@@ -532,7 +498,6 @@ private struct MixerChannelStrip: View {
         guard levelControl.update(clamped) else { return }
         var liveMix = track.mix
         liveMix.level = clamped
-        liveMix.pan = displayedPan
         onSetMix(liveMix)
     }
 
@@ -541,31 +506,13 @@ private struct MixerChannelStrip: View {
         _ = levelControl.commit()
     }
 
-    private func handlePanEditingChanged(_ isEditing: Bool) {
-        if isEditing {
-            if !panControl.isDragging {
-                panControl.begin(with: track.mix.clampedPan)
-            }
-        } else {
-            commitPan()
-        }
-    }
-
-    private func updatePan(_ pan: Double) {
+    private func setPan(_ pan: Double) {
+        // The rotary knob commits once on drag end, so no throttled drag
+        // session is needed — write the new pan straight into the mix.
         let clamped = min(max(pan, -1), 1)
-        if !panControl.isDragging {
-            panControl.begin(with: track.mix.clampedPan)
-        }
-        guard panControl.update(clamped) else { return }
         var liveMix = track.mix
-        liveMix.level = displayedLevel
         liveMix.pan = clamped
         onSetMix(liveMix)
-    }
-
-    private func commitPan() {
-        // commit() resets drag state; the final value was already written via updatePan.
-        _ = panControl.commit()
     }
 }
 
@@ -668,6 +615,7 @@ struct MixerInsertChainView: View {
     let inserts: [MasterBusInsert]
     let accent: Color
     let emptySlotCount: Int
+    var maxAddAffordances: Int = .max
     let addLabel: String
     let addAction: () -> Void
     let updateInsert: (UUID, (inout MasterBusInsert) -> Void) -> Void
@@ -683,8 +631,12 @@ struct MixerInsertChainView: View {
                 .frame(maxHeight: 138)
             } else {
                 insertRows
-                ForEach(0..<emptySlotCount, id: \.self) { _ in
-                    emptyInsertSlot
+                ForEach(0..<emptySlotCount, id: \.self) { index in
+                    if index < maxAddAffordances {
+                        emptyInsertSlot
+                    } else {
+                        inertEmptySlot
+                    }
                 }
             }
         }
@@ -764,6 +716,17 @@ struct MixerInsertChainView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
         )
+    }
+
+    private var inertEmptySlot: some View {
+        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+            .fill(Color.white.opacity(0.015))
+            .frame(maxWidth: .infinity, minHeight: 32)
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            )
+            .accessibilityHidden(true)
     }
 
     private func insertEnabledBinding(_ insert: MasterBusInsert) -> Binding<Bool> {

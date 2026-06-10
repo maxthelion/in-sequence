@@ -41,36 +41,28 @@ struct MixerWorkspaceView: View {
 
     private func masterAwareMixer(presentation: MasterOutputColumnPresentation) -> some View {
         ZStack(alignment: .trailing) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
-                    MixerView(document: $document, onEditTrack: onSelectTrack) {
-                        sendReturnStrips
-                    }
-                        .frame(
-                            maxWidth: .infinity,
-                            minHeight: MixerWorkspaceLayout.primaryMixerLaneHeight,
-                            alignment: .topLeading
-                        )
+            HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
+                MixerView(document: $document, onEditTrack: onSelectTrack) {
+                    sendReturnStrips
+                }
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: MixerWorkspaceLayout.primaryMixerLaneHeight,
+                    alignment: .topLeading
+                )
 
-                    switch presentation {
-                    case let .fullColumn(width):
-                        Color.clear
-                            .frame(width: width)
-                    case let .compactStrip(width):
-                        MasterOutputCompactStrip(
-                            width: width,
-                            isExpanded: isMasterOverlayPresented,
-                            meterState: engineController.masterMeterPublisher.displayState
-                        ) {
-                            isMasterOverlayPresented.toggle()
-                        }
+                switch presentation {
+                case .fullColumn:
+                    MasterOutputColumnView()
+                case let .compactStrip(width):
+                    MasterOutputCompactStrip(
+                        width: width,
+                        isExpanded: isMasterOverlayPresented,
+                        meterState: engineController.masterMeterPublisher.displayState
+                    ) {
+                        isMasterOverlayPresented.toggle()
                     }
                 }
-            }
-
-            if case .fullColumn = presentation {
-                MasterOutputColumnView()
-                    .zIndex(1)
             }
 
             if presentation.usesCompactOverlay, isMasterOverlayPresented {
@@ -92,7 +84,10 @@ struct MixerWorkspaceView: View {
 
     private func sendReturnStrip(_ sendBus: SendBusState, accent: Color) -> some View {
         let selectedInsert = selectedInsert(in: sendBus)
-        return VStack(alignment: .leading, spacing: 12) {
+        return StudioMixerStrip(
+            width: MixerWorkspaceLayout.sendReturnStripWidth,
+            accent: accent
+        ) {
             HStack(spacing: 8) {
                 Circle()
                     .fill(accent)
@@ -102,72 +97,47 @@ struct MixerWorkspaceView: View {
                         .studioText(.eyebrowBold)
                         .tracking(1.0)
                         .foregroundStyle(StudioTheme.text)
-                    Text("Return -> Master")
+                    Text("RETURN")
                         .studioText(.micro)
+                        .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
                 }
                 Spacer()
             }
-
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("FX")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Spacer()
-                    Text("\(sendBus.inserts.count)")
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(accent)
-                }
+            .frame(maxHeight: .infinity, alignment: .center)
+        } processing: {
+            ScrollView(showsIndicators: false) {
                 sendInsertList(sendBus, accent: accent)
             }
-
-            HStack(alignment: .bottom, spacing: 12) {
-                VStack(alignment: .center, spacing: 8) {
-                    VerticalLevelFader(level: 1, isMuted: false, onBegin: {}, onChange: { _ in }, onEnd: {})
-                        .allowsHitTesting(false)
-                        .frame(width: 32, height: 128)
-                    Text("AUTO")
-                        .studioText(.eyebrow)
-                        .foregroundStyle(StudioTheme.text)
+        } levels: {
+            VerticalLevelFader(level: 1, isMuted: false, onBegin: {}, onChange: { _ in }, onEnd: {})
+                .allowsHitTesting(false)
+                .frame(
+                    width: StudioMixerStripMetrics.faderSize.width,
+                    height: StudioMixerStripMetrics.faderSize.height
+                )
+        } actions: {
+            if selectedInsert != nil {
+                MixerStripActionButton(
+                    title: "Edit FX",
+                    systemName: "slider.horizontal.3",
+                    accent: accent,
+                    minWidth: 82
+                ) {
+                    editingSendBusID = sendBus.id
                 }
-
-                VStack(alignment: .leading, spacing: 7) {
-                    Text("Wet return")
-                        .studioText(.eyebrow)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Text("Post fader send sum")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(2)
-                    if selectedInsert != nil {
-                        MixerStripActionButton(
-                            title: "Edit FX",
-                            systemName: "slider.horizontal.3",
-                            accent: accent,
-                            minWidth: 82
-                        ) {
-                            editingSendBusID = sendBus.id
-                        }
-                        .popover(isPresented: editingBinding(for: sendBus.id), arrowEdge: Edge.bottom) {
-                            sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
-                                .padding(StudioMetrics.Spacing.standard)
-                                .frame(width: 360)
-                                .background(StudioTheme.stageFill)
-                        }
-                    }
+                .popover(isPresented: editingBinding(for: sendBus.id), arrowEdge: Edge.bottom) {
+                    sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
+                        .padding(StudioMetrics.Spacing.standard)
+                        .frame(width: 360)
+                        .background(StudioTheme.stageFill)
                 }
             }
+        } footer: {
+            Text("→ Master")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
         }
-        .padding(StudioMetrics.Spacing.roomy)
-        .frame(width: MixerWorkspaceLayout.sendReturnStripWidth, alignment: .topLeading)
-        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: 1)
-        )
         .accessibilityIdentifier("mixer-\(sendBus.id.rawValue)-return-strip")
     }
 
@@ -719,9 +689,9 @@ struct MixerWorkspaceView: View {
 enum MixerWorkspaceLayout {
     static let primaryMixerLaneHeight: CGFloat = 580
     static let laneSpacing: CGFloat = 10
-    static let busStripWidth: CGFloat = 200
+    static let busStripWidth: CGFloat = StudioMixerStripMetrics.stripWidth
     static let addBusTileWidth: CGFloat = 116
-    static let sendReturnStripWidth: CGFloat = 190
+    static let sendReturnStripWidth: CGFloat = StudioMixerStripMetrics.stripWidth
 }
 
 struct MixerStripActionButton: View {

@@ -39,7 +39,7 @@ struct MasterOutputColumnView: View {
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .frame(width: MasterOutputColumnLayout.fullColumnWidth, alignment: .topLeading)
+        .frame(width: StudioMixerStripMetrics.masterWidth, alignment: .topLeading)
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -77,14 +77,11 @@ struct MasterOutputColumnView: View {
 
     private var masterInsertSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("After Scene A/B mix")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-
             MixerInsertChainView(
                 inserts: masterBus.masterInserts,
                 accent: StudioTheme.amber,
                 emptySlotCount: emptySlotCount,
+                maxAddAffordances: 1,
                 addLabel: "Add FX",
                 addAction: { isAddFXPresented = true },
                 updateInsert: { insertID, edit in
@@ -452,12 +449,12 @@ private struct MasterOutputFaderMeter: View {
 
                 Rectangle()
                     .fill(StudioTheme.amber.opacity(0.85))
-                    .frame(width: 58, height: 2)
+                    .frame(width: 30, height: 2)
                     .offset(y: -height * MasterOutputGainScale.unityPosition + 1)
 
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(StudioTheme.text)
-                    .frame(width: 42, height: 6)
+                    .frame(width: 30, height: 6)
                     .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                     .offset(y: -filledHeight + 10)
             }

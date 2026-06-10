@@ -24,131 +24,23 @@ struct MixerBusStrip: View {
     @FocusState private var isNameFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(accent)
-                    .frame(width: 10, height: 10)
-                Text("-> Master")
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Spacer()
-                Button(role: .destructive, action: onDelete) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-                .help("Delete bus")
-            }
-
-            VStack(alignment: .leading, spacing: 7) {
-                Text("INSERTS")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                MixerInsertChainView(
-                    inserts: bus.inserts,
-                    accent: accent,
-                    emptySlotCount: max(0, 3 - bus.inserts.count),
-                    addLabel: "Add FX",
-                    addAction: { isAddFXPresented = true },
-                    updateInsert: { insertID, edit in
-                        session.updateMixerBusInsert(insertID, busID: bus.id, edit: edit)
-                    },
-                    removeInsert: { insertID in
-                        session.removeMixerBusInsert(insertID, busID: bus.id)
-                    },
-                    reorderInserts: { ids in
-                        session.reorderMixerBusInserts(ids, busID: bus.id)
-                    }
-                )
-                .frame(height: 146, alignment: .topLeading)
-            }
-
-            HStack(alignment: .bottom, spacing: 12) {
-                VStack(alignment: .center, spacing: 8) {
-                    VerticalLevelFader(
-                        level: displayedLevel,
-                        isMuted: bus.mix.isMuted || isEffectivelyMuted,
-                        onBegin: beginLevelDrag,
-                        onChange: updateLevel,
-                        onEnd: commitLevel
-                    )
-                    .frame(width: 36, height: 150)
-
-                    Text("\(Int((displayedLevel * 100).rounded()))%")
-                        .studioText(.eyebrow)
-                        .monospacedDigit()
-                        .foregroundStyle(StudioTheme.text)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Pan")
-                        .studioText(.eyebrow)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Slider(value: Binding(get: { displayedPan }, set: updatePan), in: -1...1, onEditingChanged: handlePanEditingChanged)
-                        .tint(accent)
-                        .frame(width: 88)
-                    Text(panLabel)
-                        .studioText(.eyebrow)
-                        .monospacedDigit()
-                        .foregroundStyle(StudioTheme.text)
-                        .frame(width: 88, alignment: .trailing)
-                }
-                .padding(.bottom, 4)
-            }
-
-            HStack(spacing: 8) {
-                MixerStripActionButton(
-                    title: bus.mix.isMuted ? "Unmute" : "Mute",
-                    accent: StudioTheme.amber,
-                    isActive: bus.mix.isMuted,
-                    action: onToggleMute
-                )
-
-                MixerStripActionButton(
-                    title: bus.mix.isSoloed ? "Unsolo" : "Solo",
-                    accent: StudioTheme.amber,
-                    isActive: bus.mix.isSoloed,
-                    action: onToggleSolo
-                )
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                if isRenaming {
-                    TextField("Bus name", text: $draftName)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isNameFocused)
-                        .onSubmit(commitRename)
-                        .onExitCommand(perform: cancelRename)
-                } else {
-                    Button(action: onBeginRename) {
-                        Text(bus.name)
-                            .studioText(.title)
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Rename bus")
-                }
-
-                Text(routedSummary)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
+        StudioMixerStrip(
+            width: MixerWorkspaceLayout.busStripWidth,
+            accent: accent,
+            isHighlighted: bus.mix.isSoloed,
+            highlightAccent: StudioTheme.amber,
+            dimsContent: isEffectivelyMuted && !bus.mix.isMuted
+        ) {
+            headerSlot
+        } processing: {
+            processingSlot
+        } levels: {
+            levelsSlot
+        } actions: {
+            actionsSlot
+        } footer: {
+            footerSlot
         }
-        .padding(StudioMetrics.Spacing.roomy)
-        .frame(width: MixerWorkspaceLayout.busStripWidth, alignment: .topLeading)
-        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(bus.mix.isSoloed ? StudioTheme.amber : accent.opacity(StudioOpacity.accentStroke), lineWidth: bus.mix.isSoloed ? 2 : 1)
-        )
-        .opacity(isEffectivelyMuted && !bus.mix.isMuted ? 0.58 : 1)
         .sheet(isPresented: $isAddFXPresented) {
             addFXSheet
         }
@@ -175,11 +67,132 @@ struct MixerBusStrip: View {
         .accessibilityIdentifier("mixer-bus-strip-\(bus.id.uuidString)")
     }
 
-    private var routedSummary: String {
-        if routedTrackNames.isEmpty {
-            return "No tracks routed"
+    private var headerSlot: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(accent)
+                .frame(width: 10, height: 10)
+
+            if isRenaming {
+                TextField("Bus name", text: $draftName)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isNameFocused)
+                    .onSubmit(commitRename)
+                    .onExitCommand(perform: cancelRename)
+            } else {
+                Button(action: onBeginRename) {
+                    Text(bus.name)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .help("Rename bus")
+            }
+
+            Button(role: .destructive, action: onDelete) {
+                Image(systemName: "trash")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
+            .help("Delete bus")
         }
-        return "\(routedTrackNames.count) routed: \(routedTrackNames.joined(separator: ", "))"
+        .frame(maxHeight: .infinity, alignment: .center)
+    }
+
+    private var processingSlot: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("INSERTS")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            ScrollView(showsIndicators: false) {
+                MixerInsertChainView(
+                    inserts: bus.inserts,
+                    accent: accent,
+                    emptySlotCount: max(0, 2 - bus.inserts.count),
+                    maxAddAffordances: 1,
+                    addLabel: "Add FX",
+                    addAction: { isAddFXPresented = true },
+                    updateInsert: { insertID, edit in
+                        session.updateMixerBusInsert(insertID, busID: bus.id, edit: edit)
+                    },
+                    removeInsert: { insertID in
+                        session.removeMixerBusInsert(insertID, busID: bus.id)
+                    },
+                    reorderInserts: { ids in
+                        session.reorderMixerBusInserts(ids, busID: bus.id)
+                    }
+                )
+            }
+        }
+    }
+
+    private var levelsSlot: some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .center, spacing: 6) {
+                VerticalLevelFader(
+                    level: displayedLevel,
+                    isMuted: bus.mix.isMuted || isEffectivelyMuted,
+                    onBegin: beginLevelDrag,
+                    onChange: updateLevel,
+                    onEnd: commitLevel
+                )
+                .frame(
+                    width: StudioMixerStripMetrics.faderSize.width,
+                    height: StudioMixerStripMetrics.faderSize.height
+                )
+
+                Text(StudioLevelFormat.dBLabel(forLinear: displayedLevel))
+                    .studioText(.eyebrow)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.text)
+            }
+
+            StudioRotaryKnob(
+                title: "Pan",
+                value: displayedPan,
+                range: -1...1,
+                accent: accent,
+                format: { panLabel(for: $0) },
+                onChange: { pan in
+                    updatePan(pan)
+                    commitPan()
+                }
+            )
+        }
+    }
+
+    private var actionsSlot: some View {
+        HStack(spacing: 8) {
+            MixerStripActionButton(
+                title: bus.mix.isMuted ? "Unmute" : "Mute",
+                accent: StudioTheme.amber,
+                isActive: bus.mix.isMuted,
+                action: onToggleMute
+            )
+
+            MixerStripActionButton(
+                title: bus.mix.isSoloed ? "Unsolo" : "Solo",
+                accent: StudioTheme.amber,
+                isActive: bus.mix.isSoloed,
+                action: onToggleSolo
+            )
+        }
+    }
+
+    private var footerSlot: some View {
+        Text(routedSummary)
+            .studioText(.micro)
+            .foregroundStyle(StudioTheme.mutedText)
+            .lineLimit(2)
+    }
+
+    private var routedSummary: String {
+        "→ Master · \(routedTrackNames.count) routed"
     }
 
     private var displayedLevel: Double {
@@ -190,8 +203,7 @@ struct MixerBusStrip: View {
         panControl.rendered(committed: bus.mix.clampedPan)
     }
 
-    private var panLabel: String {
-        let value = displayedPan
+    private func panLabel(for value: Double) -> String {
         if value < -0.05 {
             return "L\(Int(abs(value) * 100))"
         }
@@ -218,16 +230,6 @@ struct MixerBusStrip: View {
 
     private func commitLevel() {
         _ = levelControl.commit()
-    }
-
-    private func handlePanEditingChanged(_ isEditing: Bool) {
-        if isEditing {
-            if !panControl.isDragging {
-                panControl.begin(with: bus.mix.clampedPan)
-            }
-        } else {
-            commitPan()
-        }
     }
 
     private func updatePan(_ pan: Double) {
