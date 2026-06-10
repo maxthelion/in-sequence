@@ -698,27 +698,29 @@ enum VisualScenarioCommandRunner {
             ensurePhraseCount(phraseCount, session: session)
         }
 
+        var posts: [String] = []
+
         if let rawPageIndex = command["phraseMatrixPageIndex"],
            let pageIndex = Int(rawPageIndex) {
-            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "page-index:\(pageIndex)")
+            posts.append("page-index:\(pageIndex)")
         }
 
         if let layerID = command["phraseMatrixLayerID"] {
-            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "layer-id:\(layerID)")
+            posts.append("layer-id:\(layerID)")
         }
 
         if let rawLayerIndex = command["phraseMatrixLayerIndex"],
            let layerIndex = Int(rawLayerIndex) {
-            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "layer-index:\(layerIndex)")
+            posts.append("layer-index:\(layerIndex)")
         }
 
         switch command["phrasePerformLayerSelector"] {
         case "open", "visible", "true":
             phrasePerformLayerSelectorVisible = true
-            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "open-layer-selector")
+            posts.append("open-layer-selector")
         case "close", "hidden", "false":
             phrasePerformLayerSelectorVisible = false
-            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "close-layer-selector")
+            posts.append("close-layer-selector")
         default:
             break
         }
@@ -731,16 +733,33 @@ enum VisualScenarioCommandRunner {
                layer.inlineVariantLabels.contains(variant) {
                 phrasePerformLayerVariant = variant
                 phrasePerformLayerSelectorVisible = false
-                NotificationCenter.default.post(
-                    name: .phraseMatrixVisualCommand,
-                    object: "select-variant:\(layer.rawValue):\(variant)"
-                )
+                posts.append("select-variant:\(layer.rawValue):\(variant)")
             } else if command["phrasePerformLayerSelector"] == nil {
                 phrasePerformLayerVariant = "none"
                 phrasePerformLayerSelectorVisible = false
-                NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: "select-layer:\(layer.rawValue)")
+                posts.append("select-layer:\(layer.rawValue)")
             }
         }
+
+        // The command may arrive in the same runloop tick that switches the
+        // workspace to .phrase, before PhraseWorkspaceView has subscribed to
+        // the notification. Keep the batch pending so the view can drain it
+        // from onAppear; live views still react via the notifications.
+        pendingPhraseMatrixCommands = posts
+        for post in posts {
+            NotificationCenter.default.post(name: .phraseMatrixVisualCommand, object: post)
+        }
+    }
+
+    /// Pending phrase-matrix visual commands for a PhraseWorkspaceView that
+    /// mounts after the command was applied (workspace-switch race). The view
+    /// drains this in onAppear.
+    static var pendingPhraseMatrixCommands: [String] = []
+
+    static func drainPendingPhraseMatrixCommands() -> [String] {
+        let pending = pendingPhraseMatrixCommands
+        pendingPhraseMatrixCommands = []
+        return pending
     }
 
     private static func currentDrumKitMatrixModel(session: SequencerDocumentSession) -> DrumKitMatrixModel? {

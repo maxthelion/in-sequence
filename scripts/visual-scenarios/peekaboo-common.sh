@@ -101,18 +101,20 @@ cg_drag_point() {
 }
 
 latest_app_pid() {
-  "$PEEKABOO_BIN" app list --json --no-remote \
-    | jq -r --arg app "$APP_NAME" '.data.apps[] | select(.name == $app) | .pid' \
-    | sort -n \
-    | tail -1
+  # pgrep, not peekaboo app list: the latter can return empty under AX/TCC
+  # pressure even while the app is running.
+  pgrep -x "$APP_NAME" | sort -n | tail -1
 }
 
 keep_only_pid() {
   local keep="$1"
-  "$PEEKABOO_BIN" app list --json --no-remote \
-    | jq -r --arg app "$APP_NAME" --argjson keep "$keep" '.data.apps[] | select(.name == $app and .pid != $keep) | .pid' \
+  pgrep -x "$APP_NAME" \
     | while read -r pid; do
-      [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+      if [ -n "$pid" ] && [ "$pid" != "$keep" ]; then
+        kill "$pid" 2>/dev/null || true
+        sleep 1
+        kill -9 "$pid" 2>/dev/null || true
+      fi
     done
 }
 

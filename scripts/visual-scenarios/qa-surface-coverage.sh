@@ -45,8 +45,8 @@ CAPTURES=$(cat <<'TABLE'
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
 06-scenes-perform|workspace=scenes,scenesMode=perform|scenesMode=perform;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
-08-phrase-mute-layer|workspace=phrase|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerIndex=1;transport=stop
-09-phrase-fill-layer|workspace=phrase|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerIndex=2;transport=stop
+08-phrase-mute-layer|workspace=phrase,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerID=mute;transport=stop
+09-phrase-transpose-layer|workspace=phrase,phraseMatrixSelectedLayerID=transpose|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerID=transpose;transport=stop
 10-phrase-controls-open|workspace=phrase,phraseControlsOpenIndex=0|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseControlsOpenIndex=0;transport=stop
 11-phrase-perform-overlay|workspace=tracks,tracksMode=perform|tracksMode=perform;trackPerformTrackCount=6;phrasePerformOverlay=dirtyOneCell;transport=stop
 12-phrase-layer-selector-open|workspace=phrase,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phrasePerformLayerSelector=open;transport=stop
@@ -196,12 +196,25 @@ mkdir -p "$output_dir"
 mkdir -p "$app_command_dir"
 rm -f "$command_file" "$status_file"
 
-"$PEEKABOO_BIN" app list --json --no-remote \
-  | jq -r --arg app "$APP_NAME" '.data.apps[] | select(.name == $app) | .pid' \
-  | while read -r existing_pid; do
-    [ -n "$existing_pid" ] && kill "$existing_pid" 2>/dev/null || true
+# Kill every existing instance via pgrep (peekaboo's app list can come back
+# empty under AX/TCC pressure, which previously left a stale instance alive
+# and competing for the command/status files). Escalate to -9: a beachballed
+# instance never services SIGTERM.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  existing_pids="$(pgrep -x "$APP_NAME" || true)"
+  [ -z "$existing_pids" ] && break
+  for existing_pid in $existing_pids; do
+    kill "$existing_pid" 2>/dev/null || true
   done
-sleep 1
+  sleep 1
+  for existing_pid in $existing_pids; do
+    kill -9 "$existing_pid" 2>/dev/null || true
+  done
+done
+if pgrep -x "$APP_NAME" >/dev/null; then
+  echo "Could not terminate existing $APP_NAME instances." >&2
+  exit 2
+fi
 
 launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
 defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
@@ -213,6 +226,14 @@ sleep 2
 pid="$(latest_app_pid)"
 if [ -z "$pid" ]; then
   echo "No $APP_NAME process found." >&2
+  exit 2
+fi
+
+# Exactly one instance may be driving; a second one would race the
+# command/status protocol and corrupt every wait.
+instance_count="$(pgrep -x "$APP_NAME" | wc -l | tr -d ' ')"
+if [ "$instance_count" != "1" ]; then
+  echo "Expected exactly one $APP_NAME instance, found ${instance_count}." >&2
   exit 2
 fi
 
