@@ -80,7 +80,7 @@ final class TrackPerformSelectionStateTests: XCTestCase {
 
     func test_performLayerModesExposeInlineVariantsOnFirstSelectionSurface() {
         XCTAssertTrue(TrackPerformLayerMode.pattern.inlineVariantLabels.isEmpty)
-        XCTAssertEqual(TrackPerformLayerMode.noteRepeat.inlineVariantLabels, ["1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"])
+        XCTAssertEqual(TrackPerformLayerMode.noteRepeat.inlineVariantLabels, ["1/4", "1/8", "1/16", "1/32", "1/64"])
         XCTAssertEqual(TrackPerformLayerMode.stepOrder.inlineVariantLabels, ["Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"])
         XCTAssertTrue(TrackPerformLayerMode.mute.inlineVariantLabels.isEmpty)
         XCTAssertTrue(TrackPerformLayerMode.volume.inlineVariantLabels.isEmpty)
@@ -102,12 +102,12 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertNil(selection.variantLabel)
         XCTAssertEqual(selection.activeLabel, "Pattern")
 
-        selection.select(.noteRepeat, variantLabel: "Roll")
+        selection.select(.noteRepeat, variantLabel: "1/8")
         XCTAssertEqual(selection.mode, .noteRepeat)
-        XCTAssertEqual(selection.variantLabel, "Roll")
-        XCTAssertEqual(selection.activeLabel, "Note Repeat - Roll")
+        XCTAssertEqual(selection.variantLabel, "1/8")
+        XCTAssertEqual(selection.activeLabel, "Note Repeat - 1/8")
 
-        selection.select(.volume, variantLabel: "Roll")
+        selection.select(.volume, variantLabel: "1/8")
         XCTAssertEqual(selection.mode, .volume)
         XCTAssertNil(selection.variantLabel)
         XCTAssertEqual(selection.activeLabel, "Volume")
@@ -127,11 +127,11 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(phraseSelection.variantLabel, "Break Fold")
         XCTAssertEqual(phraseSelection.activeLabel, "Step Order - Break Fold")
 
-        var tracksSelection = PerformanceLayerSelectionState(mode: .noteRepeat, variantLabel: "Roll")
+        var tracksSelection = PerformanceLayerSelectionState(mode: .noteRepeat, variantLabel: "1/32")
         XCTAssertNil(tracksSelection.mode.phraseLayerID)
-        XCTAssertEqual(tracksSelection.activeLabel, "Note Repeat - Roll")
+        XCTAssertEqual(tracksSelection.activeLabel, "Note Repeat - 1/32")
 
-        tracksSelection.select(.fill, variantLabel: "Roll")
+        tracksSelection.select(.fill, variantLabel: "1/32")
         XCTAssertEqual(tracksSelection.mode.phraseLayerID, "fill-flag")
         XCTAssertNil(tracksSelection.variantLabel)
         XCTAssertEqual(tracksSelection.activeLabel, "Fill")

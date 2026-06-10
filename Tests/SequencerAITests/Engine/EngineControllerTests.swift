@@ -443,6 +443,44 @@ final class EngineControllerTests: XCTestCase {
         }
     }
 
+    func test_noteRepeatSlowIntervalsFireOnStrideStepsOnly() {
+        let cases: [(NoteRepeatInterval, [UInt64])] = [
+            (.oneEighth, [1, 3, 5]),
+            (.oneQuarter, [1, 5]),
+        ]
+
+        for (interval, expectedFiringTicks) in cases {
+            let sink = CountingAudioSink()
+            let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+            var (project, trackID) = Self.noteRepeatClipProject(
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                        fill: nil
+                    )
+                ]
+            )
+            project.tracks[0].noteRepeatInterval = interval
+
+            controller.apply(documentModel: project)
+            controller.processTick(tickIndex: 0, now: 0)
+            sink.resetPlayedEvents()
+            controller.engageNoteRepeat(trackID: trackID)
+
+            var firingTicks: [UInt64] = []
+            for tick: UInt64 in 1...5 {
+                let countBefore = sink.playedEvents.count
+                controller.processTick(tickIndex: tick, now: Double(tick))
+                if sink.playedEvents.count > countBefore {
+                    firingTicks.append(tick)
+                    XCTAssertEqual(sink.playedEvents.count - countBefore, 1, "interval \(interval.rawValue) tick \(tick)")
+                }
+            }
+
+            XCTAssertEqual(firingTicks, expectedFiringTicks, "interval \(interval.rawValue)")
+        }
+    }
+
     func test_noteRepeatOnlyPlaybackPublishesTransportNoteActivity() {
         let sink = CountingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)

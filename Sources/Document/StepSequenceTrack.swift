@@ -1,20 +1,35 @@
 import Foundation
 
 enum NoteRepeatInterval: String, Codable, CaseIterable, Sendable {
+    case oneQuarter = "1/4"
+    case oneEighth = "1/8"
     case oneSixteenth = "1/16"
     case oneThirtySecond = "1/32"
     case oneSixtyFourth = "1/64"
 
     static let defaultValue: NoteRepeatInterval = .oneSixteenth
 
+    /// Triggers fired within each 16th step (faster-than-step rates).
     var v1TriggerCountPerStep: Int {
         switch self {
-        case .oneSixteenth:
+        case .oneQuarter, .oneEighth, .oneSixteenth:
             return 1
         case .oneThirtySecond:
             return 2
         case .oneSixtyFourth:
             return 4
+        }
+    }
+
+    /// Steps between triggers (slower-than-step rates). 1 = every step.
+    var v1StepStride: Int {
+        switch self {
+        case .oneQuarter:
+            return 4
+        case .oneEighth:
+            return 2
+        case .oneSixteenth, .oneThirtySecond, .oneSixtyFourth:
+            return 1
         }
     }
 

@@ -3,7 +3,7 @@ import XCTest
 
 final class StepSequenceTrackAudioInputCodableTests: XCTestCase {
     func test_noteRepeatIntervalsExposeOnlyAcceptedV1Values() {
-        XCTAssertEqual(NoteRepeatInterval.allCases.map(\.rawValue), ["1/16", "1/32", "1/64"])
+        XCTAssertEqual(NoteRepeatInterval.allCases.map(\.rawValue), ["1/4", "1/8", "1/16", "1/32", "1/64"])
     }
 
     func test_noteRepeatInterval_roundTripsAllAcceptedValues() throws {

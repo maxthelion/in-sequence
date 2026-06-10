@@ -647,7 +647,6 @@ struct TracksMatrixView: View {
                     runtimeControlState: activePerformLayer?.binaryControl.map {
                         runtimeControlState(for: track.id, control: $0)
                     },
-                    noteRepeatStoredInterval: track.noteRepeatInterval,
                     noteRepeatActiveSnapshot: engineController.noteRepeatRuntimeSnapshot(for: track.id),
                     onTogglePerformSelection: {
                         performSelection.toggle(track.id)
@@ -658,9 +657,6 @@ struct TracksMatrixView: View {
                     },
                     onReleaseRuntimeControl: { control in
                         releaseRuntimeControl(control, sourceTrackID: track.id)
-                    },
-                    onChangeNoteRepeatInterval: { interval in
-                        session.setTrackNoteRepeatInterval(interval, trackID: track.id)
                     }
                 ) {
                     session.setSelectedTrackID(track.id)
@@ -815,12 +811,34 @@ struct TracksMatrixView: View {
                 return
             }
 
+            // The layer header's variant (e.g. "NOTE REPEAT - 1/8") is the
+            // rate; engagement writes it to the track so the engine captures it.
+            if let variant = performLayerSelection.variantLabel,
+               let interval = NoteRepeatInterval(rawValue: variant) {
+                for trackID in supportedTrackIDs
+                where session.store.tracks.first(where: { $0.id == trackID })?.noteRepeatInterval != interval {
+                    session.setTrackNoteRepeatInterval(interval, trackID: trackID)
+                }
+            }
+
+            let latchedBefore = Set(supportedTrackIDs.filter { performRuntimeOverlay.isLatched(control, trackID: $0) })
             performRuntimeOverlay.activate(
                 control: control,
                 sourceTrackID: sourceTrackID,
                 recipientTrackIDs: supportedTrackIDs
             )
-            supportedTrackIDs.forEach { session.engageNoteRepeat(trackID: $0) }
+            if performRuntimeOverlay.latchMode == .latched {
+                for trackID in supportedTrackIDs {
+                    let latchedNow = performRuntimeOverlay.isLatched(control, trackID: trackID)
+                    if latchedNow, !latchedBefore.contains(trackID) {
+                        session.engageNoteRepeat(trackID: trackID)
+                    } else if !latchedNow, latchedBefore.contains(trackID) {
+                        session.releaseNoteRepeat(trackID: trackID)
+                    }
+                }
+            } else {
+                supportedTrackIDs.forEach { session.engageNoteRepeat(trackID: $0) }
+            }
         }
     }
 
@@ -1096,12 +1114,10 @@ private struct TrackMatrixCard: View {
     let isPerforming: Bool
     let latchMode: TrackPerformLatchMode
     let runtimeControlState: TrackPerformRuntimeControlState?
-    let noteRepeatStoredInterval: NoteRepeatInterval
     let noteRepeatActiveSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
     let onTogglePerformSelection: () -> Void
     let onActivateRuntimeControl: (TrackPerformBinaryControl) -> Void
     let onReleaseRuntimeControl: (TrackPerformBinaryControl) -> Void
-    let onChangeNoteRepeatInterval: (NoteRepeatInterval) -> Void
     let onTap: () -> Void
 
     private var accent: Color {
@@ -1258,15 +1274,11 @@ private struct TrackMatrixCard: View {
             TrackPerformRuntimeLayerControl(
                 mode: activePerformLayer,
                 state: runtimeControlState,
-                latchMode: activePerformLayer == .noteRepeat ? .momentary : latchMode,
+                latchMode: latchMode,
                 accent: layerAccentColor,
-                selectedVariantLabel: activePerformVariantLabel,
-                authoredSummary: activePerformLayer.phraseLayerID == nil ? nil : valueSummary,
-                storedInterval: activePerformLayer == .noteRepeat ? noteRepeatStoredInterval : nil,
                 activeRepeatSnapshot: activePerformLayer == .noteRepeat ? noteRepeatActiveSnapshot : nil,
                 onActivate: { onActivateRuntimeControl(control) },
-                onRelease: { onReleaseRuntimeControl(control) },
-                onChangeInterval: onChangeNoteRepeatInterval
+                onRelease: { onReleaseRuntimeControl(control) }
             )
         } else if let activePerformLayer, activePerformLayer.phraseLayerID == nil {
             TrackPerformPlaceholderLayerCard(
@@ -1348,25 +1360,15 @@ private struct TrackPerformRuntimeLayerControl: View {
     let state: TrackPerformRuntimeControlState
     let latchMode: TrackPerformLatchMode
     let accent: Color
-    let selectedVariantLabel: String?
-    let authoredSummary: String?
-    let storedInterval: NoteRepeatInterval?
     let activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
     let onActivate: () -> Void
     let onRelease: () -> Void
-    let onChangeInterval: (NoteRepeatInterval) -> Void
 
     @State private var isTrackingMomentaryPress = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            triggerSurface
-
-            if let storedInterval {
-                intervalPicker(storedInterval)
-            }
-        }
-        .help(helpText)
+        triggerSurface
+            .help(helpText)
     }
 
     @ViewBuilder
@@ -1439,35 +1441,13 @@ private struct TrackPerformRuntimeLayerControl: View {
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: 6) {
-                if let selectedVariantLabel {
-                    Text("SEL \(selectedVariantLabel.uppercased())")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(accent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-
-                if let authoredSummary {
-                    Text("BASE \(authoredSummary.uppercased())")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-
-                Spacer(minLength: 0)
-
-                Text(mode == .noteRepeat ? noteRepeatModeBadge : latchMode.actionBarLabel)
+            if let capturedInfoLabel {
+                Text(capturedInfoLabel)
                     .studioText(.micro)
                     .tracking(0.8)
-                    .foregroundStyle(state.isActive ? StudioTheme.text : StudioTheme.mutedText)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                    .foregroundStyle(accent)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         }
         .foregroundStyle(labelForeground)
@@ -1480,35 +1460,16 @@ private struct TrackPerformRuntimeLayerControl: View {
         )
     }
 
-    private func intervalPicker(_ storedInterval: NoteRepeatInterval) -> some View {
-        HStack(spacing: 4) {
-            ForEach(NoteRepeatInterval.allCases, id: \.rawValue) { interval in
-                Button {
-                    onChangeInterval(interval)
-                } label: {
-                    Text(interval.rawValue)
-                        .studioText(.microEmphasis)
-                        .tracking(0.4)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .foregroundStyle(interval == storedInterval ? StudioTheme.text : StudioTheme.mutedText)
-                        .frame(maxWidth: .infinity, minHeight: 28)
-                        .background(
-                            interval == storedInterval
-                                ? accent.opacity(StudioOpacity.selectedFill)
-                                : Color.white.opacity(StudioOpacity.subtleFill),
-                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(interval == storedInterval ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-                .help(intervalHelp(for: interval, storedInterval: storedInterval))
-            }
+    /// When repeat is engaged: the captured step (the one being repeated)
+    /// and the rate it repeats at. Cleared when the repeat releases.
+    private var capturedInfoLabel: String? {
+        guard mode == .noteRepeat, state.isActive, let snapshot = activeRepeatSnapshot else {
+            return nil
         }
-        .accessibilityIdentifier("note-repeat-interval-picker")
+        guard let capturedStep = snapshot.capturedStep else {
+            return snapshot.interval.rawValue
+        }
+        return "STEP \(capturedStep.stepIndex % 16 + 1) · \(snapshot.interval.rawValue)"
     }
 
     private var leadingSymbolName: String {
@@ -1570,34 +1531,11 @@ private struct TrackPerformRuntimeLayerControl: View {
         return StudioTheme.border
     }
 
-    private var noteRepeatModeBadge: String {
-        guard let storedInterval else {
-            return "MOM"
-        }
-        if let activeInterval = activeRepeatSnapshot?.interval, activeInterval != storedInterval {
-            return "LIVE \(activeInterval.rawValue)"
-        }
-        return storedInterval.rawValue
-    }
-
     private var helpText: String {
         if !state.isAvailable {
             return "\(mode.label) is available for clip-backed tracks only in v1."
         }
-        guard mode == .noteRepeat, let storedInterval else {
-            return "\(mode.label) \(latchMode.label)"
-        }
-        if let activeInterval = activeRepeatSnapshot?.interval, activeInterval != storedInterval {
-            return "Repeat is using \(activeInterval.rawValue). Next engagement will use \(storedInterval.rawValue)."
-        }
-        return "Hold Repeat. Stored interval \(storedInterval.rawValue)."
-    }
-
-    private func intervalHelp(for interval: NoteRepeatInterval, storedInterval: NoteRepeatInterval) -> String {
-        if activeRepeatSnapshot != nil, interval != storedInterval {
-            return "Set next Repeat engagement to \(interval.rawValue); active Repeat keeps its captured interval."
-        }
-        return "Set Repeat interval to \(interval.rawValue)."
+        return "\(mode.label) \(latchMode.label)"
     }
 
     private func endMomentaryPressIfNeeded() {

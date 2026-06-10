@@ -3012,6 +3012,19 @@ final class EngineController: RouterDispatcher {
                 continue
             }
 
+            // Slower-than-step rates (1/4, 1/8) fire on every Nth step.
+            // Engagement lands between ticks, so the first firing step is the
+            // first tick after engagedAtTickIndex; the stride counts from it.
+            let stepStride = activeRepeat.interval.v1StepStride
+            if stepStride > 1 {
+                let firstFiringTick = activeRepeat.engagedAtTickIndex + 1
+                guard anchorTickIndex >= firstFiringTick,
+                      (anchorTickIndex - firstFiringTick) % UInt64(stepStride) == 0
+                else {
+                    continue
+                }
+            }
+
             let triggerCount = activeRepeat.interval.v1TriggerCountPerStep
             let triggerSpacing = secondsPerStep / Double(max(1, triggerCount))
             var scheduledOutputs: [NoteRepeatScheduledOutput] = []

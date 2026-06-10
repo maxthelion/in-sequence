@@ -172,7 +172,8 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
     var inlineVariantLabels: [String] {
         switch self {
         case .noteRepeat:
-            return ["1/4", "1/8", "1/16", "1/32", "Trip", "Roll", "Hold"]
+            // Mirrors NoteRepeatInterval — every variant here is engine-backed.
+            return NoteRepeatInterval.allCases.map(\.rawValue)
         case .stepOrder:
             return ["Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"]
         case .mute, .pattern, .fill, .volume, .pan:

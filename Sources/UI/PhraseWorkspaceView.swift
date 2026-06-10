@@ -116,6 +116,9 @@ struct PhraseWorkspaceView: View {
             reconcileSelectedLayer()
             clampTrackPage()
             applyVisualControlsOpenIndex()
+            for command in VisualScenarioCommandRunner.drainPendingPhraseMatrixCommands() {
+                applyMatrixVisualCommand(command)
+            }
             postRenderedMatrixVisualState(isVisible: true)
         }
         .onDisappear {
@@ -164,6 +167,9 @@ struct PhraseWorkspaceView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .phraseMatrixVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
+            // Receiving live proves this view is mounted; the pending copy
+            // would otherwise replay stale on a later remount.
+            VisualScenarioCommandRunner.pendingPhraseMatrixCommands = []
             applyMatrixVisualCommand(command)
         }
     }
@@ -1844,10 +1850,6 @@ private struct PhrasePerformancePlaceholderCell: View {
     let isSelected: Bool
     let accent: Color
 
-    private var title: String {
-        selection.activeLabel.uppercased()
-    }
-
     private var detail: String {
         switch selection.mode {
         case .noteRepeat:
@@ -1863,29 +1865,17 @@ private struct PhrasePerformancePlaceholderCell: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: selection.mode.symbolName)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(accent)
-
-                Text(title)
-                    .studioText(.microEmphasis)
-                    .tracking(0.8)
-                    .foregroundStyle(accent)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-            }
+            // The active layer is named once in the matrix header; cells only
+            // carry the layer icon and their own target identity.
+            Image(systemName: selection.mode.symbolName)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(accent)
 
             Text(detail)
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.text)
                 .lineLimit(1)
                 .truncationMode(.tail)
-
-            Text("Selection only")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.compact)
