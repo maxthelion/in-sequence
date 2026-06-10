@@ -12,7 +12,7 @@ struct MasterCrossfaderView: View {
 
     var body: some View {
         content
-            .padding(10)
+            .padding(StudioMetrics.Spacing.compact)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("master-crossfader")

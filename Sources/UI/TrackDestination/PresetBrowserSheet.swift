@@ -23,7 +23,7 @@ struct PresetBrowserSheet: View {
             minHeight: 520,
             onClose: { dismiss() }
         ) {
-            searchField
+            StudioSearchBar(placeholder: "Filter presets", text: $viewModel.filter)
 
             if viewModel.isReady {
                 listBody
@@ -52,15 +52,6 @@ struct PresetBrowserSheet: View {
         }
     }
 
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(StudioTheme.mutedText)
-            TextField("Filter presets", text: $viewModel.filter)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-
     private var listBody: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
@@ -78,7 +69,7 @@ struct PresetBrowserSheet: View {
                         }
                     }
                 } header: {
-                    sectionHeader("Factory")
+                    StudioSectionHeader(title: "Factory")
                 }
 
                 Section {
@@ -95,20 +86,10 @@ struct PresetBrowserSheet: View {
                         }
                     }
                 } header: {
-                    sectionHeader("User")
+                    StudioSectionHeader(title: "User")
                 }
             }
         }
-    }
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title.uppercased())
-            .studioText(.eyebrow)
-            .tracking(0.8)
-            .foregroundStyle(StudioTheme.mutedText)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(StudioTheme.background)
     }
 
     private func emptySectionText(_ message: String) -> some View {
@@ -132,7 +113,7 @@ struct PresetBrowserSheet: View {
         Text(message(for: error))
             .studioText(.label)
             .foregroundStyle(StudioTheme.amber)
-            .padding(10)
+            .padding(StudioMetrics.Spacing.compact)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
     }
 

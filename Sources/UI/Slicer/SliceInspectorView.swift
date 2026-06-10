@@ -48,7 +48,7 @@ struct SliceInspectorView: View {
                     .textFieldStyle(.roundedBorder)
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -129,7 +129,7 @@ struct SliceSamplePlayerParametersView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)

@@ -60,7 +60,7 @@ extension ScenesWorkspaceView {
                     .frame(width: 14, alignment: .trailing)
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .frame(maxWidth: .infinity)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
     }
@@ -103,7 +103,7 @@ extension ScenesWorkspaceView {
                 .buttonStyle(.plain)
                 .help("Choose scene")
             }
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
             .contentShape(Rectangle())
             .background(
                 isDominant ? StudioTheme.background : Color.white.opacity(StudioOpacity.subtleFill),
@@ -123,7 +123,7 @@ extension ScenesWorkspaceView {
             performMacroSlots(scene)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -143,7 +143,7 @@ extension ScenesWorkspaceView {
                 performMacroSlot(slotIndex, scene: scene)
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -176,41 +176,23 @@ extension ScenesWorkspaceView {
     }
 
     func scenePerformSlotPickerSheet(_ request: ScenePerformSlotPickerRequest) -> some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(request.slot.title)
-                            .studioText(.title)
-                            .foregroundStyle(StudioTheme.text)
-                        Text("Choose Scene")
-                            .studioText(.eyebrow)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                    Spacer()
-                    StudioModalCloseButton {
-                        scenePerformSlotPickerRequest = nil
+        StudioModal(
+            title: request.slot.title,
+            subtitle: "Choose Scene",
+            minWidth: 560,
+            minHeight: 430,
+            onClose: { scenePerformSlotPickerRequest = nil }
+        ) {
+            ScrollView {
+                LazyVGrid(columns: scenePickerColumns, spacing: 12) {
+                    ForEach(masterBus.scenes) { scene in
+                        scenePickerCard(scene, request: request)
                     }
                 }
-
-                ScrollView {
-                    LazyVGrid(columns: scenePickerColumns, spacing: 12) {
-                        ForEach(masterBus.scenes) { scene in
-                            scenePickerCard(scene, request: request)
-                        }
-                    }
-                    .padding(.bottom, 2)
-                }
+                .padding(.bottom, 2)
             }
-            .padding(20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(minWidth: 560, minHeight: 430)
-        .background(StudioTheme.stageFill)
     }
 
     private var scenePickerColumns: [GridItem] {
@@ -251,7 +233,7 @@ extension ScenesWorkspaceView {
                     .studioText(.micro)
                     .foregroundStyle(StudioTheme.mutedText)
             }
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
             .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(

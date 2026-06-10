@@ -211,7 +211,7 @@ struct DrumKitMatrixView: View {
                 unavailableState
             }
         }
-        .padding(20)
+        .padding(StudioMetrics.Spacing.section)
         .sheet(isPresented: $isPresentingRoutingEditor) {
             if let draft = DrumGroupRoutingEditorDraft(
                 groupID: navigationState.groupID,
@@ -233,7 +233,7 @@ struct DrumKitMatrixView: View {
                 Text("Routing editor unavailable")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .padding(24)
+                    .padding(StudioMetrics.Spacing.page)
                     .background(StudioTheme.stageFill)
             }
         }
@@ -329,7 +329,7 @@ struct DrumKitMatrixView: View {
                     .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
             )
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
@@ -342,7 +342,7 @@ struct DrumKitMatrixView: View {
             stepDisplayButton(16)
             stepDisplayButton(32)
         }
-        .padding(4)
+        .padding(StudioMetrics.Spacing.hairline)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
@@ -398,7 +398,7 @@ struct DrumKitMatrixView: View {
                 .lineLimit(2)
             Spacer()
         }
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
@@ -425,7 +425,7 @@ struct DrumKitMatrixView: View {
                 .foregroundStyle(StudioTheme.mutedText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
+        .padding(StudioMetrics.Spacing.loose)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -517,7 +517,7 @@ private struct DrumKitMatrixRowView: View {
                 .frame(width: 180, alignment: .leading)
 
             Text(row.patternBadge)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .studioText(.eyebrowBold)
                 .foregroundStyle(row.isDivergentPattern ? StudioTheme.amber : accent)
                 .frame(width: 42, height: 26)
                 .background((row.isDivergentPattern ? StudioTheme.amber : accent).opacity(StudioOpacity.faintStroke), in: Capsule())
@@ -569,7 +569,7 @@ private struct DrumKitMatrixRowView: View {
         case let .limited(badge, detail):
             HStack(spacing: 8) {
                 Text(badge)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .studioText(.micro)
                     .foregroundStyle(StudioTheme.mutedText)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
@@ -673,7 +673,7 @@ private struct DrumGroupRoutingEditorSheet: View {
             }
             .frame(maxHeight: 360)
         }
-        .padding(24)
+        .padding(StudioMetrics.Spacing.page)
         .frame(minWidth: 620, minHeight: 520)
         .background(StudioTheme.stageFill)
         .sheet(isPresented: $isPresentingDestinationPicker) {
@@ -764,7 +764,7 @@ private struct DrumGroupRoutingEditorSheet: View {
                 .help(storedForGroupedModesOnly ? "Switch to Per Note or Per Channel to clear the stored shared destination." : "Clear shared destination")
             }
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(
             Color.white.opacity(storedForGroupedModesOnly ? 0.015 : StudioOpacity.subtleFill),
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -1075,7 +1075,7 @@ private struct DrumGroupRoutingEditorRow: View {
 
             Spacer()
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)

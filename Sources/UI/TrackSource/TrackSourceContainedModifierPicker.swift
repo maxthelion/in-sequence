@@ -183,7 +183,7 @@ struct TrackSourceContainedModifierPicker: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+            .padding(StudioMetrics.Spacing.standard)
             .background(
                 accent.opacity(StudioOpacity.selectedFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
@@ -213,7 +213,7 @@ struct TrackSourceContainedModifierPicker: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
             .background(
                 Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)

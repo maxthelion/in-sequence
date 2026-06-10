@@ -12,7 +12,7 @@ struct GeneratedNotesPreview: View {
                     ForEach(preview.indices, id: \.self) { index in
                         VStack(alignment: .leading, spacing: 8) {
                             Text("\(index + 1)")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .studioText(.microEmphasis)
                                 .foregroundStyle(StudioTheme.mutedText)
                             VStack(alignment: .leading, spacing: 4) {
                                 if preview[index].isEmpty {
@@ -28,7 +28,7 @@ struct GeneratedNotesPreview: View {
                             .studioText(.labelBold)
                         }
                         .frame(width: 84, alignment: .leading)
-                        .padding(10)
+                        .padding(StudioMetrics.Spacing.compact)
                         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                     }
                 }

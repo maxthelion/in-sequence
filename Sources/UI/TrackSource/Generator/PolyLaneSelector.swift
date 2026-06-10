@@ -26,22 +26,10 @@ struct PolyLaneSelector: View {
                 .buttonStyle(.plain)
             }
 
-            Button(action: onAddLane) {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .bold))
-                    .padding(8)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-            }
-            .buttonStyle(.plain)
+            StudioCircleIconButton(systemName: "plus", help: "Add lane", action: onAddLane)
 
             if let onRemoveLane {
-                Button(action: onRemoveLane) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 11, weight: .bold))
-                        .padding(8)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                }
-                .buttonStyle(.plain)
+                StudioCircleIconButton(systemName: "minus", help: "Remove lane", action: onRemoveLane)
             }
             Spacer(minLength: 0)
         }

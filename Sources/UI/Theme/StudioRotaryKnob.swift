@@ -14,7 +14,7 @@ struct StudioRotaryKnob: View {
     @State private var dragStartValue: Double?
     @State private var displayValue: Double
 
-    private let dragSensitivity: Double = 180
+    private let dragSensitivity = StudioDrag.fullRangeTravel
 
     init(
         title: String,

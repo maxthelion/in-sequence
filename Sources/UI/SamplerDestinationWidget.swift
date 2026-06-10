@@ -81,26 +81,29 @@ struct SamplerDestinationWidget: View {
 
             Spacer(minLength: 8)
 
-            compactIconButton(
+            StudioCircleIconButton(
                 systemName: "slider.horizontal.3",
+                size: StudioMetrics.ControlSize.medium,
                 help: "View built-in sampler macros",
                 action: onManageMacros
             )
 
-            compactIconButton(
+            StudioCircleIconButton(
                 systemName: isAuditioning ? "stop.fill" : "play.fill",
+                size: StudioMetrics.ControlSize.medium,
                 help: isAuditioning ? "Stop audition" : "Audition sample"
             ) {
                 toggleAudition(sample: sample)
             }
 
-            compactIconButton(
+            StudioCircleIconButton(
                 systemName: "xmark",
+                size: StudioMetrics.ControlSize.medium,
                 help: "Remove this sample destination",
                 action: onRemove
             )
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
     }
 
     private func waveformSection(sample: AudioSample) -> some View {
@@ -108,10 +111,13 @@ struct SamplerDestinationWidget: View {
             waveform(sample: sample)
 
             HStack(spacing: 8) {
-                browseButton(systemName: "chevron.left", help: "Previous sample in category") {
+                StudioCircleIconButton(
+                    systemName: "chevron.left",
+                    isEnabled: peers.count >= 2,
+                    help: "Previous sample in category"
+                ) {
                     stepSample(-1)
                 }
-                .disabled(peers.count < 2)
 
                 Spacer()
 
@@ -121,13 +127,16 @@ struct SamplerDestinationWidget: View {
 
                 Spacer()
 
-                browseButton(systemName: "chevron.right", help: "Next sample in category") {
+                StudioCircleIconButton(
+                    systemName: "chevron.right",
+                    isEnabled: peers.count >= 2,
+                    help: "Next sample in category"
+                ) {
                     stepSample(+1)
                 }
-                .disabled(peers.count < 2)
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private func waveform(sample: AudioSample) -> some View {
@@ -135,7 +144,7 @@ struct SamplerDestinationWidget: View {
         let buckets = WaveformDownsampler.downsample(url: url, bucketCount: 64)
         return WaveformView(buckets: buckets)
             .frame(height: 60)
-            .padding(8)
+            .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: 1))
     }
@@ -190,7 +199,7 @@ struct SamplerDestinationWidget: View {
                 onDriveChanged(normalized)
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private var filterSection: some View {
@@ -224,7 +233,7 @@ struct SamplerDestinationWidget: View {
                 onSelect: onPolesChanged
             )
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private var orphanCard: some View {
@@ -242,13 +251,14 @@ struct SamplerDestinationWidget: View {
 
                 Spacer()
 
-                compactIconButton(
+                StudioCircleIconButton(
                     systemName: "xmark",
+                    size: StudioMetrics.ControlSize.medium,
                     help: "Remove this sample destination",
                     action: onRemove
                 )
             }
-            .padding(14)
+            .padding(StudioMetrics.Spacing.standard)
 
             divider
 
@@ -263,7 +273,7 @@ struct SamplerDestinationWidget: View {
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.success)
             }
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
         }
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
@@ -280,46 +290,6 @@ struct SamplerDestinationWidget: View {
     private func sampleDetail(_ sample: AudioSample) -> String {
         let lengthLabel = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "—"
         return "\(sample.category.displayName) • \(lengthLabel)"
-    }
-
-    private func browseButton(
-        systemName: String,
-        help: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 28, height: 28)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                .overlay(
-                    Circle()
-                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
-
-    private func compactIconButton(
-        systemName: String,
-        help: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 30, height: 30)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                .overlay(
-                    Circle()
-                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(help)
     }
 
     private func optionRow<Option: Hashable & Sendable>(

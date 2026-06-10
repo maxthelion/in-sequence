@@ -53,21 +53,14 @@ struct StepAlgoEditor: View {
 
                     Spacer(minLength: 0)
 
-                    Button {
+                    StudioCircleIconButton(
+                        systemName: showsSecondaryParameters ? "chevron.left.2" : "ellipsis",
+                        help: showsSecondaryParameters ? "Hide extra parameters" : "Show steps, offset, and pitch"
+                    ) {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             showsSecondaryParameters.toggle()
                         }
-                    } label: {
-                        Image(systemName: showsSecondaryParameters ? "chevron.left.2" : "ellipsis")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .frame(width: 26, height: 26)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                            .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
                     }
-                    .buttonStyle(.plain)
-                    .help(showsSecondaryParameters ? "Hide extra parameters" : "Show steps, offset, and pitch")
-                    .accessibilityLabel(showsSecondaryParameters ? "Hide extra parameters" : "Show extra parameters")
                 }
             }
         }

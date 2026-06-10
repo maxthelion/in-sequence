@@ -269,7 +269,7 @@ struct TrackSourceEditorView: View {
                     .padding(.horizontal, 12)
                     .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: Capsule())
                     .overlay(Capsule().stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: 1))
-                    .padding(12)
+                    .padding(StudioMetrics.Spacing.comfortable)
             }
         }
         .onChange(of: selectedPatternIndex) { _, _ in
@@ -304,6 +304,13 @@ struct TrackSourceEditorView: View {
         }
         .onDisappear {
             session.clearTrackFillPreview(reason: .editorClosed)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
+            guard let command = notification.object as? String,
+                  command.hasPrefix("select-tab:"),
+                  let tab = TrackSourceEditorTab(rawValue: String(command.dropFirst("select-tab:".count)))
+            else { return }
+            selectedTab = tab
         }
         .task(id: clipHistoryLiveRefreshKey) {
             await refreshClipHistoryWhileVisible()
@@ -412,7 +419,7 @@ struct TrackSourceEditorView: View {
                         .foregroundStyle(StudioTheme.mutedText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
+                .padding(StudioMetrics.Spacing.standard)
             }
             .onAppear {
                 resetClipHistoryModel()
@@ -442,7 +449,7 @@ struct TrackSourceEditorView: View {
                         .foregroundStyle(StudioTheme.mutedText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
+                .padding(StudioMetrics.Spacing.standard)
             }
             .onAppear(perform: refreshClipHistoryModel)
         }

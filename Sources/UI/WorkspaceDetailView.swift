@@ -12,7 +12,7 @@ struct WorkspaceDetailView: View {
     var body: some View {
         ScrollView {
             workspace
-                .padding(6)
+                .padding(StudioMetrics.Spacing.tight)
         }
         .background(StudioTheme.stageFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous))
         .overlay(
@@ -30,7 +30,7 @@ struct WorkspaceDetailView: View {
                 document: $document,
                 visualControlsOpenIndex: visualPhraseControlsOpenIndex
             )
-                .padding(10)
+                .padding(StudioMetrics.Spacing.compact)
         case .tracks:
             TracksWorkspaceView(document: $document, mode: $tracksMode, selectedLayerID: $liveLayerID) {
                 section = .track
@@ -44,7 +44,7 @@ struct WorkspaceDetailView: View {
             }
         case .scenes:
             ScenesWorkspaceView(document: $document, resetToken: scenesResetToken)
-                .padding(20)
+                .padding(StudioMetrics.Spacing.section)
         case .library:
             LibraryWorkspaceView()
         }

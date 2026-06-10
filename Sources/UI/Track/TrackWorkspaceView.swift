@@ -137,7 +137,7 @@ struct TrackWorkspaceView: View {
                     }
                 }
             }
-            .padding(20)
+            .padding(StudioMetrics.Spacing.section)
         }
     }
 
@@ -318,11 +318,16 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                partNavigationButton(
-                    systemImage: "chevron.left",
-                    title: "Previous Part",
-                    targetID: model.previousPartID
-                )
+                StudioCircleIconButton(
+                    systemName: "chevron.left",
+                    size: StudioMetrics.ControlSize.large,
+                    isEnabled: model.previousPartID != nil,
+                    help: "Previous Part"
+                ) {
+                    if let targetID = model.previousPartID {
+                        onSelectPart(targetID)
+                    }
+                }
 
                 VStack(alignment: .leading, spacing: 4) {
                     title()
@@ -334,11 +339,16 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
                 }
                 .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
 
-                partNavigationButton(
-                    systemImage: "chevron.right",
-                    title: "Next Part",
-                    targetID: model.nextPartID
-                )
+                StudioCircleIconButton(
+                    systemName: "chevron.right",
+                    size: StudioMetrics.ControlSize.large,
+                    isEnabled: model.nextPartID != nil,
+                    help: "Next Part"
+                ) {
+                    if let targetID = model.nextPartID {
+                        onSelectPart(targetID)
+                    }
+                }
 
                 Spacer(minLength: 16)
 
@@ -389,24 +399,6 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
         )
     }
 
-    private func partNavigationButton(systemImage: String, title: String, targetID: UUID?) -> some View {
-        Button {
-            if let targetID {
-                onSelectPart(targetID)
-            }
-        } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .bold))
-                .frame(width: 34, height: 34)
-                .foregroundStyle(targetID == nil ? StudioTheme.mutedText.opacity(0.35) : StudioTheme.text)
-                .background(Color.white.opacity(targetID == nil ? 0.025 : StudioOpacity.subtleFill), in: Circle())
-                .overlay(Circle().stroke(targetID == nil ? StudioTheme.border.opacity(0.45) : StudioTheme.border, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .disabled(targetID == nil)
-        .help(title)
-        .accessibilityLabel(title)
-    }
 }
 
 extension Notification.Name {
@@ -418,6 +410,8 @@ extension Notification.Name {
     static let phraseMatrixVisualCommand = Notification.Name("SequencerAIPhraseMatrixVisualCommand")
     static let phraseMatrixRenderedVisualState = Notification.Name("SequencerAIPhraseMatrixRenderedVisualState")
     static let trackPerformVisualCommand = Notification.Name("SequencerAITrackPerformVisualCommand")
+    static let trackSourceEditorVisualCommand = Notification.Name("SequencerAITrackSourceEditorVisualCommand")
+    static let scenesWorkspaceVisualCommand = Notification.Name("SequencerAIScenesWorkspaceVisualCommand")
 }
 
 private extension Color {
@@ -597,14 +591,14 @@ private struct AudioInputSignalPanel: View {
 
                 if waveformBuckets.isEmpty {
                     AudioInputLevelMeters(level: level, accent: accent)
-                        .padding(14)
+                        .padding(StudioMetrics.Spacing.standard)
                 } else {
                     WaveformView(
                         buckets: waveformBuckets,
                         fillColor: accent,
                         inactiveColor: StudioTheme.border.opacity(0.7)
                     )
-                    .padding(14)
+                    .padding(StudioMetrics.Spacing.standard)
                 }
 
                 if runtime?.armState == .recording {

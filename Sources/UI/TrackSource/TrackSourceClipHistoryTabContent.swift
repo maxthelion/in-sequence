@@ -96,7 +96,7 @@ struct TrackSourceClipHistoryTabContent: View {
             )
             .frame(minHeight: 190)
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -338,7 +338,7 @@ private struct ClipHistoryPianoRollPreview: View {
 
                 ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
                     let yIndex = pitchRange.upperBound - min(max(note.pitch, pitchRange.lowerBound), pitchRange.upperBound)
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                         .fill(accent.opacity(0.82))
                         .frame(
                             width: max(stepWidth * CGFloat(max(1, note.lengthSteps)) - 2, 6),

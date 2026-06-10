@@ -79,7 +79,7 @@ struct ClipMacroLaneEditor: View {
             ) { newValue in
                 setLaneValue(newValue, bindingID: cell.bindingID, stepIndex: cell.stepIndex)
             }
-            .presentationDetents([.height(220)])
+            .presentationDetents([.height(280)])
         }
     }
 
@@ -157,7 +157,7 @@ struct ClipMacroLaneEditor: View {
                 }
             }
         }
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
@@ -203,10 +203,10 @@ private struct MacroLaneCell: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                 .fill(isOverride ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                         .stroke(isOverride ? StudioTheme.cyan.opacity(0.5) : StudioTheme.border.opacity(0.3), lineWidth: 1)
                 )
 
@@ -253,28 +253,32 @@ private struct ScalarCellScrubber: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(StudioTheme.text)
-                Spacer()
+        StudioModal(
+            title: title,
+            minWidth: 360,
+            onClose: { commitAndDismiss() }
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                Slider(value: $value, in: minValue...max(minValue + 0.001, maxValue))
+
+                Text(formattedValue)
+                    .studioText(.modalTitle)
+                    .foregroundStyle(StudioTheme.cyan)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
                 Button("Done") {
-                    onCommit(value)
-                    dismiss()
+                    commitAndDismiss()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.success)
-            }
-
-            Slider(value: $value, in: minValue...max(minValue + 0.001, maxValue))
-
-            Text(formattedValue)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.cyan)
                 .frame(maxWidth: .infinity, alignment: .center)
+            }
         }
-        .padding(20)
+    }
+
+    private func commitAndDismiss() {
+        onCommit(value)
+        dismiss()
     }
 
     private var formattedValue: String {

@@ -34,6 +34,6 @@ struct LibraryWorkspaceView: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
         }
-        .padding(20)
+        .padding(StudioMetrics.Spacing.section)
     }
 }

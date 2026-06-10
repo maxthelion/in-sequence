@@ -20,7 +20,7 @@ struct StudioModal<Content: View>: View {
                 header
                 content
             }
-            .padding(20)
+            .padding(StudioMetrics.Spacing.section)
         }
         .frame(minWidth: minWidth, minHeight: minHeight)
     }
@@ -58,18 +58,12 @@ struct StudioModalCloseButton: View {
     var action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: "xmark")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 28, height: 28)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .keyboardShortcut(.cancelAction)
-        .help("Close")
-        .accessibilityLabel("Close")
+        StudioCircleIconButton(
+            systemName: "xmark",
+            size: StudioMetrics.ControlSize.close,
+            help: "Close",
+            keyboardShortcut: KeyboardShortcut(.escape, modifiers: []),
+            action: action
+        )
     }
 }

@@ -107,7 +107,7 @@ struct SlicerSourceWidget: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(StudioTheme.cyan)
                 .frame(width: 28, height: 28)
-                .background(StudioTheme.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(StudioTheme.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(currentSample?.name ?? "Choose a loop")
@@ -140,10 +140,20 @@ struct SlicerSourceWidget: View {
                 .disabled(sampleChoices.isEmpty)
             }
 
-            compactIconButton(systemName: "slider.horizontal.3", help: "View built-in slicer macros", action: onManageMacros)
-            compactIconButton(systemName: "xmark", help: "Remove this slicer destination", action: onRemove)
+            StudioCircleIconButton(
+                systemName: "slider.horizontal.3",
+                size: StudioMetrics.ControlSize.medium,
+                help: "View built-in slicer macros",
+                action: onManageMacros
+            )
+            StudioCircleIconButton(
+                systemName: "xmark",
+                size: StudioMetrics.ControlSize.medium,
+                help: "Remove this slicer destination",
+                action: onRemove
+            )
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
     }
 
     private var emptyState: some View {
@@ -172,7 +182,7 @@ struct SlicerSourceWidget: View {
                                     .foregroundStyle(StudioTheme.mutedText)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(10)
+                            .padding(StudioMetrics.Spacing.compact)
                             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
                             .overlay(
                                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip)
@@ -190,7 +200,7 @@ struct SlicerSourceWidget: View {
                     .foregroundStyle(Color.orange.opacity(0.9))
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private func waveformSection(sample: AudioSample) -> some View {
@@ -203,7 +213,7 @@ struct SlicerSourceWidget: View {
                 onBoundaryMove: nil
             )
             .frame(height: 72)
-            .padding(8)
+            .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip)
@@ -241,7 +251,7 @@ struct SlicerSourceWidget: View {
                     .foregroundStyle(Color.orange.opacity(0.9))
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .onChange(of: analysisMode) { _, _ in
             refreshAutoSlicesIfNeeded(sample: sample)
         }
@@ -261,7 +271,7 @@ struct SlicerSourceWidget: View {
                 } label: {
                     VStack(spacing: 5) {
                         Text(index == 0 ? "All" : "\(index)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .studioText(.labelBold)
                             .foregroundStyle(StudioTheme.text)
                         Text(sliceDurationLabel(marker: marker, sample: sample))
                             .font(.system(size: 9, weight: .medium, design: .rounded))
@@ -270,9 +280,9 @@ struct SlicerSourceWidget: View {
                             .minimumScaleFactor(0.7)
                     }
                     .frame(maxWidth: .infinity, minHeight: 48)
-                    .background(index == 0 ? StudioTheme.violet.opacity(0.18) : StudioTheme.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(index == 0 ? StudioTheme.violet.opacity(0.18) : StudioTheme.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                             .stroke(index == 0 ? StudioTheme.violet.opacity(0.65) : StudioTheme.cyan.opacity(0.55), lineWidth: 1)
                     )
                 }
@@ -280,7 +290,7 @@ struct SlicerSourceWidget: View {
                 .help("Audition slice \(index)")
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private var noSlicesState: some View {
@@ -294,7 +304,7 @@ struct SlicerSourceWidget: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private func autoDetectControls(sample: AudioSample) -> some View {
@@ -356,7 +366,7 @@ struct SlicerSourceWidget: View {
                 Spacer()
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -404,7 +414,7 @@ struct SlicerSourceWidget: View {
                 }
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private var headerDetail: String {
@@ -438,19 +448,6 @@ struct SlicerSourceWidget: View {
                     .stroke(effectiveSliceSet.mode == mode ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: 1)
             )
             .buttonStyle(.plain)
-    }
-
-    private func compactIconButton(systemName: String, help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 30, height: 30)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                .overlay(Circle().stroke(StudioTheme.border.opacity(0.8), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .help(help)
     }
 
     private func installBlank(sample: AudioSample) {

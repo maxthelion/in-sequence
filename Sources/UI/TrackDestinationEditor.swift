@@ -113,7 +113,7 @@ struct TrackDestinationEditor: View {
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.success)
             }
-            .padding(14)
+            .padding(StudioMetrics.Spacing.standard)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -176,7 +176,7 @@ struct TrackDestinationEditor: View {
             }
             .buttonStyle(.bordered)
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -252,27 +252,29 @@ struct TrackDestinationEditor: View {
 
                 Spacer(minLength: 12)
 
-                compactIconButton(
+                StudioCircleIconButton(
                     systemName: "slider.horizontal.3",
+                    size: StudioMetrics.ControlSize.medium,
                     help: "Open plug-in window"
                 ) {
                     prepareAndOpenCurrentAudioUnitWindow()
                 }
 
-                compactIconButton(
+                StudioCircleIconButton(
                     systemName: "xmark",
+                    size: StudioMetrics.ControlSize.medium,
                     help: "Remove this AU destination before choosing another one"
                 ) {
                     clearDestination()
                 }
             }
-            .padding(14)
+            .padding(StudioMetrics.Spacing.standard)
 
             Divider()
                 .overlay(StudioTheme.border.opacity(0.7))
 
             presetSelectorButton
-                .padding(12)
+                .padding(StudioMetrics.Spacing.comfortable)
 
             Divider()
                 .overlay(StudioTheme.border.opacity(0.7))
@@ -308,7 +310,7 @@ struct TrackDestinationEditor: View {
                     )
                 }
             }
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
 
             if macroSlotFull {
                 Text("All macro slots are full")
@@ -382,7 +384,7 @@ struct TrackDestinationEditor: View {
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(canStepPreset(direction) ? StudioTheme.text : StudioTheme.mutedText.opacity(0.6))
                 .frame(width: 18, height: 12)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(!canStepPreset(direction) || presetStepInFlight)
@@ -425,26 +427,6 @@ struct TrackDestinationEditor: View {
                 presetLoadFailed = true
             }
         }
-    }
-
-    private func compactIconButton(
-        systemName: String,
-        help: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 30, height: 30)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                .overlay(
-                    Circle()
-                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(help)
     }
 
     private var auMacroBindings: [TrackMacroBinding] {
@@ -928,7 +910,7 @@ private struct DestinationField<Content: View>: View {
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)

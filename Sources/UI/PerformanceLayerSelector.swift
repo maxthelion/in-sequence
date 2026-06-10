@@ -41,7 +41,7 @@ struct PerformanceLayerOptionCell: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
-            .padding(10)
+            .padding(StudioMetrics.Spacing.compact)
             .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
             .background(
                 isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill),

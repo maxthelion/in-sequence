@@ -38,7 +38,7 @@ struct MasterOutputColumnView: View {
                 masterOutputSection
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .frame(width: MasterOutputColumnLayout.fullColumnWidth, alignment: .topLeading)
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -144,7 +144,7 @@ struct MasterOutputColumnView: View {
                 .help("Remove insert")
             }
         }
-        .padding(8)
+        .padding(StudioMetrics.Spacing.snug)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
@@ -172,21 +172,11 @@ struct MasterOutputColumnView: View {
     }
 
     private var addFXSheet: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Master Out FX")
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    StudioModalCloseButton {
-                        isAddFXPresented = false
-                    }
-                }
-
+        StudioModal(
+            title: "Master Out FX",
+            minWidth: 360,
+            onClose: { isAddFXPresented = false }
+        ) {
                 VStack(alignment: .leading, spacing: 8) {
                     addFXButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
                         session.addMasterOutputInsert(.filter())
@@ -208,11 +198,7 @@ struct MasterOutputColumnView: View {
 
                 let effects = engineController.availableAudioEffects
                 if effects.isEmpty {
-                    Text("No AU effects found")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
+                    StudioEmptyListRow(message: "No AU effects found")
                         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 } else {
                     ScrollView {
@@ -228,9 +214,6 @@ struct MasterOutputColumnView: View {
                     .frame(maxHeight: 220)
                     .scrollContentBackground(.hidden)
                 }
-            }
-            .padding(18)
-            .frame(width: 360)
         }
         .presentationBackground(.clear)
         .environment(\.colorScheme, .dark)
@@ -472,7 +455,7 @@ private struct MasterOutputFaderMeter: View {
                     .frame(width: 58, height: 2)
                     .offset(y: -height * MasterOutputGainScale.unityPosition + 1)
 
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(StudioTheme.text)
                     .frame(width: 42, height: 6)
                     .shadow(color: .black.opacity(0.3), radius: 2, y: 1)

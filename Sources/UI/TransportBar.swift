@@ -101,14 +101,16 @@ struct TransportBar: View {
 
             HStack(spacing: 6) {
                 Text(String(format: "%.0f", engineController.currentBPM))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .studioText(.heading)
                     .monospacedDigit()
                     .foregroundStyle(StudioTheme.text)
 
-                VStack(spacing: 2) {
-                    bpmStepButton(systemName: "plus", delta: 1)
-                    bpmStepButton(systemName: "minus", delta: -1)
-                }
+                StudioStepperButtons(
+                    upHelp: "Increase BPM",
+                    downHelp: "Decrease BPM",
+                    onUp: { stepBPM(by: 1) },
+                    onDown: { stepBPM(by: -1) }
+                )
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("transport-bpm")
@@ -122,7 +124,7 @@ struct TransportBar: View {
                 .frame(width: 1, height: 26)
 
             Text(engineController.transportPosition)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .studioText(.metricValue)
                 .monospacedDigit()
                 .foregroundStyle(StudioTheme.text)
 
@@ -152,25 +154,9 @@ struct TransportBar: View {
         )
     }
 
-    private func bpmStepButton(systemName: String, delta: Double) -> some View {
-        Button {
-            let next = (engineController.currentBPM + delta).rounded()
-            engineController.setBPM(min(300, max(40, next)))
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 8, weight: .black))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 18, height: 13)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: 1)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(delta > 0 ? "Increase BPM" : "Decrease BPM")
-        .accessibilityLabel(delta > 0 ? "Increase BPM" : "Decrease BPM")
+    private func stepBPM(by delta: Double) {
+        let next = (engineController.currentBPM + delta).rounded()
+        engineController.setBPM(min(300, max(40, next)))
     }
 
     private var phraseNavigationControl: some View {
@@ -330,7 +316,7 @@ private struct TransportButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(StudioTheme.text)
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
             .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)

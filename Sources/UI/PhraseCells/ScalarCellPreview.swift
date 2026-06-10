@@ -28,7 +28,7 @@ struct ScalarCellPreview: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Spacer()
                     Text(summary)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .studioText(.modalTitle)
                         .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -38,7 +38,7 @@ struct ScalarCellPreview: View {
                         .foregroundStyle(StudioTheme.text.opacity(0.85))
                         .lineLimit(1)
                 }
-                .padding(10)
+                .padding(StudioMetrics.Spacing.compact)
             }
         }
         .frame(height: metrics.valueHeight)

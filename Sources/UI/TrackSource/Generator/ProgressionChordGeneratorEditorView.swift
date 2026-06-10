@@ -187,7 +187,7 @@ struct ProgressionChordGeneratorEditorView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -242,7 +242,7 @@ struct ProgressionChordGeneratorEditorView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -304,7 +304,7 @@ struct ProgressionChordGeneratorEditorView: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
-            .padding(14)
+            .padding(StudioMetrics.Spacing.standard)
             .background(
                 selectedChordStep == step ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -348,7 +348,7 @@ struct ProgressionChordGeneratorEditorView: View {
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
-            .padding(10)
+            .padding(StudioMetrics.Spacing.compact)
             .background(
                 isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)

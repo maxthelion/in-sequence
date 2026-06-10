@@ -341,7 +341,7 @@ struct TrackSourceContainedSourcePicker: View {
                 action: secondaryAction
             )
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(
             Color.white.opacity(StudioOpacity.subtleFill),
             in: RoundedRectangle(
@@ -417,7 +417,7 @@ struct TrackSourceContainedSourcePicker: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+            .padding(StudioMetrics.Spacing.standard)
             .background(
                 rootActionFill(for: action.role, accent: accent),
                 in: RoundedRectangle(
@@ -477,7 +477,7 @@ struct TrackSourceContainedSourcePicker: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
             .background(
                 Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(

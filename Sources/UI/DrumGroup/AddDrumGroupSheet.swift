@@ -124,7 +124,7 @@ struct AddDrumGroupSheet: View {
                 .frame(maxWidth: 220)
             } else {
                 Text(plan.members[index].trackName)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .studioText(.metricValue)
                     .foregroundStyle(StudioTheme.text)
                     .frame(maxWidth: 220, alignment: .leading)
             }
@@ -228,7 +228,7 @@ struct AddDrumGroupSheet: View {
             }
             .buttonStyle(.bordered)
         }
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
     }
 

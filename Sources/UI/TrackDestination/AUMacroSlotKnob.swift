@@ -76,7 +76,7 @@ struct MacroSlotKnob: View {
     @State private var displayValue: Double
 
     private let knobSize: CGFloat = 40
-    private let dragSensitivity: Double = 220
+    private let dragSensitivity = StudioDrag.fullRangeTravel
 
     init(
         slotIndex: Int,

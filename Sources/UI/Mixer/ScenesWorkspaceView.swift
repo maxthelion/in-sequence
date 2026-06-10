@@ -76,6 +76,13 @@ struct ScenesWorkspaceView: View {
         .onAppear {
             selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .scenesWorkspaceVisualCommand)) { notification in
+            guard let command = notification.object as? String,
+                  command.hasPrefix("mode:"),
+                  let nextMode = ScenesWorkspaceMode(rawValue: String(command.dropFirst("mode:".count)))
+            else { return }
+            mode = nextMode
+        }
         .onChange(of: resetToken) {
             selectedSceneID = nil
             selectedInsertID = nil
@@ -152,28 +159,9 @@ struct ScenesWorkspaceView: View {
     }
 
     private var addSceneCard: some View {
-        Button {
+        StudioAddCard(label: "Add Scene") {
             openNewScene()
-        } label: {
-            VStack(spacing: 10) {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(StudioTheme.success)
-                    .frame(width: 34, height: 34)
-                    .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: Circle())
-                Text("Add Scene")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-            }
-            .frame(maxWidth: .infinity, minHeight: 132)
-            .padding(12)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.success.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
-            )
         }
-        .buttonStyle(.plain)
     }
 
     private func openNewScene() {
@@ -211,7 +199,7 @@ struct ScenesWorkspaceView: View {
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
             .background(scene.id == masterBus.activeSceneID ? StudioTheme.amber.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -405,7 +393,7 @@ struct ScenesWorkspaceView: View {
                 .help("Remove insert")
             }
         }
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .background(isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
@@ -433,7 +421,7 @@ struct ScenesWorkspaceView: View {
 
                 kindEditor(insert)
             }
-            .padding(16)
+            .padding(StudioMetrics.Spacing.roomy)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)

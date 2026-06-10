@@ -242,7 +242,7 @@ struct SliceTrackWorkspaceView: View {
                     .disabled(waveformZoom <= 1.01)
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -417,7 +417,7 @@ struct SliceTrackWorkspaceView: View {
                 .foregroundStyle(StudioTheme.mutedText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -496,7 +496,7 @@ struct SliceTrackWorkspaceView: View {
                 Spacer()
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)

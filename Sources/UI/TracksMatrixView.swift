@@ -69,7 +69,7 @@ struct TracksWorkspaceView: View {
             },
             onOpenTrack: onOpenTrack
         )
-        .padding(20)
+        .padding(StudioMetrics.Spacing.section)
     }
 }
 
@@ -565,7 +565,7 @@ struct TracksMatrixView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
@@ -671,30 +671,9 @@ struct TracksMatrixView: View {
     }
 
     private var addTrackCard: some View {
-        Button {
+        StudioAddCard(label: "Add Track", help: "Add a track") {
             isPresentingCreateTrack = true
-        } label: {
-            VStack(spacing: 10) {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(StudioTheme.success)
-                    .frame(width: 34, height: 34)
-                    .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: Circle())
-                Text("Add Track")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-            }
-            .frame(maxWidth: .infinity, minHeight: 132)
-            .padding(12)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.success.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
-            )
         }
-        .buttonStyle(.plain)
-        .help("Add a track")
-        .accessibilityLabel("Add a track")
     }
 
     private func runtimeControlState(for trackID: UUID, control: TrackPerformBinaryControl) -> TrackPerformRuntimeControlState {
@@ -969,7 +948,7 @@ private struct GroupSectionView<Grid: View>: View {
 
             grid
         }
-        .padding(16)
+        .padding(StudioMetrics.Spacing.roomy)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
@@ -1026,7 +1005,7 @@ private struct TrackPerformPlaceholderLayerCard: View {
                 .foregroundStyle(StudioTheme.mutedText)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
@@ -1177,7 +1156,7 @@ private struct TrackMatrixCard: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.name)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .studioText(.subtitle)
                         .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -1252,7 +1231,7 @@ private struct TrackMatrixCard: View {
             activeLayerContent
         }
         .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .fill(cardFill)
@@ -1445,7 +1424,7 @@ private struct TrackPerformRuntimeLayerControl: View {
                         .minimumScaleFactor(0.8)
 
                     Text(stateLabel)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .studioText(.title)
                         .foregroundStyle(labelForeground)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -1487,7 +1466,7 @@ private struct TrackPerformRuntimeLayerControl: View {
             }
         }
         .foregroundStyle(labelForeground)
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
         .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
@@ -1738,27 +1717,15 @@ private struct CreateTrackSheet: View {
         disabledHelp: String = "",
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(title)
-                    .studioText(.title)
-                    .foregroundStyle(StudioTheme.text)
-                Text(detail)
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
-            .padding(16)
-            .background(accent.opacity(StudioOpacity.mutedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(accent.opacity(0.35), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .help(isEnabled ? "" : disabledHelp)
+        StudioOptionButton(
+            title: title,
+            detail: detail,
+            accent: accent,
+            minHeight: 120,
+            isEnabled: isEnabled,
+            disabledHelp: disabledHelp,
+            action: action
+        )
     }
 }
 
@@ -1809,7 +1776,7 @@ private struct AddSliceTrackSheet: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(StudioMetrics.Spacing.page)
             .frame(minWidth: 760, minHeight: 520)
 
             Button {
@@ -1883,7 +1850,7 @@ private struct AddSliceTrackSheet: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(

@@ -42,7 +42,8 @@ struct SingleMacroSlotPickerSheet: View {
         let filteredRest = filter(rest)
 
         return VStack(alignment: .leading, spacing: 0) {
-            searchBar
+            StudioSearchBar(placeholder: "Search parameters", text: $searchText)
+                .padding(.vertical, 10)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
@@ -52,7 +53,7 @@ struct SingleMacroSlotPickerSheet: View {
                                 paramRow(param)
                             }
                         } header: {
-                            sectionHeader("Likely Candidates")
+                            StudioSectionHeader(title: "Likely Candidates")
                         }
                     }
 
@@ -68,23 +69,11 @@ struct SingleMacroSlotPickerSheet: View {
                             }
                         }
                     } header: {
-                        sectionHeader("All Parameters")
+                        StudioSectionHeader(title: "All Parameters")
                     }
                 }
             }
         }
-    }
-
-    private var searchBar: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(StudioTheme.mutedText)
-            TextField("Search parameters", text: $searchText)
-                .textFieldStyle(.plain)
-        }
-        .padding(8)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge))
-        .padding(.vertical, 10)
     }
 
     private var loadingContent: some View {
@@ -95,16 +84,6 @@ struct SingleMacroSlotPickerSheet: View {
                 .foregroundStyle(StudioTheme.mutedText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title.uppercased())
-            .studioText(.eyebrow)
-            .tracking(0.8)
-            .foregroundStyle(StudioTheme.mutedText)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(StudioTheme.background)
     }
 
     private func paramRow(_ param: AUParameterDescriptor) -> some View {

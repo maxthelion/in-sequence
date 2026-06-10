@@ -145,3 +145,32 @@ No `Color(red:...)` literals outside `Theme/` — fully healthy.
 
 Items 1–5 are bounded component refactors suitable for one build-loop slice
 each; 6 is a mechanical sweep best done with a lint rule or script.
+
+## Status update (2026-06-10, branch fix/ui-component-dedup)
+
+Executed:
+1. ✅ `StudioMetrics.ControlSize` + `StudioCircleIconButton` (18 inline sites
+   converted, 5 private helpers deleted) + `StudioStepperButtons` (BPM stepper
+   and layer cycler unified).
+2. ✅ Typography: added `heading` (16) and `modalTitle` (22); 17 exact-match
+   raw sizes swept onto styles. ~100 remaining raw sizes are genuinely
+   off-scale (8/9pt micro-glyphs, odd weights) or icon glyph sizing — left by
+   policy.
+3. ✅ `StudioSectionHeader` + `StudioSearchBar`; the three picker sheets no
+   longer carry private copies, and the preset browser's odd `.roundedBorder`
+   field is unified.
+4. ✅ `StudioOptionButton` + `StudioAddCard` adopted (destination picker,
+   create-track, generator picker, add-track/scene/bus cards; one dash
+   pattern).
+5. ✅ StudioModal adopted by the last holdouts (send-FX sheets ×3, scene
+   perform slot picker, scalar cell scrubber — closing now commits the value).
+6. ✅ Spacing scale extended (hairline…page) and all uniform `.padding(n)`
+   literals swept onto tokens; `CornerRadius.mini` added and 4/8pt radius
+   literals swept. Stack `spacing:` literals remain accepted micro-layout per
+   the documented policy in StudioMetrics.
+7. ✅ One shared drag sensitivity (`StudioDrag.fullRangeTravel`); ad-hoc
+   "No AU effects found" empty states unified on `StudioEmptyListRow`.
+
+Deliberately out of scope: PreferencesView keeps system Form styling (it is a
+macOS Settings window); 17 native segmented pickers remain pending a decision
+on native-vs-custom segmented control policy.

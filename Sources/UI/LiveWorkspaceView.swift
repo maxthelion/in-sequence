@@ -119,17 +119,12 @@ struct LiveWorkspaceView: View {
 
     private var topBar: some View {
         HStack(spacing: 12) {
-            Button {
+            StudioCircleIconButton(
+                systemName: "chevron.left",
+                size: StudioMetrics.ControlSize.large
+            ) {
                 cycleLayer(by: -1)
-            } label: {
-                Image(systemName: "chevron.left")
-                    .studioText(.chromeLabel)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
             }
-            .buttonStyle(.plain)
 
             HStack(spacing: 10) {
                 Text(selectedLayer.name.uppercased())
@@ -161,17 +156,12 @@ struct LiveWorkspaceView: View {
                     .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
             )
 
-            Button {
+            StudioCircleIconButton(
+                systemName: "chevron.right",
+                size: StudioMetrics.ControlSize.large
+            ) {
                 cycleLayer(by: 1)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .studioText(.chromeLabel)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
             }
-            .buttonStyle(.plain)
 
             Spacer()
 
@@ -418,7 +408,7 @@ private struct LiveScopeCard: View {
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)

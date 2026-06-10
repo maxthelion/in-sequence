@@ -128,7 +128,7 @@ private struct MacroKnob: View {
     @State private var displayValue: Double
 
     private let knobSize: CGFloat = 40
-    private let dragSensitivity: Double = 200
+    private let dragSensitivity = StudioDrag.fullRangeTravel
 
     init(binding: TrackMacroBinding, value: Double, onChange: @escaping (Double) -> Void) {
         self.binding = binding

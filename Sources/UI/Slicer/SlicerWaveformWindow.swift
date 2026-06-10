@@ -53,7 +53,7 @@ struct SlicerWaveformWindow: View {
                 onBoundaryMove: moveBoundary(markerID:to:)
             )
             .frame(height: 180)
-            .padding(12)
+            .padding(StudioMetrics.Spacing.comfortable)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -82,7 +82,7 @@ struct SlicerWaveformWindow: View {
                 }
             }
         }
-        .padding(24)
+        .padding(StudioMetrics.Spacing.page)
         .frame(minWidth: 760, minHeight: 520)
         .background(StudioTheme.stageFill)
         .onDisappear {
@@ -115,9 +115,9 @@ struct SlicerWaveformWindow: View {
                                     .minimumScaleFactor(0.7)
                             }
                             .padding(9)
-                            .background(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .background(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                                     .stroke(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.65) : StudioTheme.border.opacity(0.8), lineWidth: 1)
                             )
                         }
@@ -126,7 +126,7 @@ struct SlicerWaveformWindow: View {
                 }
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)

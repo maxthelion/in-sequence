@@ -80,7 +80,7 @@ struct PhraseLaunchGridSheet: View {
 
                 progressBar(for: phrase, isCurrent: isCurrent)
             }
-            .padding(8)
+            .padding(StudioMetrics.Spacing.snug)
             .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
             .background(
                 isCurrent ? StudioTheme.cyan.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill),

@@ -12,7 +12,9 @@ enum StudioTypography: String, CaseIterable, Sendable {
     case microEmphasis
     case subtitle
     case subtitleMuted
+    case heading
     case title
+    case modalTitle
     case metricValue
     case placeholderTitle
     case display
@@ -32,8 +34,12 @@ enum StudioTypography: String, CaseIterable, Sendable {
             return 14
         case .placeholderTitle:
             return 15
+        case .heading:
+            return 16
         case .title:
             return 18
+        case .modalTitle:
+            return 22
         case .display:
             return 28
         }
@@ -45,7 +51,7 @@ enum StudioTypography: String, CaseIterable, Sendable {
             return .semibold
         case .label, .body, .subtitleMuted:
             return .medium
-        case .eyebrowBold, .labelBold, .bodyBold, .micro, .subtitle, .title, .display, .chromeLabel:
+        case .eyebrowBold, .labelBold, .bodyBold, .micro, .subtitle, .heading, .title, .modalTitle, .display, .chromeLabel:
             return .bold
         }
     }

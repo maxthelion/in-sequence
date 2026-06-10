@@ -449,18 +449,6 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    private func layerCycleButton(systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 24, height: 24)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-
     private func trackPageArrow(_ direction: PhraseMatrixPageDirection) -> some View {
         let presentation = matrixLayout.arrow(for: direction)
         let systemImage = direction == .previous ? "chevron.left" : "chevron.right"
@@ -724,19 +712,13 @@ struct PhraseWorkspaceView: View {
 
                 Spacer(minLength: 8)
 
-                Button {
+                StudioCircleIconButton(
+                    systemName: "xmark",
+                    help: "Return to phrase rows"
+                ) {
                     isPresentingPerformanceLayerSelection = false
                     postRenderedMatrixVisualState(isVisible: true)
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(StudioTheme.text)
-                        .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
                 }
-                .buttonStyle(.plain)
-                .help("Return to phrase rows")
             }
 
             LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 10) {
@@ -751,7 +733,7 @@ struct PhraseWorkspaceView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
@@ -844,7 +826,7 @@ private struct PhraseMatrixTrackHeaderCell: View {
                 .studioText(.subtitle)
                 .foregroundStyle(StudioTheme.text)
             Text(track.trackType.label.uppercased())
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .studioText(.microEmphasis)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
         }
@@ -928,7 +910,7 @@ private struct PhraseMatrixPhraseCell: View {
                 .frame(minHeight: 18, alignment: .leading)
             }
             .frame(maxWidth: .infinity, minHeight: 106, alignment: .topLeading)
-            .padding(10)
+            .padding(StudioMetrics.Spacing.compact)
             .background(rowFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -1235,7 +1217,7 @@ private struct StepOrderPhraseWorkflowPanel: View {
                 }
             }
         }
-        .padding(12)
+        .padding(StudioMetrics.Spacing.comfortable)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -1459,7 +1441,7 @@ private struct StepOrderPhraseWorkflowPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(8)
+        .padding(StudioMetrics.Spacing.snug)
         .background(row.id == resolvedEditorMapID ? StudioTheme.cyan.opacity(StudioOpacity.faintStroke) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
@@ -1667,7 +1649,7 @@ private struct StepOrderPhraseWorkflowPanel: View {
                     action(index)
                 } label: {
                     Text("\(values[index] + 1)")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .studioText(.micro)
                         .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
                         .frame(width: 26, height: 26)
                         .background((isSelected ? StudioTheme.cyan.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
@@ -1845,7 +1827,7 @@ private struct PhraseGridCell: View {
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -1905,7 +1887,7 @@ private struct PhrasePerformancePlaceholderCell: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)

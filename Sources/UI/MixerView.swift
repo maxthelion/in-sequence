@@ -128,7 +128,7 @@ struct MixerView<TrailingContent: View>: View {
 
                     trailingContent
                 }
-                .padding(4)
+                .padding(StudioMetrics.Spacing.hairline)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -431,7 +431,7 @@ private struct MixerChannelStrip: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
         }
-        .padding(16)
+        .padding(StudioMetrics.Spacing.roomy)
         .frame(width: 200, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel)
@@ -658,23 +658,9 @@ private struct MixerAddBusTile: View {
     let onAddBus: () -> Void
 
     var body: some View {
-        Button(action: onAddBus) {
-            VStack(spacing: 10) {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .bold))
-                Text("Add Bus")
-                    .studioText(.labelBold)
-            }
-            .foregroundStyle(StudioTheme.text)
-            .frame(width: MixerWorkspaceLayout.addBusTileWidth, height: 170)
-            .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("mixer-add-bus-tile")
+        StudioAddCard(label: "Add Bus", minHeight: 146, action: onAddBus)
+            .frame(width: MixerWorkspaceLayout.addBusTileWidth)
+            .accessibilityIdentifier("mixer-add-bus-tile")
     }
 }
 
@@ -756,7 +742,7 @@ struct MixerInsertChainView: View {
                 .help("Remove insert")
             }
         }
-        .padding(8)
+        .padding(StudioMetrics.Spacing.snug)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
@@ -932,7 +918,7 @@ private struct SendAmountControl: View {
                     .studioText(.micro)
                     .foregroundStyle(StudioTheme.mutedText)
             }
-            .padding(16)
+            .padding(StudioMetrics.Spacing.roomy)
             .frame(width: 280)
             .background(StudioTheme.stageFill)
         }
@@ -959,7 +945,7 @@ struct VerticalLevelFader: View {
                     .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan)
                     .frame(height: filledHeight)
 
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(Color.white.opacity(StudioOpacity.selectedFill))
                     .frame(width: 16, height: 4)
                     .offset(y: -filledHeight + 10)

@@ -22,42 +22,16 @@ struct TrackSourceGeneratorSelectionSheet: View {
                         .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     ScrollView {
-                            VStack(alignment: .leading, spacing: 10) {
-                                ForEach(generators) { generator in
-                                    Button {
-                                        onSelect(generator)
-                                        dismiss()
-                                    } label: {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(generator.name)
-                                                .studioText(.bodyBold)
-                                                .foregroundStyle(StudioTheme.text)
-                                            Text(generator.kind.label)
-                                                .studioText(.label)
-                                                .foregroundStyle(StudioTheme.mutedText)
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(12)
-                                        .background(
-                                            Color.white.opacity(StudioOpacity.subtleFill),
-                                            in: RoundedRectangle(
-                                                cornerRadius: StudioMetrics.CornerRadius.control,
-                                                style: .continuous
-                                            )
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(
-                                                cornerRadius: StudioMetrics.CornerRadius.control,
-                                                style: .continuous
-                                            )
-                                            .stroke(StudioTheme.border, lineWidth: 1)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(generators) { generator in
+                                StudioOptionButton(title: generator.name, detail: generator.kind.label) {
+                                    onSelect(generator)
+                                    dismiss()
                                 }
                             }
                         }
-                        .frame(maxHeight: 320)
+                    }
+                    .frame(maxHeight: 320)
                 }
             }
         }

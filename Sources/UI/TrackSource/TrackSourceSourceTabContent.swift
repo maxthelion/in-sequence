@@ -115,7 +115,7 @@ struct TrackSourceSourceTabContent: View {
                 onCreateBlankClip: onCreateBlankClipSource,
                 onSelectClip: onAssignClipSource
             )
-            .padding(14)
+            .padding(StudioMetrics.Spacing.standard)
         } else {
             TrackSourceSourceWell(
                 sourceMode: sourceMode,

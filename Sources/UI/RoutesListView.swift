@@ -72,7 +72,7 @@ private struct RouteRowView: View {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(route.destination.title(trackLookup: trackLookup))
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .studioText(.placeholderTitle)
                         .foregroundStyle(StudioTheme.text)
 
                     Text(route.description(trackLookup: trackLookup))
@@ -105,7 +105,7 @@ private struct RouteRowView: View {
                     .buttonStyle(.bordered)
             }
         }
-        .padding(14)
+        .padding(StudioMetrics.Spacing.standard)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(

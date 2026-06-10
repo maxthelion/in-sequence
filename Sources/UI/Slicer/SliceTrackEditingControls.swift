@@ -190,7 +190,7 @@ private struct StepLayerRotaryDial: View {
                     .frame(width: dialSize, height: dialSize)
 
                 Text(control.displayValue)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .studioText(.micro)
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.55)

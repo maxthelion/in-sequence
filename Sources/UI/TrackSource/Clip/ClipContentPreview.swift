@@ -496,10 +496,13 @@ struct ClipContentPreview: View {
     /// chance and any assigned macro lanes without spending grid rows.
     private var layerLineControl: some View {
         HStack(spacing: 10) {
-            VStack(spacing: 2) {
-                layerCycleButton(systemName: "chevron.up", delta: -1)
-                layerCycleButton(systemName: "chevron.down", delta: 1)
-            }
+            StudioStepperButtons(
+                symbols: (up: "chevron.up", down: "chevron.down"),
+                upHelp: "Previous layer",
+                downHelp: "Next layer",
+                onUp: { cycleEditorLayer(by: -1) },
+                onDown: { cycleEditorLayer(by: 1) }
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("LAYER")
@@ -552,27 +555,11 @@ struct ClipContentPreview: View {
         }
     }
 
-    private func layerCycleButton(systemName: String, delta: Int) -> some View {
-        Button {
-            let layers = orderedEditorLayers
-            guard !layers.isEmpty else { return }
-            let currentIndex = layers.firstIndex(of: selectedLayer) ?? 0
-            selectedLayer = layers[(currentIndex + delta + layers.count) % layers.count]
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 8, weight: .black))
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 18, height: 13)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: 1)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(delta < 0 ? "Previous layer" : "Next layer")
-        .accessibilityLabel(delta < 0 ? "Previous layer" : "Next layer")
+    private func cycleEditorLayer(by delta: Int) {
+        let layers = orderedEditorLayers
+        guard !layers.isEmpty else { return }
+        let currentIndex = layers.firstIndex(of: selectedLayer) ?? 0
+        selectedLayer = layers[(currentIndex + delta + layers.count) % layers.count]
     }
 
     private var selectedMode: ClipEditorMode {
@@ -797,7 +784,7 @@ struct ClipContentPreview: View {
                     } label: {
                         VStack(spacing: 3) {
                             Text("\(index + 1)")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .studioText(.micro)
                                 .foregroundStyle(StudioTheme.text)
                             Text(mode == .runFromHere ? "Run" : "One")
                                 .font(.system(size: 9, weight: .medium, design: .rounded))
@@ -806,10 +793,10 @@ struct ClipContentPreview: View {
                         .frame(maxWidth: .infinity, minHeight: 34)
                         .background(
                             mode == .runFromHere ? StudioTheme.violet.opacity(0.2) : Color.white.opacity(StudioOpacity.subtleFill),
-                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                                 .stroke(mode == .runFromHere ? StudioTheme.violet.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: 1)
                         )
                     }
@@ -946,7 +933,7 @@ private struct ClipStepInspectorSheet: View {
                     laneSummary(title: "Fill Lane", lane: step.fill, accent: ClipEditorLane.fill.accent)
                 }
             }
-            .padding(24)
+            .padding(StudioMetrics.Spacing.page)
             .frame(minWidth: 520, minHeight: 360)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

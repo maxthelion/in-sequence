@@ -92,26 +92,7 @@ struct AddDestinationSheet: View {
     }
 
     private func optionButton(title: String, detail: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(StudioTheme.text)
-
-                Text(detail)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
+        StudioOptionButton(title: title, detail: detail, action: action)
     }
 
     private enum SelectionMode {

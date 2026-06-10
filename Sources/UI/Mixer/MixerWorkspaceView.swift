@@ -26,7 +26,7 @@ struct MixerWorkspaceView: View {
                     }
                 }
             }
-            .padding(20)
+            .padding(StudioMetrics.Spacing.section)
             .onChange(of: presentation.usesCompactOverlay) {
                 if !presentation.usesCompactOverlay {
                     isMasterOverlayPresented = false
@@ -153,7 +153,7 @@ struct MixerWorkspaceView: View {
                         }
                         .popover(isPresented: editingBinding(for: sendBus.id), arrowEdge: Edge.bottom) {
                             sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
-                                .padding(14)
+                                .padding(StudioMetrics.Spacing.standard)
                                 .frame(width: 360)
                                 .background(StudioTheme.stageFill)
                         }
@@ -161,7 +161,7 @@ struct MixerWorkspaceView: View {
                 }
             }
         }
-        .padding(16)
+        .padding(StudioMetrics.Spacing.roomy)
         .frame(width: MixerWorkspaceLayout.sendReturnStripWidth, alignment: .topLeading)
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -239,7 +239,7 @@ struct MixerWorkspaceView: View {
                 }
             }
         }
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -276,7 +276,7 @@ struct MixerWorkspaceView: View {
                             .foregroundStyle(StudioTheme.mutedText)
                     }
                     .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                    .padding(10)
+                    .padding(StudioMetrics.Spacing.compact)
                 }
                 .buttonStyle(.plain)
                 .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
@@ -385,7 +385,7 @@ struct MixerWorkspaceView: View {
 
                 sendKindEditor(insert, busID: bus.id, accent: accent)
             }
-            .padding(8)
+            .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
@@ -472,21 +472,12 @@ struct MixerWorkspaceView: View {
     }
 
     private func addSendFXSheet(for busID: SendBusID) -> some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
+        StudioModal(
+            title: "\(busID.displayName) FX",
+            minWidth: 360,
+            onClose: { addSendFXRequest = nil }
+        ) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("\(busID.displayName) FX")
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    StudioModalCloseButton {
-                        addSendFXRequest = nil
-                    }
-                }
-
                 VStack(alignment: .leading, spacing: 8) {
                     addSendFXChoice(title: "Filter", systemName: "line.3.horizontal.decrease.circle", busID: busID) {
                         .filter()
@@ -506,11 +497,7 @@ struct MixerWorkspaceView: View {
 
                 let effects = engineController.availableAudioEffects
                 if effects.isEmpty {
-                    Text("No AU effects found")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
+                    StudioEmptyListRow(message: "No AU effects found")
                         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 } else {
                     ScrollView {
@@ -526,8 +513,6 @@ struct MixerWorkspaceView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            .padding(18)
-            .frame(width: 360)
         }
         .presentationBackground(.clear)
         .environment(\.colorScheme, .dark)

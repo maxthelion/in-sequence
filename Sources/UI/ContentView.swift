@@ -37,7 +37,7 @@ struct ContentView: View {
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(18)
+            .padding(StudioMetrics.Spacing.loose)
         }
         .onAppear {
             guard visualScenarioCommandTask == nil else { return }

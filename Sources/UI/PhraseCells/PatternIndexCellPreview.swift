@@ -27,7 +27,7 @@ struct PatternIndexCellPreview: View {
             Spacer(minLength: 0)
 
             Text(summary)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .studioText(.modalTitle)
                 .foregroundStyle(StudioTheme.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -38,7 +38,7 @@ struct PatternIndexCellPreview: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
+        .padding(StudioMetrics.Spacing.compact)
         .frame(height: metrics.valueHeight)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
     }

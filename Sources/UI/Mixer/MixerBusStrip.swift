@@ -141,7 +141,7 @@ struct MixerBusStrip: View {
                     .lineLimit(1)
             }
         }
-        .padding(16)
+        .padding(StudioMetrics.Spacing.roomy)
         .frame(width: MixerWorkspaceLayout.busStripWidth, alignment: .topLeading)
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -253,21 +253,11 @@ struct MixerBusStrip: View {
     }
 
     private var addFXSheet: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("\(bus.name) FX")
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    StudioModalCloseButton {
-                        isAddFXPresented = false
-                    }
-                }
-
+        StudioModal(
+            title: "\(bus.name) FX",
+            minWidth: 360,
+            onClose: { isAddFXPresented = false }
+        ) {
                 VStack(alignment: .leading, spacing: 8) {
                     addFXButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
                         session.addMixerBusInsert(.filter(), busID: bus.id)
@@ -289,11 +279,7 @@ struct MixerBusStrip: View {
 
                 let effects = engineController.availableAudioEffects
                 if effects.isEmpty {
-                    Text("No AU effects found")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
+                    StudioEmptyListRow(message: "No AU effects found")
                         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 } else {
                     ScrollView {
@@ -309,9 +295,6 @@ struct MixerBusStrip: View {
                     .frame(maxHeight: 220)
                     .scrollContentBackground(.hidden)
                 }
-            }
-            .padding(18)
-            .frame(width: 360)
         }
         .presentationBackground(.clear)
         .environment(\.colorScheme, .dark)
