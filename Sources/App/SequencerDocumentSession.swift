@@ -65,7 +65,10 @@ final class SequencerDocumentSession {
         self.revision = store.revision
         installStepOrderToggleAppliedHandler()
         SequencerDocumentSessionRegistry.register(self)
-        applyStoredAudioDevicePreferenceIfNeeded()
+        // Deferred: applying a stored device preference talks to CoreAudio
+        // synchronously, and a stalled HAL call here blocks document window
+        // creation (window state restoration deadlocks until it returns).
+        Task { [weak self] in self?.applyStoredAudioDevicePreferenceIfNeeded() }
     }
 
     /// Test-only initializer that accepts an injected EngineController.
@@ -87,6 +90,9 @@ final class SequencerDocumentSession {
         self.revision = store.revision
         installStepOrderToggleAppliedHandler()
         SequencerDocumentSessionRegistry.register(self)
+        // Synchronous here: injected engines are test stubs (no CoreAudio),
+        // and deferring would land the apply mid-test at a nondeterministic
+        // point. The production initializer defers instead.
         applyStoredAudioDevicePreferenceIfNeeded()
     }
 
