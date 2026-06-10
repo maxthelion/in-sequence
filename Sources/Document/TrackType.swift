@@ -48,4 +48,14 @@ enum AudioInputChannel: String, Codable, CaseIterable, Equatable, Sendable {
             return "Stereo"
         }
     }
+
+    /// Hardware channels the interface must provide for this routing.
+    var requiredChannelCount: Int {
+        switch self {
+        case .mono1:
+            return 1
+        case .mono2, .stereo:
+            return 2
+        }
+    }
 }

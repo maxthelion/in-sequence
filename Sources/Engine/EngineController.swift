@@ -2629,6 +2629,12 @@ final class EngineController: RouterDispatcher {
         Self.audioInputRouteState(for: channel, availableChannelCount: availableAudioInputChannelCount)
     }
 
+    /// Device input channel count for UI affordances (input selector,
+    /// arm-availability messaging).
+    var audioInputAvailableChannels: Int {
+        availableAudioInputChannelCount
+    }
+
     private var availableAudioInputChannelCount: Int {
         if let audioInputAvailableChannelCountOverrideForTesting {
             return max(0, audioInputAvailableChannelCountOverrideForTesting)

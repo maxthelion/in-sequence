@@ -432,64 +432,66 @@ private extension Color {
 
 private struct AudioInputRuntimePanel: View {
     @Environment(SequencerDocumentSession.self) private var session
+    @Environment(EngineController.self) private var engineController
     let track: StepSequenceTrack
     let runtime: EngineController.AudioInputTrackRuntime?
     let accent: Color
 
-    private var armStateLabel: String {
-        switch runtime?.armState ?? .idle {
-        case .idle:
-            return "Idle"
-        case .armed:
-            return "Armed"
-        case .recording:
-            return "Recording"
-        case .hasLoop:
-            return "Loop Ready"
-        }
-    }
-
     private var monitorMode: EngineController.AudioInputMonitorMode {
         runtime?.monitorMode ?? .input
-    }
-
-    private var routeLabel: String {
-        guard let runtime else {
-            return "Runtime unavailable"
-        }
-        return runtime.routeState == .available ? "Input route ready" : "Silent input route"
     }
 
     private var canArmInput: Bool {
         runtime?.routeState == .available
     }
 
+    private var availableChannels: Int {
+        engineController.audioInputAvailableChannels
+    }
+
+    private var isArmedOrRecording: Bool {
+        runtime?.armState == .armed || runtime?.armState == .recording
+    }
+
+    private var armButtonTitle: String {
+        switch runtime?.armState ?? .idle {
+        case .armed:
+            return "Armed — Cancel"
+        case .recording:
+            return "Recording — Cancel"
+        case .idle, .hasLoop:
+            return "ARM"
+        }
+    }
+
     var body: some View {
-        StudioPanel(title: "Audio Input", eyebrow: routeLabel, accent: accent) {
+        StudioPanel(title: "Audio Input", accent: accent) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
-                    StudioMetricPill(title: "State", value: armStateLabel, accent: accent)
-                    StudioMetricPill(title: "Monitor", value: monitorMode == .input ? "Input" : "Loop", accent: StudioTheme.amber)
-                    StudioMetricPill(title: "Channel", value: (runtime?.selectedInputChannel ?? track.inputChannel).label, accent: StudioTheme.cyan)
-                    Spacer()
-                }
-
-                HStack(spacing: 12) {
-                    if runtime?.armState == .armed || runtime?.armState == .recording {
-                        Button {
+                    Button {
+                        if isArmedOrRecording {
                             session.cancelAudioInputArm(trackID: track.id)
-                        } label: {
-                            Label("Cancel ARM", systemImage: "xmark.circle")
-                        }
-                    } else {
-                        Button {
+                        } else {
                             session.armAudioInputTrack(trackID: track.id)
-                        } label: {
-                            Label("ARM", systemImage: "record.circle")
                         }
-                        .disabled(!canArmInput)
-                        .help(canArmInput ? "Arm recording at the next bar" : "Select an available input route before arming")
+                    } label: {
+                        Label(armButtonTitle, systemImage: isArmedOrRecording ? "stop.circle.fill" : "record.circle")
+                            .studioText(.labelBold)
+                            .frame(minWidth: 96)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(isArmedOrRecording ? StudioTheme.amber : accent)
+                    .disabled(!canArmInput && !isArmedOrRecording)
+                    .help(canArmInput || isArmedOrRecording ? "Records at the next bar" : "Pick an input the interface provides to enable arming")
+
+                    if !canArmInput, !isArmedOrRecording {
+                        Text(availableChannels == 0 ? "NO INPUTS ON INTERFACE" : "INPUT NEEDS \(channelRequirementLabel)")
+                            .studioText(.microEmphasis)
+                            .tracking(0.6)
+                            .foregroundStyle(StudioTheme.amber)
+                    }
+
+                    Spacer(minLength: 12)
 
                     StudioSegmentedControl(
                         title: "Monitor",
@@ -500,12 +502,18 @@ private struct AudioInputRuntimePanel: View {
                         ],
                         accent: StudioTheme.amber
                     )
-                    .frame(width: 180)
+                    .frame(width: 170)
 
                     StudioSegmentedControl(
                         title: "Input",
                         selection: channelBinding,
-                        segments: AudioInputChannel.allCases.map { StudioSegment(title: $0.label, value: $0) },
+                        segments: AudioInputChannel.allCases.map { channel in
+                            StudioSegment(
+                                title: channel.label,
+                                value: channel,
+                                isEnabled: availableChannels >= channel.requiredChannelCount
+                            )
+                        },
                         accent: StudioTheme.cyan
                     )
                     .frame(width: 220)
@@ -515,6 +523,11 @@ private struct AudioInputRuntimePanel: View {
                 AudioInputSignalPanel(runtime: runtime, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
             }
         }
+    }
+
+    private var channelRequirementLabel: String {
+        let selected = runtime?.selectedInputChannel ?? track.inputChannel
+        return selected.requiredChannelCount == 1 ? "1 CHANNEL" : "2 CHANNELS"
     }
 
     private var monitorBinding: Binding<EngineController.AudioInputMonitorMode> {
@@ -565,6 +578,18 @@ private struct AudioInputSignalPanel: View {
         return runtime.waveformBuckets
     }
 
+    /// Live input states (idle/armed with input monitoring) have no engine
+    /// bucket stream, so the monitor builds a rolling waveform from the live
+    /// level snapshots — the same visual grammar as the slicer and the
+    /// recording/loop states.
+    private var showsRollingLiveWaveform: Bool {
+        guard let runtime else { return false }
+        return waveformBuckets.isEmpty && runtime.activeMonitorMode == .input && !runtime.isSilent
+    }
+
+    @State private var liveBuckets: [Float] = []
+    private static let liveBucketCount = 96
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
@@ -589,16 +614,28 @@ private struct AudioInputSignalPanel: View {
                             .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
                     )
 
-                if waveformBuckets.isEmpty {
-                    AudioInputLevelMeters(level: level, accent: accent)
-                        .padding(StudioMetrics.Spacing.standard)
-                } else {
+                if !waveformBuckets.isEmpty {
                     WaveformView(
                         buckets: waveformBuckets,
                         fillColor: accent,
                         inactiveColor: StudioTheme.border.opacity(0.7)
                     )
                     .padding(StudioMetrics.Spacing.standard)
+                } else if showsRollingLiveWaveform {
+                    HStack(alignment: .bottom, spacing: 12) {
+                        WaveformView(
+                            buckets: liveBuckets,
+                            fillColor: accent,
+                            inactiveColor: StudioTheme.border.opacity(0.7)
+                        )
+
+                        AudioInputLevelMeters(level: level, accent: accent)
+                            .frame(width: 52)
+                    }
+                    .padding(StudioMetrics.Spacing.standard)
+                } else {
+                    AudioInputLevelMeters(level: level, accent: accent)
+                        .padding(StudioMetrics.Spacing.standard)
                 }
 
                 if runtime?.armState == .recording {
@@ -612,6 +649,20 @@ private struct AudioInputSignalPanel: View {
                 }
             }
             .frame(height: 128)
+        }
+        .task(id: showsRollingLiveWaveform) {
+            guard showsRollingLiveWaveform else {
+                liveBuckets = []
+                return
+            }
+            while !Task.isCancelled {
+                let peak = max(level.leftPeak, level.rightPeak)
+                liveBuckets.append(peak)
+                if liveBuckets.count > Self.liveBucketCount {
+                    liveBuckets.removeFirst(liveBuckets.count - Self.liveBucketCount)
+                }
+                try? await Task.sleep(for: .milliseconds(60))
+            }
         }
     }
 }
@@ -651,6 +702,7 @@ private struct AudioInputLevelMeters: View {
 private struct StudioSegment<Value: Equatable> {
     let title: String
     let value: Value
+    var isEnabled: Bool = true
 }
 
 private struct StudioSegmentedControl<Value: Equatable>: View {
@@ -690,7 +742,7 @@ private struct StudioSegmentedControl<Value: Equatable>: View {
         } label: {
             Text(segment.title)
                 .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.text.opacity(0.78))
+                .foregroundStyle(segmentForeground(isSelected: isSelected, isEnabled: segment.isEnabled))
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
                 .frame(maxWidth: .infinity, minHeight: 28)
@@ -705,7 +757,16 @@ private struct StudioSegmentedControl<Value: Equatable>: View {
                 )
         }
         .buttonStyle(.plain)
+        .disabled(!segment.isEnabled)
+        .help(segment.isEnabled ? "" : "The audio interface does not provide enough inputs for \(segment.title)")
         .accessibilityLabel("\(title) \(segment.title)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    private func segmentForeground(isSelected: Bool, isEnabled: Bool) -> Color {
+        guard isEnabled else {
+            return StudioTheme.mutedText.opacity(0.4)
+        }
+        return isSelected ? StudioTheme.text : StudioTheme.text.opacity(0.78)
     }
 }
