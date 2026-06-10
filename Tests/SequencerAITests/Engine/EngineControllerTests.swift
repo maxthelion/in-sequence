@@ -2128,6 +2128,37 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(createdSinks[0].selectedInstrument, .testInstrument)
     }
 
+    /// Switching the audio device must recompute audio-input route states:
+    /// picking an interface with enough input channels should unlock arming
+    /// without any other interaction (regression: route state stayed frozen
+    /// at the old device's channel count after Preferences device changes).
+    func test_applyAudioDeviceUIDs_resyncsAudioInputRouteState() throws {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 1
+        controller.audioDeviceApplyOverrideForTesting = { inputUID, outputUID in
+            AudioDeviceApplyResult(
+                appliedInputDeviceUID: inputUID,
+                appliedOutputDeviceUID: outputUID,
+                wasRunningBeforeApply: false,
+                restartedEngine: false
+            )
+        }
+
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+
+        let beforeSwitch = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(beforeSwitch.routeState, .silentUnavailable)
+
+        controller.audioInputAvailableChannelCountOverrideForTesting = 24
+        _ = try controller.applyAudioDeviceUIDs(inputUID: "big-interface", outputUID: nil)
+
+        let afterSwitch = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(afterSwitch.routeState, .available)
+    }
+
     func test_audioInputRuntime_setupIsLimitedToOneTrackAndTearsDownOnRemoval() {
         let controller = EngineController(client: nil, endpoint: nil)
         controller.audioInputAvailableChannelCountOverrideForTesting = 2

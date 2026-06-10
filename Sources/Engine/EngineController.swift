@@ -549,10 +549,30 @@ final class EngineController: RouterDispatcher {
     }
 
     func applyAudioDeviceUIDs(inputUID: String?, outputUID: String?) throws -> AudioDeviceApplyResult {
+        let result: AudioDeviceApplyResult
         if let audioDeviceApplyOverrideForTesting {
-            return try audioDeviceApplyOverrideForTesting(inputUID, outputUID)
+            result = try audioDeviceApplyOverrideForTesting(inputUID, outputUID)
+        } else {
+            result = try mainAudioGraph.applyAudioDeviceUIDs(inputUID: inputUID, outputUID: outputUID)
         }
-        return try mainAudioGraph.applyAudioDeviceUIDs(inputUID: inputUID, outputUID: outputUID)
+
+        // The new input device can expose a different channel count, so the
+        // audio-input route states (and ARM availability in the UI) must be
+        // recomputed against it.
+        refreshAudioInputRouteStates()
+        return result
+    }
+
+    /// Recompute every audio-input runtime's route state against the current
+    /// device's channel count, then resync graph routing.
+    private func refreshAudioInputRouteStates() {
+        let inputTrackIDs = withStateLock { Array(trackRuntime.audioInputRuntimes.keys) }
+        for trackID in inputTrackIDs {
+            _ = updateAudioInputRuntime(trackID: trackID) { runtime in
+                runtime.routeState = audioInputRouteState(for: runtime.selectedInputChannel)
+            }
+        }
+        syncAudioInputRouting(for: currentDocumentModel)
     }
 
     func audioInputRuntime(for trackID: UUID) -> AudioInputTrackRuntime? {
