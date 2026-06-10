@@ -31,7 +31,6 @@ struct PhraseButtonControlPresentation: Equatable {
     let collapsedSummary: String
     let loopStatusLabel: String
     let repeatValueLabel: String
-    let effectivePlaybackSummary: String
     let accessibilityLabel: String
 
     init(
@@ -47,11 +46,6 @@ struct PhraseButtonControlPresentation: Equatable {
         collapsedSummary = "\(barCountSummary) | \(repeatSummary)"
         loopStatusLabel = phrase.loopEnabled ? "Loop on" : "Loop off"
         repeatValueLabel = Self.repeatValueLabel(phrase.repeatCount)
-        effectivePlaybackSummary = Self.effectivePlaybackSummary(
-            repeatCount: phrase.repeatCount,
-            loopEnabled: phrase.loopEnabled,
-            isQueued: isQueued
-        )
 
         var states: [String] = []
         if isSelected { states.append("selected") }
@@ -82,25 +76,6 @@ struct PhraseButtonControlPresentation: Equatable {
             return "Unlimited repeat"
         }
         return "\(repeatLabel)x repeat"
-    }
-
-    static func effectivePlaybackSummary(repeatCount: Int, loopEnabled: Bool, isQueued: Bool) -> String {
-        let queuePrefix = isQueued
-            ? "Queued: starts at the next phrase boundary, then "
-            : ""
-
-        if loopEnabled {
-            return "\(queuePrefix)loop stays on this phrase. Stored repeat \(repeatValueLabel(repeatCount)) is preserved for when loop is off."
-        }
-
-        let clampedRepeatCount = PhraseModel.clampedRepeatCount(repeatCount)
-        if clampedRepeatCount == 0 {
-            return "\(queuePrefix)unlimited repeat keeps this phrase playing until another phrase is chosen."
-        }
-        if clampedRepeatCount == 1 {
-            return "\(queuePrefix)plays once, then advances to the next phrase."
-        }
-        return "\(queuePrefix)plays \(clampedRepeatCount) times, then advances to the next phrase."
     }
 
     static func isPlayingBadgeVisible(

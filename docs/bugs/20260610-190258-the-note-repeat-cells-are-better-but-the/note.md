@@ -1,0 +1,1 @@
+the note repeat cells are better, but the text on them with the icon is still redundant. It just needs to show whether it's on or off. There's also a lot of empty space at the bottom of the cell, which is a waste. The same is true of the fill layer too.

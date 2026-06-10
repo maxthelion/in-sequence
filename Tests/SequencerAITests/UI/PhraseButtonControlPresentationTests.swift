@@ -70,13 +70,9 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
 
         XCTAssertEqual(presentation.repeatValueLabel, "Unlimited")
         XCTAssertEqual(presentation.repeatSummary, "Unlimited repeat")
-        XCTAssertEqual(
-            presentation.effectivePlaybackSummary,
-            "unlimited repeat keeps this phrase playing until another phrase is chosen."
-        )
     }
 
-    func test_loopSummaryPreservesStoredRepeatAndQueuedPrecedence() {
+    func test_loopSummaryPreservesStoredRepeat() {
         var phrase = makePhrase()
         phrase.repeatCount = 7
         phrase.loopEnabled = true
@@ -89,10 +85,8 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
             isOpen: true
         )
 
-        XCTAssertEqual(
-            presentation.effectivePlaybackSummary,
-            "Queued: starts at the next phrase boundary, then loop stays on this phrase. Stored repeat 7 is preserved for when loop is off."
-        )
+        XCTAssertEqual(presentation.repeatSummary, "Loop overrides 7 repeat")
+        XCTAssertEqual(presentation.loopStatusLabel, "Loop on")
     }
 
     func test_summaryHelpersClampDisplayedBounds() {

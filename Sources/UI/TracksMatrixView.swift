@@ -1414,32 +1414,15 @@ private struct TrackPerformRuntimeLayerControl: View {
         }
     }
 
+    // The layer header already names the layer; the cell is just the on/off
+    // state (plus the captured step/rate while engaged), filling the card.
     private var label: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: leadingSymbolName)
-                    .font(.system(size: 16, weight: .bold))
-                    .frame(width: 28, height: 28)
-                    .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(mode.compactLabel)
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(accent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-
-                    Text(stateLabel)
-                        .studioText(.title)
-                        .foregroundStyle(labelForeground)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Spacer(minLength: 0)
-            }
+        VStack(spacing: 6) {
+            Text(stateLabel)
+                .studioText(.title)
+                .foregroundStyle(labelForeground)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
 
             if let capturedInfoLabel {
                 Text(capturedInfoLabel)
@@ -1452,7 +1435,7 @@ private struct TrackPerformRuntimeLayerControl: View {
         }
         .foregroundStyle(labelForeground)
         .padding(StudioMetrics.Spacing.comfortable)
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -1470,16 +1453,6 @@ private struct TrackPerformRuntimeLayerControl: View {
             return snapshot.interval.rawValue
         }
         return "STEP \(capturedStep.stepIndex % 16 + 1) · \(snapshot.interval.rawValue)"
-    }
-
-    private var leadingSymbolName: String {
-        if state.isMomentaryPressed {
-            return "hand.tap.fill"
-        }
-        if state.isLatched {
-            return "lock.fill"
-        }
-        return state.control.symbolName
     }
 
     private var stateLabel: String {

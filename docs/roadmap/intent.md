@@ -498,3 +498,27 @@ Raw input:
 ```text
 The current item 22 prototypes are the wrong shape because they do not understand the existing track-oriented phrase page they are meant to extend. The scene/phrase concept should be added to the current Phrase Matrix shape: tracks across the top, phrases down the rows, one cell per track/layer, with phrase controls and track paging as already shown in the current app. Do not prototype this as an unrelated standalone scene page.
 ```
+
+## 2026-06-10 - Library Page: Project Pool vs Global Assets
+
+Raw input:
+
+```text
+I want to think about the library page. What I'm thinking is that there should be a split between stuff that has been included into the current project versus all the sort of libraries that may be assets that exist as sort of global things and they should be in categories like breaks that can go into the slicer. Also the recorded audio from the input audio channels should go in there and also samples specifically drum kits should be listed and when we create a new drum track in the tracks menu, there should be a way of selecting one of the drum kits that's been added into the project pool at the moment. It's a sort of global thing yeah
+```
+
+## 2026-06-10 - Drum Kits As Sound Collections + Global Pattern Templates
+
+Raw input:
+
+```text
+Regarding the audio pool/library. There are a few changes I would make. 1. Drum kits should be a collection of sounds for different drum parts such as kick snare etc. The current enum that links it to a pattern can be removed. There could be a pool of sounds for each part (a selection of kicks etc). When creating a drum track, the modal should have the option to choose a kit from the global pool. That populates the sounds. There should be a separate concept of predefined "patterns" that can be applied to a drum track group. Essentially, each part has a type/tag based on the instrument. The "pattern" is a collection of clips for each part that get inserted into the track. In the creation modal, choosing the sounds should be the first aspect, and then there should be a second option to prepopulate from a template. These templates should be global. There should also be a way of imposing one of these templates on a drum group after it's created via the kit view.
+```
+
+## 2026-06-10 - Step Order Creation Moves To The Library
+
+Raw input:
+
+```text
+the phrase UI is still a bit broken. I thought we had fixed this in one of the branches. Basically when the left box is selected, a phrase edit interface appears below the row with step order, and length and repeat. The latter two should be in the box on the left for editing. The step order stuff shouldn't be here. Creating a new step order should probably be in the library. Likewise, there should be global step order presets that are in there. In any case, it shouldn't be in this ui, and this should be removed (step order can be toggled as a layer like note repeat).
+```

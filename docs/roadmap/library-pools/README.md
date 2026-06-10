@@ -75,6 +75,17 @@ Interlock: the kit-matrix rework feedback
 should land the "impose template from kit view" hook as part of its
 group-level pattern row.
 
+## 2026-06-10 owner refinement: step order maps move here
+
+Creating step-order maps (and editing their values) leaves the phrase page —
+the inline step-order workflow panel was removed with the 2026-06-10 phrase
+UI fix. Step order maps become library assets like kits and templates:
+global step-order presets live in the library, projects draw from them, and
+phrases only *toggle* an assigned map via the step-order perform layer (the
+same grammar as note repeat). Session APIs for map CRUD already exist
+(`appendStepOrderMap`, `renameStepOrderMap`, `setStepOrderMapValues`,
+`deleteUnusedStepOrderMap`) — this item gives them their library surface.
+
 → Spec'd 2026-06-10 as roadmap item 27,
 `docs/roadmap/drum-kits-and-templates/spec.md`, which defines the `DrumKit`
 and `PatternTemplate` asset shapes this item will shelve in the global

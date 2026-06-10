@@ -80,12 +80,6 @@ struct PhraseWorkspaceView: View {
         return pagedTracks.map(Optional.some) + Array(repeating: nil, count: max(0, trackPageSize - pagedTracks.count))
     }
 
-    private var phraseControlsPanelWidth: CGFloat {
-        let trackSlotsWidth = CGFloat(visibleTrackSlots.count) * trackColumnWidth
-        let interiorSpacing = CGFloat(trackPageSize + 2) * gridSpacing
-        return phraseColumnWidth + (matrixGutterWidth * 2) + interiorSpacing + trackSlotsWidth
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
@@ -546,11 +540,21 @@ struct PhraseWorkspaceView: View {
                                     currentPhraseID: engineController.currentPhraseID
                                 ),
                                 isQueued: engineController.queuedPhraseID == phrase.id,
-                                isOpen: isOpen
-                            ) {
-                                session.setSelectedPhraseID(phrase.id)
-                                phraseControlsState.toggleControls(for: phrase.id)
-                            }
+                                isOpen: isOpen,
+                                onSelect: {
+                                    session.setSelectedPhraseID(phrase.id)
+                                    phraseControlsState.toggleControls(for: phrase.id)
+                                },
+                                onChangeBarCount: { nextBarCount in
+                                    session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
+                                },
+                                onChangeRepeatCount: { nextRepeatCount in
+                                    session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
+                                },
+                                onToggleLoop: {
+                                    session.setPhraseLoopEnabled(!phrase.loopEnabled, phraseID: phrase.id)
+                                }
+                            )
                             .frame(width: phraseColumnWidth)
 
                             PhraseMatrixGutterCell()
@@ -622,52 +626,6 @@ struct PhraseWorkspaceView: View {
                             .frame(width: actionColumnWidth)
                         }
 
-                        if phraseControlsState.openPhraseID == phrase.id {
-                            PhraseButtonControlsPanel(
-                                phrase: phrase,
-                                isQueued: engineController.queuedPhraseID == phrase.id,
-                                stepOrderMaps: session.store.stepOrderMaps,
-                                stepOrderToggleState: session.stepOrderToggleState(phraseID: phrase.id),
-                                stepOrderDeletionStatus: { mapID in
-                                    session.stepOrderMapDeletionStatus(id: mapID)
-                                },
-                                onChangeBarCount: { nextBarCount in
-                                    session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
-                                },
-                                onChangeRepeatCount: { nextRepeatCount in
-                                    session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
-                                },
-                                onToggleLoop: {
-                                    session.setPhraseLoopEnabled(!phrase.loopEnabled, phraseID: phrase.id)
-                                },
-                                onCreateStepOrderMap: { name in
-                                    let map = StepOrderMap(name: name)
-                                    guard session.appendStepOrderMap(map) else {
-                                        return nil
-                                    }
-                                    let enabled = phrase.stepOrderAssignment?.isEnabled ?? false
-                                    session.setStepOrderAssignment(phraseID: phrase.id, mapID: map.id, isEnabled: enabled)
-                                    return map.id
-                                },
-                                onRenameStepOrderMap: { mapID, name in
-                                    session.renameStepOrderMap(id: mapID, name: name)
-                                },
-                                onSetStepOrderMapValues: { mapID, values in
-                                    session.setStepOrderMapValues(id: mapID, values: values)
-                                },
-                                onAssignStepOrderMap: { mapID in
-                                    let enabled = phrase.stepOrderAssignment?.isEnabled ?? false
-                                    session.setStepOrderAssignment(phraseID: phrase.id, mapID: mapID, isEnabled: enabled)
-                                },
-                                onDeleteStepOrderMap: { mapID in
-                                    session.deleteUnusedStepOrderMap(id: mapID)
-                                },
-                                onRequestStepOrderEnabled: { enabled in
-                                    session.requestPhraseStepOrderEnabled(enabled, phraseID: phrase.id)
-                                }
-                            )
-                            .frame(width: phraseControlsPanelWidth, alignment: .leading)
-                        }
                     }
                 }
             }
@@ -866,6 +824,9 @@ private struct PhraseMatrixPhraseCell: View {
     let isQueued: Bool
     let isOpen: Bool
     let onSelect: () -> Void
+    let onChangeBarCount: (Int) -> Void
+    let onChangeRepeatCount: (Int) -> Void
+    let onToggleLoop: () -> Void
 
     private var presentation: PhraseButtonControlPresentation {
         PhraseButtonControlPresentation(
@@ -878,57 +839,125 @@ private struct PhraseMatrixPhraseCell: View {
     }
 
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(phrase.name)
-                        .studioText(.subtitle)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .help(phrase.name)
-                        .layoutPriority(1)
+        VStack(alignment: .leading, spacing: 7) {
+            Button(action: onSelect) {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(phrase.name)
+                            .studioText(.subtitle)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .help(phrase.name)
+                            .layoutPriority(1)
 
-                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
+                        Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(StudioTheme.mutedText)
+                    }
+
+                    Text(presentation.collapsedSummary)
+                        .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
-                }
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                Text(presentation.collapsedSummary)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack(spacing: 5) {
-                    if isSelected {
-                        phraseBadge("Sel", accent: StudioTheme.violet)
+                    HStack(spacing: 5) {
+                        if isSelected {
+                            phraseBadge("Sel", accent: StudioTheme.violet)
+                        }
+                        if isPlaying {
+                            phraseBadge("Play", accent: StudioTheme.success)
+                        }
+                        if isQueued {
+                            phraseBadge("Queue", accent: StudioTheme.amber)
+                        }
+                        if phrase.loopEnabled {
+                            phraseBadge("Loop", accent: StudioTheme.amber)
+                        }
                     }
-                    if isPlaying {
-                        phraseBadge("Play", accent: StudioTheme.success)
-                    }
-                    if isQueued {
-                        phraseBadge("Queue", accent: StudioTheme.amber)
-                    }
-                    if phrase.loopEnabled {
-                        phraseBadge("Loop", accent: StudioTheme.amber)
-                    }
+                    .frame(minHeight: 18, alignment: .leading)
                 }
-                .frame(minHeight: 18, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, minHeight: 106, alignment: .topLeading)
-            .padding(StudioMetrics.Spacing.compact)
-            .background(rowFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(rowStroke, lineWidth: isOpen ? 1.5 : 1)
-            )
+            .buttonStyle(.plain)
+            .accessibilityLabel(presentation.accessibilityLabel)
+            .accessibilityHint("Select phrase and toggle inline controls")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("phrase-button-\(phrase.id.uuidString)")
+
+            if isOpen {
+                inlineControls
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(presentation.accessibilityLabel)
-        .accessibilityHint("Select phrase and toggle inline controls")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityIdentifier("phrase-button-\(phrase.id.uuidString)")
+        .frame(maxWidth: .infinity, minHeight: 106, alignment: .topLeading)
+        .padding(StudioMetrics.Spacing.compact)
+        .background(rowFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(rowStroke, lineWidth: isOpen ? 1.5 : 1)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
+    }
+
+    /// Bars, repeat, and loop edit in place inside the phrase box.
+    private var inlineControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PhrasePolicyStepperControl(
+                title: "Bars",
+                valueLabel: presentation.barCountSummary,
+                decrementDisabled: phrase.lengthBars <= PhraseModel.lengthBarsRange.lowerBound,
+                incrementDisabled: phrase.lengthBars >= PhraseModel.lengthBarsRange.upperBound,
+                onDecrement: {
+                    onChangeBarCount(PhraseModel.clampedLengthBars(phrase.lengthBars - 1))
+                },
+                onIncrement: {
+                    onChangeBarCount(PhraseModel.clampedLengthBars(phrase.lengthBars + 1))
+                }
+            )
+
+            PhrasePolicyStepperControl(
+                title: "Repeat",
+                valueLabel: presentation.repeatValueLabel,
+                decrementDisabled: phrase.repeatCount <= PhraseModel.repeatCountRange.lowerBound,
+                incrementDisabled: phrase.repeatCount >= PhraseModel.repeatCountRange.upperBound,
+                onDecrement: {
+                    onChangeRepeatCount(PhraseModel.clampedRepeatCount(phrase.repeatCount - 1))
+                },
+                onIncrement: {
+                    onChangeRepeatCount(PhraseModel.clampedRepeatCount(phrase.repeatCount + 1))
+                }
+            )
+
+            Button(action: onToggleLoop) {
+                HStack(spacing: 6) {
+                    Image(systemName: phrase.loopEnabled ? "repeat.circle.fill" : "repeat.circle")
+                        .font(.system(size: 13, weight: .bold))
+                    Text(presentation.loopStatusLabel)
+                        .studioText(.labelBold)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .foregroundStyle(phrase.loopEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, minHeight: 30)
+                .background(
+                    phrase.loopEnabled
+                        ? StudioTheme.amber.opacity(StudioOpacity.selectedFill)
+                        : Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(phrase.loopEnabled ? StudioTheme.amber.opacity(0.7) : StudioTheme.border, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .help(phrase.loopEnabled ? "Loop overrides repeat during playback and keeps the stored repeat count" : "Enable permanent loop for this phrase")
+            .accessibilityLabel("\(phrase.name) \(presentation.loopStatusLabel)")
+        }
     }
 
     private var rowFill: Color {
@@ -966,142 +995,6 @@ private struct PhraseMatrixPhraseCell: View {
     }
 }
 
-private struct PhraseButtonControlsPanel: View {
-    let phrase: PhraseModel
-    let isQueued: Bool
-    let stepOrderMaps: [StepOrderMap]
-    let stepOrderToggleState: StepOrderToggleState
-    let stepOrderDeletionStatus: (StepOrderMapID) -> StepOrderMapDeletionStatus
-    let onChangeBarCount: (Int) -> Void
-    let onChangeRepeatCount: (Int) -> Void
-    let onToggleLoop: () -> Void
-    let onCreateStepOrderMap: (String) -> StepOrderMapID?
-    let onRenameStepOrderMap: (StepOrderMapID, String) -> Void
-    let onSetStepOrderMapValues: (StepOrderMapID, [UInt8]) -> Void
-    let onAssignStepOrderMap: (StepOrderMapID?) -> Void
-    let onDeleteStepOrderMap: (StepOrderMapID) -> Void
-    let onRequestStepOrderEnabled: (Bool) -> Void
-
-    private var presentation: PhraseButtonControlPresentation {
-        PhraseButtonControlPresentation(
-            phrase: phrase,
-            isSelected: false,
-            isPlaying: false,
-            isQueued: isQueued,
-            isOpen: true
-        )
-    }
-
-    private var stepOrderPresentation: StepOrderPhraseSurfacePresentation {
-        StepOrderPhraseSurfacePresentation(
-            phrase: phrase,
-            maps: stepOrderMaps,
-            toggleState: stepOrderToggleState
-        )
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(phrase.name)
-                        .studioText(.subtitle)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .help(phrase.name)
-
-                    Text(presentation.effectivePlaybackSummary)
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(width: 360, alignment: .leading)
-
-                PhrasePolicyStepperControl(
-                    title: "Bars",
-                    valueLabel: presentation.barCountSummary,
-                    decrementDisabled: phrase.lengthBars <= PhraseModel.lengthBarsRange.lowerBound,
-                    incrementDisabled: phrase.lengthBars >= PhraseModel.lengthBarsRange.upperBound,
-                    onDecrement: {
-                        onChangeBarCount(PhraseModel.clampedLengthBars(phrase.lengthBars - 1))
-                    },
-                    onIncrement: {
-                        onChangeBarCount(PhraseModel.clampedLengthBars(phrase.lengthBars + 1))
-                    }
-                )
-
-                PhrasePolicyStepperControl(
-                    title: "Repeat",
-                    valueLabel: presentation.repeatValueLabel,
-                    footnote: "0 is unlimited",
-                    decrementDisabled: phrase.repeatCount <= PhraseModel.repeatCountRange.lowerBound,
-                    incrementDisabled: phrase.repeatCount >= PhraseModel.repeatCountRange.upperBound,
-                    onDecrement: {
-                        onChangeRepeatCount(PhraseModel.clampedRepeatCount(phrase.repeatCount - 1))
-                    },
-                    onIncrement: {
-                        onChangeRepeatCount(PhraseModel.clampedRepeatCount(phrase.repeatCount + 1))
-                    }
-                )
-
-                Button(action: onToggleLoop) {
-                    HStack(spacing: 8) {
-                        Image(systemName: phrase.loopEnabled ? "repeat.circle.fill" : "repeat.circle")
-                            .font(.system(size: 15, weight: .bold))
-                        Text(presentation.loopStatusLabel)
-                            .studioText(.labelBold)
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(phrase.loopEnabled ? StudioTheme.text : StudioTheme.mutedText)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .frame(width: 126)
-                    .background(loopFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                            .stroke(loopStroke, lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .help(phrase.loopEnabled ? "Loop overrides repeat during playback and keeps the stored repeat count" : "Enable permanent loop for this phrase")
-                .accessibilityLabel("\(phrase.name) \(presentation.loopStatusLabel)")
-            }
-
-            StepOrderPhraseWorkflowPanel(
-                phrase: phrase,
-                maps: stepOrderMaps,
-                presentation: stepOrderPresentation,
-                deletionStatus: stepOrderDeletionStatus,
-                onCreateMap: onCreateStepOrderMap,
-                onRenameMap: onRenameStepOrderMap,
-                onSetMapValues: onSetStepOrderMapValues,
-                onAssignMap: onAssignStepOrderMap,
-                onDeleteMap: onDeleteStepOrderMap,
-                onRequestEnabled: onRequestStepOrderEnabled
-            )
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke((phrase.loopEnabled ? StudioTheme.amber : StudioTheme.violet).opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
-    }
-
-    private var loopFill: Color {
-        phrase.loopEnabled ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)
-    }
-
-    private var loopStroke: Color {
-        phrase.loopEnabled ? StudioTheme.amber.opacity(0.7) : StudioTheme.border
-    }
-}
-
 private struct PhrasePolicyStepperControl: View {
     let title: String
     let valueLabel: String
@@ -1126,7 +1019,7 @@ private struct PhrasePolicyStepperControl: View {
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                    .frame(width: 86, height: 30)
+                    .frame(maxWidth: .infinity, minHeight: 30)
                     .background(Color.white.opacity(StudioOpacity.subtleFill))
 
                 stepButton(systemName: "plus", action: onIncrement, isDisabled: incrementDisabled)
@@ -1144,7 +1037,7 @@ private struct PhrasePolicyStepperControl: View {
                     .lineLimit(1)
             }
         }
-        .frame(width: 142, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(title) \(valueLabel)")
     }
@@ -1159,650 +1052,6 @@ private struct PhrasePolicyStepperControl: View {
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
-    }
-}
-
-private struct StepOrderPhraseWorkflowPanel: View {
-    let phrase: PhraseModel
-    let maps: [StepOrderMap]
-    let presentation: StepOrderPhraseSurfacePresentation
-    let deletionStatus: (StepOrderMapID) -> StepOrderMapDeletionStatus
-    let onCreateMap: (String) -> StepOrderMapID?
-    let onRenameMap: (StepOrderMapID, String) -> Void
-    let onSetMapValues: (StepOrderMapID, [UInt8]) -> Void
-    let onAssignMap: (StepOrderMapID?) -> Void
-    let onDeleteMap: (StepOrderMapID) -> Void
-    let onRequestEnabled: (Bool) -> Void
-
-    @State private var editorMapID: StepOrderMapID?
-    @State private var selectedOutputIndex = 0
-    @State private var draftMapName = ""
-    @State private var wrapFeedbackVisible = false
-
-    private var rows: [StepOrderMapRowPresentation] {
-        maps.map { map in
-            StepOrderMapRowPresentation(
-                map: map,
-                deletionStatus: deletionStatus(map.id),
-                currentPhraseAssignment: phrase.stepOrderAssignment
-            )
-        }
-    }
-
-    private var resolvedEditorMapID: StepOrderMapID? {
-        if let editorMapID, maps.contains(where: { $0.id == editorMapID }) {
-            return editorMapID
-        }
-        return presentation.editorMapID
-    }
-
-    private var editorMap: StepOrderMap? {
-        guard let resolvedEditorMapID else { return nil }
-        return maps.first { $0.id == resolvedEditorMapID }
-    }
-
-    private var unavailableReason: String? {
-        guard case .unavailable(let reason) = presentation.status else {
-            return nil
-        }
-        return reason
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-
-            if let unavailableReason {
-                unavailableBlocker(unavailableReason)
-            } else {
-                HStack(alignment: .top, spacing: 14) {
-                    mapPicker
-                        .frame(width: 260, alignment: .topLeading)
-
-                    editor
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
-            }
-        }
-        .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(stepOrderStroke, lineWidth: 1)
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("step-order-phrase-workflow-\(phrase.id.uuidString)")
-        .onAppear(perform: reconcileEditorState)
-        .onChange(of: maps.map(\.id)) {
-            reconcileEditorState()
-        }
-        .onChange(of: presentation.editorMapID) {
-            reconcileEditorState()
-        }
-    }
-
-    private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 8) {
-                    Text("Step Order")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-
-                    Text(presentation.scopeLabel.uppercased())
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.cyan)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(StudioTheme.cyan.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-                        )
-                        .accessibilityLabel("Scope Phrase, fixed Step Order version 1 scope")
-
-                    Text(presentation.statusLabel.uppercased())
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(statusAccent)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(statusAccent.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(statusAccent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-                        )
-                }
-
-                Text(statusSummaryText)
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 10)
-
-            if unavailableReason == nil {
-                Button {
-                    onRequestEnabled(presentation.nextToggleValue)
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: toggleIconName)
-                            .font(.system(size: 14, weight: .bold))
-                        Text(presentation.statusLabel)
-                            .studioText(.labelBold)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .foregroundStyle(presentation.canToggle ? StudioTheme.text : StudioTheme.mutedText)
-                    .frame(width: 126, height: 34)
-                    .background(statusAccent.opacity(presentation.canToggle ? StudioOpacity.selectedFill : StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                            .stroke(statusAccent.opacity(presentation.canToggle ? 0.7 : StudioOpacity.ghostStroke), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(!presentation.canToggle)
-                .accessibilityLabel(presentation.toggleAccessibilityLabel)
-                .accessibilityHint(toggleHint)
-                .accessibilityIdentifier("step-order-toggle-\(phrase.id.uuidString)")
-            }
-        }
-    }
-
-    private var statusSummaryText: String {
-        if unavailableReason != nil {
-            return presentation.statusSummary
-        }
-        return "\(presentation.activeMapName) - \(presentation.activeMapDetail). \(presentation.statusSummary)"
-    }
-
-    private func unavailableBlocker(_ reason: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(StudioTheme.amber)
-
-            Text(reason)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-        )
-        .accessibilityLabel("Step Order unavailable, \(reason)")
-        .accessibilityIdentifier("step-order-unavailable-blocker-\(phrase.id.uuidString)")
-    }
-
-    private var mapPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("Maps")
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Spacer()
-
-                Button {
-                    createMap()
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(StudioTheme.text)
-                        .frame(width: 24, height: 24)
-                        .background(StudioTheme.cyan.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .help("Create identity Step Order map")
-                .accessibilityLabel("Create Step Order map")
-                .accessibilityIdentifier("step-order-create-map")
-            }
-
-            if rows.isEmpty {
-                Text("No maps yet")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .frame(maxWidth: .infinity, minHeight: 72, alignment: .center)
-                    .background(Color.white.opacity(0.015), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                            .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
-                    )
-            } else {
-                VStack(alignment: .leading, spacing: 7) {
-                    ForEach(rows) { row in
-                        mapRow(row)
-                    }
-                }
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("step-order-map-picker")
-    }
-
-    private func mapRow(_ row: StepOrderMapRowPresentation) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Button {
-                editorMapID = row.id
-                draftMapName = row.name
-            } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Text(row.name)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-
-                    if row.isAssignedToCurrentPhrase {
-                        Text("ASSIGNED")
-                            .studioText(.microEmphasis)
-                            .foregroundStyle(StudioTheme.success)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(row.accessibilityLabel)
-            .accessibilityIdentifier("step-order-map-row-\(row.id.uuidString)")
-
-            HStack(spacing: 7) {
-                Text(row.usageLabel)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Text(row.detailLabel)
-                    .studioText(.micro)
-                    .foregroundStyle(row.detailLabel.hasPrefix("Invalid") ? StudioTheme.amber : StudioTheme.cyan)
-                    .lineLimit(1)
-                Spacer(minLength: 4)
-            }
-
-            HStack(spacing: 6) {
-                compactButton("Edit", systemImage: "slider.horizontal.3") {
-                    editorMapID = row.id
-                    draftMapName = row.name
-                }
-
-                compactButton("Assign", systemImage: "checkmark.circle") {
-                    onAssignMap(row.id)
-                }
-                .disabled(row.isAssignedToCurrentPhrase)
-
-                compactButton("Delete", systemImage: "trash") {
-                    onDeleteMap(row.id)
-                }
-                .disabled(!row.canDelete)
-                .help(row.deleteBlockedReason ?? "Delete unused Step Order map")
-            }
-
-            if let deleteBlockedReason = row.deleteBlockedReason {
-                Text("Delete blocked: \(deleteBlockedReason)")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.amber)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(StudioMetrics.Spacing.snug)
-        .background(row.id == resolvedEditorMapID ? StudioTheme.cyan.opacity(StudioOpacity.faintStroke) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(row.isAssignedToCurrentPhrase ? StudioTheme.success.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
-        )
-    }
-
-    private var editor: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                activeMapMenu
-
-                Spacer(minLength: 8)
-
-                Button {
-                    resetEditorMapToIdentity()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("Reset")
-                            .studioText(.labelBold)
-                    }
-                    .foregroundStyle(editorMap == nil ? StudioTheme.mutedText : StudioTheme.text)
-                    .frame(width: 84, height: 30)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.border, lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(editorMap == nil)
-                .accessibilityLabel("Reset Step Order map to identity")
-            }
-
-            renameRow
-
-            if let editorMap {
-                if editorMap.isValid {
-                    editorGrid(editorMap)
-                } else {
-                    invalidEditorMessage(editorMap)
-                }
-            } else {
-                Text("Create or select a map to edit output and source steps.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
-                    .background(Color.white.opacity(0.015), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                            .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
-                    )
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("step-order-map-editor")
-    }
-
-    private var activeMapMenu: some View {
-        Menu {
-            Button("Unassign current phrase") {
-                onAssignMap(nil)
-            }
-            Divider()
-            ForEach(maps) { map in
-                Button(map.name) {
-                    editorMapID = map.id
-                    draftMapName = map.name
-                    onAssignMap(map.id)
-                }
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "list.bullet.rectangle")
-                    .font(.system(size: 12, weight: .bold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Active map")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Text(presentation.activeMapName)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 34)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
-            )
-        }
-        .menuStyle(.borderlessButton)
-        .accessibilityLabel("Active Step Order map \(presentation.activeMapName)")
-        .accessibilityIdentifier("step-order-active-map-menu")
-    }
-
-    private var renameRow: some View {
-        HStack(spacing: 8) {
-            TextField("Map name", text: $draftMapName)
-                .textFieldStyle(.plain)
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.text)
-                .padding(.horizontal, 9)
-                .frame(height: 30)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: 1)
-                )
-                .disabled(editorMap == nil)
-                .accessibilityLabel("Step Order map name")
-
-            Button {
-                renameEditorMap()
-            } label: {
-                Image(systemName: "pencil")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(canRenameEditorMap ? StudioTheme.text : StudioTheme.mutedText)
-                    .frame(width: 30, height: 30)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(!canRenameEditorMap)
-            .accessibilityLabel("Rename Step Order map")
-        }
-    }
-
-    private func editorGrid(_ map: StepOrderMap) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(StepOrderPhraseSurfacePresentation.mapDetail(for: map))
-                .studioText(.microEmphasis)
-                .foregroundStyle(map.values == StepOrderMap.identityValues ? StudioTheme.success : StudioTheme.cyan)
-
-            stepRow(
-                title: "Output",
-                values: StepOrderPhraseSurfacePresentation.stepCandidateValues(),
-                selectedIndex: selectedOutputIndex,
-                accessibilityLabel: { outputIndex in
-                    StepOrderPhraseSurfacePresentation.outputStepAccessibilityLabel(
-                        outputIndex: outputIndex,
-                        sourceIndex: Int(map.values[outputIndex])
-                    )
-                }
-            ) { outputIndex in
-                selectedOutputIndex = outputIndex
-                wrapFeedbackVisible = false
-            }
-
-            stepRow(
-                title: "Source",
-                values: StepOrderPhraseSurfacePresentation.stepCandidateValues(),
-                selectedIndex: Int(map.values[selectedOutputIndex]),
-                accessibilityLabel: { sourceIndex in
-                    StepOrderPhraseSurfacePresentation.sourceStepAccessibilityLabel(
-                        sourceIndex: sourceIndex,
-                        selectedOutputIndex: selectedOutputIndex
-                    )
-                }
-            ) { sourceIndex in
-                assignSourceStep(sourceIndex, to: selectedOutputIndex, map: map)
-            }
-
-            HStack(spacing: 8) {
-                Text(StepOrderPhraseSurfacePresentation.outputStepAccessibilityLabel(
-                    outputIndex: selectedOutputIndex,
-                    sourceIndex: Int(map.values[selectedOutputIndex])
-                ))
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-
-                if wrapFeedbackVisible {
-                    Text("End reached - wrapped to step 1")
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.amber)
-                }
-            }
-            .frame(minHeight: 18, alignment: .leading)
-        }
-    }
-
-    private func stepRow(
-        title: String,
-        values: [Int],
-        selectedIndex: Int,
-        accessibilityLabel: @escaping (Int) -> String,
-        action: @escaping (Int) -> Void
-    ) -> some View {
-        HStack(spacing: 5) {
-            Text(title.uppercased())
-                .studioText(.microEmphasis)
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 48, alignment: .leading)
-
-            ForEach(0..<StepOrderMap.stepCount, id: \.self) { index in
-                let isSelected = index == selectedIndex
-                Button {
-                    action(index)
-                } label: {
-                    Text("\(values[index] + 1)")
-                        .studioText(.micro)
-                        .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
-                        .frame(width: 26, height: 26)
-                        .background((isSelected ? StudioTheme.cyan.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(isSelected ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(accessibilityLabel(index))
-                .accessibilityIdentifier("step-order-\(title.lowercased())-\(index)")
-            }
-        }
-    }
-
-    private func invalidEditorMessage(_ map: StepOrderMap) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(map.validationIssue.map(StepOrderPhraseSurfacePresentation.validationIssueLabel) ?? "Invalid map")
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.amber)
-            Text("Choose another map or reset this map to identity before assignment.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-        )
-    }
-
-    private var stepOrderStroke: Color {
-        switch presentation.status {
-        case .on, .pendingOn:
-            return StudioTheme.success.opacity(StudioOpacity.mediumStroke)
-        case .pendingOff, .invalid, .unavailable:
-            return StudioTheme.amber.opacity(StudioOpacity.mediumStroke)
-        case .off, .unassigned:
-            return StudioTheme.cyan.opacity(StudioOpacity.faintStroke)
-        }
-    }
-
-    private var statusAccent: Color {
-        switch presentation.status {
-        case .on, .pendingOn:
-            return StudioTheme.success
-        case .pendingOff, .invalid, .unavailable:
-            return StudioTheme.amber
-        case .off, .unassigned:
-            return StudioTheme.cyan
-        }
-    }
-
-    private var toggleIconName: String {
-        switch presentation.status {
-        case .on, .pendingOn:
-            return "power.circle.fill"
-        case .pendingOff:
-            return "clock.badge"
-        case .off:
-            return "power.circle"
-        case .unassigned, .unavailable, .invalid:
-            return "exclamationmark.circle"
-        }
-    }
-
-    private var toggleHint: String {
-        presentation.canToggle
-            ? "Requests the phrase-scoped Step Order state"
-            : "Assign a valid 16-step map before toggling Step Order"
-    }
-
-    private var canRenameEditorMap: Bool {
-        guard let editorMap else { return false }
-        let trimmed = draftMapName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && trimmed != editorMap.name
-    }
-
-    private func compactButton(_ label: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 9, weight: .bold))
-                Text(label)
-                    .studioText(.microEmphasis)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(StudioTheme.text)
-            .padding(.horizontal, 6)
-            .frame(height: 24)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-    }
-
-    private func createMap() {
-        let name = StepOrderPhraseSurfacePresentation.newMapName(existingMaps: maps)
-        guard let mapID = onCreateMap(name) else {
-            return
-        }
-        editorMapID = mapID
-        draftMapName = name
-        selectedOutputIndex = 0
-        wrapFeedbackVisible = false
-    }
-
-    private func renameEditorMap() {
-        guard let editorMap else { return }
-        let trimmed = draftMapName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        onRenameMap(editorMap.id, trimmed)
-        draftMapName = trimmed
-    }
-
-    private func assignSourceStep(_ sourceIndex: Int, to outputIndex: Int, map: StepOrderMap) {
-        var values = map.values
-        values[outputIndex] = UInt8(sourceIndex)
-        onSetMapValues(map.id, values)
-        wrapFeedbackVisible = StepOrderPhraseSurfacePresentation.didWrapAfterEditing(outputIndex: outputIndex)
-        selectedOutputIndex = StepOrderPhraseSurfacePresentation.advancedOutputIndex(after: outputIndex)
-    }
-
-    private func resetEditorMapToIdentity() {
-        guard let editorMap else { return }
-        onSetMapValues(editorMap.id, StepOrderMap.identityValues)
-        selectedOutputIndex = 0
-        wrapFeedbackVisible = false
-    }
-
-    private func reconcileEditorState() {
-        let nextID = resolvedEditorMapID
-        editorMapID = nextID
-        if let map = nextID.flatMap({ id in maps.first { $0.id == id } }) {
-            draftMapName = map.name
-            selectedOutputIndex = min(selectedOutputIndex, max(0, map.values.count - 1))
-        } else {
-            draftMapName = ""
-            selectedOutputIndex = 0
-        }
-        wrapFeedbackVisible = false
     }
 }
 
