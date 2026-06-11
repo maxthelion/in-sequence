@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct CellPreviewMetrics {
+struct CellPreviewMetrics: Equatable {
     let booleanHeight: CGFloat
     let valueHeight: CGFloat
 
@@ -15,7 +15,10 @@ struct CellPreviewMetrics {
     )
 }
 
-struct PhraseCellPreview: View {
+/// Equatable so playhead leaves can fence it with `.equatable()`: per-tick
+/// re-resolutions that produce the same displayed value must not re-render
+/// the preview (invalidation-scope budget, architecture verdict §2).
+struct PhraseCellPreview: View, Equatable {
     let layer: PhraseLayerDefinition
     let cell: PhraseCell
     let resolvedValue: PhraseCellValue

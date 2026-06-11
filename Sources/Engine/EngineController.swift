@@ -133,6 +133,12 @@ final class EngineController: RouterDispatcher {
     private(set) var selectedOutput: Destination.Kind
     private(set) var masterBusPerformanceOverlay = MasterBusPerformanceOverlayState()
     private(set) var audioInputRuntimeRevision = 0
+    /// Narrow UI publisher for note-repeat runtime state (engage/release —
+    /// gesture rate, never tick rate). `noteRepeatRuntimeSnapshot(for:)`
+    /// reads it so playhead-leaf views re-evaluate on engage/release without
+    /// the page observing any tick-rate state (architecture verdict §2:
+    /// high-frequency state goes through narrow dedicated publishers).
+    private(set) var noteRepeatRuntimeUIRevision = 0
 
     private var currentTrackMix = TrackMixSettings.default
     private var currentDocumentModel: Project = .empty
@@ -897,6 +903,7 @@ final class EngineController: RouterDispatcher {
                 capturedStep: currentNoteRepeatCapturesByTrackID[trackID]
             )
         }
+        publishNoteRepeatRuntimeUIRevision()
         invalidatePreparedNoteRepeatScheduling()
     }
 
@@ -985,7 +992,11 @@ final class EngineController: RouterDispatcher {
     var eventQueueIsEmpty: Bool { eventQueue.isEmpty }
 
     func noteRepeatRuntimeSnapshot(for trackID: UUID) -> NoteRepeatRuntimeSnapshot? {
-        withStateLock { activeNoteRepeatsByTrackID[trackID]?.snapshot }
+        // Register the narrow revision so SwiftUI bodies calling this update
+        // on engage/release (the snapshot's backing dict is intentionally
+        // @ObservationIgnored — it mutates on the tick queue).
+        _ = noteRepeatRuntimeUIRevision
+        return withStateLock { activeNoteRepeatsByTrackID[trackID]?.snapshot }
     }
 
     func noteRepeatScheduledOutputsForTesting(for trackID: UUID) -> [NoteRepeatScheduledOutput] {
@@ -3539,15 +3550,30 @@ final class EngineController: RouterDispatcher {
         eventQueue.cancelRepeatOwnedEvents(for: trackIDs)
         flushRepeatPendingOutput(for: trackIDs, now: now)
 
-        withStateLock {
+        let didClearActiveState = withStateLock {
+            var didRemove = false
             for trackID in trackIDs {
                 if clearActiveState {
-                    activeNoteRepeatsByTrackID.removeValue(forKey: trackID)
+                    didRemove = activeNoteRepeatsByTrackID.removeValue(forKey: trackID) != nil || didRemove
                 } else if var activeRepeat = activeNoteRepeatsByTrackID[trackID] {
                     activeRepeat.scheduledOutputs.removeAll()
                     activeNoteRepeatsByTrackID[trackID] = activeRepeat
                 }
             }
+            return didRemove
+        }
+        if didClearActiveState {
+            publishNoteRepeatRuntimeUIRevision()
+        }
+    }
+
+    /// Bump the narrow note-repeat UI publisher. Outside stateLock and on
+    /// main, same contract as `audioInputRuntimeRevision` (Observation's
+    /// willSet can synchronously re-enter SwiftUI bodies that read engine
+    /// state through the same lock).
+    private func publishNoteRepeatRuntimeUIRevision() {
+        publishToMain { [weak self] in
+            self?.noteRepeatRuntimeUIRevision &+= 1
         }
     }
 

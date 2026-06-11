@@ -107,27 +107,8 @@ struct PhraseLaunchGridSheet: View {
         .accessibilityLabel("\(phrase.name). \(helpText(for: phrase, isCurrent: isCurrent, isQueued: isQueued))")
     }
 
-    @ViewBuilder
     private func progressBar(for phrase: PhraseModel, isCurrent: Bool) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(StudioOpacity.borderFaint))
-
-                if isCurrent {
-                    Capsule()
-                        .fill(StudioTheme.cyan)
-                        .frame(width: geo.size.width * progressFraction(for: phrase))
-                }
-            }
-        }
-        .frame(height: 3)
-    }
-
-    private func progressFraction(for phrase: PhraseModel) -> CGFloat {
-        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
-        let total = max(1, phrase.stepCount)
-        return CGFloat(playhead.stepIndex + 1) / CGFloat(total)
+        PhraseLaunchProgressBar(phrase: phrase, isCurrent: isCurrent)
     }
 
     private func helpText(for phrase: PhraseModel, isCurrent: Bool, isQueued: Bool) -> String {
@@ -151,6 +132,45 @@ struct PhraseLaunchGridSheet: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(StudioTheme.border.opacity(0.5), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
             )
+    }
+
+    /// Playhead leaf: the only view in the launch grid that reads the
+    /// tick-rate transport mirror, and only for the playing phrase — per-tick
+    /// publishes re-evaluate this 3pt bar, not the 64-cell sheet body
+    /// (invalidation-scope budget, architecture verdict §2).
+    private struct PhraseLaunchProgressBar: View {
+        @Environment(EngineController.self) private var engineController
+        let phrase: PhraseModel
+        let isCurrent: Bool
+
+        var body: some View {
+            // Read the playhead in this body (NOT inside the GeometryReader
+            // closure, whose evaluation context SwiftUI does not document)
+            // so the observation dependency lands on this leaf.
+            let fraction = progressFraction
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(StudioOpacity.borderFaint))
+
+                    if isCurrent {
+                        Capsule()
+                            .fill(StudioTheme.cyan)
+                            .frame(width: geo.size.width * fraction)
+                    }
+                }
+            }
+            .frame(height: 3)
+        }
+
+        private var progressFraction: CGFloat {
+            guard isCurrent else {
+                return 0
+            }
+            let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
+            let total = max(1, phrase.stepCount)
+            return CGFloat(playhead.stepIndex + 1) / CGFloat(total)
+        }
     }
 
     private func launch(_ phrase: PhraseModel) {

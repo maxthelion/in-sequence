@@ -1,5 +1,32 @@
 import SwiftUI
 
+#if DEBUG
+/// Test probe for the invalidation-scope budget on the tracks page
+/// (docs/audits/2026-06-12-architecture-verdict.md §2): tick-rate engine
+/// publishes must re-evaluate playhead LEAF views only, never the page body.
+/// Counters are bumped from view bodies (main thread) and read by
+/// TracksPageInvalidationTests.
+@MainActor
+enum TracksPageInvalidationProbe {
+    /// Whole-page body evaluations (TracksMatrixView.body — includes the
+    /// StudioPanel content, which is built eagerly in init).
+    static var pageBodyEvaluations = 0
+    /// Per-card content evaluations (the LazyVGrid ForEach item closures —
+    /// these run in the lazy container's update context, so a tick-rate read
+    /// here re-builds every visible card without touching the page body).
+    static var cardContentEvaluations = 0
+    /// Playhead-leaf body evaluations (the only views allowed to read
+    /// tick-rate transport state on this page).
+    static var playheadLeafEvaluations = 0
+
+    static func reset() {
+        pageBodyEvaluations = 0
+        cardContentEvaluations = 0
+        playheadLeafEvaluations = 0
+    }
+}
+#endif
+
 enum TracksBasisPhraseResolver {
     static func resolveID(
         engineBasisPhraseID: UUID?,
@@ -145,6 +172,9 @@ struct TracksMatrixView: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = { TracksPageInvalidationProbe.pageBodyEvaluations += 1 }()
+        #endif
         let tracks = session.store.tracks
         let selectedTrackID = session.store.selectedTrackID
         // The top-nav pill already names this page; the panel renders no
@@ -586,20 +616,24 @@ struct TracksMatrixView: View {
         let activePerformLayer: TrackPerformLayerMode? = performLayerSelection.mode
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(tracks, id: \.id) { track in
-                let address = phraseCellAddress(for: track.id, layerID: layer.id)
-                let cell = editingPhrase.cell(at: address)
-                let resolvedValue = editingPhrase.resolvedValue(for: layer, at: address)
+                #if DEBUG
+                let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
+                #endif
+                // Card inputs are document/selection state only. Anything
+                // that varies at tick/meter rate (playhead-resolved values,
+                // audio-input runtime, engine repeat activity) is read by
+                // leaf views INSIDE the card, so a transport tick never
+                // re-builds the cards (architecture verdict §2).
+                let cell = editingPhrase.cell(for: layer.id, trackID: track.id)
                 TrackMatrixCard(
                     track: track,
                     group: group,
                     patternIndex: session.store.selectedPatternIndex(for: track.id),
+                    phrase: editingPhrase,
                     layer: layer,
                     activePerformLayer: activePerformLayer,
                     activePerformVariantLabel: performLayerSelection.variantLabel,
                     cell: cell,
-                    resolvedValue: resolvedValue,
-                    valueSummary: valueLabel(resolvedValue, layer: layer),
-                    audioInputRuntimeLabel: audioInputRuntimeLabel(for: track.id),
                     isFocused: track.id == selectedTrackID,
                     isPerformSelected: performSelection.contains(track.id),
                     isPerforming: isPerforming,
@@ -609,7 +643,6 @@ struct TracksMatrixView: View {
                             runtimeControlState(for: track.id, control: $0)
                         }
                         : nil,
-                    noteRepeatActiveSnapshot: engineController.noteRepeatRuntimeSnapshot(for: track.id),
                     onTogglePerformSelection: {
                         performSelection.toggle(track.id)
                     },
@@ -645,31 +678,18 @@ struct TracksMatrixView: View {
         }
     }
 
+    /// Overlay-derived control state only (page-owned gesture state).
+    /// Engine-side repeat activity is read by the runtime-control LEAF —
+    /// the page must not observe engine runtime state per card.
     private func runtimeControlState(for trackID: UUID, control: TrackPerformBinaryControl) -> TrackPerformRuntimeControlState {
-        let isEngineActive = control == .noteRepeat && engineController.noteRepeatRuntimeSnapshot(for: trackID) != nil
         let isAvailable = control == .noteRepeat ? session.isNoteRepeatAvailable(trackID: trackID) : true
         return TrackPerformRuntimeControlState(
             control: control,
             isAvailable: isAvailable,
-            isActive: isEngineActive || performRuntimeOverlay.isActive(control, trackID: trackID),
+            isActive: performRuntimeOverlay.isActive(control, trackID: trackID),
             isLatched: performRuntimeOverlay.isLatched(control, trackID: trackID),
             isMomentaryPressed: performRuntimeOverlay.isMomentaryPressed(control, trackID: trackID)
         )
-    }
-
-    private func audioInputRuntimeLabel(for trackID: UUID) -> String? {
-        guard let runtime = engineController.audioInputRuntime(for: trackID) else {
-            return nil
-        }
-
-        switch runtime.armState {
-        case .armed:
-            return "ARM"
-        case .recording:
-            return "REC"
-        case .idle, .hasLoop:
-            return "IN"
-        }
     }
 
     private var currentStepIndexInPhrase: Int {
@@ -1068,19 +1088,20 @@ private struct TrackMatrixCard: View {
     let track: StepSequenceTrack
     let group: TrackGroup?
     let patternIndex: Int
+    /// The phrase the leaves resolve against. The card itself never reads
+    /// the playhead — bar/step/curve cells resolve in
+    /// `TrackCardCellPreviewLeaf` / `TrackCardStrokeOverlay` so tick-rate
+    /// invalidation stops at those leaves.
+    let phrase: PhraseModel
     let layer: PhraseLayerDefinition
     let activePerformLayer: TrackPerformLayerMode?
     let activePerformVariantLabel: String?
     let cell: PhraseCell
-    let resolvedValue: PhraseCellValue
-    let valueSummary: String
-    let audioInputRuntimeLabel: String?
     let isFocused: Bool
     let isPerformSelected: Bool
     let isPerforming: Bool
     let latchMode: TrackPerformLatchMode
     let runtimeControlState: TrackPerformRuntimeControlState?
-    let noteRepeatActiveSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
     let onTogglePerformSelection: () -> Void
     let onActivateRuntimeControl: (TrackPerformBinaryControl) -> Void
     let onReleaseRuntimeControl: (TrackPerformBinaryControl) -> Void
@@ -1162,17 +1183,8 @@ private struct TrackMatrixCard: View {
 
                 Spacer(minLength: 0)
 
-                if let audioInputRuntimeLabel {
-                    // Bold-flat pass: live runtime state is a solid accent
-                    // block with dark text.
-                    Text(audioInputRuntimeLabel)
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.background)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(accent, in: Capsule())
-                        .lineLimit(1)
+                if track.trackType == .audioInput {
+                    AudioInputRuntimeBadge(trackID: track.id, accent: accent)
                 }
 
                 if isPerforming {
@@ -1213,8 +1225,17 @@ private struct TrackMatrixCard: View {
                 .fill(cardFill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(cardStroke, lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth)
+            TrackCardStrokeOverlay(
+                phrase: phrase,
+                layer: layer,
+                trackID: track.id,
+                cell: cell,
+                isFocused: isFocused,
+                isPerformSelected: isPerformSelected,
+                isPerforming: isPerforming,
+                focusAccent: accent,
+                layerAccentColor: layerAccentColor
+            )
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture {
@@ -1231,10 +1252,10 @@ private struct TrackMatrixCard: View {
            let control = activePerformLayer.binaryControl {
             TrackPerformRuntimeLayerControl(
                 mode: activePerformLayer,
+                trackID: track.id,
                 state: runtimeControlState,
                 latchMode: latchMode,
                 accent: layerAccentColor,
-                activeRepeatSnapshot: activePerformLayer == .noteRepeat ? noteRepeatActiveSnapshot : nil,
                 onActivate: { onActivateRuntimeControl(control) },
                 onRelease: { onReleaseRuntimeControl(control) }
             )
@@ -1248,15 +1269,14 @@ private struct TrackMatrixCard: View {
             // The action-bar layer control already names the active layer, the
             // edit-set chrome already marks linked cards, and inherit/single
             // shows as a muted variant — no per-card chips (ux-canon rule 1).
-            PhraseCellPreview(
+            TrackCardCellPreviewLeaf(
+                phrase: phrase,
                 layer: layer,
+                trackID: track.id,
                 cell: cell,
-                resolvedValue: resolvedValue,
                 accent: layerAccentColor,
-                summary: valueSummary,
-                metrics: .matrix
+                contentOpacity: layerContentOpacity
             )
-            .opacity(layerContentOpacity)
         }
     }
 
@@ -1267,25 +1287,96 @@ private struct TrackMatrixCard: View {
         return isPerforming ? 1 : 0.82
     }
 
-    /// The active pattern's identity colour when the pattern layer drives this
-    /// card; the card itself takes the colour of the selected pattern.
-    private var activePatternColor: Color? {
-        guard layer.valueType == .patternIndex,
-              case let .index(index) = resolvedValue.normalized(for: layer)
-        else {
-            return nil
-        }
-        return StudioTheme.patternColor(index)
-    }
-
     /// Colour identifies, it never floods (ux-canon rule 12): the card body is
     /// always the neutral step above ground; state/identity lives in the
-    /// outline (`cardStroke`) and the solid pattern chip.
+    /// outline (`TrackCardStrokeOverlay`) and the solid pattern chip.
     private var cardFill: Color {
         Color.white.opacity(StudioOpacity.subtleFill)
     }
+}
 
-    private var cardStroke: Color {
+private extension PhraseCell {
+    /// True when the rendered value varies with the transport step. Only
+    /// these cells' leaves may register a dependency on the tick-rate
+    /// transport mirror; single/inherit cells resolve statically.
+    var dependsOnPlayhead: Bool {
+        switch self {
+        case .bars, .steps, .curve:
+            return true
+        case .single, .inheritDefault:
+            return false
+        }
+    }
+}
+
+/// The cell-content leaf — with the stroke overlay, the only tracks-page
+/// views allowed to read the transport playhead. Bar/step/curve cells
+/// re-resolve when `transportTickIndex` publishes; single/inherit cells
+/// never register the dependency. `PhraseCellPreview` sits behind an
+/// Equatable guard so per-tick re-evaluations that resolve to the same
+/// value stop here (the meter-bank displayState dedupe shape).
+private struct TrackCardCellPreviewLeaf: View {
+    @Environment(EngineController.self) private var engineController
+    let phrase: PhraseModel
+    let layer: PhraseLayerDefinition
+    let trackID: UUID
+    let cell: PhraseCell
+    let accent: Color
+    let contentOpacity: Double
+
+    var body: some View {
+        #if DEBUG
+        let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
+        #endif
+        let resolvedValue = phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: playheadStepIndex)
+        PhraseCellPreview(
+            layer: layer,
+            cell: cell,
+            resolvedValue: resolvedValue,
+            accent: accent,
+            summary: valueLabel(resolvedValue, layer: layer),
+            metrics: .matrix
+        )
+        .equatable()
+        .opacity(contentOpacity)
+    }
+
+    private var playheadStepIndex: Int {
+        guard cell.dependsOnPlayhead else {
+            return 0
+        }
+        return PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex).stepIndex
+    }
+}
+
+/// Card outline leaf. In perform mode with the pattern layer the stroke
+/// takes the playing pattern's identity colour, which for bar/step-varying
+/// cells follows the playhead — so the stroke (not the whole card) owns
+/// that tick-rate read. In edit mode it reads no engine state at all.
+private struct TrackCardStrokeOverlay: View {
+    @Environment(EngineController.self) private var engineController
+    let phrase: PhraseModel
+    let layer: PhraseLayerDefinition
+    let trackID: UUID
+    let cell: PhraseCell
+    let isFocused: Bool
+    let isPerformSelected: Bool
+    let isPerforming: Bool
+    let focusAccent: Color
+    let layerAccentColor: Color
+
+    var body: some View {
+        #if DEBUG
+        let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
+        #endif
+        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+            .stroke(
+                strokeColor,
+                lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth
+            )
+    }
+
+    private var strokeColor: Color {
         if isPerformSelected {
             return StudioTheme.amber.opacity(StudioOpacity.accentFill)
         }
@@ -1296,30 +1387,109 @@ private struct TrackMatrixCard: View {
             return layerAccentColor.opacity(StudioOpacity.accentFill)
         }
         if isFocused {
-            return accent.opacity(StudioOpacity.accentFill)
+            return focusAccent.opacity(StudioOpacity.accentFill)
         }
         return StudioTheme.border
     }
+
+    /// The active pattern's identity colour when the pattern layer drives
+    /// this card; the outline takes the colour of the playing pattern.
+    private var activePatternColor: Color? {
+        guard layer.valueType == .patternIndex else {
+            return nil
+        }
+        let stepIndex = cell.dependsOnPlayhead
+            ? PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex).stepIndex
+            : 0
+        guard case let .index(index) = phrase
+            .resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex)
+            .normalized(for: layer)
+        else {
+            return nil
+        }
+        return StudioTheme.patternColor(index)
+    }
 }
 
+/// Audio-input badge leaf: the only tracks-page view that reads audio-input
+/// runtime state. `audioInputRuntimeRevision` bumps at capture-progress
+/// rate while recording, so page/card bodies must not observe it.
+private struct AudioInputRuntimeBadge: View {
+    @Environment(EngineController.self) private var engineController
+    let trackID: UUID
+    let accent: Color
+
+    var body: some View {
+        #if DEBUG
+        let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
+        #endif
+        if let label {
+            // Bold-flat pass: live runtime state is a solid accent block
+            // with dark text.
+            Text(label)
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.background)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .background(accent, in: Capsule())
+                .lineLimit(1)
+        }
+    }
+
+    private var label: String? {
+        guard let runtime = engineController.audioInputRuntime(for: trackID) else {
+            return nil
+        }
+
+        switch runtime.armState {
+        case .armed:
+            return "ARM"
+        case .recording:
+            return "REC"
+        case .idle, .hasLoop:
+            return "IN"
+        }
+    }
+}
+
+/// Runtime trigger leaf. Engine-side repeat activity (the engaged snapshot
+/// with captured step/rate) is read HERE, keyed to the narrow
+/// `noteRepeatRuntimeUIRevision` publisher — the page passes only its own
+/// overlay gesture state, so engage/release never re-builds the page.
 private struct TrackPerformRuntimeLayerControl: View {
+    @Environment(EngineController.self) private var engineController
     let mode: TrackPerformLayerMode
+    let trackID: UUID
     let state: TrackPerformRuntimeControlState
     let latchMode: TrackPerformLatchMode
     let accent: Color
-    let activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
     let onActivate: () -> Void
     let onRelease: () -> Void
 
     @State private var isTrackingMomentaryPress = false
 
     var body: some View {
-        triggerSurface
+        #if DEBUG
+        let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
+        #endif
+        // Engine reads happen here, in this leaf's body context (not inside
+        // the GeometryReader closure below, whose evaluation context SwiftUI
+        // does not document).
+        let activeRepeatSnapshot = mode == .noteRepeat
+            ? engineController.noteRepeatRuntimeSnapshot(for: trackID)
+            : nil
+        let isActive = state.isActive || activeRepeatSnapshot != nil
+        triggerSurface(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot)
             .help(helpText)
     }
 
     @ViewBuilder
-    private var triggerSurface: some View {
+    private func triggerSurface(
+        isActive: Bool,
+        activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
+    ) -> some View {
+        let label = label(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot)
         if !state.isAvailable {
             label
                 .opacity(0.68)
@@ -1363,15 +1533,19 @@ private struct TrackPerformRuntimeLayerControl: View {
 
     // The layer header already names the layer; the cell is just the on/off
     // state (plus the captured step/rate while engaged), filling the card.
-    private var label: some View {
-        VStack(spacing: 6) {
-            Text(stateLabel)
+    private func label(
+        isActive: Bool,
+        activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
+    ) -> some View {
+        let foreground = labelForeground(isActive: isActive)
+        return VStack(spacing: 6) {
+            Text(stateLabel(isActive: isActive))
                 .studioText(.title)
-                .foregroundStyle(labelForeground)
+                .foregroundStyle(foreground)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            if let capturedInfoLabel {
+            if let capturedInfoLabel = capturedInfoLabel(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot) {
                 Text(capturedInfoLabel)
                     .studioText(.micro)
                     .tracking(0.8)
@@ -1380,7 +1554,7 @@ private struct TrackPerformRuntimeLayerControl: View {
                     .minimumScaleFactor(0.8)
             }
         }
-        .foregroundStyle(labelForeground)
+        .foregroundStyle(foreground)
         .padding(StudioMetrics.Spacing.comfortable)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
@@ -1392,8 +1566,11 @@ private struct TrackPerformRuntimeLayerControl: View {
 
     /// When repeat is engaged: the captured step (the one being repeated)
     /// and the rate it repeats at. Cleared when the repeat releases.
-    private var capturedInfoLabel: String? {
-        guard mode == .noteRepeat, state.isActive, let snapshot = activeRepeatSnapshot else {
+    private func capturedInfoLabel(
+        isActive: Bool,
+        activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
+    ) -> String? {
+        guard mode == .noteRepeat, isActive, let snapshot = activeRepeatSnapshot else {
             return nil
         }
         guard let capturedStep = snapshot.capturedStep else {
@@ -1402,7 +1579,7 @@ private struct TrackPerformRuntimeLayerControl: View {
         return "STEP \(capturedStep.stepIndex % 16 + 1) · \(snapshot.interval.rawValue)"
     }
 
-    private var stateLabel: String {
+    private func stateLabel(isActive: Bool) -> String {
         if !state.isAvailable {
             if mode == .noteRepeat {
                 return "No Clip"
@@ -1415,13 +1592,13 @@ private struct TrackPerformRuntimeLayerControl: View {
         if state.isLatched {
             return "LATCHED"
         }
-        if state.isActive {
+        if isActive {
             return "ACTIVE"
         }
         return "READY"
     }
 
-    private var labelForeground: Color {
+    private func labelForeground(isActive: Bool) -> Color {
         guard state.isAvailable else {
             return StudioTheme.mutedText
         }
@@ -1431,7 +1608,7 @@ private struct TrackPerformRuntimeLayerControl: View {
         if state.isLatched {
             return accent
         }
-        return state.isActive ? StudioTheme.text : StudioTheme.mutedText
+        return isActive ? StudioTheme.text : StudioTheme.mutedText
     }
 
     /// Colour identifies, it never floods (ux-canon rule 12): the trigger
