@@ -221,6 +221,53 @@ See [[track-macros]].
 - Modifier generators process source notes and should not fork the playback path.
 - Runtime-only audition or capture state should stay transient until explicitly saved into document state.
 
+## UI Observation Budget
+
+The reverse direction — engine state flowing back into SwiftUI — is
+budgeted (architecture verdict 2026-06-12 §2). High-frequency state goes
+through narrow, dedicated publishers, and only LEAF views may observe it:
+
+- **Tick-rate** (`transportTickIndex`, the main-published transport
+  mirror): read only by per-card playhead leaves
+  (`TrackCardCellPreviewLeaf`, `TrackCardStrokeOverlay`,
+  `PhraseLaunchProgressBar`). Cells whose value cannot vary with the step
+  (`single` / `inheritDefault`) must not register the dependency at all,
+  and leaf output sits behind an Equatable guard so same-value
+  re-resolutions stop at the leaf (the `ChannelMeterBank` displayState
+  dedupe shape).
+- **Meter/capture-rate** (`audioInputRuntimeRevision`, meter
+  `displayState`): one leaf per displaying control
+  (`AudioInputRuntimeBadge`, the mixer strip meters).
+- **Gesture/engage-rate** (`noteRepeatRuntimeUIRevision`): read inside
+  `noteRepeatRuntimeSnapshot(for:)` so the runtime trigger leaves update
+  on engage/release without any page-wide invalidation.
+
+Page and card bodies depend on document/selection state only. The reason
+this is a playback invariant and not just a UI nicety: broad invalidation
+makes main-thread load proportional to playback activity, and any
+remaining tick-path main dependency then makes playback timing
+proportional to UI cost — the closed feedback loop behind the tracks-page
+BPM sag. Two regression nets pin it:
+
+- `TracksPageInvalidationTests` asserts zero page/card re-evaluations per
+  transport tick (with leaf-activity and probe positive controls).
+- `TickPathMainIsolationTests` drives `processTick` under a saturated
+  main thread and bounds the loaded median tick time; the DEBUG
+  `TickPathMainSyncGuard` reports any sync-to-main reached from the
+  marked tick path.
+
+When adding a view that wants per-step/per-meter updates, give the
+tick-rate read its own smallest-possible leaf `View` and keep the read in
+that leaf's `body` proper — not in a `GeometryReader`/container closure,
+whose evaluation context is not documented. Lazy-container item closures
+(`ForEach` in `LazyVGrid`) count as the card body, not a leaf: a
+tick-rate read there re-builds every visible card per tick.
+
+Known followers of the OLD shape (follow-up): `TrackSourceEditorView` and
+`SliceTrackWorkspaceView` compute `playingClipStepIndex` in their page
+bodies, so those single-track editor pages still re-evaluate per tick
+while playing.
+
 ## Known Transitional Areas
 
 - Some APIs still have project-based compile helpers for tests or transitional callers.
