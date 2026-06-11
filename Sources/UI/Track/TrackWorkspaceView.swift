@@ -384,7 +384,7 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
                     .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                            .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
                     )
                     .help("Open the kit matrix from \(model.currentPartName)")
                 }
@@ -400,7 +400,7 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -664,7 +664,7 @@ private struct AudioInputRuntimePanel: View {
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: 1)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                 )
             }
             .menuStyle(.borderlessButton)
@@ -779,7 +779,7 @@ private struct AudioInputSignalPanel: View {
                     .fill(Color.white.opacity(StudioOpacity.subtleFill))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                            .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                     )
 
                 if !waveformBuckets.isEmpty {
@@ -897,7 +897,7 @@ private struct StudioSegmentedControl<Value: Equatable>: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: 1)
+                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
             )
         }
     }
@@ -921,7 +921,7 @@ private struct StudioSegmentedControl<Value: Equatable>: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(isSelected ? accent.opacity(0.72) : Color.clear, lineWidth: 1)
+                        .stroke(isSelected ? accent.opacity(0.72) : Color.clear, lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)

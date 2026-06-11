@@ -59,7 +59,7 @@ struct SliceLayerTabRow: View {
                                     selectedLayer == layer
                                         ? accent.opacity(0.8)
                                         : StudioTheme.border.opacity(0.8),
-                                    lineWidth: 1
+                                    lineWidth: StudioMetrics.borderWidth
                                 )
                         )
                 }
@@ -161,7 +161,7 @@ struct StepLayerRotaryEmptyState: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
     }
 }
@@ -210,7 +210,7 @@ private struct StepLayerRotaryDial: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(isActiveLayer ? StudioTheme.amber.opacity(0.95) : StudioTheme.border.opacity(0.8), lineWidth: isActiveLayer ? 2 : 1)
+                .stroke(isActiveLayer ? StudioTheme.amber.opacity(0.95) : StudioTheme.border.opacity(0.8), lineWidth: isActiveLayer ? 2 : StudioMetrics.borderWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .onTapGesture(perform: onSelectLayer)
@@ -335,7 +335,7 @@ struct SliceStepStrip: View {
                     .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : 1)
+                            .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : StudioMetrics.borderWidth)
                     )
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Slice step \(absoluteIndex + 1)")

@@ -3,21 +3,15 @@ import SwiftUI
 struct CellPreviewMetrics {
     let booleanHeight: CGFloat
     let valueHeight: CGFloat
-    let booleanAccentOpacity: Double
-    let muteOnOpacity: Double
 
     static let matrix = CellPreviewMetrics(
         booleanHeight: 72,
-        valueHeight: 84,
-        booleanAccentOpacity: 0.65,
-        muteOnOpacity: 0.7
+        valueHeight: 84
     )
 
     static let live = CellPreviewMetrics(
         booleanHeight: 92,
-        valueHeight: 98,
-        booleanAccentOpacity: 0.72,
-        muteOnOpacity: 0.75
+        valueHeight: 98
     )
 }
 

@@ -52,7 +52,7 @@ struct SliceInspectorView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -133,7 +133,7 @@ struct SliceSamplePlayerParametersView: View {
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -210,7 +210,7 @@ struct SliceSamplePlayerParametersView: View {
             .background(isOn.wrappedValue ? StudioTheme.violet.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isOn.wrappedValue ? StudioTheme.violet.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: 1)
+                    .stroke(isOn.wrappedValue ? StudioTheme.violet.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

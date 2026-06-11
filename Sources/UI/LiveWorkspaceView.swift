@@ -153,7 +153,7 @@ struct LiveWorkspaceView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                    .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
             )
 
             StudioCircleIconButton(
@@ -412,7 +412,7 @@ private struct LiveScopeCard: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(scope.accent.opacity(StudioOpacity.hoverFill), lineWidth: 1)
+                .stroke(scope.accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
 

@@ -354,7 +354,7 @@ struct TrackSourceContainedSourcePicker: View {
                 cornerRadius: StudioMetrics.CornerRadius.panel,
                 style: .continuous
             )
-            .stroke(StudioTheme.border, lineWidth: 1)
+            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -430,7 +430,7 @@ struct TrackSourceContainedSourcePicker: View {
                     cornerRadius: StudioMetrics.CornerRadius.control,
                     style: .continuous
                 )
-                .stroke(rootActionStroke(for: action.role, accent: accent), lineWidth: 1)
+                .stroke(rootActionStroke(for: action.role, accent: accent), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -490,7 +490,7 @@ struct TrackSourceContainedSourcePicker: View {
                     cornerRadius: StudioMetrics.CornerRadius.control,
                     style: .continuous
                 )
-                .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

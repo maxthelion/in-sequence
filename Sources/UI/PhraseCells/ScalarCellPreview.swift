@@ -18,27 +18,31 @@ struct ScalarCellPreview: View {
             let fillHeight = max(6, geometry.size.height * clampedFillRatio)
 
             ZStack(alignment: .bottomLeading) {
+                // Bold-flat pass: outlined well on the ground; the level is
+                // one fully solid accent block — no translucent wash.
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
 
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(accent.opacity(0.8))
+                    .fill(accent)
                     .frame(height: fillHeight)
 
                 // One dominant value; inherit/single is shown by the cell's
-                // muted variant, not by a per-cell mode label.
+                // muted variant, not by a per-cell mode label. The value
+                // reads in the accent colour on the ground, flipping to the
+                // dark ground colour once the solid fill rises behind it.
                 VStack(alignment: .leading, spacing: 4) {
                     Spacer()
                     Text(summary)
                         .studioText(.modalTitle)
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(clampedFillRatio > 0.4 ? StudioTheme.background : accent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
 
                     if isMixed {
                         Text("Mixed")
                             .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(StudioTheme.text.opacity(0.85))
+                            .foregroundStyle(clampedFillRatio > 0.4 ? StudioTheme.background.opacity(0.85) : StudioTheme.text.opacity(0.85))
                             .lineLimit(1)
                     }
                 }

@@ -403,7 +403,7 @@ private struct MixerChannelStrip: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -550,10 +550,11 @@ struct MixerStripLevelsColumn: View {
                 height: StudioMixerStripMetrics.faderSize.height
             )
 
+            // Bold-flat pass: level values read in the accent colour.
             Text(valueLabel ?? StudioLevelFormat.dBLabel(forLinear: level))
                 .studioText(.eyebrow)
                 .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(StudioTheme.cyan)
         }
         .frame(maxWidth: .infinity)
     }
@@ -656,7 +657,7 @@ struct MixerInsertChainView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -672,7 +673,7 @@ struct MixerInsertChainView: View {
         .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
         )
     }
 
@@ -682,7 +683,7 @@ struct MixerInsertChainView: View {
             .frame(maxWidth: .infinity, minHeight: 32)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .stroke(StudioTheme.border.opacity(0.45), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
             )
             .accessibilityHidden(true)
     }
@@ -761,8 +762,13 @@ struct VerticalLevelFader: View {
             let filledHeight = max(12, height * clampedLevel)
 
             ZStack(alignment: .bottom) {
+                // Bold-flat pass: the trough is an outlined inset cut.
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .fill(StudioTheme.inset)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                            .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: StudioMetrics.borderWidth)
+                    )
 
                 if let meterState {
                     HStack(alignment: .bottom, spacing: 3) {

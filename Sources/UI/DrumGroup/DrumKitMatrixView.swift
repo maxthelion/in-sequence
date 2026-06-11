@@ -476,7 +476,7 @@ struct DrumKitMatrixView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
 
             VStack(alignment: .leading, spacing: 5) {
@@ -512,7 +512,7 @@ struct DrumKitMatrixView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -532,7 +532,7 @@ struct DrumKitMatrixView: View {
         .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -545,7 +545,7 @@ struct DrumKitMatrixView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -619,7 +619,7 @@ struct DrumKitMatrixView: View {
                         .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
                         .overlay(
                             Capsule()
-                                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
                         )
                         .help("Members are on different pattern slots. Selecting a slot realigns every part.")
                 }
@@ -659,7 +659,7 @@ struct DrumKitMatrixView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.9), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -681,7 +681,7 @@ struct DrumKitMatrixView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : Color.clear, lineWidth: 1)
+                        .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : Color.clear, lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -704,7 +704,7 @@ struct DrumKitMatrixView: View {
         .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
         .overlay(
             Capsule()
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
         .help("Pattern mismatch: parts are showing different active pattern slots.")
         .accessibilityLabel("Pattern mismatch: parts are showing different active pattern slots.")
@@ -733,7 +733,7 @@ struct DrumKitMatrixView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -868,7 +868,7 @@ private struct DrumKitMatrixRowView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(row.isDivergentPattern ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
+                .stroke(row.isDivergentPattern ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -901,7 +901,7 @@ private struct DrumKitMatrixRowView: View {
                     .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
                     .overlay(
                         Capsule()
-                            .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                            .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
                     )
                     .help("This part is on \(row.patternBadge), diverging from the group.")
             }
@@ -1127,7 +1127,7 @@ private struct DrumGroupRoutingEditorSheet: View {
                             )
                             .overlay(
                                 Capsule()
-                                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                             )
                     }
                 }
@@ -1177,7 +1177,7 @@ private struct DrumGroupRoutingEditorSheet: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(
                     StudioTheme.border.opacity(storedForGroupedModesOnly ? 0.65 : 1),
-                    lineWidth: 1
+                    lineWidth: StudioMetrics.borderWidth
                 )
         )
     }
@@ -1352,7 +1352,7 @@ private struct DrumGroupRoutingModeControl: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: 1)
+                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
             )
         }
     }
@@ -1376,7 +1376,7 @@ private struct DrumGroupRoutingModeControl: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(isSelected ? StudioTheme.cyan.opacity(0.72) : Color.clear, lineWidth: 1)
+                        .stroke(isSelected ? StudioTheme.cyan.opacity(0.72) : Color.clear, lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -1403,7 +1403,7 @@ private struct DrumGroupRoutingEditorButtonStyle: ButtonStyle {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
+                    .stroke(borderColor, lineWidth: StudioMetrics.borderWidth)
             )
             .opacity(isEnabled ? 1 : 0.48)
     }
@@ -1483,7 +1483,7 @@ private struct DrumGroupRoutingEditorRow: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 }

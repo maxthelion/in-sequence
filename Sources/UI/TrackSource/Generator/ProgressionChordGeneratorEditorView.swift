@@ -191,7 +191,7 @@ struct ProgressionChordGeneratorEditorView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 4]))
         )
     }
 
@@ -246,7 +246,7 @@ struct ProgressionChordGeneratorEditorView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -311,7 +311,7 @@ struct ProgressionChordGeneratorEditorView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(selectedChordStep == step ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                    .stroke(selectedChordStep == step ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -355,7 +355,7 @@ struct ProgressionChordGeneratorEditorView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                    .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -396,7 +396,7 @@ struct ProgressionChordGeneratorEditorView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(selectedLayer == layer ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                        .stroke(selectedLayer == layer ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -619,7 +619,7 @@ struct ProgressionChordGeneratorEditorView: View {
                 )
                 .overlay(
                     Capsule()
-                        .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                        .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)

@@ -275,7 +275,7 @@ struct TrackSourceEditorView: View {
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
                     .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: Capsule())
-                    .overlay(Capsule().stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: 1))
+                    .overlay(Capsule().stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
                     .padding(StudioMetrics.Spacing.comfortable)
             }
         }
@@ -541,7 +541,7 @@ struct TrackSourceEditorView: View {
             .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                    .stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
     }

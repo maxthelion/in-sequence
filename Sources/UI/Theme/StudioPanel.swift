@@ -63,9 +63,9 @@ struct StudioPanel<Content: View, Accessory: View>: View {
             content
         }
         .padding(StudioMetrics.Spacing.loose)
-        // Flat variant: the panel separates from the stage by solid colour
-        // value alone — no stroke, no drop shadow.
-        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        // Bold-flat pass: a panel is pure grouping — no fill at all. Content
+        // sits directly on the single near-black ground; the header rule and
+        // spacing do the separating.
     }
 }
 

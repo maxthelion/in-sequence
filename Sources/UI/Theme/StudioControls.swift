@@ -22,7 +22,7 @@ struct StudioCircleIconButton: View {
                 .foregroundStyle(foreground)
                 .frame(width: size, height: size)
                 .background(fill, in: Circle())
-                .overlay(Circle().stroke(stroke, lineWidth: 1))
+                .overlay(Circle().stroke(stroke, lineWidth: StudioMetrics.borderWidth))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -32,28 +32,28 @@ struct StudioCircleIconButton: View {
         .accessibilityLabel(help.isEmpty ? systemName : help)
     }
 
+    /// Bold-flat pass: an accented button is a fully solid accent circle
+    /// with a dark glyph inside; the plain state is outline-only on the
+    /// ground — no in-between washes.
     private var foreground: Color {
         guard isEnabled else {
             return StudioTheme.mutedText.opacity(0.35)
         }
-        return accent ?? StudioTheme.text
+        return accent == nil ? StudioTheme.text : StudioTheme.background
     }
 
     private var fill: Color {
         guard isEnabled else {
-            return Color.white.opacity(0.025)
+            return Color.clear
         }
-        if let accent {
-            return accent.opacity(StudioOpacity.selectedFill)
-        }
-        return Color.white.opacity(StudioOpacity.subtleFill)
+        return accent ?? Color.clear
     }
 
     private var stroke: Color {
         guard isEnabled else {
             return StudioTheme.border.opacity(0.45)
         }
-        return accent.map { $0.opacity(StudioOpacity.mediumStroke) } ?? StudioTheme.border
+        return accent ?? StudioTheme.border
     }
 }
 
@@ -83,7 +83,7 @@ struct StudioStepperButtons: View {
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: 1)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                 )
                 .contentShape(Rectangle())
         }

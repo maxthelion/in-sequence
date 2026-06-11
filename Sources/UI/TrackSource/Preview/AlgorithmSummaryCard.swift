@@ -20,7 +20,7 @@ struct AlgorithmSummaryCard: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 }

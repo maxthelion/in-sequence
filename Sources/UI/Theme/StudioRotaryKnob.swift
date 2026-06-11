@@ -57,10 +57,12 @@ struct StudioRotaryKnob: View {
                     .frame(width: size - 6, height: size - 6)
                     .rotationEffect(.degrees(-90))
 
+                // Bold-flat pass: values read in the accent colour, like the
+                // reference's violet numerals.
                 Text(format(displayValue))
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(accent)
             }
             .contentShape(Circle())
             .gesture(

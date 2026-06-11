@@ -151,7 +151,7 @@ struct AddDrumGroupSheet: View {
                     Capsule()
                         .stroke(
                             isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softStroke) : StudioTheme.border,
-                            lineWidth: 1
+                            lineWidth: StudioMetrics.borderWidth
                         )
                 )
         }
@@ -270,7 +270,7 @@ struct AddDrumGroupSheet: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -341,7 +341,7 @@ struct AddDrumGroupSheet: View {
                     Capsule()
                         .stroke(
                             isSelected ? StudioTheme.violet.opacity(StudioOpacity.softStroke) : StudioTheme.border,
-                            lineWidth: 1
+                            lineWidth: StudioMetrics.borderWidth
                         )
                 )
         }

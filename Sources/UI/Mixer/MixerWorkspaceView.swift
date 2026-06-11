@@ -199,7 +199,7 @@ struct MixerWorkspaceView: View {
                 .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                        .stroke(accent.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                        .stroke(accent.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
                 )
             } else {
                 VStack(spacing: 7) {
@@ -268,7 +268,7 @@ struct MixerWorkspaceView: View {
         .background(isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(isSelected ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
+                .stroke(isSelected ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .onTapGesture {
@@ -306,7 +306,7 @@ struct MixerWorkspaceView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         } else {
             StudioPlaceholderTile(title: "No Insert Selected", detail: "Add FX to shape the wet return", accent: accent)
@@ -464,7 +464,7 @@ struct MixerWorkspaceView: View {
         .buttonStyle(.plain)
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -670,7 +670,7 @@ struct MixerStripActionButton: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
+                    .stroke(isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -715,7 +715,7 @@ private struct MasterOutputCompactStrip: View {
             .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.amber.opacity(0.7), lineWidth: 1)
+                    .stroke(StudioTheme.amber.opacity(0.7), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

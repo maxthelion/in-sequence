@@ -198,7 +198,7 @@ struct TrackSourceSlotWellTabBar: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
     }
 }

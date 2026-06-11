@@ -657,7 +657,7 @@ struct ClipContentPreview: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -816,7 +816,7 @@ struct ClipContentPreview: View {
                     Capsule()
                         .stroke(
                             isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke),
-                            lineWidth: 1
+                            lineWidth: StudioMetrics.borderWidth
                         )
                 )
                 .overlay(
@@ -913,7 +913,7 @@ struct ClipContentPreview: View {
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(mode == .runFromHere ? StudioTheme.violet.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: 1)
+                                .stroke(mode == .runFromHere ? StudioTheme.violet.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                         )
                     }
                     .buttonStyle(.plain)

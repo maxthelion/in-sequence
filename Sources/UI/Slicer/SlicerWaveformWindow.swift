@@ -57,7 +57,7 @@ struct SlicerWaveformWindow: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
 
             HStack(alignment: .top, spacing: 14) {
@@ -118,7 +118,7 @@ struct SlicerWaveformWindow: View {
                             .background(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                    .stroke(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.65) : StudioTheme.border.opacity(0.8), lineWidth: 1)
+                                    .stroke(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.65) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                             )
                         }
                         .buttonStyle(.plain)
@@ -130,7 +130,7 @@ struct SlicerWaveformWindow: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
     }
 

@@ -237,7 +237,7 @@ struct SliceTrackWorkspaceView: View {
             .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
 
             HStack(spacing: 12) {
@@ -257,7 +257,7 @@ struct SliceTrackWorkspaceView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -437,7 +437,7 @@ struct SliceTrackWorkspaceView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
             .help(help)
     }
@@ -565,7 +565,7 @@ struct SliceTrackWorkspaceView: View {
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
         .onChange(of: analysisMode) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
         .onChange(of: analysisSensitivity) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
@@ -739,7 +739,7 @@ private extension SliceTrackWorkspaceView {
                 .frame(minWidth: 34)
                 .padding(.vertical, 7)
                 .background(clipContent.stepCount == length ? StudioTheme.violet.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                .overlay(Capsule().stroke(clipContent.stepCount == length ? StudioTheme.violet.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: 1))
+                .overlay(Capsule().stroke(clipContent.stepCount == length ? StudioTheme.violet.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
         }
         .buttonStyle(.plain)
     }
@@ -752,7 +752,7 @@ private extension SliceTrackWorkspaceView {
                 .padding(.horizontal, 13)
                 .padding(.vertical, 8)
                 .background(isSelected ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                .overlay(Capsule().stroke(isSelected ? accent.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: 1))
+                .overlay(Capsule().stroke(isSelected ? accent.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
                 .opacity(isEnabled ? 1 : 0.45)
         }
         .buttonStyle(.plain)

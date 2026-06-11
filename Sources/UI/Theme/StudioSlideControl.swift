@@ -64,10 +64,11 @@ struct StudioSlideControl: View {
             track
 
             if let trailingLabel {
+                // Bold-flat pass: the value reads in the accent colour.
                 Text(trailingLabel)
                     .studioText(.micro)
                     .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(accent)
                     .frame(width: 26, alignment: .trailing)
             }
         }
@@ -84,8 +85,14 @@ struct StudioSlideControl: View {
             let thumbX = normalized * width
 
             ZStack(alignment: .leading) {
+                // Bold-flat pass: the trough is a solid inset cut with a
+                // drawn outline, not a faint white wash.
                 Capsule(style: .continuous)
-                    .fill(Color.white.opacity(0.07))
+                    .fill(StudioTheme.inset)
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: 1)
+                    )
                     .frame(height: 5)
 
                 if fillStyle == .fromCenter {
@@ -101,7 +108,6 @@ struct StudioSlideControl: View {
                 Circle()
                     .fill(StudioTheme.text)
                     .frame(width: 11, height: 11)
-                    .shadow(color: .black.opacity(0.35), radius: 1.5, y: 1)
                     .offset(x: min(max(thumbX - 5.5, 0), max(width - 11, 0)))
             }
             .frame(maxHeight: .infinity, alignment: .center)
@@ -126,12 +132,12 @@ struct StudioSlideControl: View {
         case .fromCenter:
             let center = width / 2
             Capsule(style: .continuous)
-                .fill(accent.opacity(0.85))
+                .fill(accent)
                 .frame(width: abs(thumbX - center))
                 .offset(x: min(thumbX, center))
         case .fromLeading:
             Capsule(style: .continuous)
-                .fill(accent.opacity(0.85))
+                .fill(accent)
                 .frame(width: thumbX)
         }
     }

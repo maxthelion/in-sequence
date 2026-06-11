@@ -21,7 +21,7 @@ struct StudioPlaceholderTile: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.softFill), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.softFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
 }

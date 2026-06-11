@@ -174,7 +174,7 @@ struct TrackSourceSourceWell: View {
             .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
     }
 
@@ -190,7 +190,7 @@ struct TrackSourceSourceWell: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                        .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)

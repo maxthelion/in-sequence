@@ -90,9 +90,10 @@ final class PhraseCellPreviewTests: XCTestCase {
         )
 
         XCTAssertEqual(preview.activeIndex, 3)
+        // Bold-flat pass: the active slot is a fully solid identity colour.
         XCTAssertEqual(
             String(describing: preview.slotFill(for: 3)),
-            String(describing: StudioTheme.patternColor(3).opacity(0.85))
+            String(describing: StudioTheme.patternColor(3))
         )
         XCTAssertNotEqual(String(describing: preview.slotFill(for: 2)), String(describing: preview.slotFill(for: 3)))
     }

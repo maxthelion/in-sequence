@@ -103,10 +103,11 @@ struct TransportBar: View {
                 .layoutPriority(2)
 
             HStack(spacing: 6) {
+                // Bold-flat pass: values read in the accent colour.
                 Text(String(format: "%.0f", engineController.currentBPM))
                     .studioText(.metricValue)
                     .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.cyan)
                     .lineLimit(1)
                     .fixedSize()
 
@@ -133,7 +134,7 @@ struct TransportBar: View {
             Text(engineController.transportPosition)
                 .studioText(.metricValue)
                 .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(StudioTheme.cyan)
                 .lineLimit(1)
                 .fixedSize()
                 .layoutPriority(2)
@@ -143,7 +144,7 @@ struct TransportBar: View {
                 .frame(width: 8, height: 8)
                 .overlay(
                     Circle()
-                        .stroke((noteActivityIsHot ? StudioTheme.amber : StudioTheme.border).opacity(0.8), lineWidth: 1)
+                        .stroke((noteActivityIsHot ? StudioTheme.amber : StudioTheme.border).opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                 )
                 .animation(.easeOut(duration: 0.12), value: noteActivityIsHot)
                 .help(noteActivityIsHot ? "Note triggered" : "No recent note trigger")
@@ -201,7 +202,7 @@ struct TransportBar: View {
                     .background(StudioTheme.amber.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                            .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
                     )
                     .help("Queued phrase: \(queuedPhrase.name)")
                     .accessibilityLabel("Queued phrase \(queuedPhrase.name)")
@@ -221,7 +222,7 @@ struct TransportBar: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(currentPhrase == nil ? StudioTheme.border : StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                    .stroke(currentPhrase == nil ? StudioTheme.border : StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -289,20 +290,22 @@ private struct TransportModePicker: View {
                 Button {
                     selection = mode
                 } label: {
+                    // Bold-flat pass: the selected mode is a solid accent
+                    // block with dark text; unselected is outline-only.
                     Text(mode.label)
                         .studioText(.eyebrow)
-                        .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.mutedText)
+                        .foregroundStyle(selection == mode ? StudioTheme.background : StudioTheme.mutedText)
                         .lineLimit(1)
                         .fixedSize()
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
                         .background(
                             Capsule()
-                                .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : StudioTheme.inset)
+                                .fill(selection == mode ? StudioTheme.amber : Color.clear)
                         )
                         .overlay(
                             Capsule()
-                                .stroke(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
+                                .stroke(selection == mode ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                         )
                 }
                 .buttonStyle(.plain)
@@ -322,7 +325,7 @@ private struct TransportButtonStyle: ButtonStyle {
             .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
             )
     }
 }

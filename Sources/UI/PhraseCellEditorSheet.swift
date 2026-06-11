@@ -239,7 +239,7 @@ struct PhraseCellEditorSheet: View {
                         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                                .stroke(accent.opacity(0.25), lineWidth: 1)
+                                .stroke(accent.opacity(0.25), lineWidth: StudioMetrics.borderWidth)
                         )
                     }
                     .buttonStyle(.plain)

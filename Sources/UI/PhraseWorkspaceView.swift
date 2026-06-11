@@ -209,11 +209,12 @@ struct PhraseWorkspaceView: View {
             isPresentingPerformanceLayerSelection = true
         } label: {
             HStack(spacing: 8) {
+                // Bold-flat pass: solid accent circle with dark glyph.
                 Image(systemName: performanceLayerSelection.mode.symbolName)
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .frame(width: 28, height: 28)
-                    .background(activeLayerAccent.opacity(StudioOpacity.selectedFill), in: Circle())
+                    .background(activeLayerAccent, in: Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("PHRASE LAYER")
@@ -246,7 +247,7 @@ struct PhraseWorkspaceView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityIdentifier("phrase-layer-selector")
         .help("Choose the Phrase performance layer")
@@ -488,7 +489,7 @@ struct PhraseWorkspaceView: View {
                     .fill(Color.white.opacity(presentation.isEnabled ? StudioOpacity.subtleFill : 0.015))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(StudioTheme.border.opacity(presentation.isEnabled ? StudioOpacity.mediumStroke : StudioOpacity.ghostStroke), lineWidth: 1)
+                            .stroke(StudioTheme.border.opacity(presentation.isEnabled ? StudioOpacity.mediumStroke : StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
                     )
 
                 Image(systemName: systemImage)
@@ -715,10 +716,12 @@ struct PhraseWorkspaceView: View {
             }
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        // Bold-flat pass: the selector sits on the ground behind a solid
+        // amber outline — no tinted wash.
+        .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityIdentifier("phrase-performance-layer-selection-surface")
     }
@@ -775,7 +778,7 @@ private struct PhraseRowActions: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .frame(maxHeight: .infinity, alignment: .center)
     }
@@ -818,10 +821,12 @@ private struct PhraseMatrixTrackHeaderCell: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        // Bold-flat pass: outline-only header cell — drawn border-grey line
+        // when idle, solid accent line when selected.
+        .background((isSelected ? accent.opacity(StudioOpacity.mutedFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(accent.opacity(isSelected ? 0.6 : 0.12), lineWidth: 1)
+                .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 }
@@ -832,7 +837,7 @@ private struct PhraseMatrixEmptyTrackHeaderCell: View {
             .fill(StudioTheme.inset)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                    .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
             )
     }
 }
@@ -919,44 +924,44 @@ private struct PhraseMatrixPhraseCell: View {
         .background(rowFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(rowStroke, lineWidth: 1)
+                .stroke(rowStroke, lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
     }
 
+    /// Bold-flat pass: row state lives in a solid drawn outline (success =
+    /// playing, amber = queued/looping, violet = selected, border grey
+    /// otherwise); fills stay at most one muted step above the ground.
     private var rowFill: Color {
         if phrase.loopEnabled {
-            return StudioTheme.amber.opacity(isSelected ? StudioOpacity.selectedFill : StudioOpacity.subtleFill)
+            return StudioTheme.amber.opacity(isSelected ? StudioOpacity.mutedFill : StudioOpacity.subtleFill)
         }
         if isSelected {
-            return StudioTheme.violet.opacity(StudioOpacity.faintStroke)
+            return StudioTheme.violet.opacity(StudioOpacity.subtleFill)
         }
-        return Color.white.opacity(StudioOpacity.subtleFill)
+        return Color.clear
     }
 
     private var rowStroke: Color {
         if isPlaying {
-            return StudioTheme.success.opacity(0.7)
+            return StudioTheme.success
         }
         if isQueued || phrase.loopEnabled {
-            return StudioTheme.amber.opacity(StudioOpacity.mediumStroke)
+            return StudioTheme.amber
         }
-        return StudioTheme.violet.opacity(isSelected ? 0.6 : 0.12)
+        return isSelected ? StudioTheme.violet : StudioTheme.border
     }
 
+    // Bold-flat pass: badges are solid accent blocks with dark text.
     private func phraseBadge(_ label: String, accent: Color) -> some View {
         Text(label.uppercased())
             .studioText(.microEmphasis)
             .lineLimit(1)
-            .foregroundStyle(accent)
+            .foregroundStyle(StudioTheme.background)
             .padding(.horizontal, 5)
             .padding(.vertical, 3)
-            .background(accent.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-            )
+            .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 }
 
@@ -989,7 +994,7 @@ private struct PhrasePolicyStepperControl: View {
             .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
 
             if let footnote {
@@ -1044,12 +1049,14 @@ private struct PhraseGridCell: View {
         .opacity(isInherited ? StudioOpacity.inheritedContent : 1)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.compact)
-        .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        // Bold-flat pass: no container fill — the cell preview is the block,
+        // sitting directly on the ground (one less nesting level). The
+        // container only draws a line when selected or inherited.
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    accent.opacity(isSelected ? 0.6 : 0.12),
-                    style: StrokeStyle(lineWidth: 1, dash: isInherited ? StudioAddCard.dashPattern : [])
+                    isSelected ? accent : (isInherited ? StudioTheme.border : Color.clear),
+                    style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: isInherited && !isSelected ? StudioAddCard.dashPattern : [])
                 )
         )
         .help(isInherited ? "Follows the layer default. Click to set its own value; shift-click to push a value into this and the following phrases." : "")
@@ -1092,10 +1099,12 @@ private struct PhrasePerformancePlaceholderCell: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.compact)
-        .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        // Bold-flat pass: outline-only cell — border-grey line when idle,
+        // solid accent line when selected.
+        .background((isSelected ? accent.opacity(StudioOpacity.mutedFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(accent.opacity(isSelected ? 0.6 : 0.18), lineWidth: 1)
+                .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityLabel("\(phrase.name), \(track.name), \(selection.activeLabel), selection only")
     }
@@ -1107,7 +1116,7 @@ private struct PhraseGridEmptyCell: View {
             .fill(StudioTheme.inset)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                    .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

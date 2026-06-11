@@ -59,7 +59,7 @@ struct SamplerDestinationWidget: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -146,7 +146,7 @@ struct SamplerDestinationWidget: View {
             .frame(height: 60)
             .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
-            .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
     }
 
     private var knobSection: some View {
@@ -278,7 +278,7 @@ struct SamplerDestinationWidget: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -321,7 +321,7 @@ struct SamplerDestinationWidget: View {
                     )
                     .overlay(
                         Capsule()
-                            .stroke(selection == option ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: 1)
+                            .stroke(selection == option ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                     )
                     .buttonStyle(.plain)
                 }

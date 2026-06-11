@@ -190,7 +190,7 @@ struct TrackSourceContainedModifierPicker: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -220,7 +220,7 @@ struct TrackSourceContainedModifierPicker: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
+                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

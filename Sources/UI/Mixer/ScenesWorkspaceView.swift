@@ -195,7 +195,7 @@ struct ScenesWorkspaceView: View {
             .background(scene.id == masterBus.activeSceneID ? StudioTheme.amber.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border, lineWidth: scene.id == masterBus.activeSceneID ? 2 : 1)
+                    .stroke(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border, lineWidth: scene.id == masterBus.activeSceneID ? 2 : StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -384,7 +384,7 @@ struct ScenesWorkspaceView: View {
         .background(isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: 1)
+                .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .onTapGesture {
@@ -412,7 +412,7 @@ struct ScenesWorkspaceView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         } else {
             StudioPlaceholderTile(title: "No Insert Selected", detail: "Add an insert")
@@ -450,7 +450,7 @@ struct ScenesWorkspaceView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
     }

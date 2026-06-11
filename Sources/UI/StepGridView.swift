@@ -111,10 +111,12 @@ private struct StepGridCell: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 7)
         .padding(.horizontal, 3)
-        .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        // Bold-flat pass: no per-step container plate — the step cell's own
+        // outline/fill is the control (one less nesting level). Selection
+        // alone draws the outer amber line.
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(outlineColor, lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? StudioTheme.amber : Color.clear, lineWidth: 2)
         )
         .background {
             #if DEBUG
@@ -166,19 +168,6 @@ private struct StepGridCell: View {
         state == .off ? AnyShapeStyle(StudioTheme.mutedText) : AnyShapeStyle(StudioTheme.text)
     }
 
-    private var outlineColor: Color {
-        if isSelected {
-            return StudioTheme.amber
-        }
-        switch state {
-        case .off:
-            return Color.white.opacity(StudioOpacity.borderSubtle)
-        case .on:
-            return StudioTheme.cyan.opacity(0.34)
-        case .accented:
-            return StudioTheme.amber.opacity(0.34)
-        }
-    }
 }
 
 #if DEBUG

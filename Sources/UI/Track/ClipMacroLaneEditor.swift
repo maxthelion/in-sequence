@@ -161,7 +161,7 @@ struct ClipMacroLaneEditor: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.4), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.4), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -207,7 +207,7 @@ private struct MacroLaneCell: View {
                 .fill(isOverride ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .stroke(isOverride ? StudioTheme.cyan.opacity(0.5) : StudioTheme.border.opacity(0.3), lineWidth: 1)
+                        .stroke(isOverride ? StudioTheme.cyan.opacity(0.5) : StudioTheme.border.opacity(0.3), lineWidth: StudioMetrics.borderWidth)
                 )
 
             Text(formatValue(displayValue))

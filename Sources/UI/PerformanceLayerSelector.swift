@@ -43,13 +43,15 @@ struct PerformanceLayerOptionCell: View {
             }
             .padding(StudioMetrics.Spacing.compact)
             .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
+            // Bold-flat pass: unselected cells are outline-only on the
+            // ground; selection reads as a clear accent tint + solid line.
             .background(
-                isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                isSelected ? accent.opacity(StudioOpacity.mutedFill) : Color.clear,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isSelected ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border, lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? accent : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
             )
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }

@@ -14,12 +14,10 @@ struct WorkspaceDetailView: View {
             workspace
                 .padding(StudioMetrics.Spacing.tight)
         }
-        .background(StudioTheme.stageFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.workspace, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-                .allowsHitTesting(false)
-        )
+        // Bold-flat pass: the stage IS the window ground — no rounded stage
+        // plate, no outline; controls sit directly on the one near-black
+        // ground like the reference.
+        .background(StudioTheme.stageFill)
     }
 
     @ViewBuilder

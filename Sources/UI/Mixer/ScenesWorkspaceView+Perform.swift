@@ -99,7 +99,7 @@ extension ScenesWorkspaceView {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.border, lineWidth: 1)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                     )
                 }
                 .buttonStyle(.plain)
@@ -113,7 +113,7 @@ extension ScenesWorkspaceView {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(isDominant ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: 1)
+                    .stroke(isDominant ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
             .onTapGesture {
                 engineController.setLiveMasterCrossfader(isA ? 0 : 1)
@@ -133,7 +133,7 @@ extension ScenesWorkspaceView {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.hoverFill), lineWidth: 1)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -151,7 +151,7 @@ extension ScenesWorkspaceView {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -245,7 +245,7 @@ extension ScenesWorkspaceView {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(selected ? StudioTheme.amber.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
+                    .stroke(selected ? StudioTheme.amber.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

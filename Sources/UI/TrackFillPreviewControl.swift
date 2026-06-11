@@ -32,7 +32,7 @@ struct TrackFillPreviewControl: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(border, lineWidth: presentation.isActive ? 1.5 : 1)
+                    .stroke(border, lineWidth: presentation.isActive ? 2 : StudioMetrics.borderWidth)
             )
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }

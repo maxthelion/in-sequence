@@ -91,7 +91,7 @@ private struct RouteRowView: View {
                         .background(StudioTheme.amber.opacity(StudioOpacity.mutedFill), in: Capsule())
                         .overlay(
                             Capsule()
-                                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
                         )
                 }
             }
@@ -110,7 +110,7 @@ private struct RouteRowView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 }

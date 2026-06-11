@@ -153,7 +153,7 @@ struct DrumKitTemplateChooserSheet: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(
                         isSelected ? StudioTheme.success.opacity(StudioOpacity.softStroke) : StudioTheme.border,
-                        lineWidth: 1
+                        lineWidth: StudioMetrics.borderWidth
                     )
             )
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))

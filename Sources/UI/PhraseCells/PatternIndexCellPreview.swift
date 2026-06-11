@@ -27,7 +27,7 @@ struct PatternIndexCellPreview: View {
                         .frame(height: pillHeight)
                         .overlay(
                             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                                .stroke(slotStroke(for: index), lineWidth: 1)
+                                .stroke(slotStroke(for: index), lineWidth: StudioMetrics.borderWidth)
                         )
                 }
             }
@@ -56,38 +56,33 @@ struct PatternIndexCellPreview: View {
         return nil
     }
 
-    private var activeColor: Color? {
-        activeIndex.map { StudioTheme.patternColor($0) }
-    }
-
     private var pillHeight: CGFloat {
         // Four pill rows plus the cell padding must fit metrics.valueHeight.
         let inset = StudioMetrics.Spacing.compact * 2 + StudioMetrics.Spacing.hairline * 3
         return max(8, (metrics.valueHeight - inset) / 4)
     }
 
+    /// Bold-flat pass: no tinted cell wash behind the matrix — the slot
+    /// pills sit directly on the card (one less nesting level).
     private var cellFill: Color {
-        guard let activeColor, !isMixed else {
-            return Color.white.opacity(StudioOpacity.subtleFill)
-        }
-        return activeColor.opacity(StudioOpacity.softFill)
+        Color.clear
     }
 
+    /// Bold-flat pass: the active slot is a fully solid identity-colour
+    /// block; inactive slots are outline-only on the ground.
     func slotFill(for index: Int) -> Color {
-        guard let activeIndex, !isMixed else {
-            return Color.white.opacity(StudioOpacity.subtleFill)
+        guard let activeIndex, !isMixed, index == activeIndex else {
+            return Color.clear
         }
-        return index == activeIndex
-            ? StudioTheme.patternColor(index).opacity(0.85)
-            : Color.white.opacity(StudioOpacity.borderSubtle)
+        return StudioTheme.patternColor(index)
     }
 
     func slotStroke(for index: Int) -> Color {
         guard let activeIndex, !isMixed else {
-            return StudioTheme.border.opacity(0.4)
+            return StudioTheme.border.opacity(StudioOpacity.softStroke)
         }
         return index == activeIndex
-            ? StudioTheme.patternColor(index).opacity(0.95)
-            : StudioTheme.border.opacity(StudioOpacity.mediumStroke)
+            ? StudioTheme.patternColor(index)
+            : StudioTheme.border.opacity(StudioOpacity.softStroke)
     }
 }

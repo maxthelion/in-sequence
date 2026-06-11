@@ -86,7 +86,7 @@ struct SlicerSourceWidget: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .sheet(isPresented: $showingWaveformEditor) {
             if let sample = currentSample {
@@ -186,7 +186,7 @@ struct SlicerSourceWidget: View {
                             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
                             .overlay(
                                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip)
-                                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                             )
                         }
                         .buttonStyle(.plain)
@@ -217,7 +217,7 @@ struct SlicerSourceWidget: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
 
             HStack(spacing: 8) {
@@ -283,7 +283,7 @@ struct SlicerSourceWidget: View {
                     .background(index == 0 ? StudioTheme.violet.opacity(0.18) : StudioTheme.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(index == 0 ? StudioTheme.violet.opacity(0.65) : StudioTheme.cyan.opacity(0.55), lineWidth: 1)
+                            .stroke(index == 0 ? StudioTheme.violet.opacity(0.65) : StudioTheme.cyan.opacity(0.55), lineWidth: StudioMetrics.borderWidth)
                     )
                 }
                 .buttonStyle(.plain)
@@ -370,7 +370,7 @@ struct SlicerSourceWidget: View {
         .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -445,7 +445,7 @@ struct SlicerSourceWidget: View {
             .background(effectiveSliceSet.mode == mode ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
             .overlay(
                 Capsule()
-                    .stroke(effectiveSliceSet.mode == mode ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: 1)
+                    .stroke(effectiveSliceSet.mode == mode ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
             .buttonStyle(.plain)
     }

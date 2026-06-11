@@ -110,7 +110,7 @@ struct UnifiedStepCell: View {
     private var toggleMark: some View {
         ZStack {
             Circle()
-                .stroke(visualConfiguration.toggleStrokeColor, lineWidth: 1)
+                .stroke(visualConfiguration.toggleStrokeColor, lineWidth: StudioMetrics.borderWidth)
                 .frame(width: 13, height: 13)
 
             if visualConfiguration.isActive {
@@ -125,12 +125,12 @@ struct UnifiedStepCell: View {
     @ViewBuilder
     private var borderLayer: some View {
         backgroundShape
-            .strokeBorder(visualConfiguration.outlineColor, lineWidth: 1)
+            .strokeBorder(visualConfiguration.outlineColor, lineWidth: StudioMetrics.borderWidth)
 
         if isPlaying {
             backgroundShape
                 .inset(by: visualConfiguration.playingBorderInset)
-                .strokeBorder(StudioTheme.success.opacity(0.96), lineWidth: 1)
+                .strokeBorder(StudioTheme.success.opacity(0.96), lineWidth: StudioMetrics.borderWidth)
         }
 
         if isSelected {
@@ -228,33 +228,36 @@ struct UnifiedStepCellVisualConfiguration {
         self.valueFraction = Self.valueFraction(for: content)
         self.playingBorderInset = isSelected ? 3 : 0.5
 
+        // Bold-flat pass, like the reference's pad rows: an inactive step is
+        // outline-only on the ground; an active step is a fully solid accent
+        // block with dark glyphs inside — no in-between washes.
         switch visualState {
         case .off:
-            backgroundColor = Color.white.opacity(0.035)
+            backgroundColor = .clear
             valueBarColor = StudioTheme.cyan.opacity(0.58)
             primaryContentColor = StudioTheme.mutedText
             secondaryContentColor = StudioTheme.mutedText.opacity(0.72)
-            toggleStrokeColor = StudioTheme.border.opacity(0.8)
+            toggleStrokeColor = StudioTheme.border
             toggleFillColor = .clear
-            outlineColor = StudioTheme.border.opacity(0.8)
+            outlineColor = StudioTheme.border
 
         case .on:
-            backgroundColor = StudioTheme.cyan.opacity(0.34)
-            valueBarColor = StudioTheme.cyan.opacity(0.86)
-            primaryContentColor = StudioTheme.text
-            secondaryContentColor = StudioTheme.text.opacity(0.74)
-            toggleStrokeColor = StudioTheme.text.opacity(0.86)
-            toggleFillColor = StudioTheme.text.opacity(0.88)
-            outlineColor = StudioTheme.cyan.opacity(0.46)
+            backgroundColor = StudioTheme.cyan
+            valueBarColor = StudioTheme.background.opacity(0.38)
+            primaryContentColor = StudioTheme.background
+            secondaryContentColor = StudioTheme.background.opacity(0.72)
+            toggleStrokeColor = StudioTheme.background.opacity(0.85)
+            toggleFillColor = StudioTheme.background.opacity(0.85)
+            outlineColor = StudioTheme.cyan
 
         case .accented:
-            backgroundColor = StudioTheme.amber.opacity(0.34)
-            valueBarColor = StudioTheme.amber.opacity(0.88)
-            primaryContentColor = StudioTheme.text
-            secondaryContentColor = StudioTheme.text.opacity(0.74)
-            toggleStrokeColor = StudioTheme.text.opacity(0.9)
-            toggleFillColor = StudioTheme.text.opacity(0.92)
-            outlineColor = StudioTheme.amber.opacity(0.5)
+            backgroundColor = StudioTheme.amber
+            valueBarColor = StudioTheme.background.opacity(0.38)
+            primaryContentColor = StudioTheme.background
+            secondaryContentColor = StudioTheme.background.opacity(0.72)
+            toggleStrokeColor = StudioTheme.background.opacity(0.9)
+            toggleFillColor = StudioTheme.background.opacity(0.9)
+            outlineColor = StudioTheme.amber
         }
     }
 

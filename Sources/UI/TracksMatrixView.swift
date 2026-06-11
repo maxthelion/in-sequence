@@ -286,11 +286,12 @@ struct TracksMatrixView: View {
             isPresentingPerformLayerSelection = true
         } label: {
             HStack(spacing: 8) {
+                // Bold-flat pass: solid accent circle with dark glyph.
                 Image(systemName: performLayerSelection.mode.symbolName)
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .frame(width: 28, height: 28)
-                    .background(performLayerSelection.mode.selectorAccent.opacity(StudioOpacity.selectedFill), in: Circle())
+                    .background(performLayerSelection.mode.selectorAccent, in: Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("TRACK LAYER")
@@ -317,7 +318,7 @@ struct TracksMatrixView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(performLayerSelection.mode.selectorAccent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(performLayerSelection.mode.selectorAccent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityIdentifier("track-perform-layer-button")
         .help("Choose the Tracks performance layer")
@@ -337,7 +338,12 @@ struct TracksMatrixView: View {
         .frame(width: 130, alignment: .trailing)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        // Bold-flat pass: outline-only chip; the violet value text carries
+        // the accent — no tinted wash.
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.violet.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     private var performOverlayTransactionStrip: some View {
@@ -379,17 +385,17 @@ struct TracksMatrixView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: 1))
+                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .help("Discard staged perform edits")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        // Bold-flat pass: outline-only alert strip on the ground.
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityIdentifier("phrase-perform-overlay-transaction")
     }
@@ -432,7 +438,7 @@ struct TracksMatrixView: View {
                         .foregroundStyle(StudioTheme.text)
                         .frame(width: 24, height: 24)
                         .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                 }
                 .buttonStyle(.plain)
                 .help("Clear edit set")
@@ -441,7 +447,12 @@ struct TracksMatrixView: View {
         .frame(width: 150, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        // Bold-flat pass: outline-only chip; the amber value text carries
+        // the accent — no tinted wash.
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     private var performSelectionSummaryText: String {
@@ -489,7 +500,7 @@ struct TracksMatrixView: View {
                         .foregroundStyle(StudioTheme.text)
                         .frame(width: 28, height: 28)
                         .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
+                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                 }
                 .buttonStyle(.plain)
                 .help("Return to track cards")
@@ -508,10 +519,12 @@ struct TracksMatrixView: View {
             }
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        // Bold-flat pass: the selector sits on the ground behind a solid
+        // amber outline — no tinted wash.
+        .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityIdentifier("track-perform-layer-selection-surface")
     }
@@ -930,7 +943,7 @@ private struct GroupSectionView<Grid: View>: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
 }
@@ -988,7 +1001,7 @@ private struct TrackPerformPlaceholderLayerCard: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -1030,7 +1043,7 @@ private struct TrackPerformLatchModePicker: View {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : Color.white.opacity(StudioOpacity.borderFaint), lineWidth: 1)
+                            .stroke(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : Color.white.opacity(StudioOpacity.borderFaint), lineWidth: StudioMetrics.borderWidth)
                     )
                 }
                 .buttonStyle(.plain)
@@ -1043,7 +1056,7 @@ private struct TrackPerformLatchModePicker: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityIdentifier("track-perform-latch-mode")
         .help("Runtime Fill and Repeat mode")
@@ -1149,17 +1162,15 @@ private struct TrackMatrixCard: View {
                 Spacer(minLength: 0)
 
                 if let audioInputRuntimeLabel {
+                    // Bold-flat pass: live runtime state is a solid accent
+                    // block with dark text.
                     Text(audioInputRuntimeLabel)
                         .studioText(.micro)
                         .tracking(0.8)
-                        .foregroundStyle(accent)
+                        .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 4)
-                        .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
-                        )
+                        .background(accent, in: Capsule())
                         .lineLimit(1)
                 }
 
@@ -1174,7 +1185,7 @@ private struct TrackMatrixCard: View {
                                     .opacity(StudioOpacity.subtleFill),
                                 in: Circle()
                             )
-                            .overlay(Circle().stroke(isPerformSelected ? StudioTheme.amber.opacity(0.7) : StudioTheme.border, lineWidth: 1))
+                            .overlay(Circle().stroke(isPerformSelected ? StudioTheme.amber.opacity(0.7) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                     }
                     .buttonStyle(.plain)
                     .help(isPerformSelected ? "Remove from edit set" : "Add to edit set")
@@ -1182,13 +1193,17 @@ private struct TrackMatrixCard: View {
             }
 
             if let group {
+                // Bold-flat pass: outline-only chip with accent text.
                 Text(group.name.uppercased())
                     .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(accent)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(accent.opacity(StudioOpacity.faintStroke), in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+                    )
                     .lineLimit(1)
             }
 
@@ -1202,7 +1217,7 @@ private struct TrackMatrixCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(cardStroke, lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : 1)
+                .stroke(cardStroke, lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture {
@@ -1380,7 +1395,7 @@ private struct TrackPerformRuntimeLayerControl: View {
         .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(labelStroke, lineWidth: state.isMomentaryPressed ? 2 : 1)
+                .stroke(labelStroke, lineWidth: state.isMomentaryPressed ? 2 : StudioMetrics.borderWidth)
         )
     }
 
@@ -1538,7 +1553,7 @@ private struct TrackTypeBadge: View {
             .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
             )
     }
 }
@@ -1679,7 +1694,7 @@ private struct AddSliceTrackSheet: View {
                     .foregroundStyle(StudioTheme.text)
                     .frame(width: 30, height: 30)
                     .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border.opacity(0.8), lineWidth: 1))
+                    .overlay(Circle().stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .padding(30)
@@ -1725,7 +1740,7 @@ private struct AddSliceTrackSheet: View {
                         .foregroundStyle(StudioTheme.text)
                         .frame(width: 28, height: 28)
                         .background(StudioTheme.violet.opacity(StudioOpacity.selectedFill), in: Circle())
-                        .overlay(Circle().stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1))
+                        .overlay(Circle().stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth))
                 }
                 .buttonStyle(.plain)
                 .help(previewingSampleID == sample.id ? "Stop preview" : "Preview loop")
@@ -1743,7 +1758,7 @@ private struct AddSliceTrackSheet: View {
                     .background(StudioTheme.violet.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                            .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: 1)
+                            .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
                     )
             }
             .buttonStyle(.plain)
@@ -1753,7 +1768,7 @@ private struct AddSliceTrackSheet: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
     }
 

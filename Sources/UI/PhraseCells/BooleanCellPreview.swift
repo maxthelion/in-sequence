@@ -12,6 +12,9 @@ struct BooleanCellPreview: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .fill(booleanFill)
 
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(booleanStroke, lineWidth: StudioMetrics.borderWidth)
+
             Text(booleanLabel)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(booleanForeground)
@@ -36,19 +39,31 @@ struct BooleanCellPreview: View {
         return booleanState ? "On" : "Off"
     }
 
-    /// Flat variant: the "Live" state fills with solid success green, so its
-    /// label flips to the dark background colour for contrast.
+    /// Bold-flat pass: every filled state is a fully solid block, so its
+    /// label flips to the dark ground colour for contrast; only the
+    /// outline-only "Off" state keeps light text.
     var booleanForeground: Color {
-        if layer.id == "mute", !booleanState {
+        if isFilled {
             return StudioTheme.background
         }
         return StudioTheme.text
     }
 
+    /// Bold-flat pass: solid saturated block when on (success green for
+    /// "Live", danger red for "Muted", accent otherwise); the off state is
+    /// outline-only on the ground — no in-between washes.
     var booleanFill: Color {
         if layer.id == "mute" {
-            return booleanState ? Color.red.opacity(metrics.muteOnOpacity) : StudioTheme.success.opacity(StudioOpacity.accentFill)
+            return booleanState ? StudioTheme.danger : StudioTheme.success
         }
-        return booleanState ? accent.opacity(metrics.booleanAccentOpacity) : Color.white.opacity(StudioOpacity.subtleFill)
+        return booleanState ? accent : Color.clear
+    }
+
+    var booleanStroke: Color {
+        isFilled ? Color.clear : StudioTheme.border
+    }
+
+    private var isFilled: Bool {
+        layer.id == "mute" || booleanState
     }
 }

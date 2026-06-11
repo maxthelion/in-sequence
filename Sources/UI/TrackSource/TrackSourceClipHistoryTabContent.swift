@@ -52,7 +52,7 @@ struct TrackSourceClipHistoryTabContent: View {
                         (model.selectedPseudoClip == nil ? Color.white.opacity(StudioOpacity.subtleFill) : accent.opacity(StudioOpacity.selectedFill)),
                         in: Capsule()
                     )
-                    .overlay(Capsule().stroke(model.selectedPseudoClip == nil ? StudioTheme.border : accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1))
+                    .overlay(Capsule().stroke(model.selectedPseudoClip == nil ? StudioTheme.border : accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .disabled(model.selectedPseudoClip == nil || isDestinationMode)
@@ -72,7 +72,7 @@ struct TrackSourceClipHistoryTabContent: View {
                     .padding(.vertical, 4)
                     .padding(.horizontal, 8)
                     .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                    .overlay(Capsule().stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: 1))
+                    .overlay(Capsule().stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
 
                 if model.isAuditioning {
                     Text("Auditioning")
@@ -101,7 +101,7 @@ struct TrackSourceClipHistoryTabContent: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -122,7 +122,7 @@ struct TrackSourceClipHistoryTabContent: View {
                             .padding(.vertical, 5)
                             .padding(.horizontal, 8)
                             .background(lengthOptionBackground(option), in: Capsule())
-                            .overlay(Capsule().stroke(lengthOptionBorder(option), lineWidth: 1))
+                            .overlay(Capsule().stroke(lengthOptionBorder(option), lineWidth: StudioMetrics.borderWidth))
                     }
                     .buttonStyle(.plain)
                 }
@@ -432,7 +432,7 @@ private struct ClipHistoryPianoRollPreview: View {
             .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
     }

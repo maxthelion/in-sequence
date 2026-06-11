@@ -32,7 +32,7 @@ struct StudioOptionButton: View {
             .background(fill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(stroke, lineWidth: 1)
+                    .stroke(stroke, lineWidth: StudioMetrics.borderWidth)
             )
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         }
@@ -42,12 +42,15 @@ struct StudioOptionButton: View {
         .help(isEnabled ? "" : disabledHelp)
     }
 
+    /// Bold-flat pass: option cards are outline-only on the ground; an
+    /// accented card draws its outline in the accent colour instead of
+    /// taking a tinted wash.
     private var fill: Color {
-        accent.map { $0.opacity(StudioOpacity.mutedFill) } ?? Color.white.opacity(StudioOpacity.subtleFill)
+        Color.clear
     }
 
     private var stroke: Color {
-        accent.map { $0.opacity(0.35) } ?? StudioTheme.border
+        accent.map { $0.opacity(StudioOpacity.mediumStroke) } ?? StudioTheme.border
     }
 }
 
@@ -83,7 +86,7 @@ struct StudioAddCard: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: 1, dash: Self.dashPattern))
+                    .stroke(accent.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: Self.dashPattern))
             )
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         }

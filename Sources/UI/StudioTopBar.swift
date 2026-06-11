@@ -48,14 +48,14 @@ struct StudioTopBar: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.85)
                         }
-                        .foregroundStyle(section == sectionValue ? StudioTheme.text : StudioTheme.mutedText)
+                        .foregroundStyle(section == sectionValue ? StudioTheme.background : StudioTheme.mutedText)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
                         .frame(minWidth: 78)
                         .background(buttonFill(for: sectionValue), in: Capsule())
                         .overlay(
                             Capsule()
-                                .stroke(buttonStroke(for: sectionValue), lineWidth: 1)
+                                .stroke(buttonStroke(for: sectionValue), lineWidth: StudioMetrics.borderWidth)
                         )
                     }
                     .buttonStyle(.plain)
@@ -86,17 +86,19 @@ struct StudioTopBar: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
             .overlay(
                 Capsule()
-                    .stroke(StudioTheme.border, lineWidth: 1)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
             .help(buildIdentity.logSummary)
             .accessibilityLabel("Build identity \(buildIdentity.logSummary)")
     }
 
+    /// Bold-flat pass: the selected pill is a fully solid accent block with a
+    /// dark glyph inside; inactive pills are outline-only on the ground.
     private func buttonFill(for sectionValue: WorkspaceSection) -> Color {
-        section == sectionValue ? StudioTheme.cyan.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill)
+        section == sectionValue ? StudioTheme.cyan : Color.clear
     }
 
     private func buttonStroke(for sectionValue: WorkspaceSection) -> Color {
-        section == sectionValue ? StudioTheme.cyan.opacity(StudioOpacity.mediumStroke) : StudioTheme.border
+        section == sectionValue ? StudioTheme.cyan : StudioTheme.border
     }
 }

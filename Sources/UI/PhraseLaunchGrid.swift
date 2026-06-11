@@ -146,7 +146,7 @@ struct PhraseLaunchGridSheet: View {
             .frame(minHeight: 62)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .stroke(StudioTheme.border.opacity(0.5), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
             )
     }
 

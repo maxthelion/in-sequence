@@ -12,16 +12,17 @@ struct StudioMetricPill: View {
                 .tracking(0.9)
                 .foregroundStyle(StudioTheme.mutedText)
 
+            // Bold-flat pass: the value reads in the accent colour inside an
+            // outline-only capsule on the ground — no tinted wash.
             Text(value)
                 .studioText(.metricValue)
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(accent)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(accent.opacity(StudioOpacity.borderFaint), in: Capsule())
         .overlay(
             Capsule()
-                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: 1)
+                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 }

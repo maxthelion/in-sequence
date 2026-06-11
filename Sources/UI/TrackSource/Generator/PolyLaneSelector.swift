@@ -20,7 +20,7 @@ struct PolyLaneSelector: View {
                         .background(selectedLane == laneIndex ? StudioTheme.violet.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                         .overlay(
                             Capsule()
-                                .stroke(selectedLane == laneIndex ? StudioTheme.violet.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
+                                .stroke(selectedLane == laneIndex ? StudioTheme.violet.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                         )
                 }
                 .buttonStyle(.plain)

@@ -187,7 +187,7 @@ struct LibraryWorkspaceView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(
                     isPooled ? StudioTheme.success.opacity(StudioOpacity.softStroke) : StudioTheme.border,
-                    lineWidth: 1
+                    lineWidth: StudioMetrics.borderWidth
                 )
         )
     }
@@ -275,7 +275,7 @@ struct LibraryWorkspaceView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(
                     entry.isMissing ? StudioTheme.amber.opacity(StudioOpacity.softStroke) : StudioTheme.border,
-                    lineWidth: 1
+                    lineWidth: StudioMetrics.borderWidth
                 )
         )
     }
