@@ -6,14 +6,46 @@ the trial tick).
 ## In flight
 
 - kits/templates MERGED to main (Max approved, gate green, 1298 tests
-  post-merge). Worktree awaits force-removal by Max (attention item 2).
-- Eight unprocessed bug reports from 2026-06-11 morning in `docs/bugs/`
-  (phrase matrix noise, wasted space, single/inherit bars, destination
-  panel, sample player) — next tick's primary triage queue. Several look
-  like ux-canon rules 1/3/10 violations; sweep as patterns, not instances.
-- Fourteen stale `docs/roadmap/*/feedback/` files lack resolutions; at
-  least two (mixer-tab-hang, build-identity) are already fixed in
-  substance and only need resolution notes written.
+  post-merge). Worktree and branch now cleaned up.
+- The 2026-06-11 morning bug reports: RESOLVED by the ux-bug-sweep merge
+  (158bf031) — each has a resolution.md. Visual verification against
+  captures still pending console unlock.
+- The two intent-drift feedback files are now DISPATCHED (no longer
+  pending a lens): drift verified real on main 2026-06-11 (StepGridView
+  still hard-codes isSelected:false; ClipStepInspectorSheet still the
+  inspect path; clip-history multipass loop is status:complete so its
+  post-merge feedback is foreman-owned).
+  - Agent: feature/track-source-step-grid — RESUMED (post-limit) with a
+    continue-the-dirty-work brief; instructed to commit incrementally.
+  - Agent: feature/clip-history-corrections — RESUMED the same way.
+- Codex interim work VERIFIED AND LANDED on main as e56c5f75 (full suite
+  green first): BuildIdentity surfaced in top bar/logs (resolves the
+  observability visible-build-identity feedback — resolution written;
+  multipass loop's parallel partial work in
+  .worktrees/roadmap-21-observability-log-issues needs reconciling by
+  its decider), master-bus unity pass-through, sample-accurate voice
+  starts, master render test coverage.
+- Max's five 2026-06-11 afternoon bugs, triaged. Dispatch queue (max two
+  concurrent agents; pop when a slot frees):
+  1. small-UI sweep — 143510 (phrase left box: drop bar/repeat labels,
+     align cell heights, contain right-side controls) + 144448 (perform
+     rotaries 4-per-row, dedupe "assign" labels) + 145433 (add-track
+     cell same height/no text; layer changer same as perform mode).
+  2. mixer overhaul — 143027 (his detailed layout rulings: levels on all
+     strips, pan BELOW volume as side-to-side element [overrides the
+     review doc's rotary-pan idea], sends grouped next to master,
+     consistent fx slot, small uniform titles, in-place send rotaries,
+     solo-banner misalignment, single add-bus control) +
+     docs/bugs/2026-06-10-mixer-ux-review.md + roadmap 29 levels.
+  3. flat-UI variant — 142049: flatter, less opacity, per his reference
+     screenshot; build as a TRY-IT branch (feature/flat-ui-variant), do
+     NOT merge without Max's review — he asked for a variant to try.
+- QUEUED (next free build slot): mixer overhaul slice combining
+  docs/bugs/2026-06-10-mixer-ux-review.md (shared strip scaffold, pan
+  rotaries, master overlay occlusion, dB convergence) with roadmap item
+  29 mixer-channel-levels (all strips metered, master as template).
+- build-identity feedback remains with its active multipass loop
+  (observability-log-issues).
 - Multipass build loops continue independently; do not touch their
   worktrees.
 
@@ -53,11 +85,21 @@ Standing instruction: clear all intents and bugs; park ear-dependent
 audio validation; master-render-to-file shipped (graph+engine+tests).
 
 In flight:
-- Agent: feature/library-pools worktree — building spec Parts 1-3
-  (recordings persist, library page, consumption hooks).
-- Agent: feature/ux-bug-sweep worktree — fixing the 9 open bug reports
-  per ux-canon.
-- On completion of each: verify (diff + suite + captures), gate, merge.
+- feature/ux-bug-sweep MERGED to main (158bf031, all 9 bug reports
+  resolved with resolution.md files). Post-merge on main: xcodegen run,
+  Info.plist keys intact, suite green except
+  TickClockTests.test_tick_intervals_match_expected_bpm — wall-clock
+  flake under load, passes in isolation (rerun verified).
+- feature/library-pools MERGED to main (fast-forward to 82ba0289 after
+  merging main into the branch; gate suite green on the identical tree
+  in the worktree, evidence inherited exact-commit). LibraryWorkspaceView
+  conflict resolved toward the branch's real library page.
+- Capture evidence for both merges queued for next console unlock
+  (qa-surface-coverage rows 01-42 incl. new Library rows 40-42 + gallery
+  refresh + ux-canon review). Console checked locked at 14:00.
+- Worktrees .worktrees/bug-sweep and .worktrees/library-pools removed;
+  branches feature/ux-bug-sweep, feature/library-pools and
+  feature/drum-kits-and-templates deleted (all fully merged).
 
 Parked for Max's ears (attention list): buffer playback audibility
 (self-healing retry landed but unheard), input monitoring through EVO16,
