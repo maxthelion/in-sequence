@@ -69,6 +69,12 @@ enum VisualScenarioCommandRunner {
         session: SequencerDocumentSession,
         engineController: EngineController
     ) async {
+        // The command-file path is exported via `launchctl setenv` (global),
+        // so XCTest host apps spawning during a capture run inherit it and
+        // would race the driven instance over the command/status protocol.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else {
+            return
+        }
         let configuredPath = ProcessInfo.processInfo.environment[commandFileEnvironmentKey]
             ?? UserDefaults.standard.string(forKey: commandFileDefaultsKey)
         guard let rawPath = configuredPath,
