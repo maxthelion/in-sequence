@@ -33,3 +33,4 @@ Backlog order:
 - **23** [Phrase Cells](phrase-cells/)
 - **24** [Track Perform Multi-Select And Latch](track-perform-multiselect-latch/)
 - **25** [Selective Scene Inputs](selective-scene-inputs/)
+- **26** [Library Pools (Project vs Global Assets)](library-pools/)

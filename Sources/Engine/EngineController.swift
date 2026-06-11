@@ -563,6 +563,21 @@ final class EngineController: RouterDispatcher {
         clearQueuedPhraseOnStop(snapshot: tickState.currentPlaybackSnapshot())
     }
 
+    /// Master render to file — records what reaches the master output.
+    @discardableResult
+    func startMasterRender(to url: URL) -> Bool {
+        mainAudioGraph.startMasterRender(to: url)
+    }
+
+    @discardableResult
+    func stopMasterRender() -> URL? {
+        mainAudioGraph.stopMasterRender()
+    }
+
+    var isMasterRenderActive: Bool {
+        mainAudioGraph.isMasterRenderActive
+    }
+
     func applyAudioDeviceUIDs(inputUID: String?, outputUID: String?) throws -> AudioDeviceApplyResult {
         DevActivity.trace(DevActivity.audioGraph, "applyAudioDeviceUIDs input=\(inputUID ?? "nil") output=\(outputUID ?? "nil")")
         let result: AudioDeviceApplyResult

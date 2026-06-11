@@ -99,6 +99,9 @@ final class MainAudioGraph {
     private var isStarted = false
     private var isMasterMeterTapInstalled = false
     private let masterMeterTapGeneration = AtomicInt32(0)
+    private let masterRenderLock = NSLock()
+    private var masterRenderFile: AVAudioFile?
+    private var masterRenderURL: URL?
 
     private struct TrackOutputRouting {
         let source: AVAudioNode
@@ -861,6 +864,78 @@ final class MainAudioGraph {
         masterMeterPublisher.recordPeakAmplitudes(left: left, right: right)
     }
 
+    // MARK: - Master render to file
+    //
+    // Records exactly what reaches the master output to a WAV — the
+    // ears-free way to verify sequencing: render N bars, assert on the
+    // file. Shares the master meter tap (one tap per bus).
+
+    /// Starts writing master output to `url`. Returns false if a render is
+    /// already active or the file cannot be created.
+    @discardableResult
+    func startMasterRender(to url: URL) -> Bool {
+        let format = finalOutputMixer.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else { return false }
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: format.sampleRate,
+            AVNumberOfChannelsKey: format.channelCount,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsNonInterleaved: false,
+        ]
+        masterRenderLock.lock()
+        defer { masterRenderLock.unlock() }
+        guard masterRenderFile == nil else { return false }
+        guard let file = try? AVAudioFile(forWriting: url, settings: settings) else {
+            DevActivity.trace(DevActivity.audioGraph, "master render: cannot create file at \(url.path)")
+            return false
+        }
+        masterRenderFile = file
+        masterRenderURL = url
+        DevActivity.trace(DevActivity.audioGraph, "master render started: \(url.lastPathComponent)")
+        return true
+    }
+
+    /// Stops an active master render and returns the file URL, or nil if
+    /// none was active.
+    @discardableResult
+    func stopMasterRender() -> URL? {
+        masterRenderLock.lock()
+        let url = masterRenderURL
+        masterRenderFile = nil
+        masterRenderURL = nil
+        masterRenderLock.unlock()
+        if let url {
+            DevActivity.trace(DevActivity.audioGraph, "master render stopped: \(url.lastPathComponent)")
+        }
+        return url
+    }
+
+    var isMasterRenderActive: Bool {
+        masterRenderLock.lock()
+        defer { masterRenderLock.unlock() }
+        return masterRenderFile != nil
+    }
+
+    private func writeMasterRenderBufferIfActive(_ buffer: AVAudioPCMBuffer) {
+        masterRenderLock.lock()
+        let file = masterRenderFile
+        masterRenderLock.unlock()
+        guard let file else { return }
+        do {
+            try file.write(from: buffer)
+        } catch {
+            DevActivity.trace(DevActivity.audioGraph, "master render write failed: \(error)")
+        }
+    }
+
+    /// Test hook: pushes a buffer through the render write path without a
+    /// running engine.
+    func writeMasterRenderBufferForTesting(_ buffer: AVAudioPCMBuffer) {
+        writeMasterRenderBufferIfActive(buffer)
+    }
+
     @MainActor
     private func installMasterMeterTapIfNeeded() {
         guard !isMasterMeterTapInstalled else { return }
@@ -868,6 +943,7 @@ final class MainAudioGraph {
         finalOutputMixer.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
             guard let self, self.masterMeterTapGeneration.load() == generation else { return }
             self.masterMeterPublisher.process(buffer: buffer)
+            self.writeMasterRenderBufferIfActive(buffer)
         }
         isMasterMeterTapInstalled = true
         masterMeterTapPointForTesting = .finalOutputMixer
