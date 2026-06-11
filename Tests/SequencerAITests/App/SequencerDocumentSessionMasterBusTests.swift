@@ -317,7 +317,10 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         XCTAssertEqual(session.store.selectedTrack.mix.sendA, 0)
         XCTAssertEqual(session.store.selectedTrack.mix.sendB, 1)
         XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
-        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore + 1)
+        // Send changes ride the LIVE mix path (engine.setMix → graph send
+        // gains); no playback snapshot is compiled or installed per drag
+        // tick (mixer-latency cause 1).
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
         XCTAssertEqual(documentBox.document.project.selectedTrack.mix.sendA, 0)
         XCTAssertEqual(documentBox.document.project.selectedTrack.mix.sendB, 0)
 
