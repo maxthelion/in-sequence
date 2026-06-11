@@ -1591,6 +1591,7 @@ final class MainAudioGraph {
             return
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMain")
         DispatchQueue.main.sync {
             MainActor.assumeIsolated {
                 work()
@@ -1606,6 +1607,7 @@ final class MainAudioGraph {
             return
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainThrowing")
         var thrownError: Error?
         DispatchQueue.main.sync {
             do {
@@ -1628,6 +1630,7 @@ final class MainAudioGraph {
             }
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainReturning")
         var output: T?
         DispatchQueue.main.sync {
             output = MainActor.assumeIsolated {
@@ -1644,6 +1647,7 @@ final class MainAudioGraph {
             }
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainThrowingReturning")
         var output: T?
         var thrownError: Error?
         DispatchQueue.main.sync {

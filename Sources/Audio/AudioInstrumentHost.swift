@@ -69,6 +69,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("AudioInstrumentHost.performOnMain")
         DispatchQueue.main.sync {
             MainActor.assumeIsolated {
                 work()
@@ -104,6 +105,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             }
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("AudioInstrumentHost.performOnMainThrowing")
         var output: T?
         var thrownError: Error?
         DispatchQueue.main.sync {

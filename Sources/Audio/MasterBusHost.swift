@@ -600,6 +600,7 @@ final class MasterBusHost: MasterBusHosting {
             return
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MasterBusHost.performOnMain")
         DispatchQueue.main.sync {
             MainActor.assumeIsolated {
                 work()

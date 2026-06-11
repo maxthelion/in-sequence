@@ -181,6 +181,7 @@ final class SamplerFilterNode: SamplerFilterControlling {
             }
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("SamplerFilterNode.performOnMain")
         var result: T?
         DispatchQueue.main.sync {
             result = MainActor.assumeIsolated {

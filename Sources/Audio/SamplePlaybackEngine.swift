@@ -794,6 +794,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }
 
+        TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("SamplePlaybackEngine.performOnMain")
         var result: T?
         DispatchQueue.main.sync {
             result = MainActor.assumeIsolated {

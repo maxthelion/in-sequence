@@ -2,6 +2,73 @@ import AVFoundation
 import Foundation
 import Observation
 
+/// DEBUG mechanism for the tick-path contract (architecture verdict
+/// 2026-06-12 §1): **nothing on the tick/audio path may synchronously wait
+/// on main, ever.** `EngineController.processTick` marks its thread for the
+/// whole tick scope; every sync-to-main helper (MainAudioGraph.performOnMain*
+/// and the direct `DispatchQueue.main.sync` sites in Sources/Audio) reports
+/// here before parking on main.
+///
+/// Default behaviour on violation is a LOUD, once-per-context log — not a
+/// trap — because the wave-2 no-main-wait sweep has not finished: two known
+/// hops remain tick-reachable today (audio-input capture-format resolution
+/// at record start, and SamplerFilterNode parameter setters via
+/// TrackMacroApplier). Tests install `violationHandlerForTesting` to enforce
+/// the contract hard on the paths they drive
+/// (TickPathMainIsolationTests). Compiles to no-ops in release.
+enum TickPathMainSyncGuard {
+    #if DEBUG
+    private static let markerKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.isOnTickPath"
+    private static let loggedContextsLock = NSLock()
+    private static var loggedContexts: Set<String> = []
+
+    /// True while the current thread is executing the tick path.
+    static var isOnTickPath: Bool {
+        get { (Thread.current.threadDictionary[markerKey] as? Bool) ?? false }
+        set { Thread.current.threadDictionary[markerKey] = newValue }
+    }
+
+    /// Test hook: receives every violation context instead of the log, so
+    /// tests can pin the "no tick-path main-sync" contract (and positively
+    /// prove the detector fires).
+    static var violationHandlerForTesting: ((String) -> Void)?
+    #endif
+
+    /// Marks the current thread as the tick path for the duration of `body`.
+    static func withTickPathMarker<T>(_ body: () -> T) -> T {
+        #if DEBUG
+        let wasMarked = isOnTickPath
+        isOnTickPath = true
+        defer { isOnTickPath = wasMarked }
+        #endif
+        return body()
+    }
+
+    /// Call immediately before any synchronous dispatch to main. Skips when
+    /// already on main (an inline call, not a wait).
+    static func assertNotSyncingToMainFromTickPath(_ context: @autoclosure () -> String) {
+        #if DEBUG
+        guard isOnTickPath, !Thread.isMainThread else { return }
+        let resolvedContext = context()
+        if let handler = violationHandlerForTesting {
+            handler(resolvedContext)
+            return
+        }
+        let isFirstReport = loggedContextsLock.withLock {
+            loggedContexts.insert(resolvedContext).inserted
+        }
+        if isFirstReport {
+            NSLog(
+                "[TickPathMainSyncGuard] VIOLATION: %@ synchronously waits on main " +
+                "from the tick path (tempo-sag/deadlock class, architecture verdict §1). " +
+                "Reported once per context per run.",
+                resolvedContext
+            )
+        }
+        #endif
+    }
+}
+
 @Observable
 final class EngineController: RouterDispatcher {
     struct PipelineEntry: Equatable {
@@ -1595,6 +1662,15 @@ final class EngineController: RouterDispatcher {
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
+        // The whole tick scope runs under the DEBUG tick-path marker: any
+        // synchronous main hop reached from here trips
+        // TickPathMainSyncGuard (architecture verdict §1).
+        TickPathMainSyncGuard.withTickPathMarker {
+            processTickMarked(tickIndex: tickIndex, now: now)
+        }
+    }
+
+    private func processTickMarked(tickIndex: UInt64, now: TimeInterval) {
         // Audio-input graph work hops to main FIRE-AND-FORGET (inline when
         // already on main, e.g. synchronous test drivers). A synchronous
         // main hop from the tick queue here closes the D2 deadlock cycle
