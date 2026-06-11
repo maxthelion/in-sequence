@@ -25,7 +25,11 @@ struct UnifiedStepCell: View {
 
             contentView
         }
-        .frame(width: Self.geometry.size.width, height: Self.geometry.size.height)
+        // maxWidth, not width: in a flexible grid column narrower than the
+        // ideal cell, a fixed width overflows the column and swallows the
+        // inter-cell gap (cells visibly touch). Shrinking preserves the gap.
+        .frame(maxWidth: Self.geometry.size.width)
+        .frame(height: Self.geometry.size.height)
         .clipShape(backgroundShape)
         .overlay(borderLayer)
         .contentShape(backgroundShape)
