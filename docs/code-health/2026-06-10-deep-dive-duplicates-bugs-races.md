@@ -94,3 +94,16 @@ landed today; the rest are a prioritized backlog.
 - VisualScenarioCommandRunner statics/notification observers are
   harness-only; consequences are capture-run flakes, already mitigated by
   the pending-command drain + rendered-state waits added today.
+
+## Addendum 2026-06-11: observable-mutation-under-lock is a class
+
+Two runtime-confirmed instances now: the mixer page exportToProject
+livelock (2026-06-10) and the audio-input revision-bump deadlock
+(2026-06-11, hit the moment live input levels published). The pattern:
+mutating any @Observable property while holding stateLock (or from
+inside a SwiftUI render path) lets Observation synchronously re-enter
+view bodies that read engine state through the same lock. Standing
+audit item: no `@Observable` property write inside `withStateLock` —
+sweep EngineController for the remaining observable properties
+(isRunning, currentBPM, transportPosition, currentPhraseID,
+chordContextByLane, …) and verify each write site is outside the lock.
