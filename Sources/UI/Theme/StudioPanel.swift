@@ -63,13 +63,9 @@ struct StudioPanel<Content: View, Accessory: View>: View {
             content
         }
         .padding(StudioMetrics.Spacing.loose)
+        // Flat variant: the panel separates from the stage by solid colour
+        // value alone — no stroke, no drop shadow.
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-                .allowsHitTesting(false)
-        )
-        .shadow(color: .black.opacity(StudioOpacity.subtleStroke), radius: StudioMetrics.CornerRadius.panel, x: 0, y: 10)
     }
 }
 
