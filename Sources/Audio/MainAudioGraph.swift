@@ -358,14 +358,21 @@ final class MainAudioGraph {
             }
 
             host.loopPlayer.stop()
-            // The player's connection format must match the captured buffer:
-            // scheduleBuffer throws an uncatchable NSException on a mismatch
-            // (observed: mono-interface capture against the stereo default
-            // connection). Reconnect with the buffer's own format.
-            self.engine.disconnectNodeOutput(host.loopPlayer)
-            self.engine.connect(host.loopPlayer, to: host.outputMixer, format: buffer.format)
+            // The buffer must match the player's CONNECTION format — both
+            // scheduleBuffer and play() throw uncatchable NSExceptions on a
+            // mismatch (observed: mono-interface capture vs the stereo
+            // default connection; rewiring a running graph also throws at
+            // play). Convert the buffer instead of touching the graph.
+            let connectionFormat = host.loopPlayer.outputFormat(forBus: 0)
+            guard let playbackBuffer = buffer.convertingForPlayback(to: connectionFormat) else {
+                DevActivity.trace(
+                    DevActivity.audioGraph,
+                    "loop schedule dropped: cannot convert \(buffer.format) to \(connectionFormat)"
+                )
+                return false
+            }
             if let exception = SEQRunCatchingObjCException({
-                host.loopPlayer.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+                host.loopPlayer.scheduleBuffer(playbackBuffer, at: nil, options: .loops, completionHandler: nil)
             }) {
                 DevActivity.trace(
                     DevActivity.audioGraph,
@@ -374,7 +381,13 @@ final class MainAudioGraph {
                 return false
             }
             if self.engine.isRunning || self.isStarted, self.isNodePlayableNow(host.loopPlayer) {
-                host.loopPlayer.play()
+                if let exception = SEQRunCatchingObjCException({ host.loopPlayer.play() }) {
+                    DevActivity.trace(
+                        DevActivity.audioGraph,
+                        "loop play dropped: \(exception.name.rawValue): \(exception.reason ?? "no reason")"
+                    )
+                    return false
+                }
             }
             host.scheduledLoopFrameCount = buffer.frameLength
             host.scheduledLoopChannelCount = buffer.format.channelCount
@@ -589,16 +602,13 @@ final class MainAudioGraph {
 
             do {
                 let deviceResult = try deviceOwner.apply(inputUID: inputUID, outputUID: outputUID)
-                // Point the engine's input node at the applied device:
-                // AVAudioEngine input follows the SYSTEM default device
-                // unless told otherwise, silently ignoring the in-app
-                // selection. Only touch the input node when mic access is
-                // already granted (TCC).
-                if let inputDeviceID = deviceResult.appliedInputDeviceID,
-                   Self.liveAudioInputAuthorized,
-                   !Self.simulateAudioInputConnectionForTesting {
-                    try? self.engine.inputNode.auAudioUnit.setDeviceID(inputDeviceID)
-                }
+                // NOTE deliberately NOT setting the input device on
+                // engine.inputNode: on macOS the engine can share one HAL
+                // unit between input and output, and forcing the input
+                // device re-pointed OUTPUT at an input-only device — total
+                // silence (observed 2026-06-11). In-app input device
+                // selection currently requires the system-default input;
+                // the aggregate-device approach is on the roadmap.
                 try self.recoverAudioGraphAfterDeviceApply(wasRunning: wasRunning)
 
                 return AudioDeviceApplyResult(

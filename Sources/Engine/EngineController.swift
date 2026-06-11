@@ -2680,10 +2680,13 @@ final class EngineController: RouterDispatcher {
             to: &runtime
         )
         audioInputCapturePCMWriterSlot.install(nil)
-        if runtime.monitorMode == .loop {
-            runtime.pendingLoopStartTick = nil
-            runtime.activeMonitorMode = .loop
-        }
+        // Auto-switch to Buffer the moment the take completes (owner
+        // direction): the captured loop becomes what you hear; Live is one
+        // toggle away. Completion lands on a bar boundary, so entry is
+        // immediate.
+        runtime.monitorMode = .loop
+        runtime.pendingLoopStartTick = nil
+        runtime.activeMonitorMode = .loop
     }
 
     private func updateAudioInputRuntime(
@@ -2761,7 +2764,8 @@ final class EngineController: RouterDispatcher {
     /// arm uses it without waiting for a full document apply.
     @discardableResult
     func setAudioInputRecordBarLength(trackID: UUID, bars: Int) -> Bool {
-        updateAudioInputRuntime(trackID: trackID) { runtime in
+        DevActivity.trace(DevActivity.engine, "setAudioInputRecordBarLength bars=\(bars)")
+        return updateAudioInputRuntime(trackID: trackID) { runtime in
             runtime.recordBarLength = StepSequenceTrack.normalizedRecordBarLength(bars)
         }
     }

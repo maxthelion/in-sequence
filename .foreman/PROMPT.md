@@ -19,6 +19,10 @@ items instead. If the variable is unset, behave as `cautious`.
 3. New inputs since the last tick:
    - `docs/bugs/` — entries without a `resolution.md` are unprocessed.
      This is Max's own voice; treat it as the highest-signal input.
+   - `docs/intents/inbox/` — raw owner intent files. Process by copying
+     the text verbatim into `docs/roadmap/intent.md`, creating/extending
+     the matching roadmap item, then moving the file to
+     `docs/intents/processed/`. Never edit the owner's words.
    - `docs/roadmap/*/feedback/` — feedback files without a matching
      `.resolution.md` are unactioned post-merge feedback.
    - `git branch --list 'feature/*'` and `.worktrees/` — branches awaiting

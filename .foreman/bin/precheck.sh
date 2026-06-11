@@ -29,6 +29,9 @@ watched_inputs() {
     | while read -r f; do
         [ -f "${f%.md}.resolution.md" ] || echo "feedback:${f#"$REPO_ROOT"/}"
       done
+  # Owner intent files awaiting processing.
+  find "$REPO_ROOT/docs/intents/inbox" -name '*.md' -type f 2>/dev/null \
+    | while read -r f; do echo "intent:${f#"$REPO_ROOT"/}"; done
   # Feature branches awaiting integration.
   git -C "$REPO_ROOT" branch --list 'feature/*' --format='branch:%(refname:short):%(objectname:short)' 2>/dev/null
 }

@@ -76,40 +76,6 @@ extension SamplePlaybackSink {
     }
 }
 
-private extension AVAudioPCMBuffer {
-    func convertingForPlayback(to playbackFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
-        guard format.channelCount != playbackFormat.channelCount ||
-              format.sampleRate != playbackFormat.sampleRate
-        else {
-            return self
-        }
-
-        let ratio = playbackFormat.sampleRate / max(format.sampleRate, 1)
-        let convertedCapacity = AVAudioFrameCount(ceil(Double(frameLength) * ratio)) + 1
-        guard let converter = AVAudioConverter(from: format, to: playbackFormat),
-              let converted = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: convertedCapacity)
-        else {
-            return nil
-        }
-
-        var didProvideInput = false
-        var conversionError: NSError?
-        converter.convert(to: converted, error: &conversionError) { _, status in
-            if didProvideInput {
-                status.pointee = .noDataNow
-                return nil
-            }
-            didProvideInput = true
-            status.pointee = .haveData
-            return self
-        }
-        guard conversionError == nil else {
-            return nil
-        }
-        return converted
-    }
-}
-
 /// Hosts sample player nodes with per-track `AVAudioMixerNode`s and static
 /// per-track voice pools. `prepareTrack(trackID:)` builds the graph up front, so
 /// transport playback only schedules already-connected voices. The mixer's
