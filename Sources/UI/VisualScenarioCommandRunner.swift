@@ -85,6 +85,13 @@ enum VisualScenarioCommandRunner {
         let commandURL = URL(fileURLWithPath: (rawPath as NSString).expandingTildeInPath)
         let statusURL = commandURL.appendingPathExtension("status")
         var lastPayload = ""
+        // Harness runs must be fully unattended: never touch the live input
+        // node. macOS re-prompts for mic access at IO time when the ad-hoc
+        // code signature changed since the grant, even if the authorization
+        // status API still reports .authorized — so a status-based gate
+        // cannot prevent a blocking dialog. Simulated input connections give
+        // the fixtures everything they display.
+        MainAudioGraph.simulateAudioInputConnectionForTesting = true
         observeRenderedMatrixState()
 
         while !Task.isCancelled {

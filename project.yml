@@ -73,6 +73,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.sequencer.SequencerAI
         GENERATE_INFOPLIST_FILE: NO
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/Resources/SequencerAI-Bridging-Header.h
+        GIT_COMMIT: unknown
+        GIT_BRANCH: unknown
+        GIT_DIRTY: unknown
+        BUILD_ATTRIBUTION_ID: unknown
+        BUILD_ATTRIBUTION_VERSION: "1"
 
   SequencerAITests:
     type: bundle.unit-test

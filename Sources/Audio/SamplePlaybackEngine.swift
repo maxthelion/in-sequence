@@ -262,6 +262,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
     }
 
+    /// AVAudioPlayerNode.play() throws NSException — uncatchable from
+    /// Swift — when the engine stopped or the node was detached/disconnected.
+    /// The pre-checks close the common cases, but CoreAudio can auto-stop
+    /// the engine from its own thread (configuration change) between check
+    /// and play, so the ObjC catcher is the only airtight guard: a failed
+    /// start drops the trigger instead of killing the app.
+    private func startVoiceSafely(_ voice: AVAudioPlayerNode) {
+        guard audioGraph.isNodePlayableNow(voice) else { return }
+        if let exception = SEQRunCatchingObjCException({ voice.play() }) {
+            NSLog("Dropped sample trigger: AVAudioPlayerNode.play threw %@: %@",
+                  exception.name.rawValue, exception.reason ?? "no reason")
+        }
+    }
+
     private func scheduleAndStart(
         _ voice: AVAudioPlayerNode,
         voiceFilter: SamplerFilterNode?,
@@ -287,11 +301,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let remainingFrames = max(1, Double(file.length) - Double(startFrame))
         let frameLength = AVAudioFrameCount(min(max(1, lengthNorm * frameCount), remainingFrames))
         voice.scheduleSegment(file, startingFrame: startFrame, frameCount: frameLength, at: when, completionHandler: nil)
-        // play() throws an uncatchable NSException on a stopped engine or a
-        // detached/disconnected node (observed during device switches and
-        // document re-applies); drop the trigger instead.
-        guard audioGraph.isNodePlayableNow(voice) else { return }
-        voice.play()
+        startVoiceSafely(voice)
     }
 
     private func scheduleAndStartSlice(
@@ -342,8 +352,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 completionHandler: nil
             )
         }
-        guard audioGraph.isNodePlayableNow(voice) else { return }
-        voice.play()
+        startVoiceSafely(voice)
     }
 
     func stopVoice(_ handle: VoiceHandle) {
@@ -440,8 +449,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         previewNode.stop()
         previewNode.volume = 1.0
         previewNode.scheduleFile(file, at: nil, completionHandler: nil)
-        guard audioGraph.isNodePlayableNow(previewNode) else { return }
-        previewNode.play()
+        startVoiceSafely(previewNode)
     }
 
     func stopAudition() {
