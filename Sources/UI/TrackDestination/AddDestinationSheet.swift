@@ -64,11 +64,10 @@ struct AddDestinationSheet: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
+                        // The modal subtitle already says these are Audio Units
+                        // to host; rows carry only their own name.
                         ForEach(sanitizedAudioInstrumentChoices, id: \.id) { choice in
-                            optionButton(
-                                title: choice.displayName,
-                                detail: "Host this Audio Unit inside the app."
-                            ) {
+                            StudioOptionButton(title: choice.displayName) {
                                 commit(.auInstrument(componentID: choice.audioComponentID, stateBlob: nil))
                             }
                         }
