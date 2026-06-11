@@ -42,7 +42,7 @@ enum AudioSampleCategory: String, Codable, CaseIterable, Equatable, Hashable, Se
         }
     }
 
-    /// Bridge from DrumKitPreset.Member.tag (VoiceTag = String) to a category.
+    /// Bridge from a drum part tag (VoiceTag = String) to a category.
     /// Returns nil for tags not recognised as drum voices.
     init?(voiceTag: VoiceTag) {
         switch voiceTag {

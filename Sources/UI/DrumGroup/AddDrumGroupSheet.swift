@@ -6,7 +6,7 @@ struct AddDrumGroupSheet: View {
     let onCancel: () -> Void
 
     @State private var mode: Mode = .blank
-    @State private var selectedPreset: DrumKitPreset = .kit808
+    @State private var selectedKitID: UUID?
     @State private var plan: DrumGroupPlan = .blankDefault
     @State private var isPresentingDestinationPicker = false
     @State private var destinationPickerDidCommit = false
@@ -66,14 +66,16 @@ struct AddDrumGroupSheet: View {
             }
 
             if mode == .templated {
-                Picker("Preset", selection: $selectedPreset) {
-                    ForEach(DrumKitPreset.allCases, id: \.self) { preset in
-                        Text(preset.displayName).tag(preset)
+                Picker("Kit", selection: $selectedKitID) {
+                    ForEach(DrumAssetLibrary.shared.kits) { kit in
+                        Text(kit.name).tag(Optional(kit.id))
                     }
                 }
                 .pickerStyle(.menu)
-                .onChange(of: selectedPreset) { _, newValue in
-                    applyTemplatedPreset(newValue)
+                .onChange(of: selectedKitID) { _, newValue in
+                    if let kit = newValue.flatMap({ DrumAssetLibrary.shared.kit(id: $0) }) {
+                        applyTemplatedKit(kit)
+                    }
                 }
             }
 
@@ -169,8 +171,16 @@ struct AddDrumGroupSheet: View {
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 if mode == .templated {
-                    Toggle("Prepopulate step patterns", isOn: $plan.prepopulateClips)
-                        .toggleStyle(.checkbox)
+                    Toggle(
+                        "Prepopulate step patterns",
+                        isOn: Binding(
+                            get: { plan.templateID != nil },
+                            set: { newValue in
+                                plan.templateID = newValue ? matchingTemplateID : nil
+                            }
+                        )
+                    )
+                    .toggleStyle(.checkbox)
                 }
 
                 Toggle(
@@ -254,28 +264,44 @@ struct AddDrumGroupSheet: View {
         }
     }
 
+    private var selectedKit: DrumKit? {
+        selectedKitID.flatMap { DrumAssetLibrary.shared.kit(id: $0) }
+            ?? DrumAssetLibrary.shared.kits.first
+    }
+
+    /// Factory templates share their kit's name; user kits fall back to the
+    /// first available template. Part 2 replaces this with an explicit chooser.
+    private var matchingTemplateID: UUID? {
+        guard let kit = selectedKit else {
+            return nil
+        }
+        let templates = DrumAssetLibrary.shared.templates
+        return (templates.first(where: { $0.name == kit.name }) ?? templates.first)?.id
+    }
+
     private func applyMode(_ newMode: Mode) {
         let preservedSharedDestination = plan.sharedDestination
-        let preservedPrepopulate = plan.prepopulateClips
 
         switch newMode {
         case .blank:
             plan = .blankDefault
         case .templated:
-            plan = .templated(from: selectedPreset)
+            if selectedKitID == nil {
+                selectedKitID = DrumAssetLibrary.shared.kits.first?.id
+            }
+            if let kit = selectedKit {
+                plan = .from(kit: kit, templateID: matchingTemplateID)
+            }
         }
 
         plan.sharedDestination = preservedSharedDestination
-        plan.prepopulateClips = newMode == .templated ? (preservedPrepopulate || plan.prepopulateClips) : false
     }
 
-    private func applyTemplatedPreset(_ preset: DrumKitPreset) {
+    private func applyTemplatedKit(_ kit: DrumKit) {
         let preservedSharedDestination = plan.sharedDestination
-        let preservedPrepopulate = plan.prepopulateClips
 
-        plan = .templated(from: preset)
+        plan = .from(kit: kit, templateID: matchingTemplateID)
         plan.sharedDestination = preservedSharedDestination
-        plan.prepopulateClips = preservedPrepopulate || plan.prepopulateClips
     }
 
     private func appendBlankRow() {
@@ -283,8 +309,7 @@ struct AddDrumGroupSheet: View {
         plan.members.append(
             DrumGroupPlan.Member(
                 tag: "kick",
-                trackName: "Track \(nextIndex)",
-                seedPattern: Array(repeating: false, count: 16)
+                trackName: "Track \(nextIndex)"
             )
         )
     }

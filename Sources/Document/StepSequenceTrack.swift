@@ -49,6 +49,10 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var id: UUID
     var name: String
     var trackType: TrackType
+    /// Drum-part tag ("kick", "snare", …) for drum-group members. The join key
+    /// for kit/template matching. Nil for tracks outside drum groups (and for
+    /// legacy documents, which never persisted tags).
+    var voiceTag: VoiceTag?
     var pitches: [Int]
     var stepPattern: [Bool]
     var stepAccents: [Bool]
@@ -71,6 +75,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case id
         case name
         case trackType
+        case voiceTag
         case pitches
         case stepPattern
         case stepAccents
@@ -115,6 +120,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         id: UUID = UUID(),
         name: String,
         trackType: TrackType = .monoMelodic,
+        voiceTag: VoiceTag? = nil,
         pitches: [Int],
         stepPattern: [Bool],
         stepAccents: [Bool]? = nil,
@@ -133,6 +139,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.id = id
         self.name = name
         self.trackType = trackType
+        self.voiceTag = voiceTag
         self.pitches = pitches
         self.stepPattern = stepPattern
         self.stepAccents = Self.normalizedAccents(stepAccents, stepCount: stepPattern.count)
@@ -194,6 +201,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try container.decode(String.self, forKey: .name)
         trackType = try container.decode(TrackType.self, forKey: .trackType)
+        // Legacy documents without voiceTag decode as nil — no migration needed.
+        voiceTag = try container.decodeIfPresent(VoiceTag.self, forKey: .voiceTag)
         pitches = try container.decode([Int].self, forKey: .pitches)
         stepPattern = try container.decode([Bool].self, forKey: .stepPattern)
         let decodedAccents = try container.decodeIfPresent([Bool].self, forKey: .stepAccents)
@@ -223,6 +232,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(trackType, forKey: .trackType)
+        try container.encodeIfPresent(voiceTag, forKey: .voiceTag)
         try container.encode(pitches, forKey: .pitches)
         try container.encode(stepPattern, forKey: .stepPattern)
         try container.encode(stepAccents, forKey: .stepAccents)

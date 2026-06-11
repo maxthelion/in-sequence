@@ -55,14 +55,6 @@ extension Project {
         return trackID
     }
 
-    @discardableResult
-    mutating func addDrumKit(
-        _ preset: DrumKitPreset,
-        library: AudioSampleLibrary = .shared
-    ) -> TrackGroupID? {
-        addDrumGroup(plan: .templated(from: preset), library: library)
-    }
-
     mutating func setSelectedTrackType(_ trackType: TrackType) {
         guard !tracks.isEmpty else {
             return

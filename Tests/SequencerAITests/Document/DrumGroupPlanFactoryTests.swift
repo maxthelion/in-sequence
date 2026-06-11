@@ -10,20 +10,17 @@ final class DrumGroupPlanFactoryTests: XCTestCase {
         XCTAssertEqual(plan.members.map(\.trackName), ["Kick", "Snare", "Hat", "Clap"])
     }
 
-    func test_blankDefault_members_have_all_false_seed_patterns_of_length_16() {
+    func test_blankDefault_members_have_no_preferred_sample() {
         let plan = DrumGroupPlan.blankDefault
 
-        for member in plan.members {
-            XCTAssertEqual(member.seedPattern.count, 16)
-            XCTAssertTrue(member.seedPattern.allSatisfy { $0 == false })
-        }
+        XCTAssertTrue(plan.members.allSatisfy { $0.sampleID == nil })
     }
 
-    func test_blankDefault_has_no_shared_destination_and_prepopulate_off() {
+    func test_blankDefault_has_no_shared_destination_and_no_template() {
         let plan = DrumGroupPlan.blankDefault
 
         XCTAssertNil(plan.sharedDestination)
-        XCTAssertFalse(plan.prepopulateClips)
+        XCTAssertNil(plan.templateID)
         XCTAssertEqual(plan.name, "Drum Group")
         XCTAssertEqual(plan.color, "#8AA")
     }
@@ -34,32 +31,59 @@ final class DrumGroupPlanFactoryTests: XCTestCase {
         XCTAssertTrue(plan.members.allSatisfy(\.routesToShared))
     }
 
-    func test_templated_from_kit808_mirrors_preset_members() {
-        let plan = DrumGroupPlan.templated(from: .kit808)
-        let presetMembers = DrumKitPreset.kit808.members
+    func test_from_kit_mirrors_kit_parts() throws {
+        let kit = try XCTUnwrap(DrumAssetLibrary.factoryKits.first(where: { $0.name == "808" }))
 
-        XCTAssertEqual(plan.members.count, presetMembers.count)
-        for (planMember, presetMember) in zip(plan.members, presetMembers) {
-            XCTAssertEqual(planMember.tag, presetMember.tag)
-            XCTAssertEqual(planMember.trackName, presetMember.trackName)
-            XCTAssertEqual(planMember.seedPattern, presetMember.seedPattern)
-            XCTAssertTrue(planMember.routesToShared)
+        let plan = DrumGroupPlan.from(kit: kit)
+
+        XCTAssertEqual(plan.members.count, kit.parts.count)
+        for (member, part) in zip(plan.members, kit.parts) {
+            XCTAssertEqual(member.tag, part.tag)
+            XCTAssertEqual(member.trackName, part.trackName)
+            XCTAssertEqual(member.sampleID, part.sampleID)
+            XCTAssertTrue(member.routesToShared)
         }
     }
 
-    func test_templated_from_preset_inherits_name_and_color_and_defaults_prepopulate_on() {
-        let plan = DrumGroupPlan.templated(from: .kit808)
+    func test_from_kit_inherits_kit_name_and_defaults_to_no_template() throws {
+        let kit = try XCTUnwrap(DrumAssetLibrary.factoryKits.first(where: { $0.name == "808" }))
 
-        XCTAssertEqual(plan.name, DrumKitPreset.kit808.displayName)
-        XCTAssertEqual(plan.color, DrumKitPreset.kit808.suggestedGroupColor)
-        XCTAssertTrue(plan.prepopulateClips)
+        let plan = DrumGroupPlan.from(kit: kit)
+
+        XCTAssertEqual(plan.name, kit.name)
+        XCTAssertNil(plan.templateID)
         XCTAssertNil(plan.sharedDestination)
     }
 
-    func test_templated_from_each_preset_has_nonempty_members() {
-        for preset in DrumKitPreset.allCases {
-            let plan = DrumGroupPlan.templated(from: preset)
-            XCTAssertFalse(plan.members.isEmpty, "preset=\(preset.rawValue)")
+    func test_from_kit_carries_explicit_templateID() throws {
+        let kit = try XCTUnwrap(DrumAssetLibrary.factoryKits.first)
+        let templateID = try XCTUnwrap(DrumAssetLibrary.factoryTemplates.first?.id)
+
+        let plan = DrumGroupPlan.from(kit: kit, templateID: templateID)
+
+        XCTAssertEqual(plan.templateID, templateID)
+    }
+
+    func test_from_kit_carries_part_sampleIDs_into_members() {
+        let sampleID = UUID()
+        let kit = DrumKit(
+            id: UUID(),
+            name: "Custom",
+            parts: [
+                DrumKit.Part(tag: "kick", trackName: "Kick", sampleID: sampleID),
+                DrumKit.Part(tag: "snare", trackName: "Snare"),
+            ]
+        )
+
+        let plan = DrumGroupPlan.from(kit: kit)
+
+        XCTAssertEqual(plan.members.map(\.sampleID), [sampleID, nil])
+    }
+
+    func test_from_each_factory_kit_has_nonempty_members() {
+        for kit in DrumAssetLibrary.factoryKits {
+            let plan = DrumGroupPlan.from(kit: kit)
+            XCTAssertFalse(plan.members.isEmpty, "kit=\(kit.name)")
         }
     }
 }

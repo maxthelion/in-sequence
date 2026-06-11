@@ -1148,24 +1148,25 @@ enum VisualScenarioCommandRunner {
             return existing
         }
 
-        let seedPatterns = visibleDrumKitMatrixSeedPatterns()
         let plan = DrumGroupPlan(
             name: "808 Bones",
             color: "#C06030",
             members: [
-                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: seedPatterns[0]),
-                DrumGroupPlan.Member(tag: "snare", trackName: "Snare", seedPattern: seedPatterns[1]),
-                DrumGroupPlan.Member(tag: "clap", trackName: "Clap", seedPattern: seedPatterns[2]),
-                DrumGroupPlan.Member(tag: "hat-closed", trackName: "Closed Hat", seedPattern: seedPatterns[3]),
-                DrumGroupPlan.Member(tag: "hat-open", trackName: "Open Hat", seedPattern: seedPatterns[4]),
-                DrumGroupPlan.Member(tag: "rim", trackName: "Rim Shot", seedPattern: seedPatterns[5]),
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick"),
+                DrumGroupPlan.Member(tag: "snare", trackName: "Snare"),
+                DrumGroupPlan.Member(tag: "clap", trackName: "Clap"),
+                DrumGroupPlan.Member(tag: "hat-closed", trackName: "Closed Hat"),
+                DrumGroupPlan.Member(tag: "hat-open", trackName: "Open Hat"),
+                DrumGroupPlan.Member(tag: "rim", trackName: "Rim Shot"),
             ],
-            prepopulateClips: true,
             sharedDestination: nil
         )
         _ = session.addDrumGroup(plan: plan)
-        return session.store.trackGroups.first(where: { $0.name == "808 Bones" && $0.memberIDs.count >= 6 })
-            ?? session.store.trackGroups.last
+        if let created = session.store.trackGroups.first(where: { $0.name == "808 Bones" && $0.memberIDs.count >= 6 }) {
+            ensureVisibleDrumKitMatrixSeeds(groupID: created.id, session: session)
+            return created
+        }
+        return session.store.trackGroups.last
             ?? TrackGroup(name: "808 Bones", color: "#C06030")
     }
 
@@ -1232,14 +1233,12 @@ enum VisualScenarioCommandRunner {
             return existing
         }
 
-        let seedPattern = Array(repeating: false, count: 16)
         let plan = DrumGroupPlan(
             name: groupName,
             color: "#3A8F7A",
             members: [
-                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: seedPattern),
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick"),
             ],
-            prepopulateClips: false,
             sharedDestination: nil
         )
         _ = session.addDrumGroup(plan: plan)
@@ -1255,23 +1254,19 @@ enum VisualScenarioCommandRunner {
             return existing
         }
 
-        let seedPattern = Array(repeating: false, count: 16)
         let plan = DrumGroupPlan(
             name: groupName,
             color: "#5A7FD6",
             members: [
                 DrumGroupPlan.Member(
                     tag: "hat-closed",
-                    trackName: "Generator Driven Closed Hat With A Very Long Performance Name",
-                    seedPattern: seedPattern
+                    trackName: "Generator Driven Closed Hat With A Very Long Performance Name"
                 ),
                 DrumGroupPlan.Member(
                     tag: "rim",
-                    trackName: "Rim Shot With Long Alternate Layer Name",
-                    seedPattern: seedPattern
+                    trackName: "Rim Shot With Long Alternate Layer Name"
                 ),
             ],
-            prepopulateClips: false,
             sharedDestination: nil
         )
         _ = session.addDrumGroup(plan: plan)
