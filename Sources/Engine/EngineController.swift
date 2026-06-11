@@ -518,6 +518,7 @@ final class EngineController: RouterDispatcher {
         guard !isRunning, executor != nil else {
             return
         }
+        DevActivity.trace(DevActivity.engine, "EngineController.start")
 
         initializePhraseNavigationForPlaybackStart(
             snapshot: tickState.currentPlaybackSnapshot(),
@@ -537,6 +538,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func stop() {
+        DevActivity.trace(DevActivity.engine, "EngineController.stop (isRunning=\(isRunning))")
         let now = ProcessInfo.processInfo.systemUptime
         guard isRunning else {
             clearNoteRepeatCaptureCaches()
@@ -546,7 +548,9 @@ final class EngineController: RouterDispatcher {
 
         clearAllNoteRepeats(now: now)
         flushAllPendingMIDINoteOffs(now: now)
+        DevActivity.trace(DevActivity.clock, "TickClock.stop requested (joins tick queue)")
         clock.stop()
+        DevActivity.trace(DevActivity.clock, "TickClock.stop returned")
         let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
         hosts.forEach { $0.stop() }
         isRunning = false
@@ -560,6 +564,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func applyAudioDeviceUIDs(inputUID: String?, outputUID: String?) throws -> AudioDeviceApplyResult {
+        DevActivity.trace(DevActivity.audioGraph, "applyAudioDeviceUIDs input=\(inputUID ?? "nil") output=\(outputUID ?? "nil")")
         let result: AudioDeviceApplyResult
         if let audioDeviceApplyOverrideForTesting {
             result = try audioDeviceApplyOverrideForTesting(inputUID, outputUID)
