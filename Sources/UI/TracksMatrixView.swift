@@ -102,16 +102,10 @@ struct TracksMatrixView: View {
             ?? layers.first!
     }
 
-    private var layers: [PhraseLayerDefinition] {
-        session.store.layers
-    }
-
-    private var selectedLayerIndex: Int {
-        layers.firstIndex(where: { $0.id == selectedLayer.id }) ?? 0
-    }
-
+    /// One layer selection drives the matrix in both edit and perform; modes
+    /// without a phrase layer fall back to the externally selected layer.
     private var activeMatrixLayer: PhraseLayerDefinition {
-        guard isPerforming, let layerID = performLayerSelection.mode.phraseLayerID else {
+        guard let layerID = performLayerSelection.mode.phraseLayerID else {
             return selectedLayer
         }
 
@@ -174,7 +168,7 @@ struct TracksMatrixView: View {
                             accent: StudioTheme.cyan
                         )
                     } else {
-                        if isPerforming && isPresentingPerformLayerSelection {
+                        if isPresentingPerformLayerSelection {
                             performLayerSelectionSurface
                         } else {
                             matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
@@ -252,6 +246,14 @@ struct TracksMatrixView: View {
             guard let command = notification.object as? String else { return }
             applyTrackPerformVisualCommand(command)
         }
+        .onAppear {
+            // Follow a layer chosen elsewhere (Live page) when it maps to a
+            // selectable mode, so both pages name the same active layer.
+            if let mode = TrackPerformLayerMode.allCases.first(where: { $0.phraseLayerID == selectedLayerID }),
+               performLayerSelection.mode != mode {
+                performLayerSelection.select(mode, variantLabel: nil)
+            }
+        }
         .onDisappear {
             cleanupPerformRuntime()
         }
@@ -272,71 +274,11 @@ struct TracksMatrixView: View {
         }
     }
 
-    @ViewBuilder
+    // One layer changer for both modes: the perform-mode selector button is
+    // the component (it opens the shared layer matrix), so edit mode no
+    // longer carries a parallel chevron-cycler UI.
     private var layerControl: some View {
-        if isPerforming {
-            performLayerControl
-        } else {
-            phraseLayerControl
-        }
-    }
-
-    private var phraseLayerControl: some View {
-        HStack(spacing: 8) {
-            Button {
-                cycleLayer(by: -1)
-            } label: {
-                Image(systemName: "chevron.left")
-                    .studioText(.chromeLabel)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 30, height: 30)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(selectedLayer.name.uppercased())
-                        .studioText(.labelBold)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-
-                    Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
-                        .studioText(.micro)
-                        .foregroundStyle(layerAccent(selectedLayer.id))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(layerAccent(selectedLayer.id).opacity(StudioOpacity.hoverFill), in: Capsule())
-                }
-
-                Text(layerSubtitle(selectedLayer))
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-            .frame(width: 190, alignment: .leading)
-
-            Button {
-                cycleLayer(by: 1)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .studioText(.chromeLabel)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 30, height: 30)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(layerAccent(selectedLayer.id).opacity(StudioOpacity.subtleStroke), lineWidth: 1)
-        )
+        performLayerControl
     }
 
     private var performLayerControl: some View {
@@ -351,7 +293,7 @@ struct TracksMatrixView: View {
                     .background(performLayerSelection.mode.selectorAccent.opacity(StudioOpacity.selectedFill), in: Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("PERFORM LAYER")
+                    Text("TRACK LAYER")
                         .studioText(.micro)
                         .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
@@ -529,15 +471,6 @@ struct TracksMatrixView: View {
         .tint(isPerforming ? StudioTheme.amber : StudioTheme.cyan)
     }
 
-    private func cycleLayer(by delta: Int) {
-        guard !layers.isEmpty else {
-            return
-        }
-
-        let nextIndex = (selectedLayerIndex + delta + layers.count) % layers.count
-        selectedLayerID = layers[nextIndex].id
-    }
-
     private var performLayerSelectionSurface: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
@@ -596,6 +529,7 @@ struct TracksMatrixView: View {
         } else {
             performLayerSelection.select(option.mode, variantLabel: option.variantLabel)
         }
+        syncSelectedLayerIDToPerformSelection()
         isPresentingPerformLayerSelection = false
     }
 
@@ -603,7 +537,17 @@ struct TracksMatrixView: View {
     /// never toggles off.
     private func setPerformLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
         performLayerSelection.select(mode, variantLabel: variantLabel)
+        syncSelectedLayerIDToPerformSelection()
         isPresentingPerformLayerSelection = false
+    }
+
+    /// Keeps the externally shared layer binding (Live page) following the
+    /// matrix selection whenever the chosen mode maps to a phrase layer.
+    private func syncSelectedLayerIDToPerformSelection() {
+        if let layerID = performLayerSelection.mode.phraseLayerID,
+           session.store.layer(id: layerID) != nil {
+            selectedLayerID = layerID
+        }
     }
 
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
@@ -624,7 +568,9 @@ struct TracksMatrixView: View {
     @ViewBuilder
     private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?, selectedTrackID: UUID) -> some View {
         let layer = activeMatrixLayer
-        let activePerformLayer = isPerforming ? performLayerSelection.mode : nil
+        // The selected layer mode drives the cards in both modes; runtime
+        // trigger surfaces stay perform-only via runtimeControlState below.
+        let activePerformLayer: TrackPerformLayerMode? = performLayerSelection.mode
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(tracks, id: \.id) { track in
                 let address = phraseCellAddress(for: track.id, layerID: layer.id)
@@ -645,9 +591,11 @@ struct TracksMatrixView: View {
                     isPerformSelected: performSelection.contains(track.id),
                     isPerforming: isPerforming,
                     latchMode: performRuntimeOverlay.latchMode,
-                    runtimeControlState: activePerformLayer?.binaryControl.map {
-                        runtimeControlState(for: track.id, control: $0)
-                    },
+                    runtimeControlState: isPerforming
+                        ? activePerformLayer?.binaryControl.map {
+                            runtimeControlState(for: track.id, control: $0)
+                        }
+                        : nil,
                     noteRepeatActiveSnapshot: engineController.noteRepeatRuntimeSnapshot(for: track.id),
                     onTogglePerformSelection: {
                         performSelection.toggle(track.id)
@@ -675,8 +623,11 @@ struct TracksMatrixView: View {
         }
     }
 
+    // Same footprint as TrackMatrixCard (minHeight 210 + comfortable padding)
+    // so the add cell sits flush in the grid (ux-canon rule 5); the "+" alone
+    // carries the affordance, with the action named in help/accessibility.
     private var addTrackCard: some View {
-        StudioAddCard(label: "Add Track", help: "Add a track") {
+        StudioAddCard(label: "", minHeight: 210, help: "Add a track") {
             isPresentingCreateTrack = true
         }
     }
@@ -1162,8 +1113,10 @@ private struct TrackMatrixCard: View {
         return layerAccent(layer.id)
     }
 
+    /// True only when the card renders a live trigger surface (perform mode
+    /// with a runtime layer); in edit mode the whole card stays tappable.
     private var isRuntimeLayerCard: Bool {
-        activePerformLayer?.binaryControl != nil
+        runtimeControlState != nil && activePerformLayer?.binaryControl != nil
     }
 
     var body: some View {

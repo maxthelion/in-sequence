@@ -137,12 +137,10 @@ extension ScenesWorkspaceView {
         )
     }
 
+    // Four rotaries per row: knobs are narrow, so two-up wasted half the slot.
     private func performMacroSlots(_ scene: MasterBusScene) -> some View {
         LazyVGrid(
-            columns: [
-                GridItem(.flexible(minimum: 68), spacing: 8),
-                GridItem(.flexible(minimum: 68), spacing: 8)
-            ],
+            columns: Array(repeating: GridItem(.flexible(minimum: 58), spacing: 8), count: 4),
             spacing: 10
         ) {
             ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
@@ -166,6 +164,9 @@ extension ScenesWorkspaceView {
             },
             value: macro.map { resolvedMacroValue($0, scene: scene) },
             accent: StudioTheme.amber,
+            // The dashed "+" knob already reads as assign; repeating "Assign"
+            // under every empty slot is noise (ux-canon rule 1).
+            emptyLabel: "",
             onAssign: {
                 sceneMacroTargetPickerRequest = SceneMacroTargetPickerRequest(sceneID: scene.id, slotIndex: slotIndex)
             },
