@@ -28,33 +28,36 @@ landed today; the rest are a prioritized backlog.
 4. **Dead code: `effectivePlaybackSummary`** — orphaned by the phrase-panel
    removal; property, builder, and its two test assertions deleted.
 
-## Backlog — engine threading (needs a focused slice, not drive-by fixes)
+## Engine threading — done 2026-06-11
 
-These share one root cause: `EngineController` mixes a tick-clock queue,
-the main actor, and audio render threads over plain properties guarded by
-an inconsistently-applied `stateLock`.
+5. **`transportTickIndex` torn/stale reads** — FIXED. The tick is now
+   backed by `transportTickAtomic`, written synchronously on the tick queue
+   at prepare time; all engine-internal readers (`armAudioInput`
+   quantization, note-repeat engage anchor, playback-position estimation)
+   read `currentTransportTick`. The `@Observable` property remains a
+   main-published mirror for UI only.
+6. **Note-repeat dictionaries** — audited: all accesses are consistently
+   under `withStateLock` (the "escapes" were copy-outs by value — fine).
+   The real finding was `reconcileNoteRepeats` holding `stateLock` across
+   `supportsNoteRepeat`, which acquires `phraseNavigationLock` — a pinned
+   lock ordering. FIXED: keys are copied out first; evaluation runs outside
+   the lock.
+7. **`graphLock` held across `performOnMain`** — FIXED. All 22 sites
+   inverted: the lock is now acquired *inside* the main-thread closure, so
+   no thread ever holds `graphLock` while entering
+   `DispatchQueue.main.sync`. Mutual exclusion is unchanged (every locker
+   takes the same lock); the deadlock shape is structurally gone.
+8. **`AudioInputCaptureSummaryRing`** — audited: writers are actually
+   multi-producer safe (atomic sequence claim → distinct slot per writer).
+   The real gap was a torn read in `drain` when a writer laps the slot
+   mid-copy. FIXED with a seqlock-style re-check after copying.
 
-5. **`transportTickIndex` torn/stale reads** (HIGH). Written from the tick
-   queue (published to main asynchronously), read without the lock by
-   `nextAudioInputPhraseBoundary`, `estimatedPlaybackPhraseAndStep`, and
-   `engageNoteRepeat` (reads it *inside* `withStateLock`, but the writer
-   doesn't hold that lock). Consequence: arm-quantization and note-repeat
-   anchors can capture an off-by-one tick. Fix shape: make it an atomic, or
-   route all reads through one locked accessor.
-6. **Note-repeat dictionaries** (`activeNoteRepeatsByTrackID`,
-   `currentNoteRepeatCapturesByTrackID`) are mostly locked but values escape
-   the lock as captures into the prepare path (MEDIUM-HIGH). Audit each
-   escape; prefer snapshot-copy-out under lock.
-7. **`graphLock` held across `performOnMain`** in `MainAudioGraph`
-   (MEDIUM) — classic lock-order deadlock if main ever blocks on
-   `graphLock`. Today's earlier mixer livelock fix reduced pressure here,
-   but the ordering hazard remains. Fix shape: never dispatch-to-main while
-   holding `graphLock`.
-8. **`AudioInputCaptureSummaryRing` assumes a single producer** but every
-   active input tap (one per audio-input track) writes from the render
-   thread (MEDIUM). Fine with one input track; corrupts slots with several.
+## Backlog — engine threading, remaining
+
 9. **`AtomicInt32/64` built on deprecated `OSAtomic*`** (LOW-MEDIUM) —
-   migrate to Swift `Atomics`/`ManagedAtomic` when touching this code.
+   migration needs a decision: `Synchronization.Atomic` requires macOS 15
+   (target is 14.0), so it means adding the swift-atomics package. Owner
+   call; the OSAtomic implementations are correct meanwhile.
 
 ## Backlog — duplicate code paths
 

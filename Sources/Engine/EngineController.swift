@@ -103,7 +103,18 @@ final class EngineController: RouterDispatcher {
 
     private(set) var isRunning = false
     private(set) var currentBPM: Double
+    /// Main-published mirror of the transport tick for UI observation.
+    /// Engine-internal code must read `currentTransportTick` instead: this
+    /// property is written via publishToMain, so tick-queue readers would see
+    /// stale values (and race the main-thread write).
     private(set) var transportTickIndex: UInt64 = 0
+    /// Cross-thread source of truth for the transport tick, written on the
+    /// tick queue at prepare time.
+    private let transportTickAtomic = AtomicInt64(0)
+
+    var currentTransportTick: UInt64 {
+        UInt64(bitPattern: transportTickAtomic.load())
+    }
     private(set) var transportPosition = "1:1:1"
     private(set) var transportMode: TransportMode = .free
     private(set) var lastNoteTriggerUptime: TimeInterval = 0
@@ -238,7 +249,7 @@ final class EngineController: RouterDispatcher {
     }
 
     private func nextPhraseCycleStartTick() -> UInt64 {
-        tickState.currentPreparedTickIndex() ?? transportTickIndex
+        tickState.currentPreparedTickIndex() ?? currentTransportTick
     }
 
     private func initializePhraseNavigationForPlaybackStart(snapshot: PlaybackSnapshot, cycleStartTick: UInt64) {
@@ -624,9 +635,9 @@ final class EngineController: RouterDispatcher {
         let scheduledStartTick = pendingStartTick ?? {
             switch quantize {
             case .bar:
-                return nextAudioInputBarBoundary(after: transportTickIndex)
+                return nextAudioInputBarBoundary(after: currentTransportTick)
             case .phrase:
-                return nextAudioInputPhraseBoundary(after: transportTickIndex)
+                return nextAudioInputPhraseBoundary(after: currentTransportTick)
             }
         }()
         let didUpdate = updateAudioInputRuntime(trackID: trackID) { runtime in
@@ -693,7 +704,7 @@ final class EngineController: RouterDispatcher {
             case .loop:
                 if runtime.hasRecordedLoop {
                     if runtime.activeMonitorMode != .loop {
-                        runtime.pendingLoopStartTick = nextAudioInputBarBoundary(after: transportTickIndex)
+                        runtime.pendingLoopStartTick = nextAudioInputBarBoundary(after: currentTransportTick)
                     }
                 } else {
                     runtime.activeMonitorMode = .loop
@@ -840,7 +851,7 @@ final class EngineController: RouterDispatcher {
         withStateLock {
             activeNoteRepeatsByTrackID[trackID] = ActiveNoteRepeatRuntime(
                 trackID: trackID,
-                engagedAtTickIndex: transportTickIndex,
+                engagedAtTickIndex: currentTransportTick,
                 interval: track.noteRepeatInterval,
                 capturedStep: currentNoteRepeatCapturesByTrackID[trackID]
             )
@@ -1616,6 +1627,10 @@ final class EngineController: RouterDispatcher {
         )
         let newCurrentBPM = executor.currentBPM
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
+        // Written here on the tick queue so cross-thread readers
+        // (currentTransportTick) see the fresh value immediately; the
+        // observable mirror below still publishes on main.
+        transportTickAtomic.store(Int64(bitPattern: completedStep))
         let newTransportPosition = Self.transportString(for: completedStep, stepsPerBar: stepsPerBar)
 
         tickState.commitPrepareOutputs(
@@ -3244,10 +3259,12 @@ final class EngineController: RouterDispatcher {
     }
 
     private func reconcileNoteRepeats(with snapshot: PlaybackSnapshot) {
-        let unsupportedTrackIDs = withStateLock {
-            Set(activeNoteRepeatsByTrackID.keys.filter { trackID in
-                !supportsNoteRepeat(trackID: trackID, in: snapshot)
-            })
+        // Copy the keys out first: supportsNoteRepeat acquires
+        // phraseNavigationLock, and holding stateLock across it would pin a
+        // stateLock → phraseNavigationLock ordering for the whole codebase.
+        let activeTrackIDs = withStateLock { Set(activeNoteRepeatsByTrackID.keys) }
+        let unsupportedTrackIDs = activeTrackIDs.filter { trackID in
+            !supportsNoteRepeat(trackID: trackID, in: snapshot)
         }
         if !unsupportedTrackIDs.isEmpty {
             cleanupNoteRepeats(
@@ -3290,7 +3307,7 @@ final class EngineController: RouterDispatcher {
         }
 
         let stepCount = max(1, phraseBuffer.stepCount)
-        return (phraseID, Int(transportTickIndex % UInt64(stepCount)))
+        return (phraseID, Int(currentTransportTick % UInt64(stepCount)))
     }
 
     private func syncMasterBusPerformanceOverlay(for masterBus: MasterBusState) {

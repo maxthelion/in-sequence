@@ -128,6 +128,10 @@ final class SequencerDocumentSession {
     }
 
     private func applyStoredAudioDevicePreferenceIfNeeded() {
+        // The capture harness must not apply the user's real device
+        // preference: the HAL apply can stall the main actor for minutes
+        // when CoreAudio is degraded, freezing the command runner.
+        guard !VisualScenarioCommandRunner.isConfigured else { return }
         let coordinator = AudioDeviceSwitchCoordinator { [engineController] inputUID, outputUID in
             try engineController.applyAudioDeviceUIDs(inputUID: inputUID, outputUID: outputUID)
         }

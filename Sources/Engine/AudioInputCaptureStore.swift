@@ -283,6 +283,13 @@ final class AudioInputCaptureSummaryRing {
 
             let trackID = slot.trackID
             let packet = slot.packet
+            // Seqlock re-check: a writer may have lapped this slot while we
+            // copied trackID/packet. If so, drop the torn copy and loop —
+            // the slotSequence > nextSequence branch above will jump the
+            // read cursor forward.
+            guard slot.sequence.load() == nextSequence else {
+                continue
+            }
             readSequence = nextSequence
             consume(trackID, packet)
             nextSequence = nextSequence &+ 1

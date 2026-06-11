@@ -67,6 +67,7 @@
 		26E606AE1548634F48D2DFAB /* LibraryWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F321A75B2E13B96537229EB /* LibraryWorkspaceView.swift */; };
 		27B457840C881E2F2772EE04 /* TrackGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC1E5425C542E7967DFA1A3 /* TrackGroupTests.swift */; };
 		27D1B77E4DD73C33F3278506 /* ScalarValueEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 533B12DD624110D076F79BD4 /* ScalarValueEditor.swift */; };
+		28780B3EFD80C67E0D704B55 /* ObjCExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 92FEACC1376B66DDF7601E95 /* ObjCExceptionCatcher.m */; };
 		28DBCAAB084E493342A6AEF1 /* StudioMixerStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644C39A35BD80B2674ED6F97 /* StudioMixerStrip.swift */; };
 		2957E2D27D11FD9C8A9D4302 /* DestinationSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */; };
 		295A4BEED435806DC5E40E53 /* InspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BDE0286507605D92758E623 /* InspectorView.swift */; };
@@ -662,6 +663,7 @@
 		23F08F9387CB8CB9EFB54AEE /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
 		23F9EB8F54530FD81E909628 /* PhrasePerformOverlaySessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhrasePerformOverlaySessionTests.swift; sourceTree = "<group>"; };
 		240116D6A88D916F1275FF66 /* implementation-handoff.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "implementation-handoff.md"; sourceTree = "<group>"; };
+		240EB58BDF7EDC5685169AC1 /* ObjCExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ObjCExceptionCatcher.h; sourceTree = "<group>"; };
 		247067E067F71AC913F2A175 /* existing-state.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "existing-state.md"; sourceTree = "<group>"; };
 		249AC4779E62618AE75F8ED0 /* 03-group-routing-editor.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "03-group-routing-editor.html"; sourceTree = "<group>"; };
 		24AF1E385D5F384E72623537 /* supervisor-log.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "supervisor-log.md"; sourceTree = "<group>"; };
@@ -1199,6 +1201,7 @@
 		926437EC26FBE5CBB7C30886 /* AudioSampleLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSampleLibrary.swift; sourceTree = "<group>"; };
 		92B2317CD046A0129785597D /* WorkspaceDetailView.swift.before */ = {isa = PBXFileReference; path = WorkspaceDetailView.swift.before; sourceTree = "<group>"; };
 		92FB5DEC517D3F59EE2190A3 /* screen-capture.err */ = {isa = PBXFileReference; path = "screen-capture.err"; sourceTree = "<group>"; };
+		92FEACC1376B66DDF7601E95 /* ObjCExceptionCatcher.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ObjCExceptionCatcher.m; sourceTree = "<group>"; };
 		9384E45678A2F3964B8AAAE6 /* 2026-05-08-p0-track-performance-overlay-card-legibility-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08-p0-track-performance-overlay-card-legibility-review.md"; sourceTree = "<group>"; };
 		93B4E6922FA07FB39E8227BD /* StepSequenceTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSequenceTrack.swift; sourceTree = "<group>"; };
 		94A1A57D4113E76D994A46D2 /* AudioInstrumentChoicesCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInstrumentChoicesCacheTests.swift; sourceTree = "<group>"; };
@@ -1220,6 +1223,7 @@
 		993966D8D681D7445266BA40 /* StyleProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleProfile.swift; sourceTree = "<group>"; };
 		999DB12EA2717E319B6B9072 /* testing.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = testing.md; sourceTree = "<group>"; };
 		99A98465700B2C49D68B5BE3 /* 2026-05-07-p0-track-performance-overlay-engine-session-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-07-p0-track-performance-overlay-engine-session-review.md"; sourceTree = "<group>"; };
+		99E524F39255C78F3B13ADBD /* SequencerAI-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SequencerAI-Bridging-Header.h"; sourceTree = "<group>"; };
 		99F3A797BF18508361EAB829 /* TrackWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackWorkspaceView.swift; sourceTree = "<group>"; };
 		99FCB410DC5CA15E25E68E23 /* ux-ia.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-ia.md"; sourceTree = "<group>"; };
 		9A65BF9DC2E12C612804382C /* 02-summary-row-detail-drawer.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "02-summary-row-detail-drawer.html"; sourceTree = "<group>"; };
@@ -1943,6 +1947,8 @@
 				41D81554158C1EFFC86D6C21 /* MainAudioGraph.swift */,
 				C73AB53718A449F72E8E8AE5 /* MasterBusHost.swift */,
 				65B54A9AEBA9C055A2F6E0B8 /* MixerBusHost.swift */,
+				240EB58BDF7EDC5685169AC1 /* ObjCExceptionCatcher.h */,
+				92FEACC1376B66DDF7601E95 /* ObjCExceptionCatcher.m */,
 				89A6E0A5A2DB36A0D909773E /* SampleLibraryBootstrap.swift */,
 				8B82D50F041CFB6F85B726D6 /* SamplePlaybackEngine.swift */,
 				F0F9FADA87C4030EC58CAD27 /* SamplerFilterNode.swift */,
@@ -3845,6 +3851,7 @@
 			children = (
 				1AA8034C8FCF937C2E3BA61D /* Assets.xcassets */,
 				B08DEC3D4F6AC025F79A51F7 /* Info.plist */,
+				99E524F39255C78F3B13ADBD /* SequencerAI-Bridging-Header.h */,
 				1857B367680D1547BFEE9EB6 /* SequencerAI.entitlements */,
 				192092251AA8C66C80AF9052 /* SequencerAIDocument.icns */,
 			);
@@ -5109,6 +5116,7 @@
 				D2129C98FAC4935B8E7EB6A3 /* NoteGenerator.swift in Sources */,
 				AE21209E6DE6569932BB2392 /* NoteShape.swift in Sources */,
 				AAE7C6F18FA94BCF07E34EA5 /* NoteShapeEditor.swift in Sources */,
+				28780B3EFD80C67E0D704B55 /* ObjCExceptionCatcher.m in Sources */,
 				0858E7BE80B3CCADFA28E634 /* PatternIndexCellPreview.swift in Sources */,
 				544402EE9704A8ACB63D3BF8 /* PatternIndexPicker.swift in Sources */,
 				841478225B57227D72492096 /* PatternTemplate.swift in Sources */,
@@ -5329,9 +5337,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				BUILD_ATTRIBUTION_ID = unknown;
+				BUILD_ATTRIBUTION_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = Sources/Resources/SequencerAI.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
+				GIT_BRANCH = unknown;
+				GIT_COMMIT = unknown;
+				GIT_DIRTY = unknown;
 				INFOPLIST_FILE = Sources/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -5339,6 +5352,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = ai.sequencer.SequencerAI;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/Resources/SequencerAI-Bridging-Header.h";
 			};
 			name = Release;
 		};
@@ -5473,9 +5487,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				BUILD_ATTRIBUTION_ID = unknown;
+				BUILD_ATTRIBUTION_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = Sources/Resources/SequencerAI.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
+				GIT_BRANCH = unknown;
+				GIT_COMMIT = unknown;
+				GIT_DIRTY = unknown;
 				INFOPLIST_FILE = Sources/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -5483,6 +5502,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = ai.sequencer.SequencerAI;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Sources/Resources/SequencerAI-Bridging-Header.h";
 			};
 			name = Debug;
 		};
