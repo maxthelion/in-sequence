@@ -561,6 +561,10 @@ private struct AudioInputRuntimePanel: View {
         }
         .onAppear {
             refreshMicAccessStatus()
+            // Ask the OS directly — the system prompt is the only gate the
+            // user should ever see. (Harness/test runs are excluded inside
+            // the request helper, so unattended captures never block.)
+            Task { await requestMicrophoneAccessIfNeeded() }
         }
         // The user grants/revokes in System Settings and comes back: TCC
         // state changed behind our back, so re-read it whenever the app
@@ -594,15 +598,6 @@ private struct AudioInputRuntimePanel: View {
                 .buttonStyle(.link)
                 .studioText(.micro)
             }
-        } else if micAccess == .notDetermined {
-            // The system prompt only ever appears from this explicit action —
-            // never on appear, so unattended sessions are never blocked.
-            Button("Enable Microphone") {
-                Task { await requestMicrophoneAccessIfNeeded() }
-            }
-            .buttonStyle(.link)
-            .studioText(.microEmphasis)
-            .tint(StudioTheme.amber)
         } else if !canArmInput, !isArmedOrRecording, availableChannels == 0 {
             Text("NO INPUT DEVICE")
                 .studioText(.microEmphasis)
