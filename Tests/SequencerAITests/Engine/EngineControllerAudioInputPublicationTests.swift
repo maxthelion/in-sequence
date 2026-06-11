@@ -123,6 +123,53 @@ final class EngineControllerAudioInputPublicationTests: XCTestCase {
         XCTAssertTrue(session.engineController.audioInputCapturePublicationEnabledForTesting)
     }
 
+    // MARK: - Summary ring seqlock contract (R3)
+
+    func test_summaryRing_inProgressWritePublishesSentinelNotStaleSequence() {
+        let ring = AudioInputCaptureSummaryRing(capacity: 4)
+        let packet = AudioInputCaptureBufferPacket(
+            summary: AudioInputCaptureBufferSummary(liveLevel: .silent, monoPeak: 0.5, frameCount: 64)
+        )
+        for _ in 0..<4 {
+            ring.write(trackID: UUID(), packet: packet)
+        }
+
+        // A lapping writer claims sequence 5 (slot of sequence 1). While its
+        // payload write is in flight the slot must NOT still read as a valid
+        // earlier sequence — that is exactly the torn-copy window (a reader's
+        // post-copy re-check would pass on half-written payload).
+        let torn = ring.beginTornWriteForTesting(trackID: UUID(), packet: packet)
+        XCTAssertEqual(ring.slotSequenceForTesting(claimedSequence: torn), 0 &- torn)
+
+        ring.completeTornWriteForTesting(sequence: torn)
+        XCTAssertEqual(ring.slotSequenceForTesting(claimedSequence: torn), torn)
+    }
+
+    func test_summaryRing_drainSkipsInProgressSlotAndDeliversItOnceCompleted() {
+        let ring = AudioInputCaptureSummaryRing(capacity: 4)
+        func packet(frameCount: Int) -> AudioInputCaptureBufferPacket {
+            AudioInputCaptureBufferPacket(
+                summary: AudioInputCaptureBufferSummary(liveLevel: .silent, monoPeak: 0, frameCount: frameCount)
+            )
+        }
+        let trackID = UUID()
+        ring.write(trackID: trackID, packet: packet(frameCount: 1))
+        ring.write(trackID: trackID, packet: packet(frameCount: 2))
+
+        var drained: [Int] = []
+        ring.drain { _, packet in drained.append(packet.summary.frameCount) }
+        XCTAssertEqual(drained, [1, 2])
+
+        let torn = ring.beginTornWriteForTesting(trackID: trackID, packet: packet(frameCount: 3))
+        drained = []
+        ring.drain { _, packet in drained.append(packet.summary.frameCount) }
+        XCTAssertEqual(drained, [], "an in-progress write must never be consumed")
+
+        ring.completeTornWriteForTesting(sequence: torn)
+        ring.drain { _, packet in drained.append(packet.summary.frameCount) }
+        XCTAssertEqual(drained, [3])
+    }
+
     private func waitForAudioInputPublication(_ controller: EngineController) {
         controller.drainAudioInputCapturePublicationForTesting()
         let expectation = expectation(description: "main queue drained")
