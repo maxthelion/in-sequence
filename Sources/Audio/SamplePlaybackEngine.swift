@@ -287,9 +287,10 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let remainingFrames = max(1, Double(file.length) - Double(startFrame))
         let frameLength = AVAudioFrameCount(min(max(1, lengthNorm * frameCount), remainingFrames))
         voice.scheduleSegment(file, startingFrame: startFrame, frameCount: frameLength, at: when, completionHandler: nil)
-        // play() throws an uncatchable NSException on a stopped engine
-        // (observed during device switches); drop the trigger instead.
-        guard audioGraph.isEngineRunning else { return }
+        // play() throws an uncatchable NSException on a stopped engine or a
+        // detached/disconnected node (observed during device switches and
+        // document re-applies); drop the trigger instead.
+        guard audioGraph.isNodePlayableNow(voice) else { return }
         voice.play()
     }
 
@@ -341,7 +342,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 completionHandler: nil
             )
         }
-        guard audioGraph.isEngineRunning else { return }
+        guard audioGraph.isNodePlayableNow(voice) else { return }
         voice.play()
     }
 
@@ -439,7 +440,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         previewNode.stop()
         previewNode.volume = 1.0
         previewNode.scheduleFile(file, at: nil, completionHandler: nil)
-        guard audioGraph.isEngineRunning else { return }
+        guard audioGraph.isNodePlayableNow(previewNode) else { return }
         previewNode.play()
     }
 

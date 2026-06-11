@@ -228,6 +228,17 @@ final class MainAudioGraph {
         engine.isRunning
     }
 
+    /// True when `node` can be started right now: the engine is running and
+    /// the node is still attached and connected. AVAudioPlayerNode.play()
+    /// throws an uncatchable NSException for a detached/disconnected node
+    /// even on a running engine (seen when a document re-apply tears voices
+    /// down while a queued play closure is in flight).
+    func isNodePlayableNow(_ node: AVAudioNode) -> Bool {
+        engine.isRunning
+            && node.engine === engine
+            && !engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
+    }
+
     var availableInputChannelCount: Int {
         guard Self.liveAudioInputAuthorized else { return 0 }
         return Int(engine.inputNode.inputFormat(forBus: 0).channelCount)
