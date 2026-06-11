@@ -166,6 +166,32 @@ final class IncrementalCompileEquivalenceTests: XCTestCase {
         XCTAssertEqual(incremental, expected)
     }
 
+    func test_mixOnlyTrackChange_reusesPhraseBuffersWithoutRecompiling() throws {
+        // Mixer-latency cause 1: a fader drag's `.track` change used to
+        // rebuild EVERY phrase buffer per tick. Mix does not affect the
+        // phrase-relevant program slice, so buffers must be value-identical
+        // AND reuse the previous dictionary's storage (no recompute).
+        let (project, trackID, _) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+
+        store.mutateTrack(id: trackID) { track in
+            track.mix.level = 0.31
+            track.mix.pan = -0.4
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .track(trackID),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+        XCTAssertEqual(incremental.phraseBuffersByID, previous.phraseBuffersByID)
+    }
+
     func test_trackMacroShapeChange_matchesFullCompileOracle() throws {
         let (project, trackID, clipID) = makeLiveStoreProject()
         let store = LiveSequencerStore(project: project)

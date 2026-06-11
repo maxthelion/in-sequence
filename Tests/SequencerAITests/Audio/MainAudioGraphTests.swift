@@ -158,6 +158,111 @@ final class MainAudioGraphTests: XCTestCase {
     }
 
     @MainActor
+    func test_installSendBus_valueOnlyInsertChangeDoesNotChangeTopologyOrStopEngine() throws {
+        let graph = MainAudioGraph()
+        let insertID = UUID()
+        let insert = SendBusInsert(
+            id: insertID,
+            name: "Send Filter",
+            wetDry: 1,
+            kind: .nativeFilter(MasterFilterSettings(mode: .lowPass, cutoffHz: 1_000, resonance: 0.1))
+        )
+        graph.installSendBuses([SendBusState(id: .sendA, inserts: [insert]), .sendB])
+        let installCountAfterShapeChange = graph.sendBusTopologyInstallCountForTesting
+        let initialReadout = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        let tapRemovalsBefore = graph.masterMeterTapRemoveCountForTesting
+
+        // Drag-rate value change (cutoff move): same shape, parameter-only.
+        var movedInsert = insert
+        movedInsert.kind = .nativeFilter(MasterFilterSettings(mode: .lowPass, cutoffHz: 4_000, resonance: 0.1))
+        graph.installSendBus(SendBusState(id: .sendA, inserts: [movedInsert]))
+
+        let afterValueChange = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        XCTAssertEqual(graph.sendBusTopologyInstallCountForTesting, installCountAfterShapeChange,
+                       "value-only send-FX changes must not run the engine stop/reinstall/start cycle")
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovalsBefore)
+        XCTAssertEqual(afterValueChange.topologyRebuildCount, initialReadout.topologyRebuildCount)
+        XCTAssertEqual(afterValueChange.parameterApplyCount, initialReadout.parameterApplyCount + 1)
+        let eq = try XCTUnwrap(afterValueChange.insertNodes.first as? AVAudioUnitEQ)
+        XCTAssertEqual(eq.bands[0].frequency, 4_000, accuracy: 0.0001)
+
+        // Shape change (insert removed) still rebuilds topology.
+        graph.installSendBus(SendBusState(id: .sendA, inserts: []))
+        XCTAssertEqual(graph.sendBusTopologyInstallCountForTesting, installCountAfterShapeChange + 1)
+    }
+
+    @MainActor
+    func test_installSendBus_inlineAUInstantiationCompletesWithoutDeadlockAndWiresNode() throws {
+        // Regression pin for the live-sampled "+ Add FX" self-deadlock: an AU
+        // factory that completes INLINE (synchronously, on main) used to
+        // re-enter installSendBus while installSendBuses still held the
+        // non-recursive graph lock — wedging main forever. The fix defers the
+        // re-entry to the next main-queue turn.
+        let graph = MainAudioGraph()
+        let effect = AVAudioUnitEQ(numberOfBands: 1)
+        let factory = AUAudioUnitFactory { _, completion in
+            completion(effect, nil)
+        }
+        let host = SendBusHost(id: .sendA, factory: factory)
+        graph.installSendBusHostForTesting(host)
+        let insert = SendBusInsert(
+            name: "AU FX",
+            kind: .auEffect(componentID: AudioEffectChoice.testEffect.audioComponentID, stateBlob: nil)
+        )
+
+        // Before the fix this call never returned (main-thread self-deadlock
+        // on graphLock).
+        graph.installSendBus(SendBusState(id: .sendA, inserts: [insert]))
+
+        // The deferred re-install lands on the next main-queue turns and must
+        // wire the loaded AU into the chain (pins installedShape reflecting
+        // only actually-installed inserts).
+        let deadline = Date().addingTimeInterval(2)
+        while Date() < deadline {
+            if graph.sendBusReadoutForTesting(busID: .sendA)?.insertNodes.count == 1 { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+        }
+        let readout = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        XCTAssertEqual(readout.insertNodes.count, 1)
+        XCTAssertTrue(readout.insertNodes.first === effect)
+    }
+
+    @MainActor
+    func test_setTrackSendLevels_zeroSendValueChangeDoesNotReconnectTrackOutput() throws {
+        let graph = MainAudioGraph()
+        let source = AVAudioPlayerNode()
+        graph.attach(source)
+        graph.installSendBuses([.sendA, .sendB])
+        graph.connectTrackOutput(source, to: nil, sends: .zero)
+        let reconnectsAfterSetup = graph.reconnectTrackOutputCountForTesting
+
+        // Fader/pan drags repeatedly push unchanged zero sends — these must
+        // not rewire the running graph (mixer-latency cause 2).
+        graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
+        graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
+        graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
+
+        // Crossing 0 -> active is a real topology change: reconnect once.
+        graph.setTrackSendLevels(source, sendA: 0.4, sendB: 0)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 1)
+
+        // Active-value moves stay parameter-only.
+        graph.setTrackSendLevels(source, sendA: 0.5, sendB: 0)
+        graph.setTrackSendLevels(source, sendA: 0.6, sendB: 0.1)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 1)
+        let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        XCTAssertEqual(readout.sendAGain, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(readout.sendBGain, 0.1, accuracy: 0.0001)
+
+        // Returning to zero tears the send nodes down: one reconnect.
+        graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 2)
+        graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 2)
+    }
+
+    @MainActor
     func test_mixerBusMixAndBypassStayParameterOnlyWhileInsertShapeRebuildsTopology() throws {
         let graph = MainAudioGraph()
         let busID = UUID()
@@ -291,7 +396,6 @@ final class MainAudioGraphTests: XCTestCase {
     @MainActor
     func test_masterMeterTapUsesFinalOutputAndReinstallsAcrossGraphRebuilds() {
         let publisher = MasterMeterPublisher()
-        publisher.stopPublishing()
         let graph = MainAudioGraph(masterMeterPublisher: publisher)
 
         XCTAssertEqual(graph.masterMeterTapPointForTesting, .finalOutputMixer)
@@ -316,7 +420,6 @@ final class MainAudioGraphTests: XCTestCase {
     @MainActor
     func test_masterMeterIgnoresStaleTapGenerationAfterGraphRebuild() {
         let publisher = MasterMeterPublisher()
-        publisher.stopPublishing()
         let graph = MainAudioGraph(masterMeterPublisher: publisher)
         let staleGeneration = graph.masterMeterTapGenerationForTesting
 
@@ -340,7 +443,6 @@ final class MasterMeterPublisherTests: XCTestCase {
     @MainActor
     func test_meterPublishesDisplayStateOnExplicitMainBoundary() {
         let publisher = MasterMeterPublisher()
-        publisher.stopPublishing()
 
         publisher.recordPeakAmplitudes(left: 0.5, right: 1.25)
 
@@ -364,7 +466,6 @@ final class MasterMeterPublisherTests: XCTestCase {
     @MainActor
     func test_meterPublishesHighestChannelPeaksRecordedSincePreviousPublish() {
         let publisher = MasterMeterPublisher()
-        publisher.stopPublishing()
 
         publisher.recordPeakAmplitudes(left: 0.9, right: 0.7)
         publisher.recordPeakAmplitudes(left: 0.2, right: 0.3)
@@ -385,7 +486,6 @@ final class MasterMeterPublisherTests: XCTestCase {
     @MainActor
     func test_meterDisplayReleasesSmoothlyWhenNoAudioArrives() {
         let publisher = MasterMeterPublisher(levelReleaseDBPerSecond: 12)
-        publisher.stopPublishing()
 
         publisher.recordPeakAmplitudes(left: 1, right: 1)
         publisher.publishPendingToMain(now: 1)
@@ -399,7 +499,6 @@ final class MasterMeterPublisherTests: XCTestCase {
     @MainActor
     func test_meterDisplayReturnsToSilentStateWhenNoAudioArrivesPastFloor() {
         let publisher = MasterMeterPublisher(levelReleaseDBPerSecond: 120)
-        publisher.stopPublishing()
 
         publisher.recordPeakAmplitudes(left: 1, right: 1)
         publisher.publishPendingToMain(now: 1)
@@ -412,7 +511,6 @@ final class MasterMeterPublisherTests: XCTestCase {
     @MainActor
     func test_peakHoldMaintainsMarkerThenReleasesTowardLivePeak() {
         let publisher = MasterMeterPublisher(peakHoldDuration: 0.5, peakHoldReleaseDBPerSecond: 10)
-        publisher.stopPublishing()
 
         publisher.recordPeakAmplitudes(left: 1, right: 1)
         publisher.publishPendingToMain(now: 1)

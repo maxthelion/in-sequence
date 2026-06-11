@@ -255,6 +255,11 @@ final class AudioInputCaptureSummaryRing {
     func write(trackID: UUID, packet: AudioInputCaptureBufferPacket) {
         let sequence = writeSequence.increment()
         let slot = slots[index(for: sequence)]
+        // Two-phase seqlock write: publish a sentinel (the negated sequence)
+        // BEFORE touching the payload. Without it, a lapping writer mid
+        // payload-write leaves the slot's previous (valid) sequence visible,
+        // so a reader's post-copy re-check passes on a torn copy (R3).
+        slot.sequence.store(0 &- sequence)
         slot.trackID = trackID
         slot.packet = packet
         slot.sequence.store(sequence)
@@ -284,9 +289,11 @@ final class AudioInputCaptureSummaryRing {
             let trackID = slot.trackID
             let packet = slot.packet
             // Seqlock re-check: a writer may have lapped this slot while we
-            // copied trackID/packet. If so, drop the torn copy and loop —
-            // the slotSequence > nextSequence branch above will jump the
-            // read cursor forward.
+            // copied trackID/packet. The lapping writer publishes a negative
+            // sentinel BEFORE its payload write (see `write`), so a torn
+            // copy can never re-check clean. On mismatch drop the copy and
+            // loop — the sentinel breaks out (retry next drain) and a
+            // completed lap jumps the read cursor forward.
             guard slot.sequence.load() == nextSequence else {
                 continue
             }
@@ -298,6 +305,30 @@ final class AudioInputCaptureSummaryRing {
 
     private func index(for sequence: Int32) -> Int {
         Int((sequence &- 1) % capacity)
+    }
+
+    // MARK: - Test hooks (seqlock contract)
+
+    /// Performs the first phase of a write (sentinel + payload) WITHOUT
+    /// publishing the final sequence — models a writer paused mid-write so
+    /// tests can pin that readers never consume a torn slot. Returns the
+    /// claimed sequence for `completeTornWriteForTesting`.
+    @discardableResult
+    func beginTornWriteForTesting(trackID: UUID, packet: AudioInputCaptureBufferPacket) -> Int32 {
+        let sequence = writeSequence.increment()
+        let slot = slots[index(for: sequence)]
+        slot.sequence.store(0 &- sequence)
+        slot.trackID = trackID
+        slot.packet = packet
+        return sequence
+    }
+
+    func completeTornWriteForTesting(sequence: Int32) {
+        slots[index(for: sequence)].sequence.store(sequence)
+    }
+
+    func slotSequenceForTesting(claimedSequence sequence: Int32) -> Int32 {
+        slots[index(for: sequence)].sequence.load()
     }
 }
 

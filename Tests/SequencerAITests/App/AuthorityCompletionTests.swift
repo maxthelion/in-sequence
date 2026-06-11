@@ -277,20 +277,32 @@ final class MixerDragLiveWritesTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
-    /// `setTrackMix` must also publish a snapshot so playback reflects the drag.
-    func test_setTrackMix_publishesSnapshot() throws {
+    /// `setTrackMix` rides the LIVE path only: the revision advances for UI
+    /// invalidation, but no playback snapshot is compiled or installed per
+    /// drag tick. The per-tick `publishSnapshot(changed: .track)` used to
+    /// recompile phrase buffers and clear the event queue at mouse-move rate
+    /// (mixer-latency cause 1); audio hears mix through `engine.setMix`.
+    func test_setTrackMix_advancesRevisionWithoutPublishingSnapshot() throws {
         let (project, trackID, _) = makeLiveStoreProject()
         let box = DocBox(project: project)
         let engine = EngineController(client: nil, endpoint: nil)
         let session = SequencerDocumentSession(document: box.binding, engineController: engine)
         session.activate()
         let beforeRevision = session.revision
+        let beforeApplyCount = engine.applyPlaybackSnapshotCallCount
+        let beforeSnapshot = session.snapshotPublisher.snapshot
 
         var mix = TrackMixSettings.default
         mix.level = 0.7
         session.setTrackMix(trackID: trackID, mix: mix)
 
         XCTAssertGreaterThan(session.revision, beforeRevision, "Snapshot revision must advance after setTrackMix")
+        XCTAssertEqual(
+            engine.applyPlaybackSnapshotCallCount,
+            beforeApplyCount,
+            "setTrackMix must not install a playback snapshot per drag tick"
+        )
+        XCTAssertEqual(session.snapshotPublisher.snapshot, beforeSnapshot)
 
         SequencerDocumentSessionRegistry.unregister(session)
     }

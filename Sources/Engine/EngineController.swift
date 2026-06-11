@@ -151,7 +151,15 @@ final class EngineController: RouterDispatcher {
     private var pendingStepOrderTogglePayload: PendingStepOrderTogglePayload?
     @ObservationIgnored
     var stepOrderToggleAppliedHandler: ((StepOrderPendingToggleRequest) -> Void)?
+    /// Main-only @Observable mirror for UI. The tick queue must read
+    /// `chordContextByLaneEngine` (under stateLock) instead: a one-sided
+    /// lock on the reader synchronizes nothing against the main-thread
+    /// writer (data race R2).
     private(set) var chordContextByLane: [String: Chord] = [:]
+    /// Engine-side copy, guarded by `stateLock` on both sides; written at
+    /// dispatch time on the tick queue, read by `prepareTick`.
+    @ObservationIgnored
+    private var chordContextByLaneEngine: [String: Chord] = [:]
 
     private(set) var currentPhraseID: UUID?
     private(set) var queuedPhraseID: UUID?
@@ -1611,15 +1619,29 @@ final class EngineController: RouterDispatcher {
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
+        // Audio-input graph work hops to main FIRE-AND-FORGET (inline when
+        // already on main, e.g. synchronous test drivers). A synchronous
+        // main hop from the tick queue here closes the D2 deadlock cycle
+        // against main's clock.stop()/setBPM queue.sync — the same class
+        // SamplePlaybackEngine already fixed. This also moves the
+        // `currentDocumentModel` read onto main, where it is mutated (R1).
         if advanceAudioInputScheduling(at: tickIndex) {
-            syncAudioInputRouting(for: currentDocumentModel)
+            publishToMain { [weak self] in
+                guard let self else { return }
+                self.syncAudioInputRouting(for: self.currentDocumentModel)
+            }
         }
         // Outside the didChange branch: a loop schedule that failed once
         // (player transiently disconnected after a resync) must retry on
         // every tick, not wait for the next unrelated state change —
         // observed as permanently silent buffer playback.
-        if !scheduleActiveAudioInputLoopPlayback() {
-            syncAudioInputRouting(for: currentDocumentModel)
+        if hasPendingAudioInputLoopSchedule {
+            publishToMain { [weak self] in
+                guard let self else { return }
+                if !self.scheduleActiveAudioInputLoopPlayback() {
+                    self.syncAudioInputRouting(for: self.currentDocumentModel)
+                }
+            }
         }
 
         let needsBootstrap = !tickState.isPrepared(for: tickIndex)
@@ -1648,7 +1670,7 @@ final class EngineController: RouterDispatcher {
                 self.trackRuntime.audioTrackRuntimes,
                 self.trackRuntime.audioOutputsByTrackID,
                 self.trackRuntime.generatorIDsByTrackID,
-                self.chordContextByLane,
+                self.chordContextByLaneEngine,
                 self.trackRuntime.effectiveMutedTrackIDs,
                 Set(self.activeNoteRepeatsByTrackID.keys)
             )
@@ -1891,6 +1913,11 @@ final class EngineController: RouterDispatcher {
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .chordContextBroadcast(lane, chord):
+                // Engine copy under stateLock at dispatch time (tick queue);
+                // the @Observable mirror publishes on main (R2).
+                withStateLock {
+                    chordContextByLaneEngine[lane] = chord
+                }
                 publishToMain { [weak self] in
                     self?.chordContextByLane[lane] = chord
                 }
@@ -2588,8 +2615,11 @@ final class EngineController: RouterDispatcher {
             return false
         }
         if changed {
-            // @Observable bump outside stateLock (see updateAudioInputRuntime).
-            audioInputRuntimeRevision &+= 1
+            // @Observable bump outside stateLock and on main
+            // (see updateAudioInputRuntime).
+            publishToMain { [weak self] in
+                self?.audioInputRuntimeRevision &+= 1
+            }
         }
     }
 
@@ -2619,6 +2649,20 @@ final class EngineController: RouterDispatcher {
                 outputBusID: track.outputBusID,
                 mix: mix
             )
+        }
+    }
+
+    /// Cheap tick-side probe: true when some recorded loop still needs a
+    /// playback schedule. The actual scheduling work hops to main (it talks
+    /// to the audio graph), so the tick queue only pays the hop when there
+    /// is something to do.
+    private var hasPendingAudioInputLoopSchedule: Bool {
+        withStateLock {
+            trackRuntime.audioInputRuntimes.values.contains { runtime in
+                runtime.activeMonitorMode == .loop
+                    && runtime.recordedLoopID != nil
+                    && runtime.scheduledLoopPlaybackID != runtime.recordedLoopID
+            }
         }
     }
 
@@ -2669,7 +2713,13 @@ final class EngineController: RouterDispatcher {
     }
 
     private func advanceAudioInputScheduling(at tickIndex: UInt64) -> Bool {
-        let didChange = advanceAudioInputSchedulingLocked(at: tickIndex)
+        // D1: capture plans resolve the graph's capture format through a
+        // synchronous main hop. That hop MUST happen before stateLock is
+        // taken — the tick queue parking in main.sync while holding
+        // stateLock deadlocks against any main-thread withStateLock reader
+        // (the input panel reads at meter rate).
+        let capturePlans = resolveAudioInputCapturePlans(at: tickIndex)
+        let didChange = advanceAudioInputSchedulingLocked(at: tickIndex, capturePlans: capturePlans)
         if didChange {
             // @Observable bump outside stateLock (see updateAudioInputRuntime),
             // and on main because this runs from the tick queue.
@@ -2680,7 +2730,38 @@ final class EngineController: RouterDispatcher {
         return didChange
     }
 
-    private func advanceAudioInputSchedulingLocked(at tickIndex: UInt64) -> Bool {
+    /// Pre-resolves the capture plan for every track whose recording would
+    /// begin at this tick, BEFORE `stateLock` is taken (see D1 note above).
+    /// The runtime is re-validated under the lock; a plan resolved for a
+    /// track whose state moved on in the meantime is simply unused.
+    private func resolveAudioInputCapturePlans(at tickIndex: UInt64) -> [UUID: AudioInputCapturePlan] {
+        guard isAudioInputBarBoundary(tickIndex) else { return [:] }
+        let beginCandidates: [(trackID: UUID, bars: Int)] = withStateLock {
+            trackRuntime.audioInputRuntimes.values.compactMap { runtime in
+                guard runtime.armState == .armed,
+                      let startTick = runtime.pendingStartTick,
+                      tickIndex >= startTick
+                else {
+                    return nil
+                }
+                let bars = StepSequenceTrack.normalizedRecordBarLength(
+                    runtime.armedRecordBarLength ?? runtime.recordBarLength
+                )
+                return (runtime.trackID, bars)
+            }
+        }
+
+        var plans: [UUID: AudioInputCapturePlan] = [:]
+        for candidate in beginCandidates {
+            plans[candidate.trackID] = audioInputCapturePlan(trackID: candidate.trackID, bars: candidate.bars)
+        }
+        return plans
+    }
+
+    private func advanceAudioInputSchedulingLocked(
+        at tickIndex: UInt64,
+        capturePlans: [UUID: AudioInputCapturePlan]
+    ) -> Bool {
         withStateLock {
             var didChange = false
             for trackID in trackRuntime.audioInputRuntimes.keys {
@@ -2702,7 +2783,7 @@ final class EngineController: RouterDispatcher {
                    tickIndex >= startTick,
                    isAudioInputBarBoundary(tickIndex)
                 {
-                    beginAudioInputCapture(&runtime, at: tickIndex)
+                    beginAudioInputCapture(&runtime, at: tickIndex, capturePlan: capturePlans[trackID])
                 }
 
                 if runtime.armState == .recording,
@@ -2741,10 +2822,17 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func beginAudioInputCapture(_ runtime: inout AudioInputTrackRuntime, at tickIndex: UInt64) {
+    /// `capturePlan` is resolved by the caller OUTSIDE `stateLock`
+    /// (`resolveAudioInputCapturePlans`): the plan requires the graph's
+    /// capture format, a synchronous main hop that must never run while the
+    /// tick queue holds the lock (D1).
+    private func beginAudioInputCapture(
+        _ runtime: inout AudioInputTrackRuntime,
+        at tickIndex: UInt64,
+        capturePlan: AudioInputCapturePlan?
+    ) {
         let bars = StepSequenceTrack.normalizedRecordBarLength(runtime.armedRecordBarLength ?? runtime.recordBarLength)
         let endTick = tickIndex &+ UInt64(bars * stepsPerBar)
-        let capturePlan = audioInputCapturePlan(trackID: runtime.trackID, bars: bars)
         runtime.armState = .recording
         runtime.pendingStartTick = nil
         runtime.pendingStopTick = endTick
@@ -2772,6 +2860,10 @@ final class EngineController: RouterDispatcher {
             return override(trackID, bars)
         }
 
+        // CONTRACT (D1): the capture-format read below is a synchronous main
+        // hop; performing it while holding stateLock deadlocks the app the
+        // moment recording begins at a bar boundary.
+        debugAssertNotHoldingStateLock("audioInputCaptureFormat read")
         guard let format = mainAudioGraph.audioInputCaptureFormat(trackID: trackID) else {
             return nil
         }
@@ -2895,7 +2987,16 @@ final class EngineController: RouterDispatcher {
             // bodies, and those bodies read engine state through the same
             // lock — observed as a main-thread deadlock the moment live
             // input levels started publishing at 60Hz.
-            audioInputRuntimeRevision &+= 1
+            //
+            // AND it must happen ON MAIN (D4): this is called from the tick
+            // queue (loop-playback bookkeeping), and an off-main write to
+            // @Observable storage runs observer callbacks on the tick thread
+            // — the runtime-confirmed deadlock class when main is parked in
+            // clock.stop()'s queue.sync. publishToMain runs inline when
+            // already on main, preserving synchronous test drivers.
+            publishToMain { [weak self] in
+                self?.audioInputRuntimeRevision &+= 1
+            }
         }
         return updated
     }
@@ -3174,7 +3275,57 @@ final class EngineController: RouterDispatcher {
     private func withStateLock<T>(_ body: () -> T) -> T {
         stateLock.lock()
         defer { stateLock.unlock() }
+        #if DEBUG
+        Self.stateLockDepthForCurrentThread += 1
+        defer { Self.stateLockDepthForCurrentThread -= 1 }
+        #endif
         return body()
+    }
+
+    // MARK: - Debug lock-order assertions
+    //
+    // CONTRACT: no synchronous main-thread hop (performOnMain* in the audio
+    // graph) may be reachable while stateLock is held — the mirror image of
+    // the documented graphLock rule. Violations are the D1 deadlock class.
+
+    #if DEBUG
+    /// Per-thread stateLock hold depth (DEBUG only). NSLock has no owner
+    /// readout, so withStateLock maintains this for the assertion below.
+    private static let stateLockDepthKey = "ai.sequencer.SequencerAI.EngineController.stateLockDepth"
+
+    private static var stateLockDepthForCurrentThread: Int {
+        get { (Thread.current.threadDictionary[stateLockDepthKey] as? Int) ?? 0 }
+        set { Thread.current.threadDictionary[stateLockDepthKey] = newValue }
+    }
+
+    /// Test hook: receives the context string instead of trapping, so tests
+    /// can pin the "no main hop under stateLock" contract.
+    var stateLockHoldViolationHandlerForTesting: ((String) -> Void)?
+
+    var isHoldingStateLockForTesting: Bool {
+        Self.stateLockDepthForCurrentThread > 0
+    }
+
+    /// Test-only positive control: proves the held-lock detector fires, so
+    /// the "no violation" contract tests cannot pass vacuously.
+    func simulateMainHopUnderStateLockForTesting() {
+        withStateLock {
+            debugAssertNotHoldingStateLock("simulated main hop")
+        }
+    }
+    #endif
+
+    /// Asserts (DEBUG) that the calling thread does not hold `stateLock`.
+    /// Call before any code path that synchronously hops to main.
+    private func debugAssertNotHoldingStateLock(_ context: String) {
+        #if DEBUG
+        guard Self.stateLockDepthForCurrentThread > 0 else { return }
+        if let handler = stateLockHoldViolationHandlerForTesting {
+            handler(context)
+        } else {
+            assertionFailure("\(context) must not run while holding stateLock (deadlock class D1)")
+        }
+        #endif
     }
 
     private func clearAllNoteRepeats(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {

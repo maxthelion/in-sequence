@@ -76,6 +76,27 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
+    /// Fire-and-forget main hop for per-note MIDI dispatch (deadlock D3):
+    /// the host queue must never sync-wait on main per note-on/off — note
+    /// timing comes from the schedule (the note-off rides queue.asyncAfter),
+    /// not from the hop. Mirrors SamplePlaybackEngine's confirmed fix.
+    /// Runs inline when already on main so synchronous callers keep their
+    /// ordering.
+    private func performOnMainAsync(_ work: @escaping @MainActor () -> Void) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                work()
+            }
+            return
+        }
+
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                work()
+            }
+        }
+    }
+
     private func performOnMainThrowing<T>(_ work: @escaping @MainActor () throws -> T) throws -> T {
         if Thread.isMainThread {
             return try MainActor.assumeIsolated {
@@ -305,36 +326,36 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     }
 
     func captureStateBlob() throws -> Data? {
-        try queue.sync {
-            guard !isShutdown else {
-                return nil
-            }
-            guard let instrument else {
-                return nil
-            }
-            return try factory.captureState(instrument)
+        // Reads the live AU through the snapshot, WITHOUT joining the host
+        // queue (deadlock D3): main sync-joining this queue while queued
+        // items hop to main is an AB-BA cycle. The snapshot is updated under
+        // snapshotLock whenever the instrument connects/disconnects.
+        guard let instrument = withSnapshot({ snapshotAudioUnit }) else {
+            return nil
         }
+        return try factory.captureState(instrument)
     }
 
     /// Returns the live AU's preset lists plus the currently-loaded preset id, or
     /// `nil` if no AU is currently loaded. Empty arrays are valid — they mean the AU
     /// exposes no presets of that kind.
     func presetReadout() -> PresetReadout? {
-        queue.sync {
-            guard !isShutdown, let instrument else {
-                return nil
-            }
-            let au = instrument.auAudioUnit
-            let descriptors = AUPresetDescriptor.descriptors(
-                factoryPresets: au.factoryPresets,
-                userPresets: au.userPresets
-            )
-            return PresetReadout(
-                factory: descriptors.factory,
-                user: descriptors.user,
-                currentID: AUPresetDescriptor.id(forCurrent: au.currentPreset)
-            )
+        // Snapshot-based, no host-queue join (deadlock D3 — opening the
+        // preset browser while notes play parked main behind a per-note
+        // main hop).
+        guard let instrument = withSnapshot({ snapshotAudioUnit }) else {
+            return nil
         }
+        let au = instrument.auAudioUnit
+        let descriptors = AUPresetDescriptor.descriptors(
+            factoryPresets: au.factoryPresets,
+            userPresets: au.userPresets
+        )
+        return PresetReadout(
+            factory: descriptors.factory,
+            user: descriptors.user,
+            currentID: AUPresetDescriptor.id(forCurrent: au.currentPreset)
+        )
     }
 
     /// Sets the AU's current preset to the one matching `descriptor`, captures the
@@ -347,30 +368,30 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     /// live preset (e.g. the AU was updated since the sheet opened).
     func loadPreset(_ descriptor: AUPresetDescriptor) throws -> Data? {
         silenceSnapshotInstrumentNotes()
-        return try queue.sync {
-            guard !isShutdown, let instrument else {
-                throw PresetLoadingError.presetNotFound
-            }
-
-            let au = instrument.auAudioUnit
-            guard let preset = AUPresetDescriptor.resolve(
-                descriptor,
-                factoryPresets: au.factoryPresets,
-                userPresets: au.userPresets
-            ) else {
-                throw PresetLoadingError.presetNotFound
-            }
-
-            // NOTE: some AUs apply presets asynchronously via parameter-tree notifications.
-            // Capturing state immediately after assignment may snapshot the prior state or
-            // a partially-applied snapshot on such AUs. A correct fix would wait for the
-            // parameter-tree change notification before calling captureState; that requires
-            // async coordination with the AU notification thread.
-            // TODO(u5): introduce a wait-for-parameter-tree-change here once the audio
-            // ownership pass (U5) establishes a safe notification subscription pattern.
-            au.currentPreset = preset
-            return try factory.captureState(instrument)
+        // Snapshot-based, no host-queue join (deadlock D3) — see
+        // presetReadout.
+        guard let instrument = withSnapshot({ snapshotAudioUnit }) else {
+            throw PresetLoadingError.presetNotFound
         }
+
+        let au = instrument.auAudioUnit
+        guard let preset = AUPresetDescriptor.resolve(
+            descriptor,
+            factoryPresets: au.factoryPresets,
+            userPresets: au.userPresets
+        ) else {
+            throw PresetLoadingError.presetNotFound
+        }
+
+        // NOTE: some AUs apply presets asynchronously via parameter-tree notifications.
+        // Capturing state immediately after assignment may snapshot the prior state or
+        // a partially-applied snapshot on such AUs. A correct fix would wait for the
+        // parameter-tree change notification before calling captureState; that requires
+        // async coordination with the AU notification thread.
+        // TODO(u5): introduce a wait-for-parameter-tree-change here once the audio
+        // ownership pass (U5) establishes a safe notification subscription pattern.
+        au.currentPreset = preset
+        return try factory.captureState(instrument)
     }
 
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {
@@ -395,7 +416,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
             let tickDuration = 60.0 / max(bpm, 1) / Double(max(stepsPerBar, 1)) * 4.0
             for event in noteEvents where event.gate {
-                self.performOnMain {
+                // Async hop (D3): a per-note main.sync from this queue
+                // deadlocks against main's queue.sync readouts (preset
+                // browser while notes play).
+                self.performOnMainAsync {
                     instrument.startNote(event.pitch, withVelocity: event.velocity, onChannel: 0)
                 }
                 let noteLength = tickDuration * Double(event.length)
@@ -403,7 +427,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     guard let instrument else {
                         return
                     }
-                    self.performOnMain {
+                    self.performOnMainAsync {
                         instrument.stopNote(event.pitch, onChannel: 0)
                     }
                 }
@@ -416,7 +440,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        Self.stopAllNotes(on: instrument, performOnMain: performOnMain)
+        // Async hop (D3): runs on the host queue (stop/shutdown/disconnect)
+        // — same cycle as the per-note hop.
+        Self.stopAllNotes(on: instrument, performOnMain: performOnMainAsync)
     }
 
     private func silenceSnapshotInstrumentNotes() {
@@ -424,7 +450,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        Self.stopAllNotes(on: instrument, performOnMain: performOnMain)
+        Self.stopAllNotes(on: instrument, performOnMain: performOnMainAsync)
     }
 
     private static func stopAllNotes(

@@ -174,7 +174,11 @@ final class MixerBusHost {
         terminalSourceNode = nextNodes.last ?? mixer
         terminalOutputNode = audioGraph.preMasterMixer
         nodesByInsertID = nextNodesByInsertID
-        installedShape = Self.graphShape(for: bus)
+        // Record the shape of what was ACTUALLY installed: an AU effect that
+        // is still instantiating produced no node, so it must not be part of
+        // the installed shape — otherwise the post-load reinstall compares
+        // equal, takes the configure-in-place path, and the AU never wires in.
+        installedShape = Self.graphShape(for: bus, includingOnly: Set(nextNodesByInsertID.keys))
         topologyRebuildCount += 1
         applyMix(bus.mix, effectiveMute: effectiveMute)
     }
@@ -268,17 +272,28 @@ final class MixerBusHost {
                 stateBlob: stateBlob,
                 unit: unit
             )
-            guard let audioGraph = self.audioGraph, let latestBus = self.latestBus else { return }
-            performOnMain {
-                self.rebuild(bus: latestBus, in: audioGraph, effectiveMute: self.effectiveMute)
+            // ALWAYS re-enter the graph asynchronously. AU instantiation can
+            // complete inline on the main thread, i.e. while the caller that
+            // triggered this load (installMixerBuses) still holds the graph
+            // lock — re-entering the install machinery inline from here is
+            // the send-bus self-deadlock class (sampled live 2026-06-11).
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                MainActor.assumeIsolated {
+                    guard let audioGraph = self.audioGraph, let latestBus = self.latestBus else { return }
+                    self.rebuild(bus: latestBus, in: audioGraph, effectiveMute: self.effectiveMute)
+                }
             }
         }
     }
 
-    private static func graphShape(for bus: MixerBus) -> GraphShape {
+    private static func graphShape(for bus: MixerBus, includingOnly insertIDs: Set<UUID>? = nil) -> GraphShape {
         GraphShape(
-            inserts: bus.inserts.map { insert in
-                InsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
+            inserts: bus.inserts.compactMap { insert in
+                if let insertIDs, !insertIDs.contains(insert.id) {
+                    return nil
+                }
+                return InsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
             }
         )
     }
@@ -294,20 +309,6 @@ final class MixerBusHost {
         }
     }
 
-    private func performOnMain(_ work: @escaping @MainActor () -> Void) {
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                work()
-            }
-            return
-        }
-
-        DispatchQueue.main.sync {
-            MainActor.assumeIsolated {
-                work()
-            }
-        }
-    }
 }
 
 final class SendBusHost {
@@ -369,13 +370,22 @@ final class SendBusHost {
         let normalized = sendBus.normalized(expectedID: id)
         appliedStateForTesting = normalized
         self.audioGraph = audioGraph
-        let nextShape = Self.graphShape(for: normalized)
-        if inputMixer == nil || installedShape != nextShape {
+        if needsTopologyChange(for: normalized) {
             rebuild(sendBus: normalized, in: audioGraph)
         } else {
             configureInstalledNodes(for: normalized)
             parameterApplyCount += 1
         }
+    }
+
+    /// True when installing `sendBus` would change the node topology (as
+    /// opposed to a value/parameter-only update on the already-installed
+    /// shape). `installSendBuses` uses this to keep the engine running for
+    /// value-only changes.
+    @MainActor
+    func needsTopologyChange(for sendBus: SendBusState) -> Bool {
+        let normalized = sendBus.normalized(expectedID: id)
+        return inputMixer == nil || installedShape != Self.graphShape(for: normalized)
     }
 
     @MainActor
@@ -438,7 +448,11 @@ final class SendBusHost {
         terminalSourceNode = nextNodes.last ?? mixer
         terminalOutputNode = returnDestination
         nodesByInsertID = nextNodesByInsertID
-        installedShape = Self.graphShape(for: sendBus)
+        // Record the shape of what was ACTUALLY installed: an AU effect that
+        // is still instantiating produced no node, so it must not be part of
+        // the installed shape — otherwise the post-load reinstall compares
+        // equal, takes the configure-in-place path, and the AU never wires in.
+        installedShape = Self.graphShape(for: sendBus, includingOnly: Set(nextNodesByInsertID.keys))
         topologyRebuildCount += 1
         parameterApplyCount += 1
     }
@@ -532,15 +546,28 @@ final class SendBusHost {
                 stateBlob: stateBlob,
                 unit: unit
             )
-            guard let audioGraph = self.audioGraph else { return }
-            audioGraph.installSendBus(self.appliedStateForTesting)
+            // ALWAYS re-enter installSendBus asynchronously. AU instantiation
+            // can complete inline on the main thread — i.e. while the
+            // installSendBuses frame that triggered this load still holds
+            // MainAudioGraph's non-recursive graph lock. Re-entering
+            // installSendBus inline from here self-deadlocks the main thread
+            // on that lock (sampled live 2026-06-11: "+ Add FX" on a send
+            // bus wedged the app; tick + instrument-host queues piled up
+            // behind main).
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let audioGraph = self.audioGraph else { return }
+                audioGraph.installSendBus(self.appliedStateForTesting)
+            }
         }
     }
 
-    private static func graphShape(for sendBus: SendBusState) -> GraphShape {
+    private static func graphShape(for sendBus: SendBusState, includingOnly insertIDs: Set<UUID>? = nil) -> GraphShape {
         GraphShape(
-            inserts: sendBus.inserts.map { insert in
-                InsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
+            inserts: sendBus.inserts.compactMap { insert in
+                if let insertIDs, !insertIDs.contains(insert.id) {
+                    return nil
+                }
+                return InsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
             }
         )
     }

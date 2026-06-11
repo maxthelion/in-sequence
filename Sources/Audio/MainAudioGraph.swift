@@ -79,6 +79,12 @@ final class MainAudioGraph {
     private(set) var masterMeterTapRemoveCountForTesting = 0
     private(set) var audioInputFullRoutingSyncCountForTesting = 0
     private(set) var audioInputScopedRoutingUpdateCountForTesting = 0
+    /// Counts installSendBuses passes that actually changed topology (engine
+    /// stop/reinstall/start). Value-only send-FX changes must not bump this.
+    private(set) var sendBusTopologyInstallCountForTesting = 0
+    /// Counts live track-output rewires. Zero-send mix value changes must
+    /// not bump this (mixer-latency cause 2).
+    private(set) var reconnectTrackOutputCountForTesting = 0
     var audioInputCaptureHandlerInstalledForTesting: Bool {
         graphLock.lock()
         defer { graphLock.unlock() }
@@ -161,6 +167,10 @@ final class MainAudioGraph {
         self.audioDeviceOwner = audioDeviceOwner
         self.preMasterMixer = AVAudioMixerNode()
 
+        // One meter pump for the whole app: the master publisher rides the
+        // channel bank's single main-queue timer (F6).
+        channelMeterBank.registerAuxiliaryPublisher(masterMeterPublisher)
+
         performOnMain {
             self.engine.attach(self.preMasterMixer)
             self.engine.attach(self.postBlendMixer)
@@ -174,7 +184,6 @@ final class MainAudioGraph {
     }
 
     deinit {
-        masterMeterPublisher.stopPublishing()
         channelMeterBank.stopPublishing()
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
@@ -484,17 +493,37 @@ final class MainAudioGraph {
             // lock-order deadlock waiting to happen.
             self.graphLock.lock()
             defer { self.graphLock.unlock() }
+
+            let busesByID = Dictionary(uniqueKeysWithValues: sendBuses.map { ($0.id, $0) })
+            var installs: [(host: SendBusHost, state: SendBusState)] = []
+            for id in SendBusID.allCases {
+                let state = (busesByID[id] ?? SendBusState(id: id)).normalized(expectedID: id)
+                let host = self.sendBusHosts[id] ?? SendBusHost(id: id)
+                self.sendBusHosts[id] = host
+                installs.append((host, state))
+            }
+
+            // Value-only fast path: when no host's node topology changes
+            // (e.g. a send-FX wet/cutoff slider drag), configure the
+            // installed nodes in place and leave the engine RUNNING. The
+            // stop/reinstall/reconnect/start cycle below at drag rate was
+            // mixer-latency cause 3 (audible dropouts per mouse-move).
+            let needsTopologyChange = installs.contains { $0.host.needsTopologyChange(for: $0.state) }
+            guard needsTopologyChange else {
+                for (host, state) in installs {
+                    host.install(sendBus: state, in: self)
+                }
+                return
+            }
+
+            self.sendBusTopologyInstallCountForTesting += 1
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
                 self.engine.stop()
             }
 
-            let busesByID = Dictionary(uniqueKeysWithValues: sendBuses.map { ($0.id, $0) })
-            for id in SendBusID.allCases {
-                let state = (busesByID[id] ?? SendBusState(id: id)).normalized(expectedID: id)
-                let host = self.sendBusHosts[id] ?? SendBusHost(id: id)
-                self.sendBusHosts[id] = host
+            for (host, state) in installs {
                 host.install(sendBus: state, in: self)
             }
 
@@ -576,11 +605,17 @@ final class MainAudioGraph {
 
             let hasSendNodes = self.trackSendNodes[key] != nil
             let hasActiveSends = sendLevels.clampedSendA > 0 || sendLevels.clampedSendB > 0
-            if !hasSendNodes || !hasActiveSends {
+            // Reconnect ONLY on an actual topology change (send nodes need
+            // creating or tearing down). The previous unconditional
+            // reconnect for every zero-send track turned each fader/pan
+            // drag tick into a live engine disconnect/reconnect per track —
+            // mixer-latency cause 2.
+            guard hasSendNodes == hasActiveSends else {
                 self.reconnectTrackOutputOnMain(routing)
                 return
             }
 
+            guard hasSendNodes else { return }
             self.trackSendNodes[key]?.sendA.outputVolume = sendLevels.clampedSendA
             self.trackSendNodes[key]?.sendB.outputVolume = sendLevels.clampedSendB
         }
@@ -590,7 +625,6 @@ final class MainAudioGraph {
         try performOnMainThrowing {
             guard !self.isStarted || !self.engine.isRunning else { return }
             self.installMasterMeterTapIfNeeded()
-            self.masterMeterPublisher.startPublishing()
             self.channelMeterBank.startPublishing()
             try self.engine.start()
             self.isStarted = true
@@ -600,7 +634,6 @@ final class MainAudioGraph {
     func stop() {
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
-            self.masterMeterPublisher.stopPublishing()
             self.channelMeterBank.stopPublishing()
             guard self.isStarted || self.engine.isRunning else { return }
             self.engine.stop()
@@ -813,6 +846,16 @@ final class MainAudioGraph {
             defer { self.graphLock.unlock() }
             return self.sendBusHosts.values.compactMap { $0.readout() }
                 .sorted { $0.busID.rawValue < $1.busID.rawValue }
+        }
+    }
+
+    /// Test seam: registers a pre-built host (e.g. with an injected AU
+    /// factory) so installSendBus(es) exercise it.
+    func installSendBusHostForTesting(_ host: SendBusHost) {
+        performOnMain {
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            self.sendBusHosts[host.id] = host
         }
     }
 
@@ -1135,7 +1178,6 @@ final class MainAudioGraph {
         self.engine.prepare()
         self.installMasterMeterTapIfNeeded()
         if wasRunning {
-            self.masterMeterPublisher.startPublishing()
             self.channelMeterBank.startPublishing()
             try self.engine.start()
         }
@@ -1192,6 +1234,7 @@ final class MainAudioGraph {
 
     @MainActor
     private func reconnectTrackOutputOnMain(_ routing: TrackOutputRouting) {
+        reconnectTrackOutputCountForTesting += 1
         let source = routing.source
         let dryDestination = routing.busID.flatMap { mixerBusHosts[$0]?.destinationNode() } ?? preMasterMixer
         engine.disconnectNodeOutput(source)
@@ -1659,49 +1702,26 @@ final class MasterMeterPublisher {
     private(set) var displayState: MasterMeterDisplayState = .silent
 
     @ObservationIgnored private let transport = MasterMeterTransport()
-    @ObservationIgnored private let publishInterval: TimeInterval
     @ObservationIgnored private let peakHoldDuration: TimeInterval
     @ObservationIgnored private let peakHoldReleaseDBPerSecond: Double
     @ObservationIgnored private let levelReleaseDBPerSecond: Double
-    @ObservationIgnored private var publishTimer: DispatchSourceTimer?
     @ObservationIgnored private var lastPublishTime: TimeInterval?
     @ObservationIgnored private var leftPeakHoldTime: TimeInterval = 0
     @ObservationIgnored private var rightPeakHoldTime: TimeInterval = 0
 
+    // NOTE: this publisher owns NO timer. All publishers — channel strips
+    // and the master — are pumped by ChannelMeterBank's single main-queue
+    // timer (the master registers itself via
+    // `ChannelMeterBank.registerAuxiliaryPublisher`). One pump, one cadence,
+    // publish-outside-locks (abstraction audit F6).
     init(
-        publishInterval: TimeInterval = 1.0 / 60.0,
         peakHoldDuration: TimeInterval = 0.75,
         peakHoldReleaseDBPerSecond: Double = 18,
         levelReleaseDBPerSecond: Double = 42
     ) {
-        self.publishInterval = publishInterval
         self.peakHoldDuration = peakHoldDuration
         self.peakHoldReleaseDBPerSecond = peakHoldReleaseDBPerSecond
         self.levelReleaseDBPerSecond = levelReleaseDBPerSecond
-    }
-
-    func startPublishing() {
-        if Thread.isMainThread {
-            startPublishingOnMain()
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.startPublishingOnMain()
-            }
-        }
-    }
-
-    func stopPublishing() {
-        if Thread.isMainThread {
-            stopPublishingOnMain()
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.stopPublishingOnMain()
-            }
-        }
-    }
-
-    deinit {
-        publishTimer?.cancel()
     }
 
     func process(buffer: AVAudioPCMBuffer) {
@@ -1798,22 +1818,6 @@ final class MasterMeterPublisher {
             return MasterMeterDisplayState.silenceDBFS
         }
         return 20 * log10(amplitude)
-    }
-
-    private func startPublishingOnMain() {
-        guard publishTimer == nil else { return }
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now() + publishInterval, repeating: publishInterval)
-        timer.setEventHandler { [weak self] in
-            self?.publishPendingToMain()
-        }
-        publishTimer = timer
-        timer.resume()
-    }
-
-    private func stopPublishingOnMain() {
-        publishTimer?.cancel()
-        publishTimer = nil
     }
 
     private static func peakAmplitude(channel: UnsafePointer<Float>, frameCount: Int) -> Double {
