@@ -44,12 +44,12 @@ struct SliceLayerTabRow: View {
                 } label: {
                     Text(layer.title)
                         .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(selectedLayer == layer ? StudioTheme.background : StudioTheme.text)
                         .padding(.horizontal, 13)
                         .padding(.vertical, 8)
                         .background(
                             selectedLayer == layer
-                                ? accent.opacity(StudioOpacity.selectedFill)
+                                ? accent
                                 : Color.white.opacity(StudioOpacity.subtleFill),
                             in: Capsule()
                         )
@@ -57,7 +57,7 @@ struct SliceLayerTabRow: View {
                             Capsule()
                                 .stroke(
                                     selectedLayer == layer
-                                        ? accent.opacity(0.8)
+                                        ? Color.clear
                                         : StudioTheme.border.opacity(0.8),
                                     lineWidth: StudioMetrics.borderWidth
                                 )
@@ -547,8 +547,11 @@ struct SliceTrackWaveformEditor: View {
         if intersectsVisibleRange(marker) {
             let start = xPosition(for: marker.startFrame, width: width)
             let end = xPosition(for: marker.endFrame, width: width)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // selected region is a neutral wash; identity stays in the solid
+            // amber/violet boundary lines.
             Rectangle()
-                .fill(StudioTheme.violet.opacity(StudioOpacity.faintStroke))
+                .fill(Color.white.opacity(StudioOpacity.borderSubtle))
                 .frame(width: max(2, end - start))
                 .offset(x: start)
         }
@@ -559,10 +562,10 @@ struct SliceTrackWaveformEditor: View {
         return VStack(spacing: 4) {
             Text(label)
                 .font(.system(size: 10, weight: .black, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(StudioTheme.background)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(StudioTheme.success.opacity(0.8), in: Capsule())
+                .background(StudioTheme.success, in: Capsule())
             Rectangle()
                 .fill(StudioTheme.success)
                 .frame(width: 3)

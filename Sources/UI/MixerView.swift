@@ -614,9 +614,9 @@ struct MixerInsertChainView: View {
             HStack(spacing: 7) {
                 Image(systemName: iconName(for: insert.kind))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .frame(width: 22, height: 22)
-                    .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(insert.name)
@@ -782,12 +782,15 @@ struct VerticalLevelFader: View {
                 }
 
                 if isInteractive {
+                    // Colour identifies, it never floods (ux-canon rule 12):
+                    // the fader column is a neutral wash (meters stay legible
+                    // through it); the level reads from the solid cyan cap.
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                        .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan.opacity(meterState == nil ? 1 : 0.34))
+                        .fill(Color.white.opacity(isMuted ? StudioOpacity.selectedFill : StudioOpacity.mutedFill))
                         .frame(height: filledHeight)
 
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .fill(Color.white.opacity(0.85))
+                        .fill(isMuted ? Color.white.opacity(0.85) : StudioTheme.cyan)
                         .frame(width: 18, height: 4)
                         .offset(y: -filledHeight + 10)
                 }

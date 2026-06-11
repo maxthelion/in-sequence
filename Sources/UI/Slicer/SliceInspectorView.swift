@@ -200,17 +200,17 @@ struct SliceSamplePlayerParametersView: View {
             VStack(spacing: 5) {
                 Text(title)
                     .studioText(.eyebrow)
-                    .foregroundStyle(StudioTheme.mutedText)
+                    .foregroundStyle(isOn.wrappedValue ? StudioTheme.background : StudioTheme.mutedText)
                 Text(isOn.wrappedValue ? "On" : "Off")
                     .studioText(.labelBold)
-                    .foregroundStyle(isOn.wrappedValue ? StudioTheme.text : StudioTheme.mutedText)
+                    .foregroundStyle(isOn.wrappedValue ? StudioTheme.background : StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(isOn.wrappedValue ? StudioTheme.violet.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .background(isOn.wrappedValue ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isOn.wrappedValue ? StudioTheme.violet.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isOn.wrappedValue ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

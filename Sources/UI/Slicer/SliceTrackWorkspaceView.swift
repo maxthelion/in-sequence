@@ -356,10 +356,10 @@ struct SliceTrackWorkspaceView: View {
                             } label: {
                                 Text("\(page + 1)")
                                     .studioText(.labelBold)
-                                    .foregroundStyle(StudioTheme.text)
+                                    .foregroundStyle(page == selectedPage ? StudioTheme.background : StudioTheme.text)
                                     .frame(minWidth: 34)
                                     .padding(.vertical, 6)
-                                    .background(page == selectedPage ? StudioTheme.violet.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                                    .background(page == selectedPage ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                             }
                             .buttonStyle(.plain)
                         }
@@ -735,11 +735,11 @@ private extension SliceTrackWorkspaceView {
         } label: {
             Text("\(length)")
                 .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(clipContent.stepCount == length ? StudioTheme.background : StudioTheme.text)
                 .frame(minWidth: 34)
                 .padding(.vertical, 7)
-                .background(clipContent.stepCount == length ? StudioTheme.violet.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                .overlay(Capsule().stroke(clipContent.stepCount == length ? StudioTheme.violet.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
+                .background(clipContent.stepCount == length ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                .overlay(Capsule().stroke(clipContent.stepCount == length ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
         }
         .buttonStyle(.plain)
     }
@@ -748,11 +748,11 @@ private extension SliceTrackWorkspaceView {
         Button(action: action) {
             Text(title)
                 .studioText(.labelBold)
-                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : (isEnabled ? StudioTheme.text : StudioTheme.mutedText))
                 .padding(.horizontal, 13)
                 .padding(.vertical, 8)
-                .background(isSelected ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                .overlay(Capsule().stroke(isSelected ? accent.opacity(0.8) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
+                .background(isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                .overlay(Capsule().stroke(isSelected ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
                 .opacity(isEnabled ? 1 : 0.45)
         }
         .buttonStyle(.plain)

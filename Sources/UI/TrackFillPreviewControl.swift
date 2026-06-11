@@ -16,6 +16,7 @@ struct TrackFillPreviewControl: View {
                     .studioText(.labelBold)
                 Text(presentation.isActive ? "ON" : "OFF")
                     .studioText(.microEmphasis)
+                    .foregroundStyle(presentation.isActive && presentation.isEnabled ? StudioTheme.background : foreground)
                     .padding(.vertical, 2)
                     .padding(.horizontal, 6)
                     .background(
@@ -50,11 +51,11 @@ struct TrackFillPreviewControl: View {
         return presentation.isActive ? StudioTheme.text : StudioTheme.mutedText
     }
 
+    /// Colour identifies, it never floods (ux-canon rule 12): the control
+    /// body stays neutral; the active state reads from the accent outline and
+    /// the solid ON badge.
     private var backgroundFill: Color {
-        if !presentation.isEnabled {
-            return Color.white.opacity(StudioOpacity.subtleFill)
-        }
-        return presentation.isActive ? accent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)
+        Color.white.opacity(StudioOpacity.subtleFill)
     }
 
     private var border: Color {

@@ -380,12 +380,8 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
                     .buttonStyle(.plain)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .foregroundStyle(accent)
-                    .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-                    )
+                    .foregroundStyle(StudioTheme.background)
+                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .help("Open the kit matrix from \(model.currentPartName)")
                 }
                 .frame(maxWidth: 240, alignment: .trailing)
@@ -807,11 +803,20 @@ private struct AudioInputSignalPanel: View {
                 }
 
                 if runtime?.armState == .recording {
+                    // Colour identifies, it never floods (ux-canon rule 12):
+                    // record progress is a neutral wash capped by a solid
+                    // accent head line, not an accent flood.
                     GeometryReader { geo in
+                        let progressWidth = geo.size.width * CGFloat(min(max(progress, 0), 1))
                         Rectangle()
-                            .fill(accent.opacity(0.28))
-                            .frame(width: geo.size.width * CGFloat(min(max(progress, 0), 1)))
+                            .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                            .frame(width: progressWidth)
                             .frame(maxHeight: .infinity, alignment: .bottomLeading)
+                            .overlay(alignment: .trailing) {
+                                Rectangle()
+                                    .fill(accent)
+                                    .frame(width: 2)
+                            }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
                 }
@@ -915,13 +920,11 @@ private struct StudioSegmentedControl<Value: Equatable>: View {
                 .minimumScaleFactor(0.82)
                 .frame(maxWidth: .infinity, minHeight: 28)
                 .padding(.horizontal, 8)
+                // Colour identifies, it never floods (ux-canon rule 12): the
+                // selected segment is a fully solid accent thumb.
                 .background(
-                    isSelected ? accent.opacity(StudioOpacity.selectedFill) : Color.clear,
+                    isSelected ? accent : Color.clear,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(isSelected ? accent.opacity(0.72) : Color.clear, lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -935,6 +938,6 @@ private struct StudioSegmentedControl<Value: Equatable>: View {
         guard isEnabled else {
             return StudioTheme.mutedText.opacity(0.4)
         }
-        return isSelected ? StudioTheme.text : StudioTheme.text.opacity(0.78)
+        return isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78)
     }
 }

@@ -105,9 +105,9 @@ struct SlicerSourceWidget: View {
         HStack(spacing: 12) {
             Image(systemName: "waveform.path.ecg.rectangle")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(StudioTheme.cyan)
+                .foregroundStyle(StudioTheme.background)
                 .frame(width: 28, height: 28)
-                .background(StudioTheme.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .background(StudioTheme.cyan, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(currentSample?.name ?? "Choose a loop")
@@ -280,7 +280,9 @@ struct SlicerSourceWidget: View {
                             .minimumScaleFactor(0.7)
                     }
                     .frame(maxWidth: .infinity, minHeight: 48)
-                    .background(index == 0 ? StudioTheme.violet.opacity(0.18) : StudioTheme.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    // Colour identifies, it never floods (ux-canon rule 12):
+                    // pads stay neutral; kind reads from the outline colour.
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                             .stroke(index == 0 ? StudioTheme.violet.opacity(0.65) : StudioTheme.cyan.opacity(0.55), lineWidth: StudioMetrics.borderWidth)
