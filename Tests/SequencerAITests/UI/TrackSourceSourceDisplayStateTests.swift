@@ -219,6 +219,17 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(layout.pitchRange, 46...74)
     }
 
+    func test_clipHistoryPreviewStepDivisionEmphasizesBarsAndBeats() {
+        let layout = ClipHistoryPreviewLayout.resolve(notes: [], gridSteps: 32)
+
+        XCTAssertEqual(layout.stepDivision(at: 0), .bar)
+        XCTAssertEqual(layout.stepDivision(at: 4), .beat)
+        XCTAssertEqual(layout.stepDivision(at: 7), .step)
+        XCTAssertEqual(layout.stepDivision(at: 15), .step)
+        XCTAssertEqual(layout.stepDivision(at: 16), .bar, "A two-bar selection marks the second bar start.")
+        XCTAssertEqual(layout.stepDivision(at: 28), .beat)
+    }
+
     @MainActor
     func test_clipHistorySaveArmRequiresSelection() {
         let model = makeClipHistoryTransferViewModel(noteOffsets: [0: 60])

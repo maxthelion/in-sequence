@@ -298,6 +298,15 @@ private struct ClipHistoryMinibarCell: View {
 /// Layout math for the History tab's piano-roll preview, kept separate from
 /// the view so the step-region division and pitch row mapping are testable.
 struct ClipHistoryPreviewLayout: Equatable {
+    enum StepDivision: Equatable {
+        case bar
+        case beat
+        case step
+    }
+
+    static let stepsPerBar = 16
+    static let stepsPerBeat = 4
+
     let gridSteps: Int
     let pitchRange: ClosedRange<Int>
 
@@ -323,6 +332,19 @@ struct ClipHistoryPreviewLayout: Equatable {
 
     func clampedStep(_ step: Int) -> Int {
         min(max(step, 0), gridSteps - 1)
+    }
+
+    /// Emphasis of the vertical divider at a step boundary: bar starts are
+    /// strongest, beat starts medium, plain steps faint, so the grid reads
+    /// rhythmically at one step region per step of the selection.
+    func stepDivision(at step: Int) -> StepDivision {
+        if step % Self.stepsPerBar == 0 {
+            return .bar
+        }
+        if step % Self.stepsPerBeat == 0 {
+            return .beat
+        }
+        return .step
     }
 }
 
@@ -354,18 +376,25 @@ private struct ClipHistoryPianoRollPreview: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .fill(Color.white.opacity(StudioOpacity.subtleFill))
 
-                ForEach(0..<resolvedLength, id: \.self) { step in
+                ForEach(Array(pitchRange.reversed()), id: \.self) { pitch in
+                    let rowOffset = laneHeight * CGFloat(pitchRange.upperBound - pitch)
+                    if pitch % 12 == 0 {
+                        Rectangle()
+                            .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                            .frame(height: max(laneHeight, 1))
+                            .offset(y: rowOffset)
+                    }
                     Rectangle()
-                        .fill(step % ClipHistoryTransferViewModel.stepsPerCell == 0 ? Color.white.opacity(StudioOpacity.borderFaint) : Color.white.opacity(0.03))
-                        .frame(width: max(stepWidth, 1))
-                        .offset(x: stepWidth * CGFloat(step))
+                        .fill(Color.white.opacity(StudioOpacity.borderSubtle))
+                        .frame(height: 1)
+                        .offset(y: rowOffset)
                 }
 
-                ForEach(Array(pitchRange.reversed()), id: \.self) { pitch in
+                ForEach(0..<resolvedLength, id: \.self) { step in
                     Rectangle()
-                        .fill(Color.white.opacity(pitch % 12 == 0 ? StudioOpacity.borderFaint : 0.025))
-                        .frame(height: max(laneHeight, 1))
-                        .offset(y: laneHeight * CGFloat(pitchRange.upperBound - pitch))
+                        .fill(Color.white.opacity(stepDividerOpacity(layout.stepDivision(at: step))))
+                        .frame(width: 1)
+                        .offset(x: stepWidth * CGFloat(step))
                 }
 
                 if let liveFillStepIndex {
@@ -405,6 +434,17 @@ private struct ClipHistoryPianoRollPreview: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: 1)
             )
+        }
+    }
+
+    private func stepDividerOpacity(_ division: ClipHistoryPreviewLayout.StepDivision) -> CGFloat {
+        switch division {
+        case .bar:
+            return StudioOpacity.subtleStroke
+        case .beat:
+            return StudioOpacity.faintStroke
+        case .step:
+            return StudioOpacity.borderSubtle
         }
     }
 }

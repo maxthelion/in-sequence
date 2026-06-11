@@ -1029,6 +1029,9 @@ final class ClipHistoryTransferViewModel {
         guard selectedSourceIndex == nil else {
             return
         }
+        guard snapshot != updatedSnapshot else {
+            return
+        }
         snapshot = updatedSnapshot
     }
 
