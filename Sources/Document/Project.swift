@@ -20,6 +20,8 @@ struct Project: Codable, Equatable {
     var patternBanks: [TrackPatternBank]
     var sliceSetPool: [SliceSet]
     var stepOrderMaps: [StepOrderMap]
+    /// Project pool of global library assets (reference, not copy).
+    var assetPool: [PooledAssetRef]
     var selectedTrackID: UUID
     var phrases: [PhraseModel]
     var selectedPhraseID: UUID
@@ -39,6 +41,7 @@ struct Project: Codable, Equatable {
         patternBanks: [TrackPatternBank] = [],
         sliceSetPool: [SliceSet] = [],
         stepOrderMaps: [StepOrderMap] = [],
+        assetPool: [PooledAssetRef] = [],
         selectedTrackID: UUID,
         phrases: [PhraseModel],
         selectedPhraseID: UUID
@@ -69,6 +72,7 @@ struct Project: Codable, Equatable {
         self.patternBanks = normalized.patternBanks
         self.sliceSetPool = sliceSetPool
         self.stepOrderMaps = stepOrderMaps
+        self.assetPool = assetPool
         self.selectedTrackID = normalized.selectedTrackID
         self.phrases = normalized.phrases
         self.selectedPhraseID = normalized.selectedPhraseID

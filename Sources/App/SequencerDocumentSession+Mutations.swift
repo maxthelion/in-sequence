@@ -147,6 +147,34 @@ extension SequencerDocumentSession {
         return clipID
     }
 
+    // MARK: - Asset pool mutations
+
+    /// Add a global library asset to the project pool. Pool membership is
+    /// document state only — no engine impact, no file IO; flows through the
+    /// standard flush path so it is undoable like any document mutation.
+    @discardableResult
+    func addAssetToPool(kind: PooledAssetKind, assetID: UUID) -> Bool {
+        let changed = store.addPooledAsset(PooledAssetRef(kind: kind, assetID: assetID))
+        guard changed else { return false }
+        revision = store.revision
+        scheduleFlushToDocument()
+        return true
+    }
+
+    /// Remove a pooled reference (never deletes the global asset).
+    @discardableResult
+    func removeAssetFromPool(kind: PooledAssetKind, assetID: UUID) -> Bool {
+        let changed = store.removePooledAsset(kind: kind, assetID: assetID)
+        guard changed else { return false }
+        revision = store.revision
+        scheduleFlushToDocument()
+        return true
+    }
+
+    func isAssetPooled(kind: PooledAssetKind, assetID: UUID) -> Bool {
+        store.assetPool.contains { $0.kind == kind && $0.assetID == assetID }
+    }
+
     // MARK: - Track mutations
 
     /// Mutate a track by ID, then dispatch impact.

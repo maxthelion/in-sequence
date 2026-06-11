@@ -24,6 +24,7 @@ struct NormalizedFields {
         case patternBanks
         case sliceSetPool
         case stepOrderMaps
+        case assetPool
         case selectedTrackID
         case phrases
         case selectedPhraseID
@@ -162,6 +163,8 @@ static func normalize(
         patternBanks = normalized.patternBanks
         sliceSetPool = try container.decodeIfPresent([SliceSet].self, forKey: .sliceSetPool) ?? []
         stepOrderMaps = try container.decodeIfPresent([StepOrderMap].self, forKey: .stepOrderMaps) ?? []
+        // Legacy documents decode with an empty pool.
+        assetPool = try container.decodeIfPresent([PooledAssetRef].self, forKey: .assetPool) ?? []
         selectedTrackID = normalized.selectedTrackID
         phrases = normalized.phrases
         selectedPhraseID = normalized.selectedPhraseID
@@ -184,6 +187,7 @@ static func normalize(
         try container.encode(patternBanks, forKey: .patternBanks)
         try container.encode(sliceSetPool, forKey: .sliceSetPool)
         try container.encode(stepOrderMaps, forKey: .stepOrderMaps)
+        try container.encode(assetPool, forKey: .assetPool)
         try container.encode(selectedTrackID, forKey: .selectedTrackID)
         try container.encode(phrases, forKey: .phrases)
         try container.encode(selectedPhraseID, forKey: .selectedPhraseID)

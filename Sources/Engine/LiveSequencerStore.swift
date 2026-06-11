@@ -111,6 +111,9 @@ final class LiveSequencerStore {
     private var storeStepOrderMapsByID: [StepOrderMapID: StepOrderMap] = [:]
     private var storeStepOrderMapOrder: [StepOrderMapID] = []
 
+    /// Project pool of global library asset references, ordered as added.
+    private var storeAssetPool: [PooledAssetRef] = []
+
     /// Phrase layer definitions, ordered as stored.
     private var storeLayers: [PhraseLayerDefinition] = []
 
@@ -174,6 +177,8 @@ final class LiveSequencerStore {
         storeStepOrderMapOrder = project.stepOrderMaps.map(\.id)
         storeStepOrderMapsByID = Dictionary(uniqueKeysWithValues: project.stepOrderMaps.map { ($0.id, $0) })
 
+        storeAssetPool = project.assetPool
+
         storePhraseOrder = project.phrases.map(\.id)
         storePhrasesByID = Dictionary(uniqueKeysWithValues: project.phrases.map { ($0.id, $0) })
 
@@ -230,6 +235,7 @@ final class LiveSequencerStore {
             patternBanks: orderedBanks,
             sliceSetPool: orderedSliceSets,
             stepOrderMaps: orderedStepOrderMaps,
+            assetPool: storeAssetPool,
             selectedTrackID: storeSelectedTrackID,
             phrases: orderedPhrases,
             selectedPhraseID: storeSelectedPhraseID
@@ -420,6 +426,36 @@ final class LiveSequencerStore {
         }
         storeStepOrderMapsByID[id] = nil
         storeStepOrderMapOrder.removeAll { $0 == id }
+        revision &+= 1
+        return true
+    }
+
+    // MARK: - Asset pool typed mutations
+
+    /// Add a global library asset reference to the project pool.
+    /// Pure model state — never touches files on disk.
+    ///
+    /// - Returns: `true` if the pool changed (the ref was not already present).
+    @discardableResult
+    func addPooledAsset(_ ref: PooledAssetRef) -> Bool {
+        guard !storeAssetPool.contains(where: { $0.kind == ref.kind && $0.assetID == ref.assetID }) else {
+            return false
+        }
+        storeAssetPool.append(ref)
+        revision &+= 1
+        return true
+    }
+
+    /// Remove a pooled reference. Never deletes the global asset.
+    ///
+    /// - Returns: `true` if a matching entry was removed.
+    @discardableResult
+    func removePooledAsset(kind: PooledAssetKind, assetID: UUID) -> Bool {
+        let countBefore = storeAssetPool.count
+        storeAssetPool.removeAll { $0.kind == kind && $0.assetID == assetID }
+        guard storeAssetPool.count != countBefore else {
+            return false
+        }
         revision &+= 1
         return true
     }
@@ -735,6 +771,8 @@ final class LiveSequencerStore {
     var stepOrderMaps: [StepOrderMap] {
         storeStepOrderMapOrder.compactMap { storeStepOrderMapsByID[$0] }
     }
+
+    var assetPool: [PooledAssetRef] { storeAssetPool }
 
     func sendBus(id: SendBusID) -> SendBusState {
         switch id {
