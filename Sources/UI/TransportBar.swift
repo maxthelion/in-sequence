@@ -199,7 +199,10 @@ struct TransportBar: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .frame(maxWidth: 90)
-                    .background(StudioTheme.amber.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    // Colour identifies, it never floods (ux-canon rule 12):
+                    // the queued chip stays neutral; amber lives in the
+                    // outline and text.
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                             .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
@@ -319,10 +322,13 @@ private struct TransportButtonStyle: ButtonStyle {
     let accent: Color
 
     func makeBody(configuration: Configuration) -> some View {
+        // Colour identifies, it never floods (ux-canon rule 12): the button
+        // body is a neutral step (brighter while pressed); the accent lives
+        // in the outline.
         configuration.label
             .foregroundStyle(StudioTheme.text)
             .frame(width: 34, height: 28)
-            .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .background(Color.white.opacity(configuration.isPressed ? StudioOpacity.borderSubtle : StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)

@@ -94,9 +94,16 @@ struct LibraryWorkspaceView: View {
             }
             .padding(.horizontal, StudioMetrics.Spacing.compact)
             .padding(.vertical, StudioMetrics.Spacing.tight)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // selected row takes the neutral step; the violet count chip and
+            // bold label carry the selection.
             .background(
-                isSelected ? StudioTheme.violet.opacity(StudioOpacity.selectedFill) : Color.clear,
+                isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(isSelected ? StudioTheme.violet : Color.clear, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

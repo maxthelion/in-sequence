@@ -369,7 +369,9 @@ struct SlicerSourceWidget: View {
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        // Colour identifies, it never floods (ux-canon rule 12): the panel is
+        // neutral; the violet lives in its outline.
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
@@ -441,13 +443,13 @@ struct SlicerSourceWidget: View {
     private func modeButton(_ mode: SliceMode, title: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
             .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .foregroundStyle(effectiveSliceSet.mode == mode ? StudioTheme.text : StudioTheme.mutedText)
+            .foregroundStyle(effectiveSliceSet.mode == mode ? StudioTheme.background : StudioTheme.mutedText)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(effectiveSliceSet.mode == mode ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .background(effectiveSliceSet.mode == mode ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
             .overlay(
                 Capsule()
-                    .stroke(effectiveSliceSet.mode == mode ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                    .stroke(effectiveSliceSet.mode == mode ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
             .buttonStyle(.plain)
     }

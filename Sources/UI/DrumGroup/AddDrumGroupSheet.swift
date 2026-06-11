@@ -140,17 +140,17 @@ struct AddDrumGroupSheet: View {
         Button(action: action) {
             Text(title)
                 .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? StudioTheme.cyan.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill),
                     in: Capsule()
                 )
                 .overlay(
                     Capsule()
                         .stroke(
-                            isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softStroke) : StudioTheme.border,
+                            isSelected ? Color.clear : StudioTheme.border,
                             lineWidth: StudioMetrics.borderWidth
                         )
                 )
@@ -330,17 +330,17 @@ struct AddDrumGroupSheet: View {
         Button(action: action) {
             Text(title)
                 .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? StudioTheme.violet.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill),
                     in: Capsule()
                 )
                 .overlay(
                     Capsule()
                         .stroke(
-                            isSelected ? StudioTheme.violet.opacity(StudioOpacity.softStroke) : StudioTheme.border,
+                            isSelected ? Color.clear : StudioTheme.border,
                             lineWidth: StudioMetrics.borderWidth
                         )
                 )

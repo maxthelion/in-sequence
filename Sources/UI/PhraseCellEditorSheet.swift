@@ -209,9 +209,10 @@ struct PhraseCellEditorSheet: View {
                     } label: {
                         Text("Bar \(index + 1)")
                             .studioText(.eyebrowBold)
+                            .foregroundStyle(index == activePage ? StudioTheme.background : StudioTheme.text)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(index == activePage ? accent.opacity(StudioOpacity.softStroke) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                            .background(index == activePage ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }

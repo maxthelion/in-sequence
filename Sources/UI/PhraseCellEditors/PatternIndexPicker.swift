@@ -12,9 +12,10 @@ struct PatternIndexPicker: View {
                     } label: {
                         Text("P\(index + 1)")
                             .studioText(.eyebrowBold)
+                            .foregroundStyle(index == selectedIndex ? StudioTheme.background : StudioTheme.text)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 8)
-                            .background(index == selectedIndex ? StudioTheme.violet.opacity(StudioOpacity.softStroke) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                            .background(index == selectedIndex ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }

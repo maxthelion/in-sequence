@@ -104,10 +104,10 @@ struct ClipMacroLaneEditor: View {
                 if !macros.isEmpty {
                     Text("\(macros.count)")
                         .studioText(.micro)
-                        .foregroundStyle(StudioTheme.cyan)
+                        .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(StudioTheme.cyan.opacity(0.12), in: Capsule())
+                        .background(StudioTheme.cyan, in: Capsule())
                 }
             }
         }
@@ -203,16 +203,18 @@ private struct MacroLaneCell: View {
 
     var body: some View {
         ZStack {
+            // Colour identifies, it never floods (ux-canon rule 12): an
+            // override cell is fully solid accent with dark text.
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                .fill(isOverride ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill))
+                .fill(isOverride ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .stroke(isOverride ? StudioTheme.cyan.opacity(0.5) : StudioTheme.border.opacity(0.3), lineWidth: StudioMetrics.borderWidth)
+                        .stroke(isOverride ? Color.clear : StudioTheme.border.opacity(0.3), lineWidth: StudioMetrics.borderWidth)
                 )
 
             Text(formatValue(displayValue))
                 .font(.system(size: 8, weight: .medium, design: .rounded))
-                .foregroundStyle(isOverride ? StudioTheme.cyan : StudioTheme.mutedText.opacity(0.6))
+                .foregroundStyle(isOverride ? StudioTheme.background : StudioTheme.mutedText.opacity(0.6))
                 .lineLimit(1)
         }
         .frame(width: cellSize, height: cellSize)

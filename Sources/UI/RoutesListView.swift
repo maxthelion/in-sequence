@@ -86,13 +86,10 @@ private struct RouteRowView: View {
                     Text("Disabled")
                         .studioText(.micro)
                         .tracking(0.8)
+                        .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(StudioTheme.amber.opacity(StudioOpacity.mutedFill), in: Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(StudioTheme.amber.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
-                        )
+                        .background(StudioTheme.amber, in: Capsule())
                 }
             }
 

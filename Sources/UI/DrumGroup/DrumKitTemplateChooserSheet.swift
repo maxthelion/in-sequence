@@ -129,10 +129,10 @@ struct DrumKitTemplateChooserSheet: View {
                         Text("OVERWRITES")
                             .studioText(.microEmphasis)
                             .tracking(0.6)
-                            .foregroundStyle(StudioTheme.amber)
+                            .foregroundStyle(StudioTheme.background)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
+                            .background(StudioTheme.amber, in: Capsule())
                     }
 
                     Spacer(minLength: 0)
@@ -145,15 +145,17 @@ struct DrumKitTemplateChooserSheet: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.compact)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // template row stays neutral; selection reads from the outline.
             .background(
-                isSelected ? StudioTheme.success.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(
-                        isSelected ? StudioTheme.success.opacity(StudioOpacity.softStroke) : StudioTheme.border,
-                        lineWidth: StudioMetrics.borderWidth
+                        isSelected ? StudioTheme.success : StudioTheme.border,
+                        lineWidth: isSelected ? 2 : StudioMetrics.borderWidth
                     )
             )
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))

@@ -353,7 +353,7 @@ private struct MasterOutputFaderMeter: View {
                     .frame(width: 30)
 
                 Rectangle()
-                    .fill(StudioTheme.amber.opacity(0.85))
+                    .fill(StudioTheme.amber)
                     .frame(width: 30, height: 2)
                     .offset(y: -height * MasterOutputGainScale.unityPosition + 1)
 

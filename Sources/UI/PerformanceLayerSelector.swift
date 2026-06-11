@@ -43,10 +43,12 @@ struct PerformanceLayerOptionCell: View {
             }
             .padding(StudioMetrics.Spacing.compact)
             .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
-            // Bold-flat pass: unselected cells are outline-only on the
-            // ground; selection reads as a clear accent tint + solid line.
+            // Colour identifies, it never floods (ux-canon rule 12):
+            // unselected cells are outline-only on the ground; selection
+            // reads from the solid accent outline and check badge, with the
+            // cell body on the neutral step.
             .background(
-                isSelected ? accent.opacity(StudioOpacity.mutedFill) : Color.clear,
+                isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(

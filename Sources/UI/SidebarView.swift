@@ -109,9 +109,11 @@ private struct SidebarRow: View {
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+        // Colour identifies, it never floods (ux-canon rule 12): the selected
+        // row takes the neutral fill step, not an accent wash.
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge)
-                .fill(isSelected ? Color.accentColor.opacity(StudioOpacity.hoverFill) : Color.clear)
+                .fill(isSelected ? Color.white.opacity(StudioOpacity.borderSubtle) : Color.clear)
         )
     }
 }

@@ -158,7 +158,9 @@ struct MacroPickerSheet: View {
             }
         }
         .padding(.vertical, 8)
-        .background(isSelected ? StudioTheme.success.opacity(0.06) : Color.clear)
+        // Colour identifies, it never floods (ux-canon rule 12): selection is
+        // a neutral row step (the leading checkmark carries the green).
+        .background(isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear)
     }
 
     // MARK: - Built-in Read-Only Content

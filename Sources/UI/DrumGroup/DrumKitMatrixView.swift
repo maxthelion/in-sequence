@@ -526,14 +526,10 @@ struct DrumKitMatrixView: View {
                 .studioText(.labelBold)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(accent)
+        .foregroundStyle(StudioTheme.background)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-        )
+        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
     private var stepDisplayPicker: some View {
@@ -556,9 +552,9 @@ struct DrumKitMatrixView: View {
             Text("\(count)")
                 .studioText(.labelBold)
                 .frame(width: 34, height: 28)
-                .foregroundStyle(displayStepCount == count ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(displayStepCount == count ? StudioTheme.background : StudioTheme.mutedText)
                 .background(
-                    (displayStepCount == count ? accent.opacity(StudioOpacity.selectedFill) : Color.clear),
+                    (displayStepCount == count ? accent : Color.clear),
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                 )
         }
@@ -613,14 +609,10 @@ struct DrumKitMatrixView: View {
                     Text("MIXED")
                         .studioText(.microEmphasis)
                         .tracking(0.6)
-                        .foregroundStyle(StudioTheme.amber)
+                        .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-                        )
+                        .background(StudioTheme.amber, in: Capsule())
                         .help("Members are on different pattern slots. Selecting a slot realigns every part.")
                 }
             }
@@ -671,17 +663,13 @@ struct DrumKitMatrixView: View {
         } label: {
             Text(layer.title)
                 .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.text.opacity(0.78))
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
                 .lineLimit(1)
                 .frame(minWidth: 64, minHeight: 28)
                 .padding(.horizontal, 8)
                 .background(
-                    isSelected ? accent.opacity(StudioOpacity.selectedFill) : Color.clear,
+                    isSelected ? accent : Color.clear,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : Color.clear, lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -693,19 +681,15 @@ struct DrumKitMatrixView: View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(StudioTheme.amber)
+                .foregroundStyle(StudioTheme.background)
             Text("PATTERN MISMATCH")
                 .studioText(.microEmphasis)
                 .tracking(0.6)
-                .foregroundStyle(StudioTheme.amber)
+                .foregroundStyle(StudioTheme.background)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
-        .overlay(
-            Capsule()
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-        )
+        .background(StudioTheme.amber, in: Capsule())
         .help("Pattern mismatch: parts are showing different active pattern slots.")
         .accessibilityLabel("Pattern mismatch: parts are showing different active pattern slots.")
     }
@@ -895,14 +879,10 @@ private struct DrumKitMatrixRowView: View {
             if row.isDivergentPattern {
                 Text(row.patternBadge)
                     .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.background)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
-                    .background(StudioTheme.amber.opacity(StudioOpacity.faintStroke), in: Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-                    )
+                    .background(StudioTheme.amber, in: Capsule())
                     .help("This part is on \(row.patternBadge), diverging from the group.")
             }
 
@@ -1365,18 +1345,14 @@ private struct DrumGroupRoutingModeControl: View {
         } label: {
             Text(option.title)
                 .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.text.opacity(0.78))
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
                 .frame(maxWidth: .infinity, minHeight: 30)
                 .padding(.horizontal, 10)
                 .background(
-                    isSelected ? StudioTheme.cyan.opacity(StudioOpacity.selectedFill) : Color.clear,
+                    isSelected ? StudioTheme.cyan : Color.clear,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(isSelected ? StudioTheme.cyan.opacity(0.72) : Color.clear, lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)

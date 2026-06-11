@@ -305,13 +305,15 @@ struct ProgressionChordGeneratorEditorView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
             .padding(StudioMetrics.Spacing.standard)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // selected card reads from its accent outline, not a wash.
             .background(
-                selectedChordStep == step ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(selectedChordStep == step ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+                    .stroke(selectedChordStep == step ? accent : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: selectedChordStep == step ? 2 : StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -349,13 +351,15 @@ struct ProgressionChordGeneratorEditorView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
             .padding(StudioMetrics.Spacing.compact)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // selected step cell reads from its accent outline, not a wash.
             .background(
-                isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isSelected ? accent : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -386,17 +390,17 @@ struct ProgressionChordGeneratorEditorView: View {
         } label: {
             Text(layer.label)
                 .studioText(.labelBold)
-                .foregroundStyle(selectedLayer == layer ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(selectedLayer == layer ? StudioTheme.background : StudioTheme.mutedText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(
-                    selectedLayer == layer ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                    selectedLayer == layer ? accent : Color.white.opacity(StudioOpacity.subtleFill),
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(selectedLayer == layer ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+                        .stroke(selectedLayer == layer ? Color.clear : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -610,16 +614,16 @@ struct ProgressionChordGeneratorEditorView: View {
         Button(action: action) {
             Text(title)
                 .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
-                    isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
                     in: Capsule()
                 )
                 .overlay(
                     Capsule()
-                        .stroke(isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+                        .stroke(isSelected ? Color.clear : StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)

@@ -143,10 +143,10 @@ struct LiveWorkspaceView: View {
 
                 Text("\(selectedLayerIndex + 1) / \(max(layers.count, 1))")
                     .studioText(.eyebrowBold)
-                    .foregroundStyle(accent)
+                    .foregroundStyle(StudioTheme.background)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(accent.opacity(StudioOpacity.hoverFill), in: Capsule())
+                    .background(accent, in: Capsule())
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -176,7 +176,14 @@ struct LiveWorkspaceView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(StudioTheme.violet.opacity(StudioOpacity.faintStroke), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // basis-phrase chip stays neutral; violet lives in the outline
+            // and the phrase name.
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(StudioTheme.violet.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+            )
 
             if !session.store.trackGroups.isEmpty {
                 Toggle("Collapse groups", isOn: $collapseGroups)

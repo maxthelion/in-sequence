@@ -821,9 +821,10 @@ private struct PhraseMatrixTrackHeaderCell: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        // Bold-flat pass: outline-only header cell — drawn border-grey line
-        // when idle, solid accent line when selected.
-        .background((isSelected ? accent.opacity(StudioOpacity.mutedFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        // Colour identifies, it never floods (ux-canon rule 12): outline-only
+        // header cell — drawn border-grey line when idle, solid accent line
+        // when selected, body on the neutral step.
+        .background((isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -930,15 +931,13 @@ private struct PhraseMatrixPhraseCell: View {
         .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
     }
 
-    /// Bold-flat pass: row state lives in a solid drawn outline (success =
-    /// playing, amber = queued/looping, violet = selected, border grey
-    /// otherwise); fills stay at most one muted step above the ground.
+    /// Colour identifies, it never floods (ux-canon rule 12): row state lives
+    /// in a solid drawn outline (success = playing, amber = queued/looping,
+    /// violet = selected, border grey otherwise) plus the solid badges; the
+    /// fill stays on the neutral step.
     private var rowFill: Color {
-        if phrase.loopEnabled {
-            return StudioTheme.amber.opacity(isSelected ? StudioOpacity.mutedFill : StudioOpacity.subtleFill)
-        }
-        if isSelected {
-            return StudioTheme.violet.opacity(StudioOpacity.subtleFill)
+        if phrase.loopEnabled || isSelected {
+            return Color.white.opacity(StudioOpacity.subtleFill)
         }
         return Color.clear
     }
@@ -1099,9 +1098,10 @@ private struct PhrasePerformancePlaceholderCell: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.compact)
-        // Bold-flat pass: outline-only cell — border-grey line when idle,
-        // solid accent line when selected.
-        .background((isSelected ? accent.opacity(StudioOpacity.mutedFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        // Colour identifies, it never floods (ux-canon rule 12): outline-only
+        // cell — border-grey line when idle, solid accent line when selected,
+        // body on the neutral step.
+        .background((isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

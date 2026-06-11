@@ -217,9 +217,9 @@ struct MixerWorkspaceView: View {
             HStack(spacing: 8) {
                 Image(systemName: insertIconName(for: insert.kind))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .frame(width: 24, height: 24)
-                    .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(insert.name)
@@ -265,10 +265,12 @@ struct MixerWorkspaceView: View {
             }
         }
         .padding(9)
-        .background(isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        // Colour identifies, it never floods (ux-canon rule 12): selection
+        // reads from the accent outline, not a tinted row fill.
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(isSelected ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .onTapGesture {
@@ -661,16 +663,18 @@ struct MixerStripActionButton: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
             }
-            .foregroundStyle(StudioTheme.text)
+            .foregroundStyle(isActive ? StudioTheme.background : StudioTheme.text)
             .frame(minWidth: minWidth, minHeight: 26)
             .padding(.horizontal, 7)
+            // Colour identifies, it never floods (ux-canon rule 12): an
+            // engaged action chip is fully solid accent with dark text.
             .background(
-                (isActive ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)),
+                (isActive ? accent : Color.white.opacity(StudioOpacity.subtleFill)),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isActive ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)

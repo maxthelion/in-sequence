@@ -115,10 +115,13 @@ struct SlicerWaveformWindow: View {
                                     .minimumScaleFactor(0.7)
                             }
                             .padding(9)
-                            .background(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                            // Colour identifies, it never floods (ux-canon
+                            // rule 12): the selected row stays neutral; the
+                            // cyan lives in its outline.
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                    .stroke(marker.id == selectedMarkerID ? StudioTheme.cyan.opacity(0.65) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                                    .stroke(marker.id == selectedMarkerID ? StudioTheme.cyan : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                             )
                         }
                         .buttonStyle(.plain)

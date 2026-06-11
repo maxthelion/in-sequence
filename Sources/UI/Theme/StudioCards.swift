@@ -69,9 +69,9 @@ struct StudioAddCard: View {
             VStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(StudioTheme.background)
                     .frame(width: StudioMetrics.ControlSize.large, height: StudioMetrics.ControlSize.large)
-                    .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
+                    .background(accent, in: Circle())
 
                 // Pass an empty label when the "+" alone is enough; the help
                 // string still names the action for tooltip and accessibility.

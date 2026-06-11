@@ -82,8 +82,11 @@ struct PhraseLaunchGridSheet: View {
             }
             .padding(StudioMetrics.Spacing.snug)
             .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // current phrase reads from the solid cyan outline; the cell body
+            // stays on the neutral step.
             .background(
-                isCurrent ? StudioTheme.cyan.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
