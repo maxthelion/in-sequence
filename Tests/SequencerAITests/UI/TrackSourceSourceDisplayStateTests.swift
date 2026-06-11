@@ -54,6 +54,9 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
 
         XCTAssertNil(model.selectedSourceIndex)
         XCTAssertEqual(model.previewLengthSteps, 6)
+        XCTAssertEqual(model.previewGridSteps, 16, "Live preview grid should stay one full bar while the bar fills.")
+        XCTAssertEqual(model.liveFillStepIndex, 5)
+        XCTAssertEqual(model.previewLengthLabel, "1 bar")
 
         let steps = try XCTUnwrap(model.previewContent?.normalized.noteGridSteps)
         XCTAssertEqual(steps.count, 6)
@@ -72,6 +75,8 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
 
         var selectedSteps = try XCTUnwrap(model.previewContent?.normalized.noteGridSteps)
         XCTAssertEqual(model.previewLengthSteps, 32)
+        XCTAssertEqual(model.previewGridSteps, 32, "Auditioned preview grid should divide by the selection's step count.")
+        XCTAssertNil(model.liveFillStepIndex, "Live fill marker should hide while auditioning a selection.")
         XCTAssertEqual(model.previewLengthLabel, "2 bars")
         XCTAssertEqual(selectedSteps.first?.main?.notes.first?.pitch, 60)
         XCTAssertTrue(model.isAuditioning)
@@ -81,6 +86,8 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
 
         selectedSteps = try XCTUnwrap(model.previewContent?.normalized.noteGridSteps)
         XCTAssertEqual(model.previewLengthSteps, 16)
+        XCTAssertEqual(model.previewGridSteps, 16)
+        XCTAssertEqual(model.liveFillStepIndex, 15)
         XCTAssertEqual(model.previewLengthLabel, "1 bar")
         XCTAssertEqual(selectedSteps.first?.main?.notes.first?.pitch, 72)
         XCTAssertFalse(model.isAuditioning)
@@ -133,16 +140,16 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         )
 
         XCTAssertEqual(generator.badgeTitle, "Live")
-        XCTAssertEqual(clip.badgeTitle, "N/A")
+        XCTAssertEqual(clip.badgeTitle, "Live")
         XCTAssertEqual(empty.badgeTitle, "N/A")
         XCTAssertEqual(slice.badgeTitle, "N/A")
         XCTAssertTrue(generator.isAvailable)
-        XCTAssertFalse(clip.isAvailable)
+        XCTAssertTrue(clip.isAvailable, "History must work for clip sources as well as generators.")
         XCTAssertFalse(empty.isAvailable)
         XCTAssertFalse(slice.isAvailable)
         XCTAssertEqual(
-            clip,
-            .unavailable(reason: "Clip playback history needs capture support before it can be saved from History.")
+            empty,
+            .unavailable(reason: "Assign a source to build live history.")
         )
     }
 
@@ -180,6 +187,130 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         let override = try XCTUnwrap(overrideStates.last!)
         XCTAssertEqual(override.noteGrid.stepCount, 32)
         XCTAssertTrue(model.isAuditioning)
+    }
+
+    func test_clipHistoryPreviewPitchRowMappingReadsContourVertically() {
+        let notes = [
+            ClipNote(pitch: 60, startStep: 0, lengthSteps: 1, velocity: 100),
+            ClipNote(pitch: 72, startStep: 4, lengthSteps: 1, velocity: 100)
+        ]
+        let layout = ClipHistoryPreviewLayout.resolve(notes: notes, gridSteps: 16)
+
+        XCTAssertEqual(layout.gridSteps, 16)
+        XCTAssertEqual(layout.pitchRange, 58...74, "Pitch range should pad two semitones around the played notes.")
+        XCTAssertEqual(layout.pitchRowCount, 17)
+        XCTAssertEqual(layout.rowIndex(forPitch: 74), 0, "The highest pitch in range maps to the top row.")
+        XCTAssertEqual(layout.rowIndex(forPitch: 72), 2)
+        XCTAssertEqual(layout.rowIndex(forPitch: 60), 14)
+        XCTAssertLessThan(
+            layout.rowIndex(forPitch: 72),
+            layout.rowIndex(forPitch: 60),
+            "Higher pitches must render above lower pitches."
+        )
+        XCTAssertEqual(layout.rowIndex(forPitch: 0), layout.rowIndex(forPitch: 58), "Out-of-range pitches clamp to the range edge.")
+        XCTAssertEqual(layout.clampedStep(-3), 0)
+        XCTAssertEqual(layout.clampedStep(99), 15)
+    }
+
+    func test_clipHistoryPreviewLayoutWithoutNotesUsesDefaultRangeAndGrid() {
+        let layout = ClipHistoryPreviewLayout.resolve(notes: [], gridSteps: 0)
+
+        XCTAssertEqual(layout.gridSteps, 1)
+        XCTAssertEqual(layout.pitchRange, 46...74)
+    }
+
+    func test_clipHistoryPreviewStepDivisionEmphasizesBarsAndBeats() {
+        let layout = ClipHistoryPreviewLayout.resolve(notes: [], gridSteps: 32)
+
+        XCTAssertEqual(layout.stepDivision(at: 0), .bar)
+        XCTAssertEqual(layout.stepDivision(at: 4), .beat)
+        XCTAssertEqual(layout.stepDivision(at: 7), .step)
+        XCTAssertEqual(layout.stepDivision(at: 15), .step)
+        XCTAssertEqual(layout.stepDivision(at: 16), .bar, "A two-bar selection marks the second bar start.")
+        XCTAssertEqual(layout.stepDivision(at: 28), .beat)
+    }
+
+    @MainActor
+    func test_clipHistorySaveArmRequiresSelection() {
+        let model = makeClipHistoryTransferViewModel(noteOffsets: [0: 60])
+
+        model.armSave()
+
+        XCTAssertFalse(model.isSaveArmed, "Save must not arm without a selected history segment.")
+        XCTAssertNotNil(model.saveError)
+    }
+
+    @MainActor
+    func test_clipHistorySaveArmStateMachineArmAndDisarm() {
+        let model = makeClipHistoryTransferViewModel(noteOffsets: [0: 60])
+
+        model.selectSource(0)
+        model.armSave()
+
+        XCTAssertTrue(model.isSaveArmed)
+        XCTAssertNil(model.saveError)
+        XCTAssertNil(model.pendingReplaceSlotIndex)
+
+        model.selectDestination(2)
+        XCTAssertTrue(model.canSave)
+        XCTAssertNil(model.pendingReplaceSlotIndex, "Empty destinations need no replace confirmation.")
+
+        model.disarmSave()
+
+        XCTAssertFalse(model.isSaveArmed)
+        XCTAssertNil(model.selectedDestinationIndex)
+        XCTAssertNil(model.pendingReplaceSlotIndex)
+        XCTAssertTrue(model.isAuditioning, "Disarming save must not exit audition of the selected segment.")
+    }
+
+    @MainActor
+    func test_clipHistorySaveArmDeselectionDisarms() {
+        let model = makeClipHistoryTransferViewModel(noteOffsets: [0: 60])
+
+        model.selectSource(0)
+        model.armSave()
+        XCTAssertTrue(model.isSaveArmed)
+
+        model.selectSource(0)
+
+        XCTAssertNil(model.selectedSourceIndex)
+        XCTAssertFalse(model.isSaveArmed, "Clearing the history selection must return the pattern row to normal navigation.")
+        XCTAssertFalse(model.isAuditioning)
+    }
+
+    @MainActor
+    func test_clipHistorySaveArmReplaceConfirmationFlow() {
+        let model = makeClipHistoryTransferViewModel(
+            noteOffsets: [0: 60],
+            occupiedSlots: [3]
+        )
+
+        model.selectSource(0)
+        model.armSave()
+        model.selectDestination(3)
+
+        XCTAssertEqual(model.pendingReplaceSlotIndex, 3)
+        XCTAssertFalse(model.canSave)
+
+        model.confirmReplace()
+
+        XCTAssertNil(model.pendingReplaceSlotIndex)
+        XCTAssertTrue(model.canSave)
+    }
+
+    @MainActor
+    func test_clipHistorySaveArmLengthChangeInvalidatingSelectionDisarms() {
+        let model = makeClipHistoryTransferViewModel(noteOffsets: [224: 60])
+
+        model.selectSource(14)
+        model.armSave()
+        XCTAssertTrue(model.isSaveArmed)
+
+        model.setLengthSteps(32)
+
+        XCTAssertNil(model.selectedSourceIndex)
+        XCTAssertFalse(model.isSaveArmed)
+        XCTAssertFalse(model.isAuditioning)
     }
 
     @MainActor
@@ -686,15 +817,24 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
             to: outputDirectory.appendingPathComponent("05-occupied-destination-inline-replace.png")
         )
 
+        let clipSourceModel = makeClipHistoryTransferViewModel(
+            noteOffsets: [
+                48: 55,
+                64: 62,
+                96: 67,
+                160: 72,
+                176: 64,
+                240: 59,
+                244: 71
+            ]
+        )
         try renderEvidence(
-            ClipHistoryUnavailableEvidenceSurface(
+            ClipHistoryEvidenceSurface(
+                model: clipSourceModel,
                 sourceState: .occupiedClip,
-                historyState: TrackSourceHistoryDisplayState.resolve(
-                    trackType: .monoMelodic,
-                    sourceState: .occupiedClip
-                )
+                sourceSummary: "Clip source: Saved Riff"
             ),
-            to: outputDirectory.appendingPathComponent("06-clip-source-history-na.png")
+            to: outputDirectory.appendingPathComponent("06-clip-source-history-live.png")
         )
         try renderEvidence(
             ClipHistoryUnavailableEvidenceSurface(
@@ -815,12 +955,14 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
 
 private struct ClipHistoryEvidenceSurface: View {
     let model: ClipHistoryTransferViewModel
+    var sourceState: TrackSourceSourceDisplayState = .occupiedGenerator
+    var sourceSummary: String = "Generator live history: Euclidean Mono"
 
     var body: some View {
         ClipHistoryEvidenceShell {
             TrackSourceSlotWellTabBar(
                 selectedTab: .constant(.history),
-                sourceState: .occupiedGenerator,
+                sourceState: sourceState,
                 modifierState: .empty,
                 historyState: .liveCapture,
                 accent: StudioTheme.cyan
@@ -829,7 +971,7 @@ private struct ClipHistoryEvidenceSurface: View {
             TrackSourceClipHistoryTabContent(
                 model: model,
                 accent: StudioTheme.success,
-                sourceSummary: "Generator live history: Euclidean Mono",
+                sourceSummary: sourceSummary,
                 isDestinationMode: false,
                 onSaveClip: {}
             )

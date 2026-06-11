@@ -68,7 +68,7 @@ struct TransportBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             Button {
                 if engineController.isRunning {
                     engineController.stop()
@@ -77,22 +77,22 @@ struct TransportBar: View {
                 }
             } label: {
                 Image(systemName: engineController.isRunning ? "stop.fill" : "play.fill")
-                    .frame(width: 18, height: 18)
+                    .font(.system(size: 11, weight: .bold))
             }
             .buttonStyle(TransportButtonStyle(accent: engineController.isRunning ? StudioTheme.amber : StudioTheme.cyan))
             .disabled(!engineController.canStart)
 
             Button {} label: {
                 Image(systemName: "record.circle.fill")
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(StudioTheme.amber)
-                    .frame(width: 18, height: 18)
             }
             .buttonStyle(TransportButtonStyle(accent: StudioTheme.amber))
             .disabled(true)
 
             Rectangle()
                 .fill(StudioTheme.border)
-                .frame(width: 1, height: 26)
+                .frame(width: 1, height: 22)
 
             Text("BPM")
                 .studioText(.eyebrow)
@@ -104,7 +104,7 @@ struct TransportBar: View {
 
             HStack(spacing: 6) {
                 Text(String(format: "%.0f", engineController.currentBPM))
-                    .studioText(.heading)
+                    .studioText(.metricValue)
                     .monospacedDigit()
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
@@ -128,7 +128,7 @@ struct TransportBar: View {
 
             Rectangle()
                 .fill(StudioTheme.border)
-                .frame(width: 1, height: 26)
+                .frame(width: 1, height: 22)
 
             Text(engineController.transportPosition)
                 .studioText(.metricValue)
@@ -140,7 +140,7 @@ struct TransportBar: View {
 
             Circle()
                 .fill(noteActivityIsHot ? StudioTheme.amber : StudioTheme.mutedText.opacity(0.35))
-                .frame(width: 10, height: 10)
+                .frame(width: 8, height: 8)
                 .overlay(
                     Circle()
                         .stroke((noteActivityIsHot ? StudioTheme.amber : StudioTheme.border).opacity(0.8), lineWidth: 1)
@@ -157,13 +157,9 @@ struct TransportBar: View {
 
             Spacer()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(Color.white.opacity(0.035), in: Capsule())
-        .overlay(
-            Capsule()
-                .stroke(StudioTheme.border, lineWidth: 1)
-        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .frame(minHeight: 38)
     }
 
     private func stepBPM(by delta: Double) {
@@ -175,27 +171,19 @@ struct TransportBar: View {
         Button {
             phrasePickerPresented.toggle()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 Image(systemName: engineController.isRunning && currentPhrase != nil ? "music.note.list" : "music.note")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(currentPhrase == nil ? StudioTheme.mutedText : StudioTheme.cyan)
-                    .frame(width: 14)
+                    .frame(width: 12)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(phraseControlTitle)
-                        .studioText(.microEmphasis)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-
-                    Text(phraseControlName)
-                        .studioText(.labelBold)
-                        .foregroundStyle(currentPhrase == nil ? StudioTheme.mutedText : StudioTheme.text)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .help(phraseControlName)
-                }
-                .frame(minWidth: 82, maxWidth: 150, alignment: .leading)
+                Text(phraseControlName)
+                    .studioText(.labelBold)
+                    .foregroundStyle(currentPhrase == nil ? StudioTheme.mutedText : StudioTheme.text)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(phraseControlName)
+                    .frame(minWidth: 58, maxWidth: 130, alignment: .leading)
 
                 if let queuedPhrase {
                     HStack(spacing: 4) {
@@ -207,9 +195,9 @@ struct TransportBar: View {
                             .truncationMode(.tail)
                     }
                     .foregroundStyle(StudioTheme.amber)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 5)
-                    .frame(maxWidth: 105)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .frame(maxWidth: 90)
                     .background(StudioTheme.amber.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
@@ -221,12 +209,12 @@ struct TransportBar: View {
                 }
 
                 Image(systemName: "square.grid.3x3")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(StudioTheme.mutedText)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: 290, alignment: .leading)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .frame(maxWidth: 230, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .fill(Color.white.opacity(StudioOpacity.subtleFill))
@@ -306,8 +294,8 @@ private struct TransportModePicker: View {
                         .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.mutedText)
                         .lineLimit(1)
                         .fixedSize()
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         .background(
                             Capsule()
                                 .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : Color.white.opacity(0.02))
@@ -330,7 +318,7 @@ private struct TransportButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(StudioTheme.text)
-            .padding(StudioMetrics.Spacing.comfortable)
+            .frame(width: 34, height: 28)
             .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)

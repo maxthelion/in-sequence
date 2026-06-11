@@ -26,7 +26,7 @@ struct ContentView: View {
         ZStack {
             StudioTheme.background.ignoresSafeArea()
 
-            VStack(spacing: 14) {
+            VStack(spacing: 12) {
                 StudioTopBar(section: sectionBinding, document: $document)
                 WorkspaceDetailView(
                     document: $document,
@@ -36,8 +36,9 @@ struct ContentView: View {
                     visualPhraseControlsOpenIndex: $visualPhraseControlsOpenIndex
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, StudioMetrics.Spacing.loose)
+                    .padding(.bottom, StudioMetrics.Spacing.loose)
             }
-            .padding(StudioMetrics.Spacing.loose)
         }
         .onAppear {
             guard visualScenarioCommandTask == nil else { return }

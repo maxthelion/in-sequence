@@ -83,12 +83,10 @@ enum TrackSourceHistoryDisplayState: Equatable {
         }
 
         switch sourceState {
-        case .occupiedGenerator:
+        case .occupiedGenerator, .occupiedClip:
             return .liveCapture
-        case .occupiedClip:
-            return .unavailable(reason: "Clip playback history needs capture support before it can be saved from History.")
         case .empty:
-            return .unavailable(reason: "Assign a generator source to build live history.")
+            return .unavailable(reason: "Assign a source to build live history.")
         }
     }
 }

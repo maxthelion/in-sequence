@@ -234,9 +234,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// the engine from its own thread (configuration change) between check
     /// and play, so the ObjC catcher is the only airtight guard: a failed
     /// start drops the trigger instead of killing the app.
-    private func startVoiceSafely(_ voice: AVAudioPlayerNode) {
+    private func startVoiceSafely(_ voice: AVAudioPlayerNode, at when: AVAudioTime? = nil) {
         guard audioGraph.isNodePlayableNow(voice) else { return }
-        if let exception = SEQRunCatchingObjCException({ voice.play() }) {
+        if let exception = SEQRunCatchingObjCException({
+            if let when {
+                voice.play(at: when)
+            } else {
+                voice.play()
+            }
+        }) {
             DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: play threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
         }
     }
@@ -266,7 +272,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let remainingFrames = max(1, Double(file.length) - Double(startFrame))
         let frameLength = AVAudioFrameCount(min(max(1, lengthNorm * frameCount), remainingFrames))
         voice.scheduleSegment(file, startingFrame: startFrame, frameCount: frameLength, at: when, completionHandler: nil)
-        startVoiceSafely(voice)
+        startVoiceSafely(voice, at: when)
     }
 
     private func scheduleAndStartSlice(
@@ -317,7 +323,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 completionHandler: nil
             )
         }
-        startVoiceSafely(voice)
+        startVoiceSafely(voice, at: when)
     }
 
     func stopVoice(_ handle: VoiceHandle) {

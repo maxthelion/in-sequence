@@ -5,6 +5,42 @@ import XCTest
 
 @MainActor
 final class SequencerAIAppDelegateTests: XCTestCase {
+    func test_buildIdentity_summarizesStampedMetadata() {
+        let identity = BuildIdentity(
+            version: "0.0.1",
+            bundleBuild: "1",
+            gitCommit: "4ae5889",
+            gitBranch: "main",
+            gitDirty: "dirty",
+            attributionID: "4ae5889-dirty-20260606224559",
+            attributionVersion: "20260606224559"
+        )
+
+        XCTAssertEqual(identity.compactDisplay, "main 4ae5889 dirty 20260606224559")
+        XCTAssertEqual(
+            identity.logSummary,
+            "version=0.0.1 build=1 gitCommit=4ae5889 gitBranch=main gitDirty=dirty attributionID=4ae5889-dirty-20260606224559 attributionVersion=20260606224559"
+        )
+    }
+
+    func test_buildIdentity_replacesUnstampedPlaceholdersWithUnknown() {
+        let identity = BuildIdentity(
+            version: " $(MARKETING_VERSION) ",
+            bundleBuild: "",
+            gitCommit: "$(GIT_COMMIT)",
+            gitBranch: "$(GIT_BRANCH)",
+            gitDirty: "$(GIT_DIRTY)",
+            attributionID: "$(BUILD_ATTRIBUTION_ID)",
+            attributionVersion: "$(BUILD_ATTRIBUTION_VERSION)"
+        )
+
+        XCTAssertEqual(identity.compactDisplay, "unknown unknown unknown unknown")
+        XCTAssertEqual(
+            identity.logSummary,
+            "version=unknown build=unknown gitCommit=unknown gitBranch=unknown gitDirty=unknown attributionID=unknown attributionVersion=unknown"
+        )
+    }
+
     func test_applicationWillTerminate_closesWindows_then_shutsDownEngines_then_drainsRunLoop() {
         let delegate = SequencerAIAppDelegate()
         let windowHost = CapturingWindowHost()

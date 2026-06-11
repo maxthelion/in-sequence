@@ -210,10 +210,24 @@ final class MasterBusHost: MasterBusHosting {
     }
 
     private func rebuildAudioGraph() {
-        let (state, audioGraph) = lock.withLock {
-            (self.state.applyingPerformanceOverlay(self.performanceOverlay.normalized(for: self.state)), self.audioGraph)
+        let (state, audioGraph, installedShape) = lock.withLock {
+            (
+                self.state.applyingPerformanceOverlay(self.performanceOverlay.normalized(for: self.state)),
+                self.audioGraph,
+                self.installedShape
+            )
         }
         guard let audioGraph else { return }
+
+        let nextShape = Self.graphShape(for: state)
+        if Self.isUnityPassThrough(state), installedShape == nil || installedShape == nextShape {
+            audioGraph.setMasterOutputGain(state.masterOutputGain)
+            lock.withLock {
+                self.installedShape = nil
+                self.installedNodesByInsertID = [:]
+            }
+            return
+        }
 
         performOnMain {
             let built = self.buildMasterChains(for: state)
@@ -228,6 +242,22 @@ final class MasterBusHost: MasterBusHosting {
                 self.installedNodesByInsertID = built.nodesByInsertID
             }
         }
+    }
+
+    private static func isUnityPassThrough(_ state: MasterBusState) -> Bool {
+        guard state.masterInserts.allSatisfy({ !$0.isEnabled }) else { return false }
+        guard abs(state.masterOutputGain - 1) < 0.0001 else { return false }
+        if let selection = state.abSelection {
+            guard abs(selection.crossfader) < 0.0001 else { return false }
+            guard let sceneA = state.scene(id: selection.sceneAID),
+                  let sceneB = state.scene(id: selection.sceneBID)
+            else { return false }
+            return sceneA.inserts.allSatisfy { !$0.isEnabled }
+                && sceneB.inserts.allSatisfy { !$0.isEnabled }
+        }
+        let scene = state.activeScene
+        guard abs(scene.outputGain - 1) < 0.0001 else { return false }
+        return scene.inserts.allSatisfy { !$0.isEnabled }
     }
 
     @MainActor

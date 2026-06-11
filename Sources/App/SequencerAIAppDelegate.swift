@@ -1,6 +1,73 @@
 import AppKit
 import Foundation
 
+struct BuildIdentity: Equatable {
+    var version: String
+    var bundleBuild: String
+    var gitCommit: String
+    var gitBranch: String
+    var gitDirty: String
+    var attributionID: String
+    var attributionVersion: String
+
+    static var current: BuildIdentity {
+        BuildIdentity(bundle: .main)
+    }
+
+    init(
+        version: String = "unknown",
+        bundleBuild: String = "unknown",
+        gitCommit: String = "unknown",
+        gitBranch: String = "unknown",
+        gitDirty: String = "unknown",
+        attributionID: String = "unknown",
+        attributionVersion: String = "unknown"
+    ) {
+        self.version = Self.clean(version)
+        self.bundleBuild = Self.clean(bundleBuild)
+        self.gitCommit = Self.clean(gitCommit)
+        self.gitBranch = Self.clean(gitBranch)
+        self.gitDirty = Self.clean(gitDirty)
+        self.attributionID = Self.clean(attributionID)
+        self.attributionVersion = Self.clean(attributionVersion)
+    }
+
+    init(bundle: Bundle) {
+        self.init(
+            version: Self.bundleValue("CFBundleShortVersionString", bundle: bundle),
+            bundleBuild: Self.bundleValue("CFBundleVersion", bundle: bundle),
+            gitCommit: Self.bundleValue("GitCommit", bundle: bundle),
+            gitBranch: Self.bundleValue("GitBranch", bundle: bundle),
+            gitDirty: Self.bundleValue("GitDirty", bundle: bundle),
+            attributionID: Self.bundleValue("BuildAttributionID", bundle: bundle),
+            attributionVersion: Self.bundleValue("BuildAttributionVersion", bundle: bundle)
+        )
+    }
+
+    var compactDisplay: String {
+        "\(gitBranch) \(gitCommit) \(gitDirty) \(attributionVersion)"
+    }
+
+    var logSummary: String {
+        "version=\(version) build=\(bundleBuild) gitCommit=\(gitCommit) gitBranch=\(gitBranch) gitDirty=\(gitDirty) attributionID=\(attributionID) attributionVersion=\(attributionVersion)"
+    }
+
+    private static func bundleValue(_ key: String, bundle: Bundle) -> String {
+        guard let value = bundle.object(forInfoDictionaryKey: key) as? String else {
+            return "unknown"
+        }
+        return clean(value)
+    }
+
+    private static func clean(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("$(") else {
+            return "unknown"
+        }
+        return trimmed
+    }
+}
+
 @MainActor
 protocol EngineLifecycleControlling: AnyObject {
     func shutdown()
@@ -21,21 +88,8 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
         NSLog("[SequencerAIAppDelegate] \(message)")
     }
 
-    private func bundleValue(_ key: String, fallback: String = "unknown") -> String {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
-              !value.isEmpty,
-              !value.hasPrefix("$(") else {
-            return fallback
-        }
-        return value
-    }
-
     private var buildMetadataSummary: String {
-        let version = bundleValue("CFBundleShortVersionString")
-        let build = bundleValue("CFBundleVersion")
-        let commit = bundleValue("GitCommit")
-        let branch = bundleValue("GitBranch")
-        return "version=\(version) build=\(build) gitCommit=\(commit) gitBranch=\(branch)"
+        BuildIdentity.current.logSummary
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {

@@ -676,37 +676,46 @@ final class MainAudioGraph {
             let resolvedPostBlendNodes = postBlendMasterNodes.filter { node in
                 node.engine == nil || node.engine === self.engine
             }
+            let usesDirectSingleBranch = resolvedChains.count == 1 && resolvedChains[0].nodes.isEmpty
             var firstDestinations: [AVAudioConnectionPoint] = []
             var branchReadouts: [MasterBranchReadout] = []
 
-            for chain in resolvedChains {
-                let gainMixer = AVAudioMixerNode()
+            if usesDirectSingleBranch, let chain = resolvedChains.first {
                 let clampedGain = Float(min(max(chain.gain, 0), 1.5))
-                gainMixer.outputVolume = clampedGain
-                self.engine.attach(gainMixer)
-                self.managedMasterNodes.append(gainMixer)
-                self.managedMasterGainMixers.append(gainMixer)
+                self.postBlendMixer.outputVolume = clampedGain
+                firstDestinations.append(AVAudioConnectionPoint(node: self.postBlendMixer, bus: 0))
+                branchReadouts.append(MasterBranchReadout(nodes: [], gain: clampedGain))
+            } else {
+                self.postBlendMixer.outputVolume = 1
+                for chain in resolvedChains {
+                    let gainMixer = AVAudioMixerNode()
+                    let clampedGain = Float(min(max(chain.gain, 0), 1.5))
+                    gainMixer.outputVolume = clampedGain
+                    self.engine.attach(gainMixer)
+                    self.managedMasterNodes.append(gainMixer)
+                    self.managedMasterGainMixers.append(gainMixer)
 
-                let chainNodes = chain.nodes.filter { node in
-                    node.engine == nil || node.engine === self.engine
-                }
-                for node in chainNodes where node.engine == nil {
-                    self.engine.attach(node)
-                }
-                self.managedMasterNodes.append(contentsOf: chainNodes)
-
-                if let first = chainNodes.first {
-                    firstDestinations.append(AVAudioConnectionPoint(node: first, bus: 0))
-                    for (source, destination) in zip(chainNodes, chainNodes.dropFirst()) {
-                        self.engine.connect(source, to: destination, format: nil)
+                    let chainNodes = chain.nodes.filter { node in
+                        node.engine == nil || node.engine === self.engine
                     }
-                    self.engine.connect(chainNodes.last ?? first, to: gainMixer, format: nil)
-                } else {
-                    firstDestinations.append(AVAudioConnectionPoint(node: gainMixer, bus: 0))
-                }
+                    for node in chainNodes where node.engine == nil {
+                        self.engine.attach(node)
+                    }
+                    self.managedMasterNodes.append(contentsOf: chainNodes)
 
-                self.engine.connect(gainMixer, to: self.postBlendMixer, format: nil)
-                branchReadouts.append(MasterBranchReadout(nodes: chainNodes, gain: clampedGain))
+                    if let first = chainNodes.first {
+                        firstDestinations.append(AVAudioConnectionPoint(node: first, bus: 0))
+                        for (source, destination) in zip(chainNodes, chainNodes.dropFirst()) {
+                            self.engine.connect(source, to: destination, format: nil)
+                        }
+                        self.engine.connect(chainNodes.last ?? first, to: gainMixer, format: nil)
+                    } else {
+                        firstDestinations.append(AVAudioConnectionPoint(node: gainMixer, bus: 0))
+                    }
+
+                    self.engine.connect(gainMixer, to: self.postBlendMixer, format: nil)
+                    branchReadouts.append(MasterBranchReadout(nodes: chainNodes, gain: clampedGain))
+                }
             }
 
             for node in resolvedPostBlendNodes where node.engine == nil {
@@ -728,7 +737,20 @@ final class MainAudioGraph {
             self.postBlendMasterInsertNodesForTesting = resolvedPostBlendNodes
             self.finalOutputMixer.outputVolume = clampedMasterOutputGain
             self.masterOutputGainForTesting = clampedMasterOutputGain
-            self.engine.connect(self.preMasterMixer, to: firstDestinations, fromBus: 0, format: nil)
+            if let destination = firstDestinations.first,
+               firstDestinations.count == 1,
+               let node = destination.node
+            {
+                self.engine.connect(
+                    self.preMasterMixer,
+                    to: node,
+                    fromBus: 0,
+                    toBus: destination.bus,
+                    format: nil
+                )
+            } else {
+                self.engine.connect(self.preMasterMixer, to: firstDestinations, fromBus: 0, format: nil)
+            }
             self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
 
