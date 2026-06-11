@@ -198,6 +198,9 @@ struct TracksMatrixView: View {
             AddSliceTrackSheet(
                 library: .shared,
                 sampleEngine: engineController.sampleEngineSink,
+                pooledSampleIDs: Set(
+                    session.store.assetPool.filter { $0.kind == .sample }.map(\.assetID)
+                ),
                 onCreate: { sample in
                     _ = session.appendSliceTrack(sample: sample)
                     isPresentingAddSliceTrack = false
@@ -212,6 +215,9 @@ struct TracksMatrixView: View {
         .sheet(isPresented: $isPresentingAddDrumGroup) {
             AddDrumGroupSheet(
                 auInstruments: engineController.availableAudioInstruments,
+                pooledKitIDs: Set(
+                    session.store.assetPool.filter { $0.kind == .drumKit }.map(\.assetID)
+                ),
                 onCreate: { plan in
                     _ = session.addDrumGroup(plan: plan)
                     isPresentingAddDrumGroup = false
@@ -1672,14 +1678,24 @@ private struct CreateTrackSheet: View {
 private struct AddSliceTrackSheet: View {
     let library: AudioSampleLibrary
     let sampleEngine: SamplePlaybackSink
+    /// Project-pool sample IDs — pooled loops list first.
+    var pooledSampleIDs: Set<UUID> = []
     let onCreate: (AudioSample) -> Void
     let onCancel: () -> Void
 
     @State private var previewingSampleID: UUID?
 
+    /// Breaks and recordings both feed the slicer; pooled loops on top,
+    /// then global, each name-sorted.
     private var samples: [AudioSample] {
-        library.samples(in: .breaks).sorted { lhs, rhs in
-            lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        let loops = library.samples(in: .breaks) + library.samples(in: .recordings)
+        return loops.sorted { lhs, rhs in
+            let lhsPooled = pooledSampleIDs.contains(lhs.id)
+            let rhsPooled = pooledSampleIDs.contains(rhs.id)
+            if lhsPooled != rhsPooled {
+                return lhsPooled
+            }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
     }
 
@@ -1755,6 +1771,13 @@ private struct AddSliceTrackSheet: View {
                         .studioText(.label)
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
+
+                    if pooledSampleIDs.contains(sample.id) {
+                        Text("IN PROJECT")
+                            .studioText(.microEmphasis)
+                            .tracking(0.6)
+                            .foregroundStyle(StudioTheme.success)
+                    }
                 }
 
                 Spacer(minLength: 6)

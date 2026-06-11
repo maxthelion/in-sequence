@@ -14,6 +14,8 @@ import SwiftUI
 ///    routes-to-shared.
 struct AddDrumGroupSheet: View {
     let auInstruments: [AudioInstrumentChoice]
+    /// Project-pool kit IDs — pooled kits list before global ones.
+    var pooledKitIDs: Set<UUID> = []
     let onCreate: (DrumGroupPlan) -> Void
     let onCancel: () -> Void
 
@@ -30,6 +32,13 @@ struct AddDrumGroupSheet: View {
 
     private var assetLibrary: DrumAssetLibrary { .shared }
     private var sampleLibrary: AudioSampleLibrary { .shared }
+
+    /// Pooled kits first (pool membership is what creation flows offer
+    /// first), then the remaining global kits in library order.
+    private var orderedKits: [DrumKit] {
+        let kits = assetLibrary.kits
+        return kits.filter { pooledKitIDs.contains($0.id) } + kits.filter { !pooledKitIDs.contains($0.id) }
+    }
 
     var body: some View {
         StudioModal(
@@ -117,7 +126,7 @@ struct AddDrumGroupSheet: View {
                 applyKit(nil)
             }
 
-            ForEach(assetLibrary.kits) { kit in
+            ForEach(orderedKits) { kit in
                 kitChip(title: kit.name, isSelected: selectedKitID == kit.id) {
                     applyKit(kit)
                 }
