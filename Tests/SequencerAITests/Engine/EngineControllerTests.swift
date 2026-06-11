@@ -2389,6 +2389,39 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(runtime.captureEndTick, 8)
     }
 
+    func test_stateLockHoldDetector_firesWhenMainHopRunsUnderLock() {
+        let controller = EngineController(client: nil, endpoint: nil, stepsPerBar: 4)
+        var violations: [String] = []
+        controller.stateLockHoldViolationHandlerForTesting = { violations.append($0) }
+
+        controller.simulateMainHopUnderStateLockForTesting()
+
+        XCTAssertEqual(violations, ["simulated main hop"])
+    }
+
+    func test_audioInputCaptureBegin_resolvesCaptureFormatOutsideStateLock() throws {
+        // D1 contract: the graph capture-format read is a synchronous main
+        // hop; performing it while the tick path holds stateLock deadlocked
+        // the app at the record-start bar boundary. No plan override here —
+        // the real audioInputCapturePlan path (with its lock assertion hook)
+        // must run.
+        let controller = EngineController(client: nil, endpoint: nil, stepsPerBar: 4)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        let trackID = project.selectedTrackID
+        controller.apply(documentModel: project)
+        var violations: [String] = []
+        controller.stateLockHoldViolationHandlerForTesting = { violations.append($0) }
+
+        XCTAssertTrue(controller.armAudioInput(trackID: trackID, pendingStartTick: 4))
+        controller.processTick(tickIndex: 4, now: 0.4)
+
+        let runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.armState, .recording)
+        XCTAssertTrue(violations.isEmpty, "capture format must not be read under stateLock: \(violations)")
+    }
+
     func test_audioInputCapture_cancelBeforeStartPreventsRecording() throws {
         let (controller, _, trackID) = makeAudioInputSchedulingFixture(recordBarLength: 1)
 
