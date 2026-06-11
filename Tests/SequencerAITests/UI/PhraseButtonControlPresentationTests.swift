@@ -2,36 +2,7 @@ import XCTest
 @testable import SequencerAI
 
 final class PhraseButtonControlPresentationTests: XCTestCase {
-    func test_openStateAllowsOnlyOnePhrasePanelAndTogglesCurrentPanelClosed() {
-        let phraseA = UUID()
-        let phraseB = UUID()
-        var state = PhraseButtonControlsState()
-
-        state.openControls(for: phraseA)
-        XCTAssertEqual(state.openPhraseID, phraseA)
-
-        state.toggleControls(for: phraseA)
-        XCTAssertNil(state.openPhraseID)
-
-        state.toggleControls(for: phraseB)
-        XCTAssertEqual(state.openPhraseID, phraseB)
-
-        state.toggleControls(for: phraseB)
-        XCTAssertNil(state.openPhraseID)
-    }
-
-    func test_openStateClosesWhenOpenPhraseIsRemoved() {
-        let phraseA = UUID()
-        let phraseB = UUID()
-        var state = PhraseButtonControlsState()
-
-        state.toggleControls(for: phraseA)
-        state.reconcile(availablePhraseIDs: [phraseB])
-
-        XCTAssertNil(state.openPhraseID)
-    }
-
-    func test_collapsedSummaryAndAccessibilityExposeSelectionPlaybackLoopAndTruncatedNameText() {
+    func test_accessibilityExposesSelectionPlaybackLoopAndSummaryText() {
         var phrase = makePhrase(name: "Phrase D Outro Bridge With A Long User Authored Name")
         phrase.lengthBars = 12
         phrase.repeatCount = 4
@@ -41,19 +12,15 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
             phrase: phrase,
             isSelected: true,
             isPlaying: true,
-            isQueued: false,
-            isOpen: true
+            isQueued: false
         )
 
         XCTAssertEqual(presentation.barCountSummary, "12 bars")
         XCTAssertEqual(presentation.repeatSummary, "Loop overrides 4 repeat")
-        XCTAssertEqual(presentation.collapsedSummary, "12 bars | Loop overrides 4 repeat")
-        XCTAssertEqual(presentation.loopStatusLabel, "Loop on")
         XCTAssertTrue(presentation.accessibilityLabel.contains(phrase.name))
         XCTAssertTrue(presentation.accessibilityLabel.contains("selected"))
         XCTAssertTrue(presentation.accessibilityLabel.contains("playing"))
         XCTAssertTrue(presentation.accessibilityLabel.contains("loop on"))
-        XCTAssertTrue(presentation.accessibilityLabel.contains("controls open"))
     }
 
     func test_repeatZeroIsCommunicatedAsUnlimited() {
@@ -64,8 +31,7 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
             phrase: phrase,
             isSelected: false,
             isPlaying: false,
-            isQueued: false,
-            isOpen: false
+            isQueued: false
         )
 
         XCTAssertEqual(presentation.repeatValueLabel, "Unlimited")
@@ -81,12 +47,11 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
             phrase: phrase,
             isSelected: false,
             isPlaying: false,
-            isQueued: true,
-            isOpen: true
+            isQueued: true
         )
 
         XCTAssertEqual(presentation.repeatSummary, "Loop overrides 7 repeat")
-        XCTAssertEqual(presentation.loopStatusLabel, "Loop on")
+        XCTAssertTrue(presentation.accessibilityLabel.contains("loop on"))
     }
 
     func test_summaryHelpersClampDisplayedBounds() {

@@ -25,6 +25,8 @@ struct ScalarCellPreview: View {
                     .fill(accent.opacity(0.8))
                     .frame(height: fillHeight)
 
+                // One dominant value; inherit/single is shown by the cell's
+                // muted variant, not by a per-cell mode label.
                 VStack(alignment: .leading, spacing: 4) {
                     Spacer()
                     Text(summary)
@@ -33,10 +35,12 @@ struct ScalarCellPreview: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
 
-                    Text(isMixed ? "Mixed member values" : cell.editMode.label)
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(StudioTheme.text.opacity(0.85))
-                        .lineLimit(1)
+                    if isMixed {
+                        Text("Mixed")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(StudioTheme.text.opacity(0.85))
+                            .lineLimit(1)
+                    }
                 }
                 .padding(StudioMetrics.Spacing.compact)
             }
