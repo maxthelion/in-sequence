@@ -1204,6 +1204,12 @@ final class EngineController: RouterDispatcher {
         mainAudioGraph.masterMeterPublisher
     }
 
+    /// Live level publisher for one mixer strip (track, bus, or send
+    /// return) — the per-channel counterpart of `masterMeterPublisher`.
+    func channelMeterPublisher(for id: ChannelMeterID) -> MasterMeterPublisher {
+        mainAudioGraph.channelMeterBank.publisher(for: id)
+    }
+
     var effectiveCrossfader: Double {
         masterBusPerformanceOverlay.crossfaderOverride
             ?? currentDocumentModel.masterBus.abSelection?.crossfader
@@ -2432,6 +2438,17 @@ final class EngineController: RouterDispatcher {
             if isRunning {
                 host.startIfNeeded()
             }
+        }
+
+        // Meter registration (roadmap 29): each host meters the set of
+        // tracks it currently plays — shared hosts publish one stream to
+        // every strip they back.
+        var meterTrackIDsByHost: [ObjectIdentifier: (host: TrackPlaybackSink, trackIDs: Set<UUID>)] = [:]
+        for (trackID, host) in nextOutputs {
+            meterTrackIDsByHost[ObjectIdentifier(host), default: (host, [])].trackIDs.insert(trackID)
+        }
+        for entry in meterTrackIDsByHost.values {
+            entry.host.setMeterTrackIDs(entry.trackIDs)
         }
 
         let previousUniqueHosts = Self.uniqueHosts(Array(previousOutputs.values))

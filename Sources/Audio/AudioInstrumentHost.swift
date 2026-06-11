@@ -15,6 +15,7 @@ protocol TrackPlaybackSink: AnyObject {
     func shutdown()
     func setMix(_ mix: TrackMixSettings)
     func setOutputBusID(_ busID: UUID?)
+    func setMeterTrackIDs(_ trackIDs: Set<UUID>)
     func setDestination(_ destination: Destination)
     func selectInstrument(_ choice: AudioInstrumentChoice)
     func captureStateBlob() throws -> Data?
@@ -27,6 +28,10 @@ extension TrackPlaybackSink {
     }
 
     func setOutputBusID(_ busID: UUID?) {}
+
+    /// Sinks that own a graph node may register it as the meter source for
+    /// the tracks they play (roadmap 29). Default: no metering.
+    func setMeterTrackIDs(_ trackIDs: Set<UUID>) {}
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
@@ -42,6 +47,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var shouldBeRunning = false
     private var currentMix = TrackMixSettings.default
     private var currentOutputBusID: UUID?
+    private var currentMeterTrackIDs: Set<UUID> = []
     private var currentChoice: AudioInstrumentChoice
     private var currentDestination: Destination
     private var instantiationGeneration: UInt64 = 0
@@ -245,6 +251,19 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.currentOutputBusID = busID
             guard let outputMixer = self.outputMixer else { return }
             self.audioGraph.connectTrackOutput(outputMixer, to: busID, sends: self.currentMix.graphSendLevels)
+            self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: outputMixer)
+        }
+    }
+
+    func setMeterTrackIDs(_ trackIDs: Set<UUID>) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            guard !self.isShutdown else { return }
+            guard self.currentMeterTrackIDs != trackIDs else { return }
+
+            self.currentMeterTrackIDs = trackIDs
+            guard let outputMixer = self.outputMixer else { return }
+            self.audioGraph.setTrackMeterSources(trackIDs: trackIDs, node: outputMixer)
         }
     }
 
@@ -476,6 +495,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 self.outputMixer = mixer
                 self.audioGraph.attach(mixer)
                 self.audioGraph.connectTrackOutput(mixer, to: self.currentOutputBusID, sends: self.currentMix.graphSendLevels)
+                self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: mixer)
             }
             if self.audioGraph.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
                 self.audioGraph.connect(nextInstrument, to: mixer)

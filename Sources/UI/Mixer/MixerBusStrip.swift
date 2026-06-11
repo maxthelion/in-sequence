@@ -35,7 +35,24 @@ struct MixerBusStrip: View {
         } processing: {
             processingSlot
         } levels: {
-            levelsSlot
+            MixerStripLevelsColumn(
+                level: displayedLevel,
+                isMuted: bus.mix.isMuted || isEffectivelyMuted,
+                meterState: engineController.channelMeterPublisher(for: .bus(bus.id)).displayState,
+                onBegin: beginLevelDrag,
+                onChange: updateLevel,
+                onEnd: commitLevel
+            )
+        } pan: {
+            StudioSlideControl(
+                value: displayedPan,
+                accent: accent,
+                leadingLabel: "PAN",
+                trailingLabel: StudioSlideControlModel.panLabel(for: displayedPan),
+                help: "\(bus.name) pan",
+                onChange: { updatePan($0) },
+                onEnd: { commitPan() }
+            )
         } actions: {
             actionsSlot
         } footer: {
@@ -131,56 +148,29 @@ struct MixerBusStrip: View {
         }
     }
 
-    private var levelsSlot: some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .center, spacing: 6) {
-                VerticalLevelFader(
-                    level: displayedLevel,
-                    isMuted: bus.mix.isMuted || isEffectivelyMuted,
-                    onBegin: beginLevelDrag,
-                    onChange: updateLevel,
-                    onEnd: commitLevel
-                )
-                .frame(
-                    width: StudioMixerStripMetrics.faderSize.width,
-                    height: StudioMixerStripMetrics.faderSize.height
-                )
-
-                Text(StudioLevelFormat.dBLabel(forLinear: displayedLevel))
-                    .studioText(.eyebrow)
-                    .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
-            }
-
-            StudioRotaryKnob(
-                title: "Pan",
-                value: displayedPan,
-                range: -1...1,
-                accent: accent,
-                format: { panLabel(for: $0) },
-                onChange: { pan in
-                    updatePan(pan)
-                    commitPan()
-                }
-            )
-        }
-    }
-
     private var actionsSlot: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             MixerStripActionButton(
-                title: bus.mix.isMuted ? "Unmute" : "Mute",
+                title: "",
+                systemName: bus.mix.isMuted ? "speaker.slash.fill" : "speaker.slash",
                 accent: StudioTheme.amber,
                 isActive: bus.mix.isMuted,
+                minWidth: 20,
                 action: onToggleMute
             )
+            .help(bus.mix.isMuted ? "Unmute" : "Mute")
+            .accessibilityLabel("\(bus.name) mute")
 
             MixerStripActionButton(
-                title: bus.mix.isSoloed ? "Unsolo" : "Solo",
+                title: "",
+                systemName: "headphones",
                 accent: StudioTheme.amber,
                 isActive: bus.mix.isSoloed,
+                minWidth: 20,
                 action: onToggleSolo
             )
+            .help(bus.mix.isSoloed ? "Unsolo" : "Solo")
+            .accessibilityLabel("\(bus.name) solo")
         }
     }
 
@@ -201,16 +191,6 @@ struct MixerBusStrip: View {
 
     private var displayedPan: Double {
         panControl.rendered(committed: bus.mix.clampedPan)
-    }
-
-    private func panLabel(for value: Double) -> String {
-        if value < -0.05 {
-            return "L\(Int(abs(value) * 100))"
-        }
-        if value > 0.05 {
-            return "R\(Int(value * 100))"
-        }
-        return "C"
     }
 
     private func beginLevelDrag() {

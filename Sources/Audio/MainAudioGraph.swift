@@ -68,6 +68,8 @@ final class MainAudioGraph {
     let engine: AVAudioEngine
     let preMasterMixer: AVAudioMixerNode
     let masterMeterPublisher: MasterMeterPublisher
+    /// Per-strip meters (tracks, mixer buses, send returns) — roadmap 29.
+    let channelMeterBank: ChannelMeterBank
     private let audioDeviceOwner: AudioDeviceOwning
     private(set) var masterBranchesForTesting: [MasterBranchReadout] = []
     private(set) var postBlendMasterInsertNodesForTesting: [AVAudioNode] = []
@@ -99,6 +101,12 @@ final class MainAudioGraph {
     private var isStarted = false
     private var isMasterMeterTapInstalled = false
     private let masterMeterTapGeneration = AtomicInt32(0)
+    private var areChannelMeterTapsInstalled = false
+    private var channelMeterTappedNodes: [ObjectIdentifier: AVAudioNode] = [:]
+    private var trackMeterSources: [UUID: AVAudioNode] = [:]
+    private let channelMeterTapGeneration = AtomicInt32(0)
+    private(set) var channelMeterTapInstallCountForTesting = 0
+    private(set) var channelMeterTapRemoveCountForTesting = 0
     private let masterRenderLock = NSLock()
     private var masterRenderFile: AVAudioFile?
     private var masterRenderURL: URL?
@@ -144,10 +152,12 @@ final class MainAudioGraph {
     init(
         engine: AVAudioEngine = AVAudioEngine(),
         masterMeterPublisher: MasterMeterPublisher = MasterMeterPublisher(),
+        channelMeterBank: ChannelMeterBank = ChannelMeterBank(),
         audioDeviceOwner: AudioDeviceOwning = CoreAudioHALDeviceOwner()
     ) {
         self.engine = engine
         self.masterMeterPublisher = masterMeterPublisher
+        self.channelMeterBank = channelMeterBank
         self.audioDeviceOwner = audioDeviceOwner
         self.preMasterMixer = AVAudioMixerNode()
 
@@ -165,6 +175,7 @@ final class MainAudioGraph {
 
     deinit {
         masterMeterPublisher.stopPublishing()
+        channelMeterBank.stopPublishing()
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
         }
@@ -180,6 +191,9 @@ final class MainAudioGraph {
     func detach(_ node: AVAudioNode) {
         performOnMain {
             guard node.engine === self.engine else { return }
+            // A node leaving the graph takes its meter registration with it.
+            self.removeChannelMeterTapIfInstalled(on: node)
+            self.trackMeterSources = self.trackMeterSources.filter { $0.value !== node }
             self.engine.disconnectNodeInput(node)
             self.engine.disconnectNodeOutput(node)
             self.engine.detach(node)
@@ -577,6 +591,7 @@ final class MainAudioGraph {
             guard !self.isStarted || !self.engine.isRunning else { return }
             self.installMasterMeterTapIfNeeded()
             self.masterMeterPublisher.startPublishing()
+            self.channelMeterBank.startPublishing()
             try self.engine.start()
             self.isStarted = true
         }
@@ -586,6 +601,7 @@ final class MainAudioGraph {
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
             self.masterMeterPublisher.stopPublishing()
+            self.channelMeterBank.stopPublishing()
             guard self.isStarted || self.engine.isRunning else { return }
             self.engine.stop()
             self.isStarted = false
@@ -960,6 +976,7 @@ final class MainAudioGraph {
 
     @MainActor
     private func installMasterMeterTapIfNeeded() {
+        installChannelMeterTapsIfNeeded()
         guard !isMasterMeterTapInstalled else { return }
         let generation = masterMeterTapGeneration.increment()
         finalOutputMixer.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
@@ -974,6 +991,7 @@ final class MainAudioGraph {
 
     @MainActor
     private func removeMasterMeterTapIfNeeded() {
+        removeChannelMeterTapsIfNeeded()
         guard isMasterMeterTapInstalled else { return }
         masterMeterTapGeneration.increment()
         finalOutputMixer.removeTap(onBus: 0)
@@ -981,6 +999,126 @@ final class MainAudioGraph {
         isMasterMeterTapInstalled = false
         masterMeterTapPointForTesting = nil
         masterMeterTapRemoveCountForTesting += 1
+    }
+
+    // MARK: - Channel meter taps (roadmap 29)
+    //
+    // One tap per strip node, installed/removed at exactly the master-tap
+    // sites so they only ever touch the graph while it is being rebuilt.
+    // A node carries at most one tap, so nodes that already host the audio
+    // input capture tap are skipped until that tap clears.
+
+    /// Track strips register the node whose output represents the track
+    /// (post level/pan, post filter). Multiple tracks may share one node
+    /// when they share a playback host. Passing an empty set unregisters
+    /// the node.
+    func setTrackMeterSources(trackIDs: Set<UUID>, node: AVAudioNode) {
+        performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            self.trackMeterSources = self.trackMeterSources.filter { $0.value !== node || trackIDs.contains($0.key) }
+            for trackID in trackIDs {
+                self.trackMeterSources[trackID] = node
+            }
+            guard self.areChannelMeterTapsInstalled else { return }
+            self.removeChannelMeterTapsIfNeeded()
+            self.installChannelMeterTapsIfNeeded()
+        }
+    }
+
+    var trackMeterSourceCountForTesting: Int {
+        performOnMainReturning {
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            return self.trackMeterSources.count
+        }
+    }
+
+    var channelMeterTappedNodeCountForTesting: Int {
+        performOnMainReturning {
+            self.channelMeterTappedNodes.count
+        }
+    }
+
+    @MainActor
+    private func installChannelMeterTapsIfNeeded() {
+        guard !areChannelMeterTapsInstalled else { return }
+        let generation = channelMeterTapGeneration.increment()
+
+        var entries: [ObjectIdentifier: (node: AVAudioNode, ids: [ChannelMeterID])] = [:]
+        func register(_ node: AVAudioNode?, _ id: ChannelMeterID) {
+            guard let node, node.engine === engine, node !== finalOutputMixer else { return }
+            entries[ObjectIdentifier(node), default: (node, [])].ids.append(id)
+        }
+
+        for (busID, host) in mixerBusHosts {
+            register(host.destinationNode(), .bus(busID))
+        }
+        for (sendID, host) in sendBusHosts {
+            register(host.destinationNode(), .send(sendID))
+        }
+        for (trackID, node) in trackMeterSources {
+            if let host = audioInputRoutingHosts[trackID], host.outputMixer === node, host.isCaptureTapInstalled {
+                continue
+            }
+            register(node, .track(trackID))
+        }
+
+        for (key, entry) in entries {
+            let publishers = entry.ids.map { channelMeterBank.publisher(for: $0) }
+            // installTap throws an uncatchable NSException if the node
+            // already has a tap — the shim turns a bookkeeping slip into a
+            // skipped meter instead of a crash.
+            let exception = SEQRunCatchingObjCException {
+                entry.node.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
+                    guard let self, self.channelMeterTapGeneration.load() == generation else { return }
+                    for publisher in publishers {
+                        publisher.process(buffer: buffer)
+                    }
+                }
+            }
+            guard exception == nil else {
+                DevActivity.trace(
+                    DevActivity.audioGraph,
+                    "channel meter tap skipped: \(exception?.reason ?? "unknown")"
+                )
+                continue
+            }
+            channelMeterTappedNodes[key] = entry.node
+            channelMeterTapInstallCountForTesting += 1
+        }
+        areChannelMeterTapsInstalled = true
+    }
+
+    @MainActor
+    private func removeChannelMeterTapsIfNeeded() {
+        guard areChannelMeterTapsInstalled else { return }
+        channelMeterTapGeneration.increment()
+        for node in channelMeterTappedNodes.values {
+            _ = SEQRunCatchingObjCException {
+                node.removeTap(onBus: 0)
+            }
+            channelMeterTapRemoveCountForTesting += 1
+        }
+        channelMeterTappedNodes = [:]
+        channelMeterBank.recordSilenceEverywhere()
+        areChannelMeterTapsInstalled = false
+    }
+
+    /// Removes one node's meter tap immediately (e.g. before the capture
+    /// tap claims the node, or before the node is detached).
+    @MainActor
+    private func removeChannelMeterTapIfInstalled(on node: AVAudioNode) {
+        let key = ObjectIdentifier(node)
+        guard channelMeterTappedNodes[key] != nil else { return }
+        _ = SEQRunCatchingObjCException {
+            node.removeTap(onBus: 0)
+        }
+        channelMeterTappedNodes.removeValue(forKey: key)
+        channelMeterTapRemoveCountForTesting += 1
     }
 
     private static func clampedMasterOutputGain(_ gain: Double) -> Float {
@@ -998,6 +1136,7 @@ final class MainAudioGraph {
         self.installMasterMeterTapIfNeeded()
         if wasRunning {
             self.masterMeterPublisher.startPublishing()
+            self.channelMeterBank.startPublishing()
             try self.engine.start()
         }
         self.isStarted = wasRunning ? self.engine.isRunning : self.isStarted
@@ -1154,6 +1293,10 @@ final class MainAudioGraph {
 
         host.selectedChannel = request.selectedChannel
         host.requestedSource = request.source
+
+        // The output mixer is the audio-input track's meter point (post
+        // level/pan), matching the other strip kinds.
+        trackMeterSources[request.trackID] = host.outputMixer
 
         reconnectAudioInputSourceOnMain(host: host, requestedSource: request.source)
         applyAudioInputRoutingParametersOnMain(request)
@@ -1316,6 +1459,10 @@ final class MainAudioGraph {
         let generation = host.captureTapGeneration.increment()
         let format = host.outputMixer.inputFormat(forBus: 0)
         guard format.channelCount > 0 else { return }
+        // One tap per node: the capture tap owns the output mixer's tap slot
+        // while recording is armed; the meter tap yields and returns when
+        // the capture tap clears.
+        removeChannelMeterTapIfInstalled(on: host.outputMixer)
         host.outputMixer.installTap(onBus: 0, bufferSize: 32, format: format) { [weak self, weak host] buffer, _ in
             guard let self,
                   let host,
@@ -1334,6 +1481,11 @@ final class MainAudioGraph {
         host.captureTapGeneration.increment()
         host.outputMixer.removeTap(onBus: 0)
         host.isCaptureTapInstalled = false
+        // Give the meter tap its node back.
+        if areChannelMeterTapsInstalled {
+            removeChannelMeterTapsIfNeeded()
+            installChannelMeterTapsIfNeeded()
+        }
     }
 
     @MainActor
@@ -1615,13 +1767,19 @@ final class MasterMeterPublisher {
             elapsed: elapsed
         )
 
-        displayState = MasterMeterDisplayState(
+        let nextState = MasterMeterDisplayState(
             leftPeakDBFS: leftPeak,
             rightPeakDBFS: rightPeak,
             leftPeakHoldDBFS: leftHold,
             rightPeakHoldDBFS: rightHold,
             isClipLatched: displayState.isClipLatched || snapshot.isClipped
         )
+        // Skip the no-op assignment: with one publisher per mixer strip, an
+        // unconditional 60Hz write would re-render every visible strip even
+        // when its meter sits silent.
+        if nextState != displayState {
+            displayState = nextState
+        }
     }
 
     func clearClip() {
