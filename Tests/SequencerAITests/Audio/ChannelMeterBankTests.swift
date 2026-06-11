@@ -35,6 +35,35 @@ final class ChannelMeterBankTests: XCTestCase {
     }
 
     @MainActor
+    func test_auxiliaryPublisherRidesTheSinglePump() {
+        // F6: the master meter owns no timer of its own — it registers with
+        // the bank so the whole app has exactly one meter pump.
+        let bank = ChannelMeterBank()
+        let master = MasterMeterPublisher()
+        bank.registerAuxiliaryPublisher(master)
+        bank.registerAuxiliaryPublisher(master) // idempotent
+
+        master.recordPeakAmplitudes(left: 1.0, right: 1.0)
+        bank.pumpOnceForTesting(now: 5)
+
+        XCTAssertEqual(master.displayState.leftPeakDBFS, 0, accuracy: 0.01)
+        XCTAssertEqual(master.displayState.rightPeakDBFS, 0, accuracy: 0.01)
+    }
+
+    @MainActor
+    func test_mainAudioGraphRegistersMasterMeterWithBankPump() {
+        let bank = ChannelMeterBank()
+        let publisher = MasterMeterPublisher()
+        let graph = MainAudioGraph(masterMeterPublisher: publisher, channelMeterBank: bank)
+        _ = graph
+
+        publisher.recordPeakAmplitudes(left: 0.5, right: 0.5)
+        bank.pumpOnceForTesting(now: 5)
+
+        XCTAssertEqual(publisher.displayState.leftPeakDBFS, -6.02, accuracy: 0.05)
+    }
+
+    @MainActor
     func test_recordSilenceEverywhereDecaysAllChannels() {
         let bank = ChannelMeterBank()
         let publisher = bank.publisher(for: .bus(UUID()))

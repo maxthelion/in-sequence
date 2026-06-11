@@ -119,7 +119,6 @@ final class MasterBusStateTests: XCTestCase {
     func test_masterMeterStateIsRuntimeOnlyAndAbsentFromProjectCodableState() throws {
         let project = Project.empty
         let publisher = MasterMeterPublisher()
-        publisher.stopPublishing()
         publisher.recordPeakAmplitudes(left: 1.5, right: 0.25)
         publisher.publishPendingToMain(now: 1)
 

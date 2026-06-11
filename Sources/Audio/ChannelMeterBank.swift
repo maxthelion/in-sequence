@@ -17,6 +17,10 @@ enum ChannelMeterID: Hashable {
 final class ChannelMeterBank {
     private let lock = NSLock()
     private var publishers: [ChannelMeterID: MasterMeterPublisher] = [:]
+    /// Publishers pumped alongside the strips but owned elsewhere — the
+    /// master meter registers here so the whole app has exactly one meter
+    /// pump timer (abstraction audit F6).
+    private var auxiliaryPublishers: [MasterMeterPublisher] = []
     private var pumpTimer: DispatchSourceTimer?
     private let publishInterval: TimeInterval
 
@@ -76,10 +80,19 @@ final class ChannelMeterBank {
         }
     }
 
+    /// Registers an externally-owned publisher (e.g. the master meter) to
+    /// ride this bank's pump. Idempotent per publisher instance.
+    func registerAuxiliaryPublisher(_ publisher: MasterMeterPublisher) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !auxiliaryPublishers.contains(where: { $0 === publisher }) else { return }
+        auxiliaryPublishers.append(publisher)
+    }
+
     private func publishersSnapshot() -> [MasterMeterPublisher] {
         lock.lock()
         defer { lock.unlock() }
-        return Array(publishers.values)
+        return Array(publishers.values) + auxiliaryPublishers
     }
 
     private func startPublishingOnMain() {

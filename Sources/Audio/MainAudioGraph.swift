@@ -167,6 +167,10 @@ final class MainAudioGraph {
         self.audioDeviceOwner = audioDeviceOwner
         self.preMasterMixer = AVAudioMixerNode()
 
+        // One meter pump for the whole app: the master publisher rides the
+        // channel bank's single main-queue timer (F6).
+        channelMeterBank.registerAuxiliaryPublisher(masterMeterPublisher)
+
         performOnMain {
             self.engine.attach(self.preMasterMixer)
             self.engine.attach(self.postBlendMixer)
@@ -180,7 +184,6 @@ final class MainAudioGraph {
     }
 
     deinit {
-        masterMeterPublisher.stopPublishing()
         channelMeterBank.stopPublishing()
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
@@ -622,7 +625,6 @@ final class MainAudioGraph {
         try performOnMainThrowing {
             guard !self.isStarted || !self.engine.isRunning else { return }
             self.installMasterMeterTapIfNeeded()
-            self.masterMeterPublisher.startPublishing()
             self.channelMeterBank.startPublishing()
             try self.engine.start()
             self.isStarted = true
@@ -632,7 +634,6 @@ final class MainAudioGraph {
     func stop() {
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
-            self.masterMeterPublisher.stopPublishing()
             self.channelMeterBank.stopPublishing()
             guard self.isStarted || self.engine.isRunning else { return }
             self.engine.stop()
@@ -1177,7 +1178,6 @@ final class MainAudioGraph {
         self.engine.prepare()
         self.installMasterMeterTapIfNeeded()
         if wasRunning {
-            self.masterMeterPublisher.startPublishing()
             self.channelMeterBank.startPublishing()
             try self.engine.start()
         }
@@ -1702,49 +1702,26 @@ final class MasterMeterPublisher {
     private(set) var displayState: MasterMeterDisplayState = .silent
 
     @ObservationIgnored private let transport = MasterMeterTransport()
-    @ObservationIgnored private let publishInterval: TimeInterval
     @ObservationIgnored private let peakHoldDuration: TimeInterval
     @ObservationIgnored private let peakHoldReleaseDBPerSecond: Double
     @ObservationIgnored private let levelReleaseDBPerSecond: Double
-    @ObservationIgnored private var publishTimer: DispatchSourceTimer?
     @ObservationIgnored private var lastPublishTime: TimeInterval?
     @ObservationIgnored private var leftPeakHoldTime: TimeInterval = 0
     @ObservationIgnored private var rightPeakHoldTime: TimeInterval = 0
 
+    // NOTE: this publisher owns NO timer. All publishers — channel strips
+    // and the master — are pumped by ChannelMeterBank's single main-queue
+    // timer (the master registers itself via
+    // `ChannelMeterBank.registerAuxiliaryPublisher`). One pump, one cadence,
+    // publish-outside-locks (abstraction audit F6).
     init(
-        publishInterval: TimeInterval = 1.0 / 60.0,
         peakHoldDuration: TimeInterval = 0.75,
         peakHoldReleaseDBPerSecond: Double = 18,
         levelReleaseDBPerSecond: Double = 42
     ) {
-        self.publishInterval = publishInterval
         self.peakHoldDuration = peakHoldDuration
         self.peakHoldReleaseDBPerSecond = peakHoldReleaseDBPerSecond
         self.levelReleaseDBPerSecond = levelReleaseDBPerSecond
-    }
-
-    func startPublishing() {
-        if Thread.isMainThread {
-            startPublishingOnMain()
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.startPublishingOnMain()
-            }
-        }
-    }
-
-    func stopPublishing() {
-        if Thread.isMainThread {
-            stopPublishingOnMain()
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.stopPublishingOnMain()
-            }
-        }
-    }
-
-    deinit {
-        publishTimer?.cancel()
     }
 
     func process(buffer: AVAudioPCMBuffer) {
@@ -1841,22 +1818,6 @@ final class MasterMeterPublisher {
             return MasterMeterDisplayState.silenceDBFS
         }
         return 20 * log10(amplitude)
-    }
-
-    private func startPublishingOnMain() {
-        guard publishTimer == nil else { return }
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now() + publishInterval, repeating: publishInterval)
-        timer.setEventHandler { [weak self] in
-            self?.publishPendingToMain()
-        }
-        publishTimer = timer
-        timer.resume()
-    }
-
-    private func stopPublishingOnMain() {
-        publishTimer?.cancel()
-        publishTimer = nil
     }
 
     private static func peakAmplitude(channel: UnsafePointer<Float>, frameCount: Int) -> Double {
