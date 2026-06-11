@@ -157,14 +157,20 @@ struct MacroSlotKnob: View {
                 }
             }
 
-            Text(descriptor?.displayName ?? emptyLabel)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(descriptor == nil ? StudioTheme.mutedText : StudioTheme.text)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: knobSize + 18)
+            // An empty label collapses entirely (callers pass "" when the
+            // dashed "+" knob alone should carry the assign affordance).
+            let footerLabel = descriptor?.displayName ?? emptyLabel
+            if !footerLabel.isEmpty {
+                Text(footerLabel)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(descriptor == nil ? StudioTheme.mutedText : StudioTheme.text)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(width: knobSize + 18)
+            }
         }
         .frame(minWidth: knobSize + 18, maxWidth: .infinity, minHeight: 86, alignment: .top)
+        .help(descriptor == nil ? "Assign a macro" : "")
         .contextMenu {
             if let onEdit {
                 Button("Change Macro", action: onEdit)
