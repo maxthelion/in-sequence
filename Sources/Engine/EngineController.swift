@@ -1204,6 +1204,12 @@ final class EngineController: RouterDispatcher {
         mainAudioGraph.masterMeterPublisher
     }
 
+    /// Live level publisher for one mixer strip (track, bus, or send
+    /// return) — the per-channel counterpart of `masterMeterPublisher`.
+    func channelMeterPublisher(for id: ChannelMeterID) -> MasterMeterPublisher {
+        mainAudioGraph.channelMeterBank.publisher(for: id)
+    }
+
     var effectiveCrossfader: Double {
         masterBusPerformanceOverlay.crossfaderOverride
             ?? currentDocumentModel.masterBus.abSelection?.crossfader
@@ -1501,6 +1507,9 @@ final class EngineController: RouterDispatcher {
         }
 
         let selectedTrack = currentDocumentModel.selectedTrack
+        if selectedTrack.trackType == .audioInput {
+            return audioInputStatusSummary(for: selectedTrack)
+        }
         let (destination, _) = effectiveDestination(for: selectedTrack.id)
         switch destination {
         case .midi:
@@ -1532,6 +1541,37 @@ final class EngineController: RouterDispatcher {
             return count > 0 ? "Slicer • \(count) slices" : "Slicer • Choose a loop"
         case .inheritGroup, .none:
             return "No default output"
+        }
+    }
+
+    /// Audio-input tracks have no note destination, so the generic summary
+    /// used to claim "No default output"; describe the monitor routing
+    /// instead, in the panel's Live/Buffer vocabulary.
+    private func audioInputStatusSummary(for track: StepSequenceTrack) -> String {
+        guard let runtime = audioInputRuntime(for: track.id) else {
+            return "Audio In • Connecting"
+        }
+        if runtime.routeState == .silentUnavailable {
+            return "Audio In • No input device"
+        }
+        let muted = track.mix.isMuted ? " (Muted)" : ""
+        switch runtime.armState {
+        case .armed:
+            return "Audio In • Armed, records at next bar\(muted)"
+        case .recording:
+            let bars = runtime.armedRecordBarLength ?? runtime.recordBarLength
+            return "Audio In • Recording \(bars) bar\(bars == 1 ? "" : "s")\(muted)"
+        case .idle, .hasLoop:
+            break
+        }
+        switch runtime.activeMonitorMode {
+        case .input:
+            return "Audio In • Live monitor\(muted)"
+        case .loop:
+            guard let bars = runtime.recordedLoopBarLength else {
+                return "Audio In • Buffer\(muted)"
+            }
+            return "Audio In • Buffer (\(bars) bar\(bars == 1 ? "" : "s"))\(muted)"
         }
     }
 
@@ -2432,6 +2472,17 @@ final class EngineController: RouterDispatcher {
             if isRunning {
                 host.startIfNeeded()
             }
+        }
+
+        // Meter registration (roadmap 29): each host meters the set of
+        // tracks it currently plays — shared hosts publish one stream to
+        // every strip they back.
+        var meterTrackIDsByHost: [ObjectIdentifier: (host: TrackPlaybackSink, trackIDs: Set<UUID>)] = [:]
+        for (trackID, host) in nextOutputs {
+            meterTrackIDsByHost[ObjectIdentifier(host), default: (host, [])].trackIDs.insert(trackID)
+        }
+        for entry in meterTrackIDsByHost.values {
+            entry.host.setMeterTrackIDs(entry.trackIDs)
         }
 
         let previousUniqueHosts = Self.uniqueHosts(Array(previousOutputs.values))

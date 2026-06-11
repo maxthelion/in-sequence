@@ -2207,6 +2207,24 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(phraseArm.pendingStartTick, 32)
     }
 
+    /// The transport summary for an audio-input track must describe its
+    /// monitor routing, not the generic "No default output" (which reads as
+    /// a malfunction on a track that has no note destination by design).
+    func test_statusSummary_describesAudioInputMonitorRouting() {
+        let controller = EngineController(client: nil, endpoint: nil)
+        controller.audioInputAvailableChannelCountOverrideForTesting = 2
+
+        var project = Project.empty
+        project.appendTrack(trackType: .audioInput)
+        controller.apply(documentModel: project)
+
+        XCTAssertEqual(controller.statusSummary, "Audio In • Live monitor")
+
+        controller.audioInputAvailableChannelCountOverrideForTesting = 0
+        controller.microphoneAccessChanged()
+        XCTAssertEqual(controller.statusSummary, "Audio In • No input device")
+    }
+
     /// Switching the audio device must recompute audio-input route states:
     /// picking an interface with enough input channels should unlock arming
     /// without any other interaction (regression: route state stayed frozen

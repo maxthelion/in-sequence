@@ -13,18 +13,31 @@ enum StudioMixerStripMetrics {
     /// an empty slot of the same height, keeping neighbours aligned.
     static let headerHeight: CGFloat = 38
     static let processingHeight: CGFloat = 128
-    static let levelsHeight: CGFloat = 196
+    static let levelsHeight: CGFloat = 172
+    static let panHeight: CGFloat = 30
     static let actionsHeight: CGFloat = 30
     static let footerHeight: CGFloat = 34
 
     static let faderSize = CGSize(width: 36, height: 150)
+    static let masterFaderWidth: CGFloat = 72
+
+    static let slotSpacing: CGFloat = 10
+    static let stripPadding: CGFloat = StudioMetrics.Spacing.comfortable
+
+    /// Total rendered height of a strip — slot heights plus inter-slot
+    /// spacing plus padding. Sibling tiles (Add Bus) match this so same-kind
+    /// cards share dimensions (ux-canon rule 5).
+    static var stripHeight: CGFloat {
+        let slots = headerHeight + processingHeight + levelsHeight + panHeight + actionsHeight + footerHeight
+        return slots + slotSpacing * 5 + stripPadding * 2
+    }
 }
 
 /// Slot scaffold for a mixer column: header / processing (sends, inserts,
-/// FX) / levels (fader + pan) / actions (mute, solo, edit) / footer
-/// (routing). All slots are fixed-height so a row of mixed strip types reads
-/// as one aligned grid.
-struct StudioMixerStrip<Header: View, Processing: View, Levels: View, Actions: View, Footer: View>: View {
+/// FX) / levels (fader + meter) / pan (side-to-side scalar) / actions
+/// (mute, solo, edit) / footer (routing). All slots are fixed-height so a
+/// row of mixed strip types reads as one aligned grid.
+struct StudioMixerStrip<Header: View, Processing: View, Levels: View, Pan: View, Actions: View, Footer: View>: View {
     var width: CGFloat = StudioMixerStripMetrics.stripWidth
     var accent: Color = StudioTheme.cyan
     var isHighlighted = false
@@ -34,18 +47,20 @@ struct StudioMixerStrip<Header: View, Processing: View, Levels: View, Actions: V
     @ViewBuilder var header: Header
     @ViewBuilder var processing: Processing
     @ViewBuilder var levels: Levels
+    @ViewBuilder var pan: Pan
     @ViewBuilder var actions: Actions
     @ViewBuilder var footer: Footer
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: StudioMixerStripMetrics.slotSpacing) {
             slot(header, height: StudioMixerStripMetrics.headerHeight)
             slot(processing, height: StudioMixerStripMetrics.processingHeight)
             slot(levels, height: StudioMixerStripMetrics.levelsHeight)
+            slot(pan, height: StudioMixerStripMetrics.panHeight)
             slot(actions, height: StudioMixerStripMetrics.actionsHeight)
             slot(footer, height: StudioMixerStripMetrics.footerHeight)
         }
-        .padding(StudioMetrics.Spacing.comfortable)
+        .padding(StudioMixerStripMetrics.stripPadding)
         .frame(width: width, alignment: .topLeading)
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -72,5 +87,11 @@ enum StudioLevelFormat {
         let db = 20 * log10(level)
         if abs(db) < 0.05 { return "0 dB" }
         return String(format: "%+.1f", db)
+    }
+
+    /// Live peak readout (dBFS) for meter-only lanes like the send returns.
+    static func dBFSLabel(forPeak dbFS: Double) -> String {
+        guard dbFS.isFinite else { return "-inf" }
+        return String(format: "%.1f", dbFS)
     }
 }

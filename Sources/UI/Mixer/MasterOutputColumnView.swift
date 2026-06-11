@@ -21,30 +21,35 @@ struct MasterOutputColumnView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        StudioMixerStrip(
+            width: StudioMixerStripMetrics.masterWidth,
+            accent: StudioTheme.amber
+        ) {
             header
-            MasterCrossfaderView(
-                sceneAName: sceneA.name,
-                sceneBName: sceneB.name,
+        } processing: {
+            masterInsertSection
+        } levels: {
+            masterOutputSection
+        } pan: {
+            // The A/B blend is the master's side-to-side row, aligned with
+            // the channel pan rows.
+            StudioSlideControl(
                 value: crossfaderValue,
-                hasLiveOverride: liveCrossfader != nil,
-                showsPersistenceActions: false,
+                range: 0...1,
+                fillStyle: .fromLeading,
+                accent: StudioTheme.amber,
+                leadingLabel: "A",
+                trailingLabel: "B",
+                help: "Scene A B blend",
                 onChange: { engineController.setLiveMasterCrossfader($0) }
             )
-            section("FX") {
-                masterInsertSection
-            }
-            section("Output") {
-                masterOutputSection
-            }
+        } actions: {
+            clipActionsRow
+        } footer: {
+            Text("→ Output")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
         }
-        .padding(StudioMetrics.Spacing.comfortable)
-        .frame(width: StudioMixerStripMetrics.masterWidth, alignment: .topLeading)
-        .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(0.7), lineWidth: 1)
-        )
         .sheet(isPresented: $isAddFXPresented) {
             addFXSheet
         }
@@ -52,120 +57,70 @@ struct MasterOutputColumnView: View {
         .accessibilityIdentifier("mixer-master-out-column")
     }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("MASTER OUT")
-                    .studioText(.eyebrowBold)
-                    .tracking(1.0)
-                    .foregroundStyle(StudioTheme.text)
-            }
-            Spacer(minLength: 6)
-        }
+    private var isSoloActive: Bool {
+        EngineController.effectiveMixerMuteState(
+            tracks: session.store.tracks,
+            buses: session.store.buses
+        ).isSoloActive
     }
 
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-            content()
+    private var header: some View {
+        HStack(spacing: 6) {
+            Text("MASTER OUT")
+                .studioText(.eyebrowBold)
+                .tracking(1.0)
+                .foregroundStyle(StudioTheme.text)
+            Spacer(minLength: 6)
+            // Solo state surfaces here — a fixed header slot — never as a
+            // banner that pushes the strip grid out of alignment.
+            if isSoloActive {
+                Button {
+                    session.clearAllSolo()
+                } label: {
+                    Text("SOLO")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.background)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .help("Clear solo")
+                .accessibilityLabel("Clear solo")
+                .accessibilityIdentifier("mixer-clear-solo")
+            }
         }
-        .padding(.top, 2)
+        .frame(maxHeight: .infinity, alignment: .center)
     }
 
     private var masterInsertSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            MixerInsertChainView(
-                inserts: masterBus.masterInserts,
-                accent: StudioTheme.amber,
-                emptySlotCount: emptySlotCount,
-                maxAddAffordances: 1,
-                addLabel: "Add FX",
-                addAction: { isAddFXPresented = true },
-                updateInsert: { insertID, edit in
-                    session.updateMasterOutputInsert(insertID, edit: edit)
-                },
-                removeInsert: { insertID in
-                    session.removeMasterOutputInsert(insertID)
-                },
-                reorderInserts: { ids in
-                    session.reorderMasterOutputInserts(ids)
-                }
-            )
-        }
-    }
-
-    private func masterInsertRow(_ insert: MasterBusInsert) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 7) {
-                Image(systemName: iconName(for: insert.kind))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 22, height: 22)
-                    .background(StudioTheme.amber.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(insert.name)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                    Text(insert.kind.summary)
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
-            }
-
-            HStack(spacing: 5) {
-                Toggle("Enabled", isOn: insertEnabledBinding(insert))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .tint(StudioTheme.success)
-
-                Spacer(minLength: 2)
-
-                insertMoveButton(insert, systemName: "arrow.up", delta: -1)
-                insertMoveButton(insert, systemName: "arrow.down", delta: 1)
-
-                Button(role: .destructive) {
-                    session.removeMasterOutputInsert(insert.id)
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-                .help("Remove insert")
-            }
-        }
-        .padding(StudioMetrics.Spacing.snug)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-        )
-    }
-
-    private var emptyInsertSlot: some View {
-        Button {
-            isAddFXPresented = true
-        } label: {
-            Label("Add FX", systemImage: "plus")
+            Text("FX")
                 .studioText(.micro)
-                .tracking(0.6)
-                .foregroundStyle(StudioTheme.text)
-                .frame(maxWidth: .infinity, minHeight: 32)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            ScrollView(showsIndicators: false) {
+                MixerInsertChainView(
+                    inserts: masterBus.masterInserts,
+                    accent: StudioTheme.amber,
+                    emptySlotCount: emptySlotCount,
+                    maxAddAffordances: 1,
+                    addLabel: "Add FX",
+                    addAction: { isAddFXPresented = true },
+                    updateInsert: { insertID, edit in
+                        session.updateMasterOutputInsert(insertID, edit: edit)
+                    },
+                    removeInsert: { insertID in
+                        session.removeMasterOutputInsert(insertID)
+                    },
+                    reorderInserts: { ids in
+                        session.reorderMasterOutputInserts(ids)
+                    }
+                )
+            }
         }
-        .buttonStyle(.plain)
-        .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-        )
-        .accessibilityLabel("Add master output FX")
     }
 
     private var addFXSheet: some View {
@@ -249,36 +204,40 @@ struct MasterOutputColumnView: View {
                     onChange: updateGain,
                     onEnd: commitGain
                 )
-                .frame(width: 72, height: 178)
+                .frame(
+                    width: StudioMixerStripMetrics.masterFaderWidth,
+                    height: StudioMixerStripMetrics.faderSize.height
+                )
 
                 outputScale
-                    .frame(height: 178)
+                    .frame(height: StudioMixerStripMetrics.faderSize.height)
             }
 
-            HStack(spacing: 8) {
-                Text(MasterOutputGainScale.dbLabel(forGain: displayedGain))
-                    .studioText(.eyebrowBold)
-                    .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
-
-                Spacer(minLength: 4)
-
-                if meterState.isClipLatched {
-                    Text("CLIP")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.background)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(Color.red, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                }
-
-                if meterState.isClearClipActionable {
-                    clearClipButton
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+            Text(MasterOutputGainScale.dbLabel(forGain: displayedGain))
+                .studioText(.eyebrow)
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.text)
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var clipActionsRow: some View {
+        HStack(spacing: 6) {
+            if meterState.isClipLatched {
+                Text("CLIP")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Color.red, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            }
+
+            if meterState.isClearClipActionable {
+                clearClipButton
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
     private var clearClipButton: some View {
@@ -356,58 +315,6 @@ struct MasterOutputColumnView: View {
         session.setMasterOutputGain(finalGain)
     }
 
-    private func insertEnabledBinding(_ insert: MasterBusInsert) -> Binding<Bool> {
-        Binding(
-            get: {
-                masterBus.masterInserts.first(where: { $0.id == insert.id })?.isEnabled ?? insert.isEnabled
-            },
-            set: { isEnabled in
-                session.updateMasterOutputInsert(insert.id) { updated in
-                    updated.isEnabled = isEnabled
-                }
-            }
-        )
-    }
-
-    private func insertMoveButton(_ insert: MasterBusInsert, systemName: String, delta: Int) -> some View {
-        Button {
-            move(insert, by: delta)
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 10, weight: .semibold))
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.mini)
-        .disabled(moveTargetIndex(for: insert, by: delta) == nil)
-    }
-
-    private func move(_ insert: MasterBusInsert, by delta: Int) {
-        guard let next = moveTargetIndex(for: insert, by: delta),
-              let current = masterBus.masterInserts.firstIndex(where: { $0.id == insert.id })
-        else { return }
-        var ids = masterBus.masterInserts.map(\.id)
-        ids.remove(at: current)
-        ids.insert(insert.id, at: next)
-        session.reorderMasterOutputInserts(ids)
-    }
-
-    private func moveTargetIndex(for insert: MasterBusInsert, by delta: Int) -> Int? {
-        guard let current = masterBus.masterInserts.firstIndex(where: { $0.id == insert.id }) else { return nil }
-        let next = current + delta
-        guard masterBus.masterInserts.indices.contains(next) else { return nil }
-        return next
-    }
-
-    private func iconName(for kind: MasterBusInsertKind) -> String {
-        switch kind {
-        case .nativeFilter:
-            return "line.3.horizontal.decrease.circle"
-        case .nativeBitcrusher:
-            return "waveform.path.ecg"
-        case .auEffect:
-            return "slider.horizontal.3"
-        }
-    }
 }
 
 private struct MasterOutputFaderMeter: View {

@@ -448,6 +448,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             to: trackOutputBusIDs[trackID],
             sends: trackSendLevels[trackID] ?? .zero
         )
+        // The filter node is the track's terminal point (post level/pan,
+        // post filter) — register it as the strip's meter source.
+        audioGraph.setTrackMeterSources(trackIDs: [trackID], node: filter.avNode)
         trackFilters[trackID] = filter
 
         trackMixers[trackID] = mixer
@@ -762,6 +765,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 sends: trackSendLevels[trackID] ?? .zero
             )
         }
+        audioGraph.setTrackMeterSources(trackIDs: [trackID], node: filter.avNode)
     }
 
     private func outputConnectionExists(from source: AVAudioNode, to destination: AVAudioNode) -> Bool {

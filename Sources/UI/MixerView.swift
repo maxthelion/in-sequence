@@ -59,77 +59,78 @@ struct MixerView<TrailingContent: View>: View {
         let selectedTrackID = session.store.selectedTrackID
         let muteState = EngineController.effectiveMixerMuteState(tracks: tracks, buses: buses)
 
-        VStack(alignment: .leading, spacing: 12) {
-            if muteState.isSoloActive {
-                MixerSoloBanner {
-                    session.clearAllSolo()
-                }
-            }
-
-            ScrollView(.horizontal, showsIndicators: true) {
-                HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
-                    ForEach(tracks, id: \.id) { track in
-                        MixerChannelStrip(
-                            track: track,
-                            destinationLabel: destinationLabel(for: track),
-                            outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: buses),
-                            buses: buses,
-                            isSelected: track.id == selectedTrackID,
-                            isEffectivelyMuted: muteState.mutedTrackIDs.contains(track.id),
-                            isRoutingApplying: routingTrackIDs.contains(track.id),
-                            engineController: engineController,
-                            onSelect: {
-                                // Narrowed from .fullEngineApply: selection alone has no audible
-                                // impact; .snapshotOnly is sufficient. The onEditTrack callback
-                                // handles any editor-navigation side effects.
-                                let trackID = track.id
-                                session.setSelectedTrackID(trackID)
-                                onEditTrack?(trackID)
-                            },
-                            onSetMix: { mix in
-                                session.setTrackMix(trackID: track.id, mix: mix)
-                            },
-                            onToggleMute: {
-                                // .fullEngineApply preserved: mute requires engine document-model rebuild.
-                                session.toggleTrackMute(trackID: track.id)
-                            },
-                            onToggleSolo: {
-                                session.setTrackSoloed(!track.mix.isSoloed, trackID: track.id)
-                            },
-                            onRoute: { busID in
-                                applyRoute(trackID: track.id, busID: busID)
-                            }
-                        )
-                    }
-
-                    MixerBusZone(
+        // Solo state never injects a banner above the strips — that shifts
+        // every column down. The solo affordance lives in the master column
+        // header (fixed slot, no layout shift).
+        ScrollView(.horizontal, showsIndicators: true) {
+            HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
+                ForEach(tracks, id: \.id) { track in
+                    MixerChannelStrip(
+                        track: track,
+                        destinationLabel: destinationLabel(for: track),
+                        outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: buses),
                         buses: buses,
-                        tracks: tracks,
-                        mutedBusIDs: muteState.mutedBusIDs,
-                        renamingBusID: $renamingBusID,
-                        onAddBus: addBus,
-                        onRenameBus: { busID, name in
-                            session.renameMixerBus(busID, name: name)
+                        isSelected: track.id == selectedTrackID,
+                        isEffectivelyMuted: muteState.mutedTrackIDs.contains(track.id),
+                        isRoutingApplying: routingTrackIDs.contains(track.id),
+                        engineController: engineController,
+                        onSelect: {
+                            // Narrowed from .fullEngineApply: selection alone has no audible
+                            // impact; .snapshotOnly is sufficient. The onEditTrack callback
+                            // handles any editor-navigation side effects.
+                            let trackID = track.id
+                            session.setSelectedTrackID(trackID)
+                            onEditTrack?(trackID)
                         },
-                        onSetLevel: { busID, level in
-                            session.setMixerBusLevel(level, busID: busID)
+                        onSetMix: { mix in
+                            session.setTrackMix(trackID: track.id, mix: mix)
                         },
-                        onSetPan: { busID, pan in
-                            session.setMixerBusPan(pan, busID: busID)
+                        onToggleMute: {
+                            // .fullEngineApply preserved: mute requires engine document-model rebuild.
+                            session.toggleTrackMute(trackID: track.id)
                         },
-                        onToggleMute: { bus in
-                            session.setMixerBusMuted(!bus.mix.isMuted, busID: bus.id)
+                        onToggleSolo: {
+                            session.setTrackSoloed(!track.mix.isSoloed, trackID: track.id)
                         },
-                        onToggleSolo: { bus in
-                            session.setMixerBusSoloed(!bus.mix.isSoloed, busID: bus.id)
-                        },
-                        onDelete: requestDelete
+                        onRoute: { busID in
+                            applyRoute(trackID: track.id, busID: busID)
+                        }
                     )
-
-                    trailingContent
                 }
-                .padding(StudioMetrics.Spacing.hairline)
+
+                // Busses are siblings of the track strips — same top edge,
+                // same slot grid — never a separately-headed lower zone.
+                ForEach(Array(buses.enumerated()), id: \.element.id) { index, bus in
+                    MixerBusStrip(
+                        bus: bus,
+                        accent: Self.busAccent(for: bus, index: index),
+                        routedTrackNames: MixerRoutingDisplayModel.affectedTrackNames(for: bus.id, tracks: tracks),
+                        isEffectivelyMuted: muteState.mutedBusIDs.contains(bus.id),
+                        isRenaming: renamingBusID == bus.id,
+                        onBeginRename: {
+                            renamingBusID = bus.id
+                        },
+                        onCancelRename: {
+                            renamingBusID = nil
+                        },
+                        onCommitRename: { name in
+                            session.renameMixerBus(bus.id, name: name)
+                            renamingBusID = nil
+                        },
+                        onSetLevel: { session.setMixerBusLevel($0, busID: bus.id) },
+                        onSetPan: { session.setMixerBusPan($0, busID: bus.id) },
+                        onToggleMute: { session.setMixerBusMuted(!bus.mix.isMuted, busID: bus.id) },
+                        onToggleSolo: { session.setMixerBusSoloed(!bus.mix.isSoloed, busID: bus.id) },
+                        onDelete: { requestDelete(bus) }
+                    )
+                }
+
+                // The one control for adding busses.
+                MixerAddBusTile(onAddBus: addBus)
+
+                trailingContent
             }
+            .padding(StudioMetrics.Spacing.hairline)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .confirmationDialog(
@@ -155,6 +156,19 @@ struct MixerView<TrailingContent: View>: View {
         } message: { request in
             Text(request.message)
         }
+    }
+
+    static func busAccent(for bus: MixerBus, index: Int) -> Color {
+        if let color = bus.color?.lowercased() {
+            switch color {
+            case "cyan", "blue": return StudioTheme.cyan
+            case "amber", "yellow": return StudioTheme.amber
+            case "green", "success": return StudioTheme.success
+            case "violet", "purple": return StudioTheme.violet
+            default: break
+            }
+        }
+        return [StudioTheme.violet, StudioTheme.cyan, StudioTheme.amber, StudioTheme.success][index % 4]
     }
 
     private func destinationLabel(for track: StepSequenceTrack) -> String {
@@ -208,28 +222,6 @@ private struct MixerBusDeleteRequest: Identifiable {
     }
 }
 
-private struct MixerSoloBanner: View {
-    let onClear: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Label("SOLO ACTIVE", systemImage: "speaker.wave.2.fill")
-                .studioText(.eyebrowBold)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.background)
-            Spacer()
-            Button("Clear Solo", action: onClear)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .tint(StudioTheme.background)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        .accessibilityIdentifier("mixer-solo-active-banner")
-    }
-}
-
 private struct MixerChannelStrip: View {
     private enum SendSlot: String, CaseIterable {
         case a = "A"
@@ -272,7 +264,9 @@ private struct MixerChannelStrip: View {
     let onRoute: (UUID?) -> Void
 
     @StateObject private var levelControl = ThrottledMixValue()
-    @State private var activeSendEditor: SendSlot?
+    @StateObject private var panControl = ThrottledMixValue()
+    @StateObject private var sendAControl = ThrottledMixValue()
+    @StateObject private var sendBControl = ThrottledMixValue()
 
     var body: some View {
         StudioMixerStrip(
@@ -280,21 +274,28 @@ private struct MixerChannelStrip: View {
             isHighlighted: isSelected,
             dimsContent: isEffectivelyMuted && !track.mix.isMuted
         ) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(track.name)
-                    .studioText(.title)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Text(destinationLabel)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
+            MixerStripHeader(title: track.name, caption: destinationLabel)
         } processing: {
             sendsSection
         } levels: {
-            levelsSection
+            MixerStripLevelsColumn(
+                level: displayedLevel,
+                isMuted: track.mix.isMuted,
+                meterState: engineController.channelMeterPublisher(for: .track(track.id)).displayState,
+                onBegin: { beginLevelDrag() },
+                onChange: { updateLevel($0) },
+                onEnd: { commitLevel() }
+            )
+        } pan: {
+            StudioSlideControl(
+                value: displayedPan,
+                accent: StudioTheme.violet,
+                leadingLabel: "PAN",
+                trailingLabel: StudioSlideControlModel.panLabel(for: displayedPan),
+                help: "\(track.name) pan",
+                onChange: { updatePan($0) },
+                onEnd: { commitPan() }
+            )
         } actions: {
             actionsRow
         } footer: {
@@ -304,75 +305,35 @@ private struct MixerChannelStrip: View {
 
     private var sendsSection: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Sends")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Spacer()
-                if let activeSendEditor {
-                    Text("\(activeSendEditor.rawValue) \(sendPercent(activeSendEditor))")
-                        .studioText(.micro)
-                        .monospacedDigit()
-                        .foregroundStyle(activeSendEditor.accent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-            }
+            Text("SENDS")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 14) {
                 ForEach(SendSlot.allCases, id: \.self) { slot in
-                    SendAmountControl(
-                        slot: slot.rawValue,
-                        title: slot.title,
-                        trackName: track.name,
-                        value: sendValue(slot),
-                        accent: slot.accent,
-                        isEditing: Binding(
-                            get: { activeSendEditor == slot },
-                            set: { isPresented in
-                                activeSendEditor = isPresented ? slot : nil
-                            }
-                        ),
-                        onChange: { setSend(slot, value: $0) }
-                    )
+                    sendKnob(slot)
                 }
             }
+            .frame(maxWidth: .infinity)
         }
     }
 
-    private var levelsSection: some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            VStack(alignment: .center, spacing: 8) {
-                VerticalLevelFader(
-                    level: displayedLevel,
-                    isMuted: track.mix.isMuted,
-                    onBegin: { beginLevelDrag() },
-                    onChange: { updateLevel($0) },
-                    onEnd: { commitLevel() }
-                )
-                .frame(
-                    width: StudioMixerStripMetrics.faderSize.width,
-                    height: StudioMixerStripMetrics.faderSize.height
-                )
-
-                Text(StudioLevelFormat.dBLabel(forLinear: displayedLevel))
-                    .studioText(.eyebrow)
-                    .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
-            }
-
-            StudioRotaryKnob(
-                title: "Pan",
-                value: displayedPan,
-                range: -1...1,
-                accent: StudioTheme.violet,
-                size: 40,
-                format: { Self.panLabel(for: $0) },
-                onChange: { setPan($0) }
-            )
-            .padding(.bottom, 4)
-        }
+    /// Send knobs move in place — drag turns the rotary and drives the
+    /// engine live; there is no popover slider.
+    private func sendKnob(_ slot: SendSlot) -> some View {
+        StudioRotaryKnob(
+            title: slot.rawValue,
+            value: displayedSend(slot),
+            range: TrackMixSettings.sendRange,
+            accent: slot.accent,
+            size: 38,
+            format: { MixerSendDisplayModel.percentLabel(for: $0) },
+            onChange: { commitSend(slot, value: $0) },
+            onLiveChange: { updateSend(slot, value: $0) }
+        )
+        .help("\(track.name) \(slot.title)")
+        .accessibilityIdentifier("mixer-track-send-\(slot.rawValue.lowercased())-\(track.name)")
     }
 
     private var actionsRow: some View {
@@ -452,17 +413,32 @@ private struct MixerChannelStrip: View {
         .accessibilityValue(isRoutingApplying ? "Applying" : outputTitle)
     }
 
-    private func sendValue(_ slot: SendSlot) -> Double {
-        track.mix[keyPath: slot.keyPath]
+    private func sendControl(_ slot: SendSlot) -> ThrottledMixValue {
+        slot == .a ? sendAControl : sendBControl
     }
 
-    private func sendPercent(_ slot: SendSlot) -> String {
-        MixerSendDisplayModel.percentLabel(for: sendValue(slot))
+    private func displayedSend(_ slot: SendSlot) -> Double {
+        sendControl(slot).rendered(committed: MixerSendDisplayModel.clamped(track.mix[keyPath: slot.keyPath]))
     }
 
-    private func setSend(_ slot: SendSlot, value: Double) {
+    private func updateSend(_ slot: SendSlot, value: Double) {
+        let control = sendControl(slot)
+        let clamped = MixerSendDisplayModel.clamped(value)
+        if !control.isDragging {
+            control.begin(with: MixerSendDisplayModel.clamped(track.mix[keyPath: slot.keyPath]))
+        }
+        guard control.update(clamped) else { return }
         var liveMix = track.mix
-        liveMix[keyPath: slot.keyPath] = min(max(value, 0), 1)
+        liveMix[keyPath: slot.keyPath] = clamped
+        onSetMix(liveMix)
+    }
+
+    private func commitSend(_ slot: SendSlot, value: Double) {
+        let control = sendControl(slot)
+        let clamped = MixerSendDisplayModel.clamped(value)
+        _ = control.commit()
+        var liveMix = track.mix
+        liveMix[keyPath: slot.keyPath] = clamped
         onSetMix(liveMix)
     }
 
@@ -471,17 +447,7 @@ private struct MixerChannelStrip: View {
     }
 
     private var displayedPan: Double {
-        track.mix.clampedPan
-    }
-
-    static func panLabel(for value: Double) -> String {
-        if value < -0.05 {
-            return "L\(Int(abs(value) * 100))"
-        }
-        if value > 0.05 {
-            return "R\(Int(value * 100))"
-        }
-        return "C"
+        panControl.rendered(committed: track.mix.clampedPan)
     }
 
     private func beginLevelDrag() {
@@ -506,98 +472,90 @@ private struct MixerChannelStrip: View {
         _ = levelControl.commit()
     }
 
-    private func setPan(_ pan: Double) {
-        // The rotary knob commits once on drag end, so no throttled drag
-        // session is needed — write the new pan straight into the mix.
+    private func updatePan(_ pan: Double) {
         let clamped = min(max(pan, -1), 1)
+        if !panControl.isDragging {
+            panControl.begin(with: track.mix.clampedPan)
+        }
+        guard panControl.update(clamped) else { return }
         var liveMix = track.mix
         liveMix.pan = clamped
         onSetMix(liveMix)
     }
+
+    private func commitPan() {
+        _ = panControl.commit()
+    }
 }
 
-private struct MixerBusZone: View {
-    let buses: [MixerBus]
-    let tracks: [StepSequenceTrack]
-    let mutedBusIDs: Set<UUID>
-    @Binding var renamingBusID: UUID?
-    let onAddBus: () -> Void
-    let onRenameBus: (UUID, String) -> Void
-    let onSetLevel: (UUID, Double) -> Void
-    let onSetPan: (UUID, Double) -> Void
-    let onToggleMute: (MixerBus) -> Void
-    let onToggleSolo: (MixerBus) -> Void
-    let onDelete: (MixerBus) -> Void
+/// Small, uniform strip header: every strip kind titles itself with the same
+/// compact type so channel names read as one row.
+struct MixerStripHeader: View {
+    let title: String
+    var caption: String? = nil
+    var accentDot: Color? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("BUSSES")
-                        .studioText(.eyebrowBold)
-                        .tracking(1.0)
-                        .foregroundStyle(StudioTheme.text)
-                    Text("Fixed output -> Master")
+        HStack(spacing: 7) {
+            if let accentDot {
+                Circle()
+                    .fill(accentDot)
+                    .frame(width: 9, height: 9)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                if let caption {
+                    Text(caption)
                         .studioText(.micro)
+                        .tracking(0.6)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
                 }
-
-                Spacer()
-
-                MixerStripActionButton(
-                    title: "Add Bus",
-                    systemName: "plus",
-                    accent: StudioTheme.violet,
-                    minWidth: 72,
-                    action: onAddBus
-                )
             }
-
-            HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
-                ForEach(Array(buses.enumerated()), id: \.element.id) { index, bus in
-                    MixerBusStrip(
-                        bus: bus,
-                        accent: busAccent(for: bus, index: index),
-                        routedTrackNames: MixerRoutingDisplayModel.affectedTrackNames(for: bus.id, tracks: tracks),
-                        isEffectivelyMuted: mutedBusIDs.contains(bus.id),
-                        isRenaming: renamingBusID == bus.id,
-                        onBeginRename: {
-                            renamingBusID = bus.id
-                        },
-                        onCancelRename: {
-                            renamingBusID = nil
-                        },
-                        onCommitRename: { name in
-                            onRenameBus(bus.id, name)
-                            renamingBusID = nil
-                        },
-                        onSetLevel: { onSetLevel(bus.id, $0) },
-                        onSetPan: { onSetPan(bus.id, $0) },
-                        onToggleMute: { onToggleMute(bus) },
-                        onToggleSolo: { onToggleSolo(bus) },
-                        onDelete: { onDelete(bus) }
-                    )
-                }
-
-                MixerAddBusTile(onAddBus: onAddBus)
-            }
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 12)
-        .frame(minWidth: 250, alignment: .topLeading)
-        .accessibilityIdentifier("mixer-busses-zone")
+        .frame(maxHeight: .infinity, alignment: .center)
     }
+}
 
-    private func busAccent(for bus: MixerBus, index: Int) -> Color {
-        if let color = bus.color?.lowercased() {
-            switch color {
-            case "cyan", "blue": return StudioTheme.cyan
-            case "amber", "yellow": return StudioTheme.amber
-            case "green", "success": return StudioTheme.success
-            case "violet", "purple": return StudioTheme.violet
-            default: break
-            }
+/// The levels slot every strip shares: centered fader (with live meter
+/// lanes) and the dB readout beneath, so faders and meters align row-for-row
+/// across track, bus, send, and master columns.
+struct MixerStripLevelsColumn: View {
+    let level: Double
+    let isMuted: Bool
+    var meterState: MasterMeterDisplayState? = nil
+    var isInteractive = true
+    var valueLabel: String? = nil
+    let onBegin: () -> Void
+    let onChange: (Double) -> Void
+    let onEnd: () -> Void
+
+    var body: some View {
+        VStack(alignment: .center, spacing: 8) {
+            VerticalLevelFader(
+                level: level,
+                isMuted: isMuted,
+                meterState: meterState,
+                isInteractive: isInteractive,
+                onBegin: onBegin,
+                onChange: onChange,
+                onEnd: onEnd
+            )
+            .frame(
+                width: StudioMixerStripMetrics.faderSize.width,
+                height: StudioMixerStripMetrics.faderSize.height
+            )
+
+            Text(valueLabel ?? StudioLevelFormat.dBLabel(forLinear: level))
+                .studioText(.eyebrow)
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.text)
         }
-        return [StudioTheme.violet, StudioTheme.cyan, StudioTheme.amber, StudioTheme.success][index % 4]
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -605,7 +563,7 @@ private struct MixerAddBusTile: View {
     let onAddBus: () -> Void
 
     var body: some View {
-        StudioAddCard(label: "Add Bus", minHeight: 146, action: onAddBus)
+        StudioAddCard(label: "Add Bus", minHeight: StudioMixerStripMetrics.stripHeight - 2 * StudioMetrics.Spacing.comfortable, action: onAddBus)
             .frame(width: MixerWorkspaceLayout.addBusTileWidth)
             .accessibilityIdentifier("mixer-add-bus-tile")
     }
@@ -783,114 +741,16 @@ struct MixerInsertChainView: View {
     }
 }
 
-private struct SendAmountControl: View {
-    let slot: String
-    let title: String
-    let trackName: String
-    let value: Double
-    let accent: Color
-    @Binding var isEditing: Bool
-    let onChange: (Double) -> Void
-
-    private var clampedValue: Double {
-        MixerSendDisplayModel.clamped(value)
-    }
-
-    private var percentLabel: String {
-        MixerSendDisplayModel.percentLabel(for: clampedValue)
-    }
-
-    private var isActive: Bool {
-        MixerSendDisplayModel.isNonZero(clampedValue)
-    }
-
-    var body: some View {
-        Button {
-            isEditing = true
-        } label: {
-            VStack(spacing: 5) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(isActive ? StudioOpacity.softStroke : StudioOpacity.borderFaint), lineWidth: 3)
-
-                    Circle()
-                        .trim(from: 0, to: clampedValue)
-                        .stroke(accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-
-                    Text(slot)
-                        .studioText(.labelBold)
-                        .foregroundStyle(isActive ? StudioTheme.text : StudioTheme.mutedText)
-                }
-                .frame(width: 34, height: 34)
-
-                Text(percentLabel)
-                    .studioText(.micro)
-                    .monospacedDigit()
-                    .foregroundStyle(isActive ? StudioTheme.text : StudioTheme.mutedText)
-                    .frame(width: 42)
-            }
-            .frame(width: 48, height: 58)
-            .background(
-                (isEditing ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(isActive ? StudioOpacity.subtleFill : 0.018)),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isEditing || isActive ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .help("\(trackName) \(title)")
-        .accessibilityLabel("\(trackName) \(title)")
-        .accessibilityValue(percentLabel)
-        .accessibilityIdentifier("mixer-track-send-\(slot.lowercased())-\(trackName)")
-        .popover(isPresented: $isEditing, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Text(title)
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    Text(percentLabel)
-                        .studioText(.eyebrowBold)
-                        .monospacedDigit()
-                        .foregroundStyle(accent)
-                }
-
-                Text(trackName)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-
-                Slider(
-                    value: Binding(
-                        get: { clampedValue },
-                        set: onChange
-                    ),
-                    in: TrackMixSettings.sendRange,
-                    onEditingChanged: { editing in
-                        if editing {
-                            isEditing = true
-                        }
-                    }
-                )
-                .tint(accent)
-
-                Text("Automatic wet return to main mix")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .padding(StudioMetrics.Spacing.roomy)
-            .frame(width: 280)
-            .background(StudioTheme.stageFill)
-        }
-    }
-}
-
+/// Fader and live meter in one lane, the channel-strip miniature of the
+/// master fader-meter: thin L/R gradient meter lanes behind a translucent
+/// level fill with a cap. Render with `isInteractive: false` for strips
+/// whose level is not user-adjustable (send returns) — the lane then reads
+/// as a pure meter.
 struct VerticalLevelFader: View {
     let level: Double
     let isMuted: Bool
+    var meterState: MasterMeterDisplayState? = nil
+    var isInteractive = true
     let onBegin: () -> Void
     let onChange: (Double) -> Void
     let onEnd: () -> Void
@@ -904,28 +764,78 @@ struct VerticalLevelFader: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .fill(StudioTheme.inset)
 
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan)
-                    .frame(height: filledHeight)
+                if let meterState {
+                    HStack(alignment: .bottom, spacing: 3) {
+                        meterLane(peak: meterState.leftPeakDBFS, height: height)
+                        meterLane(peak: meterState.rightPeakDBFS, height: height)
+                    }
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 4)
+                    .animation(.linear(duration: 0.05), value: meterState.leftPeakDBFS)
+                    .animation(.linear(duration: 0.05), value: meterState.rightPeakDBFS)
+                }
 
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.selectedFill))
-                    .frame(width: 16, height: 4)
-                    .offset(y: -filledHeight + 10)
+                if isInteractive {
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                        .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan.opacity(meterState == nil ? 1 : 0.34))
+                        .frame(height: filledHeight)
+
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .fill(Color.white.opacity(0.85))
+                        .frame(width: 18, height: 4)
+                        .offset(y: -filledHeight + 10)
+                }
             }
             .contentShape(Rectangle())
             .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        onBegin()
-                        let normalized = 1 - min(max(value.location.y / max(height, 1), 0), 1)
-                        onChange(normalized)
-                    }
-                    .onEnded { _ in
-                        onEnd()
-                    }
+                isInteractive
+                    ? DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            onBegin()
+                            let normalized = 1 - min(max(value.location.y / max(height, 1), 0), 1)
+                            onChange(normalized)
+                        }
+                        .onEnded { _ in
+                            onEnd()
+                        }
+                    : nil
             )
         }
+    }
+
+    private func meterLane(peak: Double, height: CGFloat) -> some View {
+        let normalizedPeak = MasterMeterLevelScale.normalized(peak)
+        return ZStack(alignment: .bottom) {
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+
+            meterGradient
+                .frame(height: max(0, height - 8))
+                .mask {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        Rectangle()
+                            .frame(height: max(0, height - 8) * normalizedPeak)
+                    }
+                }
+                .opacity(normalizedPeak > 0 ? 0.95 : 0)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var meterGradient: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: StudioTheme.success, location: 0),
+                .init(color: StudioTheme.success, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
+                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
+                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
+                .init(color: Color.red, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
+                .init(color: Color.red, location: 1)
+            ],
+            startPoint: .bottom,
+            endPoint: .top
+        )
     }
 
     private var clampedLevel: CGFloat {

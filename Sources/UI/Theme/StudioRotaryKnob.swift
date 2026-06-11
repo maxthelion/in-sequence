@@ -10,6 +10,9 @@ struct StudioRotaryKnob: View {
     var size: CGFloat = 44
     var format: (Double) -> String = { "\(Int($0.rounded()))" }
     let onChange: (Double) -> Void
+    /// Fired on every drag tick (in addition to `onChange` at release) so
+    /// live controls can move the engine while the knob turns in place.
+    var onLiveChange: ((Double) -> Void)?
 
     @State private var dragStartValue: Double?
     @State private var displayValue: Double
@@ -21,7 +24,8 @@ struct StudioRotaryKnob: View {
         accent: Color = StudioTheme.cyan,
         size: CGFloat = 44,
         format: @escaping (Double) -> String = { "\(Int($0.rounded()))" },
-        onChange: @escaping (Double) -> Void
+        onChange: @escaping (Double) -> Void,
+        onLiveChange: ((Double) -> Void)? = nil
     ) {
         self.title = title
         self.value = value
@@ -30,6 +34,7 @@ struct StudioRotaryKnob: View {
         self.size = size
         self.format = format
         self.onChange = onChange
+        self.onLiveChange = onLiveChange
         self._displayValue = State(initialValue: value)
     }
 
@@ -60,7 +65,13 @@ struct StudioRotaryKnob: View {
             .contentShape(Circle())
             .gesture(
                 StudioDrag.verticalValueGesture(
-                    value: $displayValue,
+                    value: Binding(
+                        get: { displayValue },
+                        set: { next in
+                            displayValue = next
+                            onLiveChange?(next)
+                        }
+                    ),
                     dragStart: $dragStartValue,
                     range: range,
                     onCommit: onChange

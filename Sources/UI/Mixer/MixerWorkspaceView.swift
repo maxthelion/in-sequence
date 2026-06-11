@@ -42,10 +42,16 @@ struct MixerWorkspaceView: View {
     }
 
     private func masterAwareMixer(presentation: MasterOutputColumnPresentation) -> some View {
+        // Sends group next to the master, not among the channels: at full
+        // width they sit as fixed siblings just before the master column;
+        // in the compact presentation they trail the scrolling strips so
+        // narrow windows stay usable.
         ZStack(alignment: .trailing) {
             HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
                 MixerView(document: $document, onEditTrack: onSelectTrack) {
-                    sendReturnStrips
+                    if presentation.usesCompactOverlay {
+                        sendReturnStrips
+                    }
                 }
                 .frame(
                     maxWidth: .infinity,
@@ -55,6 +61,7 @@ struct MixerWorkspaceView: View {
 
                 switch presentation {
                 case .fullColumn:
+                    sendReturnStrips
                     MasterOutputColumnView()
                 case let .compactStrip(width):
                     MasterOutputCompactStrip(
@@ -85,53 +92,54 @@ struct MixerWorkspaceView: View {
 
     private func sendReturnStrip(_ sendBus: SendBusState, accent: Color) -> some View {
         let selectedInsert = selectedInsert(in: sendBus)
+        let meterState = engineController.channelMeterPublisher(for: .send(sendBus.id)).displayState
         return StudioMixerStrip(
             width: MixerWorkspaceLayout.sendReturnStripWidth,
             accent: accent
         ) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(accent)
-                    .frame(width: 10, height: 10)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(sendBus.name.uppercased())
-                        .studioText(.eyebrowBold)
-                        .tracking(1.0)
-                        .foregroundStyle(StudioTheme.text)
-                    Text("RETURN")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-                Spacer()
-            }
-            .frame(maxHeight: .infinity, alignment: .center)
+            MixerStripHeader(title: sendBus.name.uppercased(), accentDot: accent)
         } processing: {
             ScrollView(showsIndicators: false) {
                 sendInsertList(sendBus, accent: accent)
             }
         } levels: {
-            VerticalLevelFader(level: 1, isMuted: false, onBegin: {}, onChange: { _ in }, onEnd: {})
-                .allowsHitTesting(false)
-                .frame(
-                    width: StudioMixerStripMetrics.faderSize.width,
-                    height: StudioMixerStripMetrics.faderSize.height
-                )
+            // The wet return has no user fader — the lane is a pure meter,
+            // aligned with the channel faders either side of it.
+            MixerStripLevelsColumn(
+                level: 0,
+                isMuted: false,
+                meterState: meterState,
+                isInteractive: false,
+                valueLabel: meterValueLabel(for: meterState),
+                onBegin: {},
+                onChange: { _ in },
+                onEnd: {}
+            )
+        } pan: {
+            // No pan on the wet return — Color.clear (not EmptyView) keeps
+            // the slot's height so actions/footers align across strips.
+            Color.clear
         } actions: {
-            if selectedInsert != nil {
-                MixerStripActionButton(
-                    title: "Edit FX",
-                    systemName: "slider.horizontal.3",
-                    accent: accent,
-                    minWidth: 82
-                ) {
-                    editingSendBusID = sendBus.id
+            HStack(spacing: 6) {
+                if selectedInsert != nil {
+                    MixerStripActionButton(
+                        title: "Edit FX",
+                        systemName: "slider.horizontal.3",
+                        accent: accent,
+                        minWidth: 64
+                    ) {
+                        editingSendBusID = sendBus.id
+                    }
+                    .popover(isPresented: editingBinding(for: sendBus.id), arrowEdge: Edge.bottom) {
+                        sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
+                            .padding(StudioMetrics.Spacing.standard)
+                            .frame(width: 360)
+                            .background(StudioTheme.stageFill)
+                    }
                 }
-                .popover(isPresented: editingBinding(for: sendBus.id), arrowEdge: Edge.bottom) {
-                    sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
-                        .padding(StudioMetrics.Spacing.standard)
-                        .frame(width: 360)
-                        .background(StudioTheme.stageFill)
+
+                if !sendBus.inserts.isEmpty {
+                    addSendFXButton(sendBus.id, accent: accent)
                 }
             }
         } footer: {
@@ -142,6 +150,14 @@ struct MixerWorkspaceView: View {
         .accessibilityIdentifier("mixer-\(sendBus.id.rawValue)-return-strip")
     }
 
+    private func meterValueLabel(for meterState: MasterMeterDisplayState) -> String {
+        StudioLevelFormat.dBFSLabel(forPeak: max(meterState.leftPeakDBFS, meterState.rightPeakDBFS))
+    }
+
+    private func sendBus(_ busID: SendBusID) -> SendBusState {
+        session.store.sendBus(id: busID)
+    }
+
     private func editingBinding(for busID: SendBusID) -> Binding<Bool> {
         Binding(
             get: { editingSendBusID == busID },
@@ -149,76 +165,6 @@ struct MixerWorkspaceView: View {
                 editingSendBusID = isPresented ? busID : nil
             }
         )
-    }
-
-    private var sendBusDetails: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 12) {
-                sendBusDetail(sendBus(.sendA), accent: StudioTheme.cyan)
-                sendBusDetail(sendBus(.sendB), accent: StudioTheme.violet)
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                sendBusDetail(sendBus(.sendA), accent: StudioTheme.cyan)
-                sendBusDetail(sendBus(.sendB), accent: StudioTheme.violet)
-            }
-        }
-        .accessibilityIdentifier("mixer-send-bus-detail-surface")
-    }
-
-    private func sendBus(_ busID: SendBusID) -> SendBusState {
-        session.store.sendBus(id: busID)
-    }
-
-    private func sendBusDetail(_ sendBus: SendBusState, accent: Color) -> some View {
-        let selectedInsert = selectedInsert(in: sendBus)
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(sendBus.name.uppercased())
-                        .studioText(.eyebrowBold)
-                        .tracking(1.0)
-                        .foregroundStyle(StudioTheme.text)
-                    Text("Automatic wet return")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-
-                Spacer()
-
-                if !sendBus.inserts.isEmpty {
-                    addSendFXButton(sendBus.id, accent: accent)
-                }
-            }
-
-            if sendBus.inserts.isEmpty {
-                sendInsertList(sendBus, accent: accent)
-                    .frame(maxWidth: 360, alignment: .topLeading)
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 12) {
-                        sendInsertList(sendBus, accent: accent)
-                            .frame(minWidth: 280, maxWidth: 360, alignment: .topLeading)
-                        sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        sendInsertList(sendBus, accent: accent)
-                        sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
-                    }
-                }
-            }
-        }
-        .padding(StudioMetrics.Spacing.compact)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: 1)
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("mixer-\(sendBus.id.rawValue)-detail")
     }
 
     private func sendInsertList(_ sendBus: SendBusState, accent: Color) -> some View {

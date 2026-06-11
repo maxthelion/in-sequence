@@ -40,9 +40,49 @@ developer_dir="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 destination="platform=macOS,arch=arm64"
 git_commit="$(git -C "${repo_root}" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 git_branch="$(git -C "${repo_root}" branch --show-current 2>/dev/null || printf 'unknown')"
+git_dirty="clean"
+if ! git -C "${repo_root}" diff --quiet --ignore-submodules -- 2>/dev/null ||
+   ! git -C "${repo_root}" diff --cached --quiet --ignore-submodules -- 2>/dev/null ||
+   [[ -n "$(git -C "${repo_root}" ls-files --others --exclude-standard 2>/dev/null)" ]]; then
+  git_dirty="dirty"
+fi
+# Fingerprint the working tree so an unchanged tree can skip the build.
+# The attribution timestamp below changes per invocation; passing it to
+# xcodebuild unconditionally invalidated the previous build every time,
+# which is why this script always recompiled.
+content_fingerprint="${git_commit}-$(
+  {
+    git -C "${repo_root}" diff HEAD 2>/dev/null
+    git -C "${repo_root}" ls-files --others --exclude-standard 2>/dev/null \
+      | while IFS= read -r f; do stat -f '%N %m %z' "${repo_root}/${f}" 2>/dev/null; done
+  } | shasum | cut -c1-12
+)"
+
+manifest_dir="${repo_root}/.meta/multipass/runtime/build-attribution"
+latest_manifest="$(ls -t "${manifest_dir}"/*.json 2>/dev/null | head -n 1 || true)"
+
+build_attribution_version="$(date -u +%Y%m%d%H%M%S)"
+build_attribution_id="${git_commit}-${git_dirty}-${build_attribution_version}"
+
+if [[ "${build_before_open}" == "yes" && -n "${latest_manifest}" ]] && command -v jq >/dev/null; then
+  previous_fingerprint="$(jq -r '.contentFingerprint // empty' "${latest_manifest}" 2>/dev/null || true)"
+  previous_app_path="$(jq -r '.appPath // empty' "${latest_manifest}" 2>/dev/null || true)"
+  if [[ -n "${previous_fingerprint}" && "${previous_fingerprint}" == "${content_fingerprint}" && -d "${previous_app_path}" ]]; then
+    # Exact content already built: reuse it (and its embedded attribution)
+    # instead of re-stamping, which would force a rebuild for nothing.
+    build_before_open="no"
+    build_attribution_version="$(jq -r '.buildVersion' "${latest_manifest}")"
+    build_attribution_id="$(jq -r '.attributionID' "${latest_manifest}")"
+    echo "open-latest-build: tree unchanged since ${build_attribution_id}; skipping build" >&2
+  fi
+fi
+
 build_metadata_settings=(
+  "BUILD_ATTRIBUTION_ID=${build_attribution_id}"
+  "BUILD_ATTRIBUTION_VERSION=${build_attribution_version}"
   "GIT_COMMIT=${git_commit}"
   "GIT_BRANCH=${git_branch}"
+  "GIT_DIRTY=${git_dirty}"
 )
 
 xcodebuild_filtered() {
@@ -87,6 +127,30 @@ app_path="${target_build_dir}/${full_product_name}"
 if [[ ! -d "${app_path}" ]]; then
   echo "Build product not found at ${app_path}" >&2
   exit 1
+fi
+
+if [[ "${build_before_open}" == "yes" ]]; then
+  manifest_path="${manifest_dir}/${build_attribution_version}.json"
+  mkdir -p "${manifest_dir}"
+  jq -n \
+    --arg attributionID "${build_attribution_id}" \
+    --arg buildVersion "${build_attribution_version}" \
+    --arg gitCommit "${git_commit}" \
+    --arg gitBranch "${git_branch}" \
+    --arg gitDirty "${git_dirty}" \
+    --arg contentFingerprint "${content_fingerprint}" \
+    --arg appPath "${app_path}" \
+    --arg builtAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '{
+      attributionID: $attributionID,
+      buildVersion: $buildVersion,
+      gitCommit: $gitCommit,
+      gitBranch: $gitBranch,
+      gitDirty: $gitDirty,
+      contentFingerprint: $contentFingerprint,
+      appPath: $appPath,
+      builtAt: $builtAt
+    }' > "${manifest_path}"
 fi
 
 case "${mode}" in
