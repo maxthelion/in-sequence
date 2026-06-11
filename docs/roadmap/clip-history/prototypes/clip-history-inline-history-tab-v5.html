@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip History Inline History Tab v5</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #fff;
+    --ink: #111;
+    --muted: #666;
+    --line: #111;
+    --soft: #eee;
+    --softer: #f7f7f7;
+    --dash: #999;
+  }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+  }
+  .note {
+    max-width: 1180px;
+    border: 1px dashed var(--dash);
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    line-height: 1.45;
+  }
+  .note strong { display: block; margin-bottom: 4px; }
+  .app {
+    max-width: 1180px;
+    border: 2px solid var(--line);
+    min-height: 760px;
+  }
+  .transport {
+    height: 78px;
+    border-bottom: 2px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 18px;
+  }
+  .brand {
+    font-size: 28px;
+    font-weight: 800;
+    width: 190px;
+  }
+  .pill {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 14px;
+    min-width: 70px;
+    text-align: center;
+    background: var(--softer);
+  }
+  .workspace {
+    padding: 22px 24px 28px;
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 18px;
+  }
+  .track-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 20px;
+    align-items: start;
+  }
+  .left-stack {
+    min-width: 0;
+  }
+  .panel {
+    border: 2px solid var(--line);
+    background: var(--bg);
+    margin-bottom: 18px;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .panel-sub {
+    color: var(--muted);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+  }
+  .pattern-row {
+    display: grid;
+    grid-template-columns: repeat(16, minmax(42px, 1fr));
+    gap: 8px;
+    padding: 14px;
+  }
+  .pattern {
+    height: 42px;
+    border: 1px solid var(--line);
+    background: var(--softer);
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .pattern::after {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    margin-left: 6px;
+    background: var(--bg);
+  }
+  .pattern.active {
+    background: var(--soft);
+    outline: 3px solid var(--line);
+  }
+  .pattern.save-target {
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,.2); }
+    50% { box-shadow: 0 0 0 6px rgba(0,0,0,.12); }
+  }
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 2px solid var(--line);
+    border-bottom: 0;
+  }
+  .tab {
+    padding: 13px 14px;
+    border-right: 1px solid var(--line);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: 12px;
+    font-weight: 900;
+    background: var(--softer);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .tab:last-child { border-right: 0; }
+  .tab.active {
+    background: var(--bg);
+    border-bottom: 2px solid var(--bg);
+    transform: translateY(2px);
+  }
+  .tag {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 11px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .history-surface {
+    border: 2px solid var(--line);
+    padding: 16px;
+    min-height: 470px;
+  }
+  .history-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .history-title {
+    font-weight: 900;
+    font-size: 18px;
+  }
+  .history-title small {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 3px;
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  button {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    padding: 8px 12px;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  button.primary {
+    border-width: 2px;
+  }
+  button[disabled] {
+    color: var(--muted);
+    border-color: var(--dash);
+    background: var(--softer);
+    cursor: default;
+  }
+  .history-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .well {
+    border: 1px solid var(--line);
+    background: var(--softer);
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+  }
+  .well-head {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-weight: 900;
+  }
+  .well-head span:last-child {
+    color: var(--muted);
+    font-size: 12px;
+    align-self: center;
+  }
+  .piano-roll {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    min-height: 310px;
+  }
+  .keys {
+    border-right: 1px solid var(--line);
+    display: grid;
+    grid-template-rows: repeat(8, 1fr);
+  }
+  .key {
+    border-bottom: 1px solid var(--dash);
+    padding: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg);
+  }
+  .roll-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    background:
+      linear-gradient(to right, var(--dash) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--dash) 1px, transparent 1px);
+    background-size: calc(100% / 16) calc(100% / 8);
+  }
+  .note-block {
+    position: absolute;
+    border: 2px solid var(--line);
+    background: var(--bg);
+    min-height: 18px;
+  }
+  .n1 { left: 6.25%; top: 62.5%; width: 12.5%; height: 12.5%; }
+  .n2 { left: 25%; top: 50%; width: 6.25%; height: 12.5%; }
+  .n3 { left: 37.5%; top: 37.5%; width: 18.75%; height: 12.5%; }
+  .n4 { left: 62.5%; top: 25%; width: 12.5%; height: 12.5%; }
+  .n5 { left: 81.25%; top: 50%; width: 6.25%; height: 12.5%; }
+  .history-strip {
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+    gap: 6px;
+    min-height: 78px;
+  }
+  .history-cell {
+    min-width: 0;
+    min-height: 58px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: stretch;
+    text-align: left;
+    font-weight: 800;
+    font-size: 11px;
+  }
+  .history-cell.selected {
+    outline: 3px solid var(--line);
+    background: var(--soft);
+  }
+  .cell-meta {
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mini-bars {
+    height: 22px;
+    position: relative;
+    border-top: 1px solid var(--dash);
+    border-bottom: 1px solid var(--dash);
+    background:
+      linear-gradient(to right, var(--dash) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--dash) 1px, transparent 1px);
+    background-size: 25% 33%;
+    overflow: hidden;
+  }
+  .mini-bars i {
+    display: block;
+    position: absolute;
+    height: 4px;
+    border: 1px solid var(--line);
+    background: var(--ink);
+    opacity: .45;
+  }
+  .mini-bars i:nth-child(1) { left: 5%; top: 65%; width: 18%; }
+  .mini-bars i:nth-child(2) { left: 22%; top: 38%; width: 12%; }
+  .mini-bars i:nth-child(3) { left: 35%; top: 24%; width: 26%; }
+  .mini-bars i:nth-child(4) { left: 58%; top: 50%; width: 15%; }
+  .mini-bars i:nth-child(5) { left: 75%; top: 32%; width: 16%; }
+  .mini-bars i:nth-child(n+6) { display: none; }
+  .side-panel {
+    border: 2px solid var(--line);
+    padding: 14px;
+    min-height: 210px;
+  }
+  .side-panel h2 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .route-card {
+    border: 1px solid var(--line);
+    padding: 14px;
+    background: var(--softer);
+    min-height: 96px;
+  }
+  .save-note {
+    border: 1px dashed var(--dash);
+    padding: 10px 12px;
+    margin-top: 14px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  @media (max-width: 900px) {
+    .track-grid { grid-template-columns: 1fr; }
+    .pattern-row { grid-template-columns: repeat(8, minmax(42px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+  <div class="note">
+    <strong>Clip History v5 prototype: inline History tab, black-and-white structural pass.</strong>
+    This replaces the current modal direction. The third track-source tab is
+    named <strong>History</strong>, works for clip or generator sources, keeps
+    history inline, removes pattern-slot duplication from the history surface,
+    and reuses the existing pattern row as the save destination chooser.
+    History selection itself controls audition: selecting a captured region loops it automatically; clearing selection exits audition.
+  </div>
+
+  <main class="app">
+    <header class="transport">
+      <div class="brand">SequencerAI</div>
+      <div class="pill">Play</div>
+      <div class="pill">Stop</div>
+      <div class="pill">120 BPM</div>
+      <div class="pill">Free</div>
+    </header>
+
+    <section class="workspace">
+      <h1>Main Track</h1>
+      <div class="track-grid">
+        <div class="left-stack">
+          <section class="panel">
+            <div class="panel-head">
+              <span>Pattern</span>
+              <span class="panel-sub">Reused destination picker when saving history</span>
+            </div>
+            <div class="pattern-row" id="patternRow">
+              <div class="pattern active">1</div>
+              <div class="pattern">2</div>
+              <div class="pattern">3</div>
+              <div class="pattern">4</div>
+              <div class="pattern">5</div>
+              <div class="pattern">6</div>
+              <div class="pattern">7</div>
+              <div class="pattern">8</div>
+              <div class="pattern">9</div>
+              <div class="pattern">10</div>
+              <div class="pattern">11</div>
+              <div class="pattern">12</div>
+              <div class="pattern">13</div>
+              <div class="pattern">14</div>
+              <div class="pattern">15</div>
+              <div class="pattern">16</div>
+            </div>
+          </section>
+
+          <nav class="tabs" aria-label="Track source tabs">
+            <div class="tab">Source <span class="tag">Clip or Gen</span></div>
+            <div class="tab">Modifier <span class="tag">Empty</span></div>
+            <div class="tab active">History <span class="tag">Capture</span></div>
+          </nav>
+
+          <section class="history-surface">
+            <div class="history-head">
+              <div class="history-title">
+                History
+                <small>Frozen recent output from the selected track source</small>
+              </div>
+              <div class="actions">
+                <button>Audition</button>
+                <button id="saveBtn" class="primary">Save Clip</button>
+              </div>
+            </div>
+
+            <div class="history-layout">
+              <section class="well">
+                <div class="well-head">
+                  <span>Virtual Clip Preview</span>
+                  <span id="previewMeta">Selected history: B12 · 1 bar · audition looping</span>
+                </div>
+                <div class="piano-roll" aria-label="Virtual clip piano roll">
+                  <div class="keys">
+                    <div class="key">C5</div>
+                    <div class="key">B4</div>
+                    <div class="key">A4</div>
+                    <div class="key">G4</div>
+                    <div class="key">F4</div>
+                    <div class="key">E4</div>
+                    <div class="key">D4</div>
+                    <div class="key">C4</div>
+                  </div>
+                  <div class="roll-grid">
+                    <span class="note-block n1"></span>
+                    <span class="note-block n2"></span>
+                    <span class="note-block n3"></span>
+                    <span class="note-block n4"></span>
+                    <span class="note-block n5"></span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="well">
+                <div class="well-head">
+                  <span>History Minibar</span>
+                  <span>16 fitted cells; select to loop, clear to stop</span>
+                </div>
+                <div class="history-strip" id="historyStrip">
+                  <button class="history-cell" data-label="B1" data-length="empty"><span>B1</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B2" data-length="empty"><span>B2</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B3" data-length="empty"><span>B3</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B4" data-length="empty"><span>B4</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B5" data-length="empty"><span>B5</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B6" data-length="empty"><span>B6</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B7" data-length="empty"><span>B7</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B8" data-length="empty"><span>B8</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B9" data-length="empty"><span>B9</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B10" data-length="empty"><span>B10</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B11" data-length="empty"><span>B11</span><span class="cell-meta">empty</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell selected" data-label="B12" data-length="1 bar"><span>B12</span><span class="cell-meta">1 bar</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B13" data-length="1 bar"><span>B13</span><span class="cell-meta">1 bar</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B14" data-length="2 bars"><span>B14</span><span class="cell-meta">2 bars</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B15" data-length="4 bars"><span>B15</span><span class="cell-meta">4 bars</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                  <button class="history-cell" data-label="B16" data-length="1 bar"><span>B16</span><span class="cell-meta">1 bar</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></button>
+                </div>
+              </section>
+            </div>
+
+            <div class="save-note" id="saveNote">
+              Pressing <strong>Save Clip</strong> should enter destination mode
+              on the existing pattern row above. Pattern cells pulse and become
+              the destination picker; do not render a second pattern-slot grid
+              inside History.
+            </div>
+          </section>
+        </div>
+
+        <aside class="side-panel">
+          <h2>Destination</h2>
+          <div class="route-card">
+            Track routing and sink controls remain outside History. History is
+            about choosing recent output and committing it into one of the
+            existing pattern cells.
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+<script>
+  const saveBtn = document.getElementById('saveBtn');
+  const patternRow = document.getElementById('patternRow');
+  const saveNote = document.getElementById('saveNote');
+  const previewMeta = document.getElementById('previewMeta');
+  const historyStrip = document.getElementById('historyStrip');
+  saveBtn.addEventListener('click', () => {
+    patternRow.querySelectorAll('.pattern').forEach((cell) => cell.classList.add('save-target'));
+    saveNote.innerHTML = '<strong>Destination mode:</strong> choose a pulsing pattern cell above. Occupied-cell replace confirmation belongs near that cell, not in a duplicate destination matrix.';
+  });
+  historyStrip.addEventListener('click', (event) => {
+    const cell = event.target.closest('.history-cell');
+    if (!cell || cell.dataset.length === 'empty') return;
+    if (cell.classList.contains('selected')) {
+      cell.classList.remove('selected');
+      previewMeta.textContent = 'No history selected · audition off';
+      return;
+    }
+    historyStrip.querySelectorAll('.history-cell').forEach((item) => item.classList.remove('selected'));
+    cell.classList.add('selected');
+    previewMeta.textContent = `Selected history: ${cell.dataset.label} · ${cell.dataset.length} · audition looping`;
+  });
+</script>
+</body>
+</html>
