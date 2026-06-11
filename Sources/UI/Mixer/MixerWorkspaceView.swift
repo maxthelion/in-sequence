@@ -117,7 +117,9 @@ struct MixerWorkspaceView: View {
                 onEnd: {}
             )
         } pan: {
-            EmptyView()
+            // No pan on the wet return — Color.clear (not EmptyView) keeps
+            // the slot's height so actions/footers align across strips.
+            Color.clear
         } actions: {
             HStack(spacing: 6) {
                 if selectedInsert != nil {
