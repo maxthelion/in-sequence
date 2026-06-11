@@ -70,9 +70,13 @@ struct StudioAddCard: View {
                     .frame(width: StudioMetrics.ControlSize.large, height: StudioMetrics.ControlSize.large)
                     .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
 
-                Text(label)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
+                // Pass an empty label when the "+" alone is enough; the help
+                // string still names the action for tooltip and accessibility.
+                if !label.isEmpty {
+                    Text(label)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                }
             }
             .frame(maxWidth: .infinity, minHeight: minHeight)
             .padding(StudioMetrics.Spacing.comfortable)
