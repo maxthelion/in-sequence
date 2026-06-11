@@ -1,27 +1,55 @@
 import SwiftUI
 
-struct StudioPanel<Content: View>: View {
+/// Section chrome for a workspace surface.
+///
+/// `title` names a *section*, never the page: the selected top-nav pill
+/// already says where the user is, so page-level panels pass
+/// `showsHeader: false` (or an empty title with an `accessory`) instead of
+/// restating it. `accessory` is a trailing control that belongs to the panel
+/// (e.g. a mode toggle) and renders in the header row.
+struct StudioPanel<Content: View, Accessory: View>: View {
     let title: String
     var eyebrow: String? = nil
     var accent: Color = StudioTheme.cyan
     var showsHeader = true
-    @ViewBuilder var content: Content
+    let content: Content
+    let accessory: Accessory
+
+    init(
+        title: String,
+        eyebrow: String? = nil,
+        accent: Color = StudioTheme.cyan,
+        showsHeader: Bool = true,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder accessory: () -> Accessory
+    ) {
+        self.title = title
+        self.eyebrow = eyebrow
+        self.accent = accent
+        self.showsHeader = showsHeader
+        self.content = content()
+        self.accessory = accessory()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if showsHeader {
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(title.uppercased())
-                            .studioText(.bodyEmphasis)
-                            .tracking(1.1)
-                            .foregroundStyle(StudioTheme.text)
+                    HStack(alignment: .center, spacing: 10) {
+                        if !title.isEmpty {
+                            Text(title.uppercased())
+                                .studioText(.bodyEmphasis)
+                                .tracking(1.1)
+                                .foregroundStyle(StudioTheme.text)
 
-                        Rectangle()
-                            .fill(accent)
-                            .frame(width: 36, height: 2)
+                            Rectangle()
+                                .fill(accent)
+                                .frame(width: 36, height: 2)
+                        }
 
                         Spacer()
+
+                        accessory
                     }
 
                     if let eyebrow {
@@ -42,5 +70,24 @@ struct StudioPanel<Content: View>: View {
                 .allowsHitTesting(false)
         )
         .shadow(color: .black.opacity(StudioOpacity.subtleStroke), radius: StudioMetrics.CornerRadius.panel, x: 0, y: 10)
+    }
+}
+
+extension StudioPanel where Accessory == EmptyView {
+    init(
+        title: String,
+        eyebrow: String? = nil,
+        accent: Color = StudioTheme.cyan,
+        showsHeader: Bool = true,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            title: title,
+            eyebrow: eyebrow,
+            accent: accent,
+            showsHeader: showsHeader,
+            content: content,
+            accessory: { EmptyView() }
+        )
     }
 }

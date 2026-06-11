@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Bordered card listing one choice: bold title, muted detail, whole card
-/// tappable. Used by destination pickers, track creation, generator pickers.
+/// Bordered card listing one choice: bold title, optional muted detail, whole
+/// card tappable. Used by destination pickers, track creation, generator
+/// pickers. Leave `detail` empty when the surrounding header already states
+/// the shared context (one fact, one place).
 struct StudioOptionButton: View {
     let title: String
-    let detail: String
+    var detail: String = ""
     var accent: Color? = nil
     var minHeight: CGFloat? = nil
     var isEnabled: Bool = true
@@ -18,10 +20,12 @@ struct StudioOptionButton: View {
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(StudioTheme.text)
 
-                Text(detail)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
             .padding(StudioMetrics.Spacing.standard)
