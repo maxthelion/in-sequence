@@ -4,18 +4,32 @@ struct StudioTopBar: View {
     @Binding var section: WorkspaceSection
     @Binding var document: SeqAIDocument
 
+    private let buildIdentity = BuildIdentity.current
+
+    /// The badge is only worth showing when at least one of the fields it
+    /// displays carries real data; local builds without the GIT_* build
+    /// settings resolve every field to "unknown".
+    private var buildIdentityIsMeaningful: Bool {
+        [
+            buildIdentity.gitBranch,
+            buildIdentity.gitCommit,
+            buildIdentity.gitDirty,
+            buildIdentity.attributionVersion
+        ].contains { $0 != "unknown" }
+    }
+
     private var visibleSections: [WorkspaceSection] {
         WorkspaceSection.allCases.filter { $0 != .track }
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 18) {
-                Text("SequencerAI")
-                    .studioText(.display)
-                    .foregroundStyle(StudioTheme.text)
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                if buildIdentityIsMeaningful {
+                    buildIdentityBadge
+                }
 
-                Spacer(minLength: 20)
+                Spacer(minLength: 12)
 
                 TransportBar()
             }
@@ -35,9 +49,9 @@ struct StudioTopBar: View {
                                 .minimumScaleFactor(0.85)
                         }
                         .foregroundStyle(section == sectionValue ? StudioTheme.text : StudioTheme.mutedText)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .frame(minWidth: 84)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .frame(minWidth: 78)
                         .background(buttonFill(for: sectionValue), in: Capsule())
                         .overlay(
                             Capsule()
@@ -50,12 +64,32 @@ struct StudioTopBar: View {
                 Spacer()
             }
         }
-        .padding(20)
-        .background(StudioTheme.chrome.opacity(0.92), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chrome, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity)
+        .background(StudioTheme.chrome.opacity(0.92))
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chrome, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
+            StudioTheme.border
+                .frame(height: 1),
+            alignment: .bottom
         )
+    }
+
+    private var buildIdentityBadge: some View {
+        Text(buildIdentity.compactDisplay)
+            .font(.system(size: 11, weight: .medium, design: .monospaced))
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .foregroundStyle(StudioTheme.mutedText)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(StudioTheme.border, lineWidth: 1)
+            )
+            .help(buildIdentity.logSummary)
+            .accessibilityLabel("Build identity \(buildIdentity.logSummary)")
     }
 
     private func buttonFill(for sectionValue: WorkspaceSection) -> Color {
