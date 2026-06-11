@@ -41,6 +41,8 @@ enum VisualScenarioCommandRunner {
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var scenesModeState = "none"
+    private static var libraryCategoryState = "none"
+    private static var libraryFixtureState = "none"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
     private static var drumGroupRoutingEditorCanApply = false
@@ -272,6 +274,7 @@ enum VisualScenarioCommandRunner {
         applyDrumKitMatrixCommand(command: command, session: session)
         applyTrackSourceTabCommand(command: command, section: section)
         applyScenesModeCommand(command: command, section: section)
+        applyLibraryCommand(command: command, section: section, session: session)
 
         switch command["transport"] {
         case "play":
@@ -386,6 +389,10 @@ enum VisualScenarioCommandRunner {
         stepOrderFixtureState=\(stepOrderFixtureState)
         trackSourceTab=\(trackSourceTabState)
         scenesMode=\(scenesModeState)
+        libraryCategory=\(libraryCategoryState)
+        libraryFixture=\(libraryFixtureState)
+        libraryPoolCount=\(session.store.assetPool.count)
+        libraryRecordingsCount=\(RecordingLibrary.shared.recordings.count)
         stepOrderMapDeletionStates=\(stepOrderMapDeletionStates(session: session))
         currentPhraseName=\(currentPhraseName ?? "none")
         queuedPhraseName=\(queuedPhraseName ?? "none")
@@ -1040,6 +1047,91 @@ enum VisualScenarioCommandRunner {
         section.wrappedValue = .track
         trackSourceTabState = rawTab
         postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:\(rawTab)")
+    }
+
+    /// Drives the Library page: category selection plus deterministic
+    /// fixtures for the pool and recordings states.
+    private static func applyLibraryCommand(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["libraryCategory"] != nil ||
+              command["libraryFixture"] != nil
+        else { return }
+
+        section.wrappedValue = .library
+
+        switch command["libraryFixture"] {
+        case "recordings":
+            applyLibraryRecordingsFixture()
+            libraryFixtureState = "recordings"
+        case "pool":
+            applyLibraryPoolFixture(session: session)
+            libraryFixtureState = "pool"
+        default:
+            break
+        }
+
+        if let rawCategory = command["libraryCategory"],
+           LibraryCategory(rawValue: rawCategory) != nil {
+            libraryCategoryState = rawCategory
+            postRepeatedVisualCommand(name: .libraryWorkspaceVisualCommand, object: "category:\(rawCategory)")
+        }
+    }
+
+    /// Replace the shared recording library's contents with two
+    /// deterministic takes so the recordings captures are stable run-to-run.
+    private static func applyLibraryRecordingsFixture() {
+        let library = RecordingLibrary.shared
+        try? FileManager.default.removeItem(at: library.recordingsDirectory)
+
+        let capturedAt = Date(timeIntervalSince1970: 1_770_000_000)
+        for (index, barCount) in [2, 4].enumerated() {
+            let frameCount = 4410 * barCount
+            let pcm = AudioInputCapturedPCM(
+                sampleRate: 44_100,
+                channels: (0..<2).map { channel in
+                    (0..<frameCount).map { frame in
+                        Float(sin(Double(frame) * 0.05 + Double(channel))) * 0.4
+                    }
+                }
+            )
+            do {
+                _ = try library.storeRecording(
+                    pcm: pcm,
+                    sourceTrackName: "Audio In",
+                    barCount: barCount,
+                    bpm: 120,
+                    capturedAt: capturedAt.addingTimeInterval(TimeInterval(index * 60))
+                )
+            } catch {
+                NSLog("[VisualScenarioCommandRunner] recordings fixture write failed: \(error)")
+            }
+        }
+        library.reload()
+        AudioSampleLibrary.shared.reload()
+        postRepeatedVisualCommand(name: .libraryWorkspaceVisualCommand, object: "reload")
+    }
+
+    /// Deterministic project pool: one sample, the factory 808 kit and
+    /// template, plus a dangling sample ref so the missing state renders.
+    private static func applyLibraryPoolFixture(session: SequencerDocumentSession) {
+        for ref in session.store.assetPool {
+            _ = session.removeAssetFromPool(kind: ref.kind, assetID: ref.assetID)
+        }
+
+        if let sample = AudioSampleLibrary.shared.firstSample(in: .kick) {
+            _ = session.addAssetToPool(kind: .sample, assetID: sample.id)
+        }
+        if let kit = DrumAssetLibrary.factoryKits.first {
+            _ = session.addAssetToPool(kind: .drumKit, assetID: kit.id)
+        }
+        if let template = DrumAssetLibrary.factoryTemplates.first {
+            _ = session.addAssetToPool(kind: .patternTemplate, assetID: template.id)
+        }
+        let missingAssetID = UUID(uuidString: "DEAD0000-0000-4000-8000-000000000001") ?? UUID()
+        _ = session.addAssetToPool(kind: .sample, assetID: missingAssetID)
     }
 
     /// Drives the Scenes workspace Browse/Edit ↔ Perform mode.

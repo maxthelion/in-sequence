@@ -77,6 +77,9 @@ CAPTURES=$(cat <<'TABLE'
 32-step-order-unassigned|workspace=phrase,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;phrasePerformLayer=stepOrder;transport=stop
 33-step-order-assigned-on|workspace=phrase,stepOrderFixtureState=assignedOn|stepOrderFixture=assignedOn;phrasePerformLayer=stepOrder;transport=stop
 34-note-repeat-active|workspace=tracks,selectedNoteRepeatActive=true|tracksMode=perform;trackPerformTrackCount=4;trackPerformLayer=noteRepeat;noteRepeatEnsureSecondClipTrack=true;noteRepeatSelectedTrackIndex=0;noteRepeatSource=clip;noteRepeatInterval=1/8;noteRepeatAction=press;transport=play
+40-library-global|workspace=library,libraryCategory=drumKits|workspace=library;libraryCategory=drumKits;transport=stop
+41-library-pool|workspace=library,libraryFixture=pool,libraryPoolCount=4|workspace=library;libraryFixture=pool;libraryCategory=drumKits;transport=stop
+42-library-recordings-populated|workspace=library,libraryCategory=recordings,libraryRecordingsCount=2|workspace=library;libraryFixture=recordings;libraryCategory=recordings;transport=stop
 TABLE
 )
 
