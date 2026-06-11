@@ -129,7 +129,11 @@ struct TrackWorkspaceView: View {
                     )
                 } else {
                     HStack(alignment: .top, spacing: 18) {
-                        TrackSourceEditorView(document: $document, accent: sourceAccent)
+                        TrackSourceEditorView(
+                            document: $document,
+                            accent: sourceAccent,
+                            stepGridWorkspaceModel: stepGridWorkspaceModel
+                        )
                             .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
                             .layoutPriority(1)
 

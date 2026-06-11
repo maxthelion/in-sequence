@@ -48,7 +48,7 @@ private enum ClipEditorLane: String, CaseIterable, Identifiable {
     }
 }
 
-private enum ClipEditorMode: String, CaseIterable, Identifiable {
+enum ClipEditorMode: String, CaseIterable, Identifiable {
     case trigger
     case velocity
     case probability
@@ -67,9 +67,39 @@ private enum ClipEditorMode: String, CaseIterable, Identifiable {
     }
 }
 
-private enum ClipEditorLayer: Equatable {
+enum ClipEditorLayer: Equatable {
     case mode(ClipEditorMode)
     case macro(index: Int)
+
+    /// The shared step-grid layer this editor layer maps onto. Macro indexes
+    /// are `TrackMacroBinding` array indexes (never visual slot positions).
+    var stepGridLayer: StepGridLayer {
+        switch self {
+        case .mode(.trigger):
+            return .trigger
+        case .mode(.velocity):
+            return .velocity
+        case .mode(.probability):
+            return .chance
+        case let .macro(index):
+            return .macro(index: index)
+        }
+    }
+
+    init?(stepGridLayer: StepGridLayer) {
+        switch stepGridLayer {
+        case .trigger:
+            self = .mode(.trigger)
+        case .velocity:
+            self = .mode(.velocity)
+        case .chance:
+            self = .mode(.probability)
+        case let .macro(index):
+            self = .macro(index: index)
+        case .sliceIndex, .sliceMode, .chord:
+            return nil
+        }
+    }
 }
 
 struct ClipMacroLayerTab: Equatable, Identifiable {
@@ -98,12 +128,6 @@ struct ClipMacroLayerTab: Equatable, Identifiable {
     }
 }
 
-private struct ClipStepInspectorTarget: Identifiable, Equatable {
-    let stepIndex: Int
-
-    var id: Int { stepIndex }
-}
-
 struct ClipContentPreview: View {
     let content: ClipContent
     let defaultNote: ClipStepNote
@@ -111,6 +135,7 @@ struct ClipContentPreview: View {
     let macroBindings: [TrackMacroBinding]
     let macroLanes: [UUID: MacroLane]
     let macroFallbackValues: [UUID: Double]
+    let stepGridCoordinator: StepGridCoordinator?
     let onAssignMacroSlot: ((Int) -> Void)?
     let onUpdateMacroLanes: (([UUID: MacroLane]) -> Void)?
     let playingStepIndex: Int?
@@ -120,7 +145,6 @@ struct ClipContentPreview: View {
     @State private var selectedLane: ClipEditorLane = .main
     @State private var selectedLayer: ClipEditorLayer = .mode(.trigger)
     @State private var selectedPage = 0
-    @State private var editingStepTarget: ClipStepInspectorTarget?
 
     init(
         content: ClipContent,
@@ -129,6 +153,7 @@ struct ClipContentPreview: View {
         macroBindings: [TrackMacroBinding] = [],
         macroLanes: [UUID: MacroLane] = [:],
         macroFallbackValues: [UUID: Double] = [:],
+        stepGridCoordinator: StepGridCoordinator? = nil,
         onAssignMacroSlot: ((Int) -> Void)? = nil,
         onUpdateMacroLanes: (([UUID: MacroLane]) -> Void)? = nil,
         playingStepIndex: Int? = nil,
@@ -141,6 +166,7 @@ struct ClipContentPreview: View {
         self.macroBindings = macroBindings
         self.macroLanes = macroLanes
         self.macroFallbackValues = macroFallbackValues
+        self.stepGridCoordinator = stepGridCoordinator
         self.onAssignMacroSlot = onAssignMacroSlot
         self.onUpdateMacroLanes = onUpdateMacroLanes
         self.playingStepIndex = playingStepIndex
@@ -216,7 +242,7 @@ struct ClipContentPreview: View {
         VStack(alignment: .leading, spacing: 12) {
             clipHeaderControls(lengthSteps: lengthSteps, steps: steps)
 
-            layerLineControl
+            layerControlRow(lengthSteps: lengthSteps, steps: steps)
 
             if let selectedMacroLayer {
                 let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
@@ -226,6 +252,7 @@ struct ClipContentPreview: View {
                     stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                     indexOffset: pageStart,
                     playingStepIndex: playingStepIndex,
+                    selectedStepIndexes: selectedStepIndexes,
                     contentProvider: { index, _ in
                         StepGridCoordinator.cellContent(
                             for: index,
@@ -238,17 +265,12 @@ struct ClipContentPreview: View {
                         updateMacroLaneFraction(
                             fraction,
                             binding: selectedMacroLayer.binding,
-                            stepIndex: index,
+                            stepIndexes: affectedStepIndexes(for: index),
                             stepCount: lengthSteps
                         )
                     },
-                    onDoubleTap: { stepIndex in
-                        clearMacroLaneValue(
-                            binding: selectedMacroLayer.binding,
-                            stepIndex: stepIndex,
-                            stepCount: lengthSteps
-                        )
-                    }
+                    onSelectStep: selectStepAction,
+                    onBackgroundTap: clearSelectionAction
                 ) { index in
                     cycleMacroLaneValue(
                         binding: selectedMacroLayer.binding,
@@ -264,7 +286,9 @@ struct ClipContentPreview: View {
                         stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                         indexOffset: pageStart,
                         playingStepIndex: playingStepIndex,
-                        onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
+                        selectedStepIndexes: selectedStepIndexes,
+                        onSelectStep: selectStepAction,
+                        onBackgroundTap: clearSelectionAction
                     ) { index in
                         #if DEBUG
                         let beforeState = steps.indices.contains(index)
@@ -276,7 +300,14 @@ struct ClipContentPreview: View {
                             details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
                         )
                         #endif
-                        commit(togglingStep(at: index, lengthSteps: lengthSteps, steps: steps, lane: selectedLane))
+                        commit(
+                            togglingSteps(
+                                at: affectedStepIndexes(for: index),
+                                lengthSteps: lengthSteps,
+                                steps: steps,
+                                lane: selectedLane
+                            )
+                        )
                     }
                     .allowsHitTesting(onCommit != nil)
 
@@ -285,6 +316,7 @@ struct ClipContentPreview: View {
                         stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                         indexOffset: pageStart,
                         playingStepIndex: playingStepIndex,
+                        selectedStepIndexes: selectedStepIndexes,
                         contentProvider: { index, _ in
                             guard steps.indices.contains(index) else {
                                 return .valueBar(fraction: 0)
@@ -292,29 +324,32 @@ struct ClipContentPreview: View {
                             return .valueBar(fraction: velocityValue(for: steps[index], lane: selectedLane) / 127.0)
                         },
                         onValueDrag: { index, fraction in
+                            let indexes = affectedStepIndexes(for: index)
                             commit(
                                 ClipNoteGridStepEditing.updatingLaneVelocities(
                                     lane: selectedLane.noteLane,
-                                    values: [fraction * 127.0],
-                                    visibleIndices: [index],
+                                    values: Array(repeating: fraction * 127.0, count: indexes.count),
+                                    visibleIndices: indexes,
                                     lengthSteps: lengthSteps,
                                     steps: steps,
                                     defaultNote: defaultNote
                                 )
                             )
                         },
-                        onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
+                        onSelectStep: selectStepAction,
+                        onBackgroundTap: clearSelectionAction
                     ) { index in
                         guard steps.indices.contains(index) else { return }
                         let nextValue = ClipNoteGridStepEditing.cycledValue(
                             after: velocityValue(for: steps[index], lane: selectedLane),
                             allowedValues: ClipNoteGridStepEditing.velocityCycleValues
                         )
+                        let indexes = affectedStepIndexes(for: index)
                         commit(
                             ClipNoteGridStepEditing.updatingLaneVelocities(
                                 lane: selectedLane.noteLane,
-                                values: [nextValue],
-                                visibleIndices: [index],
+                                values: Array(repeating: nextValue, count: indexes.count),
+                                visibleIndices: indexes,
                                 lengthSteps: lengthSteps,
                                 steps: steps,
                                 defaultNote: defaultNote
@@ -328,6 +363,7 @@ struct ClipContentPreview: View {
                         stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                         indexOffset: pageStart,
                         playingStepIndex: playingStepIndex,
+                        selectedStepIndexes: selectedStepIndexes,
                         contentProvider: { index, _ in
                             guard steps.indices.contains(index) else {
                                 return .valueBar(fraction: 0)
@@ -335,29 +371,32 @@ struct ClipContentPreview: View {
                             return .valueBar(fraction: chanceValue(for: steps[index], lane: selectedLane))
                         },
                         onValueDrag: { index, fraction in
+                            let indexes = affectedStepIndexes(for: index)
                             commit(
                                 ClipNoteGridStepEditing.updatingLaneChances(
                                     lane: selectedLane.noteLane,
-                                    values: [fraction],
-                                    visibleIndices: [index],
+                                    values: Array(repeating: fraction, count: indexes.count),
+                                    visibleIndices: indexes,
                                     lengthSteps: lengthSteps,
                                     steps: steps,
                                     defaultNote: defaultNote
                                 )
                             )
                         },
-                        onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
+                        onSelectStep: selectStepAction,
+                        onBackgroundTap: clearSelectionAction
                     ) { index in
                         guard steps.indices.contains(index) else { return }
                         let nextValue = ClipNoteGridStepEditing.cycledValue(
                             after: chanceValue(for: steps[index], lane: selectedLane),
                             allowedValues: ClipNoteGridStepEditing.chanceCycleValues
                         )
+                        let indexes = affectedStepIndexes(for: index)
                         commit(
                             ClipNoteGridStepEditing.updatingLaneChances(
                                 lane: selectedLane.noteLane,
-                                values: [nextValue],
-                                visibleIndices: [index],
+                                values: Array(repeating: nextValue, count: indexes.count),
+                                visibleIndices: indexes,
                                 lengthSteps: lengthSteps,
                                 steps: steps,
                                 defaultNote: defaultNote
@@ -370,34 +409,24 @@ struct ClipContentPreview: View {
 
             clipFooter(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage, steps: steps)
         }
-        .sheet(item: $editingStepTarget) { target in
-            Group {
-                if steps.indices.contains(target.stepIndex) {
-                    ClipStepInspectorSheet(
-                        stepIndex: target.stepIndex,
-                        step: steps[target.stepIndex],
-                        accent: selectedLane.accent
-                    )
-                } else {
-                    Color.clear
-                        .frame(width: 1, height: 1)
-                        .onAppear {
-                            editingStepTarget = nil
-                        }
-                }
+        .background {
+            StepGridEscapeKeyHandler(isEnabled: stepGridCoordinator?.isSelectionActive ?? false) {
+                stepGridCoordinator?.clearSelection()
             }
-            .presentationBackground(.clear)
         }
         .onAppear {
             clampPage(lengthSteps: lengthSteps)
+            syncCoordinatorLayers()
         }
         .onChange(of: lengthSteps) { _, newLength in
             clampPage(lengthSteps: newLength)
-            if let editingStepTarget, editingStepTarget.stepIndex >= newLength {
-                self.editingStepTarget = nil
-            }
+            pruneSelection(lengthSteps: newLength)
+        }
+        .onChange(of: selectedLayer) { _, _ in
+            syncCoordinatorLayers()
         }
         .onChange(of: macroSlots) { _, slots in
+            defer { syncCoordinatorLayers() }
             guard case let .macro(index) = selectedLayer else {
                 return
             }
@@ -405,6 +434,98 @@ struct ClipContentPreview: View {
             if !tabs.contains(where: { $0.macroIndex == index }) {
                 selectedLayer = .mode(.trigger)
             }
+        }
+    }
+
+    /// The layer row above the grid: plain single-line layer selector when no
+    /// steps are selected, the shared Variant D rotary row (one arc-dial per
+    /// editable layer, writing to every selected step) while a selection is
+    /// active. Shared with the slicer workspace — no parallel inspector.
+    @ViewBuilder
+    private func layerControlRow(lengthSteps: Int, steps: [ClipStep]) -> some View {
+        if let stepGridCoordinator, stepGridCoordinator.shouldShowRotaryRow {
+            StepLayerRotaryRow(
+                controls: stepGridCoordinator.rotaryControls(
+                    in: macroPreviewClip(lengthSteps: lengthSteps, steps: steps),
+                    macroBindings: macroBindings,
+                    noteLane: selectedLane.noteLane
+                ),
+                activeLayer: selectedLayer.stepGridLayer,
+                suppressActiveLayerHighlight: selectedLayer == .mode(.trigger),
+                accent: selectedLane.accent,
+                onSelectLayer: { layer in
+                    if let editorLayer = ClipEditorLayer(stepGridLayer: layer) {
+                        selectedLayer = editorLayer
+                    }
+                },
+                onWriteValue: { layer, value in
+                    writeRotaryValue(value, layer: layer)
+                }
+            )
+        } else if stepGridCoordinator?.isSelectionActive == true {
+            StepLayerRotaryEmptyState()
+        } else {
+            layerLineControl
+        }
+    }
+
+    private var selectedStepIndexes: Set<Int> {
+        stepGridCoordinator?.selection.selectedStepIndexes ?? []
+    }
+
+    private var selectStepAction: ((Int) -> Void)? {
+        guard let stepGridCoordinator else { return nil }
+        return { stepIndex in
+            stepGridCoordinator.toggleSelection(at: stepIndex)
+        }
+    }
+
+    private var clearSelectionAction: (() -> Void)? {
+        guard let stepGridCoordinator else { return nil }
+        return { stepGridCoordinator.clearSelection() }
+    }
+
+    /// Selection-aware edit targets: editing a selected step applies the same
+    /// value to every selected step in one commit; editing an unselected step
+    /// only touches that step and leaves the selection alone.
+    private func affectedStepIndexes(for stepIndex: Int) -> [Int] {
+        guard let stepGridCoordinator,
+              stepGridCoordinator.selection.selectedStepIndexes.contains(stepIndex)
+        else {
+            return [stepIndex]
+        }
+        return stepGridCoordinator.selection.selectedStepIndexes.sorted()
+    }
+
+    private func writeRotaryValue(_ value: Double, layer: StepGridLayer) {
+        guard let stepGridCoordinator,
+              let seedStepIndex = stepGridCoordinator.selectedRotarySeedStepIndex
+        else {
+            return
+        }
+        _ = stepGridCoordinator.writeAbsoluteValue(
+            value,
+            stepIndex: seedStepIndex,
+            layer: layer,
+            macroBindings: macroBindings,
+            noteLane: selectedLane.noteLane,
+            defaultNote: defaultNote
+        )
+    }
+
+    private func syncCoordinatorLayers() {
+        guard let stepGridCoordinator else { return }
+        stepGridCoordinator.updateEditableLayers(
+            [.velocity, .chance] + macroLayerTabs.map { StepGridLayer.macro(index: $0.macroIndex) }
+        )
+        stepGridCoordinator.updateActiveLayer(selectedLayer.stepGridLayer)
+    }
+
+    private func pruneSelection(lengthSteps: Int) {
+        guard let stepGridCoordinator else { return }
+        let pruned = stepGridCoordinator.selection.selectedStepIndexes.filter { $0 < lengthSteps }
+        if pruned != stepGridCoordinator.selection.selectedStepIndexes {
+            stepGridCoordinator.selection.selectedStepIndexes = pruned
         }
     }
 
@@ -592,20 +713,23 @@ struct ClipContentPreview: View {
         macroLanes.mapValues { $0.synced(stepCount: stepCount) }
     }
 
-    private func updateMacroLaneValue(_ value: Double?, binding: TrackMacroBinding, stepIndex: Int, stepCount: Int) {
+    /// One `onUpdateMacroLanes` call for the whole index batch, mirroring the
+    /// single-mutation rule for selection edits.
+    private func updateMacroLaneValue(_ value: Double?, binding: TrackMacroBinding, stepIndexes: [Int], stepCount: Int) {
         guard let onUpdateMacroLanes else { return }
         var updatedLanes = syncedMacroLanes(stepCount: stepCount)
         var lane = updatedLanes[binding.id] ?? MacroLane(stepCount: stepCount)
-        guard lane.values.indices.contains(stepIndex) else { return }
-        lane.values[stepIndex] = value.map { clampedMacroValue($0, for: binding) }
+        for stepIndex in stepIndexes where lane.values.indices.contains(stepIndex) {
+            lane.values[stepIndex] = value.map { clampedMacroValue($0, for: binding) }
+        }
         updatedLanes[binding.id] = lane
         onUpdateMacroLanes(updatedLanes)
     }
 
-    private func updateMacroLaneFraction(_ fraction: Double, binding: TrackMacroBinding, stepIndex: Int, stepCount: Int) {
+    private func updateMacroLaneFraction(_ fraction: Double, binding: TrackMacroBinding, stepIndexes: [Int], stepCount: Int) {
         let range = binding.descriptor.maxValue - binding.descriptor.minValue
         let value = binding.descriptor.minValue + (min(max(fraction, 0), 1) * range)
-        updateMacroLaneValue(value, binding: binding, stepIndex: stepIndex, stepCount: stepCount)
+        updateMacroLaneValue(value, binding: binding, stepIndexes: stepIndexes, stepCount: stepCount)
     }
 
     private func cycleMacroLaneValue(binding: TrackMacroBinding, stepIndex: Int, stepCount: Int) {
@@ -613,15 +737,7 @@ struct ClipContentPreview: View {
         let laneValues = macroLanes[binding.id]?.synced(stepCount: stepCount).values
         let current = laneValues?.indices.contains(stepIndex) == true ? laneValues?[stepIndex] ?? nil : nil
         let next = ClipNoteGridStepEditing.cycledValue(after: current ?? macroFallbackValue(for: binding), allowedValues: values)
-        updateMacroLaneValue(next, binding: binding, stepIndex: stepIndex, stepCount: stepCount)
-    }
-
-    private func clearMacroLaneValue(
-        binding: TrackMacroBinding,
-        stepIndex: Int,
-        stepCount: Int
-    ) {
-        updateMacroLaneValue(nil, binding: binding, stepIndex: stepIndex, stepCount: stepCount)
+        updateMacroLaneValue(next, binding: binding, stepIndexes: affectedStepIndexes(for: stepIndex), stepCount: stepCount)
     }
 
     private func macroPreviewClip(lengthSteps: Int, steps: [ClipStep]) -> ClipPoolEntry {
@@ -821,19 +937,24 @@ struct ClipContentPreview: View {
         ClipNoteGridStepEditing.velocityValue(for: step, lane: lane.noteLane)
     }
 
-    private func togglingStep(
-        at index: Int,
+    private func togglingSteps(
+        at indexes: [Int],
         lengthSteps: Int,
         steps: [ClipStep],
         lane: ClipEditorLane
     ) -> ClipContent {
-        ClipNoteGridStepEditing.togglingStep(
-            at: index,
-            lengthSteps: lengthSteps,
-            steps: steps,
-            lane: lane.noteLane,
-            defaultNote: defaultNote
-        )
+        var content = ClipContent.noteGrid(lengthSteps: lengthSteps, steps: steps)
+        for index in indexes {
+            guard case let .noteGrid(currentLength, currentSteps) = content else { break }
+            content = ClipNoteGridStepEditing.togglingStep(
+                at: index,
+                lengthSteps: currentLength,
+                steps: currentSteps,
+                lane: lane.noteLane,
+                defaultNote: defaultNote
+            )
+        }
+        return content
     }
 
     private func resizingNoteGrid(to newLength: Int, currentSteps: [ClipStep]) -> ClipContent {
@@ -851,73 +972,3 @@ struct ClipContentPreview: View {
     }
 }
 
-private struct ClipStepInspectorSheet: View {
-    let stepIndex: Int
-    let step: ClipStep
-    let accent: Color
-
-    var body: some View {
-        ZStack {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            StudioPanel(
-                title: "Step \(stepIndex + 1)",
-                eyebrow: "Normal and fill lanes summarised together.",
-                accent: accent
-            ) {
-                VStack(alignment: .leading, spacing: 16) {
-                    laneSummary(title: "Normal Lane", lane: step.main, accent: ClipEditorLane.main.accent)
-                    laneSummary(title: "Fill Lane", lane: step.fill, accent: ClipEditorLane.fill.accent)
-                }
-            }
-            .padding(StudioMetrics.Spacing.page)
-            .frame(minWidth: 520, minHeight: 360)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    @ViewBuilder
-    private func laneSummary(title: String, lane: ClipLane?, accent: Color) -> some View {
-        if let lane {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    Text(title)
-                        .studioText(.bodyBold)
-                        .foregroundStyle(StudioTheme.text)
-
-                    Text("\(Int((lane.chance * 100).rounded()))%")
-                        .studioText(.eyebrowBold)
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(accent.opacity(StudioOpacity.hoverFill), in: Capsule())
-                }
-
-                Text("\(lane.notes.count) \(lane.notes.count == 1 ? "note" : "notes")")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                ForEach(Array(lane.notes.enumerated()), id: \.offset) { index, note in
-                    Text("Note \(index + 1): pitch \(note.pitch) • velocity \(note.velocity) • length \(note.lengthSteps) step\(note.lengthSteps == 1 ? "" : "s")")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.text)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.standard)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.softStroke), lineWidth: 1)
-            )
-        } else {
-            StudioPlaceholderTile(
-                title: title,
-                detail: "This lane is currently off for the selected step.",
-                accent: accent
-            )
-        }
-    }
-}

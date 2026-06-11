@@ -12,50 +12,73 @@ struct StepGridView: View {
     let stepStates: [StepVisualState]
     let indexOffset: Int
     let playingStepIndex: Int?
+    let selectedStepIndexes: Set<Int>
     let contentProvider: (Int, StepVisualState) -> StepCellContent
     let onValueDrag: ((Int, Double) -> Void)?
-    let onDoubleTap: ((Int) -> Void)?
+    let onSelectStep: ((Int) -> Void)?
+    let onBackgroundTap: (() -> Void)?
     let advanceStep: (Int) -> Void
 
     init(
         stepStates: [StepVisualState],
         indexOffset: Int = 0,
         playingStepIndex: Int? = nil,
+        selectedStepIndexes: Set<Int> = [],
         contentProvider: @escaping (Int, StepVisualState) -> StepCellContent = { _, _ in .toggle },
         onValueDrag: ((Int, Double) -> Void)? = nil,
-        onDoubleTap: ((Int) -> Void)? = nil,
+        onSelectStep: ((Int) -> Void)? = nil,
+        onBackgroundTap: (() -> Void)? = nil,
         advanceStep: @escaping (Int) -> Void
     ) {
         self.stepStates = stepStates
         self.indexOffset = indexOffset
         self.playingStepIndex = playingStepIndex
+        self.selectedStepIndexes = selectedStepIndexes
         self.contentProvider = contentProvider
         self.onValueDrag = onValueDrag
-        self.onDoubleTap = onDoubleTap
+        self.onSelectStep = onSelectStep
+        self.onBackgroundTap = onBackgroundTap
         self.advanceStep = advanceStep
     }
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 8)
+    // 16 columns so a 16-step page is one bar-aligned row of compact cells —
+    // the same grid grammar as the slicer step strip.
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 16)
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 10) {
-            ForEach(Array(stepStates.enumerated()), id: \.offset) { index, state in
-                let absoluteIndex = index + indexOffset
-                StepGridCell(
-                    index: absoluteIndex,
-                    state: state,
-                    isPlaying: playingStepIndex == absoluteIndex,
-                    content: contentProvider(absoluteIndex, state),
-                    valueDragAction: onValueDrag.map { drag in
-                        { value in drag(absoluteIndex, value) }
-                    },
-                    action: { advanceStep(absoluteIndex) },
-                    inspectAction: onDoubleTap.map { inspect in
-                        { inspect(absoluteIndex) }
-                    }
-                )
+        ZStack {
+            if let onBackgroundTap {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onBackgroundTap)
+            }
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(Array(stepStates.enumerated()), id: \.offset) { index, state in
+                    let absoluteIndex = index + indexOffset
+                    StepGridCell(
+                        index: absoluteIndex,
+                        state: state,
+                        isPlaying: playingStepIndex == absoluteIndex,
+                        isSelected: isStepSelected(absoluteIndex),
+                        content: contentProvider(absoluteIndex, state),
+                        valueDragAction: onValueDrag.map { drag in
+                            { value in drag(absoluteIndex, value) }
+                        },
+                        action: { advanceStep(absoluteIndex) },
+                        selectAction: onSelectStep.map { select in
+                            { select(absoluteIndex) }
+                        }
+                    )
+                }
             }
         }
+    }
+
+    /// Selection indexes are absolute clip-step indexes, matching
+    /// `StepSelectionModel`, so paged grids compose with `indexOffset`.
+    func isStepSelected(_ absoluteIndex: Int) -> Bool {
+        selectedStepIndexes.contains(absoluteIndex)
     }
 }
 
@@ -63,35 +86,35 @@ private struct StepGridCell: View {
     let index: Int
     let state: StepVisualState
     let isPlaying: Bool
+    let isSelected: Bool
     let content: StepCellContent
     let valueDragAction: ((Double) -> Void)?
     let action: () -> Void
-    let inspectAction: (() -> Void)?
+    let selectAction: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 7) {
             Text("\(index + 1)")
                 .studioText(.eyebrow)
-                .tracking(0.8)
                 .foregroundStyle(labelStyle)
 
             UnifiedStepCell(
                 visualState: state,
                 isPlaying: isPlaying,
-                isSelected: false,
+                isSelected: isSelected,
                 content: content,
                 onTap: performAction,
                 onDrag: valueDragAction,
-                onSelect: { inspectAction?() }
+                onSelect: { selectAction?() }
             )
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
+        .padding(.vertical, 7)
+        .padding(.horizontal, 3)
         .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(outlineColor, lineWidth: 1)
+                .stroke(outlineColor, lineWidth: isSelected ? 2 : 1)
         )
         .background {
             #if DEBUG
@@ -112,13 +135,8 @@ private struct StepGridCell: View {
         }
         .accessibilityLabel("Step \(index + 1)")
         .accessibilityValue(accessibilityText)
-        .accessibilityAction(named: "Inspect Step") {
-            inspectAction?()
-        }
-        .contextMenu {
-            if let inspectAction {
-                Button("Inspect Step", action: inspectAction)
-            }
+        .accessibilityAction(named: "Select Step") {
+            selectAction?()
         }
     }
 
@@ -149,6 +167,9 @@ private struct StepGridCell: View {
     }
 
     private var outlineColor: Color {
+        if isSelected {
+            return StudioTheme.amber
+        }
         switch state {
         case .off:
             return Color.white.opacity(StudioOpacity.borderSubtle)
@@ -274,6 +295,9 @@ private struct StepGridMouseDownProbe: NSViewRepresentable {
 #Preview {
     StepGridView(
         stepStates: [.on, .off, .accented, .off, .on, .off, .accented, .off, .on, .accented, .off, .off, .on, .on, .accented, .off],
+        playingStepIndex: 4,
+        selectedStepIndexes: [2, 9],
+        onSelectStep: { _ in },
         advanceStep: { _ in }
     )
     .padding()

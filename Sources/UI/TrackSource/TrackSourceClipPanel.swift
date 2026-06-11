@@ -9,6 +9,7 @@ struct TrackSourceClipPanel: View {
     let macroFallbackValues: [UUID: Double]
     let canAssignAUMacros: Bool
     let playingStepIndex: Int?
+    let stepGridCoordinator: StepGridCoordinator?
     let onAssignMacroSlot: (Int) -> Void
     let onUpdateMacroLanes: ([UUID: MacroLane]) -> Void
     let onUpdateClipContent: (ClipContent) -> Void
@@ -21,6 +22,7 @@ struct TrackSourceClipPanel: View {
             macroBindings: macroBindings,
             macroLanes: macroLanes,
             macroFallbackValues: macroFallbackValues,
+            stepGridCoordinator: stepGridCoordinator,
             onAssignMacroSlot: canAssignAUMacros ? onAssignMacroSlot : nil,
             onUpdateMacroLanes: onUpdateMacroLanes,
             playingStepIndex: playingStepIndex,

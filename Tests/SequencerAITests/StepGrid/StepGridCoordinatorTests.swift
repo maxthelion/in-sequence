@@ -347,6 +347,49 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(Self.velocities(in: mutator.clip, at: [1, 4]), [95, 95])
     }
 
+    func test_rotaryControlsResolveMacroLayerFromBindingsArrayWithoutTrack() throws {
+        let clipID = UUID()
+        let binding = Self.makeBinding(kind: .sampleStart, slotIndex: 3)
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [2])
+        clip.macroLanes[binding.id] = MacroLane(values: [nil, nil, 0.6, nil, nil, nil, nil, nil])
+        let mutator = RecordingClipMutator(clip: clip)
+        let coordinator = StepGridCoordinator(
+            clipID: clipID,
+            clipMutator: mutator,
+            activeLayer: .velocity,
+            editableLayers: [.velocity, .chance, .macro(index: 0)]
+        )
+        coordinator.toggleSelection(at: 2)
+
+        // The Track Source clip editor has macro bindings but no
+        // StepSequenceTrack; the coordinator must resolve macro layers from
+        // the bindings array alone.
+        let controls = coordinator.rotaryControls(in: mutator.clip, macroBindings: [binding])
+
+        XCTAssertEqual(controls.map(\.layer), [.velocity, .chance, .macro(index: 0)])
+        let macroControl = try XCTUnwrap(controls.first { $0.layer == .macro(index: 0) })
+        XCTAssertEqual(macroControl.title, binding.displayName)
+        let range = binding.descriptor.maxValue - binding.descriptor.minValue
+        let expectedFraction = (0.6 - binding.descriptor.minValue) / range
+        XCTAssertEqual(macroControl.normalizedValue, expectedFraction, accuracy: 0.0001)
+    }
+
+    func test_macroAbsoluteWriteResolvesBindingFromBindingsArrayWithoutTrack() throws {
+        let clipID = UUID()
+        let binding = Self.makeBinding(kind: .sampleStart)
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID, activeIndexes: [1, 4]))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [1, 4].forEach { coordinator.toggleSelection(at: $0) }
+
+        coordinator.writeAbsoluteValue(0.42, stepIndex: 1, layer: .macro(index: 0), macroBindings: [binding])
+
+        XCTAssertEqual(mutator.mutationCount, 1)
+        let lane = try XCTUnwrap(mutator.clip.macroLanes[binding.id])
+        let expected = binding.descriptor.minValue + (0.42 * (binding.descriptor.maxValue - binding.descriptor.minValue))
+        XCTAssertEqual(try XCTUnwrap(lane.values[1]), expected, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(lane.values[4]), expected, accuracy: 0.0001)
+    }
+
     func test_rotaryControlsAreEmptyWithoutSelectionOrEditableLayers() {
         let clipID = UUID()
         let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID))

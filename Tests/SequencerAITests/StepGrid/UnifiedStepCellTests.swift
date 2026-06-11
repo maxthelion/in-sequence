@@ -74,6 +74,27 @@ final class UnifiedStepCellTests: XCTestCase {
         XCTAssertEqual(draggedValue ?? -1, 0.75, accuracy: 0.0001)
     }
 
+    func test_stepGridViewComposesAbsoluteSelectionWithPagedIndexOffset() {
+        var selectedStep: Int?
+        let grid = StepGridView(
+            stepStates: [.on, .off],
+            indexOffset: 16,
+            selectedStepIndexes: [17],
+            onSelectStep: { selectedStep = $0 },
+            advanceStep: { _ in }
+        )
+
+        // Selection indexes are absolute clip-step indexes (matching
+        // StepSelectionModel), so the second page composes selection with
+        // its index offset instead of hard-coding `isSelected: false`.
+        XCTAssertTrue(grid.isStepSelected(17))
+        XCTAssertFalse(grid.isStepSelected(16))
+        XCTAssertFalse(grid.isStepSelected(1))
+
+        grid.onSelectStep?(17)
+        XCTAssertEqual(selectedStep, 17)
+    }
+
     func test_valueFractionsClampToUnitRange() {
         let low = UnifiedStepCellVisualConfiguration(
             visualState: .off,

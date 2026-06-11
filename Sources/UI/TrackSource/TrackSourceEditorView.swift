@@ -69,6 +69,7 @@ struct TrackSourceEditorView: View {
     @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
     let accent: Color
+    let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
 
     @State private var selectedTab: TrackSourceEditorTab = .source
     @State private var sourcePickerStep: TrackSourceContainedSourcePickerStep?
@@ -302,6 +303,12 @@ struct TrackSourceEditorView: View {
                 }
             }
         }
+        .onAppear {
+            syncStepGridCoordinator()
+        }
+        .onChange(of: currentClip?.id) { _, _ in
+            syncStepGridCoordinator()
+        }
         .onDisappear {
             session.clearTrackFillPreview(reason: .editorClosed)
         }
@@ -349,6 +356,7 @@ struct TrackSourceEditorView: View {
             macroFallbackValues: macroFallbackValues,
             canAssignAUMacros: canAssignAUMacros,
             playingStepIndex: playingClipStepIndex,
+            stepGridCoordinator: stepGridWorkspaceModel.coordinator,
             generatedSourceInputClips: generatedSourceInputClips,
             harmonicSidechainClips: harmonicSidechainClips,
             onAssignMacroSlot: prepareAndPresentMacroSlotPicker(slotIndex:),
@@ -364,6 +372,21 @@ struct TrackSourceEditorView: View {
             onAssignClipSource: assignClipSource,
             onRemoveSource: removeSource,
             onUpdateGeneratorParams: updateSourceGeneratorParams
+        )
+    }
+
+    /// Mirrors the slicer workspace: the shared step-grid coordinator follows
+    /// the clip shown in the Source tab. `ClipContentPreview` refines the
+    /// coordinator's editable/active layers from its own layer state.
+    private func syncStepGridCoordinator() {
+        guard selectedSourceMode == .clip, let clipID = currentClip?.id else {
+            stepGridWorkspaceModel.reset()
+            return
+        }
+        _ = stepGridWorkspaceModel.coordinator(
+            for: clipID,
+            clipMutator: session,
+            editableLayers: [.velocity, .chance]
         )
     }
 

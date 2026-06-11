@@ -201,6 +201,7 @@
 		705B1A49A9FC5A3FF3F862DD /* UnifiedStepCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9DB09ADEC4D2FD15577D4F /* UnifiedStepCell.swift */; };
 		710B658B41C2704648725560 /* SeqAIDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726A0B95E8C4D84800FC746D /* SeqAIDocument.swift */; };
 		7172728D93032EB72D29F5A2 /* ProjectTrackSourceCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F543D56755354B49E674E3 /* ProjectTrackSourceCatalogTests.swift */; };
+		71D176C051C6EB348ED0563D /* ClipEditorLayerMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 622B9F916CB752F29555DFE9 /* ClipEditorLayerMappingTests.swift */; };
 		71D34A433D642FD790045F20 /* TrackType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D4E7BE16D3143128BEE06B /* TrackType.swift */; };
 		71FAB5859ECCACA99EE85978 /* DestinationSampleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135A3A7181DDE110983EDF6C /* DestinationSampleTests.swift */; };
 		722C46877546D17430B85D27 /* UnifiedStepCellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A84BECE182FD5E7E510409 /* UnifiedStepCellTests.swift */; };
@@ -1012,6 +1013,7 @@
 		61D67F61AA777FD42EA9EC98 /* spec.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = spec.md; sourceTree = "<group>"; };
 		61FB04F3B3FB90B0884BA675 /* ProjectDelta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDelta.swift; sourceTree = "<group>"; };
 		622B3BF7101490917DECD0ED /* 2026-05-08T13-13-43Z-work-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T13-13-43Z-work-observer-cadence.md"; sourceTree = "<group>"; };
+		622B9F916CB752F29555DFE9 /* ClipEditorLayerMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipEditorLayerMappingTests.swift; sourceTree = "<group>"; };
 		62BBE256EF2D82E16C785224 /* implementation-handoff.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "implementation-handoff.md"; sourceTree = "<group>"; };
 		62E21F1C1A0CA118705B65C9 /* TransportBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportBar.swift; sourceTree = "<group>"; };
 		62F8C62414C2A0142CA1ABA5 /* 2026-05-08-p0-track-performance-overlay-ux-ia-pass.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08-p0-track-performance-overlay-ux-ia-pass.md"; sourceTree = "<group>"; };
@@ -3236,6 +3238,7 @@
 		714C777E98D64A438740C84D /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				622B9F916CB752F29555DFE9 /* ClipEditorLayerMappingTests.swift */,
 				A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */,
 				9B0A83F64B6822F0BB72917E /* DrumGroupRoutingEditorDraftTests.swift */,
 				D607B232B0B516E5513AA5A6 /* DrumKitMatrixEditingTests.swift */,
@@ -5192,6 +5195,7 @@
 				3954C67E9442D97A96CBB5D7 /* ClipContentMacroLaneTests.swift in Sources */,
 				D0D635E76A2AC0D52E6B6BB7 /* ClipContentSliceTriggerModeTests.swift in Sources */,
 				0FD17A493F4B93986C03D344 /* ClipContentTestHelpers.swift in Sources */,
+				71D176C051C6EB348ED0563D /* ClipEditorLayerMappingTests.swift in Sources */,
 				DA8DA0B05D01495ECF2345A8 /* ClipHistoryLiveCaptureTests.swift in Sources */,
 				A961D7A68763CB55DACB2DFF /* CommandQueueTests.swift in Sources */,
 				12DA27C506B5F683A3B90CA2 /* DAWNoteNameTests.swift in Sources */,

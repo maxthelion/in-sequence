@@ -155,6 +155,7 @@ final class StepGridCoordinator {
     func rotaryControls(
         in clip: ClipPoolEntry,
         track: StepSequenceTrack? = nil,
+        macroBindings: [TrackMacroBinding]? = nil,
         noteLane: StepGridNoteLane = .main
     ) -> [StepGridRotaryControl] {
         guard let seedStepIndex = selectedRotarySeedStepIndex else {
@@ -166,7 +167,7 @@ final class StepGridCoordinator {
                 for: layer,
                 seedStepIndex: seedStepIndex,
                 clip: clip,
-                track: track,
+                macroBindings: macroBindings ?? track?.macros,
                 noteLane: noteLane
             )
         }
@@ -276,13 +277,14 @@ final class StepGridCoordinator {
         stepIndex: Int,
         layer: StepGridLayer? = nil,
         track: StepSequenceTrack? = nil,
+        macroBindings: [TrackMacroBinding]? = nil,
         noteLane: StepGridNoteLane = .main,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
     ) -> Bool {
         let clipID = selection.clipID
         let indexes = affectedIndexes(for: stepIndex)
         let resolvedLayer = layer ?? activeLayer
-        let resolvedTrack = track
+        let resolvedBindings = macroBindings ?? track?.macros
         let normalizedDefaultNote = defaultNote.normalized
 
         return clipMutator.mutateClip(id: clipID, impact: .snapshotOnly) { entry in
@@ -292,7 +294,7 @@ final class StepGridCoordinator {
                     at: index,
                     layer: resolvedLayer,
                     entry: &entry,
-                    track: resolvedTrack,
+                    macroBindings: resolvedBindings,
                     noteLane: noteLane,
                     defaultNote: normalizedDefaultNote
                 )
@@ -394,26 +396,25 @@ private extension StepGridCoordinator {
         for layer: StepGridLayer,
         seedStepIndex: Int,
         clip: ClipPoolEntry,
-        track: StepSequenceTrack?,
+        macroBindings: [TrackMacroBinding]?,
         noteLane: StepGridNoteLane
     ) -> StepGridRotaryControl {
         let value = rotaryFraction(
             at: seedStepIndex,
             layer: layer,
             in: clip,
-            track: track,
+            macroBindings: macroBindings,
             noteLane: noteLane
         )
         return StepGridRotaryControl(
             layer: layer,
-            title: rotaryTitle(for: layer, track: track),
+            title: rotaryTitle(for: layer, macroBindings: macroBindings),
             normalizedValue: value,
             displayValue: rotaryDisplayValue(
                 for: layer,
                 normalizedValue: value,
                 seedStepIndex: seedStepIndex,
                 clip: clip,
-                track: track,
                 noteLane: noteLane
             )
         )
@@ -448,7 +449,7 @@ private extension StepGridCoordinator {
         at index: Int,
         layer: StepGridLayer,
         entry: inout ClipPoolEntry,
-        track: StepSequenceTrack?,
+        macroBindings: [TrackMacroBinding]?,
         noteLane: StepGridNoteLane,
         defaultNote: ClipStepNote
     ) {
@@ -458,7 +459,7 @@ private extension StepGridCoordinator {
         case .chance:
             setChanceFraction(value, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
         case let .macro(macroIndex):
-            guard let binding = track?.macros[safe: macroIndex] else { return }
+            guard let binding = macroBindings?[safe: macroIndex] else { return }
             let resolved = binding.descriptor.minValue + (clampedUnit(value) * (binding.descriptor.maxValue - binding.descriptor.minValue))
             setMacroValue(resolved, at: index, entry: &entry, binding: binding)
         case .sliceIndex:
@@ -808,7 +809,7 @@ private extension StepGridCoordinator {
         at index: Int,
         layer: StepGridLayer,
         in clip: ClipPoolEntry,
-        track: StepSequenceTrack?,
+        macroBindings: [TrackMacroBinding]?,
         noteLane: StepGridNoteLane
     ) -> Double {
         switch layer {
@@ -817,7 +818,7 @@ private extension StepGridCoordinator {
         case .chance:
             return chanceFraction(at: index, in: clip.content, noteLane: noteLane)
         case let .macro(macroIndex):
-            guard let binding = track?.macros[safe: macroIndex] else {
+            guard let binding = macroBindings?[safe: macroIndex] else {
                 return 0
             }
             return macroFraction(at: index, in: clip, binding: binding)
@@ -841,7 +842,7 @@ private extension StepGridCoordinator {
         }
     }
 
-    static func rotaryTitle(for layer: StepGridLayer, track: StepSequenceTrack?) -> String {
+    static func rotaryTitle(for layer: StepGridLayer, macroBindings: [TrackMacroBinding]?) -> String {
         switch layer {
         case .trigger:
             return "Steps"
@@ -850,7 +851,7 @@ private extension StepGridCoordinator {
         case .chance:
             return "Chance"
         case let .macro(index):
-            return track?.macros[safe: index]?.displayName ?? "Macro \(index + 1)"
+            return macroBindings?[safe: index]?.displayName ?? "Macro \(index + 1)"
         case .sliceIndex:
             return "Slice"
         case .sliceMode:
@@ -865,7 +866,6 @@ private extension StepGridCoordinator {
         normalizedValue: Double,
         seedStepIndex: Int,
         clip: ClipPoolEntry,
-        track: StepSequenceTrack?,
         noteLane: StepGridNoteLane
     ) -> String {
         switch layer {

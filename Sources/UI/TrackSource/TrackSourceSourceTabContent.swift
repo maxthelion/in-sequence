@@ -16,6 +16,7 @@ struct TrackSourceSourceTabContent: View {
     let macroFallbackValues: [UUID: Double]
     let canAssignAUMacros: Bool
     let playingStepIndex: Int?
+    let stepGridCoordinator: StepGridCoordinator?
     let generatedSourceInputClips: [ClipPoolEntry]
     let harmonicSidechainClips: [ClipPoolEntry]
     let onAssignMacroSlot: (Int) -> Void
@@ -56,6 +57,7 @@ struct TrackSourceSourceTabContent: View {
                         macroFallbackValues: macroFallbackValues,
                         canAssignAUMacros: canAssignAUMacros,
                         playingStepIndex: playingStepIndex,
+                        stepGridCoordinator: stepGridCoordinator,
                         onAssignMacroSlot: onAssignMacroSlot,
                         onUpdateMacroLanes: onUpdateMacroLanes,
                         onUpdateClipContent: onUpdateClipContent
