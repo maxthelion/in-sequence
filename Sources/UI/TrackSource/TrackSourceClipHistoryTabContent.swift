@@ -90,7 +90,8 @@ struct TrackSourceClipHistoryTabContent: View {
 
             ClipHistoryPianoRollPreview(
                 content: model.previewContent,
-                lengthSteps: model.previewLengthSteps,
+                gridSteps: model.previewGridSteps,
+                liveFillStepIndex: model.liveFillStepIndex,
                 accent: accent,
                 isTransportRunning: isTransportRunning
             )
@@ -294,9 +295,41 @@ private struct ClipHistoryMinibarCell: View {
     }
 }
 
+/// Layout math for the History tab's piano-roll preview, kept separate from
+/// the view so the step-region division and pitch row mapping are testable.
+struct ClipHistoryPreviewLayout: Equatable {
+    let gridSteps: Int
+    let pitchRange: ClosedRange<Int>
+
+    static func resolve(notes: [ClipNote], gridSteps: Int) -> ClipHistoryPreviewLayout {
+        let pitches = notes.map(\.pitch)
+        let low = max(0, (pitches.min() ?? 48) - 2)
+        let high = min(127, (pitches.max() ?? 72) + 2)
+        return ClipHistoryPreviewLayout(
+            gridSteps: max(1, gridSteps),
+            pitchRange: low...max(low, high)
+        )
+    }
+
+    var pitchRowCount: Int {
+        pitchRange.upperBound - pitchRange.lowerBound + 1
+    }
+
+    /// Vertical row for a pitch: row 0 is the highest pitch in range, so
+    /// higher notes render higher in the preview.
+    func rowIndex(forPitch pitch: Int) -> Int {
+        pitchRange.upperBound - min(max(pitch, pitchRange.lowerBound), pitchRange.upperBound)
+    }
+
+    func clampedStep(_ step: Int) -> Int {
+        min(max(step, 0), gridSteps - 1)
+    }
+}
+
 private struct ClipHistoryPianoRollPreview: View {
     let content: ClipContent?
-    let lengthSteps: Int
+    let gridSteps: Int
+    let liveFillStepIndex: Int?
     let accent: Color
     var isTransportRunning = true
 
@@ -304,17 +337,16 @@ private struct ClipHistoryPianoRollPreview: View {
         clipNotes(from: content)
     }
 
-    private var pitchRange: ClosedRange<Int> {
-        let pitches = notes.map(\.pitch)
-        let low = max(0, (pitches.min() ?? 48) - 2)
-        let high = min(127, (pitches.max() ?? 72) + 2)
-        return low...max(low, high)
+    private var layout: ClipHistoryPreviewLayout {
+        ClipHistoryPreviewLayout.resolve(notes: notes, gridSteps: gridSteps)
     }
 
     var body: some View {
         GeometryReader { geometry in
-            let resolvedLength = max(1, lengthSteps)
-            let pitchCount = max(1, pitchRange.upperBound - pitchRange.lowerBound + 1)
+            let layout = self.layout
+            let resolvedLength = layout.gridSteps
+            let pitchRange = layout.pitchRange
+            let pitchCount = max(1, layout.pitchRowCount)
             let stepWidth = geometry.size.width / CGFloat(resolvedLength)
             let laneHeight = geometry.size.height / CGFloat(pitchCount)
 
@@ -336,8 +368,19 @@ private struct ClipHistoryPianoRollPreview: View {
                         .offset(y: laneHeight * CGFloat(pitchRange.upperBound - pitch))
                 }
 
+                if let liveFillStepIndex {
+                    Rectangle()
+                        .fill(accent.opacity(StudioOpacity.subtleFill))
+                        .frame(width: max(stepWidth * CGFloat(layout.clampedStep(liveFillStepIndex) + 1), 1))
+
+                    Rectangle()
+                        .fill(accent.opacity(0.55))
+                        .frame(width: 2)
+                        .offset(x: stepWidth * CGFloat(layout.clampedStep(liveFillStepIndex) + 1) - 1)
+                }
+
                 ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
-                    let yIndex = pitchRange.upperBound - min(max(note.pitch, pitchRange.lowerBound), pitchRange.upperBound)
+                    let yIndex = layout.rowIndex(forPitch: note.pitch)
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                         .fill(accent.opacity(0.82))
                         .frame(
@@ -345,7 +388,7 @@ private struct ClipHistoryPianoRollPreview: View {
                             height: max(laneHeight - 3, 5)
                         )
                         .offset(
-                            x: stepWidth * CGFloat(min(max(note.startStep, 0), resolvedLength - 1)) + 1,
+                            x: stepWidth * CGFloat(layout.clampedStep(note.startStep)) + 1,
                             y: laneHeight * CGFloat(yIndex) + 1.5
                         )
                 }

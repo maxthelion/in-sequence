@@ -75,9 +75,15 @@ struct TrackSourceEditorView: View {
     @State private var modifierPickerStep: TrackSourceContainedModifierPickerStep?
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var clipHistoryModel: ClipHistoryTransferViewModel?
-    @State private var clipHistoryDestinationMode = false
-    @State private var pendingClipHistoryReplaceSlot: Int?
     @State private var clipHistoryToast: String?
+
+    private var clipHistoryDestinationMode: Bool {
+        clipHistoryModel?.isSaveArmed == true
+    }
+
+    private var pendingClipHistoryReplaceSlot: Int? {
+        clipHistoryModel?.pendingReplaceSlotIndex
+    }
 
     private struct MacroSlotPickerRequest: Identifiable {
         let slotIndex: Int
@@ -478,7 +484,7 @@ struct TrackSourceEditorView: View {
         if clipHistoryDestinationMode {
             HStack(spacing: 10) {
                 if let pendingClipHistoryReplaceSlot {
-                    Text("P\(pendingClipHistoryReplaceSlot + 1) is occupied.")
+                    Text("P\(pendingClipHistoryReplaceSlot + 1) occupied")
                         .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.amber)
                     Spacer(minLength: 0)
@@ -495,9 +501,9 @@ struct TrackSourceEditorView: View {
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.mutedText)
                 } else {
-                    Text("Choose a pulsing pattern slot to save the selected history clip.")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
+                    Text("Save armed · choose a pattern slot")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
                     Spacer(minLength: 0)
                     Button("Cancel") {
                         resetClipHistoryDestinationMode()
@@ -656,18 +662,12 @@ struct TrackSourceEditorView: View {
             clipHistoryModel?.saveError = "History reloaded for the selected track."
             return
         }
-        guard model.selectedPseudoClip != nil else {
-            model.saveError = "Choose a history cell first."
-            return
-        }
-        model.saveError = nil
-        pendingClipHistoryReplaceSlot = nil
-        clipHistoryDestinationMode = true
+        model.armSave()
     }
 
     private func selectClipHistoryDestination(_ slotIndex: Int) {
-        guard clipHistoryDestinationMode,
-              let model = clipHistoryModel,
+        guard let model = clipHistoryModel,
+              model.isSaveArmed,
               model.trackID == track.id
         else {
             return
@@ -675,7 +675,6 @@ struct TrackSourceEditorView: View {
 
         model.selectDestination(slotIndex)
         if model.requiresReplaceConfirmation {
-            pendingClipHistoryReplaceSlot = slotIndex
             return
         }
 
@@ -683,8 +682,8 @@ struct TrackSourceEditorView: View {
     }
 
     private func confirmClipHistoryReplace() {
-        guard let slotIndex = pendingClipHistoryReplaceSlot,
-              let model = clipHistoryModel,
+        guard let model = clipHistoryModel,
+              let slotIndex = model.pendingReplaceSlotIndex,
               model.trackID == track.id
         else {
             return
@@ -726,9 +725,7 @@ struct TrackSourceEditorView: View {
     }
 
     private func resetClipHistoryDestinationMode() {
-        clipHistoryDestinationMode = false
-        pendingClipHistoryReplaceSlot = nil
-        clipHistoryModel?.cancelReplace()
+        clipHistoryModel?.disarmSave()
     }
 
     private func showClipHistoryToast(_ message: String) {
@@ -815,6 +812,7 @@ final class ClipHistoryTransferViewModel {
     var selectedDestinationIndex: Int?
     var lengthSteps: Int
     var isAuditioning = false
+    var isSaveArmed = false
     var replaceConfirmed = false
     var saveError: String?
 
@@ -892,11 +890,33 @@ final class ClipHistoryTransferViewModel {
         previewPseudoClip?.lengthSteps ?? Self.stepsPerCell
     }
 
+    /// Number of horizontal step regions the preview grid divides into.
+    ///
+    /// Auditioning a history segment divides by the selection's step count
+    /// (16 regions for a one-bar selection, 32 for two bars). The live
+    /// rolling view always divides by one full bar so the grid stays stable
+    /// while the current bar fills.
+    var previewGridSteps: Int {
+        selectedPseudoClip?.lengthSteps ?? Self.stepsPerCell
+    }
+
+    /// Step index of the currently-filling position in the live bar, or nil
+    /// while auditioning a selected history segment (or before any capture).
+    var liveFillStepIndex: Int? {
+        guard selectedPseudoClip == nil else {
+            return nil
+        }
+        guard let livePreviewRange else {
+            return nil
+        }
+        return min(livePreviewRange.lengthSteps - 1, Self.stepsPerCell - 1)
+    }
+
     var previewLengthLabel: String {
         if selectedPseudoClip != nil {
             return selectedLengthLabel
         }
-        return Self.lengthLabel(for: previewLengthSteps)
+        return Self.lengthLabel(for: Self.stepsPerCell)
     }
 
     var selectedLengthBars: Int {
@@ -922,6 +942,14 @@ final class ClipHistoryTransferViewModel {
         selectedDestination?.isOccupied == true && !replaceConfirmed
     }
 
+    /// Slot awaiting an explicit replace confirmation while save is armed.
+    var pendingReplaceSlotIndex: Int? {
+        guard isSaveArmed, requiresReplaceConfirmation else {
+            return nil
+        }
+        return selectedDestinationIndex
+    }
+
     var canSave: Bool {
         selectedPseudoClip != nil
             && selectedDestination != nil
@@ -944,12 +972,14 @@ final class ClipHistoryTransferViewModel {
               cell.isSelectable
         else {
             selectedSourceIndex = nil
+            disarmSave()
             stopAudition()
             return
         }
 
         if selectedSourceIndex == index {
             selectedSourceIndex = nil
+            disarmSave()
             stopAudition()
             return
         }
@@ -967,10 +997,32 @@ final class ClipHistoryTransferViewModel {
         saveError = nil
         if selectedPseudoClip == nil {
             selectedSourceIndex = nil
+            disarmSave()
             stopAudition()
         } else {
             audition()
         }
+    }
+
+    /// Arms the pattern row as the save-destination chooser. Only valid
+    /// while a history segment is selected; pattern slots indicate
+    /// pressability exclusively in this state.
+    func armSave() {
+        guard selectedPseudoClip != nil else {
+            saveError = "Choose a history cell first."
+            return
+        }
+        saveError = nil
+        selectedDestinationIndex = nil
+        replaceConfirmed = false
+        isSaveArmed = true
+    }
+
+    /// Returns the pattern row to normal selection/navigation.
+    func disarmSave() {
+        isSaveArmed = false
+        selectedDestinationIndex = nil
+        replaceConfirmed = false
     }
 
     func updateLiveSnapshot(_ updatedSnapshot: CaptureSnapshot) {
