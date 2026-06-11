@@ -451,12 +451,13 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(override.sourceTrackID, trackID)
     }
 
-    func test_selectedWellBodyKeepsEmptyStateAsActiveSection() {
+    // Colour identifies, it never floods (ux-canon rule 12): the well body
+    // is always neutral, so the presentation no longer exposes a tinted
+    // "active section fill" — only the stroke style remains stateful.
+    func test_selectedWellBodyUsesSolidStrokeForBothStates() {
         let emptyBody = TrackSourceSelectedWellBodyPresentation(isEmpty: true)
         let occupiedBody = TrackSourceSelectedWellBodyPresentation(isEmpty: false)
 
-        XCTAssertTrue(emptyBody.usesActiveSectionFill)
-        XCTAssertTrue(occupiedBody.usesActiveSectionFill)
         XCTAssertFalse(emptyBody.usesDashedStroke)
         XCTAssertFalse(occupiedBody.usesDashedStroke)
     }
