@@ -386,6 +386,11 @@ final class MainAudioGraph {
                         DevActivity.audioGraph,
                         "loop play dropped: \(exception.name.rawValue): \(exception.reason ?? "no reason")"
                     )
+                    // Force the next routing sync to rebuild this host's
+                    // chain from scratch — the scoped path would skip it
+                    // and the player would stay disconnected forever.
+                    host.requestedSource = .silent
+                    host.connectedSource = .silent
                     return false
                 }
             }

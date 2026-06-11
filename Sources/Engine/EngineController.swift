@@ -1510,7 +1510,13 @@ final class EngineController: RouterDispatcher {
     func processTick(tickIndex: UInt64, now: TimeInterval) {
         if advanceAudioInputScheduling(at: tickIndex) {
             syncAudioInputRouting(for: currentDocumentModel)
-            scheduleActiveAudioInputLoopPlayback()
+        }
+        // Outside the didChange branch: a loop schedule that failed once
+        // (player transiently disconnected after a resync) must retry on
+        // every tick, not wait for the next unrelated state change —
+        // observed as permanently silent buffer playback.
+        if !scheduleActiveAudioInputLoopPlayback() {
+            syncAudioInputRouting(for: currentDocumentModel)
         }
 
         let needsBootstrap = !tickState.isPrepared(for: tickIndex)
@@ -2502,7 +2508,12 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func scheduleActiveAudioInputLoopPlayback() {
+    /// Returns false when any pending loop schedule attempt failed (the
+    /// caller rebuilds routing so the next tick's retry finds a wired
+    /// player); true when nothing was pending or all attempts succeeded.
+    @discardableResult
+    private func scheduleActiveAudioInputLoopPlayback() -> Bool {
+        var allSucceeded = true
         let candidates = withStateLock {
             trackRuntime.audioInputRuntimes.values.compactMap { runtime -> (UUID, UUID)? in
                 guard runtime.activeMonitorMode == .loop,
@@ -2522,6 +2533,7 @@ final class EngineController: RouterDispatcher {
                 continue
             }
             guard mainAudioGraph.scheduleAudioInputLoopPlayback(trackID: trackID, buffer: buffer) else {
+                allSucceeded = false
                 continue
             }
             _ = updateAudioInputRuntime(trackID: trackID) { runtime in
@@ -2529,6 +2541,7 @@ final class EngineController: RouterDispatcher {
                 runtime.scheduledLoopPlaybackID = loopID
             }
         }
+        return allSucceeded
     }
 
     private static func audioInputMonitorSource(for runtime: AudioInputTrackRuntime) -> MainAudioGraph.AudioInputMonitorSource {
