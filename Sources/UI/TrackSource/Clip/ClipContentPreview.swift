@@ -33,22 +33,18 @@ private enum ClipEditorLane: String, CaseIterable, Identifiable {
         }
     }
 
-    func lane(in step: ClipStep) -> ClipLane? {
+    /// The shared step-grid lane this editor lane maps onto.
+    var noteLane: StepGridNoteLane {
         switch self {
         case .main:
-            return step.main
+            return .main
         case .fill:
-            return step.fill
+            return .fill
         }
     }
 
-    func setLane(_ lane: ClipLane?, on step: inout ClipStep) {
-        switch self {
-        case .main:
-            step.main = lane
-        case .fill:
-            step.fill = lane
-        }
+    func lane(in step: ClipStep) -> ClipLane? {
+        noteLane.lane(in: step)
     }
 }
 
@@ -297,29 +293,31 @@ struct ClipContentPreview: View {
                         },
                         onValueDrag: { index, fraction in
                             commit(
-                                updatingLaneVelocities(
-                                    lane: selectedLane,
+                                ClipNoteGridStepEditing.updatingLaneVelocities(
+                                    lane: selectedLane.noteLane,
                                     values: [fraction * 127.0],
                                     visibleIndices: [index],
                                     lengthSteps: lengthSteps,
-                                    steps: steps
+                                    steps: steps,
+                                    defaultNote: defaultNote
                                 )
                             )
                         },
                         onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
                     ) { index in
                         guard steps.indices.contains(index) else { return }
-                        let nextValue = cycledValue(
+                        let nextValue = ClipNoteGridStepEditing.cycledValue(
                             after: velocityValue(for: steps[index], lane: selectedLane),
-                            allowedValues: [0, 24, 48, 72, 96, 127]
+                            allowedValues: ClipNoteGridStepEditing.velocityCycleValues
                         )
                         commit(
-                            updatingLaneVelocities(
-                                lane: selectedLane,
+                            ClipNoteGridStepEditing.updatingLaneVelocities(
+                                lane: selectedLane.noteLane,
                                 values: [nextValue],
                                 visibleIndices: [index],
                                 lengthSteps: lengthSteps,
-                                steps: steps
+                                steps: steps,
+                                defaultNote: defaultNote
                             )
                         )
                     }
@@ -338,29 +336,31 @@ struct ClipContentPreview: View {
                         },
                         onValueDrag: { index, fraction in
                             commit(
-                                updatingLaneChances(
-                                    lane: selectedLane,
+                                ClipNoteGridStepEditing.updatingLaneChances(
+                                    lane: selectedLane.noteLane,
                                     values: [fraction],
                                     visibleIndices: [index],
                                     lengthSteps: lengthSteps,
-                                    steps: steps
+                                    steps: steps,
+                                    defaultNote: defaultNote
                                 )
                             )
                         },
                         onDoubleTap: { editingStepTarget = ClipStepInspectorTarget(stepIndex: $0) }
                     ) { index in
                         guard steps.indices.contains(index) else { return }
-                        let nextValue = cycledValue(
+                        let nextValue = ClipNoteGridStepEditing.cycledValue(
                             after: chanceValue(for: steps[index], lane: selectedLane),
-                            allowedValues: [0, 0.25, 0.5, 0.75, 1]
+                            allowedValues: ClipNoteGridStepEditing.chanceCycleValues
                         )
                         commit(
-                            updatingLaneChances(
-                                lane: selectedLane,
+                            ClipNoteGridStepEditing.updatingLaneChances(
+                                lane: selectedLane.noteLane,
                                 values: [nextValue],
                                 visibleIndices: [index],
                                 lengthSteps: lengthSteps,
-                                steps: steps
+                                steps: steps,
+                                defaultNote: defaultNote
                             )
                         )
                     }
@@ -612,7 +612,7 @@ struct ClipContentPreview: View {
         let values = macroAllowedValues(for: binding)
         let laneValues = macroLanes[binding.id]?.synced(stepCount: stepCount).values
         let current = laneValues?.indices.contains(stepIndex) == true ? laneValues?[stepIndex] ?? nil : nil
-        let next = cycledValue(after: current ?? macroFallbackValue(for: binding), allowedValues: values)
+        let next = ClipNoteGridStepEditing.cycledValue(after: current ?? macroFallbackValue(for: binding), allowedValues: values)
         updateMacroLaneValue(next, binding: binding, stepIndex: stepIndex, stepCount: stepCount)
     }
 
@@ -810,21 +810,15 @@ struct ClipContentPreview: View {
 
 
     private func stepVisualState(for step: ClipStep, lane: ClipEditorLane) -> StepVisualState {
-        lane.lane(in: step) == nil ? .off : lane.activeState
+        ClipNoteGridStepEditing.visualState(for: step, lane: lane.noteLane, activeState: lane.activeState)
     }
 
     private func chanceValue(for step: ClipStep, lane: ClipEditorLane) -> Double {
-        lane.lane(in: step)?.chance ?? 0
+        ClipNoteGridStepEditing.chanceValue(for: step, lane: lane.noteLane)
     }
 
     private func velocityValue(for step: ClipStep, lane: ClipEditorLane) -> Double {
-        Double(lane.lane(in: step)?.notes.first?.velocity ?? 0)
-    }
-
-    private func cycledValue(after value: Double, allowedValues: [Double]) -> Double {
-        guard !allowedValues.isEmpty else { return value }
-        let currentIndex = allowedValues.firstIndex { abs($0 - value) < 0.01 } ?? 0
-        return allowedValues[(currentIndex + 1) % allowedValues.count]
+        ClipNoteGridStepEditing.velocityValue(for: step, lane: lane.noteLane)
     }
 
     private func togglingStep(
@@ -833,18 +827,13 @@ struct ClipContentPreview: View {
         steps: [ClipStep],
         lane: ClipEditorLane
     ) -> ClipContent {
-        var updated = steps
-        guard updated.indices.contains(index) else {
-            return .noteGrid(lengthSteps: lengthSteps, steps: steps)
-        }
-
-        if lane.lane(in: updated[index]) == nil {
-            lane.setLane(ClipLane(chance: 1, notes: [defaultNote]), on: &updated[index])
-        } else {
-            lane.setLane(nil, on: &updated[index])
-        }
-
-        return .noteGrid(lengthSteps: lengthSteps, steps: updated)
+        ClipNoteGridStepEditing.togglingStep(
+            at: index,
+            lengthSteps: lengthSteps,
+            steps: steps,
+            lane: lane.noteLane,
+            defaultNote: defaultNote
+        )
     }
 
     private func resizingNoteGrid(to newLength: Int, currentSteps: [ClipStep]) -> ClipContent {
@@ -853,57 +842,6 @@ struct ClipContentPreview: View {
             currentSteps.indices.contains(index) ? currentSteps[index] : .empty
         }
         return .noteGrid(lengthSteps: resolvedLength, steps: resizedSteps)
-    }
-
-    private func updatingLaneChances(
-        lane: ClipEditorLane,
-        values: [Double],
-        visibleIndices: [Int],
-        lengthSteps: Int,
-        steps: [ClipStep]
-    ) -> ClipContent {
-        var updated = steps
-        for (stepIndex, chance) in zip(visibleIndices, values) where updated.indices.contains(stepIndex) {
-            if var existingLane = lane.lane(in: updated[stepIndex]) {
-                existingLane.chance = min(max(chance, 0), 1)
-                lane.setLane(existingLane, on: &updated[stepIndex])
-            } else if chance > 0 {
-                lane.setLane(ClipLane(chance: min(max(chance, 0), 1), notes: [defaultNote]), on: &updated[stepIndex])
-            }
-        }
-        return .noteGrid(lengthSteps: lengthSteps, steps: updated)
-    }
-
-    private func updatingLaneVelocities(
-        lane: ClipEditorLane,
-        values: [Double],
-        visibleIndices: [Int],
-        lengthSteps: Int,
-        steps: [ClipStep]
-    ) -> ClipContent {
-        var updated = steps
-        for (stepIndex, velocity) in zip(visibleIndices, values) where updated.indices.contains(stepIndex) {
-            let resolvedVelocity = Int(velocity.rounded())
-            guard resolvedVelocity > 0 else {
-                lane.setLane(nil, on: &updated[stepIndex])
-                continue
-            }
-
-            if var existingLane = lane.lane(in: updated[stepIndex]) {
-                let notes = existingLane.notes.isEmpty ? [defaultNote] : existingLane.notes
-                existingLane.notes = notes.map { note in
-                    var updatedNote = note
-                    updatedNote.velocity = resolvedVelocity
-                    return updatedNote
-                }
-                lane.setLane(existingLane, on: &updated[stepIndex])
-            } else {
-                var note = defaultNote
-                note.velocity = resolvedVelocity
-                lane.setLane(ClipLane(chance: 1, notes: [note]), on: &updated[stepIndex])
-            }
-        }
-        return .noteGrid(lengthSteps: lengthSteps, steps: updated)
     }
 
     private func noteCount(in steps: [ClipStep]) -> Int {

@@ -1,0 +1,22 @@
+08:10:00.694 xcodebuild[91243:860484680] Requesting a socket for communication with testmanagerd.
+08:10:00.695 xcodebuild[91243:860484680] Got socket for DTX-layer communication.
+08:10:00.695 xcodebuild[91243:860484680] Initiating control session with IDE capabilities: <XCTCapabilities: 0x6000025aea50>: {
+}
+08:10:00.695 xcodebuild[91243:860484680] XPC connection for control was invalidated.
+08:10:00.696 xcodebuild[91243:860484579] Got reply to control session initiation request (result:error): <XCTCapabilities: 0x6000025ae9f0>: {
+    "authorize test session capability" = 1;
+    "automation mode" = 1;
+    "daemon container sandbox extension" = 1;
+    "initiate daemon control session capability" = 4;
+    "initiate test runner session capability" = 2;
+    "report crashes capability" = 1;
+    "request log archive capability" = 1;
+    "request spindump capability" = 2;
+    "request tailspin capability" = 1;
+    "supports delayed attachment transfers" = 1;
+}: (null)
+08:10:00.697 xcodebuild[91243:860484579] Got reply to daemon container sandbox extension request (result:error): c1c3901d657e6932312e281f3ae725e628fce6b7e733942d909712faa3693bbc;00;00000000;00000000;00000000;000000000000001a;com.apple.app-sandbox.read;01;01000010;000000000cf6b271;38;/users/maxwilliams/library/daemon containers/9f993583-69c6-4ac8-9d59-2f5103e5287d/data: (null)
+08:10:00.709 xcodebuild[91243:860484680] Requesting crash report collection for process names: WindowServer, DTServiceHub, SequencerAITests, debugserver, SequencerAI, testmanagerd, xctest
+08:10:00.715 xcodebuild[91243:860484639] Got reply to crash report collection request (error: (null))
+08:10:02.759 xcodebuild[91243:860484682] Requesting authorization for pid 91426
+08:10:02.763 xcodebuild[91243:860484579] Got reply to authorization request for pid 91426 (result:error): 1: (null)

@@ -3,9 +3,13 @@ import Foundation
 extension Project {
     static func defaultDestination(
         forVoiceTag tag: VoiceTag,
+        preferredSampleID: UUID? = nil,
         fallbackPresetName: String,
         library: AudioSampleLibrary = .shared
     ) -> Destination {
+        if let preferredSampleID, library.sample(id: preferredSampleID) != nil {
+            return .sample(sampleID: preferredSampleID, settings: .default)
+        }
         guard let category = AudioSampleCategory(voiceTag: tag),
               let sample = library.firstSample(in: category)
         else {
@@ -17,7 +21,8 @@ extension Project {
     @discardableResult
     mutating func addDrumGroup(
         plan: DrumGroupPlan,
-        library: AudioSampleLibrary = .shared
+        library: AudioSampleLibrary = .shared,
+        templateLookup: (UUID) -> PatternTemplate? = { DrumAssetLibrary.shared.template(id: $0) }
     ) -> TrackGroupID? {
         guard !plan.members.isEmpty else {
             return nil
@@ -34,20 +39,19 @@ extension Project {
             } else {
                 destination = Self.defaultDestination(
                     forVoiceTag: member.tag,
+                    preferredSampleID: member.sampleID,
                     fallbackPresetName: plan.name,
                     library: library
                 )
             }
 
-            let effectiveSeedPattern = plan.prepopulateClips
-                ? member.seedPattern
-                : Array(repeating: false, count: member.seedPattern.count)
-
+            let emptyPattern = Array(repeating: false, count: 16)
             let track = StepSequenceTrack(
                 name: member.trackName,
                 trackType: .monoMelodic,
+                voiceTag: member.tag,
                 pitches: [DrumKitNoteMap.baselineNote],
-                stepPattern: effectiveSeedPattern,
+                stepPattern: emptyPattern,
                 destination: destination,
                 groupID: groupID,
                 velocity: StepSequenceTrack.default.velocity,
@@ -58,7 +62,7 @@ extension Project {
                 name: member.trackName,
                 trackType: .monoMelodic,
                 content: .stepSequence(
-                    stepPattern: effectiveSeedPattern,
+                    stepPattern: emptyPattern,
                     pitches: [DrumKitNoteMap.baselineNote]
                 )
             )
@@ -99,6 +103,61 @@ extension Project {
         )
         selectedTrackID = newTracks.first?.id ?? selectedTrackID
         syncPhrasesWithTracks()
+
+        if let templateID = plan.templateID, let template = templateLookup(templateID) {
+            applyPatternTemplate(template, toGroup: groupID, slotIndex: 0)
+        }
         return groupID
+    }
+
+    /// Applies a pattern template to a drum group by tag matching:
+    /// - each member whose tag has a template entry gets a fresh
+    ///   `ClipPoolEntry` (named after the member) assigned to the target slot;
+    /// - members without a template entry are left untouched;
+    /// - template tags absent from the group are ignored;
+    /// - members whose target slot holds a generator are skipped;
+    /// - duplicate member tags fill the first occurrence only.
+    ///
+    /// Shared by creation (`addDrumGroup` with a `templateID`) and
+    /// post-creation application from the kit matrix.
+    mutating func applyPatternTemplate(
+        _ template: PatternTemplate,
+        toGroup groupID: TrackGroupID,
+        slotIndex: Int
+    ) {
+        guard let group = trackGroups.first(where: { $0.id == groupID }) else {
+            return
+        }
+
+        var consumedTags = Set<VoiceTag>()
+        for memberID in group.memberIDs {
+            guard let track = tracks.first(where: { $0.id == memberID }),
+                  track.trackType == .monoMelodic,
+                  let tag = track.voiceTag,
+                  !consumedTags.contains(tag),
+                  let stepPattern = template.patterns[tag]
+            else {
+                continue
+            }
+            // Duplicate tags fill the first occurrence only — even when that
+            // occurrence is skipped because its slot holds a generator.
+            consumedTags.insert(tag)
+
+            guard patternBank(for: memberID).slot(at: slotIndex).sourceRef.mode != .generator else {
+                continue
+            }
+
+            let clip = ClipPoolEntry(
+                id: UUID(),
+                name: track.name,
+                trackType: .monoMelodic,
+                content: .stepSequence(
+                    stepPattern: stepPattern,
+                    pitches: [DrumKitNoteMap.baselineNote]
+                )
+            )
+            clipPool.append(clip)
+            setPatternClipID(clip.id, for: memberID, slotIndex: slotIndex)
+        }
     }
 }

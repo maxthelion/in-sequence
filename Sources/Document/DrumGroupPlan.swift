@@ -4,18 +4,20 @@ struct DrumGroupPlan: Equatable {
     struct Member: Equatable {
         var tag: VoiceTag
         var trackName: String
-        var seedPattern: [Bool]
+        /// Preferred AudioSampleLibrary sample for this part. Nil or dangling
+        /// resolves to the first sample in the tag's category at creation.
+        var sampleID: UUID?
         var routesToShared: Bool
 
         init(
             tag: VoiceTag,
             trackName: String,
-            seedPattern: [Bool],
+            sampleID: UUID? = nil,
             routesToShared: Bool = true
         ) {
             self.tag = tag
             self.trackName = trackName
-            self.seedPattern = seedPattern
+            self.sampleID = sampleID
             self.routesToShared = routesToShared
         }
     }
@@ -23,38 +25,53 @@ struct DrumGroupPlan: Equatable {
     var name: String
     var color: String
     var members: [Member]
-    var prepopulateClips: Bool
+    /// Optional pattern template applied into pattern slot 0 at creation,
+    /// via the same path as post-creation application.
+    var templateID: UUID?
     var sharedDestination: Destination?
 
+    init(
+        name: String,
+        color: String,
+        members: [Member],
+        templateID: UUID? = nil,
+        sharedDestination: Destination? = nil
+    ) {
+        self.name = name
+        self.color = color
+        self.members = members
+        self.templateID = templateID
+        self.sharedDestination = sharedDestination
+    }
+
     static var blankDefault: DrumGroupPlan {
-        let emptyPattern = Array(repeating: false, count: 16)
-        return DrumGroupPlan(
+        DrumGroupPlan(
             name: "Drum Group",
             color: "#8AA",
             members: [
-                Member(tag: "kick", trackName: "Kick", seedPattern: emptyPattern),
-                Member(tag: "snare", trackName: "Snare", seedPattern: emptyPattern),
-                Member(tag: "hat-closed", trackName: "Hat", seedPattern: emptyPattern),
-                Member(tag: "clap", trackName: "Clap", seedPattern: emptyPattern),
+                Member(tag: "kick", trackName: "Kick"),
+                Member(tag: "snare", trackName: "Snare"),
+                Member(tag: "hat-closed", trackName: "Hat"),
+                Member(tag: "clap", trackName: "Clap"),
             ],
-            prepopulateClips: false,
+            templateID: nil,
             sharedDestination: nil
         )
     }
 
-    static func templated(from preset: DrumKitPreset) -> DrumGroupPlan {
+    static func from(kit: DrumKit, templateID: UUID? = nil) -> DrumGroupPlan {
         DrumGroupPlan(
-            name: preset.displayName,
-            color: preset.suggestedGroupColor,
-            members: preset.members.map { presetMember in
+            name: kit.name,
+            color: "#8AA",
+            members: kit.parts.map { part in
                 Member(
-                    tag: presetMember.tag,
-                    trackName: presetMember.trackName,
-                    seedPattern: presetMember.seedPattern,
+                    tag: part.tag,
+                    trackName: part.trackName,
+                    sampleID: part.sampleID,
                     routesToShared: true
                 )
             },
-            prepopulateClips: true,
+            templateID: templateID,
             sharedDestination: nil
         )
     }

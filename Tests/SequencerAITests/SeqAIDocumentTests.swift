@@ -197,15 +197,16 @@ final class ProjectTests: XCTestCase {
 
     func test_add_drum_kit_creates_group_and_inherit_cells() throws {
         var model = Project.empty
+        let kit808 = DrumKitFixtures.factoryKit(named: "808")
 
-        let groupID = try XCTUnwrap(model.addDrumKit(.kit808))
+        let groupID = try XCTUnwrap(model.addDrumGroup(plan: .from(kit: kit808)))
 
         XCTAssertEqual(model.trackGroups.count, 1)
         XCTAssertEqual(model.trackGroups[0].id, groupID)
-        XCTAssertEqual(model.trackGroups[0].memberIDs.count, DrumKitPreset.kit808.members.count)
+        XCTAssertEqual(model.trackGroups[0].memberIDs.count, kit808.parts.count)
         // Per-member destinations: each track has either .sample or .internalSampler (fallback).
         // None should be .inheritGroup since the new implementation assigns individual destinations.
-        XCTAssertTrue(model.tracks.suffix(DrumKitPreset.kit808.members.count).allSatisfy { track in
+        XCTAssertTrue(model.tracks.suffix(kit808.parts.count).allSatisfy { track in
             switch track.destination {
             case .sample, .internalSampler: return true
             default: return false
@@ -225,7 +226,7 @@ final class ProjectTests: XCTestCase {
 
     func test_set_phrase_cell_can_fan_out_to_multiple_tracks() throws {
         var model = Project.empty
-        let groupID = try XCTUnwrap(model.addDrumKit(.kit808))
+        let groupID = try XCTUnwrap(model.addDrumGroup(plan: .from(kit: DrumKitFixtures.factoryKit(named: "808"))))
         let memberIDs = try XCTUnwrap(model.trackGroups.first(where: { $0.id == groupID })?.memberIDs)
         let intensityLayer = try XCTUnwrap(model.layers.first(where: { $0.id == "intensity" }))
 

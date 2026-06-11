@@ -14,7 +14,10 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRoutingEditorVisualState = false
     private static var drumKitMatrixRenderedVisualState = false
     private static var drumKitMatrixRenderedRoutingEditorState = false
+    private static var drumKitMatrixRenderedTemplateChooserState = false
     private static var drumKitMatrixRenderedDisplayStepCount = 16
+    private static var drumKitMatrixRenderedLayer = "none"
+    private static var drumKitMatrixRenderedGroupPatternSlot = "none"
     private static var drumKitMatrixRenderedGroupName = "none"
     private static var drumKitMatrixRenderedMemberCount = 0
     private static var phraseMatrixRenderedVisible = false
@@ -133,7 +136,10 @@ enum VisualScenarioCommandRunner {
             Task { @MainActor in
                 drumKitMatrixRenderedVisualState = userInfo["visible"] as? Bool ?? false
                 drumKitMatrixRenderedRoutingEditorState = userInfo["routingEditorVisible"] as? Bool ?? false
+                drumKitMatrixRenderedTemplateChooserState = userInfo["templateChooserVisible"] as? Bool ?? false
                 drumKitMatrixRenderedDisplayStepCount = userInfo["displayStepCount"] as? Int ?? 16
+                drumKitMatrixRenderedLayer = userInfo["layer"] as? String ?? "none"
+                drumKitMatrixRenderedGroupPatternSlot = userInfo["groupPatternSlot"] as? String ?? "none"
                 drumKitMatrixRenderedGroupName = userInfo["groupName"] as? String ?? "none"
                 drumKitMatrixRenderedMemberCount = userInfo["memberCount"] as? Int ?? 0
             }
@@ -425,7 +431,10 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRoutingEditorVisible=\(drumKitMatrixRoutingEditorVisualState)
         drumKitMatrixRenderedVisible=\(drumKitMatrixRenderedVisualState)
         drumKitMatrixRenderedRoutingEditorVisible=\(drumKitMatrixRenderedRoutingEditorState)
+        drumKitMatrixRenderedTemplateChooserVisible=\(drumKitMatrixRenderedTemplateChooserState)
         drumKitMatrixRenderedDisplayStepCount=\(drumKitMatrixRenderedDisplayStepCount)
+        drumKitMatrixRenderedLayer=\(drumKitMatrixRenderedLayer)
+        drumKitMatrixRenderedGroupPatternSlot=\(drumKitMatrixRenderedGroupPatternSlot)
         drumKitMatrixRenderedGroupName=\(drumKitMatrixRenderedGroupName)
         drumKitMatrixRenderedMemberCount=\(drumKitMatrixRenderedMemberCount)
         drumGroupRoutingEditorRenderedVisible=\(drumGroupRoutingEditorRenderedState)
@@ -445,6 +454,7 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixPreviewKinds=\(drumKitMatrixModel.map(matrixPreviewKinds) ?? "none")
         drumKitMatrixPreviewActiveCounts=\(drumKitMatrixModel.map(matrixPreviewActiveCounts) ?? "none")
         drumKitMatrixPatternMismatch=\(drumKitMatrixModel?.hasPatternMismatch ?? false)
+        drumKitMatrixGroupSelectedSlot=\(drumKitMatrixModel.map { $0.groupSelectedSlotIndex.map { "\($0 + 1)" } ?? "mixed" } ?? "none")
         drumKitMatrixStaleMemberCount=\(drumKitMatrixModel?.staleMemberCount ?? 0)
         drumKitMatrixDisplayStepCount=\(drumKitMatrixModel?.displayStepCount ?? drumKitMatrixDisplayStepCount)
         selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
@@ -814,10 +824,13 @@ enum VisualScenarioCommandRunner {
 
     private static func matrixPreviewKinds(_ model: DrumKitMatrixModel) -> String {
         model.rows.map { row in
-            switch row.preview {
-            case let .steps(steps, _, overflow):
-                return "steps\(steps.count)\(overflow ? "+" : "")"
-            case let .limited(badge, _):
+            switch row.content {
+            case let .editable(_, lengthSteps, _):
+                let visibleCount = min(model.displayStepCount, lengthSteps)
+                return "steps\(visibleCount)\(lengthSteps > model.displayStepCount ? "+" : "")"
+            case .generator:
+                return "GEN"
+            case let .readOnly(badge, _, _):
                 return badge
             }
         }
@@ -826,10 +839,12 @@ enum VisualScenarioCommandRunner {
 
     private static func matrixPreviewActiveCounts(_ model: DrumKitMatrixModel) -> String {
         model.rows.map { row in
-            switch row.preview {
-            case let .steps(steps, _, _):
-                return "\(steps.filter { $0 }.count)"
-            case .limited:
+            switch row.content {
+            case let .editable(_, lengthSteps, steps):
+                let visibleCount = min(model.displayStepCount, lengthSteps)
+                let activeCount = steps.prefix(visibleCount).filter { $0.main != nil }.count
+                return "\(activeCount)"
+            case .generator, .readOnly:
                 return "NA"
             }
         }
@@ -840,9 +855,13 @@ enum VisualScenarioCommandRunner {
         command: [String: String],
         session: SequencerDocumentSession
     ) {
-        guard let rawCommand = command["drumKitMatrixCommand"] else { return }
+        guard command["drumKitMatrixCommand"] != nil ||
+              command["drumKitMatrixLayer"] != nil ||
+              command["drumKitMatrixPattern"] != nil ||
+              command["drumKitMatrixTemplateChooser"] != nil
+        else { return }
 
-        switch rawCommand {
+        switch command["drumKitMatrixCommand"] {
         case "display16", "display-16":
             drumKitMatrixDisplayStepCount = 16
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "display-16")
@@ -863,7 +882,7 @@ enum VisualScenarioCommandRunner {
             drumGroupRoutingEditorRenderedState = false
             drumGroupRoutingEditorMode = "none"
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "back")
-        default:
+        case let rawCommand?:
             if rawCommand.hasPrefix("selectIndex:"),
                let rawIndex = rawCommand.split(separator: ":").last,
                let selectedIndex = Int(rawIndex) {
@@ -873,6 +892,31 @@ enum VisualScenarioCommandRunner {
                 drumGroupRoutingEditorMode = "none"
                 NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "select-index:\(selectedIndex)")
             }
+        case nil:
+            break
+        }
+
+        // Matrix-wide step layer (steps / velocity / chance). Posted
+        // repeatedly because the matrix view may mount after open-kit-view.
+        if let rawLayer = command["drumKitMatrixLayer"],
+           DrumKitMatrixLayer(rawValue: rawLayer) != nil {
+            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: "layer:\(rawLayer)")
+        }
+
+        // Group pattern row selection (1-based slot number in the command).
+        if let rawPattern = command["drumKitMatrixPattern"],
+           let slotNumber = Int(rawPattern),
+           (1...TrackPatternBank.slotCount).contains(slotNumber) {
+            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: "pattern:\(slotNumber - 1)")
+        }
+
+        switch command["drumKitMatrixTemplateChooser"] {
+        case "open", "visible", "true":
+            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: "open-template-chooser")
+        case "close", "hidden", "false":
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-template-chooser")
+        default:
+            break
         }
 
         if let mutation = command["drumKitMatrixMutation"] {
@@ -1162,24 +1206,25 @@ enum VisualScenarioCommandRunner {
             return existing
         }
 
-        let seedPatterns = visibleDrumKitMatrixSeedPatterns()
         let plan = DrumGroupPlan(
             name: "808 Bones",
             color: "#C06030",
             members: [
-                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: seedPatterns[0]),
-                DrumGroupPlan.Member(tag: "snare", trackName: "Snare", seedPattern: seedPatterns[1]),
-                DrumGroupPlan.Member(tag: "clap", trackName: "Clap", seedPattern: seedPatterns[2]),
-                DrumGroupPlan.Member(tag: "hat-closed", trackName: "Closed Hat", seedPattern: seedPatterns[3]),
-                DrumGroupPlan.Member(tag: "hat-open", trackName: "Open Hat", seedPattern: seedPatterns[4]),
-                DrumGroupPlan.Member(tag: "rim", trackName: "Rim Shot", seedPattern: seedPatterns[5]),
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick"),
+                DrumGroupPlan.Member(tag: "snare", trackName: "Snare"),
+                DrumGroupPlan.Member(tag: "clap", trackName: "Clap"),
+                DrumGroupPlan.Member(tag: "hat-closed", trackName: "Closed Hat"),
+                DrumGroupPlan.Member(tag: "hat-open", trackName: "Open Hat"),
+                DrumGroupPlan.Member(tag: "rim", trackName: "Rim Shot"),
             ],
-            prepopulateClips: true,
             sharedDestination: nil
         )
         _ = session.addDrumGroup(plan: plan)
-        return session.store.trackGroups.first(where: { $0.name == "808 Bones" && $0.memberIDs.count >= 6 })
-            ?? session.store.trackGroups.last
+        if let created = session.store.trackGroups.first(where: { $0.name == "808 Bones" && $0.memberIDs.count >= 6 }) {
+            ensureVisibleDrumKitMatrixSeeds(groupID: created.id, session: session)
+            return created
+        }
+        return session.store.trackGroups.last
             ?? TrackGroup(name: "808 Bones", color: "#C06030")
     }
 
@@ -1246,14 +1291,12 @@ enum VisualScenarioCommandRunner {
             return existing
         }
 
-        let seedPattern = Array(repeating: false, count: 16)
         let plan = DrumGroupPlan(
             name: groupName,
             color: "#3A8F7A",
             members: [
-                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: seedPattern),
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick"),
             ],
-            prepopulateClips: false,
             sharedDestination: nil
         )
         _ = session.addDrumGroup(plan: plan)
@@ -1269,23 +1312,19 @@ enum VisualScenarioCommandRunner {
             return existing
         }
 
-        let seedPattern = Array(repeating: false, count: 16)
         let plan = DrumGroupPlan(
             name: groupName,
             color: "#5A7FD6",
             members: [
                 DrumGroupPlan.Member(
                     tag: "hat-closed",
-                    trackName: "Generator Driven Closed Hat With A Very Long Performance Name",
-                    seedPattern: seedPattern
+                    trackName: "Generator Driven Closed Hat With A Very Long Performance Name"
                 ),
                 DrumGroupPlan.Member(
                     tag: "rim",
-                    trackName: "Rim Shot With Long Alternate Layer Name",
-                    seedPattern: seedPattern
+                    trackName: "Rim Shot With Long Alternate Layer Name"
                 ),
             ],
-            prepopulateClips: false,
             sharedDestination: nil
         )
         _ = session.addDrumGroup(plan: plan)

@@ -64,22 +64,26 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         }
     }
 
-    func test_templated_kit808_seeds_match_preset_patterns_when_prepopulate_on() {
+    func test_kit808_with_template_seeds_slot_zero_clips_from_template_patterns() {
         var project = Project.empty
-        let plan = DrumGroupPlan.templated(from: .kit808)
+        let template = DrumKitFixtures.factoryTemplate(named: "808")
+        let plan = DrumKitFixtures.templatedPlan(named: "808")
 
-        _ = project.addDrumGroup(plan: plan, library: testLibrary)
+        _ = project.addDrumGroup(
+            plan: plan,
+            library: testLibrary,
+            templateLookup: DrumKitFixtures.factoryTemplateLookup
+        )
 
         let newClips = Array(project.clipPool.suffix(plan.members.count))
         for (clip, planMember) in zip(newClips, plan.members) {
-            XCTAssertEqual(noteGridMainStepPattern(clip.content), planMember.seedPattern)
+            XCTAssertEqual(noteGridMainStepPattern(clip.content), template.patterns[planMember.tag])
         }
     }
 
-    func test_templated_kit808_with_prepopulate_off_produces_empty_clips() {
+    func test_kit808_without_template_produces_empty_clips() {
         var project = Project.empty
-        var plan = DrumGroupPlan.templated(from: .kit808)
-        plan.prepopulateClips = false
+        let plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
 
         _ = project.addDrumGroup(plan: plan, library: testLibrary)
 
@@ -91,7 +95,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
     func test_shared_destination_with_all_routed_sets_inheritGroup_on_every_member() {
         var project = Project.empty
-        var plan = DrumGroupPlan.templated(from: .kit808)
+        var plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
         plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
 
         _ = project.addDrumGroup(plan: plan, library: testLibrary)
@@ -108,7 +112,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
     func test_shared_midi_destination_seeds_note_offsets_and_channels_by_member_order() {
         var project = Project.empty
-        var plan = DrumGroupPlan.templated(from: .kit808)
+        var plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
         plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
 
         let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
@@ -130,7 +134,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
     func test_removeFromGroup_prunes_note_and_channel_mappings_for_removed_member() {
         var project = Project.empty
-        var plan = DrumGroupPlan.templated(from: .kit808)
+        var plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
         plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
 
         let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
@@ -153,7 +157,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
     func test_addToGroup_move_prunes_previous_group_note_and_channel_mappings() {
         var project = Project.empty
-        var plan = DrumGroupPlan.templated(from: .kit808)
+        var plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
         plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
 
         let sourceGroupID = project.addDrumGroup(plan: plan, library: testLibrary)
@@ -187,7 +191,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
     func test_shared_destination_with_mixed_routing_respects_per_member_flag() {
         var project = Project.empty
-        var plan = DrumGroupPlan.templated(from: .kit808)
+        var plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
         plan.sharedDestination = .midi(port: .sequencerAIOut, channel: 0, noteOffset: 0)
         for index in plan.members.indices {
             plan.members[index].routesToShared = index < 2
@@ -205,7 +209,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
     func test_no_shared_destination_gives_every_member_a_per_voice_default() {
         var project = Project.empty
 
-        _ = project.addDrumGroup(plan: .templated(from: .kit808), library: testLibrary)
+        _ = project.addDrumGroup(plan: .from(kit: DrumKitFixtures.factoryKit(named: "808")), library: testLibrary)
 
         let newTracks = Array(project.tracks.suffix(4))
         for track in newTracks {
@@ -216,15 +220,13 @@ final class ProjectAddDrumGroupTests: XCTestCase {
 
     func test_no_shared_destination_keeps_sample_and_internal_defaults_with_empty_group_mappings() {
         var project = Project.empty
-        let emptyPattern = Array(repeating: false, count: 16)
         let plan = DrumGroupPlan(
             name: "Mixed Local Kit",
             color: "#8AA",
             members: [
-                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", seedPattern: emptyPattern),
-                DrumGroupPlan.Member(tag: "cowbell", trackName: "Cowbell", seedPattern: emptyPattern),
+                DrumGroupPlan.Member(tag: "kick", trackName: "Kick"),
+                DrumGroupPlan.Member(tag: "cowbell", trackName: "Cowbell"),
             ],
-            prepopulateClips: false,
             sharedDestination: nil
         )
 
@@ -245,7 +247,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         let initialClipCount = project.clipPool.count
         let initialBankCount = project.patternBanks.count
 
-        _ = project.addDrumGroup(plan: .templated(from: .kit808), library: testLibrary)
+        _ = project.addDrumGroup(plan: .from(kit: DrumKitFixtures.factoryKit(named: "808")), library: testLibrary)
 
         XCTAssertEqual(project.clipPool.count, initialClipCount + 4)
         XCTAssertEqual(project.patternBanks.count, initialBankCount + 4)
@@ -254,7 +256,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
     func test_selected_track_becomes_first_new_member() {
         var project = Project.empty
 
-        _ = project.addDrumGroup(plan: .templated(from: .kit808), library: testLibrary)
+        _ = project.addDrumGroup(plan: .from(kit: DrumKitFixtures.factoryKit(named: "808")), library: testLibrary)
 
         let firstNewTrackID = project.tracks.suffix(4).first?.id
         XCTAssertEqual(project.selectedTrackID, firstNewTrackID)
@@ -279,7 +281,7 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         let layerCountBefore = project.layers.count
         let macroLayerIDsBefore = Set(project.layers.map(\.id))
 
-        let groupID = project.addDrumGroup(plan: .templated(from: .kit808), library: testLibrary)
+        let groupID = project.addDrumGroup(plan: .from(kit: DrumKitFixtures.factoryKit(named: "808")), library: testLibrary)
 
         XCTAssertNotNil(groupID)
         XCTAssertEqual(project.tracks.suffix(4).count, 4)
