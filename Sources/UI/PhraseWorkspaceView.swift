@@ -15,7 +15,7 @@ struct PhraseWorkspaceView: View {
 
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
-    private let actionColumnWidth: CGFloat = 92
+    private let actionColumnWidth: CGFloat = 100
     private let matrixGutterWidth = PhraseMatrixLayoutPresentation.matrixGutterWidth
     private let gridSpacing: CGFloat = 10
     private let trackPageSize = PhraseMatrixLayoutPresentation.trackPageSize
@@ -556,6 +556,8 @@ struct PhraseWorkspaceView: View {
                 let selectedTrackID = session.store.selectedTrackID
                 ForEach(Array(phrases.enumerated()), id: \.element.id) { index, phrase in
                     VStack(alignment: .leading, spacing: 6) {
+                        // A fixed row height lets every cell stretch to the
+                        // same bounds, keeping the strip aligned (ux-canon 9).
                         HStack(alignment: .top, spacing: gridSpacing) {
                             PhraseMatrixPhraseCell(
                                 phrase: phrase,
@@ -646,6 +648,7 @@ struct PhraseWorkspaceView: View {
                             )
                             .frame(width: actionColumnWidth)
                         }
+                        .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
 
                     }
                 }
@@ -760,12 +763,20 @@ private struct PhraseRowActions: View {
     let onDuplicate: () -> Void
     let onRemove: () -> Void
 
+    // The three row actions sit in one bordered container so they read as a
+    // single control cluster rather than loose buttons (ux-canon rule 9).
     var body: some View {
         HStack(spacing: 6) {
             actionButton(systemImage: "plus", action: onInsertBelow)
             actionButton(systemImage: "plus.square.on.square", action: onDuplicate)
             actionButton(systemImage: "trash", action: onRemove, isDisabled: !canRemove)
         }
+        .padding(6)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: 1)
+        )
         .frame(maxHeight: .infinity, alignment: .center)
     }
 
@@ -776,10 +787,6 @@ private struct PhraseRowActions: View {
                 .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.accentFill) : StudioTheme.text)
                 .frame(width: 24, height: 24)
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: 1)
-                )
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
@@ -907,7 +914,7 @@ private struct PhraseMatrixPhraseCell: View {
                 }
             )
         }
-        .frame(maxWidth: .infinity, minHeight: 106, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.compact)
         .background(rowFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -962,13 +969,10 @@ private struct PhrasePolicyStepperControl: View {
     let onDecrement: () -> Void
     let onIncrement: () -> Void
 
+    // No label above the stepper: the value text carries the meaning and the
+    // title lives in the tooltip and accessibility label (ux-canon rule 3).
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .studioText(.microEmphasis)
-                .tracking(0.6)
-                .foregroundStyle(StudioTheme.mutedText)
-
             HStack(spacing: 0) {
                 stepButton(systemName: "minus", action: onDecrement, isDisabled: decrementDisabled)
 
@@ -996,6 +1000,7 @@ private struct PhrasePolicyStepperControl: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .help(title)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(title) \(valueLabel)")
     }
@@ -1037,7 +1042,7 @@ private struct PhraseGridCell: View {
             metrics: .matrix
         )
         .opacity(isInherited ? StudioOpacity.inheritedContent : 1)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.compact)
         .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -1085,7 +1090,7 @@ private struct PhrasePerformancePlaceholderCell: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.compact)
         .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
@@ -1104,6 +1109,6 @@ private struct PhraseGridEmptyCell: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
             )
-            .frame(maxWidth: .infinity, minHeight: 120, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

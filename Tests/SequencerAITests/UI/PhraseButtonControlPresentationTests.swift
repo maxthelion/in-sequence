@@ -54,11 +54,22 @@ final class PhraseButtonControlPresentationTests: XCTestCase {
         XCTAssertTrue(presentation.accessibilityLabel.contains("loop on"))
     }
 
+    /// The stepper shows no "Repeat" title anymore, so the value itself must
+    /// read as a repeat count.
+    func test_repeatValueLabelCarriesMultiplierMark() {
+        XCTAssertEqual(PhraseButtonControlPresentation.repeatValueLabel(1), "1×")
+        XCTAssertEqual(PhraseButtonControlPresentation.repeatValueLabel(16), "16×")
+        XCTAssertEqual(
+            PhraseButtonControlPresentation.repeatSummary(repeatCount: 0, loopEnabled: true),
+            "Loop overrides unlimited repeat"
+        )
+    }
+
     func test_summaryHelpersClampDisplayedBounds() {
         XCTAssertEqual(PhraseButtonControlPresentation.barCountSummary(-50), "1 bar")
         XCTAssertEqual(PhraseButtonControlPresentation.barCountSummary(999), "64 bars")
         XCTAssertEqual(PhraseButtonControlPresentation.repeatValueLabel(-50), "Unlimited")
-        XCTAssertEqual(PhraseButtonControlPresentation.repeatValueLabel(999), "64")
+        XCTAssertEqual(PhraseButtonControlPresentation.repeatValueLabel(999), "64×")
     }
 
     func test_stepOrderSurfaceSeparatesUnassignedUnavailableInvalidAndPendingStates() {

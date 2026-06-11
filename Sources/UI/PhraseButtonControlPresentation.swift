@@ -32,20 +32,22 @@ struct PhraseButtonControlPresentation: Equatable {
         return clamped == 1 ? "1 bar" : "\(clamped) bars"
     }
 
+    /// Shown without a "Repeat" label above it, so the count carries its own
+    /// multiplier mark: "4×" reads as a repeat count on its own.
     static func repeatValueLabel(_ repeatCount: Int) -> String {
         let clamped = PhraseModel.clampedRepeatCount(repeatCount)
-        return clamped == 0 ? "Unlimited" : "\(clamped)"
+        return clamped == 0 ? "Unlimited" : "\(clamped)×"
     }
 
     static func repeatSummary(repeatCount: Int, loopEnabled: Bool) -> String {
-        let repeatLabel = repeatValueLabel(repeatCount)
+        let clamped = PhraseModel.clampedRepeatCount(repeatCount)
         if loopEnabled {
-            return "Loop overrides \(repeatLabel) repeat"
+            return clamped == 0 ? "Loop overrides unlimited repeat" : "Loop overrides \(clamped) repeat"
         }
-        if PhraseModel.clampedRepeatCount(repeatCount) == 0 {
+        if clamped == 0 {
             return "Unlimited repeat"
         }
-        return "\(repeatLabel)x repeat"
+        return "\(clamped)x repeat"
     }
 
     static func isPlayingBadgeVisible(
