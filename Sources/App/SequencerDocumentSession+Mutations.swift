@@ -1093,6 +1093,26 @@ extension SequencerDocumentSession {
         dispatchImpact(.snapshotOnly, changed: .layers)
     }
 
+    /// Write a phrase-layer default value for one track. Phrases whose cell is
+    /// `.inheritDefault` for that layer/track resolve to this value.
+    ///
+    /// Same project-export round-trip as `setMacroLayerDefault`: layer
+    /// defaults are embedded in `storeLayers` and there is no narrower
+    /// per-layer typed method on the store.
+    func setPhraseLayerDefault(
+        _ value: PhraseCellValue,
+        layerID: String,
+        trackID: UUID
+    ) {
+        var p = store.exportToProject()
+        guard let index = p.layers.firstIndex(where: { $0.id == layerID }) else { return }
+        p.layers[index].defaults[trackID] = value.normalized(for: p.layers[index])
+        store.setLayers(p.layers)
+        guard store.revision > revision else { return }
+        guard !isInBatch else { return }
+        dispatchImpact(.snapshotOnly, changed: .layers)
+    }
+
     // MARK: - Destination mutations
 
     /// Set the edited destination for a track, then dispatch `.fullEngineApply`.

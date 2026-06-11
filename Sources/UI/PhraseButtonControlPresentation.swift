@@ -1,35 +1,9 @@
 import Foundation
 
-struct PhraseButtonControlsState: Equatable {
-    private(set) var openPhraseID: UUID?
-
-    mutating func openControls(for phraseID: UUID) {
-        openPhraseID = phraseID
-    }
-
-    mutating func toggleControls(for phraseID: UUID) {
-        openPhraseID = openPhraseID == phraseID ? nil : phraseID
-    }
-
-    mutating func close() {
-        openPhraseID = nil
-    }
-
-    mutating func reconcile(availablePhraseIDs: some Collection<UUID>) {
-        guard let openPhraseID,
-              !availablePhraseIDs.contains(openPhraseID)
-        else { return }
-
-        self.openPhraseID = nil
-    }
-}
-
 struct PhraseButtonControlPresentation: Equatable {
     let name: String
     let barCountSummary: String
     let repeatSummary: String
-    let collapsedSummary: String
-    let loopStatusLabel: String
     let repeatValueLabel: String
     let accessibilityLabel: String
 
@@ -37,14 +11,11 @@ struct PhraseButtonControlPresentation: Equatable {
         phrase: PhraseModel,
         isSelected: Bool,
         isPlaying: Bool,
-        isQueued: Bool,
-        isOpen: Bool
+        isQueued: Bool
     ) {
         name = phrase.name
         barCountSummary = Self.barCountSummary(phrase.lengthBars)
         repeatSummary = Self.repeatSummary(repeatCount: phrase.repeatCount, loopEnabled: phrase.loopEnabled)
-        collapsedSummary = "\(barCountSummary) | \(repeatSummary)"
-        loopStatusLabel = phrase.loopEnabled ? "Loop on" : "Loop off"
         repeatValueLabel = Self.repeatValueLabel(phrase.repeatCount)
 
         var states: [String] = []
@@ -52,7 +23,6 @@ struct PhraseButtonControlPresentation: Equatable {
         if isPlaying { states.append("playing") }
         if isQueued { states.append("queued") }
         states.append(phrase.loopEnabled ? "loop on" : "loop off")
-        states.append(isOpen ? "controls open" : "controls closed")
 
         accessibilityLabel = "\(phrase.name), \(barCountSummary), \(repeatSummary), \(states.joined(separator: ", "))"
     }

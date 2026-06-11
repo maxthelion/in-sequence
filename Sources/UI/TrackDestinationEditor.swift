@@ -87,38 +87,15 @@ struct TrackDestinationEditor: View {
         }
     }
 
+    // The panel title already says "Destination"; an empty slot is just a
+    // plus card, not a paragraph (ux-canon rules 1/3).
     private var unsetState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("OUTPUT")
-                .studioText(.eyebrow)
-                .tracking(0.9)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("No destination")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(StudioTheme.text)
-
-                    Text("Set a destination to route notes for this track.")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-
-                Spacer()
-
-                Button("Add Destination") {
-                    showingAddDestinationSheet = true
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
-            }
-            .padding(StudioMetrics.Spacing.standard)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: 1)
-            )
+        StudioAddCard(
+            label: "Add Destination",
+            minHeight: 72,
+            help: "Choose where this track's notes go"
+        ) {
+            showingAddDestinationSheet = true
         }
     }
 

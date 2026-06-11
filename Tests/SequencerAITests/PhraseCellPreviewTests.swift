@@ -78,7 +78,7 @@ final class PhraseCellPreviewTests: XCTestCase {
         XCTAssertEqual(quietPreview.clampedFillRatio, 0)
     }
 
-    func test_pattern_index_preview_highlights_current_slot() {
+    func test_pattern_index_preview_highlights_current_slot_in_pattern_colour() {
         let patternLayer = defaultLayers.first(where: { $0.id == "pattern" })!
         let preview = PatternIndexCellPreview(
             layer: patternLayer,
@@ -90,7 +90,18 @@ final class PhraseCellPreviewTests: XCTestCase {
         )
 
         XCTAssertEqual(preview.activeIndex, 3)
-        XCTAssertEqual(String(describing: preview.slotFill(for: 3)), String(describing: StudioTheme.violet.opacity(0.85)))
+        XCTAssertEqual(
+            String(describing: preview.slotFill(for: 3)),
+            String(describing: StudioTheme.patternColor(3).opacity(0.85))
+        )
         XCTAssertNotEqual(String(describing: preview.slotFill(for: 2)), String(describing: preview.slotFill(for: 3)))
+    }
+
+    func test_pattern_palette_gives_each_slot_a_distinct_colour() {
+        XCTAssertEqual(StudioTheme.patternPalette.count, TrackPatternBank.slotCount)
+        XCTAssertEqual(
+            Set(StudioTheme.patternPalette.map { String(describing: $0) }).count,
+            TrackPatternBank.slotCount
+        )
     }
 }

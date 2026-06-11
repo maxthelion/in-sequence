@@ -20,7 +20,9 @@ struct LibraryWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Library", eyebrow: "App-support folders and future browsing surface", accent: StudioTheme.violet) {
+            // The top-nav pill already names this page; the panel renders no
+            // header of its own (ux-canon rule 1).
+            StudioPanel(title: "Library", accent: StudioTheme.violet, showsHeader: false) {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 3), spacing: 14) {
                     ForEach(libraryTiles) { tile in
                         StudioPlaceholderTile(title: tile.title, detail: tile.body, accent: tile.accent)

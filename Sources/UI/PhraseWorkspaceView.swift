@@ -9,7 +9,6 @@ struct PhraseWorkspaceView: View {
     @State private var selectedLayerID = "pattern"
     @State private var editingCellTarget: PhraseCellEditorTarget?
     @State private var trackPage = 0
-    @State private var phraseControlsState = PhraseButtonControlsState()
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
@@ -81,19 +80,19 @@ struct PhraseWorkspaceView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(
-                title: "Phrase Matrix",
-                eyebrow: "Project-scoped layers across the top, phrases down the rows, one cell per track and layer.",
-                accent: activeLayerAccent
-            ) {
-                VStack(alignment: .leading, spacing: 16) {
-                    layerBar
-                    if isPresentingPerformanceLayerSelection {
-                        performanceLayerSelectionSurface
-                    } else {
-                        matrix
-                    }
+        // The top-nav pill already names this page; the panel renders no
+        // header of its own (ux-canon rule 1).
+        StudioPanel(
+            title: "Phrase Matrix",
+            accent: activeLayerAccent,
+            showsHeader: false
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                layerBar
+                if isPresentingPerformanceLayerSelection {
+                    performanceLayerSelectionSurface
+                } else {
+                    matrix
                 }
             }
         }
@@ -134,7 +133,6 @@ struct PhraseWorkspaceView: View {
         }
         .onChange(of: phrases.map(\.id)) {
             dismissInvalidEditorTarget()
-            phraseControlsState.reconcile(availablePhraseIDs: phrases.map(\.id))
             applyVisualControlsOpenIndex()
         }
         .onChange(of: tracks.map(\.id)) {
@@ -175,19 +173,16 @@ struct PhraseWorkspaceView: View {
         selectedLayerID = matrixSelectableLayers.first?.id ?? session.store.patternLayer?.id ?? layers.first?.id ?? "pattern"
     }
 
+    /// Phrase bar/repeat controls are always visible now; the visual command
+    /// keeps working by selecting the requested phrase.
     private func applyVisualControlsOpenIndex() {
-        guard let visualControlsOpenIndex else {
+        guard let visualControlsOpenIndex,
+              phrases.indices.contains(visualControlsOpenIndex)
+        else {
             return
         }
 
-        guard phrases.indices.contains(visualControlsOpenIndex) else {
-            phraseControlsState.close()
-            return
-        }
-
-        let phraseID = phrases[visualControlsOpenIndex].id
-        session.setSelectedPhraseID(phraseID)
-        phraseControlsState.openControls(for: phraseID)
+        session.setSelectedPhraseID(phrases[visualControlsOpenIndex].id)
     }
 
     private var layerBar: some View {
@@ -389,8 +384,40 @@ struct PhraseWorkspaceView: View {
     private func handleSingleTap(on phraseID: UUID, trackID: UUID) {
         session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
 
-        if activeMatrixLayer?.valueType == .boolean {
+        guard activeMatrixLayer?.valueType == .boolean else {
+            return
+        }
+
+        if NSEvent.modifierFlags.contains(.shift) {
+            cascadeBooleanValue(phraseID: phraseID, trackID: trackID)
+        } else {
             toggleBooleanCell(phraseID: phraseID, trackID: trackID)
+        }
+    }
+
+    /// Shift-click: toggle the value, write it into the layer default for the
+    /// track, and convert this and every following phrase's cell to inherit it.
+    /// A plain click stays a single explicit value on the clicked cell.
+    private func cascadeBooleanValue(phraseID: UUID, trackID: UUID) {
+        guard let layer = activeMatrixLayer,
+              layer.valueType == .boolean,
+              let startIndex = phrases.firstIndex(where: { $0.id == phraseID })
+        else {
+            return
+        }
+
+        let phrase = phrases[startIndex]
+        let resolvedValue = phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: 0)
+        let toggledValue = toggledBooleanValue(resolvedValue, for: layer)
+
+        session.setPhraseLayerDefault(toggledValue, layerID: layer.id, trackID: trackID)
+        for followingPhrase in phrases[startIndex...] {
+            session.setPhraseCell(
+                .inheritDefault,
+                layerID: layer.id,
+                trackIDs: [trackID],
+                phraseID: followingPhrase.id
+            )
         }
     }
 
@@ -530,7 +557,6 @@ struct PhraseWorkspaceView: View {
                 ForEach(Array(phrases.enumerated()), id: \.element.id) { index, phrase in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(alignment: .top, spacing: gridSpacing) {
-                            let isOpen = phraseControlsState.openPhraseID == phrase.id
                             PhraseMatrixPhraseCell(
                                 phrase: phrase,
                                 isSelected: selectedPhraseID == phrase.id,
@@ -540,19 +566,14 @@ struct PhraseWorkspaceView: View {
                                     currentPhraseID: engineController.currentPhraseID
                                 ),
                                 isQueued: engineController.queuedPhraseID == phrase.id,
-                                isOpen: isOpen,
                                 onSelect: {
                                     session.setSelectedPhraseID(phrase.id)
-                                    phraseControlsState.toggleControls(for: phrase.id)
                                 },
                                 onChangeBarCount: { nextBarCount in
                                     session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
                                 },
                                 onChangeRepeatCount: { nextRepeatCount in
                                     session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
-                                },
-                                onToggleLoop: {
-                                    session.setPhraseLoopEnabled(!phrase.loopEnabled, phraseID: phrase.id)
                                 }
                             )
                             .frame(width: phraseColumnWidth)
@@ -661,19 +682,11 @@ struct PhraseWorkspaceView: View {
 
     private var performanceLayerSelectionSurface: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("CHOOSE PHRASE LAYER")
-                        .studioText(.microEmphasis)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.amber)
-
-                    Text("Phrase rows return after a layer or inline variant is selected.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
+            HStack(alignment: .center, spacing: 12) {
+                Text("CHOOSE PHRASE LAYER")
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.amber)
 
                 Spacer(minLength: 8)
 
@@ -822,89 +835,52 @@ private struct PhraseMatrixPhraseCell: View {
     let isSelected: Bool
     let isPlaying: Bool
     let isQueued: Bool
-    let isOpen: Bool
     let onSelect: () -> Void
     let onChangeBarCount: (Int) -> Void
     let onChangeRepeatCount: (Int) -> Void
-    let onToggleLoop: () -> Void
 
     private var presentation: PhraseButtonControlPresentation {
         PhraseButtonControlPresentation(
             phrase: phrase,
             isSelected: isSelected,
             isPlaying: isPlaying,
-            isQueued: isQueued,
-            isOpen: isOpen
+            isQueued: isQueued
         )
     }
 
+    // Bars and repeat edit in place, always visible: no collapsed summary
+    // duplicating the stepper values, no SEL badge (selection is the cell
+    // chrome), no loop toggle (transport Song/Free owns that decision).
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 8) {
             Button(action: onSelect) {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(phrase.name)
-                            .studioText(.subtitle)
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .help(phrase.name)
-                            .layoutPriority(1)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(phrase.name)
+                        .studioText(.subtitle)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(phrase.name)
+                        .layoutPriority(1)
 
-                        Image(systemName: isOpen ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(StudioTheme.mutedText)
+                    Spacer(minLength: 0)
+
+                    if isPlaying {
+                        phraseBadge("Play", accent: StudioTheme.success)
                     }
-
-                    Text(presentation.collapsedSummary)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 5) {
-                        if isSelected {
-                            phraseBadge("Sel", accent: StudioTheme.violet)
-                        }
-                        if isPlaying {
-                            phraseBadge("Play", accent: StudioTheme.success)
-                        }
-                        if isQueued {
-                            phraseBadge("Queue", accent: StudioTheme.amber)
-                        }
-                        if phrase.loopEnabled {
-                            phraseBadge("Loop", accent: StudioTheme.amber)
-                        }
+                    if isQueued {
+                        phraseBadge("Queue", accent: StudioTheme.amber)
                     }
-                    .frame(minHeight: 18, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(presentation.accessibilityLabel)
-            .accessibilityHint("Select phrase and toggle inline controls")
+            .accessibilityHint("Select phrase")
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("phrase-button-\(phrase.id.uuidString)")
 
-            if isOpen {
-                inlineControls
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 106, alignment: .topLeading)
-        .padding(StudioMetrics.Spacing.compact)
-        .background(rowFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(rowStroke, lineWidth: isOpen ? 1.5 : 1)
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
-    }
-
-    /// Bars, repeat, and loop edit in place inside the phrase box.
-    private var inlineControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
             PhrasePolicyStepperControl(
                 title: "Bars",
                 valueLabel: presentation.barCountSummary,
@@ -930,41 +906,23 @@ private struct PhraseMatrixPhraseCell: View {
                     onChangeRepeatCount(PhraseModel.clampedRepeatCount(phrase.repeatCount + 1))
                 }
             )
-
-            Button(action: onToggleLoop) {
-                HStack(spacing: 6) {
-                    Image(systemName: phrase.loopEnabled ? "repeat.circle.fill" : "repeat.circle")
-                        .font(.system(size: 13, weight: .bold))
-                    Text(presentation.loopStatusLabel)
-                        .studioText(.labelBold)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                .foregroundStyle(phrase.loopEnabled ? StudioTheme.text : StudioTheme.mutedText)
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .background(
-                    phrase.loopEnabled
-                        ? StudioTheme.amber.opacity(StudioOpacity.selectedFill)
-                        : Color.white.opacity(StudioOpacity.subtleFill),
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .stroke(phrase.loopEnabled ? StudioTheme.amber.opacity(0.7) : StudioTheme.border, lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-            .help(phrase.loopEnabled ? "Loop overrides repeat during playback and keeps the stored repeat count" : "Enable permanent loop for this phrase")
-            .accessibilityLabel("\(phrase.name) \(presentation.loopStatusLabel)")
         }
+        .frame(maxWidth: .infinity, minHeight: 106, alignment: .topLeading)
+        .padding(StudioMetrics.Spacing.compact)
+        .background(rowFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(rowStroke, lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
     }
 
     private var rowFill: Color {
         if phrase.loopEnabled {
             return StudioTheme.amber.opacity(isSelected ? StudioOpacity.selectedFill : StudioOpacity.subtleFill)
         }
-        if isSelected || isOpen {
+        if isSelected {
             return StudioTheme.violet.opacity(StudioOpacity.faintStroke)
         }
         return Color.white.opacity(StudioOpacity.subtleFill)
@@ -977,7 +935,7 @@ private struct PhraseMatrixPhraseCell: View {
         if isQueued || phrase.loopEnabled {
             return StudioTheme.amber.opacity(StudioOpacity.mediumStroke)
         }
-        return StudioTheme.violet.opacity(isSelected || isOpen ? 0.6 : 0.12)
+        return StudioTheme.violet.opacity(isSelected ? 0.6 : 0.12)
     }
 
     private func phraseBadge(_ label: String, accent: Color) -> some View {
@@ -1063,32 +1021,33 @@ private struct PhraseGridCell: View {
     let isSelected: Bool
     let accent: Color
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(cell.editMode.label.uppercased())
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(accent)
-                Spacer()
-            }
+    // Inherited cells are a muted variant of explicit ones — no
+    // "SINGLE"/"INHERIT" chip repeated in every cell (ux-canon rules 1/3).
+    private var isInherited: Bool {
+        cell.editMode == .inheritDefault
+    }
 
-            PhraseCellPreview(
-                layer: layer,
-                cell: cell,
-                resolvedValue: phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0),
-                accent: accent,
-                summary: valueLabel(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0), layer: layer),
-                metrics: .matrix
-            )
-        }
+    var body: some View {
+        PhraseCellPreview(
+            layer: layer,
+            cell: cell,
+            resolvedValue: phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0),
+            accent: accent,
+            summary: valueLabel(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0), layer: layer),
+            metrics: .matrix
+        )
+        .opacity(isInherited ? StudioOpacity.inheritedContent : 1)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.compact)
         .background((isSelected ? accent.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill)), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(accent.opacity(isSelected ? 0.6 : 0.12), lineWidth: 1)
+                .stroke(
+                    accent.opacity(isSelected ? 0.6 : 0.12),
+                    style: StrokeStyle(lineWidth: 1, dash: isInherited ? StudioAddCard.dashPattern : [])
+                )
         )
+        .help(isInherited ? "Follows the layer default. Click to set its own value; shift-click to push a value into this and the following phrases." : "")
     }
 }
 
