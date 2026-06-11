@@ -578,6 +578,7 @@ final class DrumKitMatrixModelTests: XCTestCase {
         XCTAssertEqual(model.rows.map(\.partName), ["Snare", "Kick", "Closed Hat"])
         XCTAssertEqual(model.rows.map(\.patternBadge), ["P3", "P3", "P3"])
         XCTAssertFalse(model.hasPatternMismatch)
+        XCTAssertEqual(model.groupSelectedSlotIndex, 2, "Coherent members report a shared group slot")
     }
 
     func test_mixedActivePatternSlotsShowMismatchAndDivergentBadges() throws {
@@ -591,23 +592,33 @@ final class DrumKitMatrixModelTests: XCTestCase {
         XCTAssertTrue(model.hasPatternMismatch)
         XCTAssertEqual(model.rows.map(\.patternBadge), ["P1", "P2", "P1"])
         XCTAssertEqual(model.rows.map(\.isDivergentPattern), [false, true, false])
+        XCTAssertNil(model.groupSelectedSlotIndex, "Divergent members render a mixed group pattern row")
     }
 
-    func test_clipRowsExposeReadOnlyStepPreviewWithoutMutationIntent() throws {
+    func test_clipRowsExposeEditableNoteGridContent() throws {
         let fixture = makeMatrixFixture()
 
         let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
         let snare = try XCTUnwrap(model.rows.first)
 
-        guard case let .steps(steps, sourceLength, overflow) = snare.preview else {
-            return XCTFail("Expected a clip step preview")
+        guard case let .editable(clipID, lengthSteps, steps) = snare.content else {
+            return XCTFail("Expected editable note-grid content")
         }
-        XCTAssertEqual(sourceLength, 16)
-        XCTAssertFalse(overflow)
-        XCTAssertEqual(steps.prefix(8), [true, false, false, false, true, false, false, false])
+        XCTAssertTrue(snare.isEditable)
+        XCTAssertEqual(clipID, fixture.snareClip.id)
+        XCTAssertEqual(lengthSteps, 16)
+        XCTAssertEqual(
+            steps.prefix(8).map { $0.main != nil },
+            [true, false, false, false, true, false, false, false]
+        )
+        XCTAssertEqual(
+            snare.defaultNote,
+            ClipStepNote(pitch: DrumKitNoteMap.baselineNote, velocity: 100, lengthSteps: 4).normalized,
+            "Row default note follows the track's pitch/velocity/gate, like the single-track editor"
+        )
     }
 
-    func test_generatorAndNonStepClipRowsUseLimitedReadOnlyTreatment() throws {
+    func test_generatorAndNonStepClipRowsAreReadOnly() throws {
         var fixture = makeMatrixFixture()
         let generatorID = UUID()
         fixture.generatorPool = [
@@ -632,39 +643,52 @@ final class DrumKitMatrixModelTests: XCTestCase {
 
         let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
 
-        guard case let .limited(kickBadge, kickDetail) = model.rows[1].preview else {
-            return XCTFail("Expected non-step clip to be read-only")
+        guard case let .readOnly(kickBadge, kickDetail, kickSteps) = model.rows[1].content else {
+            return XCTFail("Expected non-note-grid clip to be read-only")
         }
+        XCTAssertFalse(model.rows[1].isEditable)
         XCTAssertEqual(kickBadge, "RO")
         XCTAssertEqual(kickDetail, "Read-only source")
+        XCTAssertEqual(kickSteps, [true, false, false, false])
 
-        guard case let .limited(hatBadge, hatDetail) = model.rows[2].preview else {
-            return XCTFail("Expected generator row to be limited")
+        guard case let .generator(hatDetail) = model.rows[2].content else {
+            return XCTFail("Expected generator row to be read-only with a generator badge")
         }
-        XCTAssertEqual(hatBadge, "GEN")
-        XCTAssertEqual(hatDetail, "Generator source")
+        XCTAssertFalse(model.rows[2].isEditable)
+        XCTAssertEqual(hatDetail, "Euclidean Hat")
     }
 
-    func test_stepDisplayIsBoundedTo16And32WithOverflowTreatment() throws {
+    func test_emptyClipSlotRendersEditableEmptyGridLikeSingleTrackEditor() throws {
+        var fixture = makeMatrixFixture()
+        fixture.patternBanks = [
+            TrackPatternBank(trackID: fixture.snare.id, slots: [
+                TrackPatternSlot(slotIndex: 0, sourceRef: SourceRef(mode: .clip)),
+            ]),
+        ]
+
+        let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
+
+        guard case let .editable(clipID, lengthSteps, steps) = model.rows[0].content else {
+            return XCTFail("Expected empty clip slot to be editable")
+        }
+        XCTAssertNil(clipID, "Empty slot materializes a clip on first edit")
+        XCTAssertEqual(lengthSteps, 16)
+        XCTAssertTrue(steps.allSatisfy(\.isEmpty))
+    }
+
+    func test_stepDisplayIsBoundedTo16And32() throws {
         let fixture = makeMatrixFixture(snareLength: 40)
 
         let sixteen = try XCTUnwrap(fixture.model(displayStepCount: 15))
         XCTAssertEqual(sixteen.displayStepCount, 16)
-        guard case let .steps(sixteenSteps, sixteenSourceLength, sixteenOverflow) = sixteen.rows[0].preview else {
-            return XCTFail("Expected sixteen-step preview")
+        guard case let .editable(_, sixteenLength, sixteenSteps) = sixteen.rows[0].content else {
+            return XCTFail("Expected editable content")
         }
-        XCTAssertEqual(sixteenSteps.count, 16)
-        XCTAssertEqual(sixteenSourceLength, 40)
-        XCTAssertTrue(sixteenOverflow)
+        XCTAssertEqual(sixteenLength, 40)
+        XCTAssertEqual(sixteenSteps.count, 40, "Content carries the full clip; the view windows it")
 
         let thirtyTwo = try XCTUnwrap(fixture.model(displayStepCount: 32))
         XCTAssertEqual(thirtyTwo.displayStepCount, 32)
-        guard case let .steps(thirtyTwoSteps, thirtyTwoSourceLength, thirtyTwoOverflow) = thirtyTwo.rows[0].preview else {
-            return XCTFail("Expected thirty-two-step preview")
-        }
-        XCTAssertEqual(thirtyTwoSteps.count, 32)
-        XCTAssertEqual(thirtyTwoSourceLength, 40)
-        XCTAssertTrue(thirtyTwoOverflow)
     }
 
     func test_zeroMemberAndStaleMemberGroupsStayCompact() throws {
