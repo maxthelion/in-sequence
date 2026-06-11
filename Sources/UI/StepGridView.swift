@@ -111,7 +111,7 @@ private struct StepGridCell: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 7)
         .padding(.horizontal, 3)
-        .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(outlineColor, lineWidth: isSelected ? 2 : 1)

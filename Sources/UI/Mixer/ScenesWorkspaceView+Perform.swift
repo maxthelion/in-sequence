@@ -304,9 +304,8 @@ private struct ScenePerformCrossfaderTrack: View {
                     .frame(width: 28, height: 28)
                     .overlay(
                         Circle()
-                            .stroke(Color.white.opacity(0.65), lineWidth: 2)
+                            .stroke(Color.white.opacity(StudioOpacity.ghostStroke), lineWidth: 2)
                     )
-                    .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
                     .offset(x: min(max(thumbX - 14, 0), width - 28))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -69,7 +69,6 @@ struct MixerWorkspaceView: View {
 
             if presentation.usesCompactOverlay, isMasterOverlayPresented {
                 MasterOutputColumnView()
-                    .shadow(color: .black.opacity(0.35), radius: 18, x: -8, y: 8)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                     .zIndex(2)
             }
@@ -251,7 +250,7 @@ struct MixerWorkspaceView: View {
                     .padding(StudioMetrics.Spacing.compact)
                 }
                 .buttonStyle(.plain)
-                .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                         .stroke(accent.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
@@ -795,7 +794,7 @@ private struct CompactMasterMeter: View {
                 MasterMeterLevelScale.normalized(state.rightPeakDBFS)
             )
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+                .fill(StudioTheme.inset)
                 .overlay(alignment: .bottom) {
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         .fill(state.isClipLatched ? Color.red : StudioTheme.success)

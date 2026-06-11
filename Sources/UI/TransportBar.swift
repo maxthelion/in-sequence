@@ -298,7 +298,7 @@ private struct TransportModePicker: View {
                         .padding(.vertical, 5)
                         .background(
                             Capsule()
-                                .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : Color.white.opacity(0.02))
+                                .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : StudioTheme.inset)
                         )
                         .overlay(
                             Capsule()

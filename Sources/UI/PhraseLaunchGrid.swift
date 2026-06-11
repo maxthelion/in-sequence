@@ -142,7 +142,7 @@ struct PhraseLaunchGridSheet: View {
 
     private var emptyCell: some View {
         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-            .fill(Color.white.opacity(0.012))
+            .fill(StudioTheme.inset)
             .frame(minHeight: 62)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)

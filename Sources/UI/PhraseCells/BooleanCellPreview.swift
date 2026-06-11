@@ -14,7 +14,7 @@ struct BooleanCellPreview: View {
 
             Text(booleanLabel)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(booleanForeground)
         }
         .frame(height: metrics.booleanHeight)
     }
@@ -34,6 +34,15 @@ struct BooleanCellPreview: View {
             return booleanState ? "Muted" : "Live"
         }
         return booleanState ? "On" : "Off"
+    }
+
+    /// Flat variant: the "Live" state fills with solid success green, so its
+    /// label flips to the dark background colour for contrast.
+    var booleanForeground: Color {
+        if layer.id == "mute", !booleanState {
+            return StudioTheme.background
+        }
+        return StudioTheme.text
     }
 
     var booleanFill: Color {

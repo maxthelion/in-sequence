@@ -711,7 +711,7 @@ struct MixerInsertChainView: View {
                 .frame(maxWidth: .infinity, minHeight: 32)
         }
         .buttonStyle(.plain)
-        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -720,7 +720,7 @@ struct MixerInsertChainView: View {
 
     private var inertEmptySlot: some View {
         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-            .fill(Color.white.opacity(0.015))
+            .fill(StudioTheme.inset)
             .frame(maxWidth: .infinity, minHeight: 32)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
@@ -902,7 +902,7 @@ struct VerticalLevelFader: View {
 
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(Color.white.opacity(0.05))
+                    .fill(StudioTheme.inset)
 
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan)

@@ -160,7 +160,7 @@ struct MasterOutputColumnView: View {
                 .frame(maxWidth: .infinity, minHeight: 32)
         }
         .buttonStyle(.plain)
-        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -425,7 +425,7 @@ private struct MasterOutputFaderMeter: View {
 
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
+                    .fill(StudioTheme.inset)
 
                 HStack(alignment: .bottom, spacing: 4) {
                     meterLane(peak: meterState.leftPeakDBFS)
@@ -435,17 +435,15 @@ private struct MasterOutputFaderMeter: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
 
+                // Flat variant: one solid fill block instead of two stacked
+                // translucent fills.
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(StudioTheme.cyan.opacity(0.48))
+                    .fill(StudioTheme.cyan.opacity(StudioOpacity.accentFill))
                     .frame(width: 30, height: filledHeight)
 
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.cyan.opacity(0.85), lineWidth: 1)
+                    .stroke(StudioTheme.cyan.opacity(StudioOpacity.ghostStroke), lineWidth: 1)
                     .frame(width: 30)
-
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(StudioTheme.cyan.opacity(0.34))
-                    .frame(width: 30, height: filledHeight)
 
                 Rectangle()
                     .fill(StudioTheme.amber.opacity(0.85))
@@ -455,7 +453,6 @@ private struct MasterOutputFaderMeter: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(StudioTheme.text)
                     .frame(width: 30, height: 6)
-                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                     .offset(y: -filledHeight + 10)
             }
             .animation(.linear(duration: 0.05), value: meterState.leftPeakDBFS)
@@ -484,7 +481,7 @@ private struct MasterOutputFaderMeter: View {
 
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .fill(Color.white.opacity(0.08))
+                    .fill(StudioTheme.inset)
 
                 meterGradient
                     .frame(height: height)

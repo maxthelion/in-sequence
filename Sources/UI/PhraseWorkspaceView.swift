@@ -784,7 +784,7 @@ private struct PhraseRowActions: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.accentFill) : StudioTheme.text)
+                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
                 .frame(width: 24, height: 24)
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
@@ -829,7 +829,7 @@ private struct PhraseMatrixTrackHeaderCell: View {
 private struct PhraseMatrixEmptyTrackHeaderCell: View {
     var body: some View {
         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-            .fill(Color.white.opacity(0.015))
+            .fill(StudioTheme.inset)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
@@ -1104,7 +1104,7 @@ private struct PhrasePerformancePlaceholderCell: View {
 private struct PhraseGridEmptyCell: View {
     var body: some View {
         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-            .fill(Color.white.opacity(0.015))
+            .fill(StudioTheme.inset)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))

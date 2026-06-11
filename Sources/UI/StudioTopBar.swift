@@ -67,7 +67,7 @@ struct StudioTopBar: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .frame(maxWidth: .infinity)
-        .background(StudioTheme.chrome.opacity(0.92))
+        .background(StudioTheme.chrome)
         .overlay(
             StudioTheme.border
                 .frame(height: 1),

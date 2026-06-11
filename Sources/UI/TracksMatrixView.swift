@@ -1026,7 +1026,7 @@ private struct TrackPerformLatchModePicker: View {
                     .frame(width: 74, height: 26)
                     .background(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : Color.white.opacity(0.02))
+                            .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : StudioTheme.inset)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)

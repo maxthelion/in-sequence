@@ -243,13 +243,8 @@ struct ScenesWorkspaceView: View {
             macroAssignments
         }
         .padding(StudioMetrics.Spacing.loose)
+        // Flat variant: solid panel value, no stroke or shadow.
         .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: 1)
-                .allowsHitTesting(false)
-        )
-        .shadow(color: .black.opacity(StudioOpacity.subtleStroke), radius: StudioMetrics.CornerRadius.panel, x: 0, y: 10)
     }
 
     private var sceneEditorHeader: some View {

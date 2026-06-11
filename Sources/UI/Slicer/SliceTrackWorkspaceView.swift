@@ -234,7 +234,7 @@ struct SliceTrackWorkspaceView: View {
                 onMoveSliceBoundary: { moveSliceBoundary(markerID: $0, to: $1, sample: sample) }
             )
             .frame(height: 188)
-            .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
