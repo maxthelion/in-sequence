@@ -149,11 +149,37 @@ LATCH and other mode state lives once in the header bar, not per card.
 
 Sources: note-repeat/fill cell feedback, perform-layer card reports.
 
+## 12. Color identifies, it never floods
+
+Over the near-black ground, translucent accent composes into muddy
+mid-tones ("orange translucent on top of grey… a mess"). Accent colour
+names a thing or a state; it never fills an area:
+
+1. **Containers are never tinted.** Cards, panels, wells, tab bodies, and
+   sections fill with the ground or the single neutral step above it.
+   State/identity on a container is carried by its OUTLINE colour
+   (selected scene = orange outline on a dark card) plus at most one small
+   SOLID badge inside (the solid orange "A" chip).
+2. **Small elements go fully solid.** Pads, step cells, badges, pills,
+   value chips, and segmented-control thumbs carry state as fully solid
+   accent fills with dark glyphs/text — never translucent.
+3. **Values may be accent text.** Numerals and value labels can render in
+   the accent colour directly.
+4. **Translucent accent fills are banned at every scale.**
+   `accent.opacity(…)` / `stateColor.opacity(…)` must not appear as any
+   background or fill — composing accents into `StudioOpacity` fill tokens
+   counts. Hover/pressed feedback uses the neutral fill step or outline
+   brightening, never an accent wash.
+
+Sources: 2026-06-11 flat-UI pass-2 review (scene A/B cards, perform track
+cards, Track Source editor screenshots), reference image in
+`docs/bugs/20260611-142049-i-d-like-the-ui-to-be-flatter-more-like/`.
+
 ## How an observer applies this
 
 1. Take the latest QA capture set (gallery or
    `.meta/multipass/runtime/loops/project/observe/qa-surface-coverage/`).
-2. Sweep every capture against rules 1–11; collect findings as
+2. Sweep every capture against rules 1–12; collect findings as
    `rule → capture(s) → exact element → suggested fix`.
 3. Verify a suspected finding by cropping at full resolution before filing
    (thumbnails lie about truncation).
