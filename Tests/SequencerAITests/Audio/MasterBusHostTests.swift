@@ -104,8 +104,10 @@ final class MasterBusHostTests: XCTestCase {
     func test_abModeInstallsTwoSceneBranchesWithEqualPowerGains() throws {
         let graph = MainAudioGraph()
         let host = MasterBusHost()
-        let sceneA = MasterBusScene(name: "A", outputGain: 0.2)
-        let sceneB = MasterBusScene(name: "B", outputGain: 1.5)
+        // Scenes carry inserts so the branch topology actually installs —
+        // insert-less crossfades stay on the pass-through fast path.
+        let sceneA = MasterBusScene(name: "A", inserts: [.filter()], outputGain: 0.2)
+        let sceneB = MasterBusScene(name: "B", inserts: [.bitcrusher()], outputGain: 1.5)
         host.attach(to: graph)
 
         host.apply(MasterBusState(
@@ -129,8 +131,10 @@ final class MasterBusHostTests: XCTestCase {
     func test_masterOutputGainAppliesToFinalOutputWithoutChangingBranchMath() {
         let graph = MainAudioGraph()
         let host = MasterBusHost()
-        let sceneA = MasterBusScene(name: "A")
-        let sceneB = MasterBusScene(name: "B")
+        // Inserts force the branch install; gain math is asserted on the
+        // installed branches.
+        let sceneA = MasterBusScene(name: "A", inserts: [.filter()])
+        let sceneB = MasterBusScene(name: "B", inserts: [.bitcrusher()])
         host.attach(to: graph)
 
         host.apply(MasterBusState(
@@ -180,6 +184,52 @@ final class MasterBusHostTests: XCTestCase {
     func test_liveCrossfaderOverrideUpdatesBranchGainsWithoutReapply() {
         let graph = MainAudioGraph()
         let host = MasterBusHost()
+        let sceneA = MasterBusScene(name: "A", inserts: [.filter()])
+        let sceneB = MasterBusScene(name: "B", inserts: [.bitcrusher()])
+        host.attach(to: graph)
+        host.apply(MasterBusState(
+            scenes: [sceneA, sceneB],
+            activeSceneID: sceneA.id,
+            abSelection: MasterBusABSelection(sceneAID: sceneA.id, sceneBID: sceneB.id, crossfader: 0)
+        ))
+        let tapRemovalsAfterInstall = graph.masterMeterTapRemoveCountForTesting
+
+        host.setLiveCrossfaderOverride(1)
+
+        XCTAssertEqual(host.applyCallCount, 1)
+        XCTAssertEqual(graph.masterBranchesForTesting[0].gain, 0, accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[1].gain, 1, accuracy: 0.0001)
+        XCTAssertEqual(host.appliedState.abSelection?.crossfader, 0)
+        XCTAssertEqual(host.resolvedState.abSelection?.crossfader, 1)
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovalsAfterInstall,
+                       "crossfader value changes must never reinstall master chains")
+    }
+
+    @MainActor
+    func test_masterGainChangeWithNoInsertsNeverInstallsChains() {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        let scene = MasterBusScene(name: "Dry")
+        host.attach(to: graph)
+
+        // Master fader release at non-unity gain used to fall out of the
+        // unity shortcut into a full installMasterChains (engine stop/start
+        // = audible dropout on every release).
+        host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id, masterOutputGain: 0.62))
+
+        XCTAssertEqual(graph.masterOutputGainForTesting, 0.62, accuracy: 0.0001)
+        XCTAssertTrue(graph.masterBranchesForTesting.isEmpty, "no chains may be installed for a gain-only state")
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, 0)
+
+        host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id, masterOutputGain: 0.4))
+        XCTAssertEqual(graph.masterOutputGainForTesting, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, 0)
+    }
+
+    @MainActor
+    func test_crossfaderFromInsertlessPassThroughNeverInstallsChains() {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
         let sceneA = MasterBusScene(name: "A")
         let sceneB = MasterBusScene(name: "B")
         host.attach(to: graph)
@@ -189,13 +239,49 @@ final class MasterBusHostTests: XCTestCase {
             abSelection: MasterBusABSelection(sceneAID: sceneA.id, sceneBID: sceneB.id, crossfader: 0)
         ))
 
-        host.setLiveCrossfaderOverride(1)
+        // First crossfader tick away from pass-through used to trigger a
+        // full installMasterChains mid-gesture.
+        host.setLiveCrossfaderOverride(0.3)
+        host.setLiveCrossfaderOverride(0.7)
+        host.setLiveCrossfaderOverride(nil)
 
-        XCTAssertEqual(host.applyCallCount, 1)
-        XCTAssertEqual(graph.masterBranchesForTesting[0].gain, 0, accuracy: 0.0001)
-        XCTAssertEqual(graph.masterBranchesForTesting[1].gain, 1, accuracy: 0.0001)
-        XCTAssertEqual(host.appliedState.abSelection?.crossfader, 0)
-        XCTAssertEqual(host.resolvedState.abSelection?.crossfader, 1)
+        XCTAssertTrue(graph.masterBranchesForTesting.isEmpty)
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, 0,
+                       "insert-less crossfades must stay on the pass-through fast path")
+    }
+
+    @MainActor
+    func test_shapeEqualApplyUpdatesGainsInPlaceWithoutReinstall() throws {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        let sceneA = MasterBusScene(name: "A", inserts: [.filter()])
+        let sceneB = MasterBusScene(name: "B")
+        host.attach(to: graph)
+        let selection = MasterBusABSelection(sceneAID: sceneA.id, sceneBID: sceneB.id, crossfader: 0.25)
+        host.apply(MasterBusState(
+            scenes: [sceneA, sceneB],
+            activeSceneID: sceneA.id,
+            abSelection: selection,
+            masterOutputGain: 1
+        ))
+        let tapRemovalsAfterInstall = graph.masterMeterTapRemoveCountForTesting
+        XCTAssertEqual(graph.masterBranchesForTesting.count, 2)
+
+        // Same topology, different gain + crossfader: in-place value update.
+        var movedSelection = selection
+        movedSelection.crossfader = 0.5
+        host.apply(MasterBusState(
+            scenes: [sceneA, sceneB],
+            activeSceneID: sceneA.id,
+            abSelection: movedSelection,
+            masterOutputGain: 0.8
+        ))
+
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovalsAfterInstall,
+                       "shape-equal master apply must not reinstall chains")
+        XCTAssertEqual(graph.masterOutputGainForTesting, 0.8, accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[0].gain, Float(sqrt(0.5)), accuracy: 0.0001)
+        XCTAssertEqual(graph.masterBranchesForTesting[1].gain, Float(sqrt(0.5)), accuracy: 0.0001)
     }
 
     @MainActor

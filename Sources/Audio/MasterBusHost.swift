@@ -220,11 +220,29 @@ final class MasterBusHost: MasterBusHosting {
         guard let audioGraph else { return }
 
         let nextShape = Self.graphShape(for: state)
-        if Self.isUnityPassThrough(state), installedShape == nil || installedShape == nextShape {
+
+        // Gain and crossfade are VALUE updates — they must never reinstall
+        // master chains (installMasterChains stops/starts the engine, an
+        // audible dropout mid-gesture; mixer-latency cause for the master
+        // fader release and the first crossfader tick).
+        //
+        // Fast path 1: nothing installed and nothing needs installing (no
+        // enabled inserts anywhere). The default pass-through wiring already
+        // carries audio; master gain rides finalOutputMixer.outputVolume and
+        // a crossfade between two insert-less scenes is audibly a no-op.
+        if installedShape == nil, Self.hasNoEnabledInserts(nextShape) {
             audioGraph.setMasterOutputGain(state.masterOutputGain)
-            lock.withLock {
-                self.installedShape = nil
-                self.installedNodesByInsertID = [:]
+            return
+        }
+
+        // Fast path 2: identical topology — update gains and node
+        // parameters in place on the running engine.
+        if let installedShape, installedShape == nextShape {
+            let nodesByInsertID = lock.withLock { installedNodesByInsertID }
+            performOnMain {
+                audioGraph.setMasterOutputGain(state.masterOutputGain)
+                audioGraph.setMasterBranchGains(Self.branches(for: state).map(\.gain))
+                self.configureInstalledNodes(for: state, nodesByInsertID: nodesByInsertID)
             }
             return
         }
@@ -244,20 +262,8 @@ final class MasterBusHost: MasterBusHosting {
         }
     }
 
-    private static func isUnityPassThrough(_ state: MasterBusState) -> Bool {
-        guard state.masterInserts.allSatisfy({ !$0.isEnabled }) else { return false }
-        guard abs(state.masterOutputGain - 1) < 0.0001 else { return false }
-        if let selection = state.abSelection {
-            guard abs(selection.crossfader) < 0.0001 else { return false }
-            guard let sceneA = state.scene(id: selection.sceneAID),
-                  let sceneB = state.scene(id: selection.sceneBID)
-            else { return false }
-            return sceneA.inserts.allSatisfy { !$0.isEnabled }
-                && sceneB.inserts.allSatisfy { !$0.isEnabled }
-        }
-        let scene = state.activeScene
-        guard abs(scene.outputGain - 1) < 0.0001 else { return false }
-        return scene.inserts.allSatisfy { !$0.isEnabled }
+    private static func hasNoEnabledInserts(_ shape: MasterBusGraphShape) -> Bool {
+        shape.masterInserts.isEmpty && shape.branches.allSatisfy { $0.inserts.isEmpty }
     }
 
     @MainActor
@@ -272,7 +278,11 @@ final class MasterBusHost: MasterBusHosting {
             chains: chains,
             postBlendMasterNodes: postBlendMasterNodes,
             nodesByInsertID: nodesByInsertID,
-            shape: Self.graphShape(for: state)
+            // Record only what was ACTUALLY installed: an AU effect still
+            // instantiating produced no node, so it must not be part of the
+            // installed shape — otherwise the post-load rebuild compares
+            // shape-equal, takes the in-place path, and the AU never wires in.
+            shape: Self.graphShape(for: state, includingOnly: Set(nodesByInsertID.keys))
         )
     }
 
@@ -486,21 +496,25 @@ final class MasterBusHost: MasterBusHosting {
         return [MasterBusBranch(scene: scene, gain: 1)]
     }
 
-    private static func graphShape(for state: MasterBusState) -> MasterBusGraphShape {
-        MasterBusGraphShape(
+    private static func graphShape(
+        for state: MasterBusState,
+        includingOnly insertIDs: Set<UUID>? = nil
+    ) -> MasterBusGraphShape {
+        func shape(for insert: MasterBusInsert) -> MasterBusInsertShape? {
+            guard insert.isEnabled else { return nil }
+            if let insertIDs, !insertIDs.contains(insert.id) {
+                return nil
+            }
+            return MasterBusInsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
+        }
+        return MasterBusGraphShape(
             branches: branches(for: state).map { branch in
                 MasterBusBranchShape(
                     sceneID: branch.scene.id,
-                    inserts: branch.scene.inserts.compactMap { insert in
-                        guard insert.isEnabled else { return nil }
-                        return MasterBusInsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
-                    }
+                    inserts: branch.scene.inserts.compactMap(shape(for:))
                 )
             },
-            masterInserts: state.masterInserts.compactMap { insert in
-                guard insert.isEnabled else { return nil }
-                return MasterBusInsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
-            }
+            masterInserts: state.masterInserts.compactMap(shape(for:))
         )
     }
 
