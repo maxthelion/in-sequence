@@ -66,3 +66,5 @@ wiki/.meta/
 Experiments/PigmentsProbe/
 
 build-dd/
+
+.foreman/state/
