@@ -5,19 +5,21 @@ the trial tick).
 
 ## In flight
 
-- `feature/drum-kits-and-templates` (worktree
-  `.worktrees/drum-kits-and-templates`): COMPLETE and green (1295/0 with
-  the two machine-state CoreAudio tests excluded), main merged in. Waiting
-  on Max's look before merge — see attention. Capture evidence for the new
-  kit matrix exists in the worktree's capture dir and the served gallery
-  under /feature/.
+- kits/templates MERGED to main (Max approved, gate green, 1298 tests
+  post-merge). Worktree awaits force-removal by Max (attention item 2).
+- Eight unprocessed bug reports from 2026-06-11 morning in `docs/bugs/`
+  (phrase matrix noise, wasted space, single/inherit bars, destination
+  panel, sample player) — next tick's primary triage queue. Several look
+  like ux-canon rules 1/3/10 violations; sweep as patterns, not instances.
+- Fourteen stale `docs/roadmap/*/feedback/` files lack resolutions; at
+  least two (mixer-tab-hang, build-identity) are already fixed in
+  substance and only need resolution notes written.
 - Multipass build loops continue independently; do not touch their
   worktrees.
 
 ## Next tick should check first
 
-- Has Max approved the kits/templates merge? If yes in `full` autonomy:
-  run `.foreman/checklists/feature-merge.md` and land it.
+- The eight 2026-06-11 bug reports (triage rules apply).
 - New entries in `docs/bugs/` (the bug app writes here continuously).
 - The two real-hardware CoreAudio tests
   (`MainAudioGraphDeviceSwitchTests`, the input-wiring engine test) pass
