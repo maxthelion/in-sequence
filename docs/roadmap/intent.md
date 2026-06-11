@@ -522,3 +522,15 @@ Raw input:
 ```text
 the phrase UI is still a bit broken. I thought we had fixed this in one of the branches. Basically when the left box is selected, a phrase edit interface appears below the row with step order, and length and repeat. The latter two should be in the box on the left for editing. The step order stuff shouldn't be here. Creating a new step order should probably be in the library. Likewise, there should be global step order presets that are in there. In any case, it shouldn't be in this ui, and this should be removed (step order can be toggled as a layer like note repeat).
 ```
+
+## 2026-06-11 - Audio Input: Channels Adapt, Arm/Monitor Rethink
+
+Raw input:
+
+```text
+I changed to the 24 channel input and it still says input needs 2 channels. This is interface nonsense. The track should be mono or stereo. If stereo with mono interface, duplicate. If the opposite, merge the channels. The levels will show if it's coming in on only one side. It's unclear what "arm" does. In other daws, that allows the input in. Here it seems combined with recording? Likewise, monitoring the input or the loop is confusing. Can you reason about a better way of doing this
+```
+
+```text
+I think monitor makes more sense if it's a toggle between buffer and live. Loop is the word that causes confusion. Obviously live is the only option if there is no buffer
+```

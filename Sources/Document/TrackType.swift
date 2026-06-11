@@ -92,7 +92,10 @@ enum AudioInputChannel: Codable, Equatable, Hashable, Sendable {
     }
 
     static func stereoOptions(channelCount: Int) -> [AudioInputChannel] {
-        guard channelCount > 1 else { return [] }
+        guard channelCount >= 1 else { return [] }
+        // A mono device still offers one stereo pair: the single channel is
+        // duplicated to both sides (track mode is never a hardware demand).
+        guard channelCount > 1 else { return [.stereo(firstChannel: 0)] }
         return stride(from: 0, to: channelCount - 1, by: 2).map { .stereo(firstChannel: $0) }
     }
 

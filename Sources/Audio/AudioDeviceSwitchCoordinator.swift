@@ -12,6 +12,11 @@ struct AudioDeviceApplyResult: Equatable, Sendable {
 struct AudioDeviceOwnerApplyResult: Equatable, Sendable {
     var appliedInputDeviceUID: String?
     var appliedOutputDeviceUID: String?
+    /// Resolved CoreAudio ID for the applied input device, so the audio
+    /// graph can point AVAudioEngine's input node at it (the engine's
+    /// input otherwise follows the system default device, ignoring the
+    /// in-app selection entirely).
+    var appliedInputDeviceID: AudioDeviceID?
 }
 
 enum AudioDeviceApplyError: Error, LocalizedError {
@@ -75,7 +80,8 @@ final class CoreAudioHALDeviceOwner: AudioDeviceOwning {
 
             return AudioDeviceOwnerApplyResult(
                 appliedInputDeviceUID: try verifiedActiveUID(targetInputDeviceID, direction: .input),
-                appliedOutputDeviceUID: try verifiedActiveUID(targetOutputDeviceID, direction: .output)
+                appliedOutputDeviceUID: try verifiedActiveUID(targetOutputDeviceID, direction: .output),
+                appliedInputDeviceID: targetInputDeviceID
             )
         } catch {
             let rollbackError = rollback(

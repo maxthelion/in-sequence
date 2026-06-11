@@ -276,7 +276,13 @@ final class MainAudioGraph {
             self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
 
-            if wasRunning {
+            // Live input monitoring needs a running engine even when the
+            // transport is stopped — without this, the input tap never
+            // delivers a buffer and the level meters sit silent until the
+            // user happens to press play.
+            let wantsLiveAudio = !Self.simulateAudioInputConnectionForTesting
+                && requests.contains { $0.source != .silent }
+            if wasRunning || wantsLiveAudio {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
@@ -569,6 +575,16 @@ final class MainAudioGraph {
 
             do {
                 let deviceResult = try deviceOwner.apply(inputUID: inputUID, outputUID: outputUID)
+                // Point the engine's input node at the applied device:
+                // AVAudioEngine input follows the SYSTEM default device
+                // unless told otherwise, silently ignoring the in-app
+                // selection. Only touch the input node when mic access is
+                // already granted (TCC).
+                if let inputDeviceID = deviceResult.appliedInputDeviceID,
+                   Self.liveAudioInputAuthorized,
+                   !Self.simulateAudioInputConnectionForTesting {
+                    try? self.engine.inputNode.auAudioUnit.setDeviceID(inputDeviceID)
+                }
                 try self.recoverAudioGraphAfterDeviceApply(wasRunning: wasRunning)
 
                 return AudioDeviceApplyResult(
@@ -1132,7 +1148,10 @@ final class MainAudioGraph {
             let clamped = min(deviceChannel, max(0, deviceChannelCount - 1))
             map = [NSNumber(value: clamped), NSNumber(value: clamped)]
         case let .stereo(firstChannel):
-            if firstChannel == 0 {
+            if deviceChannelCount <= 1 {
+                // Mono device: duplicate the only channel to both sides.
+                map = [NSNumber(value: 0), NSNumber(value: 0)]
+            } else if firstChannel == 0 {
                 map = nil
             } else {
                 let first = min(firstChannel, max(0, deviceChannelCount - 2))

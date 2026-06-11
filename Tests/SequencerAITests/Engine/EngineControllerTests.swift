@@ -2213,7 +2213,7 @@ final class EngineControllerTests: XCTestCase {
     /// at the old device's channel count after Preferences device changes).
     func test_applyAudioDeviceUIDs_resyncsAudioInputRouteState() throws {
         let controller = EngineController(client: nil, endpoint: nil)
-        controller.audioInputAvailableChannelCountOverrideForTesting = 1
+        controller.audioInputAvailableChannelCountOverrideForTesting = 0
         controller.audioDeviceApplyOverrideForTesting = { inputUID, outputUID in
             AudioDeviceApplyResult(
                 appliedInputDeviceUID: inputUID,
@@ -2332,7 +2332,7 @@ final class EngineControllerTests: XCTestCase {
 
     func test_audioInputRuntime_invalidRouteStaysSilentAndNonCrashing() throws {
         let controller = EngineController(client: nil, endpoint: nil)
-        controller.audioInputAvailableChannelCountOverrideForTesting = 1
+        controller.audioInputAvailableChannelCountOverrideForTesting = 0
         var project = Project.empty
         project.appendTrack(trackType: .audioInput)
         let trackID = project.selectedTrackID
@@ -2344,6 +2344,7 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(runtime.routeState, .silentUnavailable)
         XCTAssertTrue(runtime.isSilent)
 
+        controller.audioInputAvailableChannelCountOverrideForTesting = 1
         XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 0)))
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertEqual(runtime.routeState, .available)
@@ -3037,9 +3038,12 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(readout.requestedSource, .input)
     }
 
-    func test_audioInputRouting_unavailableInputStaysSilentUntilValidChannelSelected() throws {
+    func test_audioInputRouting_unavailableInputStaysSilentUntilDeviceProvidesChannels() throws {
+        // Truly unavailable = no input channels at all. (A stereo selection
+        // on a mono device is AVAILABLE now: the channel duplicates — track
+        // mode is never a hardware requirement.)
         let controller = EngineController(client: nil, endpoint: nil)
-        controller.audioInputAvailableChannelCountOverrideForTesting = 1
+        controller.audioInputAvailableChannelCountOverrideForTesting = 0
         var project = Project.empty
         project.appendTrack(trackType: .audioInput)
         let trackID = project.selectedTrackID
@@ -3054,6 +3058,7 @@ final class EngineControllerTests: XCTestCase {
         let invalidRuntime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         XCTAssertEqual(invalidRuntime.armState, .idle)
 
+        controller.audioInputAvailableChannelCountOverrideForTesting = 1
         XCTAssertTrue(controller.rerouteAudioInput(trackID: trackID, channel: .mono(channel: 0)))
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         XCTAssertEqual(readout.selectedChannel, .mono(channel: 0))

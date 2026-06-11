@@ -2777,7 +2777,11 @@ final class EngineController: RouterDispatcher {
         for channel: AudioInputChannel,
         availableChannelCount: Int
     ) -> AudioInputRouteState {
-        availableChannelCount >= channel.requiredChannelCount ? .available : .silentUnavailable
+        // Any input at all is routable: mono/stereo is a property of the
+        // track's content, never a hardware requirement. A stereo selection
+        // on a mono device duplicates; a mono selection beyond the device's
+        // channels clamps. The meters reveal one-sided signals.
+        availableChannelCount >= 1 ? .available : .silentUnavailable
     }
 
     /// Push per-track fader state to `sampleEngine`. Called from `syncAudioOutputs`

@@ -51,7 +51,9 @@ final class AudioInputChannelTests: XCTestCase {
     func test_options_follow_device_channel_count() {
         XCTAssertEqual(AudioInputChannel.monoOptions(channelCount: 0), [])
         XCTAssertEqual(AudioInputChannel.monoOptions(channelCount: 3).count, 3)
-        XCTAssertEqual(AudioInputChannel.stereoOptions(channelCount: 1), [])
+        // A mono device still offers the duplicated stereo pair.
+        XCTAssertEqual(AudioInputChannel.stereoOptions(channelCount: 1), [.stereo(firstChannel: 0)])
+        XCTAssertEqual(AudioInputChannel.stereoOptions(channelCount: 0), [])
         XCTAssertEqual(
             AudioInputChannel.stereoOptions(channelCount: 8),
             [.stereo(firstChannel: 0), .stereo(firstChannel: 2), .stereo(firstChannel: 4), .stereo(firstChannel: 6)]

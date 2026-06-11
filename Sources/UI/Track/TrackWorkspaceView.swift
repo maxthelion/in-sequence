@@ -531,8 +531,11 @@ private struct AudioInputRuntimePanel: View {
                         title: "Monitor",
                         selection: monitorBinding,
                         segments: [
-                            StudioSegment(title: "Input", value: .input),
-                            StudioSegment(title: "Loop", value: .loop),
+                            StudioSegment(title: "Live", value: .input),
+                            // "Buffer" = the captured take; selectable only
+                            // once one exists (live is the only option
+                            // before that).
+                            StudioSegment(title: "Buffer", value: .loop, isEnabled: runtime?.hasRecordedLoop == true),
                         ],
                         accent: StudioTheme.amber
                     )
@@ -543,7 +546,7 @@ private struct AudioInputRuntimePanel: View {
                         selection: channelModeBinding,
                         segments: [
                             StudioSegment(title: "Mono", value: false),
-                            StudioSegment(title: "Stereo", value: true, isEnabled: availableChannels >= 2),
+                            StudioSegment(title: "Stereo", value: true, isEnabled: availableChannels >= 1),
                         ],
                         accent: StudioTheme.cyan
                     )
@@ -557,7 +560,21 @@ private struct AudioInputRuntimePanel: View {
             }
         }
         .onAppear {
-            micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
+            refreshMicAccessStatus()
+        }
+        // The user grants/revokes in System Settings and comes back: TCC
+        // state changed behind our back, so re-read it whenever the app
+        // becomes active again (a cached "denied" otherwise sticks forever).
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshMicAccessStatus()
+        }
+    }
+
+    private func refreshMicAccessStatus() {
+        let previous = micAccess
+        micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
+        if micAccess == .authorized, previous != .authorized {
+            engineController.microphoneAccessChanged()
         }
     }
 
@@ -586,8 +603,8 @@ private struct AudioInputRuntimePanel: View {
             .buttonStyle(.link)
             .studioText(.microEmphasis)
             .tint(StudioTheme.amber)
-        } else if !canArmInput, !isArmedOrRecording {
-            Text(availableChannels == 0 ? "NO INPUTS ON INTERFACE" : "INPUT NEEDS \(channelRequirementLabel)")
+        } else if !canArmInput, !isArmedOrRecording, availableChannels == 0 {
+            Text("NO INPUT DEVICE")
                 .studioText(.microEmphasis)
                 .tracking(0.6)
                 .foregroundStyle(StudioTheme.amber)
