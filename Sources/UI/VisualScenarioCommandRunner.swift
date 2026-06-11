@@ -100,6 +100,7 @@ enum VisualScenarioCommandRunner {
         while !Task.isCancelled {
             if let payload = try? String(contentsOf: commandURL), payload != lastPayload {
                 lastPayload = payload
+                DevActivity.trace(DevActivity.harness, "apply command: \(payload.replacingOccurrences(of: "\n", with: "; "))")
                 apply(
                     command: parse(payload),
                     section: section,

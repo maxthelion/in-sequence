@@ -271,8 +271,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private func startVoiceSafely(_ voice: AVAudioPlayerNode) {
         guard audioGraph.isNodePlayableNow(voice) else { return }
         if let exception = SEQRunCatchingObjCException({ voice.play() }) {
-            NSLog("Dropped sample trigger: AVAudioPlayerNode.play threw %@: %@",
-                  exception.name.rawValue, exception.reason ?? "no reason")
+            DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: play threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
         }
     }
 
@@ -628,7 +627,32 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         voiceMode: SlicerVoiceMode,
         schedule: @escaping (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Void
     ) -> VoiceHandle? {
-        performOnMain { [self] in
+        if Thread.isMainThread {
+            return MainActor.assumeIsolated {
+                preparedVoicePlaybackOnMain(trackID: trackID, voiceMode: voiceMode, schedule: schedule)
+            }
+        }
+
+        // Tick/event-queue callers dispatch fire-and-forget: start times ride
+        // on the scheduled AVAudioTime, so async preserves timing — and a
+        // sync hop here deadlocks against TickClock.stop()'s queue join
+        // (main waits for the tick queue, the tick waits for main; observed
+        // as a full app hang). Engine callers discard the handle anyway.
+        DispatchQueue.main.async { [self] in
+            MainActor.assumeIsolated {
+                _ = preparedVoicePlaybackOnMain(trackID: trackID, voiceMode: voiceMode, schedule: schedule)
+            }
+        }
+        return nil
+    }
+
+    @MainActor
+    private func preparedVoicePlaybackOnMain(
+        trackID: UUID,
+        voiceMode: SlicerVoiceMode,
+        schedule: (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Void
+    ) -> VoiceHandle? {
+        do {
             var didRepair = false
 
             while true {

@@ -212,6 +212,7 @@ final class SequencerDocumentSession {
     /// immediately, cancelling any pending debounce task so it cannot double-write.
     /// Called from the save pre-hook, terminate, and resign-active handlers.
     func flushToDocumentSync() {
+        DevActivity.trace(DevActivity.session, "flushToDocumentSync")
         flushTask?.cancel()
         flushTask = nil
         let exported = store.exportToProject()

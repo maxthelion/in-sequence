@@ -187,6 +187,19 @@ write_notes() {
 }
 
 cleanup() {
+  # Never strand a driven instance: the last capture can leave the transport
+  # playing with a held note repeat, which reads as "the app is broken" (and
+  # previously exposed a stop/tick deadlock). Reset, then quit the app.
+  write_visual_command "transport=stop
+noteRepeatAction=release" 2>/dev/null || true
+  sleep 2
+  pgrep -x "$APP_NAME" 2>/dev/null | while read -r leftover_pid; do
+    kill "$leftover_pid" 2>/dev/null || true
+  done
+  sleep 1
+  pgrep -x "$APP_NAME" 2>/dev/null | while read -r leftover_pid; do
+    kill -9 "$leftover_pid" 2>/dev/null || true
+  done
   launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
   defaults delete "$bundle_id" VisualScenarioCommandFile >/dev/null 2>&1 || true
   write_notes

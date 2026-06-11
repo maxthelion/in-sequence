@@ -203,11 +203,16 @@ final class SamplePlaybackEngineTests: XCTestCase {
         }
     }
 
-    func test_playFromBackgroundQueue_usesPreparedVoice() throws {
+    /// Off-main play is fire-and-forget: it returns nil immediately (voice
+    /// handles are only meaningful to main-thread callers) and must never
+    /// sync onto the main thread — that hop deadlocked against
+    /// TickClock.stop()'s tick-queue join. The scheduling still lands via
+    /// the async main hop.
+    func test_playFromBackgroundQueue_isFireAndForgetWithoutBlocking() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
 
-        let expectation = expectation(description: "background sample play completes")
+        let returned = expectation(description: "background sample play returns")
         let trackID = UUID()
         engine.prepareTrack(trackID: trackID)
         let lock = NSLock()
@@ -218,14 +223,32 @@ final class SamplePlaybackEngineTests: XCTestCase {
             lock.lock()
             handle = result
             lock.unlock()
-            expectation.fulfill()
+            returned.fulfill()
         }
 
-        wait(for: [expectation], timeout: 2)
+        wait(for: [returned], timeout: 2)
         lock.lock()
         let resolvedHandle = handle
         lock.unlock()
-        XCTAssertNotNil(resolvedHandle)
+        XCTAssertNil(resolvedHandle)
+
+        // Drain the deferred main hop so the voice scheduling actually runs
+        // (this would surface a crash if the deferred path broke).
+        let drained = expectation(description: "main hop drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 2)
+    }
+
+    /// Main-thread play keeps returning a live voice handle.
+    func test_playFromMainThread_returnsHandle() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+
+        let handle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+
+        XCTAssertNotNil(handle)
     }
 
     func test_audition_runsIndependent() throws {
