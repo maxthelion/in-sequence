@@ -1,6 +1,10 @@
 import CoreGraphics
 
 enum StudioMetrics {
+    /// The one outline weight: outlines must read as drawn lines on the
+    /// near-black ground, so every standard control stroke uses this.
+    static let borderWidth: CGFloat = 1.5
+
     enum CornerRadius {
         static let workspace: CGFloat = 30
         static let chrome: CGFloat = 28
