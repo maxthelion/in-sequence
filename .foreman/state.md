@@ -47,6 +47,30 @@ resolutions written for mixer-tab-hang and fill-preview-placement feedback
   only when coreaudiod is healthy; if they fail with the kAUStartIO/990s
   signature, that is machine state, not code.
 
+## Autonomous phase (Max away, 2026-06-11 ~12:45)
+
+Standing instruction: clear all intents and bugs; park ear-dependent
+audio validation; master-render-to-file shipped (graph+engine+tests).
+
+In flight:
+- Agent: feature/library-pools worktree — building spec Parts 1-3
+  (recordings persist, library page, consumption hooks).
+- Agent: feature/ux-bug-sweep worktree — fixing the 9 open bug reports
+  per ux-canon.
+- On completion of each: verify (diff + suite + captures), gate, merge.
+
+Parked for Max's ears (attention list): buffer playback audibility
+(self-healing retry landed but unheard), input monitoring through EVO16,
+record-length click (trace added, needs one repro).
+
+Done this phase: intents inbox processed (roadmap items 28, 29); master
+render to file landed with tests; 9 stale feedback resolutions (2 left
+for the intent-drift lens: step-sequencer track-source-gap, clip-history
+live-buffer-save-arm).
+
+CAUTION (self): stage explicit paths only — `git add docs/roadmap` swept
+~30 untracked PM artifacts into 2dd2cb5c (kept; they are durable docs).
+
 ## Known machine-state hazards
 
 - TCC mic prompts re-arm on every rebuild (ad-hoc signing). The capture

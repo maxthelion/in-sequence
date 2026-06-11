@@ -153,10 +153,13 @@ struct TracksMatrixView: View {
     var body: some View {
         let tracks = session.store.tracks
         let selectedTrackID = session.store.selectedTrackID
+        // The top-nav pill already names this page; the panel renders no
+        // header of its own (ux-canon rule 1).
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
-                accent: isPerforming ? StudioTheme.amber : StudioTheme.cyan
+                accent: isPerforming ? StudioTheme.amber : StudioTheme.cyan,
+                showsHeader: false
             ) {
                 VStack(alignment: .leading, spacing: 18) {
                     actionBar
@@ -537,19 +540,11 @@ struct TracksMatrixView: View {
 
     private var performLayerSelectionSurface: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("CHOOSE TRACK LAYER")
-                        .studioText(.microEmphasis)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.amber)
-
-                    Text("Track cards return after a layer or inline variant is selected.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
+            HStack(alignment: .center, spacing: 12) {
+                Text("CHOOSE TRACK LAYER")
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.amber)
 
                 Spacer(minLength: 8)
 
@@ -1171,14 +1166,6 @@ private struct TrackMatrixCard: View {
         activePerformLayer?.binaryControl != nil
     }
 
-    private var activeLayerLabel: String {
-        guard let activePerformLayer else {
-            return layer.name
-        }
-        let suffix = activePerformVariantLabel.map { " \($0)" } ?? ""
-        return "\(activePerformLayer.compactLabel)\(suffix)"
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
@@ -1293,53 +1280,45 @@ private struct TrackMatrixCard: View {
                 accent: layerAccentColor
             )
         } else {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Text(activeLayerLabel.uppercased())
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(layerAccentColor)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-
-                    Text(cell.editMode.label.uppercased())
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-
-                    Spacer(minLength: 0)
-
-                    if isPerforming {
-                        Text(isPerformSelected ? "LINKED" : "LIVE")
-                            .font(.system(size: 8, weight: .bold))
-                            .tracking(0.6)
-                            .foregroundStyle(isPerformSelected ? StudioTheme.amber : layerAccentColor)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
-                            .lineLimit(1)
-                            .fixedSize()
-                    }
-                }
-
-                PhraseCellPreview(
-                    layer: layer,
-                    cell: cell,
-                    resolvedValue: resolvedValue,
-                    accent: layerAccentColor,
-                    summary: valueSummary,
-                    metrics: .matrix
-                )
-                .opacity(isPerforming ? 1 : 0.82)
-            }
+            // The action-bar layer control already names the active layer, the
+            // edit-set chrome already marks linked cards, and inherit/single
+            // shows as a muted variant — no per-card chips (ux-canon rule 1).
+            PhraseCellPreview(
+                layer: layer,
+                cell: cell,
+                resolvedValue: resolvedValue,
+                accent: layerAccentColor,
+                summary: valueSummary,
+                metrics: .matrix
+            )
+            .opacity(layerContentOpacity)
         }
+    }
+
+    private var layerContentOpacity: Double {
+        if cell.editMode == .inheritDefault {
+            return StudioOpacity.inheritedContent
+        }
+        return isPerforming ? 1 : 0.82
+    }
+
+    /// The active pattern's identity colour when the pattern layer drives this
+    /// card; the card itself takes the colour of the selected pattern.
+    private var activePatternColor: Color? {
+        guard layer.valueType == .patternIndex,
+              case let .index(index) = resolvedValue.normalized(for: layer)
+        else {
+            return nil
+        }
+        return StudioTheme.patternColor(index)
     }
 
     private var cardFill: Color {
         if isPerformSelected {
             return StudioTheme.amber.opacity(StudioOpacity.hoverFill)
+        }
+        if isPerforming, let activePatternColor {
+            return activePatternColor.opacity(StudioOpacity.hoverFill)
         }
         if isFocused {
             return accent.opacity(StudioOpacity.hoverFill)
@@ -1350,6 +1329,9 @@ private struct TrackMatrixCard: View {
     private var cardStroke: Color {
         if isPerformSelected {
             return StudioTheme.amber.opacity(StudioOpacity.accentFill)
+        }
+        if isPerforming, let activePatternColor {
+            return activePatternColor.opacity(StudioOpacity.accentFill)
         }
         if isPerforming {
             return layerAccentColor.opacity(StudioOpacity.accentFill)

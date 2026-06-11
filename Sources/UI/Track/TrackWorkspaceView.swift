@@ -144,7 +144,7 @@ struct TrackWorkspaceView: View {
 
     private var destinationColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Destination", eyebrow: "Current sink and routing target", accent: StudioTheme.success) {
+            StudioPanel(title: "Destination", accent: StudioTheme.success) {
                 TrackDestinationEditor(document: $document)
             }
 

@@ -15,7 +15,9 @@ struct MixerWorkspaceView: View {
             let presentation = MasterOutputColumnLayout.presentation(for: proxy.size.width)
 
             VStack(alignment: .leading, spacing: 18) {
-                StudioPanel(title: "Mixer", eyebrow: "Track strips active now", accent: StudioTheme.cyan) {
+                // The top-nav pill already names this page; the panel renders
+                // no header of its own (ux-canon rule 1).
+                StudioPanel(title: "Mixer", accent: StudioTheme.cyan, showsHeader: false) {
                     masterAwareMixer(presentation: presentation)
                 }
 

@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Pattern-slot cell: a 4×4 matrix of pills, one per pattern slot, with the
+/// active slot lit in that pattern's identity colour and the cell tinted to
+/// match. The matrix *is* the value — no "P1"/"Pattern slot" caption repeating
+/// what the layer header and the colour already say (ux-canon rules 1/3).
 struct PatternIndexCellPreview: View {
     let layer: PhraseLayerDefinition
     let resolvedValue: PhraseCellValue
@@ -8,39 +12,41 @@ struct PatternIndexCellPreview: View {
     let isMixed: Bool
     let metrics: CellPreviewMetrics
 
-    let slotCount = 8
+    private let slotCount = TrackPatternBank.slotCount
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: StudioMetrics.Spacing.hairline),
+        count: 4
+    )
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: StudioMetrics.Spacing.tight) {
+            LazyVGrid(columns: columns, spacing: StudioMetrics.Spacing.hairline) {
                 ForEach(0..<slotCount, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                         .fill(slotFill(for: index))
-                        .frame(height: 16)
+                        .frame(height: pillHeight)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                                 .stroke(slotStroke(for: index), lineWidth: 1)
                         )
                 }
             }
 
+            if isMixed {
+                Text("Mixed")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.text.opacity(0.85))
+                    .lineLimit(1)
+            }
+
             Spacer(minLength: 0)
-
-            Text(summary)
-                .studioText(.modalTitle)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-
-            Text(isMixed ? "Mixed member values" : "Pattern slot")
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.text.opacity(0.85))
-                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.compact)
         .frame(height: metrics.valueHeight)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .background(cellFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .accessibilityElement()
+        .accessibilityLabel(isMixed ? "Mixed pattern slots" : "Pattern \(summary)")
     }
 
     var activeIndex: Int? {
@@ -50,17 +56,38 @@ struct PatternIndexCellPreview: View {
         return nil
     }
 
-    func slotFill(for index: Int) -> Color {
-        guard let activeIndex else {
-            return Color.white.opacity(0.05)
+    private var activeColor: Color? {
+        activeIndex.map { StudioTheme.patternColor($0) }
+    }
+
+    private var pillHeight: CGFloat {
+        // Four pill rows plus the cell padding must fit metrics.valueHeight.
+        let inset = StudioMetrics.Spacing.compact * 2 + StudioMetrics.Spacing.hairline * 3
+        return max(8, (metrics.valueHeight - inset) / 4)
+    }
+
+    private var cellFill: Color {
+        guard let activeColor, !isMixed else {
+            return Color.white.opacity(StudioOpacity.subtleFill)
         }
-        return index == activeIndex ? accent.opacity(0.85) : Color.white.opacity(StudioOpacity.borderSubtle)
+        return activeColor.opacity(StudioOpacity.softFill)
+    }
+
+    func slotFill(for index: Int) -> Color {
+        guard let activeIndex, !isMixed else {
+            return Color.white.opacity(StudioOpacity.subtleFill)
+        }
+        return index == activeIndex
+            ? StudioTheme.patternColor(index).opacity(0.85)
+            : Color.white.opacity(StudioOpacity.borderSubtle)
     }
 
     func slotStroke(for index: Int) -> Color {
-        guard let activeIndex else {
+        guard let activeIndex, !isMixed else {
             return StudioTheme.border.opacity(0.4)
         }
-        return index == activeIndex ? accent.opacity(0.95) : StudioTheme.border.opacity(StudioOpacity.mediumStroke)
+        return index == activeIndex
+            ? StudioTheme.patternColor(index).opacity(0.95)
+            : StudioTheme.border.opacity(StudioOpacity.mediumStroke)
     }
 }

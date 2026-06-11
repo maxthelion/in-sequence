@@ -20,6 +20,7 @@ struct SliceTrackWorkspaceView: View {
     @State private var analysisSensitivity = 0.35
     @State private var analysisBars = 2
     @State private var analysisMessage: String?
+    @State private var isPresentingAddLoop = false
 
     private var track: StepSequenceTrack {
         session.store.selectedTrack
@@ -98,8 +99,10 @@ struct SliceTrackWorkspaceView: View {
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
                 .layoutPriority(1)
 
-            rightColumn
-                .frame(width: 340, alignment: .topLeading)
+            if currentSample != nil || !session.store.routesSourced(from: track.id).isEmpty {
+                rightColumn
+                    .frame(width: 340, alignment: .topLeading)
+            }
         }
         .onChange(of: clipContent.stepCount) { _, stepCount in
             selectedPage = min(selectedPage, pageCount(for: stepCount) - 1)
@@ -134,9 +137,17 @@ struct SliceTrackWorkspaceView: View {
                 }
             }
 
-            StudioPanel(title: "Step Layers", accent: accent) {
-                clipControls
+            // Step layers only exist once a loop is attached; without one
+            // there is nothing to slice or sequence.
+            if currentSample != nil {
+                StudioPanel(title: "Step Layers", accent: accent) {
+                    clipControls
+                }
             }
+        }
+        .sheet(isPresented: $isPresentingAddLoop) {
+            addLoopSheet
+                .presentationBackground(.clear)
         }
     }
 
@@ -363,8 +374,12 @@ struct SliceTrackWorkspaceView: View {
 
     private var rightColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Sample Player", eyebrow: selectedStepTitle, accent: StudioTheme.success) {
-                samplePlayerPanel
+            // No loop means no sample-player voices: the panel disappears
+            // instead of explaining itself (ux-canon rule 3).
+            if currentSample != nil {
+                StudioPanel(title: "Sample Player", eyebrow: selectedStepTitle, accent: StudioTheme.success) {
+                    samplePlayerPanel
+                }
             }
 
             if session.store.routesSourced(from: track.id).isEmpty == false {
@@ -383,12 +398,15 @@ struct SliceTrackWorkspaceView: View {
         selectedStepControls
     }
 
+    // The panel is hidden entirely when no loop is attached; guidance lives
+    // in tooltips, not on the surface (ux-canon rule 3).
     @ViewBuilder
     private var selectedStepControls: some View {
-        if currentSample == nil {
-            samplePlayerEmptyState(title: "No loop assigned", detail: "Create a slice track from a break loop first.")
-        } else if currentSliceSet?.userSliceCount ?? 0 == 0 {
-            samplePlayerEmptyState(title: "No slices yet", detail: "Run Auto Detect and apply the proposal before step destinations can target sample-player voices.")
+        if currentSliceSet?.userSliceCount ?? 0 == 0 {
+            samplePlayerEmptyState(
+                title: "No slices yet",
+                help: "Run Auto Detect on the loop and apply the proposal to create slices."
+            )
         } else if let assigned = selectedAssignedMarker,
                   let markerIndex = currentSliceSet?.markers.firstIndex(where: { $0.id == assigned.id }) {
             SliceSamplePlayerParametersView(
@@ -403,39 +421,86 @@ struct SliceTrackWorkspaceView: View {
                 )
             )
         } else {
-            samplePlayerEmptyState(title: "No assigned slice", detail: "Select a step with a slice, or choose a waveform slice for the selected step.")
+            samplePlayerEmptyState(
+                title: "No assigned slice",
+                help: "Select a step with a slice, or choose a waveform slice for the selected step."
+            )
         }
     }
 
-    private func samplePlayerEmptyState(title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .studioText(.bodyBold)
-                .foregroundStyle(StudioTheme.text)
-            Text(detail)
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
-        )
+    private func samplePlayerEmptyState(title: String, help: String) -> some View {
+        Text(title)
+            .studioText(.bodyBold)
+            .foregroundStyle(StudioTheme.mutedText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.standard)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: 1)
+            )
+            .help(help)
     }
 
+    // An empty slicer is just a plus card; choosing a loop attaches it in
+    // place (ux-canon rules 3/4).
     private var missingSampleState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("No loop assigned")
-                .studioText(.subtitle)
-                .foregroundStyle(StudioTheme.text)
-            Text("Create a new slice track from Tracks to attach a loop.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
+        StudioAddCard(
+            label: "Add Loop",
+            accent: accent,
+            minHeight: 180,
+            help: "Choose a break loop to slice"
+        ) {
+            isPresentingAddLoop = true
         }
-        .frame(maxWidth: .infinity, minHeight: 180, alignment: .center)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+    }
+
+    private var addLoopSheet: some View {
+        StudioModal(
+            title: "Add Loop",
+            subtitle: "Choose the break loop this track slices.",
+            minWidth: 440,
+            onClose: { isPresentingAddLoop = false }
+        ) {
+            let loops = AudioSampleLibrary.shared.samples(in: .breaks).sorted { lhs, rhs in
+                lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            }
+            if loops.isEmpty {
+                StudioPlaceholderTile(
+                    title: "No Break Loops",
+                    detail: "Add WAV loops to the library's breaks folder.",
+                    accent: accent
+                )
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(loops) { sample in
+                            StudioOptionButton(title: sample.name) {
+                                attachLoop(sample)
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 420)
+            }
+        }
+    }
+
+    private func attachLoop(_ sample: AudioSample) {
+        guard let url = try? sample.fileRef.resolve(libraryRoot: AudioSampleLibrary.shared.libraryRoot),
+              let file = try? AVAudioFile(forReading: url)
+        else {
+            return
+        }
+
+        var set = SliceSet(
+            sampleID: sample.id,
+            markers: [SliceMarker(startFrame: 0, endFrame: file.length)],
+            mode: .manual
+        )
+        set.normalize(sampleLengthFrames: file.length)
+        session.setSlicerDestination(sliceSet: set, settings: currentSettings, for: track.id)
+        isPresentingAddLoop = false
     }
 
     private func autoDetectControls(sample: AudioSample) -> some View {

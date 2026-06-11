@@ -61,11 +61,9 @@ struct ScenesWorkspaceView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if selectedSceneID == nil {
-                header
-            }
-
+        // No outer "Scenes" wrapper: the top-nav pill names the page and the
+        // Perform toggle lives inside the panel header (ux-canon rules 1/10).
+        Group {
             switch mode {
             case .browseEdit:
                 browseEdit
@@ -118,24 +116,16 @@ struct ScenesWorkspaceView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 14) {
-            Text("Scenes")
-                .studioText(.display)
-                .foregroundStyle(StudioTheme.text)
-
-            Spacer()
-
-            Button {
-                mode = mode == .perform ? .browseEdit : .perform
-            } label: {
-                Label("Perform", systemImage: mode == .perform ? "record.circle.fill" : "record.circle")
-                    .studioText(.labelBold)
-                    .frame(minWidth: 96)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(mode == .perform ? StudioTheme.amber : StudioTheme.cyan)
+    var performToggleButton: some View {
+        Button {
+            mode = mode == .perform ? .browseEdit : .perform
+        } label: {
+            Label("Perform", systemImage: mode == .perform ? "record.circle.fill" : "record.circle")
+                .studioText(.labelBold)
+                .frame(minWidth: 96)
         }
+        .buttonStyle(.borderedProminent)
+        .tint(mode == .perform ? StudioTheme.amber : StudioTheme.cyan)
     }
 
     @ViewBuilder
@@ -148,13 +138,15 @@ struct ScenesWorkspaceView: View {
     }
 
     private var sceneBrowser: some View {
-        StudioPanel(title: "Scene Library", accent: StudioTheme.amber) {
+        StudioPanel(title: "", accent: StudioTheme.amber) {
             LazyVGrid(columns: sceneColumns, spacing: 12) {
                 ForEach(masterBus.scenes) { scene in
                     sceneCard(scene)
                 }
                 addSceneCard
             }
+        } accessory: {
+            performToggleButton
         }
     }
 
