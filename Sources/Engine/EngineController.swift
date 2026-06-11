@@ -2445,7 +2445,7 @@ final class EngineController: RouterDispatcher {
             audioInputCaptureStore.keepOnly(trackIDs: desiredIDs)
         }
 
-        withStateLock {
+        let changed = withStateLock {
             var next = trackRuntime.audioInputRuntimes.filter { desiredIDs.contains($0.key) }
             for track in desiredTracks {
                 var runtime = next[track.id]
@@ -2463,8 +2463,13 @@ final class EngineController: RouterDispatcher {
 
             if next != trackRuntime.audioInputRuntimes {
                 trackRuntime.audioInputRuntimes = next
-                audioInputRuntimeRevision &+= 1
+                return true
             }
+            return false
+        }
+        if changed {
+            // @Observable bump outside stateLock (see updateAudioInputRuntime).
+            audioInputRuntimeRevision &+= 1
         }
     }
 
@@ -2537,6 +2542,18 @@ final class EngineController: RouterDispatcher {
     }
 
     private func advanceAudioInputScheduling(at tickIndex: UInt64) -> Bool {
+        let didChange = advanceAudioInputSchedulingLocked(at: tickIndex)
+        if didChange {
+            // @Observable bump outside stateLock (see updateAudioInputRuntime),
+            // and on main because this runs from the tick queue.
+            publishToMain { [weak self] in
+                self?.audioInputRuntimeRevision &+= 1
+            }
+        }
+        return didChange
+    }
+
+    private func advanceAudioInputSchedulingLocked(at tickIndex: UInt64) -> Bool {
         withStateLock {
             var didChange = false
             for trackID in trackRuntime.audioInputRuntimes.keys {
@@ -2593,9 +2610,6 @@ final class EngineController: RouterDispatcher {
                 }
             }
 
-            if didChange {
-                audioInputRuntimeRevision &+= 1
-            }
             return didChange
         }
     }
@@ -2676,15 +2690,23 @@ final class EngineController: RouterDispatcher {
         trackID: UUID,
         update: (inout AudioInputTrackRuntime) -> Void
     ) -> Bool {
-        withStateLock {
+        let updated = withStateLock {
             guard var runtime = trackRuntime.audioInputRuntimes[trackID] else {
                 return false
             }
             update(&runtime)
             trackRuntime.audioInputRuntimes[trackID] = runtime
-            audioInputRuntimeRevision &+= 1
             return true
         }
+        if updated {
+            // The @Observable revision bump must happen OUTSIDE stateLock:
+            // Observation's willSet can synchronously re-evaluate SwiftUI
+            // bodies, and those bodies read engine state through the same
+            // lock — observed as a main-thread deadlock the moment live
+            // input levels started publishing at 60Hz.
+            audioInputRuntimeRevision &+= 1
+        }
+        return updated
     }
 
     private func audioInputRouteState(for channel: AudioInputChannel) -> AudioInputRouteState {
