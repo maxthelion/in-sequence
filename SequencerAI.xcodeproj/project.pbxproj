@@ -379,6 +379,7 @@
 		D6DFC9EE621BE83C4C7F2F80 /* PresetBrowserSheetViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 297E258E996515214FFB0A30 /* PresetBrowserSheetViewModel.swift */; };
 		D7026E29D862915C2B3D0E97 /* AppSupportBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C92D949114A66DC7C85946B /* AppSupportBootstrap.swift */; };
 		D7767B9D5DC40FBF1880FC66 /* StarterSamples in Resources */ = {isa = PBXBuildFile; fileRef = 73939CA6CD87373673D1904C /* StarterSamples */; };
+		D822DD854A870642203D3093 /* DevActivityLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDF991F82BBF57F88DBBD0C /* DevActivityLog.swift */; };
 		D854C0CB12E239AB74987B2B /* BlockRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD557FC4B40463E9A90BAA0 /* BlockRegistry.swift */; };
 		D88E654CD1A505D6F7AF7CB5 /* StepCellContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C284AE78091D07683B8287B /* StepCellContent.swift */; };
 		D8FA3D3DE7571CED30C0A9EA /* PhraseLaunchGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68AC50A6C7EE1299BAE3643 /* PhraseLaunchGrid.swift */; };
@@ -951,6 +952,7 @@
 		5F321A75B2E13B96537229EB /* LibraryWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryWorkspaceView.swift; sourceTree = "<group>"; };
 		5F905C61C81FC1E24DACFB58 /* category-taxonomy.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "category-taxonomy.md"; sourceTree = "<group>"; };
 		5F97DA8B3D2F8DFB777FDB0F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		5FDF991F82BBF57F88DBBD0C /* DevActivityLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevActivityLog.swift; sourceTree = "<group>"; };
 		602521066F31995FF617B8F8 /* Project+Tracks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Tracks.swift"; sourceTree = "<group>"; };
 		605E4A01247A0458EA6EBF33 /* EngineControllerShutdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerShutdownTests.swift; sourceTree = "<group>"; };
 		607742ADE702356866A36B43 /* 2026-05-08T14-24-10Z-work-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T14-24-10Z-work-observer-cadence.md"; sourceTree = "<group>"; };
@@ -4003,6 +4005,7 @@
 		C3DFD140869C20CC10BBB3D0 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				5FDF991F82BBF57F88DBBD0C /* DevActivityLog.swift */,
 				4C628A4D3B0C74C813D1B84B /* PhrasePerformOverlayState.swift */,
 				F2BC3CC6385D68B4CC44C164 /* SequencerAIApp.swift */,
 				DDC8B78E1520E54A54C4AA07 /* SequencerAIAppDelegate.swift */,
@@ -5066,6 +5069,7 @@
 				AB32DFFD5DFD9FBF90A108E4 /* DAWNoteName.swift in Sources */,
 				8523DF43F275FD44AF6CD31B /* Destination.swift in Sources */,
 				8D388C560640B8F5A18DD3F4 /* DestinationSummary.swift in Sources */,
+				D822DD854A870642203D3093 /* DevActivityLog.swift in Sources */,
 				F0C002E857E8923CA3944DAA /* DrumAssetLibrary.swift in Sources */,
 				3A3A015CEE1FE4CBD087F985 /* DrumGroupPlan.swift in Sources */,
 				C927FBE07413B30C4223FC85 /* DrumGroupRoutingEditorDraft.swift in Sources */,
