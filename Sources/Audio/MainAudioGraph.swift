@@ -358,8 +358,22 @@ final class MainAudioGraph {
             }
 
             host.loopPlayer.stop()
-            host.loopPlayer.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
-            if self.engine.isRunning || self.isStarted {
+            // The player's connection format must match the captured buffer:
+            // scheduleBuffer throws an uncatchable NSException on a mismatch
+            // (observed: mono-interface capture against the stereo default
+            // connection). Reconnect with the buffer's own format.
+            self.engine.disconnectNodeOutput(host.loopPlayer)
+            self.engine.connect(host.loopPlayer, to: host.outputMixer, format: buffer.format)
+            if let exception = SEQRunCatchingObjCException({
+                host.loopPlayer.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+            }) {
+                DevActivity.trace(
+                    DevActivity.audioGraph,
+                    "loop schedule dropped: \(exception.name.rawValue): \(exception.reason ?? "no reason")"
+                )
+                return false
+            }
+            if self.engine.isRunning || self.isStarted, self.isNodePlayableNow(host.loopPlayer) {
                 host.loopPlayer.play()
             }
             host.scheduledLoopFrameCount = buffer.frameLength
