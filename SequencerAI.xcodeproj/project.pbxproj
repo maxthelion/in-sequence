@@ -275,6 +275,7 @@
 		9B5F2D2633C62F3E69E5D383 /* PhraseMatrixLayoutPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA87F72E0B799BB1BD52EDD /* PhraseMatrixLayoutPresentation.swift */; };
 		9BF946F71AC6615A39BC07F1 /* TrackSourceGeneratorSelectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD293C1665104F8520B0DF5 /* TrackSourceGeneratorSelectionSheet.swift */; };
 		9BFD7AD0489E91D31233CDB5 /* ClipPianoRollPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9A011013A46C4536AEE50D /* ClipPianoRollPreview.swift */; };
+		9C0A05CF310FC1CB39D1D133 /* LibraryAssetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666EF669720301BA50BF8480 /* LibraryAssetCatalog.swift */; };
 		9C25B356ECA1D8F046FABF95 /* ThrottledMixControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502A93B74D6805E67DA16441 /* ThrottledMixControl.swift */; };
 		9CAAE66D969C385F887A58F9 /* AddDestinationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD1A1AC6C6690AB9E9295956 /* AddDestinationSheet.swift */; };
 		9CD7A142C94A92F9B0852128 /* WaveformDownsamplerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B698555B717FC33A33579951 /* WaveformDownsamplerTests.swift */; };
@@ -398,6 +399,7 @@
 		DCE90760D458C6ECB991ADEC /* TrackFanOutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8089D62FCED221080CD45F1 /* TrackFanOutTests.swift */; };
 		DCEA5182138E0D1A74DB5F4C /* ScalesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD744CCDFC9A3A90E909A8B9 /* ScalesTests.swift */; };
 		DE6EC8E3F51E903CF3054A8A /* ProjectTrackMacroTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1525ED94BCDEB1DFAEAD1B2C /* ProjectTrackMacroTests.swift */; };
+		DE7E155B4DC728D3F7336A5A /* LibraryAssetCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76A702DE836B35158C5C1BFB /* LibraryAssetCatalogTests.swift */; };
 		DEE60AD6D95324501D916F60 /* StudioTypographyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8772C8554BBCE9F9C6026A /* StudioTypographyTests.swift */; };
 		DEE974187352B2C7D9A9F01A /* TrackSourceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6E8A6BE0603E794C25C6B4 /* TrackSourceCatalog.swift */; };
 		DF2370F27D9694B3498A6827 /* MultiDocumentEngineIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02F5350AA667365216279FB /* MultiDocumentEngineIsolationTests.swift */; };
@@ -994,6 +996,7 @@
 		6632AE4A48A3DF93372F2284 /* review-write-p0-performance-overlay-build-plan-through-lenses-regenerated-2026-05-07T110047Z.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "review-write-p0-performance-overlay-build-plan-through-lenses-regenerated-2026-05-07T110047Z.md"; sourceTree = "<group>"; };
 		6633C426F88100CB1CD30BBB /* ClipContent+Empty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ClipContent+Empty.swift"; sourceTree = "<group>"; };
 		663DFDB645E73535E488CD20 /* 2026-05-08T11-49-23Z-holistic-observer-completed.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T11-49-23Z-holistic-observer-completed.md"; sourceTree = "<group>"; };
+		666EF669720301BA50BF8480 /* LibraryAssetCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryAssetCatalog.swift; sourceTree = "<group>"; };
 		6677AB6EFE6E95D41DDB082C /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		667CECF7E644B8F4977DE591 /* architecture-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "architecture-review.md"; sourceTree = "<group>"; };
 		6692ECBC0B4761F8D8772550 /* PhraseCurvePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseCurvePreview.swift; sourceTree = "<group>"; };
@@ -1084,6 +1087,7 @@
 		764F3FE4A253C7E25877A970 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		766C257A66BCD3812FAC00F4 /* StepGridTapLatencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridTapLatencyTests.swift; sourceTree = "<group>"; };
 		768A4DC22657128DB981335A /* 2026-05-07-residual-terminal-review-pass-cleanup.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-07-residual-terminal-review-pass-cleanup.md"; sourceTree = "<group>"; };
+		76A702DE836B35158C5C1BFB /* LibraryAssetCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryAssetCatalogTests.swift; sourceTree = "<group>"; };
 		76ACB8C3B7AEA63FFF7328B9 /* ui-map.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "ui-map.json"; sourceTree = "<group>"; };
 		76EAF745BA4D770DD2EF6AA7 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
 		76FD26AC0C6F36A15CF48D56 /* ClipContentSliceTriggerModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipContentSliceTriggerModeTests.swift; sourceTree = "<group>"; };
@@ -2087,6 +2091,7 @@
 		15C98F2DC36FE362C6E34739 /* Library */ = {
 			isa = PBXGroup;
 			children = (
+				666EF669720301BA50BF8480 /* LibraryAssetCatalog.swift */,
 				5F321A75B2E13B96537229EB /* LibraryWorkspaceView.swift */,
 			);
 			path = Library;
@@ -3048,6 +3053,7 @@
 				A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */,
 				9B0A83F64B6822F0BB72917E /* DrumGroupRoutingEditorDraftTests.swift */,
 				D607B232B0B516E5513AA5A6 /* DrumKitMatrixEditingTests.swift */,
+				76A702DE836B35158C5C1BFB /* LibraryAssetCatalogTests.swift */,
 				F30664B65174D4DBC1A81EB5 /* MacroPickerCandidateRankerTests.swift */,
 				2CBCB8E4F9E187F153308E8E /* MixerMasterOutputTests.swift */,
 				05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */,
@@ -4950,6 +4956,7 @@
 				CD365053A22AE3B4D897BA9D /* GeneratorPoolEntryTests.swift in Sources */,
 				0B11AE0AB6086DAE708E4529 /* GridEditorTests.swift in Sources */,
 				E5DED0443CBBFBB090BFA6DF /* IncrementalCompileEquivalenceTests.swift in Sources */,
+				DE7E155B4DC728D3F7336A5A /* LibraryAssetCatalogTests.swift in Sources */,
 				B2571100CA4DC6AC75A26EBA /* LiveSequencerStoreResidentStateTests.swift in Sources */,
 				350297ECD76C2570D5737ECA /* LiveStoreTestSupport.swift in Sources */,
 				CCDD8565324F4AABBC097EE0 /* LiveWorkspaceViewTests.swift in Sources */,
@@ -5148,6 +5155,7 @@
 				48BD197D4D71219D62370DF4 /* GridEditor.swift in Sources */,
 				295A4BEED435806DC5E40E53 /* InspectorView.swift in Sources */,
 				867B3BFA293DB32F9C69AC3F /* LayerSnapshot.swift in Sources */,
+				9C0A05CF310FC1CB39D1D133 /* LibraryAssetCatalog.swift in Sources */,
 				26E606AE1548634F48D2DFAB /* LibraryWorkspaceView.swift in Sources */,
 				5A62F6A8B55ABD5D639A206A /* LiveSequencerStore+Accessors.swift in Sources */,
 				F98D02D44AE1C4B1C07C4832 /* LiveSequencerStore.swift in Sources */,

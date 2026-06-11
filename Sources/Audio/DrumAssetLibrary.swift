@@ -25,6 +25,9 @@ final class DrumAssetLibrary {
     let libraryRoot: URL
     private(set) var userKits: [DrumKit]
     private(set) var userTemplates: [PatternTemplate]
+    /// Global step-order presets, persisted as JSON manifests under
+    /// `<libraryRoot>/step-order-maps/*.json`. No factory content.
+    private(set) var userStepOrderMaps: [StepOrderMap]
 
     /// Factory + user kits.
     var kits: [DrumKit] {
@@ -40,11 +43,13 @@ final class DrumAssetLibrary {
         self.libraryRoot = libraryRoot
         self.userKits = Self.loadManifests(in: libraryRoot.appendingPathComponent("kits", isDirectory: true))
         self.userTemplates = Self.loadManifests(in: libraryRoot.appendingPathComponent("templates", isDirectory: true))
+        self.userStepOrderMaps = Self.loadManifests(in: libraryRoot.appendingPathComponent("step-order-maps", isDirectory: true))
     }
 
     func reload() {
         userKits = Self.loadManifests(in: libraryRoot.appendingPathComponent("kits", isDirectory: true))
         userTemplates = Self.loadManifests(in: libraryRoot.appendingPathComponent("templates", isDirectory: true))
+        userStepOrderMaps = Self.loadManifests(in: libraryRoot.appendingPathComponent("step-order-maps", isDirectory: true))
     }
 
     // MARK: - Queries
@@ -55,6 +60,10 @@ final class DrumAssetLibrary {
 
     func template(id: UUID) -> PatternTemplate? {
         templates.first(where: { $0.id == id })
+    }
+
+    func stepOrderMap(id: StepOrderMapID) -> StepOrderMap? {
+        userStepOrderMaps.first(where: { $0.id == id })
     }
 
     // MARK: - Factory content
