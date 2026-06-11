@@ -59,6 +59,14 @@ final class AudioSampleLibrary {
         return peers[(idx - 1 + peers.count) % peers.count]
     }
 
+    /// Stable sample ID for a library-relative path (e.g. `"recordings/Take 1.wav"`).
+    /// This is the same UUIDv5 derivation `scan` uses, so other libraries that
+    /// write files into the sample-library tree (recordings) can mint IDs that
+    /// match what this library will assign on its next scan.
+    static func stableID(forRelativePath relativePath: String) -> UUID {
+        uuidV5(namespace: namespace, name: relativePath)
+    }
+
     // MARK: - Scan
 
     private static func scan(root: URL) -> [AudioSample] {

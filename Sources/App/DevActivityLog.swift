@@ -17,6 +17,7 @@ enum DevActivity {
     static let audioGraph = Logger(subsystem: subsystem, category: "audio-graph")
     static let harness = Logger(subsystem: subsystem, category: "harness")
     static let session = Logger(subsystem: subsystem, category: "session")
+    static let library = Logger(subsystem: subsystem, category: "library")
 
     /// One-line activity trace. The autoclosure keeps message construction
     /// out of release builds entirely.

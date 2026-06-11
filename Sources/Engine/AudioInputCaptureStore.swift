@@ -450,6 +450,16 @@ final class AudioInputCaptureStore {
         return pcm.flatMap(Self.makeBuffer)
     }
 
+    /// The raw PCM of the last completed capture, if it is still resident.
+    /// Value-typed (COW), so callers can hand it to a background writer
+    /// without copying or retaining store internals.
+    func completedLoopPCM(trackID: UUID) -> AudioInputCapturedPCM? {
+        lock.lock()
+        let pcm = states[trackID]?.completedLoopPCM
+        lock.unlock()
+        return pcm
+    }
+
     static func summarize(buffer: AVAudioPCMBuffer) -> AudioInputCaptureBufferSummary {
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0,

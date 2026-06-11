@@ -5,6 +5,7 @@ enum AudioSampleCategory: String, Codable, CaseIterable, Equatable, Hashable, Se
     case ride, crash, cowbell, tambourine, shaker
     case percussion
     case breaks
+    case recordings
     case unknown
 
     var displayName: String {
@@ -26,6 +27,7 @@ enum AudioSampleCategory: String, Codable, CaseIterable, Equatable, Hashable, Se
         case .shaker: return "Shaker"
         case .percussion: return "Percussion"
         case .breaks: return "Breaks"
+        case .recordings: return "Recordings"
         case .unknown: return "Unknown"
         }
     }
@@ -37,7 +39,7 @@ enum AudioSampleCategory: String, Codable, CaseIterable, Equatable, Hashable, Se
              .tomLow, .tomMid, .tomHi,
              .ride, .crash, .cowbell, .tambourine, .shaker, .percussion:
             return true
-        case .breaks, .unknown:
+        case .breaks, .recordings, .unknown:
             return false
         }
     }

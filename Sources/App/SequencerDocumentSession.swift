@@ -55,7 +55,8 @@ final class SequencerDocumentSession {
             audioOutputFactory: audioOutputFactory,
             mainAudioGraph: audioGraph,
             sampleEngine: SamplePlaybackEngine(audioGraph: audioGraph),
-            publishesAudioInputCapture: true
+            publishesAudioInputCapture: true,
+            recordingLibrary: .shared
         )
         let initialStore = LiveSequencerStore(project: document.wrappedValue.project)
         self.store = initialStore

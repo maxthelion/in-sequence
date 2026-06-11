@@ -32,6 +32,10 @@ extension EngineController {
         var armedRecordBarLength: Int?
         var recordedLoopID: UUID?
         var recordedLoopBarLength: Int?
+        /// Library asset ID of the persisted take, set once the recording's
+        /// WAV + sidecar land in the `RecordingLibrary` (async, off the tick
+        /// path). Nil while the write is in flight or if it failed.
+        var recordedLibraryAssetID: UUID?
         var scheduledLoopPlaybackID: UUID?
         var selectedInputChannel: AudioInputChannel
         var routeState: AudioInputRouteState
@@ -61,6 +65,7 @@ extension EngineController {
             self.armedRecordBarLength = nil
             self.recordedLoopID = nil
             self.recordedLoopBarLength = nil
+            self.recordedLibraryAssetID = nil
             self.scheduledLoopPlaybackID = nil
             self.selectedInputChannel = selectedInputChannel
             self.routeState = routeState

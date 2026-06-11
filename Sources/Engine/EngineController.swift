@@ -100,6 +100,16 @@ final class EngineController: RouterDispatcher {
     private var macroApplier: TrackMacroApplier!
     private let sampleLibrary: AudioSampleLibrary
     private var sampleLibraryRoot: URL { sampleLibrary.libraryRoot }
+    /// Destination for completed audio-input captures. Nil (the default for
+    /// engine-only constructions, e.g. unit tests) disables persistence; the
+    /// production document session injects `RecordingLibrary.shared`.
+    private let recordingLibrary: RecordingLibrary?
+    /// Recording WAV/sidecar writes happen here — never on the tick queue or
+    /// main. Utility QoS: a late library write must not compete with audio.
+    private let recordingPersistenceQueue = DispatchQueue(
+        label: "ai.sequencer.SequencerAI.RecordingPersistence",
+        qos: .utility
+    )
 
     private(set) var isRunning = false
     private(set) var currentBPM: Double
@@ -465,11 +475,13 @@ final class EngineController: RouterDispatcher {
         sampleEngine: SamplePlaybackSink? = nil,
         sampleLibrary: AudioSampleLibrary = .shared,
         masterBusHost: MasterBusHosting = MasterBusHost(),
-        publishesAudioInputCapture: Bool = false
+        publishesAudioInputCapture: Bool = false,
+        recordingLibrary: RecordingLibrary? = nil
     ) {
         self.mainAudioGraph = mainAudioGraph
         self.sampleEngine = sampleEngine ?? SamplePlaybackEngine(audioGraph: mainAudioGraph)
         self.sampleLibrary = sampleLibrary
+        self.recordingLibrary = recordingLibrary
         self.masterBusHost = masterBusHost
         self.midiClient = client
         self.endpoint = endpoint
@@ -742,6 +754,7 @@ final class EngineController: RouterDispatcher {
             runtime.armedRecordBarLength = nil
             runtime.recordedLoopID = UUID()
             runtime.recordedLoopBarLength = runtime.recordBarLength
+            runtime.recordedLibraryAssetID = nil
             runtime.scheduledLoopPlaybackID = nil
             runtime.transientFrameCount = 0
             applyAudioInputCaptureSnapshot(
@@ -2671,15 +2684,21 @@ final class EngineController: RouterDispatcher {
         runtime.armedRecordBarLength = nil
         runtime.recordedLoopID = UUID()
         runtime.recordedLoopBarLength = bars
+        runtime.recordedLibraryAssetID = nil
         runtime.scheduledLoopPlaybackID = nil
         runtime.transientFrameCount = Int(tickIndex &- startTick)
-        applyAudioInputCaptureSnapshot(
-            readAudioInputCaptureStore {
-                audioInputCaptureStore.completeCapture(trackID: runtime.trackID)
-            },
-            to: &runtime
-        )
+        let completedPCM = readAudioInputCaptureStore { () -> AudioInputCapturedPCM? in
+            applyAudioInputCaptureSnapshot(
+                audioInputCaptureStore.completeCapture(trackID: runtime.trackID),
+                to: &runtime
+            )
+            return audioInputCaptureStore.completedLoopPCM(trackID: runtime.trackID)
+        }
         audioInputCapturePCMWriterSlot.install(nil)
+        // Persist the take into the global recording library. We only capture
+        // the PCM reference here (value type, COW); the file write happens on
+        // the persistence queue — never on this tick path and never on main.
+        schedulePersistCapturedRecording(pcm: completedPCM, trackID: runtime.trackID, barCount: bars)
         // Auto-switch to Buffer the moment the take completes (owner
         // direction): the captured loop becomes what you hear; Live is one
         // toggle away. Completion lands on a bar boundary, so entry is
@@ -2687,6 +2706,61 @@ final class EngineController: RouterDispatcher {
         runtime.monitorMode = .loop
         runtime.pendingLoopStartTick = nil
         runtime.activeMonitorMode = .loop
+    }
+
+    /// Test observation of the async recording persistence (success or
+    /// failure). Invoked on the main thread after the runtime tag lands.
+    var recordingPersistenceObserverForTesting: ((Result<RecordingAsset, Error>) -> Void)?
+
+    /// Write a completed capture into the recording library. Name/BPM are
+    /// main-published state, so they resolve on main; the blocking file IO
+    /// runs on `recordingPersistenceQueue`. A write failure traces to the
+    /// activity log and leaves the in-memory loop untouched — the session
+    /// keeps playing from memory.
+    private func schedulePersistCapturedRecording(
+        pcm: AudioInputCapturedPCM?,
+        trackID: UUID,
+        barCount: Int
+    ) {
+        guard let recordingLibrary else { return }
+        guard let pcm, pcm.frameCount > 0 else {
+            DevActivity.trace(DevActivity.library, "recording persist skipped: no PCM for track \(trackID)")
+            return
+        }
+
+        publishToMain { [weak self] in
+            guard let self else { return }
+            let trackName = self.currentDocumentModel.tracks.first(where: { $0.id == trackID })?.name ?? "Audio Input"
+            let bpm = self.currentBPM
+            self.recordingPersistenceQueue.async { [weak self] in
+                guard let self else { return }
+                do {
+                    let asset = try recordingLibrary.storeRecording(
+                        pcm: pcm,
+                        sourceTrackName: trackName,
+                        barCount: barCount,
+                        bpm: bpm
+                    )
+                    DevActivity.trace(DevActivity.library, "recording persisted: \(asset.fileName)")
+                    self.publishToMain { [weak self] in
+                        guard let self else { return }
+                        _ = self.updateAudioInputRuntime(trackID: trackID) { runtime in
+                            runtime.recordedLibraryAssetID = asset.id
+                        }
+                        // Recordings double as samples; rescan so pickers see
+                        // the new take without an app restart.
+                        self.sampleLibrary.reload()
+                        self.recordingPersistenceObserverForTesting?(.success(asset))
+                    }
+                } catch {
+                    NSLog("[EngineController] recording persist failed (loop keeps playing from memory): \(error)")
+                    DevActivity.trace(DevActivity.library, "recording persist FAILED: \(error)")
+                    self.publishToMain { [weak self] in
+                        self?.recordingPersistenceObserverForTesting?(.failure(error))
+                    }
+                }
+            }
+        }
     }
 
     private func updateAudioInputRuntime(
