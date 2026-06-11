@@ -180,8 +180,19 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func scheduledAudioTime(for scheduledHostTime: TimeInterval) -> AVAudioTime {
-        AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, scheduledHostTime)))
+    /// Test-only: when set, replaces the host-time conversion for scheduled
+    /// audio events. The offline render harness drives `processTick` with a
+    /// synthetic timeline and maps event times onto the manual-rendering
+    /// sample clock (or returns nil for "play at the next rendered frame").
+    /// Production never sets this.
+    @ObservationIgnored
+    var scheduledAudioTimeOverrideForTesting: ((TimeInterval) -> AVAudioTime?)?
+
+    private func scheduledAudioTime(for scheduledHostTime: TimeInterval) -> AVAudioTime? {
+        if let scheduledAudioTimeOverrideForTesting {
+            return scheduledAudioTimeOverrideForTesting(scheduledHostTime)
+        }
+        return AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, scheduledHostTime)))
     }
 
     private func publishNoteActivity(uptime: TimeInterval, count: Int) {
@@ -547,6 +558,30 @@ final class EngineController: RouterDispatcher {
         clock.start { [weak self] tickIndex, now in
             self?.processTick(tickIndex: tickIndex, now: now)
         }
+    }
+
+    /// Test-only: identical to `start()` minus starting the wall-clock
+    /// TickClock. The caller drives `processTick(tickIndex:now:)` manually
+    /// with a synthetic timeline (offline render harness). `stop()` tears
+    /// down as usual — `clock.stop()` is a no-op when the clock never ran.
+    func startTransportWithoutClockForTesting(now: TimeInterval) {
+        guard !isRunning, executor != nil else {
+            return
+        }
+        DevActivity.trace(DevActivity.engine, "EngineController.startTransportWithoutClockForTesting")
+
+        initializePhraseNavigationForPlaybackStart(
+            snapshot: tickState.currentPlaybackSnapshot(),
+            cycleStartTick: 0
+        )
+        let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
+        hosts.forEach { $0.startIfNeeded() }
+        try? sampleEngine.start()
+
+        prepareTick(upcomingStep: 0, now: now)
+        promotePreparedNoteRepeatCapture(for: 0)
+        tickState.markPreparedTick(0)
+        isRunning = true
     }
 
     func stop() {
