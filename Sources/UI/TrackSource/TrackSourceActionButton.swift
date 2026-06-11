@@ -9,11 +9,10 @@ struct TrackSourceActionButton: View {
         Button(action: action) {
             Text(title)
                 .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(StudioTheme.background)
                 .padding(.vertical, 8)
                 .padding(.horizontal, 12)
-                .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                .overlay(Capsule().stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
+                .background(accent, in: Capsule())
         }
         .buttonStyle(.plain)
     }

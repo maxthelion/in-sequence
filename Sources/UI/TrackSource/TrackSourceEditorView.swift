@@ -271,11 +271,10 @@ struct TrackSourceEditorView: View {
             if let clipHistoryToast {
                 Text(clipHistoryToast)
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
-                    .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: Capsule())
-                    .overlay(Capsule().stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
+                    .background(StudioTheme.success, in: Capsule())
                     .padding(StudioMetrics.Spacing.comfortable)
             }
         }
@@ -538,7 +537,9 @@ struct TrackSourceEditorView: View {
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 10)
-            .background(StudioTheme.success.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            // Colour identifies, it never floods (ux-canon rule 12): the armed
+            // banner stays neutral; the green lives in its outline.
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)

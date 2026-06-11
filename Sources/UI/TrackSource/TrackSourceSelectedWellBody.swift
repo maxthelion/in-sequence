@@ -4,7 +4,6 @@ struct TrackSourceSelectedWellBodyPresentation: Equatable {
     let isEmpty: Bool
 
     var usesDashedStroke: Bool { false }
-    var usesActiveSectionFill: Bool { true }
 }
 
 struct TrackSourceSelectedWellBody<Content: View>: View {
@@ -31,8 +30,10 @@ struct TrackSourceSelectedWellBody<Content: View>: View {
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Colour identifies, it never floods (ux-canon rule 12): the well body
+        // is neutral; its accent lives in the outline and the solid tab badge.
         .background(
-            accent.opacity(presentation.usesActiveSectionFill ? StudioOpacity.selectedFill : StudioOpacity.subtleFill),
+            Color.white.opacity(StudioOpacity.subtleFill),
             in: shape
         )
         .overlay(

@@ -60,7 +60,7 @@ struct TrackPatternSlotPalette: View {
                 HStack(spacing: 6) {
                     Text("\(slotIndex + 1)")
                         .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(hasSolidFill(for: slotIndex, isBypassed: isBypassed) ? StudioTheme.background : StudioTheme.text)
 
                     Circle()
                         .fill(indicatorFill(for: slotIndex, isBypassed: isBypassed))
@@ -98,7 +98,7 @@ struct TrackPatternSlotPalette: View {
                 } label: {
                     Text(isBypassed ? "C" : "G")
                         .font(.system(size: 9, weight: .black, design: .rounded))
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(StudioTheme.background)
                         .frame(width: 14, height: 14)
                         .background(bypassBadgeFill(isBypassed), in: Circle())
                         .overlay(Circle().stroke(StudioTheme.border, lineWidth: 0.5))
@@ -110,23 +110,25 @@ struct TrackPatternSlotPalette: View {
         }
     }
 
+    /// Colour identifies, it never floods (ux-canon rule 12): a slot pad is
+    /// either fully solid accent (selected/pending) or neutral with an accent
+    /// outline + indicator dot — never a translucent accent wash.
+    private func hasSolidFill(for slotIndex: Int, isBypassed: Bool) -> Bool {
+        if let destinationMode {
+            return destinationMode.pendingReplaceSlot == slotIndex
+        }
+        return selectedSlot == slotIndex
+    }
+
     private func backgroundFill(for slotIndex: Int, isBypassed: Bool) -> Color {
         if let destinationMode {
             if destinationMode.pendingReplaceSlot == slotIndex {
-                return StudioTheme.amber.opacity(StudioOpacity.selectedFill)
+                return StudioTheme.amber
             }
-            return destinationMode.accent.opacity(destinationPulse ? StudioOpacity.softStroke : StudioOpacity.selectedFill)
-        }
-        if isBypassed {
-            return selectedSlot == slotIndex
-                ? StudioTheme.violet.opacity(StudioOpacity.softStroke)
-                : StudioTheme.violet.opacity(StudioOpacity.mutedFill)
+            return Color.white.opacity(StudioOpacity.subtleFill)
         }
         if selectedSlot == slotIndex {
-            return StudioTheme.success.opacity(StudioOpacity.softStroke)
-        }
-        if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(StudioOpacity.borderFaint)
+            return isBypassed ? StudioTheme.violet : StudioTheme.success
         }
         return Color.white.opacity(StudioOpacity.subtleFill)
     }
@@ -140,11 +142,11 @@ struct TrackPatternSlotPalette: View {
         }
         if isBypassed {
             return selectedSlot == slotIndex
-                ? StudioTheme.violet.opacity(0.7)
+                ? StudioTheme.violet
                 : StudioTheme.violet.opacity(0.4)
         }
         if selectedSlot == slotIndex {
-            return StudioTheme.success.opacity(0.7)
+            return StudioTheme.success
         }
         if occupiedSlots.contains(slotIndex) {
             return StudioTheme.success.opacity(StudioOpacity.subtleStroke)
@@ -153,28 +155,23 @@ struct TrackPatternSlotPalette: View {
     }
 
     private func indicatorFill(for slotIndex: Int, isBypassed: Bool) -> Color {
+        if hasSolidFill(for: slotIndex, isBypassed: isBypassed) {
+            return StudioTheme.background
+        }
         if let destinationMode {
-            if destinationMode.pendingReplaceSlot == slotIndex {
-                return StudioTheme.amber
-            }
             return occupiedSlots.contains(slotIndex) ? StudioTheme.success : destinationMode.accent
         }
         if isBypassed {
-            return selectedSlot == slotIndex
-                ? StudioTheme.violet
-                : StudioTheme.violet.opacity(0.6)
-        }
-        if selectedSlot == slotIndex {
-            return StudioTheme.success
+            return StudioTheme.violet
         }
         if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(0.6)
+            return StudioTheme.success
         }
         return Color.white.opacity(StudioOpacity.borderFaint)
     }
 
     private func bypassBadgeFill(_ isBypassed: Bool) -> Color {
-        isBypassed ? StudioTheme.violet.opacity(StudioOpacity.accentFill) : StudioTheme.cyan.opacity(StudioOpacity.accentFill)
+        isBypassed ? StudioTheme.violet : StudioTheme.cyan
     }
 
     private func borderWidth(for slotIndex: Int) -> CGFloat {

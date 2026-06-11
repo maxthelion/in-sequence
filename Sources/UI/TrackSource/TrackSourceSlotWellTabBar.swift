@@ -156,8 +156,11 @@ struct TrackSourceSlotWellTabBar: View {
                     .frame(height: 2)
             }
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // selected tab keeps the neutral fill; its accent lives in the
+            // outline, underline, and solid state badge.
             .background(
-                (isSelected ? selectedAccent.opacity(StudioOpacity.selectedFill) : Color.white.opacity(StudioOpacity.subtleFill)),
+                Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
             )
             .overlay(
@@ -189,16 +192,12 @@ struct TrackSourceSlotWellTabBar: View {
     private func badge(title: String, accent: Color) -> some View {
         Text(title)
             .font(.system(size: 10, weight: .black, design: .rounded))
-            .foregroundStyle(StudioTheme.text)
+            .foregroundStyle(StudioTheme.background)
             .padding(.vertical, 3)
             .padding(.horizontal, 7)
             .background(
-                accent.opacity(StudioOpacity.selectedFill),
+                accent,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
     }
 }

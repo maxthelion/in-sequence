@@ -61,11 +61,10 @@ struct GeneratorAttachmentControl: View {
                 Button(action: onAdd) {
                     Text("Add Generator")
                         .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(StudioTheme.background)
                         .padding(.vertical, 7)
                         .padding(.horizontal, 14)
-                        .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                        .overlay(Capsule().stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
+                        .background(accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
 

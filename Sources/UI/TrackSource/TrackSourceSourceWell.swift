@@ -168,14 +168,10 @@ struct TrackSourceSourceWell: View {
     private func sourceBadge(title: String, accent: Color) -> some View {
         Text(title)
             .font(.system(size: 11, weight: .black, design: .rounded))
-            .foregroundStyle(StudioTheme.text)
+            .foregroundStyle(StudioTheme.background)
             .padding(.vertical, 6)
             .padding(.horizontal, 9)
-            .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
-            )
+            .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
     private func removeButton(action: @escaping () -> Void) -> some View {

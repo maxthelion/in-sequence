@@ -42,7 +42,7 @@ struct ClipPianoRollPreview: View {
                 ForEach(notes) { note in
                     let yIndex = pitchRange.upperBound - note.pitch
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(StudioTheme.violet.opacity(0.82))
+                        .fill(StudioTheme.violet)
                         .frame(
                             width: max(stepWidth * CGFloat(note.lengthSteps) - 2, 6),
                             height: max(noteHeight - 3, 6)

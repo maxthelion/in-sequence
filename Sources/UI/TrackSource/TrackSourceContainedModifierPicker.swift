@@ -184,8 +184,10 @@ struct TrackSourceContainedModifierPicker: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.standard)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // action tile stays neutral; its accent lives in the outline.
             .background(
-                accent.opacity(StudioOpacity.selectedFill),
+                Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(

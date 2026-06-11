@@ -35,7 +35,7 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
             ForEach(Array(values.enumerated()), id: \.offset) { index, value in
                 VStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(accent.opacity(0.85))
+                        .fill(accent)
                         .frame(height: max(10, 64 * CGFloat(normalizedFill(for: value))))
                         .frame(maxHeight: .infinity, alignment: .bottom)
                     Text("\(index + indexOffset + 1)")

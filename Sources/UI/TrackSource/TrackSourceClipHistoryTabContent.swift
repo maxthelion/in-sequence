@@ -45,14 +45,14 @@ struct TrackSourceClipHistoryTabContent: View {
             } label: {
                 Text(isDestinationMode ? "Choose Slot" : "Save Clip")
                     .studioText(.labelBold)
-                    .foregroundStyle(model.selectedPseudoClip == nil ? StudioTheme.mutedText : StudioTheme.text)
+                    .foregroundStyle(model.selectedPseudoClip == nil ? StudioTheme.mutedText : StudioTheme.background)
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
                     .background(
-                        (model.selectedPseudoClip == nil ? Color.white.opacity(StudioOpacity.subtleFill) : accent.opacity(StudioOpacity.selectedFill)),
+                        (model.selectedPseudoClip == nil ? Color.white.opacity(StudioOpacity.subtleFill) : accent),
                         in: Capsule()
                     )
-                    .overlay(Capsule().stroke(model.selectedPseudoClip == nil ? StudioTheme.border : accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
+                    .overlay(Capsule().stroke(model.selectedPseudoClip == nil ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .disabled(model.selectedPseudoClip == nil || isDestinationMode)
@@ -68,11 +68,10 @@ struct TrackSourceClipHistoryTabContent: View {
 
                 Text(model.previewLengthLabel)
                     .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .padding(.vertical, 4)
                     .padding(.horizontal, 8)
-                    .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                    .overlay(Capsule().stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth))
+                    .background(accent, in: Capsule())
 
                 if model.isAuditioning {
                     Text("Auditioning")
@@ -135,15 +134,15 @@ struct TrackSourceClipHistoryTabContent: View {
     }
 
     private func lengthOptionTextColor(_ option: Int) -> Color {
-        lengthOptionIsActive(option) ? StudioTheme.text : StudioTheme.mutedText
+        lengthOptionIsActive(option) ? StudioTheme.background : StudioTheme.mutedText
     }
 
     private func lengthOptionBackground(_ option: Int) -> Color {
-        lengthOptionIsActive(option) ? accent.opacity(StudioOpacity.selectedFill) : Color.clear
+        lengthOptionIsActive(option) ? accent : Color.clear
     }
 
     private func lengthOptionBorder(_ option: Int) -> Color {
-        lengthOptionIsActive(option) ? accent : StudioTheme.border
+        lengthOptionIsActive(option) ? Color.clear : StudioTheme.border
     }
 
     private var historyStrip: some View {
@@ -277,14 +276,10 @@ private struct ClipHistoryMinibarCell: View {
         return "History region \(cell.index + 1), \(lengthLabel)"
     }
 
+    /// Colour identifies, it never floods (ux-canon rule 12): region tiles
+    /// stay neutral; selection/range reads from the accent border.
     private var backgroundFill: Color {
-        if isSelected {
-            return accent.opacity(StudioOpacity.selectedFill)
-        }
-        if isInRange {
-            return accent.opacity(StudioOpacity.subtleFill)
-        }
-        return Color.white.opacity(StudioOpacity.subtleFill)
+        Color.white.opacity(StudioOpacity.subtleFill)
     }
 
     private var borderFill: Color {
@@ -398,12 +393,15 @@ private struct ClipHistoryPianoRollPreview: View {
                 }
 
                 if let liveFillStepIndex {
+                    // Colour identifies, it never floods (ux-canon rule 12):
+                    // the filled region is a neutral wash; the write head is a
+                    // solid accent line.
                     Rectangle()
-                        .fill(accent.opacity(StudioOpacity.subtleFill))
+                        .fill(Color.white.opacity(StudioOpacity.subtleFill))
                         .frame(width: max(stepWidth * CGFloat(layout.clampedStep(liveFillStepIndex) + 1), 1))
 
                     Rectangle()
-                        .fill(accent.opacity(0.55))
+                        .fill(accent)
                         .frame(width: 2)
                         .offset(x: stepWidth * CGFloat(layout.clampedStep(liveFillStepIndex) + 1) - 1)
                 }
@@ -411,7 +409,7 @@ private struct ClipHistoryPianoRollPreview: View {
                 ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
                     let yIndex = layout.rowIndex(forPitch: note.pitch)
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .fill(accent.opacity(0.82))
+                        .fill(accent)
                         .frame(
                             width: max(stepWidth * CGFloat(max(1, note.lengthSteps)) - 2, 6),
                             height: max(laneHeight - 3, 5)
@@ -478,7 +476,7 @@ private struct ClipHistoryMiniPianoThumbnail: View {
                 ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
                     let normalizedPitch = Double(min(max(note.pitch, 36), 84) - 36) / 48.0
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(accent.opacity(0.8))
+                        .fill(accent)
                         .frame(
                             width: max(stepWidth * CGFloat(max(1, note.lengthSteps)), 3),
                             height: 4

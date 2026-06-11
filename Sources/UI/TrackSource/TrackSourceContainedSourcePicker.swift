@@ -436,16 +436,13 @@ struct TrackSourceContainedSourcePicker: View {
         .buttonStyle(.plain)
     }
 
+    /// Colour identifies, it never floods (ux-canon rule 12): action tiles
+    /// stay neutral; the primary action reads from its accent outline.
     private func rootActionFill(
         for role: TrackSourceContainedSourcePickerActionRole,
         accent: Color
     ) -> Color {
-        switch role {
-        case .primaryRecovery:
-            return accent.opacity(StudioOpacity.selectedFill)
-        case .secondaryRecovery, .poolDisclosure:
-            return Color.white.opacity(StudioOpacity.subtleFill)
-        }
+        Color.white.opacity(StudioOpacity.subtleFill)
     }
 
     private func rootActionStroke(

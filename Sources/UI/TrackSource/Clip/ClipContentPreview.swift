@@ -803,19 +803,22 @@ struct ClipContentPreview: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // selected segment is a fully solid accent thumb with dark text;
+            // unselected segments are outline only.
             Text(title)
                 .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
-                    isSelected ? accent.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
                     in: Capsule()
                 )
                 .overlay(
                     Capsule()
                         .stroke(
-                            isSelected ? accent.opacity(StudioOpacity.softStroke) : StudioTheme.border.opacity(StudioOpacity.subtleStroke),
+                            isSelected ? Color.clear : StudioTheme.border.opacity(StudioOpacity.subtleStroke),
                             lineWidth: StudioMetrics.borderWidth
                         )
                 )
@@ -901,19 +904,22 @@ struct ClipContentPreview: View {
                         VStack(spacing: 3) {
                             Text("\(index + 1)")
                                 .studioText(.micro)
-                                .foregroundStyle(StudioTheme.text)
+                                .foregroundStyle(mode == .runFromHere ? StudioTheme.background : StudioTheme.text)
                             Text(mode == .runFromHere ? "Run" : "One")
                                 .font(.system(size: 9, weight: .medium, design: .rounded))
-                                .foregroundStyle(stepPattern[index] ? StudioTheme.text : StudioTheme.mutedText.opacity(0.55))
+                                .foregroundStyle(mode == .runFromHere ? StudioTheme.background : (stepPattern[index] ? StudioTheme.text : StudioTheme.mutedText.opacity(0.55)))
                         }
                         .frame(maxWidth: .infinity, minHeight: 34)
+                        // Colour identifies, it never floods (ux-canon rule
+                        // 12): an engaged step cell is fully solid accent with
+                        // dark glyphs, never a translucent wash.
                         .background(
-                            mode == .runFromHere ? StudioTheme.violet.opacity(0.2) : Color.white.opacity(StudioOpacity.subtleFill),
+                            mode == .runFromHere ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill),
                             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(mode == .runFromHere ? StudioTheme.violet.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                                .stroke(mode == .runFromHere ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                         )
                     }
                     .buttonStyle(.plain)

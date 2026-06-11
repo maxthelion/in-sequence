@@ -14,13 +14,13 @@ struct PolyLaneSelector: View {
                 } label: {
                     Text("Lane \(laneIndex + 1)")
                         .studioText(.eyebrowBold)
-                        .foregroundStyle(selectedLane == laneIndex ? StudioTheme.text : StudioTheme.mutedText)
+                        .foregroundStyle(selectedLane == laneIndex ? StudioTheme.background : StudioTheme.mutedText)
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
-                        .background(selectedLane == laneIndex ? StudioTheme.violet.opacity(StudioOpacity.hoverFill) : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                        .background(selectedLane == laneIndex ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                         .overlay(
                             Capsule()
-                                .stroke(selectedLane == laneIndex ? StudioTheme.violet.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                                .stroke(selectedLane == laneIndex ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                         )
                 }
                 .buttonStyle(.plain)
