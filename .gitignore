@@ -27,10 +27,15 @@ Pods/
 # Generated / intermediate
 *.tmp
 .meta/
-
-# Durable multipass loop manifests may include a loop kind named `build`.
-!docs/multi-pass-coordinator/loops/build/
-!docs/multi-pass-coordinator/loops/build/*.yaml
+!.meta/
+!.meta/multipass/
+!.meta/multipass/README.md
+!.meta/multipass/multipass.yaml
+!.meta/multipass/config/
+!.meta/multipass/config/**
+!.meta/multipass/state/
+!.meta/multipass/state/**
+.meta/multipass/runtime/
 
 # Editor
 .vscode/
@@ -59,3 +64,5 @@ wiki/.meta/
 
 # Local AU hosting experiments
 Experiments/PigmentsProbe/
+
+build-dd/
