@@ -20,7 +20,7 @@ extension ScenesWorkspaceView {
         let sceneB = masterBus.scene(id: selection.sceneBID)
             ?? masterBus.scenes.first { $0.id != sceneA.id }
             ?? MasterBusScene.sceneB
-        StudioPanel(title: "Scenes Perform", eyebrow: "Runtime scene macro overrides", accent: StudioTheme.amber) {
+        StudioPanel(title: "", accent: StudioTheme.amber) {
             HStack(alignment: .top, spacing: 0) {
                 performSlot(title: "Slot A", scene: sceneA, isA: true, isDominant: dominance.isADominant)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -32,6 +32,8 @@ extension ScenesWorkspaceView {
                 performSlot(title: "Slot B", scene: sceneB, isA: false, isDominant: dominance.isBDominant)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
+        } accessory: {
+            performToggleButton
         }
     }
 
