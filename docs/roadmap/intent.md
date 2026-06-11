@@ -534,3 +534,21 @@ I changed to the 24 channel input and it still says input needs 2 channels. This
 ```text
 I think monitor makes more sense if it's a toggle between buffer and live. Loop is the word that causes confusion. Obviously live is the only option if there is no buffer
 ```
+
+## 2026-06-11 - Global Layer Perform Mode
+
+Raw input (docs/intents/inbox/20260611-103253):
+
+```text
+I'd like a button on the tracks page when it's in perform mode. This replaces all the tracks with a matrix of the layers (like the one that selects which layer to use). Interacting with any of the layers applies it to all tracks. Eg press mute silences everything, note repeat 16 does it on all tracks etc.
+```
+
+## 2026-06-11 - Mixer Channel Levels Everywhere
+
+Raw input (docs/intents/inbox/20260611-mixer-channel-levels):
+
+```text
+All channels on the mixer should have level meters so you can see activity, using the master bus's existing meter as the template. Track strips, send/return strips, and user buses all show live levels the same way the master does. (Raised while debugging silent output: the master meters were the only visibility into whether anything was flowing, and per-channel meters would have located the dead link immediately.)
+
+Related cosmetic fix, same area: the transport's status summary shows "No default output" for audio-input tracks even though their monitor path routes to a bus/master independently of the Destination model — the summary should describe the input track's actual monitor routing.
+```
