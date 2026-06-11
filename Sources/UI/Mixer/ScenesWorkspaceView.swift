@@ -171,9 +171,9 @@ struct ScenesWorkspaceView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(StudioTheme.background)
                         .frame(width: 30, height: 30)
-                        .background(StudioTheme.amber.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                        .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                     Spacer(minLength: 0)
                     sceneSlotBadges(scene.id)
                 }
@@ -192,7 +192,10 @@ struct ScenesWorkspaceView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
             .padding(StudioMetrics.Spacing.comfortable)
-            .background(scene.id == masterBus.activeSceneID ? StudioTheme.amber.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            // Colour identifies, it never floods (ux-canon rule 12): the card
+            // body stays neutral; the active scene reads from the amber
+            // outline and the solid slot badge.
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border, lineWidth: scene.id == masterBus.activeSceneID ? 2 : StudioMetrics.borderWidth)
@@ -216,10 +219,10 @@ struct ScenesWorkspaceView: View {
     private func slotBadge(_ title: String) -> some View {
         Text(title)
             .studioText(.micro)
-            .foregroundStyle(StudioTheme.amber)
+            .foregroundStyle(StudioTheme.background)
             .padding(.horizontal, 7)
             .padding(.vertical, 4)
-            .background(StudioTheme.amber.opacity(StudioOpacity.hoverFill), in: Capsule())
+            .background(StudioTheme.amber, in: Capsule())
     }
 
     private var sceneEditor: some View {
@@ -334,9 +337,9 @@ struct ScenesWorkspaceView: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: iconName(for: insert.kind))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .frame(width: 28, height: 28)
-                    .background(StudioTheme.amber.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                    .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 3) {
                     TextField("Insert Name", text: insertNameBinding(insert.id, fallback: insert.name))
@@ -381,7 +384,9 @@ struct ScenesWorkspaceView: View {
             }
         }
         .padding(StudioMetrics.Spacing.compact)
-        .background(isSelected ? StudioTheme.cyan.opacity(StudioOpacity.softFill) : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        // Colour identifies, it never floods (ux-canon rule 12): selection
+        // reads from the cyan outline, not a tinted row fill.
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

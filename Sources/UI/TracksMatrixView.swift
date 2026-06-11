@@ -926,8 +926,8 @@ private struct GroupSectionView<Grid: View>: View {
                             .studioText(.eyebrowBold)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(accent.opacity(StudioOpacity.selectedFill), in: Capsule())
-                            .foregroundStyle(accent)
+                            .background(accent, in: Capsule())
+                            .foregroundStyle(StudioTheme.background)
                     }
 
                     Text(section.group.sharedDestination?.summary ?? "Shared destination not assigned")
@@ -973,8 +973,9 @@ private struct TrackPerformPlaceholderLayerCard: View {
             HStack(spacing: 8) {
                 Image(systemName: mode.symbolName)
                     .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(StudioTheme.background)
                     .frame(width: 28, height: 28)
-                    .background(accent.opacity(StudioOpacity.selectedFill), in: Circle())
+                    .background(accent, in: Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title.uppercased())
@@ -1035,15 +1036,15 @@ private struct TrackPerformLatchModePicker: View {
                             .tracking(0.8)
                             .lineLimit(1)
                     }
-                    .foregroundStyle(selection == mode ? StudioTheme.text : StudioTheme.text.opacity(0.68))
+                    .foregroundStyle(selection == mode ? StudioTheme.background : StudioTheme.text.opacity(0.68))
                     .frame(width: 74, height: 26)
                     .background(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .fill(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.selectedFill) : StudioTheme.inset)
+                            .fill(selection == mode ? StudioTheme.amber : StudioTheme.inset)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(selection == mode ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : Color.white.opacity(StudioOpacity.borderFaint), lineWidth: StudioMetrics.borderWidth)
+                            .stroke(selection == mode ? Color.clear : Color.white.opacity(StudioOpacity.borderFaint), lineWidth: StudioMetrics.borderWidth)
                     )
                 }
                 .buttonStyle(.plain)
@@ -1180,11 +1181,7 @@ private struct TrackMatrixCard: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(isPerformSelected ? StudioTheme.amber : StudioTheme.mutedText)
                             .frame(width: 28, height: 28)
-                            .background(
-                                (isPerformSelected ? StudioTheme.amber : Color.white)
-                                    .opacity(StudioOpacity.subtleFill),
-                                in: Circle()
-                            )
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
                             .overlay(Circle().stroke(isPerformSelected ? StudioTheme.amber.opacity(0.7) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                     }
                     .buttonStyle(.plain)
@@ -1281,17 +1278,11 @@ private struct TrackMatrixCard: View {
         return StudioTheme.patternColor(index)
     }
 
+    /// Colour identifies, it never floods (ux-canon rule 12): the card body is
+    /// always the neutral step above ground; state/identity lives in the
+    /// outline (`cardStroke`) and the solid pattern chip.
     private var cardFill: Color {
-        if isPerformSelected {
-            return StudioTheme.amber.opacity(StudioOpacity.hoverFill)
-        }
-        if isPerforming, let activePatternColor {
-            return activePatternColor.opacity(StudioOpacity.hoverFill)
-        }
-        if isFocused {
-            return accent.opacity(StudioOpacity.hoverFill)
-        }
-        return Color.white.opacity(StudioOpacity.subtleFill)
+        Color.white.opacity(StudioOpacity.subtleFill)
     }
 
     private var cardStroke: Color {
@@ -1431,20 +1422,23 @@ private struct TrackPerformRuntimeLayerControl: View {
     }
 
     private var labelForeground: Color {
-        state.isActive && state.isAvailable ? StudioTheme.text : StudioTheme.mutedText
-    }
-
-    private var labelBackground: Color {
-        if !state.isAvailable {
-            return Color.white.opacity(StudioOpacity.subtleFill)
+        guard state.isAvailable else {
+            return StudioTheme.mutedText
         }
         if state.isMomentaryPressed {
-            return StudioTheme.amber.opacity(StudioOpacity.selectedFill)
+            return StudioTheme.amber
         }
         if state.isLatched {
-            return accent.opacity(StudioOpacity.selectedFill)
+            return accent
         }
-        return Color.white.opacity(StudioOpacity.subtleFill)
+        return state.isActive ? StudioTheme.text : StudioTheme.mutedText
+    }
+
+    /// Colour identifies, it never floods (ux-canon rule 12): the trigger
+    /// surface stays on the neutral step; engaged state reads from the accent
+    /// outline (`labelStroke`) and accent state text.
+    private var labelBackground: Color {
+        Color.white.opacity(StudioOpacity.subtleFill)
     }
 
     private var labelStroke: Color {
@@ -1548,13 +1542,9 @@ private struct TrackTypeBadge: View {
     var body: some View {
         Image(systemName: icon)
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(StudioTheme.text)
+            .foregroundStyle(StudioTheme.background)
             .frame(width: 30, height: 30)
-            .background(accent.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-            )
+            .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
     }
 }
 
@@ -1737,10 +1727,9 @@ private struct AddSliceTrackSheet: View {
                 } label: {
                     Image(systemName: previewingSampleID == sample.id ? "stop.fill" : "play.fill")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(StudioTheme.text)
+                        .foregroundStyle(StudioTheme.background)
                         .frame(width: 28, height: 28)
-                        .background(StudioTheme.violet.opacity(StudioOpacity.selectedFill), in: Circle())
-                        .overlay(Circle().stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth))
+                        .background(StudioTheme.violet, in: Circle())
                 }
                 .buttonStyle(.plain)
                 .help(previewingSampleID == sample.id ? "Stop preview" : "Preview loop")
@@ -1752,14 +1741,10 @@ private struct AddSliceTrackSheet: View {
             } label: {
                 Text("Use Loop")
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(StudioTheme.background)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    .background(StudioTheme.violet.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                            .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-                    )
+                    .background(StudioTheme.violet, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
             }
             .buttonStyle(.plain)
         }

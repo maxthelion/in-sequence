@@ -107,8 +107,10 @@ extension ScenesWorkspaceView {
             }
             .padding(StudioMetrics.Spacing.comfortable)
             .contentShape(Rectangle())
+            // Colour identifies, it never floods (ux-canon rule 12): dominance
+            // reads from the amber outline and amber slot label, not a wash.
             .background(
-                isDominant ? StudioTheme.amber.opacity(StudioOpacity.faintStroke) : Color.white.opacity(StudioOpacity.subtleFill),
+                Color.white.opacity(StudioOpacity.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
             )
             .overlay(
@@ -220,7 +222,7 @@ extension ScenesWorkspaceView {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(selected ? StudioTheme.background : StudioTheme.text)
                         .frame(width: 26, height: 26)
-                        .background(selected ? StudioTheme.amber : StudioTheme.amber.opacity(StudioOpacity.selectedFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                        .background(selected ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     Spacer()
                     if selected {
                         Image(systemName: "checkmark")
@@ -295,7 +297,7 @@ private struct ScenePerformCrossfaderTrack: View {
                     .frame(maxHeight: .infinity)
 
                 Capsule()
-                    .fill(StudioTheme.amber.opacity(0.28))
+                    .fill(StudioTheme.amber)
                     .frame(width: thumbX, height: 10)
                     .frame(maxHeight: .infinity, alignment: .center)
 
