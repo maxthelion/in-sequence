@@ -287,7 +287,11 @@ final class SequencerDocumentSession {
 
         revision = store.revision
         engineController.setMix(trackID: trackID, mix: normalizedMix)
-        publishSnapshot(changed: .track(trackID))
+        // Deliberately NO publishSnapshot here. Mix does not change compiled
+        // note data; the engine hears the change through the live path
+        // (setMix) immediately. Publishing per drag tick recompiled buffers,
+        // cleared the event queue (audible stutter), and reset generative
+        // state at mouse-move rate — mixer-latency cause 1.
         scheduleFlushToDocument()
     }
 

@@ -99,8 +99,21 @@ enum SequencerSnapshotCompiler {
             )
         }
 
+        // Phrase buffers depend on tracks ONLY through the phrase-relevant
+        // slice of their source program (macro binding order + defaults) and
+        // track-set membership. A track change that leaves those intact —
+        // e.g. mix, name, destination — must not recompile every phrase
+        // buffer in the project (that full recompute on each fader drag tick
+        // was mixer-latency cause 1).
+        let phraseRelevantTrackChange = changed.trackIDs.contains { trackID in
+            let previousProgram = previous.trackProgramsByTrackID[trackID]
+            let nextProgram = trackProgramsByTrackID[trackID]
+            return previousProgram?.macroBindingIDs != nextProgram?.macroBindingIDs
+                || previousProgram?.macroDefaults != nextProgram?.macroDefaults
+        }
+
         var phraseBuffersByID = previous.phraseBuffersByID
-        if changed.layersChanged || !changed.trackIDs.isEmpty {
+        if changed.layersChanged || phraseRelevantTrackChange {
             phraseBuffersByID = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { phraseID in
                 guard let phrase = state.phrasesByID[phraseID] else { return nil }
                 return (
