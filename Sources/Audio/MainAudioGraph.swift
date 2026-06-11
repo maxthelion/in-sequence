@@ -234,10 +234,12 @@ final class MainAudioGraph {
     }
 
     func syncAudioInputRoutings(_ requests: [AudioInputRoutingRequest]) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             if self.canUpdateAudioInputRoutingParametersOnMain(requests) {
                 self.applyAudioInputRoutingParametersOnMain(requests)
                 self.audioInputScopedRoutingUpdateCountForTesting += 1
@@ -271,10 +273,12 @@ final class MainAudioGraph {
     }
 
     func setAudioInputCaptureHandler(_ handler: ((UUID, AVAudioPCMBuffer) -> Void)?) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             self.audioInputCaptureHandler = handler
             for host in self.audioInputRoutingHosts.values {
                 if handler == nil {
@@ -287,20 +291,24 @@ final class MainAudioGraph {
     }
 
     func updateAudioInputRoutingParameters(_ requests: [AudioInputRoutingRequest]) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             self.applyAudioInputRoutingParametersOnMain(requests)
             self.audioInputScopedRoutingUpdateCountForTesting += 1
         }
     }
 
     func audioInputCaptureFormat(trackID: UUID) -> AVAudioFormat? {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             guard let host = self.audioInputRoutingHosts[trackID],
                   host.connectedSource != .silent
             else {
@@ -319,10 +327,12 @@ final class MainAudioGraph {
 
     @discardableResult
     func scheduleAudioInputLoopPlayback(trackID: UUID, buffer: AVAudioPCMBuffer) -> Bool {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             guard let host = self.audioInputRoutingHosts[trackID],
                   host.connectedSource == .loop,
                   buffer.frameLength > 0
@@ -344,10 +354,12 @@ final class MainAudioGraph {
     }
 
     func installMixerBuses(_ buses: [MixerBus], effectiveMuteByBusID: [UUID: Bool] = [:]) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
@@ -378,28 +390,34 @@ final class MainAudioGraph {
     }
 
     func setMixerBusMix(busID: UUID, mix: BusMixSettings, effectiveMute: Bool) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             self.mixerBusHosts[busID]?.applyMix(mix, effectiveMute: effectiveMute)
         }
     }
 
     func setMixerBusParameters(bus: MixerBus, effectiveMute: Bool) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             self.mixerBusHosts[bus.id]?.applyParameters(bus: bus, effectiveMute: effectiveMute)
         }
     }
 
     func installSendBuses(_ sendBuses: [SendBusState]) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
@@ -429,16 +447,19 @@ final class MainAudioGraph {
     }
 
     func installSendBus(_ sendBus: SendBusState) {
-        graphLock.lock()
         let existing = performOnMainReturning {
-            SendBusID.allCases.map { id in
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            return SendBusID.allCases.map { id in
                 if id == sendBus.id {
                     return sendBus
                 }
                 return self.sendBusHosts[id]?.appliedStateForTesting ?? SendBusState(id: id)
             }
         }
-        graphLock.unlock()
         installSendBuses(existing)
     }
 
@@ -447,10 +468,12 @@ final class MainAudioGraph {
         to busID: UUID?,
         sends sendLevels: TrackSendLevels = .zero
     ) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             guard source.engine === self.engine else { return }
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
@@ -472,10 +495,12 @@ final class MainAudioGraph {
     }
 
     func setTrackSendLevels(_ source: AVAudioNode, sendA: Double, sendB: Double) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             let key = ObjectIdentifier(source)
             let sendLevels = TrackSendLevels(sendA: sendA, sendB: sendB)
             guard var routing = self.trackOutputRoutings[key] else { return }
@@ -561,10 +586,12 @@ final class MainAudioGraph {
         postBlendMasterNodes: [AVAudioNode] = [],
         masterOutputGain: Double = 1
     ) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             let clampedMasterOutputGain = Self.clampedMasterOutputGain(masterOutputGain)
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
@@ -658,57 +685,69 @@ final class MainAudioGraph {
     }
 
     var mixerBusReadoutsForTesting: [MixerBusHost.Readout] {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
-            self.mixerBusHosts.values.compactMap { $0.readout() }
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            return self.mixerBusHosts.values.compactMap { $0.readout() }
                 .sorted { $0.busID.uuidString < $1.busID.uuidString }
         }
     }
 
     func mixerBusReadoutForTesting(busID: UUID) -> MixerBusHost.Readout? {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
-            self.mixerBusHosts[busID]?.readout()
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            return self.mixerBusHosts[busID]?.readout()
         }
     }
 
     var sendBusReadoutsForTesting: [SendBusHost.Readout] {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
-            self.sendBusHosts.values.compactMap { $0.readout() }
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            return self.sendBusHosts.values.compactMap { $0.readout() }
                 .sorted { $0.busID.rawValue < $1.busID.rawValue }
         }
     }
 
     func sendBusReadoutForTesting(busID: SendBusID) -> SendBusHost.Readout? {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
-            self.sendBusHosts[busID]?.readout()
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            return self.sendBusHosts[busID]?.readout()
         }
     }
 
     func trackOutputDestinationForTesting(_ source: AVAudioNode) -> AVAudioNode? {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
-            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)]
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
+            return self.trackOutputDestinationsForTesting[ObjectIdentifier(source)]
         }
     }
 
     func trackSendReadoutForTesting(_ source: AVAudioNode) -> TrackSendReadout? {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             let key = ObjectIdentifier(source)
             guard let dryDestination = self.trackOutputDestinationsForTesting[key] else {
                 return nil
@@ -730,10 +769,12 @@ final class MainAudioGraph {
     }
 
     func audioInputRoutingReadoutForTesting(trackID: UUID) -> AudioInputRoutingReadout? {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         return performOnMainReturning {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             guard let host = self.audioInputRoutingHosts[trackID] else { return nil }
             return AudioInputRoutingReadout(
                 trackID: host.trackID,
@@ -826,10 +867,12 @@ final class MainAudioGraph {
     }
 
     func setMasterOutputGain(_ gain: Double) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             let clampedGain = Self.clampedMasterOutputGain(gain)
             self.finalOutputMixer.outputVolume = clampedGain
             self.masterOutputGainForTesting = clampedGain
@@ -837,10 +880,12 @@ final class MainAudioGraph {
     }
 
     func setMasterBranchGains(_ gains: [Double]) {
-        graphLock.lock()
-        defer { graphLock.unlock() }
-
         performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.graphLock.lock()
+            defer { self.graphLock.unlock() }
             guard !gains.isEmpty else { return }
             for (index, gain) in gains.enumerated() where index < self.managedMasterGainMixers.count {
                 let clampedGain = Float(min(max(gain, 0), 1.5))
