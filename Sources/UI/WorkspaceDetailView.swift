@@ -28,7 +28,6 @@ struct WorkspaceDetailView: View {
                 document: $document,
                 visualControlsOpenIndex: visualPhraseControlsOpenIndex
             )
-                .padding(StudioMetrics.Spacing.compact)
         case .tracks:
             TracksWorkspaceView(document: $document, mode: $tracksMode, selectedLayerID: $liveLayerID) {
                 section = .track
@@ -42,7 +41,6 @@ struct WorkspaceDetailView: View {
             }
         case .scenes:
             ScenesWorkspaceView(document: $document, resetToken: scenesResetToken)
-                .padding(StudioMetrics.Spacing.section)
         case .library:
             LibraryWorkspaceView()
         }

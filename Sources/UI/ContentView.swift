@@ -36,8 +36,10 @@ struct ContentView: View {
                     visualPhraseControlsOpenIndex: $visualPhraseControlsOpenIndex
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, StudioMetrics.Spacing.loose)
-                    .padding(.bottom, StudioMetrics.Spacing.loose)
+                    // The rounded stage plate this gutter once framed is gone
+                    // (bold-flat); keep just enough to clear the window edge.
+                    .padding(.horizontal, StudioMetrics.Spacing.tight)
+                    .padding(.bottom, StudioMetrics.Spacing.tight)
             }
         }
         .onAppear {
