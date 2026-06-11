@@ -75,11 +75,8 @@ struct ScenesWorkspaceView: View {
             selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
         }
         .onReceive(NotificationCenter.default.publisher(for: .scenesWorkspaceVisualCommand)) { notification in
-            guard let command = notification.object as? String,
-                  command.hasPrefix("mode:"),
-                  let nextMode = ScenesWorkspaceMode(rawValue: String(command.dropFirst("mode:".count)))
-            else { return }
-            mode = nextMode
+            guard let command = notification.object as? String else { return }
+            handleVisualCommand(command)
         }
         .onChange(of: resetToken) {
             selectedSceneID = nil
@@ -159,6 +156,83 @@ struct ScenesWorkspaceView: View {
     private func openNewScene() {
         selectedSceneID = session.addMasterBusScene()
         selectedInsertID = nil
+    }
+
+    private func handleVisualCommand(_ command: String) {
+        if command.hasPrefix("mode:"),
+           let nextMode = ScenesWorkspaceMode(rawValue: String(command.dropFirst("mode:".count))) {
+            mode = nextMode
+            return
+        }
+
+        if command.hasPrefix("fixture:") {
+            applyVisualSceneEditorFixture(String(command.dropFirst("fixture:".count)))
+        }
+    }
+
+    private func applyVisualSceneEditorFixture(_ rawFixture: String) {
+        mode = .browseEdit
+
+        switch rawFixture {
+        case "empty":
+            let sceneID = ensureVisualScene(preferredIndex: 0, name: "Empty Scene")
+            session.updateMasterBusScene(sceneID) { scene in
+                scene.name = "Empty Scene"
+                scene.inserts = []
+                scene.macroBindings = []
+            }
+            selectedSceneID = sceneID
+            selectedInsertID = nil
+            session.setActiveMasterScene(sceneID)
+
+        case "content":
+            let sceneID = ensureVisualScene(preferredIndex: 1, name: "Scene With Inserts")
+            var filter = MasterBusInsert.filter()
+            filter.name = "Visual Filter"
+            var bitcrusher = MasterBusInsert.bitcrusher()
+            bitcrusher.name = "Visual Crusher"
+            session.updateMasterBusScene(sceneID) { scene in
+                scene.name = "Scene With Inserts"
+                scene.inserts = [filter, bitcrusher]
+                scene.macroBindings = [
+                    MasterSceneMacroBinding(
+                        slotIndex: 0,
+                        name: "Wet",
+                        target: .insertWetDry(insertID: filter.id),
+                        authoredValue: filter.wetDry
+                    ),
+                    MasterSceneMacroBinding(
+                        slotIndex: 1,
+                        name: "Cutoff",
+                        target: .filterCutoff(insertID: filter.id),
+                        authoredValue: 3_200
+                    ),
+                    MasterSceneMacroBinding(
+                        slotIndex: 2,
+                        name: "Drive",
+                        target: .bitcrusherDrive(insertID: bitcrusher.id),
+                        authoredValue: 0.35
+                    )
+                ]
+            }
+            selectedSceneID = sceneID
+            selectedInsertID = filter.id
+            session.setActiveMasterScene(sceneID)
+
+        default:
+            break
+        }
+    }
+
+    private func ensureVisualScene(preferredIndex: Int, name: String) -> UUID {
+        var scenes = masterBus.scenes
+        while scenes.count <= preferredIndex {
+            _ = session.addMasterBusScene(name: name)
+            scenes = session.store.masterBus.scenes
+        }
+        let sceneID = scenes[preferredIndex].id
+        session.setMasterSceneName(sceneID, name: name)
+        return sceneID
     }
 
     private func sceneCard(_ scene: MasterBusScene) -> some View {

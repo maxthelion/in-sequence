@@ -41,6 +41,7 @@ enum VisualScenarioCommandRunner {
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var scenesModeState = "none"
+    private static var sceneEditorFixtureState = "none"
     private static var libraryCategoryState = "none"
     private static var libraryFixtureState = "none"
     private static var drumGroupRoutingEditorRenderedState = false
@@ -389,6 +390,7 @@ enum VisualScenarioCommandRunner {
         stepOrderFixtureState=\(stepOrderFixtureState)
         trackSourceTab=\(trackSourceTabState)
         scenesMode=\(scenesModeState)
+        sceneEditorFixture=\(sceneEditorFixtureState)
         libraryCategory=\(libraryCategoryState)
         libraryFixture=\(libraryFixtureState)
         libraryPoolCount=\(session.store.assetPool.count)
@@ -1134,18 +1136,32 @@ enum VisualScenarioCommandRunner {
         _ = session.addAssetToPool(kind: .sample, assetID: missingAssetID)
     }
 
-    /// Drives the Scenes workspace Browse/Edit ↔ Perform mode.
+    /// Drives the Scenes workspace Browse/Edit ↔ Perform mode and deterministic
+    /// scene-editor fixtures for visual coverage.
     private static func applyScenesModeCommand(
         command: [String: String],
         section: Binding<WorkspaceSection>
     ) {
-        guard let rawMode = command["scenesMode"],
-              ScenesWorkspaceMode(rawValue: rawMode) != nil
-        else { return }
+        guard command["scenesMode"] != nil || command["sceneEditorFixture"] != nil else { return }
 
         section.wrappedValue = .scenes
-        scenesModeState = rawMode
-        postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(rawMode)")
+
+        if let rawMode = command["scenesMode"],
+           ScenesWorkspaceMode(rawValue: rawMode) != nil {
+            scenesModeState = rawMode
+            if command["sceneEditorFixture"] == nil {
+                sceneEditorFixtureState = "none"
+            }
+            postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(rawMode)")
+        }
+
+        if let rawFixture = command["sceneEditorFixture"],
+           ["empty", "content"].contains(rawFixture) {
+            scenesModeState = ScenesWorkspaceMode.browseEdit.rawValue
+            sceneEditorFixtureState = rawFixture
+            postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(ScenesWorkspaceMode.browseEdit.rawValue)")
+            postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "fixture:\(rawFixture)")
+        }
     }
 
     private static func postRepeatedVisualCommand(name: Notification.Name, object: String) {
