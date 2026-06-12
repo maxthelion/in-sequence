@@ -34,10 +34,25 @@ final class SequencerAIAppDelegateTests: XCTestCase {
             attributionVersion: "$(BUILD_ATTRIBUTION_VERSION)"
         )
 
-        XCTAssertEqual(identity.compactDisplay, "unknown unknown unknown unknown")
+        XCTAssertEqual(identity.compactDisplay, "unknown")
         XCTAssertEqual(
             identity.logSummary,
             "version=unknown build=unknown gitCommit=unknown gitBranch=unknown gitDirty=unknown attributionID=unknown attributionVersion=unknown"
+        )
+    }
+
+    func test_buildIdentity_compactDisplayOmitsUnknownFields() {
+        // Partially stamped builds (branch + commit known, dirty/attribution
+        // unstamped) must not leak "unknown unknown" into the top-bar pill.
+        let identity = BuildIdentity(
+            gitCommit: "21b2b9c2",
+            gitBranch: "main"
+        )
+
+        XCTAssertEqual(identity.compactDisplay, "main 21b2b9c2")
+        XCTAssertEqual(
+            identity.logSummary,
+            "version=unknown build=unknown gitCommit=21b2b9c2 gitBranch=main gitDirty=unknown attributionID=unknown attributionVersion=unknown"
         )
     }
 

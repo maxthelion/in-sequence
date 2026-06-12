@@ -44,8 +44,16 @@ struct BuildIdentity: Equatable {
         )
     }
 
+    /// Top-bar pill text. Fields that were never stamped ("unknown") are
+    /// omitted rather than printed verbatim into chrome (ux-canon rule 3);
+    /// `logSummary` keeps them for diagnostics.
     var compactDisplay: String {
-        "\(gitBranch) \(gitCommit) \(gitDirty) \(attributionVersion)"
+        let known = [gitBranch, gitCommit, gitDirty, attributionVersion]
+            .filter { $0 != "unknown" }
+        guard !known.isEmpty else {
+            return "unknown"
+        }
+        return known.joined(separator: " ")
     }
 
     var logSummary: String {
