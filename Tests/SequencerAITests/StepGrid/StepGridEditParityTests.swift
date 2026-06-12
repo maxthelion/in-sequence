@@ -33,6 +33,13 @@ import XCTest
 //    the coordinator syncs only the touched lane. Resolved in favour of the
 //    coordinator's narrow write (other lanes are `.synced(stepCount:)` on
 //    every read, so display is unaffected).
+//
+// 4. Multi-select option cycle — the coordinator cycled every selected
+//    step independently from its own current value; the spec
+//    (docs/roadmap/step-sequencer/spec.md §4c) says "the cycle target
+//    index is applied to all selected steps in a single mutation closure".
+//    Resolved: the target is computed once from the tapped step and
+//    applied to the whole selection.
 @MainActor
 final class StepGridEditParityTests: XCTestCase {
     private let defaultNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
@@ -361,9 +368,83 @@ final class StepGridEditParityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(secondLane.values[1]), expectedSecond, accuracy: 0.000001)
     }
 
+    // MARK: - Slice value layers (slicer workspace rotary/strip path)
+
+    /// The slicer's velocity layer maps the 0–1 fraction onto step gain
+    /// (-24 dB ... +12 dB) and arms/disarms the pattern bool. Pinned so the
+    /// fold cannot change slicer behaviour.
+    func test_sliceVelocityAbsoluteWrite_mapsFractionToGainAndPattern() {
+        let clipID = UUID()
+        let mutator = ParityClipMutator(clip: Self.makeSliceClip(id: clipID))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+
+        coordinator.writeAbsoluteValue(0.5, stepIndex: 1, layer: .velocity, defaultNote: defaultNote)
+
+        guard case let .sliceTriggers(pattern, _, _, parameters) = mutator.clip.content.normalized else {
+            return XCTFail("Expected slice triggers")
+        }
+        XCTAssertTrue(pattern[1])
+        XCTAssertEqual(parameters[1].gain, (0.5 * 36) - 24, accuracy: 0.000001)
+
+        // Fraction 0 disarms the step.
+        coordinator.writeAbsoluteValue(0, stepIndex: 0, layer: .velocity, defaultNote: defaultNote)
+        guard case let .sliceTriggers(patternAfterZero, _, _, parametersAfterZero) = mutator.clip.content.normalized else {
+            return XCTFail("Expected slice triggers")
+        }
+        XCTAssertFalse(patternAfterZero[0])
+        XCTAssertEqual(parametersAfterZero[0].gain, -24, accuracy: 0.000001)
+    }
+
+    func test_sliceChanceAbsoluteWrite_armsPatternAtHalfThreshold() {
+        let clipID = UUID()
+        let mutator = ParityClipMutator(clip: Self.makeSliceClip(id: clipID))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+
+        coordinator.writeAbsoluteValue(0.5, stepIndex: 1, layer: .chance, defaultNote: defaultNote)
+        coordinator.writeAbsoluteValue(0.49, stepIndex: 0, layer: .chance, defaultNote: defaultNote)
+
+        guard case let .sliceTriggers(pattern, _, _, _) = mutator.clip.content.normalized else {
+            return XCTFail("Expected slice triggers")
+        }
+        XCTAssertTrue(pattern[1])
+        XCTAssertFalse(pattern[0])
+    }
+
     // MARK: - Slice option layers
 
-    func test_sliceModeAbsoluteWrite_matchesGridRunModeToggleSemantics() {
+    /// Divergence 4 (see header): the cycle target comes from the tapped
+    /// step and is applied to every selected step in one mutation
+    /// (spec §4c), not cycled per step from each step's own value.
+    func test_sliceIndexTap_multiSelect_appliesTappedCycleTargetToAllSelected() {
+        let clipID = UUID()
+        let mutator = ParityClipMutator(clip: Self.makeSliceClip(id: clipID))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [0, 2, 3].forEach { coordinator.toggleSelection(at: $0) }
+
+        // Tapped step 2 holds slice index 2 → target 3 for the whole selection.
+        coordinator.onTap(stepIndex: 2, layer: .sliceIndex)
+
+        XCTAssertEqual(mutator.mutationCount, 1)
+        guard case let .sliceTriggers(_, sliceIndexes, _, _) = mutator.clip.content.normalized else {
+            return XCTFail("Expected slice triggers")
+        }
+        XCTAssertEqual(sliceIndexes, [3, 1, 3, 3])
+    }
+
+    func test_sliceIndexTap_singleStep_cyclesFromOwnValueAndWraps() {
+        let clipID = UUID()
+        let mutator = ParityClipMutator(clip: Self.makeSliceClip(id: clipID, sliceIndexes: [15, 1, 2, 3]))
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+
+        coordinator.onTap(stepIndex: 0, layer: .sliceIndex)
+
+        guard case let .sliceTriggers(_, sliceIndexes, _, _) = mutator.clip.content.normalized else {
+            return XCTFail("Expected slice triggers")
+        }
+        XCTAssertEqual(sliceIndexes, [0, 1, 2, 3])
+    }
+
+    func test_sliceModeTap_matchesGridRunModeToggleSemantics() {
         let clipID = UUID()
         let mutator = ParityClipMutator(clip: Self.makeSliceClip(id: clipID))
         let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
@@ -411,14 +492,14 @@ final class StepGridEditParityTests: XCTestCase {
         )
     }
 
-    private static func makeSliceClip(id: UUID) -> ClipPoolEntry {
+    private static func makeSliceClip(id: UUID, sliceIndexes: [Int] = [0, 1, 2, 3]) -> ClipPoolEntry {
         ClipPoolEntry(
             id: id,
             name: "Parity Slice Clip",
             trackType: .slice,
             content: .sliceTriggers(
                 stepPattern: [true, false, true, false],
-                sliceIndexes: [0, 1, 2, 3],
+                sliceIndexes: sliceIndexes,
                 stepModes: [.single, .runFromHere, .single, .single],
                 stepParameters: Array(repeating: .default, count: 4)
             )
