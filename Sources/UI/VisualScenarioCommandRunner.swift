@@ -233,6 +233,12 @@ enum VisualScenarioCommandRunner {
             session.workspaceMode = mode
         }
 
+        // Quantised perform toggles (slice 2): drive the session Q setting.
+        if let requestedQuantise = command["quantise"],
+           let quantise = PerformQuantise(rawValue: requestedQuantise) {
+            session.performQuantise = quantise
+        }
+
         if let rawWindowFrame = command["windowFrame"] {
             applyWindowFrame(rawWindowFrame)
         }
@@ -363,6 +369,40 @@ enum VisualScenarioCommandRunner {
         return (sampleName, sliceSet.userSliceCount, clipContent?.stepCount ?? 0, activeStepCount)
     }
 
+    /// Armed quantised changes as `<track>:<change>` pairs in arm order
+    /// (e.g. `Drums:mute-on,Bass:fill-cue`), `none` when nothing is armed.
+    /// Internal (not private) so command-protocol tests can pin the format.
+    static func quantisePendingStatus(
+        session: SequencerDocumentSession,
+        engineController: EngineController
+    ) -> String {
+        let trackNamesByID = Dictionary(
+            uniqueKeysWithValues: session.store.tracks.map { ($0.id, $0.name) }
+        )
+        let entries = engineController.quantisedPendingChanges.map { change -> String in
+            let trackName = trackNamesByID[change.trackID] ?? change.trackID.uuidString
+            switch change {
+            case let .mute(_, muted, _):
+                return "\(trackName):\(muted ? "mute-on" : "mute-off")"
+            case .fillCue:
+                return "\(trackName):fill-cue"
+            }
+        }
+        return entries.isEmpty ? "none" : entries.joined(separator: ",")
+    }
+
+    /// Tracks whose cued fill bar is playing, in track order; `none` if idle.
+    static func quantiseFillCueActiveStatus(
+        session: SequencerDocumentSession,
+        engineController: EngineController
+    ) -> String {
+        let activeTrackIDs = engineController.quantisedFillCueActiveTrackIDs
+        let names = session.store.tracks
+            .filter { activeTrackIDs.contains($0.id) }
+            .map(\.name)
+        return names.isEmpty ? "none" : names.joined(separator: ",")
+    }
+
     /// Internal (not private) so command-protocol tests can drive it directly.
     static func writeStatus(
         to statusURL: URL,
@@ -420,6 +460,9 @@ enum VisualScenarioCommandRunner {
         workspace=\(section.rawValue)
         workspaceMode=\(session.workspaceMode.rawValue)
         tracksMode=\(session.workspaceMode.tracksModeValue.rawValue)
+        quantise=\(session.performQuantise.rawValue)
+        quantisePending=\(quantisePendingStatus(session: session, engineController: engineController))
+        quantiseFillCueActive=\(quantiseFillCueActiveStatus(session: session, engineController: engineController))
         transport=\(engineController.isRunning ? "play" : "stop")
         phraseCount=\(phrases.count)
         phraseNames=\(phrases.map(\.name).joined(separator: "|"))
