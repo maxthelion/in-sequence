@@ -105,3 +105,22 @@ schemes:
     test:
       targets:
         - SequencerAITests
+
+  # Thread Sanitizer lane (docs/testing/concurrency-lane.md). Same tests,
+  # TSan-instrumented; run nightly/on-demand, NOT in the default gate.
+  # Suppressions: Tests/SequencerAITests/tsan-suppressions.txt (pass via
+  # TEST_RUNNER_TSAN_OPTIONS — see the lane doc for the exact command).
+  SequencerAI-TSan:
+    build:
+      targets:
+        SequencerAI: all
+        SequencerAITests: [test]
+    test:
+      enableThreadSanitizer: true
+      targets:
+        - name: SequencerAITests
+          skippedTests:
+            # Real CoreAudio device IO: kAUStartIO under TSan can stall for
+            # minutes when coreaudiod is degraded (see memory notes), and
+            # device races are not what this lane hunts.
+            - MainAudioGraphDeviceSwitchTests

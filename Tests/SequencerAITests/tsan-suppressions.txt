@@ -1,0 +1,16 @@
+# Thread Sanitizer suppressions for the SequencerAI-TSan lane.
+#
+# RULES (docs/testing/concurrency-lane.md):
+# - Every entry MUST carry a justification comment explaining why the
+#   report is benign BY DESIGN (not merely "noisy"). An entry without a
+#   justification is a process bug.
+# - Real races are never suppressed: they are either fixed or recorded in
+#   docs/audits/2026-06-12-tsan-findings.md with a follow-up.
+# - Format: https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions
+#   (race:, deadlock:, mutex:, signal:, called_from_lib: …)
+#
+# Pass to the lane via:
+#   TEST_RUNNER_TSAN_OPTIONS="suppressions=$(pwd)/Tests/SequencerAITests/tsan-suppressions.txt"
+
+# (no entries yet — the 2026-06-12 lane run produced no benign-by-design
+# reports that needed suppressing; see the findings doc)
