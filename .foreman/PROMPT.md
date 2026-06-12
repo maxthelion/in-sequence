@@ -106,8 +106,20 @@ rotating through:
    `intent.md` seed and spec, check the built thing against both.
 4. **Backlog hygiene** — the open items in `docs/code-health/` reports and
    `attention.md`: anything now unblocked? Anything stale to close?
+5. **Concurrency lane** — run the TSan scheme
+   (`xcodebuild test -scheme SequencerAI-TSan -derivedDataPath build-dd`,
+   ~35 min, needs ~2Gi free + no other build running — skip the lens if
+   either fails) and the env-gated stress loops
+   (`TEST_RUNNER_SEQUENCERAI_STRESS=1`). Triage NEW TSan reports against
+   `docs/audits/2026-06-12-tsan-findings.md` and
+   `Tests/SequencerAITests/tsan-suppressions.txt`: real race → fix if
+   small, else file precisely; benign-by-design → suppress WITH a
+   per-entry justification; never blanket-suppress. A trapped deadlock
+   in the stress loops is a line-stop finding. Append the run verdict
+   (date, reports, disposition) to the findings doc. See
+   `docs/testing/concurrency-lane.md`.
 
-One lens per heartbeat tick. Do not run all four.
+One lens per heartbeat tick. Do not run all five.
 
 ## End of every tick
 
