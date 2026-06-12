@@ -29,7 +29,13 @@ struct ScenesWorkspaceView: View {
     @Environment(SequencerDocumentSession.self) var session
     @Environment(EngineController.self) var engineController
 
-    @State var mode: ScenesWorkspaceMode = .browseEdit
+    /// The page obeys the ONE global workspace mode (perform/setup split
+    /// slice 1): setup is the former browse/edit mode, perform the former
+    /// perform mode. The top bar owns the switch; no local toggle.
+    var mode: ScenesWorkspaceMode {
+        session.workspaceMode.scenesModeValue
+    }
+
     @State var selectedSceneID: UUID?
     @State var selectedInsertID: UUID?
     @State private var auMacroSlotPickerRequest: SceneAUMacroSlotPickerRequest?
@@ -79,9 +85,11 @@ struct ScenesWorkspaceView: View {
             handleVisualCommand(command)
         }
         .onChange(of: resetToken) {
+            // Navigation resets the page's selection only; the global mode is
+            // session state — switching pages never changes mode underneath
+            // you (wireframes §0).
             selectedSceneID = nil
             selectedInsertID = nil
-            mode = .browseEdit
         }
         .onChange(of: masterBus.scenes.map(\.id)) {
             guard let selectedSceneID else {
@@ -113,18 +121,6 @@ struct ScenesWorkspaceView: View {
         }
     }
 
-    var performToggleButton: some View {
-        Button {
-            mode = mode == .perform ? .browseEdit : .perform
-        } label: {
-            Label("Perform", systemImage: mode == .perform ? "record.circle.fill" : "record.circle")
-                .studioText(.labelBold)
-                .frame(minWidth: 96)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(mode == .perform ? StudioTheme.amber : StudioTheme.cyan)
-    }
-
     @ViewBuilder
     private var browseEdit: some View {
         if selectedSceneID == nil {
@@ -135,15 +131,13 @@ struct ScenesWorkspaceView: View {
     }
 
     private var sceneBrowser: some View {
-        StudioPanel(title: "", accent: StudioTheme.amber) {
+        StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false) {
             LazyVGrid(columns: sceneColumns, spacing: 12) {
                 ForEach(masterBus.scenes) { scene in
                     sceneCard(scene)
                 }
                 addSceneCard
             }
-        } accessory: {
-            performToggleButton
         }
     }
 
@@ -161,7 +155,9 @@ struct ScenesWorkspaceView: View {
     private func handleVisualCommand(_ command: String) {
         if command.hasPrefix("mode:"),
            let nextMode = ScenesWorkspaceMode(rawValue: String(command.dropFirst("mode:".count))) {
-            mode = nextMode
+            // Legacy harness vocabulary mapped onto the global mode
+            // (browseEdit ≙ setup, perform ≙ perform).
+            session.workspaceMode = WorkspaceMode(scenesMode: nextMode)
             return
         }
 
@@ -171,7 +167,7 @@ struct ScenesWorkspaceView: View {
     }
 
     private func applyVisualSceneEditorFixture(_ rawFixture: String) {
-        mode = .browseEdit
+        session.workspaceMode = .setup
 
         switch rawFixture {
         case "empty":
