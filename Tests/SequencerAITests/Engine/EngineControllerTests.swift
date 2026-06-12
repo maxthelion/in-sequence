@@ -2640,9 +2640,23 @@ final class EngineControllerTests: XCTestCase {
         )
         controller.drainAudioInputCapturePublicationForTesting()
         controller.processTick(tickIndex: 8, now: 0.8)
+
+        // Capture completion auto-enters Buffer immediately (the
+        // auto-switch contract). The bar-quantized entry pinned below is
+        // for MANUAL re-entry after monitoring live.
+        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        XCTAssertEqual(runtime.monitorMode, .loop)
+        XCTAssertEqual(runtime.activeMonitorMode, .loop)
+        XCTAssertNil(runtime.pendingLoopStartTick)
+
+        XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .input))
+        controller.processTick(tickIndex: 9, now: 0.9)
+        let scheduleCountBeforeReentry = try XCTUnwrap(
+            controller.audioInputRoutingReadoutForTesting(trackID: trackID)
+        ).loopPlaybackScheduleCount
         XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .loop))
 
-        var runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
+        runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
         var readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
         XCTAssertEqual(runtime.monitorMode, .loop)
         XCTAssertEqual(runtime.activeMonitorMode, .input)
@@ -2667,7 +2681,9 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(readout.scheduledLoopFrameCount, 4)
         XCTAssertEqual(readout.scheduledLoopChannelCount, 2)
         XCTAssertEqual(readout.scheduledLoopSampleRate, 44_100)
-        XCTAssertEqual(readout.loopPlaybackScheduleCount, 1)
+        // Re-entry schedules exactly once relative to the pre-re-entry
+        // count (the absolute count includes auto-entry internals).
+        XCTAssertEqual(readout.loopPlaybackScheduleCount, scheduleCountBeforeReentry + 1)
         XCTAssertTrue(
             readout.loopPlayer.engine?.outputConnectionPoints(for: readout.loopPlayer, outputBus: 0).first?.node === readout.outputMixer
         )
@@ -2680,7 +2696,8 @@ final class EngineControllerTests: XCTestCase {
 
         controller.processTick(tickIndex: 16, now: 1.6)
         readout = try XCTUnwrap(controller.audioInputRoutingReadoutForTesting(trackID: trackID))
-        XCTAssertEqual(readout.loopPlaybackScheduleCount, 1)
+        // No per-tick rescheduling churn after a successful schedule.
+        XCTAssertEqual(readout.loopPlaybackScheduleCount, scheduleCountBeforeReentry + 1)
 
         XCTAssertTrue(controller.setAudioInputMonitorMode(trackID: trackID, mode: .input))
         runtime = try XCTUnwrap(controller.audioInputRuntime(for: trackID))
@@ -2703,7 +2720,10 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(runtime.scheduledLoopPlaybackID, runtime.recordedLoopID)
         XCTAssertEqual(readout.connectedSource, .loop)
         XCTAssertEqual(readout.scheduledLoopFrameCount, 4)
-        XCTAssertEqual(readout.loopPlaybackScheduleCount, 2)
+        // Second manual re-entry: again exactly one schedule per entry
+        // (auto-entry + two manual re-entries = +2 over the pre-re-entry
+        // count; one buffer schedule per Buffer entry, no churn).
+        XCTAssertEqual(readout.loopPlaybackScheduleCount, scheduleCountBeforeReentry + 2)
     }
 
     func test_audioInputRouting_inputModeUsesLiveInputRequestThroughMixerPath() throws {
