@@ -39,10 +39,12 @@ extension ScenesWorkspaceView {
 
     private func crossfaderBridge(value: Double) -> some View {
         VStack(spacing: 10) {
+            // Values read in the accent colour (ux-canon rule 12.3), matching
+            // the BPM readout in the transport bar.
             Text("\(Int((value * 100).rounded()))%")
                 .studioText(.eyebrowBold)
                 .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(StudioTheme.amber)
                 .frame(width: 56, alignment: .center)
 
             HStack(spacing: 8) {
