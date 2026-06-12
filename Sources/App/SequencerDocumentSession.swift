@@ -34,6 +34,12 @@ final class SequencerDocumentSession {
     var trackFillPreviewState: TrackFillPreviewState = .inactive
     var phrasePerformOverlay = PhrasePerformOverlayState()
 
+    /// The global setup/perform workspace mode (perform/setup split slice 1).
+    /// Session-only UI state like the selected page: every page derives its
+    /// presentation from this one value. Defaults to `.setup` each session
+    /// and is intentionally NEVER flushed into the document.
+    var workspaceMode: WorkspaceMode = .setup
+
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
     let debounceInterval: Duration
