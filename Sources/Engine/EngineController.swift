@@ -798,6 +798,22 @@ final class EngineController: RouterDispatcher {
         return withStateLock { trackRuntime.audioInputRuntimes[trackID] }
     }
 
+    /// Stress-test variant of `audioInputRuntime(for:)`: the same
+    /// `stateLock` read WITHOUT the `@Observable` registration read. The
+    /// churn stress tests call this from worker queues standing in for
+    /// main; the observable surface is main-confined in production (every
+    /// product caller is SwiftUI), so an off-main registration read would
+    /// be a TSan race the product does not have (2026-06-12 lane finding 1).
+    func audioInputRuntimeForStressTesting(_ trackID: UUID) -> AudioInputTrackRuntime? {
+        withStateLock { trackRuntime.audioInputRuntimes[trackID] }
+    }
+
+    /// Stress-test variant of `audioInputRuntimeTrackIDs` (same contract
+    /// as `audioInputRuntimeForStressTesting`).
+    var audioInputRuntimeTrackIDsForStressTesting: Set<UUID> {
+        withStateLock { Set(trackRuntime.audioInputRuntimes.keys) }
+    }
+
     func audioInputRoutingReadoutForTesting(trackID: UUID) -> MainAudioGraph.AudioInputRoutingReadout? {
         mainAudioGraph.audioInputRoutingReadoutForTesting(trackID: trackID)
     }
@@ -1096,7 +1112,7 @@ final class EngineController: RouterDispatcher {
     }
 
     func apply(playbackSnapshot: PlaybackSnapshot) {
-        applyPlaybackSnapshotCallCount += 1
+        applyPlaybackSnapshotCallCountAtomic.increment()
         tickState.installPlaybackSnapshot(
             playbackSnapshot,
             currentTrackIDs: Set(playbackSnapshot.tracks.map(\.id)),
@@ -1131,7 +1147,15 @@ final class EngineController: RouterDispatcher {
     var applyDocumentModelCallCount: Int = 0
 
     /// Counter for test observation of `apply(playbackSnapshot:)` invocations.
-    var applyPlaybackSnapshotCallCount: Int = 0
+    /// Atomic backing: PlaybackSnapshotConcurrencyTests applies snapshots
+    /// from concurrent workers by design, and the plain `+= 1` was an
+    /// unsynchronized read-modify-write (2026-06-12 TSan lane finding 4).
+    @ObservationIgnored
+    private let applyPlaybackSnapshotCallCountAtomic = AtomicInt64(0)
+
+    var applyPlaybackSnapshotCallCount: Int {
+        Int(applyPlaybackSnapshotCallCountAtomic.load())
+    }
 
     /// Counter for test observation of scoped send-bus authored updates.
     var sendBusApplyCallCount: Int = 0

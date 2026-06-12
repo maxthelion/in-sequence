@@ -275,11 +275,15 @@ final class ConcurrencyChurnStressTests: XCTestCase {
                 }
             },
             // The input panel's read pattern: withStateLock reads at meter
-            // rate — the main-side half of the D1 interleaving.
+            // rate — the main-side half of the D1 interleaving. The
+            // ...ForStressTesting variants skip the @Observable
+            // registration read: that surface is main-confined in
+            // production, and reading it from this worker is a TSan race
+            // the product doesn't have (lane finding 1).
             ChurnWorker(label: "read") {
                 for _ in 0..<(armCycles * 4) {
-                    _ = controller.audioInputRuntime(for: audioInputTrackID)
-                    _ = controller.audioInputRuntimeTrackIDs
+                    _ = controller.audioInputRuntimeForStressTesting(audioInputTrackID)
+                    _ = controller.audioInputRuntimeTrackIDsForStressTesting
                 }
             },
         ])
@@ -371,7 +375,7 @@ final class ConcurrencyChurnStressTests: XCTestCase {
             },
             ChurnWorker(label: "read") {
                 for _ in 0..<4_000 {
-                    _ = controller.audioInputRuntime(for: trackID)
+                    _ = controller.audioInputRuntimeForStressTesting(trackID)
                 }
             },
         ])

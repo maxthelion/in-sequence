@@ -44,6 +44,11 @@ final class AtomicInt64 {
             }
         }
     }
+
+    @discardableResult
+    func increment() -> Int64 {
+        OSAtomicIncrement64Barrier(storage)
+    }
 }
 
 final class AtomicInt32 {

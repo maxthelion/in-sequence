@@ -12,5 +12,16 @@
 # Pass to the lane via:
 #   TEST_RUNNER_TSAN_OPTIONS="suppressions=$(pwd)/Tests/SequencerAITests/tsan-suppressions.txt"
 
-# (no entries yet — the 2026-06-12 lane run produced no benign-by-design
-# reports that needed suppressing; see the findings doc)
+# --- CoreMIDI callback publication (2026-06-12 lane finding 3) ---
+# Three test-helper packet recorders are constructed on the test main
+# thread, then handed to MIDIClient.createVirtualInput; their first
+# `append` runs on CoreMIDI's receive thread (CADeprecated::CAPThread).
+# TSan flags init-vs-first-append as unordered, but the happens-before
+# edge is MIDIDestinationCreate's registration round trip through
+# MIDIServer (cross-process), which TSan cannot model: the receive thread
+# cannot invoke the handler before registration completes, and
+# registration starts strictly after init returns. All post-init access
+# in all three helpers is NSLock-guarded (verified 2026-06-12).
+race:IntegrationMIDIPacketRecorder
+race:LockedPacketStore
+race:LockedMIDIPacketStore
