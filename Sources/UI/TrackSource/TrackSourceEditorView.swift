@@ -365,8 +365,6 @@ struct TrackSourceEditorView: View {
             generatedSourceInputClips: generatedSourceInputClips,
             harmonicSidechainClips: harmonicSidechainClips,
             onAssignMacroSlot: prepareAndPresentMacroSlotPicker(slotIndex:),
-            onUpdateMacroLanes: updateClipMacroLanes,
-            onUpdateClipContent: updateClipContent,
             onShowSourcePicker: { updateSourcePickerStep(.showRoot) },
             onBackOutSourcePicker: { updateSourcePickerStep(.cancel) },
             onShowSourceGeneratorPool: { updateSourcePickerStep(.showGeneratorPool) },
@@ -565,32 +563,6 @@ struct TrackSourceEditorView: View {
     private func assignMacro(_ parameter: AUParameterDescriptor, to slotIndex: Int) {
         let descriptor = TrackMacroDescriptor(auParameter: parameter)
         _ = session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
-    }
-
-    private func updateClipMacroLanes(_ updatedLanes: [UUID: MacroLane]) {
-        session.ensureClipAndMutate(at: selectedPatternAddress) { _, entry in
-            entry.macroLanes = updatedLanes
-        }
-    }
-
-    private func updateClipContent(_ updated: ClipContent) {
-        let trackID = track.id
-        #if DEBUG
-        let mutationStart = StepGridTapDiagnostics.now
-        StepGridTapDiagnostics.log(
-            "storeMutationStart",
-            details: "trackID=\(trackID.uuidString)"
-        )
-        #endif
-        session.ensureClipAndMutate(at: selectedPatternAddress) { _, entry in
-            entry.content = updated
-        }
-        #if DEBUG
-        StepGridTapDiagnostics.log(
-            "storeMutationEnd",
-            details: "elapsed=\(StepGridTapDiagnostics.elapsedMilliseconds(since: mutationStart)) trackID=\(trackID.uuidString)"
-        )
-        #endif
     }
 
     private func updateSourceGeneratorParams(_ updated: GeneratorParams) {

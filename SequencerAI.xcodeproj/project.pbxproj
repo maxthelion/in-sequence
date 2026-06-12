@@ -269,6 +269,7 @@
 		8FD9738657BE81975D328519 /* Project+Destinations.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA4AB8938322081B3FF85AA /* Project+Destinations.swift */; };
 		9044F878F3912B1390BFEE9A /* SlicerWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBBE661BFC976779D2F2326 /* SlicerWaveformView.swift */; };
 		910E0C50B0167745C9EFC3C2 /* MIDIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5287FF85E53E1D764EC6FD /* MIDIRouter.swift */; };
+		91F2F4DD6EC362A15FD00EBC /* StepGridSingleWritePathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B301301D39C0EC7D47953B2 /* StepGridSingleWritePathTests.swift */; };
 		9288FD7EF3B31BDBD796F0BE /* DestinationInheritGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E2B29F7D70977445686F711 /* DestinationInheritGroupTests.swift */; };
 		93D66B65020831B6627FBD8A /* Stream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97637E4515BD5143B0324852 /* Stream.swift */; };
 		94B0EB5599FB87ADC565B50E /* PhraseLayerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B25BBA0A63F5333205728D /* PhraseLayerPresentation.swift */; };
@@ -828,6 +829,7 @@
 		3A94D8443B452EC7159A1983 /* user-attention.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-attention.md"; sourceTree = "<group>"; };
 		3AA6B4B68620412F96E776D2 /* implementation-handoff.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "implementation-handoff.md"; sourceTree = "<group>"; };
 		3ABFECBD531FE46B32B451D1 /* resolution.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = resolution.md; sourceTree = "<group>"; };
+		3B301301D39C0EC7D47953B2 /* StepGridSingleWritePathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepGridSingleWritePathTests.swift; sourceTree = "<group>"; };
 		3B538DEA2E634E22CF6ED727 /* PresetStepper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetStepper.swift; sourceTree = "<group>"; };
 		3B9C5D53CE9849D7D40C1A0F /* architecture.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = architecture.md; sourceTree = "<group>"; };
 		3BB407748487205A92FC731F /* feature-readiness.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "feature-readiness.md"; sourceTree = "<group>"; };
@@ -4543,6 +4545,7 @@
 			children = (
 				E9E55E89F661CA6D1CF87366 /* StepGridCoordinatorTests.swift */,
 				A7D0B18FC912CC416C920AE6 /* StepGridEditParityTests.swift */,
+				3B301301D39C0EC7D47953B2 /* StepGridSingleWritePathTests.swift */,
 				71A84BECE182FD5E7E510409 /* UnifiedStepCellTests.swift */,
 			);
 			path = StepGrid;
@@ -5449,6 +5452,7 @@
 				E5D850D36A04C9A9F10EE2E8 /* StepAlgoTests.swift in Sources */,
 				50EAF395A3C8EFACDB3EEE9D /* StepGridCoordinatorTests.swift in Sources */,
 				2215BF4A705D98902159E07E /* StepGridEditParityTests.swift in Sources */,
+				91F2F4DD6EC362A15FD00EBC /* StepGridSingleWritePathTests.swift in Sources */,
 				AFEB45DB2224252C48A17042 /* StepGridTapLatencyTests.swift in Sources */,
 				BC0104D27C4388257DB8C5F8 /* StepOrderPersistenceTests.swift in Sources */,
 				C01D0E83694CD432F5B1B821 /* StepSequenceTrackAudioInputCodableTests.swift in Sources */,

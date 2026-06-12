@@ -73,7 +73,7 @@ A clip's `macroLanes` dictionary is authored from `ClipContentPreview`. The UI s
 - Tapping a **bound** slot switches the cell grid to edit that macro's lane.
 - Tapping an **unbound** slot opens `SingleMacroSlotPickerSheet` to pick one AU parameter.
 
-Lane edits write back via `session.ensureClipAndMutate` setting `entry.macroLanes`.
+Lane edits commit through `StepGridCoordinator.commitEdit` (→ `session.mutateClip(id:)`) as in-place `ClipNoteGridStepEditing` transforms that touch only the edited lane — the same single clip-write path the rotary row uses, so interleaved writes to different lanes compose instead of clobbering each other.
 
 ## Snapshot compiler and precedence
 

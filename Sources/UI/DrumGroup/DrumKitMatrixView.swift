@@ -260,8 +260,10 @@ struct DrumKitMatrixModel: Equatable {
                   let clip = clipPool.first(where: { $0.id == clipID })
             else {
                 // Empty slot: render an empty 16-step grid; the first edit
-                // materializes a clip through `ensureClipAndMutate`, exactly
-                // like the single-track editor's empty-slot behavior.
+                // materializes a clip through `ensureClipAndMutate`. (The
+                // single-track editor never edits an empty slot — its clip
+                // panel only shows for an occupied clip — so the matrix is
+                // the one surface that still needs the slot-address key.)
                 return .editable(
                     clipID: nil,
                     lengthSteps: 16,
@@ -746,9 +748,11 @@ struct DrumKitMatrixView: View {
         .scrollIndicators(.never)
     }
 
-    /// Commit a cell tap for a row through the same typed session mutation the
-    /// single-track editor uses (`ensureClipAndMutate`), with the same shared
-    /// content transform (`ClipNoteGridStepEditing`).
+    /// Commit a cell tap for a row through `ensureClipAndMutate`, with the
+    /// same shared content transform (`ClipNoteGridStepEditing`). The matrix
+    /// keeps the slot-address key because a tap on an empty slot must
+    /// materialize a clip; the single-track editor (which only ever edits an
+    /// existing clip) commits through `StepGridCoordinator.commitEdit`.
     private func commitTap(row: DrumKitMatrixModel.Row, stepIndex: Int) {
         guard case let .editable(_, lengthSteps, steps) = row.content,
               let updated = DrumKitMatrixStepEdit.tappedContent(

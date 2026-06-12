@@ -116,10 +116,10 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         }
     }
 
-    /// The single-track editor's commit, verbatim: `ClipContentPreview` builds
-    /// the new content with `ClipNoteGridStepEditing` (lane `.main`, the
-    /// track-derived default note) and `TrackSourceEditorView.updateClipContent`
-    /// writes it through `ensureClipAndMutate` at the selected slot.
+    /// The single-track editor's edit semantics: `ClipContentPreview` builds
+    /// the toggle with `ClipNoteGridStepEditing` (lane `.main`, the
+    /// track-derived default note) and commits it in place through
+    /// `StepGridCoordinator.commitEdit` → `session.mutateClip(id:)`.
     private func singleTrackToggle(
         _ session: SequencerDocumentSession,
         trackID: UUID,

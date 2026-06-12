@@ -137,9 +137,7 @@ struct ClipContentPreview: View {
     let macroFallbackValues: [UUID: Double]
     let stepGridCoordinator: StepGridCoordinator?
     let onAssignMacroSlot: ((Int) -> Void)?
-    let onUpdateMacroLanes: (([UUID: MacroLane]) -> Void)?
     let playingStepIndex: Int?
-    let onCommit: ((ClipContent) -> Void)?
 
     @State private var displayedContent: ClipContent
     @State private var selectedLane: ClipEditorLane = .main
@@ -155,9 +153,7 @@ struct ClipContentPreview: View {
         macroFallbackValues: [UUID: Double] = [:],
         stepGridCoordinator: StepGridCoordinator? = nil,
         onAssignMacroSlot: ((Int) -> Void)? = nil,
-        onUpdateMacroLanes: (([UUID: MacroLane]) -> Void)? = nil,
-        playingStepIndex: Int? = nil,
-        onChange: ((ClipContent) -> Void)? = nil
+        playingStepIndex: Int? = nil
     ) {
         let normalizedContent = content.normalized
         self.content = normalizedContent
@@ -168,10 +164,15 @@ struct ClipContentPreview: View {
         self.macroFallbackValues = macroFallbackValues
         self.stepGridCoordinator = stepGridCoordinator
         self.onAssignMacroSlot = onAssignMacroSlot
-        self.onUpdateMacroLanes = onUpdateMacroLanes
         self.playingStepIndex = playingStepIndex
-        self.onCommit = onChange
         self._displayedContent = State(initialValue: normalizedContent)
+    }
+
+    /// Edits are enabled exactly when a coordinator is attached: the
+    /// coordinator's `commitEdit` is the one clip-write path for every
+    /// step-grid surface (audit F1/F3).
+    private var isEditable: Bool {
+        stepGridCoordinator != nil
     }
 
     var body: some View {
@@ -186,12 +187,17 @@ struct ClipContentPreview: View {
                         stepStates: stepPattern.map { $0 ? .on : .off },
                         playingStepIndex: playingStepIndex
                     ) { index in
-                        var nextPattern = stepPattern
-                        guard nextPattern.indices.contains(index) else { return }
-                        nextPattern[index].toggle()
-                        commit(.sliceTriggers(stepPattern: nextPattern, sliceIndexes: sliceIndexes, stepModes: stepModes, stepParameters: stepParameters))
+                        guard stepPattern.indices.contains(index) else { return }
+                        commit { entry in
+                            ClipNoteGridStepEditing.toggleActive(
+                                at: index,
+                                entry: &entry,
+                                noteLane: .main,
+                                defaultNote: defaultNote
+                            )
+                        }
                     }
-                    .allowsHitTesting(onCommit != nil)
+                    .allowsHitTesting(isEditable)
 
                     TextField(
                         "Comma-separated slice indexes",
@@ -202,7 +208,15 @@ struct ClipContentPreview: View {
                                     .split(separator: ",")
                                     .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
                                 if !parsed.isEmpty {
-                                    commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: parsed, stepModes: stepModes, stepParameters: stepParameters))
+                                    commit { entry in
+                                        guard case let .sliceTriggers(pattern, _, modes, parameters) = entry.content.normalized else { return }
+                                        entry.content = .sliceTriggers(
+                                            stepPattern: pattern,
+                                            sliceIndexes: parsed,
+                                            stepModes: modes,
+                                            stepParameters: parameters
+                                        )
+                                    }
                                 }
                             }
                         )
@@ -262,23 +276,14 @@ struct ClipContentPreview: View {
                         )
                     },
                     onValueDrag: { index, fraction in
-                        updateMacroLaneFraction(
-                            fraction,
-                            binding: selectedMacroLayer.binding,
-                            stepIndexes: affectedStepIndexes(for: index),
-                            stepCount: lengthSteps
-                        )
+                        writeValueLayer(fraction, layer: layer, tappedIndex: index)
                     },
                     onSelectStep: selectStepAction,
                     onBackgroundTap: clearSelectionAction
                 ) { index in
-                    cycleMacroLaneValue(
-                        binding: selectedMacroLayer.binding,
-                        stepIndex: index,
-                        stepCount: lengthSteps
-                    )
+                    cycleMacroLayerValue(macroIndex: selectedMacroLayer.macroIndex, tappedIndex: index)
                 }
-                .allowsHitTesting(onUpdateMacroLanes != nil)
+                .allowsHitTesting(isEditable)
             } else {
                 switch selectedMode {
                 case .trigger:
@@ -300,16 +305,20 @@ struct ClipContentPreview: View {
                             details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
                         )
                         #endif
-                        commit(
-                            togglingSteps(
-                                at: affectedStepIndexes(for: index),
-                                lengthSteps: lengthSteps,
-                                steps: steps,
-                                lane: selectedLane
+                        let indexes = affectedStepIndexes(for: index)
+                        commit { entry in
+                            ClipNoteGridStepEditing.applyTap(
+                                tappedIndex: index,
+                                indexes: indexes,
+                                layer: .trigger,
+                                entry: &entry,
+                                macroBindings: nil,
+                                noteLane: selectedLane.noteLane,
+                                defaultNote: defaultNote
                             )
-                        )
+                        }
                     }
-                    .allowsHitTesting(onCommit != nil)
+                    .allowsHitTesting(isEditable)
 
                 case .velocity:
                     StepGridView(
@@ -324,17 +333,7 @@ struct ClipContentPreview: View {
                             return .valueBar(fraction: velocityValue(for: steps[index], lane: selectedLane) / 127.0)
                         },
                         onValueDrag: { index, fraction in
-                            let indexes = affectedStepIndexes(for: index)
-                            commit(
-                                ClipNoteGridStepEditing.updatingLaneVelocities(
-                                    lane: selectedLane.noteLane,
-                                    values: Array(repeating: fraction * 127.0, count: indexes.count),
-                                    visibleIndices: indexes,
-                                    lengthSteps: lengthSteps,
-                                    steps: steps,
-                                    defaultNote: defaultNote
-                                )
-                            )
+                            writeValueLayer(fraction, layer: .velocity, tappedIndex: index)
                         },
                         onSelectStep: selectStepAction,
                         onBackgroundTap: clearSelectionAction
@@ -344,19 +343,9 @@ struct ClipContentPreview: View {
                             after: velocityValue(for: steps[index], lane: selectedLane),
                             allowedValues: ClipNoteGridStepEditing.velocityCycleValues
                         )
-                        let indexes = affectedStepIndexes(for: index)
-                        commit(
-                            ClipNoteGridStepEditing.updatingLaneVelocities(
-                                lane: selectedLane.noteLane,
-                                values: Array(repeating: nextValue, count: indexes.count),
-                                visibleIndices: indexes,
-                                lengthSteps: lengthSteps,
-                                steps: steps,
-                                defaultNote: defaultNote
-                            )
-                        )
+                        writeValueLayer(nextValue / 127.0, layer: .velocity, tappedIndex: index)
                     }
-                    .allowsHitTesting(onCommit != nil)
+                    .allowsHitTesting(isEditable)
 
                 case .probability:
                     StepGridView(
@@ -371,17 +360,7 @@ struct ClipContentPreview: View {
                             return .valueBar(fraction: chanceValue(for: steps[index], lane: selectedLane))
                         },
                         onValueDrag: { index, fraction in
-                            let indexes = affectedStepIndexes(for: index)
-                            commit(
-                                ClipNoteGridStepEditing.updatingLaneChances(
-                                    lane: selectedLane.noteLane,
-                                    values: Array(repeating: fraction, count: indexes.count),
-                                    visibleIndices: indexes,
-                                    lengthSteps: lengthSteps,
-                                    steps: steps,
-                                    defaultNote: defaultNote
-                                )
-                            )
+                            writeValueLayer(fraction, layer: .chance, tappedIndex: index)
                         },
                         onSelectStep: selectStepAction,
                         onBackgroundTap: clearSelectionAction
@@ -391,19 +370,9 @@ struct ClipContentPreview: View {
                             after: chanceValue(for: steps[index], lane: selectedLane),
                             allowedValues: ClipNoteGridStepEditing.chanceCycleValues
                         )
-                        let indexes = affectedStepIndexes(for: index)
-                        commit(
-                            ClipNoteGridStepEditing.updatingLaneChances(
-                                lane: selectedLane.noteLane,
-                                values: Array(repeating: nextValue, count: indexes.count),
-                                visibleIndices: indexes,
-                                lengthSteps: lengthSteps,
-                                steps: steps,
-                                defaultNote: defaultNote
-                            )
-                        )
+                        writeValueLayer(nextValue, layer: .chance, tappedIndex: index)
                     }
-                    .allowsHitTesting(onCommit != nil)
+                    .allowsHitTesting(isEditable)
                 }
             }
 
@@ -563,9 +532,12 @@ struct ClipContentPreview: View {
                                 title: "\(option)",
                                 accent: StudioTheme.violet,
                                 isSelected: lengthSteps == option,
-                                isEnabled: onCommit != nil,
+                                isEnabled: isEditable,
                                 action: {
-                                    commit(resizingNoteGrid(to: option, currentSteps: steps))
+                                    commit { entry in
+                                        guard case let .noteGrid(_, currentSteps) = entry.content.normalized else { return }
+                                        entry.content = resizingNoteGrid(to: option, currentSteps: currentSteps)
+                                    }
                                 }
                             )
                         }
@@ -709,35 +681,40 @@ struct ClipContentPreview: View {
         macroLayerTabs.first { $0.slotIndex == slot.slotIndex }
     }
 
-    private func syncedMacroLanes(stepCount: Int) -> [UUID: MacroLane] {
-        macroLanes.mapValues { $0.synced(stepCount: stepCount) }
-    }
-
-    /// One `onUpdateMacroLanes` call for the whole index batch, mirroring the
-    /// single-mutation rule for selection edits.
-    private func updateMacroLaneValue(_ value: Double?, binding: TrackMacroBinding, stepIndexes: [Int], stepCount: Int) {
-        guard let onUpdateMacroLanes else { return }
-        var updatedLanes = syncedMacroLanes(stepCount: stepCount)
-        var lane = updatedLanes[binding.id] ?? MacroLane(stepCount: stepCount)
-        for stepIndex in stepIndexes where lane.values.indices.contains(stepIndex) {
-            lane.values[stepIndex] = value.map { clampedMacroValue($0, for: binding) }
+    /// One value-layer write for drags, tap cycles, and macro lanes: the
+    /// shared `applyAbsoluteValue` transform over the selection-aware
+    /// affected indexes, committed through the coordinator in one mutation.
+    private func writeValueLayer(_ value: Double, layer: StepGridLayer, tappedIndex: Int) {
+        let indexes = affectedStepIndexes(for: tappedIndex)
+        commit { entry in
+            ClipNoteGridStepEditing.applyAbsoluteValue(
+                value,
+                indexes: indexes,
+                layer: layer,
+                entry: &entry,
+                macroBindings: macroBindings,
+                noteLane: selectedLane.noteLane,
+                defaultNote: defaultNote
+            )
         }
-        updatedLanes[binding.id] = lane
-        onUpdateMacroLanes(updatedLanes)
     }
 
-    private func updateMacroLaneFraction(_ fraction: Double, binding: TrackMacroBinding, stepIndexes: [Int], stepCount: Int) {
-        let range = binding.descriptor.maxValue - binding.descriptor.minValue
-        let value = binding.descriptor.minValue + (min(max(fraction, 0), 1) * range)
-        updateMacroLaneValue(value, binding: binding, stepIndexes: stepIndexes, stepCount: stepCount)
-    }
-
-    private func cycleMacroLaneValue(binding: TrackMacroBinding, stepIndex: Int, stepCount: Int) {
-        let values = macroAllowedValues(for: binding)
-        let laneValues = macroLanes[binding.id]?.synced(stepCount: stepCount).values
-        let current = laneValues?.indices.contains(stepIndex) == true ? laneValues?[stepIndex] ?? nil : nil
-        let next = ClipNoteGridStepEditing.cycledValue(after: current ?? macroFallbackValue(for: binding), allowedValues: values)
-        updateMacroLaneValue(next, binding: binding, stepIndexes: affectedStepIndexes(for: stepIndex), stepCount: stepCount)
+    /// Macro-layer tap: the shared quantized cycle (spec §4c), seeded from
+    /// the tapped step's stored value, falling back to the live macro value.
+    private func cycleMacroLayerValue(macroIndex: Int, tappedIndex: Int) {
+        let indexes = affectedStepIndexes(for: tappedIndex)
+        commit { entry in
+            ClipNoteGridStepEditing.applyTap(
+                tappedIndex: tappedIndex,
+                indexes: indexes,
+                layer: .macro(index: macroIndex),
+                entry: &entry,
+                macroBindings: macroBindings,
+                noteLane: selectedLane.noteLane,
+                defaultNote: defaultNote,
+                macroFallbackValues: macroFallbackValues
+            )
+        }
     }
 
     private func macroPreviewClip(lengthSteps: Int, steps: [ClipStep]) -> ClipPoolEntry {
@@ -748,18 +725,6 @@ struct ClipContentPreview: View {
             content: .noteGrid(lengthSteps: lengthSteps, steps: steps),
             macroLanes: macroLanes
         )
-    }
-
-    private func macroFallbackValue(for binding: TrackMacroBinding) -> Double {
-        clampedMacroValue(macroFallbackValues[binding.id] ?? binding.descriptor.defaultValue, for: binding)
-    }
-
-    private func clampedMacroValue(_ value: Double, for binding: TrackMacroBinding) -> Double {
-        min(max(value, binding.descriptor.minValue), binding.descriptor.maxValue)
-    }
-
-    private func macroAllowedValues(for binding: TrackMacroBinding) -> [Double] {
-        ClipNoteGridStepEditing.macroAllowedValues(for: binding)
     }
 
     private func headerControlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -816,9 +781,29 @@ struct ClipContentPreview: View {
         selectedPage = min(selectedPage, pageCount - 1)
     }
 
-    private func commit(_ nextContent: ClipContent) {
-        guard let onCommit else { return }
-        let normalized = nextContent.normalized
+    /// Commit a step edit through the one clip-write path (audit F1/F3).
+    ///
+    /// The edit is an in-place transform of a `ClipPoolEntry`. It is applied
+    /// twice: first to a local copy seeded from `displayedContent` so the
+    /// tapped cell repaints in the same frame (optimistic render — this is
+    /// the tap-latency path), then to live store truth through
+    /// `StepGridCoordinator.commitEdit` → `mutateClip(id:)`. Because the
+    /// store application transforms *current* store state instead of
+    /// replacing the clip with content built from this view's copy,
+    /// interleaved writes from other surfaces (rotary row, slicer) are never
+    /// lost. The store's change comes back through `content` and replaces
+    /// `displayedContent`, which stays a pure render cache.
+    private func commit(_ edit: (inout ClipPoolEntry) -> Void) {
+        guard let stepGridCoordinator else { return }
+        var optimistic = ClipPoolEntry(
+            id: optimisticEntryID,
+            name: "Optimistic",
+            trackType: .monoMelodic,
+            content: displayedContent,
+            macroLanes: macroLanes
+        )
+        edit(&optimistic)
+        let normalized = optimistic.content.normalized
         #if DEBUG
         StepGridTapDiagnostics.log(
             "optimisticContentAssignStart",
@@ -833,13 +818,17 @@ struct ClipContentPreview: View {
         )
         let commitStart = StepGridTapDiagnostics.now
         #endif
-        onCommit(normalized)
+        _ = stepGridCoordinator.commitEdit(edit)
         #if DEBUG
         StepGridTapDiagnostics.log(
             "onCommitReturned",
             details: "elapsed=\(StepGridTapDiagnostics.elapsedMilliseconds(since: commitStart)) \(diagnosticSummary(for: normalized))"
         )
         #endif
+    }
+
+    private var optimisticEntryID: UUID {
+        UUID(uuidString: "00000000-0000-0000-0000-000000000002") ?? UUID()
     }
 
     #if DEBUG
@@ -873,12 +862,10 @@ struct ClipContentPreview: View {
                 ForEach(stepPattern.indices, id: \.self) { index in
                     let mode = stepModes.indices.contains(index) ? stepModes[index] : .single
                     Button {
-                        var nextModes = stepModes
-                        if nextModes.count < stepPattern.count {
-                            nextModes.append(contentsOf: Array(repeating: .single, count: stepPattern.count - nextModes.count))
+                        let target = mode == .single ? 1 : 0
+                        commit { entry in
+                            ClipNoteGridStepEditing.setSliceMode(target, at: index, entry: &entry)
                         }
-                        nextModes[index] = mode == .single ? .runFromHere : .single
-                        commit(.sliceTriggers(stepPattern: stepPattern, sliceIndexes: sliceIndexes, stepModes: nextModes, stepParameters: stepParameters))
                     } label: {
                         VStack(spacing: 3) {
                             Text("\(index + 1)")
@@ -902,7 +889,7 @@ struct ClipContentPreview: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .disabled(!stepPattern[index] || onCommit == nil)
+                    .disabled(!stepPattern[index] || !isEditable)
                     .opacity(stepPattern[index] ? 1 : 0.45)
                 }
             }
@@ -920,26 +907,6 @@ struct ClipContentPreview: View {
 
     private func velocityValue(for step: ClipStep, lane: ClipEditorLane) -> Double {
         ClipNoteGridStepEditing.velocityValue(for: step, lane: lane.noteLane)
-    }
-
-    private func togglingSteps(
-        at indexes: [Int],
-        lengthSteps: Int,
-        steps: [ClipStep],
-        lane: ClipEditorLane
-    ) -> ClipContent {
-        var content = ClipContent.noteGrid(lengthSteps: lengthSteps, steps: steps)
-        for index in indexes {
-            guard case let .noteGrid(currentLength, currentSteps) = content else { break }
-            content = ClipNoteGridStepEditing.togglingStep(
-                at: index,
-                lengthSteps: currentLength,
-                steps: currentSteps,
-                lane: lane.noteLane,
-                defaultNote: defaultNote
-            )
-        }
-        return content
     }
 
     private func resizingNoteGrid(to newLength: Int, currentSteps: [ClipStep]) -> ClipContent {

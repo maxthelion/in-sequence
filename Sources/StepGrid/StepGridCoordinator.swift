@@ -243,6 +243,19 @@ final class StepGridCoordinator {
         }
     }
 
+    /// The single clip-write entry for every step-grid surface (audit
+    /// F1/F3). Rotary/batch writes and the grid surfaces' tap/drag commits
+    /// all land here: one in-place transform of the live store entry, keyed
+    /// by the coordinator's clip ID. Surfaces must never write a whole
+    /// `ClipContent` (or `macroLanes` dict) computed from a view copy —
+    /// expressing every edit as a transform of current store truth is what
+    /// makes interleaved writes from different surfaces compose instead of
+    /// losing updates.
+    @discardableResult
+    func commitEdit(_ edit: (inout ClipPoolEntry) -> Void) -> Bool {
+        clipMutator.mutateClip(id: selection.clipID, impact: .snapshotOnly, edit)
+    }
+
     @discardableResult
     func onTap(
         stepIndex: Int,
@@ -251,13 +264,12 @@ final class StepGridCoordinator {
         noteLane: StepGridNoteLane = .main,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
     ) -> Bool {
-        let clipID = selection.clipID
         let indexes = affectedIndexes(for: stepIndex)
         let resolvedLayer = layer ?? activeLayer
         let resolvedBindings = track?.macros
         let normalizedDefaultNote = defaultNote.normalized
 
-        return clipMutator.mutateClip(id: clipID, impact: .snapshotOnly) { entry in
+        return commitEdit { entry in
             ClipNoteGridStepEditing.applyTap(
                 tappedIndex: stepIndex,
                 indexes: indexes,
@@ -280,13 +292,12 @@ final class StepGridCoordinator {
         noteLane: StepGridNoteLane = .main,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
     ) -> Bool {
-        let clipID = selection.clipID
         let indexes = affectedIndexes(for: stepIndex)
         let resolvedLayer = layer ?? activeLayer
         let resolvedBindings = macroBindings ?? track?.macros
         let normalizedDefaultNote = defaultNote.normalized
 
-        return clipMutator.mutateClip(id: clipID, impact: .snapshotOnly) { entry in
+        return commitEdit { entry in
             ClipNoteGridStepEditing.applyAbsoluteValue(
                 value,
                 indexes: indexes,
@@ -311,11 +322,10 @@ final class StepGridCoordinator {
 
     @discardableResult
     func clearSelectedSteps(track: StepSequenceTrack) -> Bool {
-        let clipID = selection.clipID
         let indexes = selection.selectedStepIndexes.sorted()
         let macroBindings = track.macros
 
-        let didMutate = clipMutator.mutateClip(id: clipID, impact: .snapshotOnly) { entry in
+        let didMutate = commitEdit { entry in
             for index in indexes {
                 ClipNoteGridStepEditing.clearStep(at: index, entry: &entry, macroBindings: macroBindings)
             }
@@ -332,12 +342,11 @@ final class StepGridCoordinator {
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
     ) -> Bool {
         guard let clipboard else { return false }
-        let clipID = selection.clipID
         let entries = clipboard.steps
         let macroBindings = track.macros
         let normalizedDefaultNote = defaultNote.normalized
 
-        return clipMutator.mutateClip(id: clipID, impact: .snapshotOnly) { entry in
+        return commitEdit { entry in
             for (index, clipboardEntry) in entries {
                 ClipNoteGridStepEditing.paste(
                     clipboardEntry,

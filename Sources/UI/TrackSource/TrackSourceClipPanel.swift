@@ -11,8 +11,6 @@ struct TrackSourceClipPanel: View {
     let playingStepIndex: Int?
     let stepGridCoordinator: StepGridCoordinator?
     let onAssignMacroSlot: (Int) -> Void
-    let onUpdateMacroLanes: ([UUID: MacroLane]) -> Void
-    let onUpdateClipContent: (ClipContent) -> Void
 
     var body: some View {
         ClipContentPreview(
@@ -24,9 +22,7 @@ struct TrackSourceClipPanel: View {
             macroFallbackValues: macroFallbackValues,
             stepGridCoordinator: stepGridCoordinator,
             onAssignMacroSlot: canAssignAUMacros ? onAssignMacroSlot : nil,
-            onUpdateMacroLanes: onUpdateMacroLanes,
-            playingStepIndex: playingStepIndex,
-            onChange: onUpdateClipContent
+            playingStepIndex: playingStepIndex
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }

@@ -20,8 +20,6 @@ struct TrackSourceSourceTabContent: View {
     let generatedSourceInputClips: [ClipPoolEntry]
     let harmonicSidechainClips: [ClipPoolEntry]
     let onAssignMacroSlot: (Int) -> Void
-    let onUpdateMacroLanes: ([UUID: MacroLane]) -> Void
-    let onUpdateClipContent: (ClipContent) -> Void
     let onShowSourcePicker: () -> Void
     let onBackOutSourcePicker: () -> Void
     let onShowSourceGeneratorPool: () -> Void
@@ -58,9 +56,7 @@ struct TrackSourceSourceTabContent: View {
                         canAssignAUMacros: canAssignAUMacros,
                         playingStepIndex: playingStepIndex,
                         stepGridCoordinator: stepGridCoordinator,
-                        onAssignMacroSlot: onAssignMacroSlot,
-                        onUpdateMacroLanes: onUpdateMacroLanes,
-                        onUpdateClipContent: onUpdateClipContent
+                        onAssignMacroSlot: onAssignMacroSlot
                     )
                     .padding(.horizontal, 14)
                     .padding(.bottom, 14)
