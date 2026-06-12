@@ -354,6 +354,7 @@
 		B71F8D067ABCCFB699A3DEB6 /* OfflineRenderHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0106D90C2A84332F0CA02A91 /* OfflineRenderHarness.swift */; };
 		BA8016BC55D62287FBAA7C39 /* AVAudioPCMBuffer+PlaybackConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CFAB8C28D29758AD8AF801D /* AVAudioPCMBuffer+PlaybackConversion.swift */; };
 		BACEF904A3AEB81E5BC505E7 /* ClipContentEmptyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D69E7F5964479E254C64568 /* ClipContentEmptyTests.swift */; };
+		BB947DA359F8C31D1D0BA211 /* EngineControllerMixSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD628474D98791125F6842D6 /* EngineControllerMixSync.swift */; };
 		BBC1DAEFC64B0FA45331B2C2 /* MainAudioGraphDeviceSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311BF68209189C2F543DD0F5 /* MainAudioGraphDeviceSwitchTests.swift */; };
 		BC0104D27C4388257DB8C5F8 /* StepOrderPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C779C8DD98A80759A4CE099 /* StepOrderPersistenceTests.swift */; };
 		BC4D77AEF8FC9502472339E8 /* AudioFileRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = B051F1394CFE5F589ED3EE8E /* AudioFileRef.swift */; };
@@ -1552,6 +1553,7 @@
 		BC0DBE521F50BC3A91EC0A15 /* GeneratorAttachmentControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorAttachmentControl.swift; sourceTree = "<group>"; };
 		BC58C206F75E53E26E58C282 /* 2026-05-08T10-44-03Z-work-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T10-44-03Z-work-observer-cadence.md"; sourceTree = "<group>"; };
 		BCCEFDBB5B9EAFC360CF09AB /* plan.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = plan.md; sourceTree = "<group>"; };
+		BD628474D98791125F6842D6 /* EngineControllerMixSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerMixSync.swift; sourceTree = "<group>"; };
 		BD9AAC830385A03D568CC2E1 /* screen-capture.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "screen-capture.json"; sourceTree = "<group>"; };
 		BDB2E2828472A965394E5C5B /* 2026-05-08T13-15Z-work-observer-p0-overlay-still-checkpoint.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T13-15Z-work-observer-p0-overlay-still-checkpoint.md"; sourceTree = "<group>"; };
 		BE1B9504817F531B1CAFD8A0 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
@@ -2540,6 +2542,7 @@
 				A62DA60AD5603ED2570D4A35 /* CommandQueue.swift */,
 				0E31D7113289BE3CB828D500 /* EngineController.swift */,
 				A449B0D48E1FB2B36B0E72B7 /* EngineControllerAudioInput.swift */,
+				BD628474D98791125F6842D6 /* EngineControllerMixSync.swift */,
 				34E2B8C3B8F4CD6E32222E0C /* EngineControllerRoutingHelpers.swift */,
 				D2D31A3B754EEF2E40E7764E /* EngineControllerStatus.swift */,
 				C4086161E1BA442F08364D06 /* EngineSlicerDispatcher.swift */,
@@ -5555,6 +5558,7 @@
 				DF8BC00687CF944F74C4E8AE /* DrumKitTemplateChooserSheet.swift in Sources */,
 				A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */,
 				468E1DE2CE545A70159E3F5F /* EngineControllerAudioInput.swift in Sources */,
+				BB947DA359F8C31D1D0BA211 /* EngineControllerMixSync.swift in Sources */,
 				E7A3A42EDF7463BA24BE1327 /* EngineControllerRoutingHelpers.swift in Sources */,
 				226FE0EE8777DBC54B2BAEDD /* EngineControllerStatus.swift in Sources */,
 				F86C3190E14A0C837E86BB07 /* EngineSlicerDispatcher.swift in Sources */,
