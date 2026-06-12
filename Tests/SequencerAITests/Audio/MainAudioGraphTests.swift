@@ -526,4 +526,64 @@ final class MasterMeterPublisherTests: XCTestCase {
         XCTAssertEqual(publisher.displayState.leftPeakHoldDBFS, -5, accuracy: 0.0001)
         XCTAssertEqual(publisher.displayState.rightPeakHoldDBFS, -5, accuracy: 0.0001)
     }
+
+    /// The capture-format read at record start was the last waived tick-path
+    /// main hop; it now reads a snapshot that main publishes at every
+    /// routing sync. Pins both halves: the snapshot is published (a valid
+    /// format comes back for a connected host, nil after it goes silent or
+    /// is torn down), and reading it from a marked tick thread fires NO
+    /// guard violation — the trap-by-default guard would otherwise crash
+    /// every DEBUG record start.
+    func test_audioInputCaptureFormat_readsPublishedSnapshotWithoutMainHop() throws {
+        MainAudioGraph.simulateAudioInputConnectionForTesting = true
+        defer { MainAudioGraph.simulateAudioInputConnectionForTesting = false }
+
+        let graph = MainAudioGraph()
+        let trackID = UUID()
+        let request = MainAudioGraph.AudioInputRoutingRequest(
+            trackID: trackID,
+            source: .input,
+            selectedChannel: .stereo(firstChannel: 0),
+            outputBusID: nil,
+            mix: .default
+        )
+        graph.syncAudioInputRoutings([request])
+
+        var violations: [String] = []
+        TickPathMainSyncGuard.violationHandlerForTesting = { violations.append($0) }
+        defer { TickPathMainSyncGuard.violationHandlerForTesting = nil }
+
+        let formatBox = NSMutableArray()
+        let tickQueue = DispatchQueue(label: "test.capture-format-snapshot")
+        tickQueue.sync {
+            TickPathMainSyncGuard.withTickPathMarker {
+                if let format = graph.audioInputCaptureFormat(trackID: trackID) {
+                    formatBox.add(format)
+                }
+            }
+        }
+
+        XCTAssertEqual(violations, [], "snapshot read must not hop to main from the tick path")
+        let format = try XCTUnwrap(formatBox.firstObject as? AVAudioFormat)
+        XCTAssertGreaterThan(format.sampleRate, 0)
+        XCTAssertGreaterThan(format.channelCount, 0)
+        XCTAssertNil(graph.audioInputCaptureFormat(trackID: UUID()), "unknown track has no snapshot entry")
+
+        // Going silent republishes: the stale format must not survive.
+        let silentRequest = MainAudioGraph.AudioInputRoutingRequest(
+            trackID: trackID,
+            source: .silent,
+            selectedChannel: .stereo(firstChannel: 0),
+            outputBusID: nil,
+            mix: .default
+        )
+        graph.syncAudioInputRoutings([silentRequest])
+        XCTAssertNil(graph.audioInputCaptureFormat(trackID: trackID))
+
+        // Reconnect, then tear the host down entirely.
+        graph.syncAudioInputRoutings([request])
+        XCTAssertNotNil(graph.audioInputCaptureFormat(trackID: trackID))
+        graph.syncAudioInputRoutings([])
+        XCTAssertNil(graph.audioInputCaptureFormat(trackID: trackID))
+    }
 }

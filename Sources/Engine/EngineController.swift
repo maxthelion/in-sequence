@@ -9,29 +9,22 @@ import Observation
 /// and the direct `DispatchQueue.main.sync` sites in Sources/Audio) reports
 /// here before parking on main.
 ///
-/// Default behaviour on violation is a LOUD, once-per-context log — not a
-/// trap — because one known hop remains tick-reachable today: the
-/// audio-input capture-format read at record start
-/// (`resolveAudioInputCapturePlans` → `MainAudioGraph.audioInputCaptureFormat`
-/// → `performOnMainReturning`). Wave 1 moved it outside `stateLock` (the D1
-/// fix) but it still synchronously waits on main from the tick queue once
-/// per record start; removing it needs the capture format pre-resolved at
-/// arm/route time, which is not a small change. Trapping by default would
-/// crash every DEBUG record start, so the flip to trap waits for that
-/// removal. (The other formerly-waived hop — SamplerFilterNode parameter
-/// setters via TrackMacroApplier — is now fire-and-forget.) Tests install
-/// `violationHandlerForTesting` to enforce the contract hard on the paths
-/// they drive (TickPathMainIsolationTests). Compiles to no-ops in release.
+/// Default behaviour on violation is a TRAP (assertionFailure) in DEBUG.
+/// No waived hops remain: the last one — the audio-input capture-format
+/// read at record start — now reads a lock-protected snapshot that main
+/// publishes at every graph reconfiguration point
+/// (`MainAudioGraph.audioInputCaptureFormat`), and the SamplerFilterNode
+/// parameter setters via TrackMacroApplier are fire-and-forget. Tests
+/// install `violationHandlerForTesting` to observe violations without
+/// crashing the test host and to positively prove the detector fires
+/// (TickPathMainIsolationTests). Compiles to no-ops in release.
 ///
-/// `reportImminentDeadlock` (lock re-entry / hop-under-lock) is different:
-/// it TRAPS in DEBUG, because the alternative is a guaranteed wedge a few
-/// instructions later.
+/// `reportImminentDeadlock` (lock re-entry / hop-under-lock) also TRAPS in
+/// DEBUG: the alternative is a guaranteed wedge a few instructions later.
 enum TickPathMainSyncGuard {
     #if DEBUG
     private static let markerKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.isOnTickPath"
     private static let stateLockDepthKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.stateLockDepth"
-    private static let loggedContextsLock = NSLock()
-    private static var loggedContexts: Set<String> = []
 
     /// True while the current thread is executing the tick path.
     static var isOnTickPath: Bool {
@@ -107,17 +100,12 @@ enum TickPathMainSyncGuard {
             handler(resolvedContext)
             return
         }
-        let isFirstReport = loggedContextsLock.withLock {
-            loggedContexts.insert(resolvedContext).inserted
-        }
-        if isFirstReport {
-            NSLog(
-                "[TickPathMainSyncGuard] VIOLATION: %@ synchronously waits on main " +
-                "from the tick path (tempo-sag/deadlock class, architecture verdict §1). " +
-                "Reported once per context per run.",
-                resolvedContext
-            )
-        }
+        assertionFailure(
+            "[TickPathMainSyncGuard] VIOLATION: \(resolvedContext) synchronously waits " +
+            "on main from the tick path (tempo-sag/deadlock class, architecture " +
+            "verdict §1). Nothing on the tick path may wait on main — publish a " +
+            "main-side snapshot or go fire-and-forget instead."
+        )
     }
     #endif
 }
@@ -2860,11 +2848,10 @@ final class EngineController: RouterDispatcher {
     }
 
     private func advanceAudioInputScheduling(at tickIndex: UInt64) -> Bool {
-        // D1: capture plans resolve the graph's capture format through a
-        // synchronous main hop. That hop MUST happen before stateLock is
-        // taken — the tick queue parking in main.sync while holding
-        // stateLock deadlocks against any main-thread withStateLock reader
-        // (the input panel reads at meter rate).
+        // Capture plans resolve before stateLock is taken. The format read
+        // is a lock-free snapshot now (no main hop), but plan resolution
+        // still allocates and reads a foreign lock — keeping it outside the
+        // tick-critical stateLock section is cheap hygiene.
         let capturePlans = resolveAudioInputCapturePlans(at: tickIndex)
         let didChange = advanceAudioInputSchedulingLocked(at: tickIndex, capturePlans: capturePlans)
         if didChange {
@@ -2878,7 +2865,7 @@ final class EngineController: RouterDispatcher {
     }
 
     /// Pre-resolves the capture plan for every track whose recording would
-    /// begin at this tick, BEFORE `stateLock` is taken (see D1 note above).
+    /// begin at this tick, BEFORE `stateLock` is taken (see note above).
     /// The runtime is re-validated under the lock; a plan resolved for a
     /// track whose state moved on in the meantime is simply unused.
     private func resolveAudioInputCapturePlans(at tickIndex: UInt64) -> [UUID: AudioInputCapturePlan] {
@@ -2970,9 +2957,9 @@ final class EngineController: RouterDispatcher {
     }
 
     /// `capturePlan` is resolved by the caller OUTSIDE `stateLock`
-    /// (`resolveAudioInputCapturePlans`): the plan requires the graph's
-    /// capture format, a synchronous main hop that must never run while the
-    /// tick queue holds the lock (D1).
+    /// (`resolveAudioInputCapturePlans`): the plan reads the graph's
+    /// capture-format snapshot and allocates — kept out of the
+    /// tick-critical stateLock section.
     private func beginAudioInputCapture(
         _ runtime: inout AudioInputTrackRuntime,
         at tickIndex: UInt64,
@@ -3007,10 +2994,13 @@ final class EngineController: RouterDispatcher {
             return override(trackID, bars)
         }
 
-        // CONTRACT (D1): the capture-format read below is a synchronous main
-        // hop; performing it while holding stateLock deadlocks the app the
-        // moment recording begins at a bar boundary.
-        debugAssertNotHoldingStateLock("audioInputCaptureFormat read")
+        // The capture-format read is a lock-protected snapshot lookup —
+        // main publishes it at every graph reconfiguration point
+        // (MainAudioGraph.publishAudioInputCaptureFormatsOnMain). No main
+        // hop: this was the last waived TickPathMainSyncGuard hop, and the
+        // guard now traps. A snapshot miss (mid-reconfigure race) returns
+        // nil and the capture proceeds without a PCM writer — degraded, but
+        // never blocking the tick queue.
         guard let format = mainAudioGraph.audioInputCaptureFormat(trackID: trackID) else {
             return nil
         }

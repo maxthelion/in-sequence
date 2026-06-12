@@ -159,9 +159,17 @@ final class ConcurrencyChurnStressTests: XCTestCase {
             publishesAudioInputCapture: true
         )
         controller.audioInputAvailableChannelCountOverrideForTesting = 2
-        controller.audioInputCapturePlanOverrideForTesting = { _, bars in
-            AudioInputCapturePlan(sampleRate: 44_100, channelCount: 2, maximumFrameCount: max(1, bars * 4096))
+        if bypassRoutingSync {
+            // No graph hosts exist when routing sync is bypassed, so the
+            // real capture-plan path has no format to read — stub it.
+            controller.audioInputCapturePlanOverrideForTesting = { _, bars in
+                AudioInputCapturePlan(sampleRate: 44_100, channelCount: 2, maximumFrameCount: max(1, bars * 4096))
+            }
         }
+        // else: full-graph churn runs the REAL capture-plan path — record
+        // starts on the tick queue read the capture-format snapshot
+        // (formerly the last waived tick-path main hop; the guard now traps,
+        // so this loop proves the hop is gone under routing churn).
         controller.bypassAudioInputRoutingSyncForTesting = bypassRoutingSync
 
         var (project, _, _) = makeLiveStoreProject(clipPitch: 60)

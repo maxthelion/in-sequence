@@ -180,6 +180,17 @@ final class MainAudioGraph {
     private var trackSendNodes: [ObjectIdentifier: TrackSendNodes] = [:]
     private var trackSendDestinationsForTesting: [ObjectIdentifier: TrackSendDestinations] = [:]
     private var audioInputRoutingHosts: [UUID: AudioInputRoutingHost] = [:]
+    /// Tick-path-readable snapshot of each audio-input host's capture format
+    /// (the input format of its output mixer). The format only changes when
+    /// the graph reconfigures — host install/teardown/source rewires, device
+    /// applies, engine-resetting topology installs — all of which happen on
+    /// main, so main publishes via `publishAudioInputCaptureFormatsOnMain()`
+    /// at those sites and the tick path reads the snapshot WITHOUT a
+    /// synchronous main hop (this was the last waived TickPathMainSyncGuard
+    /// hop; the guard now traps). Leaf lock: held only for the dictionary
+    /// copy, never while taking graphLock or dispatching.
+    private let audioInputCaptureFormatSnapshotLock = NSLock()
+    private var audioInputCaptureFormatSnapshot: [UUID: AVAudioFormat] = [:]
     private var isStarted = false
     private var isMasterMeterTapInstalled = false
     private let masterMeterTapGeneration = AtomicInt32(0)
@@ -353,6 +364,11 @@ final class MainAudioGraph {
             // lock-order deadlock waiting to happen.
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
+            // Registered after the unlock defer, so it runs first (LIFO):
+            // the snapshot publishes under graphLock, before any other
+            // routing pass can interleave. Covers both the scoped-update
+            // early return and the full rebuild below.
+            defer { self.publishAudioInputCaptureFormatsOnMain() }
             if self.canUpdateAudioInputRoutingParametersOnMain(requests) {
                 self.applyAudioInputRoutingParametersOnMain(requests)
                 self.audioInputScopedRoutingUpdateCountForTesting += 1
@@ -418,29 +434,46 @@ final class MainAudioGraph {
             defer { self.unlockGraphLock() }
             self.applyAudioInputRoutingParametersOnMain(requests)
             self.audioInputScopedRoutingUpdateCountForTesting += 1
+            self.publishAudioInputCaptureFormatsOnMain()
         }
     }
 
+    /// Tick-path safe: reads the lock-protected snapshot published by main
+    /// at every graph reconfiguration point — NO synchronous main hop (this
+    /// read at record start was the last waived TickPathMainSyncGuard hop).
+    /// A snapshot miss during an in-flight reconfigure returns nil, which
+    /// fails the capture plan cleanly (recording proceeds without a PCM
+    /// writer) instead of blocking the tick queue on main.
     func audioInputCaptureFormat(trackID: UUID) -> AVAudioFormat? {
-        return performOnMainReturning {
-            // Acquired inside the main-thread closure: holding
-            // graphLock across DispatchQueue.main.sync is a
-            // lock-order deadlock waiting to happen.
-            self.lockGraphLock()
-            defer { self.unlockGraphLock() }
-            guard let host = self.audioInputRoutingHosts[trackID],
-                  host.connectedSource != .silent
-            else {
-                return nil
-            }
+        audioInputCaptureFormatSnapshotLock.withLock {
+            audioInputCaptureFormatSnapshot[trackID]
+        }
+    }
 
+    /// Recomputes the capture-format snapshot from the live hosts. Must run
+    /// on main (hosts and node connections only mutate on main); callers in
+    /// the routing/install paths hold graphLock, which is fine — the
+    /// snapshot lock is a leaf. Call after ANY mutation that can change a
+    /// host's connected source or its output mixer's input format: routing
+    /// syncs (install/teardown/source rewires, including the simulation-flag
+    /// behavior baked in at connect time), scoped parameter updates, send/
+    /// mixer-bus topology installs (engine stop/rebuild/start), device
+    /// applies (hardware format change), and the loop-play failure path
+    /// (forces a host back to silent outside a sync).
+    @MainActor
+    private func publishAudioInputCaptureFormatsOnMain() {
+        var formats: [UUID: AVAudioFormat] = [:]
+        for (trackID, host) in audioInputRoutingHosts where host.connectedSource != .silent {
             let format = host.outputMixer.inputFormat(forBus: 0)
             guard format.sampleRate > 0,
                   format.channelCount > 0
             else {
-                return nil
+                continue
             }
-            return format
+            formats[trackID] = format
+        }
+        audioInputCaptureFormatSnapshotLock.withLock {
+            audioInputCaptureFormatSnapshot = formats
         }
     }
 
@@ -493,6 +526,9 @@ final class MainAudioGraph {
                     // and the player would stay disconnected forever.
                     host.requestedSource = .silent
                     host.connectedSource = .silent
+                    // Source changed outside a routing sync: keep the
+                    // tick-path capture-format snapshot honest.
+                    self.publishAudioInputCaptureFormatsOnMain()
                     return false
                 }
             }
@@ -511,6 +547,9 @@ final class MainAudioGraph {
             // lock-order deadlock waiting to happen.
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
+            // LIFO: publishes under graphLock after any topology rebuild —
+            // an engine stop/rebuild/start can renegotiate node formats.
+            defer { self.publishAudioInputCaptureFormatsOnMain() }
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
@@ -569,6 +608,9 @@ final class MainAudioGraph {
             // lock-order deadlock waiting to happen.
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
+            // LIFO: publishes under graphLock after any topology rebuild —
+            // an engine stop/rebuild/start can renegotiate node formats.
+            defer { self.publishAudioInputCaptureFormatsOnMain() }
 
             let busesByID = Dictionary(uniqueKeysWithValues: sendBuses.map { ($0.id, $0) })
             var installs: [(host: SendBusHost, state: SendBusState)] = []
@@ -1247,6 +1289,11 @@ final class MainAudioGraph {
 
     @MainActor
     private func recoverAudioGraphAfterDeviceApply(wasRunning: Bool) throws {
+        // A device switch can change the hardware format; the engine
+        // reset/prepare renegotiates node formats. Republish the tick-path
+        // capture-format snapshot whether recovery succeeds or throws (both
+        // the apply and rollback paths land here).
+        defer { publishAudioInputCaptureFormatsOnMain() }
         if self.engine.isRunning {
             self.engine.stop()
         }

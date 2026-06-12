@@ -2401,11 +2401,12 @@ final class EngineControllerTests: XCTestCase {
     }
 
     func test_audioInputCaptureBegin_resolvesCaptureFormatOutsideStateLock() throws {
-        // D1 contract: the graph capture-format read is a synchronous main
-        // hop; performing it while the tick path holds stateLock deadlocked
-        // the app at the record-start bar boundary. No plan override here —
-        // the real audioInputCapturePlan path (with its lock assertion hook)
-        // must run.
+        // D1 regression pin: the graph capture-format read used to be a
+        // synchronous main hop, and performing it while the tick path held
+        // stateLock deadlocked the app at the record-start bar boundary.
+        // The read is a lock-free snapshot now, but plan resolution must
+        // STAY outside stateLock — no plan override here, so the real
+        // audioInputCapturePlan path (with its lock assertion hook) runs.
         let controller = EngineController(client: nil, endpoint: nil, stepsPerBar: 4)
         controller.audioInputAvailableChannelCountOverrideForTesting = 2
         var project = Project.empty

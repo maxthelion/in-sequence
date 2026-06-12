@@ -86,9 +86,12 @@ Findings from each run are appended to
 - `TickPathMainSyncGuard` (Sources/Engine/EngineController.swift):
   `processTick` marks its thread; every sync-to-main helper in Sources/Audio
   reports before parking on main, and also fires when the calling thread
-  holds `stateLock` (D1). Default is a loud once-per-context LOG (one waived
-  hop remains: the audio-input capture-format read at record start — see the
-  guard's doc comment for why it cannot trap yet).
+  holds `stateLock` (D1). Default is a TRAP (assertionFailure) in DEBUG —
+  no waived hops remain. The last one (the audio-input capture-format read
+  at record start) now reads a lock-protected snapshot that main publishes
+  at every graph reconfiguration point
+  (`MainAudioGraph.publishAudioInputCaptureFormatsOnMain`); tests install
+  `violationHandlerForTesting` to observe without crashing the host.
 - `TickPathMainSyncGuard.reportImminentDeadlock`: TRAPS in DEBUG. Used by
   MainAudioGraph's graphLock discipline (re-entry on the owning thread,
   main-hop while holding graphLock) — the alternative is a guaranteed wedge
