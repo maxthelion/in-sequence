@@ -64,6 +64,10 @@ enum TracksBasisPhraseResolver {
     }
 }
 
+/// Legacy tracks-page mode vocabulary. The page itself now obeys the global
+/// `WorkspaceMode` (setup ≙ edit, perform ≙ perform); this enum survives as
+/// the capture-harness command/status vocabulary (`tracksMode=edit|perform`)
+/// mapped onto the global mode by VisualScenarioCommandRunner.
 enum TracksWorkspaceMode: String, CaseIterable, Identifiable {
     case edit
     case perform
@@ -82,18 +86,18 @@ enum TracksWorkspaceMode: String, CaseIterable, Identifiable {
 
 struct TracksWorkspaceView: View {
     @Binding var document: SeqAIDocument
-    @Binding var mode: TracksWorkspaceMode
     @Binding var selectedLayerID: String
     let onOpenTrack: () -> Void
+    @Environment(SequencerDocumentSession.self) private var session
 
     var body: some View {
+        // The page obeys the ONE global workspace mode (perform/setup split
+        // slice 1): setup is the former edit mode, perform the former
+        // perform mode. The top bar owns the switch; no local toggle.
         TracksMatrixView(
             document: $document,
             selectedLayerID: $selectedLayerID,
-            isPerforming: mode == .perform,
-            onTogglePerform: {
-                mode = mode == .perform ? .edit : .perform
-            },
+            isPerforming: session.workspaceMode == .perform,
             onOpenTrack: onOpenTrack
         )
         .padding(StudioMetrics.Spacing.section)
@@ -106,7 +110,6 @@ struct TracksMatrixView: View {
     @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
     let isPerforming: Bool
-    let onTogglePerform: () -> Void
     let onOpenTrack: () -> Void
 
     @State private var isPresentingCreateTrack = false
@@ -300,7 +303,6 @@ struct TracksMatrixView: View {
                     performLatchModeControl
                 }
             }
-            performToggleButton
         }
     }
 
@@ -500,16 +502,6 @@ struct TracksMatrixView: View {
 
     private var performLatchModeControl: some View {
         TrackPerformLatchModePicker(selection: $performRuntimeOverlay.latchMode)
-    }
-
-    private var performToggleButton: some View {
-        Button(action: onTogglePerform) {
-            Label("Perform", systemImage: isPerforming ? "record.circle.fill" : "record.circle")
-                .studioText(.labelBold)
-                .frame(minWidth: 96)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(isPerforming ? StudioTheme.amber : StudioTheme.cyan)
     }
 
     private var performLayerSelectionSurface: some View {

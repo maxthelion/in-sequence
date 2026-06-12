@@ -3,7 +3,6 @@ import SwiftUI
 struct WorkspaceDetailView: View {
     @Binding var document: SeqAIDocument
     @Binding var section: WorkspaceSection
-    @Binding var tracksMode: TracksWorkspaceMode
     var scenesResetToken: Int = 0
     var visualPhraseControlsOpenIndex: Binding<Int?> = .constant(nil)
     @State private var liveLayerID = "pattern"
@@ -29,7 +28,7 @@ struct WorkspaceDetailView: View {
                 visualControlsOpenIndex: visualPhraseControlsOpenIndex
             )
         case .tracks:
-            TracksWorkspaceView(document: $document, mode: $tracksMode, selectedLayerID: $liveLayerID) {
+            TracksWorkspaceView(document: $document, selectedLayerID: $liveLayerID) {
                 section = .track
             }
         case .track:
@@ -54,10 +53,9 @@ struct WorkspaceDetailView: View {
 private struct WorkspaceDetailPreview: View {
     @State private var document = SeqAIDocument()
     @State private var section: WorkspaceSection = .track
-    @State private var tracksMode: TracksWorkspaceMode = .edit
 
     var body: some View {
-        WorkspaceDetailView(document: $document, section: $section, tracksMode: $tracksMode)
+        WorkspaceDetailView(document: $document, section: $section)
             .padding()
             .background(StudioTheme.background)
             .environment(EngineController(client: nil, endpoint: nil))

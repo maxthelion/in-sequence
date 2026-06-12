@@ -40,7 +40,6 @@ enum VisualScenarioCommandRunner {
     private static var trackPerformLayerVariant = "none"
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
-    private static var scenesModeState = "none"
     private static var sceneEditorFixtureState = "none"
     private static var libraryCategoryState = "none"
     private static var libraryFixtureState = "none"
@@ -70,7 +69,6 @@ enum VisualScenarioCommandRunner {
 
     static func runIfConfigured(
         section: Binding<WorkspaceSection>,
-        tracksMode: Binding<TracksWorkspaceMode>,
         visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
         engineController: EngineController
@@ -107,7 +105,6 @@ enum VisualScenarioCommandRunner {
                 apply(
                     command: parse(payload),
                     section: section,
-                    tracksMode: tracksMode,
                     visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex,
                     session: session,
                     engineController: engineController
@@ -117,7 +114,6 @@ enum VisualScenarioCommandRunner {
             writeStatus(
                 to: statusURL,
                 section: section.wrappedValue,
-                tracksMode: tracksMode.wrappedValue,
                 visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex.wrappedValue,
                 session: session,
                 engineController: engineController
@@ -206,10 +202,10 @@ enum VisualScenarioCommandRunner {
             }
     }
 
-    private static func apply(
+    /// Internal (not private) so command-protocol tests can drive it directly.
+    static func apply(
         command: [String: String],
         section: Binding<WorkspaceSection>,
-        tracksMode: Binding<TracksWorkspaceMode>,
         visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
         engineController: EngineController
@@ -219,10 +215,20 @@ enum VisualScenarioCommandRunner {
             section.wrappedValue = requestedSection
         }
 
+        // Legacy tracks-page command: sets the GLOBAL workspace mode
+        // (edit ≙ setup, perform ≙ perform) and navigates to the tracks
+        // page, preserving the old command's observable behaviour.
         if let requestedTracksMode = command["tracksMode"],
            let mode = TracksWorkspaceMode(rawValue: requestedTracksMode) {
-            tracksMode.wrappedValue = mode
+            session.workspaceMode = WorkspaceMode(tracksMode: mode)
             section.wrappedValue = .tracks
+        }
+
+        // The global mode's own command (no navigation side effect). Applied
+        // after the legacy keys so it wins when both appear in one payload.
+        if let requestedWorkspaceMode = command["workspaceMode"],
+           let mode = WorkspaceMode(rawValue: requestedWorkspaceMode) {
+            session.workspaceMode = mode
         }
 
         if let rawWindowFrame = command["windowFrame"] {
@@ -268,13 +274,13 @@ enum VisualScenarioCommandRunner {
         )
         applyStepOrderFixture(command: command, section: section, session: session, engineController: engineController)
         applyPhraseMatrixFixture(command: command, section: section, session: session)
-        applyPhrasePerformOverlayFixture(command: command, section: section, tracksMode: tracksMode, session: session)
-        applyTrackPerformLayerMatrixFixture(command: command, section: section, tracksMode: tracksMode, session: session)
-        applyNoteRepeatPerformFixture(command: command, section: section, tracksMode: tracksMode, session: session)
+        applyPhrasePerformOverlayFixture(command: command, section: section, session: session)
+        applyTrackPerformLayerMatrixFixture(command: command, section: section, session: session)
+        applyNoteRepeatPerformFixture(command: command, section: section, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
         applyTrackSourceTabCommand(command: command, section: section)
-        applyScenesModeCommand(command: command, section: section)
+        applyScenesModeCommand(command: command, section: section, session: session)
         applyLibraryCommand(command: command, section: section, session: session)
 
         switch command["transport"] {
@@ -326,10 +332,10 @@ enum VisualScenarioCommandRunner {
             }
     }
 
-    private static func writeStatus(
+    /// Internal (not private) so command-protocol tests can drive it directly.
+    static func writeStatus(
         to statusURL: URL,
         section: WorkspaceSection,
-        tracksMode: TracksWorkspaceMode,
         visualPhraseControlsOpenIndex: Int?,
         session: SequencerDocumentSession,
         engineController: EngineController
@@ -374,9 +380,14 @@ enum VisualScenarioCommandRunner {
         let canSavePhrasePerformOverlay = session.phrasePerformOverlay.basisPhraseID.map { phraseID in
             phrases.contains { $0.id == phraseID }
         } ?? false
+        // tracksMode/scenesMode are the legacy per-page keys, now DERIVED
+        // from the one global mode so existing qa-surface-coverage rows and
+        // scenario scripts keep their expectations; workspaceMode is the
+        // global mode's own key.
         let status: String = """
         workspace=\(section.rawValue)
-        tracksMode=\(tracksMode.rawValue)
+        workspaceMode=\(session.workspaceMode.rawValue)
+        tracksMode=\(session.workspaceMode.tracksModeValue.rawValue)
         transport=\(engineController.isRunning ? "play" : "stop")
         phraseCount=\(phrases.count)
         phraseNames=\(phrases.map(\.name).joined(separator: "|"))
@@ -389,7 +400,7 @@ enum VisualScenarioCommandRunner {
         stepOrderPendingToggle=\(stepOrderStatus.pendingToggle)
         stepOrderFixtureState=\(stepOrderFixtureState)
         trackSourceTab=\(trackSourceTabState)
-        scenesMode=\(scenesModeState)
+        scenesMode=\(session.workspaceMode.scenesModeValue.rawValue)
         sceneEditorFixture=\(sceneEditorFixtureState)
         libraryCategory=\(libraryCategoryState)
         libraryFixture=\(libraryFixtureState)
@@ -561,7 +572,6 @@ enum VisualScenarioCommandRunner {
     private static func applyPhrasePerformOverlayFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
-        tracksMode: Binding<TracksWorkspaceMode>,
         session: SequencerDocumentSession
     ) {
         guard let overlayCommand = command["phrasePerformOverlay"] else { return }
@@ -574,7 +584,7 @@ enum VisualScenarioCommandRunner {
             else { return }
 
             section.wrappedValue = .tracks
-            tracksMode.wrappedValue = .perform
+            session.workspaceMode = .perform
             session.setSelectedTrackID(trackID)
             _ = session.stagePhrasePerformCell(
                 .single(.bool(true)),
@@ -596,7 +606,6 @@ enum VisualScenarioCommandRunner {
     private static func applyTrackPerformLayerMatrixFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
-        tracksMode: Binding<TracksWorkspaceMode>,
         session: SequencerDocumentSession
     ) {
         guard command["trackPerformLayerSelector"] != nil ||
@@ -606,7 +615,7 @@ enum VisualScenarioCommandRunner {
         else { return }
 
         section.wrappedValue = .tracks
-        tracksMode.wrappedValue = .perform
+        session.workspaceMode = .perform
 
         if let rawTrackCount = command["trackPerformTrackCount"],
            let trackCount = Int(rawTrackCount) {
@@ -647,7 +656,6 @@ enum VisualScenarioCommandRunner {
     private static func applyNoteRepeatPerformFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
-        tracksMode: Binding<TracksWorkspaceMode>,
         session: SequencerDocumentSession
     ) {
         guard command["trackPerformLayer"] != nil ||
@@ -659,7 +667,7 @@ enum VisualScenarioCommandRunner {
         else { return }
 
         section.wrappedValue = .tracks
-        tracksMode.wrappedValue = .perform
+        session.workspaceMode = .perform
 
         if command["noteRepeatEnsureSecondClipTrack"] == "true" {
             ensureTrackCount(2, session: session)
@@ -1136,19 +1144,22 @@ enum VisualScenarioCommandRunner {
         _ = session.addAssetToPool(kind: .sample, assetID: missingAssetID)
     }
 
-    /// Drives the Scenes workspace Browse/Edit ↔ Perform mode and deterministic
-    /// scene-editor fixtures for visual coverage.
+    /// Drives the Scenes workspace via the legacy `scenesMode=` command —
+    /// now mapped onto the GLOBAL workspace mode (browseEdit ≙ setup,
+    /// perform ≙ perform) plus navigation to the scenes page — and the
+    /// deterministic scene-editor fixtures for visual coverage.
     private static func applyScenesModeCommand(
         command: [String: String],
-        section: Binding<WorkspaceSection>
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
     ) {
         guard command["scenesMode"] != nil || command["sceneEditorFixture"] != nil else { return }
 
         section.wrappedValue = .scenes
 
         if let rawMode = command["scenesMode"],
-           ScenesWorkspaceMode(rawValue: rawMode) != nil {
-            scenesModeState = rawMode
+           let scenesMode = ScenesWorkspaceMode(rawValue: rawMode) {
+            session.workspaceMode = WorkspaceMode(scenesMode: scenesMode)
             if command["sceneEditorFixture"] == nil {
                 sceneEditorFixtureState = "none"
             }
@@ -1157,7 +1168,7 @@ enum VisualScenarioCommandRunner {
 
         if let rawFixture = command["sceneEditorFixture"],
            ["empty", "content"].contains(rawFixture) {
-            scenesModeState = ScenesWorkspaceMode.browseEdit.rawValue
+            session.workspaceMode = .setup
             sceneEditorFixtureState = rawFixture
             postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(ScenesWorkspaceMode.browseEdit.rawValue)")
             postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "fixture:\(rawFixture)")

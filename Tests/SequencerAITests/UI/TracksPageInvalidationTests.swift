@@ -90,7 +90,7 @@ final class TracksPageInvalidationTests: XCTestCase {
         }
     }
 
-    private func makeHarness(mode: TracksWorkspaceMode) throws -> Harness {
+    private func makeHarness(mode: WorkspaceMode) throws -> Harness {
         let project = makeFixtureProject()
         let box = DocumentBox(document: SeqAIDocument(project: project))
         let engine = EngineController(client: nil, endpoint: nil)
@@ -103,17 +103,15 @@ final class TracksPageInvalidationTests: XCTestCase {
             debounceInterval: .seconds(100)
         )
         session.activate()
+        // The page derives edit-vs-perform from the GLOBAL workspace mode
+        // (perform/setup split slice 1) on the session.
+        session.workspaceMode = mode
 
         let layerID = session.store.patternLayer?.id ?? session.store.layers.first!.id
-        var workspaceMode = mode
         let root = TracksWorkspaceView(
             document: Binding(
                 get: { box.document },
                 set: { box.document = $0 }
-            ),
-            mode: Binding(
-                get: { workspaceMode },
-                set: { workspaceMode = $0 }
             ),
             selectedLayerID: .constant(layerID),
             onOpenTrack: {}
@@ -163,7 +161,7 @@ final class TracksPageInvalidationTests: XCTestCase {
     // MARK: - Tests
 
     func test_transportTicks_doNotReevaluateTracksPageBody_editMode() throws {
-        let harness = try makeHarness(mode: .edit)
+        let harness = try makeHarness(mode: .setup)
         defer { harness.window.close() }
 
         TracksPageInvalidationProbe.reset()
@@ -200,7 +198,7 @@ final class TracksPageInvalidationTests: XCTestCase {
     }
 
     func test_transportTicks_reachPlayheadLeaves_only() throws {
-        let harness = try makeHarness(mode: .edit)
+        let harness = try makeHarness(mode: .setup)
         defer { harness.window.close() }
 
         drainMainRunLoop()
@@ -222,7 +220,7 @@ final class TracksPageInvalidationTests: XCTestCase {
     }
 
     func test_documentMutation_stillReevaluatesPageBody() throws {
-        let harness = try makeHarness(mode: .edit)
+        let harness = try makeHarness(mode: .setup)
         defer { harness.window.close() }
 
         drainMainRunLoop()

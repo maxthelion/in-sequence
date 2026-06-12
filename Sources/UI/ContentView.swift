@@ -3,7 +3,6 @@ import SwiftUI
 struct ContentView: View {
     @Binding var document: SeqAIDocument
     @State private var section: WorkspaceSection = .tracks
-    @State private var tracksMode: TracksWorkspaceMode = .edit
     @State private var scenesResetToken = 0
     @State private var visualPhraseControlsOpenIndex: Int?
     @State private var visualScenarioCommandTask: Task<Void, Never>?
@@ -31,7 +30,6 @@ struct ContentView: View {
                 WorkspaceDetailView(
                     document: $document,
                     section: sectionBinding,
-                    tracksMode: $tracksMode,
                     scenesResetToken: scenesResetToken,
                     visualPhraseControlsOpenIndex: $visualPhraseControlsOpenIndex
                 )
@@ -47,7 +45,6 @@ struct ContentView: View {
             visualScenarioCommandTask = Task {
                 await VisualScenarioCommandRunner.runIfConfigured(
                     section: sectionBinding,
-                    tracksMode: $tracksMode,
                     visualPhraseControlsOpenIndex: $visualPhraseControlsOpenIndex,
                     session: session,
                     engineController: engineController
