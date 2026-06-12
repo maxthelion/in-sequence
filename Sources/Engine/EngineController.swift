@@ -10,12 +10,22 @@ import Observation
 /// here before parking on main.
 ///
 /// Default behaviour on violation is a LOUD, once-per-context log — not a
-/// trap — because the wave-2 no-main-wait sweep has not finished: two known
-/// hops remain tick-reachable today (audio-input capture-format resolution
-/// at record start, and SamplerFilterNode parameter setters via
-/// TrackMacroApplier). Tests install `violationHandlerForTesting` to enforce
-/// the contract hard on the paths they drive
-/// (TickPathMainIsolationTests). Compiles to no-ops in release.
+/// trap — because one known hop remains tick-reachable today: the
+/// audio-input capture-format read at record start
+/// (`resolveAudioInputCapturePlans` → `MainAudioGraph.audioInputCaptureFormat`
+/// → `performOnMainReturning`). Wave 1 moved it outside `stateLock` (the D1
+/// fix) but it still synchronously waits on main from the tick queue once
+/// per record start; removing it needs the capture format pre-resolved at
+/// arm/route time, which is not a small change. Trapping by default would
+/// crash every DEBUG record start, so the flip to trap waits for that
+/// removal. (The other formerly-waived hop — SamplerFilterNode parameter
+/// setters via TrackMacroApplier — is now fire-and-forget.) Tests install
+/// `violationHandlerForTesting` to enforce the contract hard on the paths
+/// they drive (TickPathMainIsolationTests). Compiles to no-ops in release.
+///
+/// `reportImminentDeadlock` (lock re-entry / hop-under-lock) is different:
+/// it TRAPS in DEBUG, because the alternative is a guaranteed wedge a few
+/// instructions later.
 enum TickPathMainSyncGuard {
     #if DEBUG
     private static let markerKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.isOnTickPath"
