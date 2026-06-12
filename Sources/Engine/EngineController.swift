@@ -249,9 +249,11 @@ final class EngineController: RouterDispatcher {
     private(set) var noteRepeatRuntimeUIRevision = 0
 
     private var currentTrackMix = TrackMixSettings.default
-    private var currentDocumentModel: Project = .empty
-    private let tickState = TickStateBuffer(playbackSnapshot: SequencerSnapshotCompiler.compile(state: .empty))
-    private let trackRuntime = TrackRuntimeRegistry()
+    // Access widened from `private` for the carve-up extension files
+    // (EngineControllerStatus.swift etc.) — same module, no semantic change.
+    var currentDocumentModel: Project = .empty
+    let tickState = TickStateBuffer(playbackSnapshot: SequencerSnapshotCompiler.compile(state: .empty))
+    let trackRuntime = TrackRuntimeRegistry()
     private let routerDispatch = RouterDispatchState()
     @ObservationIgnored
     private var phraseNavigationState = PhraseNavigationState()
@@ -1668,80 +1670,6 @@ final class EngineController: RouterDispatcher {
 
     func effectiveDestination(for trackID: UUID) -> (destination: Destination, pitchOffset: Int) {
         Self.effectiveDestination(for: trackID, in: currentDocumentModel)
-    }
-
-    var statusSummary: String {
-        guard canStart else {
-            return "Engine unavailable"
-        }
-
-        let selectedTrack = currentDocumentModel.selectedTrack
-        if selectedTrack.trackType == .audioInput {
-            return audioInputStatusSummary(for: selectedTrack)
-        }
-        let (destination, _) = effectiveDestination(for: selectedTrack.id)
-        switch destination {
-        case .midi:
-            if selectedTrack.mix.isMuted {
-                return "MIDI output muted"
-            }
-            guard case let .midi(port, _, _) = destination,
-                  let port
-            else {
-                return "Playing without MIDI output"
-            }
-            return "Output: \(port.displayName)"
-        case .auInstrument:
-            let host = withStateLock { trackRuntime.audioOutputsByTrackID[selectedTrack.id] }
-            guard let host else {
-                return "Audio instrument unavailable"
-            }
-            return host.isAvailable
-                ? "Audio: \(host.displayName) via Main Mixer\(selectedTrack.mix.isMuted ? " (Muted)" : "")"
-                : "Audio instrument unavailable"
-        case .internalSampler:
-            return "Internal sampler pending"
-        case .sample:
-            // TODO: Task 11 will wire sample dispatch
-            return "Sample playback pending"
-        case let .slicer(sliceSetID, _):
-            let sliceSet = tickState.currentPlaybackSnapshot().sliceSet(id: sliceSetID)
-            let count = sliceSet?.displaySliceCount ?? 0
-            return count > 0 ? "Slicer • \(count) slices" : "Slicer • Choose a loop"
-        case .inheritGroup, .none:
-            return "No default output"
-        }
-    }
-
-    /// Audio-input tracks have no note destination, so the generic summary
-    /// used to claim "No default output"; describe the monitor routing
-    /// instead, in the panel's Live/Buffer vocabulary.
-    private func audioInputStatusSummary(for track: StepSequenceTrack) -> String {
-        guard let runtime = audioInputRuntime(for: track.id) else {
-            return "Audio In • Connecting"
-        }
-        if runtime.routeState == .silentUnavailable {
-            return "Audio In • No input device"
-        }
-        let muted = track.mix.isMuted ? " (Muted)" : ""
-        switch runtime.armState {
-        case .armed:
-            return "Audio In • Armed, records at next bar\(muted)"
-        case .recording:
-            let bars = runtime.armedRecordBarLength ?? runtime.recordBarLength
-            return "Audio In • Recording \(bars) bar\(bars == 1 ? "" : "s")\(muted)"
-        case .idle, .hasLoop:
-            break
-        }
-        switch runtime.activeMonitorMode {
-        case .input:
-            return "Audio In • Live monitor\(muted)"
-        case .loop:
-            guard let bars = runtime.recordedLoopBarLength else {
-                return "Audio In • Buffer\(muted)"
-            }
-            return "Audio In • Buffer (\(bars) bar\(bars == 1 ? "" : "s"))\(muted)"
-        }
     }
 
     func processTick(tickIndex: UInt64, now: TimeInterval) {
@@ -3409,7 +3337,8 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private func withStateLock<T>(_ body: () -> T) -> T {
+    // Access widened from `private` for the carve-up extension files.
+    func withStateLock<T>(_ body: () -> T) -> T {
         stateLock.lock()
         defer { stateLock.unlock() }
         #if DEBUG

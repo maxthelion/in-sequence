@@ -63,6 +63,7 @@
 		21CF54EC399E74FA626EA910 /* SeqAIDocumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5AE83F7B58972852FAEBC7 /* SeqAIDocumentTests.swift */; };
 		2215BF4A705D98902159E07E /* StepGridEditParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7D0B18FC912CC416C920AE6 /* StepGridEditParityTests.swift */; };
 		225382878394C410BFAC21AB /* TransportMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A202B9BFA28C84495F2909 /* TransportMode.swift */; };
+		226FE0EE8777DBC54B2BAEDD /* EngineControllerStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2D31A3B754EEF2E40E7764E /* EngineControllerStatus.swift */; };
 		229B0B74F0D787F0F080BBA3 /* MIDIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DDC1AB6124E08C518BF6E7 /* MIDIClient.swift */; };
 		22D4C919412CFC98B89BB31A /* RecordingLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8FE1E23E36A6B06A26C2C80 /* RecordingLibrary.swift */; };
 		2341C62E1AD89D6518278D32 /* GeneratedSourcePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 467494B92FEF61D745F2AD1F /* GeneratedSourcePipeline.swift */; };
@@ -1216,6 +1217,7 @@
 		80B5357C047E3F764802E3FE /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		80CB8C67404FC27B5540A444 /* DestinationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationTests.swift; sourceTree = "<group>"; };
 		81507BD145B6A02AF26175D1 /* ProjectSelectedSlotSourceHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSelectedSlotSourceHelpersTests.swift; sourceTree = "<group>"; };
+		815662CC25B48DDB432E54B7 /* red-team-harness-brief.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "red-team-harness-brief.md"; sourceTree = "<group>"; };
 		81926F9FEB682FCC7DA6AEF1 /* validated-capture-status.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "validated-capture-status.txt"; sourceTree = "<group>"; };
 		81A8403FE3BB7DC17548B87C /* VoicePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePickerView.swift; sourceTree = "<group>"; };
 		81D253888B791AF8457E7B43 /* spec.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = spec.md; sourceTree = "<group>"; };
@@ -1679,6 +1681,7 @@
 		D1E3FB4C385173913DA4B8DB /* 2026-05-08T10-46-20Z-work-observer-completed.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T10-46-20Z-work-observer-completed.md"; sourceTree = "<group>"; };
 		D2593721CAE1647783F6DB45 /* 2026-06-02-inline-history-tab-feedback.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-02-inline-history-tab-feedback.md"; sourceTree = "<group>"; };
 		D2C5D83464F4C20C3C8FD4C3 /* 2026-04-22-track-macro-parameters.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-22-track-macro-parameters.md"; sourceTree = "<group>"; };
+		D2D31A3B754EEF2E40E7764E /* EngineControllerStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerStatus.swift; sourceTree = "<group>"; };
 		D31EC90B484ACD21E40D33A4 /* PlaybackInertSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackInertSelectionTests.swift; sourceTree = "<group>"; };
 		D32F57DA3D87087348022AD5 /* settings.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = settings.yaml; sourceTree = "<group>"; };
 		D3340EF666D61129D72591A4 /* 2026-05-08T10-06-45Z-build-completed.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T10-06-45Z-build-completed.md"; sourceTree = "<group>"; };
@@ -2535,6 +2538,7 @@
 				A62DA60AD5603ED2570D4A35 /* CommandQueue.swift */,
 				0E31D7113289BE3CB828D500 /* EngineController.swift */,
 				34E2B8C3B8F4CD6E32222E0C /* EngineControllerRoutingHelpers.swift */,
+				D2D31A3B754EEF2E40E7764E /* EngineControllerStatus.swift */,
 				C4086161E1BA442F08364D06 /* EngineSlicerDispatcher.swift */,
 				4A6CABB1C0A66AD96BE46E02 /* EventQueue.swift */,
 				95676F5A2AFC79A54CB017F0 /* Executor.swift */,
@@ -3806,6 +3810,7 @@
 			isa = PBXGroup;
 			children = (
 				40E0A5E31E9E1C23E0D0A905 /* concurrency-lane.md */,
+				815662CC25B48DDB432E54B7 /* red-team-harness-brief.md */,
 				5A0F1D4FA35D97C8460C2CEA /* render-harness.md */,
 			);
 			path = testing;
@@ -5547,6 +5552,7 @@
 				DF8BC00687CF944F74C4E8AE /* DrumKitTemplateChooserSheet.swift in Sources */,
 				A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */,
 				E7A3A42EDF7463BA24BE1327 /* EngineControllerRoutingHelpers.swift in Sources */,
+				226FE0EE8777DBC54B2BAEDD /* EngineControllerStatus.swift in Sources */,
 				F86C3190E14A0C837E86BB07 /* EngineSlicerDispatcher.swift in Sources */,
 				567F11938E493D08CA5F6BE4 /* Euclidean.swift in Sources */,
 				A56B19EE665B750B0C8A70F4 /* EventQueue.swift in Sources */,
