@@ -83,6 +83,7 @@
 		29E9B826109E864A16A899E8 /* ScalarCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A96D2E2F787B4A142F0A38 /* ScalarCellPreview.swift */; };
 		2A6F6318A13C5404AD761CC0 /* WorkspaceModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D75C7E5ACB62DAE40B89AC /* WorkspaceModeTests.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
+		2F5312B2BE640A624AD51374 /* QuantisedToggleScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478D5B4A5A838BB797AD19A5 /* QuantisedToggleScheduler.swift */; };
 		2FBA280F40E6A748D1C7483A /* StepGridCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 351C184AAD302ADC4B726F18 /* StepGridCoordinator.swift */; };
 		30284071023D629ED9C3D264 /* PhraseModelPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C8C96491D93C72D173951A /* PhraseModelPolicyTests.swift */; };
 		30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 567FDBC3AA9E0A6F1D99AFBB /* AppSupportBootstrapTests.swift */; };
@@ -911,6 +912,7 @@
 		46E6C58D39A61333AE4B7DBC /* validated-windows.err */ = {isa = PBXFileReference; path = "validated-windows.err"; sourceTree = "<group>"; };
 		47029A8AB1028847F20787B4 /* TrackSourceModifierWell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSourceModifierWell.swift; sourceTree = "<group>"; };
 		471E27B2EDBFDA3B033A5B56 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
+		478D5B4A5A838BB797AD19A5 /* QuantisedToggleScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuantisedToggleScheduler.swift; sourceTree = "<group>"; };
 		47A9B9716A547A8D870C348F /* build-skeleton-from-context.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "build-skeleton-from-context.md"; sourceTree = "<group>"; };
 		47D75C7E5ACB62DAE40B89AC /* WorkspaceModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceModeTests.swift; sourceTree = "<group>"; };
 		480DAB0F6F9C3DC531AD40EC /* step-order-wireframe.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "step-order-wireframe.html"; sourceTree = "<group>"; };
@@ -2560,6 +2562,7 @@
 				B8D351F99ADA535260060C8D /* PhrasePlaybackBuffer.swift */,
 				CD406C1DFC605824895BA3E6 /* PlaybackSnapshot.swift */,
 				2E9F6F14E6452DB029C8C4AC /* PseudoClipState.swift */,
+				478D5B4A5A838BB797AD19A5 /* QuantisedToggleScheduler.swift */,
 				AB70B0792E33E24F0C23F56B /* RouterDispatchState.swift */,
 				AFFD3371EA4DBDB8FB9CAB17 /* ScheduledEvent.swift */,
 				18A42B9452FE5B613F4A8127 /* SequencerSnapshotCompiler.swift */,
@@ -5659,6 +5662,7 @@
 				600BEB869901132D0CB079AE /* Project.swift in Sources */,
 				69EB7CBCA13438A7C8BEE573 /* ProjectDelta.swift in Sources */,
 				2599D08751F833139A2E5685 /* PseudoClipState.swift in Sources */,
+				2F5312B2BE640A624AD51374 /* QuantisedToggleScheduler.swift in Sources */,
 				B2F64EEAECFA70DBC1F3F1C0 /* RecentVoicesStore.swift in Sources */,
 				22D4C919412CFC98B89BB31A /* RecordingLibrary.swift in Sources */,
 				F56E33994446F6C7C31D68CB /* Route.swift in Sources */,

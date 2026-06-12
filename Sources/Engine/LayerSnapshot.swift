@@ -28,4 +28,23 @@ struct LayerSnapshot: Equatable, Sendable {
     func macroValue(trackID: UUID, bindingID: UUID) -> Double? {
         macroValues[trackID]?[bindingID]
     }
+
+    /// Quantised perform toggles: committed mute changes override the
+    /// compiled layer value until the main-side document staging reinstalls
+    /// a snapshot that encodes them. Returns a snapshot every prepare-tick
+    /// mute consumer reads consistently.
+    func applyingMuteOverrides(_ overrides: [UUID: Bool]) -> LayerSnapshot {
+        guard !overrides.isEmpty else {
+            return self
+        }
+        var mergedMute = mute
+        for (trackID, muted) in overrides {
+            mergedMute[trackID] = muted
+        }
+        return LayerSnapshot(
+            mute: mergedMute,
+            fillEnabled: fillEnabled,
+            macroValues: macroValues
+        )
+    }
 }

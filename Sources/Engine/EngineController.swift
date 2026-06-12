@@ -267,6 +267,20 @@ final class EngineController: RouterDispatcher {
     private var pendingStepOrderTogglePayload: PendingStepOrderTogglePayload?
     @ObservationIgnored
     var stepOrderToggleAppliedHandler: ((StepOrderPendingToggleRequest) -> Void)?
+    /// Quantised perform toggles (perform/setup split slice 2): lock-protected
+    /// scheduler shared by main (arm/cancel) and the tick queue (boundary
+    /// commit). The @Observable mirrors below publish on main.
+    @ObservationIgnored
+    private let quantisedToggleScheduler = QuantisedToggleScheduler()
+    /// Invoked on the tick path when armed changes commit at a bar boundary
+    /// (same contract as `stepOrderToggleAppliedHandler`: the installed
+    /// handler hops to main itself, fire-and-forget).
+    @ObservationIgnored
+    var quantisedToggleCommittedHandler: (([QuantisedToggleChange]) -> Void)?
+    /// Main-published mirror of the armed (pending) quantised changes for UI.
+    private(set) var quantisedPendingChanges: [QuantisedToggleChange] = []
+    /// Main-published mirror of the tracks whose cued fill bar is playing.
+    private(set) var quantisedFillCueActiveTrackIDs: Set<UUID> = []
     /// Main-only @Observable mirror for UI. The tick queue must read
     /// `chordContextByLaneEngine` (under stateLock) instead: a one-sided
     /// lock on the reader synchronizes nothing against the main-thread
@@ -732,6 +746,9 @@ final class EngineController: RouterDispatcher {
         clearNoteRepeatCaptureCaches()
         clearAllNoteRepeats(now: now)
         clearQueuedPhraseOnStop(snapshot: tickState.currentPlaybackSnapshot())
+        // Armed quantised changes have no boundary to wait for once the
+        // transport stops; overrides/cues lose their timeline with it.
+        resetQuantisedToggles()
     }
 
     /// Master render to file — records what reaches the master output.
@@ -998,6 +1015,87 @@ final class EngineController: RouterDispatcher {
             return
         }
         publishPendingStepOrderToggle(nil)
+    }
+
+    // MARK: - Quantised perform toggles
+
+    /// Arm a quantised toggle for the next bar boundary, or cancel it when
+    /// the same (kind, track) is already armed. Rejected while the transport
+    /// is stopped — there is no boundary to wait for, so callers apply the
+    /// change immediately instead (the step-order fallback shape).
+    @discardableResult
+    func armQuantisedToggle(_ change: QuantisedToggleChange) -> QuantisedToggleArmResult {
+        guard isRunning else {
+            return .rejected
+        }
+        let result = quantisedToggleScheduler.armOrCancel(change)
+        publishQuantisedPendingChanges()
+        return result
+    }
+
+    /// Cancels every armed (not yet committed) change. Committed state —
+    /// live mute overrides and the playing cue bar — is unaffected.
+    func cancelAllQuantisedToggles() {
+        quantisedToggleScheduler.cancelAllArmed()
+        publishQuantisedPendingChanges()
+    }
+
+    /// Main confirms the committed mute changes are encoded in an installed
+    /// playback snapshot (the session staged the document record), retiring
+    /// the live tick-path overrides.
+    func confirmQuantisedMuteApplied(trackIDs: [UUID]) {
+        quantisedToggleScheduler.confirmMuteApplied(trackIDs: trackIDs)
+    }
+
+    /// Full reset for document replacement: armed changes, live overrides,
+    /// and cue bars all refer to state that no longer exists.
+    func resetQuantisedToggles() {
+        quantisedToggleScheduler.resetRuntime()
+        publishQuantisedPendingChanges()
+        publishQuantisedFillCueActiveTrackIDs([])
+    }
+
+    /// Pending mute target for UI (armed, not yet committed), or nil.
+    func quantisedPendingMuteTarget(for trackID: UUID) -> Bool? {
+        for change in quantisedPendingChanges {
+            if case let .mute(changeTrackID, muted, _) = change, changeTrackID == trackID {
+                return muted
+            }
+        }
+        return nil
+    }
+
+    /// True when a fill cue is armed (pending) for the track.
+    func hasQuantisedPendingFillCue(for trackID: UUID) -> Bool {
+        quantisedPendingChanges.contains { change in
+            if case let .fillCue(changeTrackID) = change {
+                return changeTrackID == trackID
+            }
+            return false
+        }
+    }
+
+    var quantisedMuteOverridesForTesting: [UUID: Bool] {
+        quantisedToggleScheduler.activeMuteOverrides()
+    }
+
+    func quantisedFillCueIsActiveForTesting(trackID: UUID, atTick tick: UInt64) -> Bool {
+        quantisedToggleScheduler.activeFillCueTrackIDs(atTick: tick).contains(trackID)
+    }
+
+    private func publishQuantisedPendingChanges() {
+        let changes = quantisedToggleScheduler.armedChanges()
+        publishToMain { [weak self] in
+            guard let self, self.quantisedPendingChanges != changes else { return }
+            self.quantisedPendingChanges = changes
+        }
+    }
+
+    private func publishQuantisedFillCueActiveTrackIDs(_ trackIDs: Set<UUID>) {
+        publishToMain { [weak self] in
+            guard let self, self.quantisedFillCueActiveTrackIDs != trackIDs else { return }
+            self.quantisedFillCueActiveTrackIDs = trackIDs
+        }
     }
 
     @discardableResult
@@ -1470,10 +1568,31 @@ final class EngineController: RouterDispatcher {
         }
         let activePhraseID = playbackPhrase.phraseID
         let stepInPhrase = playbackPhrase.stepInPhrase
-        let currentLayerSnapshot = playbackSnapshot.layerSnapshot(
+
+        // Quantised perform toggles: armed changes group-commit on the tick
+        // that crosses the bar boundary, BEFORE this tick's notes/mutes are
+        // resolved — the first step of the new bar already plays the new
+        // state. Handler dispatch mirrors stepOrderToggleAppliedHandler
+        // (the installed handler hops to main itself, fire-and-forget).
+        let committedQuantisedChanges = quantisedToggleScheduler.commitAtBarBoundary(
+            upcomingTick: upcomingStep,
+            ticksPerBar: stepsPerBar
+        )
+        if !committedQuantisedChanges.isEmpty {
+            publishQuantisedPendingChanges()
+            quantisedToggleCommittedHandler?(committedQuantisedChanges)
+        }
+        let quantisedMuteOverrides = quantisedToggleScheduler.activeMuteOverrides()
+        let quantisedFillCueTrackIDs = quantisedToggleScheduler.activeFillCueTrackIDs(atTick: upcomingStep)
+        publishQuantisedFillCueActiveTrackIDs(quantisedFillCueTrackIDs)
+
+        var currentLayerSnapshot = playbackSnapshot.layerSnapshot(
             phraseID: activePhraseID,
             stepInPhrase: stepInPhrase
         )
+        if !quantisedMuteOverrides.isEmpty {
+            currentLayerSnapshot = currentLayerSnapshot.applyingMuteOverrides(quantisedMuteOverrides)
+        }
 
         // Dispatch resolved macro values to their destinations (AU params / sampler).
         // Phase 1b: reads snapshot-carried tracks, not currentDocumentModel.tracks.
@@ -1509,6 +1628,7 @@ final class EngineController: RouterDispatcher {
                     stepIndex: stepInPhrase,
                     chordContext: harmonicSidechainChord,
                     trackFillPreview: trackFillPreview,
+                    quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
                     state: &state,
                     rng: &rng
                 )
@@ -2072,6 +2192,7 @@ final class EngineController: RouterDispatcher {
         stepIndex: Int,
         chordContext: Chord?,
         trackFillPreview: TrackFillPreviewPlaybackSnapshot = .inactive,
+        quantisedFillCueTrackIDs: Set<UUID> = [],
         state: inout GeneratedSourceEvaluationState,
         rng: inout R
     ) -> [GeneratedNote] {
@@ -2118,7 +2239,9 @@ final class EngineController: RouterDispatcher {
                 return []
             }
 
-            let effectiveFillEnabled = resolved.fillEnabled || trackFillPreview.isActive(for: trackID)
+            let effectiveFillEnabled = resolved.fillEnabled
+                || trackFillPreview.isActive(for: trackID)
+                || quantisedFillCueTrackIDs.contains(trackID)
             let sourceNotes = GeneratedSourceEvaluator.resolveClipStep(
                 for: clip,
                 stepIndex: resolved.sourceStepIndex,
