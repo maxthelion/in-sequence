@@ -105,22 +105,18 @@ extension SequencerDocumentSession {
         slotIndex: Int,
         lengthSteps: Int
     ) -> UUID? {
-        var project = store.exportToProject()
-        guard let clipID = engineController.saveRollingCapture(
-            to: &project,
+        guard let content = engineController.capturedClipContent(
             trackID: trackID,
-            destinationSlotIndex: slotIndex,
-            lengthSteps: lengthSteps,
-            name: "Capture P\(slotIndex + 1)"
+            lengthSteps: lengthSteps
         ) else {
             return nil
         }
-
-        guard store.replaceProject(project) else {
-            return clipID
-        }
-        dispatchImpact(.fullEngineApply, changed: .full)
-        return clipID
+        return saveMaterializedClipToPatternSlot(
+            trackID: trackID,
+            slotIndex: slotIndex,
+            content: content,
+            name: "Capture P\(slotIndex + 1)"
+        )
     }
 
     @discardableResult

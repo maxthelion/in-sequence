@@ -96,26 +96,6 @@ struct ClipCaptureService: Equatable {
         buffersByTrackID[trackID]?.captureSnapshot() ?? CaptureSnapshot(maxSteps: maxSteps)
     }
 
-    @discardableResult
-    func saveRollingCapture(
-        to project: inout Project,
-        trackID: UUID,
-        destinationSlotIndex: Int? = nil,
-        lengthSteps: Int? = nil,
-        name: String? = nil
-    ) -> UUID? {
-        guard let content = capturedClipContent(trackID: trackID, lengthSteps: lengthSteps) else {
-            return nil
-        }
-
-        return project.saveCapturedClip(
-            content,
-            trackID: trackID,
-            destinationSlotIndex: destinationSlotIndex,
-            name: name
-        )
-    }
-
     mutating func removeMissingTracks(_ currentTrackIDs: Set<UUID>) {
         buffersByTrackID = buffersByTrackID.filter { currentTrackIDs.contains($0.key) }
     }

@@ -1584,23 +1584,6 @@ final class EngineController: RouterDispatcher {
         eventQueue.clear()
     }
 
-    @discardableResult
-    func saveRollingCapture(
-        to project: inout Project,
-        trackID: UUID,
-        destinationSlotIndex: Int? = nil,
-        lengthSteps: Int? = nil,
-        name: String? = nil
-    ) -> UUID? {
-        return tickState.saveRollingCapture(
-            to: &project,
-            trackID: trackID,
-            destinationSlotIndex: destinationSlotIndex,
-            lengthSteps: lengthSteps,
-            name: name
-        )
-    }
-
     private func apply(deltas: [ProjectDelta], documentModel: Project) {
         guard !deltas.isEmpty else {
             return

@@ -1443,7 +1443,7 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(events.map(\.length), [5])
     }
 
-    func test_saveRollingCapture_writes_a_new_note_grid_clip_to_destination_slot() {
+    func test_capturedClipContent_savedViaDocument_writes_a_new_note_grid_clip_to_destination_slot() {
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: CapturingAudioSink())
         let track = StepSequenceTrack(
             id: UUID(uuidString: "66666666-aaaa-bbbb-cccc-666666666666") ?? UUID(),
@@ -1486,11 +1486,12 @@ final class EngineControllerTests: XCTestCase {
         controller.apply(documentModel: document)
         controller.processTick(tickIndex: 0, now: 0)
 
-        let clipID = controller.saveRollingCapture(
-            to: &document,
+        let content = controller.capturedClipContent(trackID: track.id, lengthSteps: 1)
+        XCTAssertNotNil(content)
+        let clipID = document.saveCapturedClip(
+            content!,
             trackID: track.id,
             destinationSlotIndex: 1,
-            lengthSteps: 1,
             name: "Captured"
         )
 

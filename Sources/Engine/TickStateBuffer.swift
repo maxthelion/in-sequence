@@ -152,24 +152,6 @@ final class TickStateBuffer {
         }
     }
 
-    @discardableResult
-    func saveRollingCapture(
-        to project: inout Project,
-        trackID: UUID,
-        destinationSlotIndex: Int? = nil,
-        lengthSteps: Int? = nil,
-        name: String? = nil
-    ) -> UUID? {
-        let captureService = withLock { clipCaptureService }
-        return captureService.saveRollingCapture(
-            to: &project,
-            trackID: trackID,
-            destinationSlotIndex: destinationSlotIndex,
-            lengthSteps: lengthSteps,
-            name: name
-        )
-    }
-
     private func withLock<T>(_ body: () -> T) -> T {
         lock.lock()
         defer { lock.unlock() }
