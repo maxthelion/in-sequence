@@ -76,6 +76,10 @@ struct LibraryWorkspaceView: View {
     private func categoryRow(_ category: LibraryCategory) -> some View {
         let isSelected = selectedCategory == category
         let count = catalog.entryCount(in: category)
+        // Empty categories recede so the eye lands on real content (ux-canon
+        // rule 11); they stay selectable, just dimmed.
+        let isEmpty = count == 0
+        let dimmedMuted = StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent)
 
         return Button {
             selectCategory(category)
@@ -83,14 +87,14 @@ struct LibraryWorkspaceView: View {
             HStack(spacing: StudioMetrics.Spacing.snug) {
                 Text(category.displayName)
                     .studioText(isSelected ? .labelBold : .label)
-                    .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                    .foregroundStyle(isSelected ? StudioTheme.text : (isEmpty ? dimmedMuted : StudioTheme.mutedText))
                     .lineLimit(1)
 
                 Spacer(minLength: 4)
 
                 Text("\(count)")
                     .studioText(.micro)
-                    .foregroundStyle(isSelected ? StudioTheme.violet : StudioTheme.mutedText)
+                    .foregroundStyle(isSelected ? StudioTheme.violet : (isEmpty ? dimmedMuted : StudioTheme.mutedText))
             }
             .padding(.horizontal, StudioMetrics.Spacing.compact)
             .padding(.vertical, StudioMetrics.Spacing.tight)
