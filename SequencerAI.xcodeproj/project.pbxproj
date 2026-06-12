@@ -130,6 +130,7 @@
 		4597C8E722BACABA440DC4A3 /* ProjectAppendTrackDefaultDestinationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD89550D3BD60A558D57F6DA /* ProjectAppendTrackDefaultDestinationTests.swift */; };
 		45B3F3FDD38CB0B4791706B5 /* AudioSampleCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = E682FFD32432C3B7DFAD5D45 /* AudioSampleCategory.swift */; };
 		462525718F3BE9F394BEF10C /* EngineControllerRecordingPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 151A8902F1B6A423793632A1 /* EngineControllerRecordingPersistenceTests.swift */; };
+		468E1DE2CE545A70159E3F5F /* EngineControllerAudioInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A449B0D48E1FB2B36B0E72B7 /* EngineControllerAudioInput.swift */; };
 		47ED90089F1CCAA8CA437946 /* SamplePlaybackEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E77F0B1FD006AF036C47DF3 /* SamplePlaybackEngineTests.swift */; };
 		48BD197D4D71219D62370DF4 /* GridEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9110EF5FA5E3B7807766F5C8 /* GridEditor.swift */; };
 		496DAD8342ECB5EA42572A49 /* TrackSourceActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BFBA6DA4AEBBCBF99E7F1C /* TrackSourceActionButton.swift */; };
@@ -1397,6 +1398,7 @@
 		A34B69AA7241F57BA524DA59 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		A39D7BE5528A49CF430A62FC /* 2026-05-08T12-04-05Z-work-observer-cadence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T12-04-05Z-work-observer-cadence.md"; sourceTree = "<group>"; };
 		A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationSummaryTests.swift; sourceTree = "<group>"; };
+		A449B0D48E1FB2B36B0E72B7 /* EngineControllerAudioInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerAudioInput.swift; sourceTree = "<group>"; };
 		A4571E11799775462A30DEC1 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
 		A47DAA0885830306346B9E4D /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		A5366ABCF4BBF7637916C2FC /* 2026-04-20-drum-track-mvp.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-20-drum-track-mvp.md"; sourceTree = "<group>"; };
@@ -2537,6 +2539,7 @@
 				A89185511AA5FA2CF82770A4 /* ClipCaptureService.swift */,
 				A62DA60AD5603ED2570D4A35 /* CommandQueue.swift */,
 				0E31D7113289BE3CB828D500 /* EngineController.swift */,
+				A449B0D48E1FB2B36B0E72B7 /* EngineControllerAudioInput.swift */,
 				34E2B8C3B8F4CD6E32222E0C /* EngineControllerRoutingHelpers.swift */,
 				D2D31A3B754EEF2E40E7764E /* EngineControllerStatus.swift */,
 				C4086161E1BA442F08364D06 /* EngineSlicerDispatcher.swift */,
@@ -5551,6 +5554,7 @@
 				7CAFC81CB0B468221FC5C3DF /* DrumKitNoteMap.swift in Sources */,
 				DF8BC00687CF944F74C4E8AE /* DrumKitTemplateChooserSheet.swift in Sources */,
 				A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */,
+				468E1DE2CE545A70159E3F5F /* EngineControllerAudioInput.swift in Sources */,
 				E7A3A42EDF7463BA24BE1327 /* EngineControllerRoutingHelpers.swift in Sources */,
 				226FE0EE8777DBC54B2BAEDD /* EngineControllerStatus.swift in Sources */,
 				F86C3190E14A0C837E86BB07 /* EngineSlicerDispatcher.swift in Sources */,
