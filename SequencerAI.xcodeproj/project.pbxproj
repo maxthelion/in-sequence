@@ -424,6 +424,7 @@
 		DF3180258A4C6BED48B2EC80 /* StudioSlideControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BB0A9325317FC46B13699C1 /* StudioSlideControl.swift */; };
 		DF8BC00687CF944F74C4E8AE /* DrumKitTemplateChooserSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17891E38F9A630FABCC45BF6 /* DrumKitTemplateChooserSheet.swift */; };
 		E027CCBEA143ABC7990EC2BD /* WrapRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA068D16F4542EF4B0C01A5D /* WrapRow.swift */; };
+		E0852DFEC90F8363F4189393 /* EngineControllerNoteRepeat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E6C2A7645BBA62A660A903 /* EngineControllerNoteRepeat.swift */; };
 		E1D63DDCEB92046FA79054BC /* StyleProfilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEA6D90DE06F9CD1503FAF0 /* StyleProfilesTests.swift */; };
 		E244091D2C7F0EA480A18223 /* ClipCaptureServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921877FE74260A065D539C53 /* ClipCaptureServiceTests.swift */; };
 		E37A5DC0BED5FFB5F127AD4F /* SnapshotChangeTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B0CDDA72F08723E67F0244 /* SnapshotChangeTypeTests.swift */; };
@@ -1849,6 +1850,7 @@
 		F0483CBD7351D15E53647D2F /* MixerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixerView.swift; sourceTree = "<group>"; };
 		F099D07BAFAE0B6334B67A6E /* chosen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = chosen.png; sourceTree = "<group>"; };
 		F0A66C09FE881E5045D6383E /* AddDrumGroupSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDrumGroupSheet.swift; sourceTree = "<group>"; };
+		F0E6C2A7645BBA62A660A903 /* EngineControllerNoteRepeat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerNoteRepeat.swift; sourceTree = "<group>"; };
 		F0F9FADA87C4030EC58CAD27 /* SamplerFilterNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplerFilterNode.swift; sourceTree = "<group>"; };
 		F1279A77BAF322D66ABFFE35 /* 2026-06-12-tsan-findings.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-12-tsan-findings.md"; sourceTree = "<group>"; };
 		F14434DD7DA21D43FC17F93B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -2543,6 +2545,7 @@
 				0E31D7113289BE3CB828D500 /* EngineController.swift */,
 				A449B0D48E1FB2B36B0E72B7 /* EngineControllerAudioInput.swift */,
 				BD628474D98791125F6842D6 /* EngineControllerMixSync.swift */,
+				F0E6C2A7645BBA62A660A903 /* EngineControllerNoteRepeat.swift */,
 				34E2B8C3B8F4CD6E32222E0C /* EngineControllerRoutingHelpers.swift */,
 				D2D31A3B754EEF2E40E7764E /* EngineControllerStatus.swift */,
 				C4086161E1BA442F08364D06 /* EngineSlicerDispatcher.swift */,
@@ -5559,6 +5562,7 @@
 				A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */,
 				468E1DE2CE545A70159E3F5F /* EngineControllerAudioInput.swift in Sources */,
 				BB947DA359F8C31D1D0BA211 /* EngineControllerMixSync.swift in Sources */,
+				E0852DFEC90F8363F4189393 /* EngineControllerNoteRepeat.swift in Sources */,
 				E7A3A42EDF7463BA24BE1327 /* EngineControllerRoutingHelpers.swift in Sources */,
 				226FE0EE8777DBC54B2BAEDD /* EngineControllerStatus.swift in Sources */,
 				F86C3190E14A0C837E86BB07 /* EngineSlicerDispatcher.swift in Sources */,
