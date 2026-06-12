@@ -9,14 +9,31 @@ struct WorkspaceDetailView: View {
     @Environment(SequencerDocumentSession.self) private var session
 
     var body: some View {
-        ScrollView {
-            workspace
-                .padding(StudioMetrics.Spacing.tight)
+        ScrollViewReader { proxy in
+            ScrollView {
+                workspace
+                    .padding(StudioMetrics.Spacing.tight)
+                    .id("workspace-top")
+                Color.clear
+                    .frame(height: 1)
+                    .id("workspace-bottom")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .workspaceDetailVisualCommand)) { notification in
+                guard let command = notification.object as? String else { return }
+                switch command {
+                case "scroll-top":
+                    proxy.scrollTo("workspace-top", anchor: .top)
+                case "scroll-bottom":
+                    proxy.scrollTo("workspace-bottom", anchor: .bottom)
+                default:
+                    break
+                }
+            }
+            // Bold-flat pass: the stage IS the window ground — no rounded stage
+            // plate, no outline; controls sit directly on the one near-black
+            // ground like the reference.
+            .background(StudioTheme.stageFill)
         }
-        // Bold-flat pass: the stage IS the window ground — no rounded stage
-        // plate, no outline; controls sit directly on the one near-black
-        // ground like the reference.
-        .background(StudioTheme.stageFill)
     }
 
     @ViewBuilder

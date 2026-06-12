@@ -43,6 +43,8 @@ enum VisualScenarioCommandRunner {
     private static var sceneEditorFixtureState = "none"
     private static var libraryCategoryState = "none"
     private static var libraryFixtureState = "none"
+    private static var slicerFixtureState = "none"
+    private static var slicerLayerState = SliceTrackClipLayer.steps.rawValue
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
     private static var drumGroupRoutingEditorCanApply = false
@@ -280,8 +282,10 @@ enum VisualScenarioCommandRunner {
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
         applyTrackSourceTabCommand(command: command, section: section)
+        applySlicerFixture(command: command, section: section, session: session)
         applyScenesModeCommand(command: command, section: section, session: session)
         applyLibraryCommand(command: command, section: section, session: session)
+        applyWorkspaceScrollCommand(command: command)
 
         switch command["transport"] {
         case "play":
@@ -332,6 +336,33 @@ enum VisualScenarioCommandRunner {
             }
     }
 
+    private static func selectedSlicerStatus(
+        session: SequencerDocumentSession
+    ) -> (sampleName: String, sliceCount: Int, clipStepCount: Int, activeStepCount: Int) {
+        let trackID = session.store.selectedTrackID
+        let selectedPattern = session.store.selectedPattern(for: trackID)
+        let clip = selectedPattern.sourceRef.clipID.flatMap { session.store.clipEntry(id: $0) }
+        let clipContent = clip?.content.normalized
+        let activeStepCount: Int
+        if case let .sliceTriggers(stepPattern, _, _, _) = clipContent {
+            activeStepCount = stepPattern.filter { $0 }.count
+        } else {
+            activeStepCount = 0
+        }
+
+        guard session.store.selectedTrack.trackType == .slice,
+              case let .slicer(sliceSetID, _) = session.store.resolvedDestination(for: trackID),
+              let sliceSet = session.store.sliceSet(id: sliceSetID)
+        else {
+            return ("none", 0, clipContent?.stepCount ?? 0, activeStepCount)
+        }
+
+        let sampleName = sliceSet.sampleID
+            .flatMap { AudioSampleLibrary.shared.sample(id: $0)?.name }
+            ?? "none"
+        return (sampleName, sliceSet.userSliceCount, clipContent?.stepCount ?? 0, activeStepCount)
+    }
+
     /// Internal (not private) so command-protocol tests can drive it directly.
     static func writeStatus(
         to statusURL: URL,
@@ -361,6 +392,7 @@ enum VisualScenarioCommandRunner {
             phrases.first { $0.id == phraseID }?.name
         }
         let selectedPattern = session.store.selectedPattern(for: session.store.selectedTrackID)
+        let selectedSlicer = selectedSlicerStatus(session: session)
         let selectedNoteRepeatSnapshot = engineController.noteRepeatRuntimeSnapshot(for: session.store.selectedTrackID)
         let activeNoteRepeatTrackNames = session.store.tracks.compactMap { track in
             engineController.noteRepeatRuntimeSnapshot(for: track.id) == nil ? nil : track.name
@@ -400,6 +432,12 @@ enum VisualScenarioCommandRunner {
         stepOrderPendingToggle=\(stepOrderStatus.pendingToggle)
         stepOrderFixtureState=\(stepOrderFixtureState)
         trackSourceTab=\(trackSourceTabState)
+        slicerFixture=\(slicerFixtureState)
+        slicerLayer=\(slicerLayerState)
+        slicerSampleName=\(selectedSlicer.sampleName)
+        slicerSliceCount=\(selectedSlicer.sliceCount)
+        slicerClipStepCount=\(selectedSlicer.clipStepCount)
+        slicerClipActiveStepCount=\(selectedSlicer.activeStepCount)
         scenesMode=\(session.workspaceMode.scenesModeValue.rawValue)
         sceneEditorFixture=\(sceneEditorFixtureState)
         libraryCategory=\(libraryCategoryState)
@@ -1059,6 +1097,128 @@ enum VisualScenarioCommandRunner {
         postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:\(rawTab)")
     }
 
+    /// Drives the slice-track workspace into populated, reviewable states.
+    /// The fixture uses the real sample library and document mutation path so
+    /// waveform, slice-set, and clip rendering stay honest.
+    private static func applySlicerFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["slicerFixture"] != nil ||
+              command["slicerLayer"] != nil
+        else { return }
+
+        section.wrappedValue = .track
+
+        switch command["slicerFixture"] {
+        case "populated", "grid":
+            guard let sample = slicerFixtureSample(),
+                  ensurePopulatedSlicerTrack(sample: sample, session: session) != nil
+            else {
+                slicerFixtureState = "missingSample"
+                break
+            }
+            slicerFixtureState = "populated"
+        case "empty":
+            if session.store.selectedTrack.trackType != .slice {
+                session.appendTrack(trackType: .slice)
+            }
+            slicerFixtureState = "empty"
+        default:
+            break
+        }
+
+        if let rawLayer = command["slicerLayer"],
+           SliceTrackClipLayer(rawValue: rawLayer) != nil {
+            slicerLayerState = rawLayer
+            postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "layer:\(rawLayer)")
+        }
+    }
+
+    @discardableResult
+    private static func ensurePopulatedSlicerTrack(
+        sample: AudioSample,
+        session: SequencerDocumentSession
+    ) -> UUID? {
+        let trackID: UUID
+        if session.store.selectedTrack.trackType == .slice {
+            trackID = session.store.selectedTrackID
+        } else if let createdTrackID = session.appendSliceTrack(sample: sample) {
+            trackID = createdTrackID
+        } else {
+            return nil
+        }
+
+        let sampleLengthFrames = slicerSampleLengthFrames(sample)
+        guard sampleLengthFrames > 0 else { return nil }
+
+        let existingSliceSetID: UUID? = {
+            guard case let .slicer(sliceSetID, _) = session.store.resolvedDestination(for: trackID),
+                  sliceSetID != SliceSet.emptyID
+            else { return nil }
+            return sliceSetID
+        }()
+        let settings: SlicerSettings = {
+            guard case let .slicer(_, settings) = session.store.resolvedDestination(for: trackID) else {
+                return .default
+            }
+            return settings
+        }()
+
+        var sliceSet = SliceSet(
+            id: existingSliceSetID ?? UUID(),
+            sampleID: sample.id,
+            markers: gridSliceMarkers(sampleLengthFrames: sampleLengthFrames, sliceCount: 8),
+            mode: .grid,
+            bars: 2
+        )
+        sliceSet.normalize(sampleLengthFrames: sampleLengthFrames)
+
+        session.setSelectedTrackID(trackID)
+        session.setSlicerDestination(sliceSet: sliceSet, settings: settings, for: trackID)
+        session.applySlicerAnalysis(
+            sliceSet: sliceSet,
+            sampleLengthFrames: sampleLengthFrames,
+            clipLengthSteps: 16,
+            for: trackID
+        )
+        return trackID
+    }
+
+    private static func slicerFixtureSample() -> AudioSample? {
+        let library = AudioSampleLibrary.shared
+        return library.samples(in: .breaks).sorted { lhs, rhs in
+            lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }.first
+            ?? library.samples(in: .recordings).first
+            ?? library.samples.first
+    }
+
+    private static func slicerSampleLengthFrames(_ sample: AudioSample) -> Int64 {
+        if let lengthFrames = sample.lengthFrames {
+            return lengthFrames
+        }
+        guard let url = try? sample.fileRef.resolve(libraryRoot: AudioSampleLibrary.shared.libraryRoot),
+              let file = try? AVAudioFile(forReading: url)
+        else {
+            return 0
+        }
+        return file.length
+    }
+
+    private static func gridSliceMarkers(sampleLengthFrames: Int64, sliceCount: Int) -> [SliceMarker] {
+        let resolvedLength = max(1, sampleLengthFrames)
+        let resolvedSliceCount = max(1, sliceCount)
+        let whole = SliceMarker(startFrame: 0, endFrame: resolvedLength, tag: "Whole")
+        let slices = (0..<resolvedSliceCount).map { index in
+            let start = (resolvedLength * Int64(index)) / Int64(resolvedSliceCount)
+            let end = (resolvedLength * Int64(index + 1)) / Int64(resolvedSliceCount)
+            return SliceMarker(startFrame: start, endFrame: max(start + 1, end), tag: "S\(index + 1)")
+        }
+        return [whole] + slices
+    }
+
     /// Drives the Library page: category selection plus deterministic
     /// fixtures for the pool and recordings states.
     private static func applyLibraryCommand(
@@ -1182,6 +1342,19 @@ enum VisualScenarioCommandRunner {
             NotificationCenter.default.post(name: name, object: object)
             try? await Task.sleep(nanoseconds: 350_000_000)
             NotificationCenter.default.post(name: name, object: object)
+        }
+    }
+
+    private static func applyWorkspaceScrollCommand(command: [String: String]) {
+        guard let rawScroll = command["workspaceScroll"] else { return }
+
+        switch rawScroll {
+        case "top":
+            postRepeatedVisualCommand(name: .workspaceDetailVisualCommand, object: "scroll-top")
+        case "bottom":
+            postRepeatedVisualCommand(name: .workspaceDetailVisualCommand, object: "scroll-bottom")
+        default:
+            break
         }
     }
 
