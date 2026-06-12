@@ -121,6 +121,10 @@ struct SliceTrackWorkspaceView: View {
         .onChange(of: selectedLayer) { _, _ in
             syncStepGridCoordinator()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .sliceTrackWorkspaceVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            applyVisualCommand(command)
+        }
     }
 
     private var mainColumn: some View {
@@ -483,6 +487,14 @@ struct SliceTrackWorkspaceView: View {
                 }
                 .frame(maxHeight: 420)
             }
+        }
+    }
+
+    private func applyVisualCommand(_ command: String) {
+        let layerPrefix = "layer:"
+        if command.hasPrefix(layerPrefix),
+           let layer = SliceTrackClipLayer(rawValue: String(command.dropFirst(layerPrefix.count))) {
+            selectedLayer = layer
         }
     }
 

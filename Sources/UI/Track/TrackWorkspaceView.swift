@@ -412,6 +412,8 @@ extension Notification.Name {
     static let phraseMatrixRenderedVisualState = Notification.Name("SequencerAIPhraseMatrixRenderedVisualState")
     static let trackPerformVisualCommand = Notification.Name("SequencerAITrackPerformVisualCommand")
     static let trackSourceEditorVisualCommand = Notification.Name("SequencerAITrackSourceEditorVisualCommand")
+    static let sliceTrackWorkspaceVisualCommand = Notification.Name("SequencerAISliceTrackWorkspaceVisualCommand")
+    static let workspaceDetailVisualCommand = Notification.Name("SequencerAIWorkspaceDetailVisualCommand")
     static let scenesWorkspaceVisualCommand = Notification.Name("SequencerAIScenesWorkspaceVisualCommand")
 }
 
