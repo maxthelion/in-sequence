@@ -324,6 +324,58 @@ final class ConcurrencyChurnStressTests: XCTestCase {
         )
     }
 
+    // MARK: - Loop 1b: quantised toggle arm/cancel storms while ticking
+    //
+    // Perform/setup split slice 2: arming happens from main at gesture rate,
+    // boundary commits run inside prepareTick on the real TickClock queue,
+    // and cancel storms race both. The scheduler is one lock; nothing in the
+    // arm/commit path may hop to main synchronously — the guard handler
+    // catches any reintroduced edge, the watchdog catches a wedge.
+
+    func test_smoke_quantisedToggleArmCancelStorm_neverSyncHopsToMainAndNeverWedges() {
+        let (controller, _, _) = makeTransportFixture(bypassRoutingSync: true)
+        controller.setBPM(480)
+        let trackIDs = controller.currentDocumentModel.tracks.map(\.id)
+        let phraseID = controller.currentDocumentModel.selectedPhraseID
+        controller.start()
+
+        runWatchdogged("quantise-arm-cancel-smoke", timeout: 30, workers: [
+            ChurnWorker(label: "transport") {
+                for _ in 0..<20 {
+                    controller.start()
+                    controller.stop()
+                }
+                controller.start()
+            },
+            ChurnWorker(label: "arm-mute") {
+                for cycle in 0..<400 {
+                    _ = controller.armQuantisedToggle(
+                        .mute(
+                            trackID: trackIDs[cycle % trackIDs.count],
+                            muted: cycle % 2 == 0,
+                            basisPhraseID: phraseID
+                        )
+                    )
+                }
+            },
+            ChurnWorker(label: "arm-fill") {
+                for cycle in 0..<400 {
+                    _ = controller.armQuantisedToggle(.fillCue(trackID: trackIDs[cycle % trackIDs.count]))
+                }
+            },
+            ChurnWorker(label: "cancel-and-read") {
+                for _ in 0..<200 {
+                    controller.cancelAllQuantisedToggles()
+                    _ = controller.quantisedMuteOverridesForTesting
+                    controller.confirmQuantisedMuteApplied(trackIDs: trackIDs)
+                }
+            },
+        ])
+
+        controller.stop()
+        assertNoViolations("quantise-arm-cancel-smoke")
+    }
+
     // MARK: - Loop 2: record-arm/cancel/complete churn (D1/D4 shape)
 
     func test_stress_recordArmChurn_capturesCompleteAndNothingHopsUnderStateLock() throws {

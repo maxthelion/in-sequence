@@ -1,0 +1,105 @@
+import SwiftUI
+import XCTest
+@testable import SequencerAI
+
+/// Capture-harness protocol for quantised perform toggles: the
+/// `quantise=off|bar` command drives the session setting and the status
+/// file reports the Q setting plus armed/active state, so QA rows can
+/// script and assert against boundary-armed changes.
+@MainActor
+final class QuantiseHarnessProtocolTests: XCTestCase {
+    private final class DocumentBox {
+        var document = SeqAIDocument()
+    }
+
+    private struct Fixture {
+        let box: DocumentBox
+        let engine: EngineController
+        let session: SequencerDocumentSession
+    }
+
+    private func makeFixture() -> Fixture {
+        let box = DocumentBox()
+        let engine = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { box.document },
+                set: { box.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        session.activate()
+        return Fixture(box: box, engine: engine, session: session)
+    }
+
+    private func apply(_ command: [String: String], fixture: Fixture) {
+        VisualScenarioCommandRunner.apply(
+            command: command,
+            section: .constant(.tracks),
+            visualPhraseControlsOpenIndex: .constant(nil),
+            session: fixture.session,
+            engineController: fixture.engine
+        )
+    }
+
+    private func statusDictionary(fixture: Fixture) throws -> [String: String] {
+        let statusURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quantise-harness-tests-\(UUID().uuidString).status")
+        defer { try? FileManager.default.removeItem(at: statusURL) }
+
+        VisualScenarioCommandRunner.writeStatus(
+            to: statusURL,
+            section: .tracks,
+            visualPhraseControlsOpenIndex: nil,
+            session: fixture.session,
+            engineController: fixture.engine
+        )
+
+        let payload = try String(contentsOf: statusURL)
+        return payload
+            .split(whereSeparator: \.isNewline)
+            .reduce(into: [:]) { result, rawLine in
+                let line = String(rawLine).trimmingCharacters(in: .whitespaces)
+                guard let separator = line.firstIndex(of: "=") else { return }
+                result[String(line[..<separator])] =
+                    String(line[line.index(after: separator)...])
+            }
+    }
+
+    func test_quantiseCommandDrivesTheSessionSetting() {
+        let fixture = makeFixture()
+        XCTAssertEqual(fixture.session.performQuantise, .bar)
+
+        apply(["quantise": "off"], fixture: fixture)
+        XCTAssertEqual(fixture.session.performQuantise, .off)
+
+        apply(["quantise": "bar"], fixture: fixture)
+        XCTAssertEqual(fixture.session.performQuantise, .bar)
+    }
+
+    func test_statusEmitsQuantiseSettingAndArmedChanges() throws {
+        let fixture = makeFixture()
+        fixture.session.workspaceMode = .perform
+        fixture.engine.start()
+        fixture.engine.clock.stop()
+        defer { fixture.engine.stop() }
+
+        var status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["quantise"], "bar")
+        XCTAssertEqual(status["quantisePending"], "none")
+        XCTAssertEqual(status["quantiseFillCueActive"], "none")
+
+        let track = fixture.session.store.tracks[0]
+        let phraseID = fixture.session.store.selectedPhraseID
+        fixture.engine.armQuantisedToggle(.mute(trackID: track.id, muted: true, basisPhraseID: phraseID))
+        fixture.engine.armQuantisedToggle(.fillCue(trackID: track.id))
+
+        status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(
+            status["quantisePending"],
+            "\(track.name):mute-on,\(track.name):fill-cue",
+            "armed changes report as <track>:<change> in arm order"
+        )
+    }
+}
