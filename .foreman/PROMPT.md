@@ -92,8 +92,14 @@ attention item ("ready to merge, gates green") instead of a merge.
 
 ## Standing lenses (heartbeat work)
 
-When a tick fires on heartbeat with no new inputs, spend it on one lens,
-rotating through:
+When a tick fires on heartbeat with no new inputs, the precheck PRINTS
+which lens to run (it owns the rotation cursor in
+`.foreman/state/lens-cursor` — do not choose yourself, and do not edit
+the cursor). If the named lens is impossible right now (locked console
+for captures, disk/build for the concurrency lane), note why in the
+decision log and run the NEXT lens down instead — the cursor has
+already advanced, so the skipped lens comes around again next cycle.
+The roster:
 
 1. **QA captures** — run `scripts/visual-scenarios/qa-surface-coverage.sh`,
    regenerate the gallery, review every capture against `docs/ux-canon.md`

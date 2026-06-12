@@ -57,7 +57,15 @@ echo "$current_fp" > "$fingerprint_file"
 echo "$now_epoch" > "$heartbeat_file"
 
 if [ "$current_fp" = "$previous_fp" ]; then
-  echo "heartbeat: no new inputs; spend this tick on one standing lens"
+  # The rotation cursor lives here, not in the model's judgment: an
+  # agent with no memory of the last heartbeat would always pick the
+  # most salient lens. Names must match PROMPT.md's roster.
+  lens_file="$FOREMAN_DIR/state/lens-cursor"
+  lens_names=("QA captures" "Code health" "Intent drift" "Backlog hygiene" "Concurrency lane")
+  last_lens="$(cat "$lens_file" 2>/dev/null || echo 0)"
+  next_lens=$(( (last_lens % ${#lens_names[@]}) + 1 ))
+  echo "$next_lens" > "$lens_file"
+  echo "heartbeat: no new inputs; spend this tick on lens ${next_lens}: ${lens_names[$((next_lens - 1))]}"
 else
   echo "changed inputs:"
   printf '%s\n' "$inputs"
