@@ -644,7 +644,10 @@ struct TracksMatrixView: View {
                     },
                     onReleaseRuntimeControl: { control in
                         releaseRuntimeControl(control, sourceTrackID: track.id)
-                    }
+                    },
+                    onCueRuntimeControl: session.isQuantisedPerformToggleArmingActive
+                        ? { control in cueRuntimeControl(control, sourceTrackID: track.id) }
+                        : nil
                 ) {
                     session.setSelectedTrackID(track.id)
                     if isPerforming {
@@ -708,6 +711,23 @@ struct TracksMatrixView: View {
             orderedTrackIDs: session.store.tracks.map(\.id),
             selection: performSelection
         )
+
+        // Quantised perform toggles (slice 2): with Q:BAR and the transport
+        // running, a mute tap ARMS for the next bar boundary instead of
+        // landing immediately; tapping again while armed cancels. Q:OFF (or
+        // transport stopped) falls through to the immediate staging below —
+        // exactly today's behaviour.
+        if isPerforming,
+           layer.id == TrackPerformLayerMode.mute.phraseLayerID,
+           session.isQuantisedPerformToggleArmingActive {
+            session.toggleQuantisedMute(
+                trackIDs: recipientTrackIDs,
+                basisPhrase: editingPhrase,
+                layer: layer,
+                stepIndex: currentStepIndexInPhrase
+            )
+            return
+        }
 
         switch cell {
         case .inheritDefault:
@@ -817,6 +837,22 @@ struct TracksMatrixView: View {
                 supportedTrackIDs.forEach { session.engageNoteRepeat(trackID: $0) }
             }
         }
+    }
+
+    /// Fill's quantised next-cycle cue (rytm-study §5, third gesture): a
+    /// plain tap in MOM mode with Q:BAR arms fill for the next bar across
+    /// the edit set; tapping while armed cancels. Note repeat keeps its
+    /// existing gestures — cue quantise for repeat is a later slice.
+    private func cueRuntimeControl(_ control: TrackPerformBinaryControl, sourceTrackID: UUID) {
+        guard control == .fill else {
+            return
+        }
+        let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
+            sourceTrackID: sourceTrackID,
+            orderedTrackIDs: session.store.tracks.map(\.id),
+            selection: performSelection
+        )
+        session.toggleQuantisedFillCue(trackIDs: recipientTrackIDs)
     }
 
     private func releaseRuntimeControl(_ control: TrackPerformBinaryControl, sourceTrackID: UUID) {
@@ -1097,6 +1133,10 @@ private struct TrackMatrixCard: View {
     let onTogglePerformSelection: () -> Void
     let onActivateRuntimeControl: (TrackPerformBinaryControl) -> Void
     let onReleaseRuntimeControl: (TrackPerformBinaryControl) -> Void
+    /// Non-nil when quantise arming is live: a plain tap on a runtime
+    /// trigger surface arms the next-bar cue instead of being a zero-length
+    /// hold. MOM (hold) and LATCH interactions are unchanged.
+    let onCueRuntimeControl: ((TrackPerformBinaryControl) -> Void)?
     let onTap: () -> Void
 
     private var accent: Color {
@@ -1249,7 +1289,10 @@ private struct TrackMatrixCard: View {
                 latchMode: latchMode,
                 accent: layerAccentColor,
                 onActivate: { onActivateRuntimeControl(control) },
-                onRelease: { onReleaseRuntimeControl(control) }
+                onRelease: { onReleaseRuntimeControl(control) },
+                onCue: control == .fill
+                    ? onCueRuntimeControl.map { cueHandler in { cueHandler(control) } }
+                    : nil
             )
         } else if let activePerformLayer, activePerformLayer.phraseLayerID == nil {
             TrackPerformPlaceholderLayerCard(
@@ -1361,11 +1404,46 @@ private struct TrackCardStrokeOverlay: View {
         #if DEBUG
         let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
         #endif
-        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-            .stroke(
-                strokeColor,
-                lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth
-            )
+        // Armed quantised mute (wireframes §2): dashed amber outline + the
+        // pending glyph until the change lands at the bar boundary. The
+        // pending mirror publishes at gesture/bar rate (never tick rate),
+        // and only this leaf reads it.
+        let pendingMuteTarget = isPerforming && layer.id == TrackPerformLayerMode.mute.phraseLayerID
+            ? engineController.quantisedPendingMuteTarget(for: trackID)
+            : nil
+        ZStack(alignment: .bottomTrailing) {
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(
+                    pendingMuteTarget != nil ? StudioTheme.amber.opacity(0.9) : strokeColor,
+                    style: QuantisedTogglePresentation.strokeStyle(
+                        isPending: pendingMuteTarget != nil,
+                        lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth
+                    )
+                )
+            if let pendingMuteTarget {
+                HStack(spacing: 4) {
+                    Image(systemName: QuantisedTogglePresentation.pendingGlyphSystemName)
+                        .font(.system(size: 10, weight: .bold))
+                    Text(pendingMuteTarget ? "MUTE NEXT BAR" : "UNMUTE NEXT BAR")
+                        .studioText(.microEmphasis)
+                        .tracking(0.6)
+                }
+                .foregroundStyle(StudioTheme.amber)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(StudioTheme.background, in: Capsule())
+                .overlay(
+                    Capsule().stroke(
+                        StudioTheme.amber.opacity(0.9),
+                        style: QuantisedTogglePresentation.strokeStyle(isPending: true, lineWidth: StudioMetrics.borderWidth)
+                    )
+                )
+                .padding(8)
+                .accessibilityLabel(pendingMuteTarget ? "Mute armed for next bar" : "Unmute armed for next bar")
+            }
+        }
+        // Chrome only — the card underneath keeps the whole hit target.
+        .allowsHitTesting(false)
     }
 
     private var strokeColor: Color {
@@ -1458,8 +1536,17 @@ private struct TrackPerformRuntimeLayerControl: View {
     let accent: Color
     let onActivate: () -> Void
     let onRelease: () -> Void
+    /// Quantised next-cycle cue (fill's third gesture). Non-nil only when
+    /// quantise arming is live for this control: a plain tap (sub-threshold
+    /// press) in MOM mode arms/cancels the cue; holds keep behaving as MOM.
+    var onCue: (() -> Void)?
+
+    /// A momentary press that ends within this window counts as the plain
+    /// tap that arms the cue — today that press is a zero-length hold.
+    static let cueTapThreshold: TimeInterval = 0.25
 
     @State private var isTrackingMomentaryPress = false
+    @State private var momentaryPressStartedAt: Date?
 
     var body: some View {
         #if DEBUG
@@ -1471,17 +1558,30 @@ private struct TrackPerformRuntimeLayerControl: View {
         let activeRepeatSnapshot = mode == .noteRepeat
             ? engineController.noteRepeatRuntimeSnapshot(for: trackID)
             : nil
-        let isActive = state.isActive || activeRepeatSnapshot != nil
-        triggerSurface(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot)
-            .help(helpText)
+        let cuePresentation = QuantisedFillCuePresentation(
+            isPending: mode == .fill && engineController.hasQuantisedPendingFillCue(for: trackID),
+            isCueBarActive: mode == .fill && engineController.quantisedFillCueActiveTrackIDs.contains(trackID)
+        )
+        let isActive = state.isActive || activeRepeatSnapshot != nil || cuePresentation.isCueBarActive
+        triggerSurface(
+            isActive: isActive,
+            activeRepeatSnapshot: activeRepeatSnapshot,
+            cuePresentation: cuePresentation
+        )
+        .help(helpText)
     }
 
     @ViewBuilder
     private func triggerSurface(
         isActive: Bool,
-        activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
+        activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?,
+        cuePresentation: QuantisedFillCuePresentation
     ) -> some View {
-        let label = label(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot)
+        let label = label(
+            isActive: isActive,
+            activeRepeatSnapshot: activeRepeatSnapshot,
+            cuePresentation: cuePresentation
+        )
         if !state.isAvailable {
             label
                 .opacity(0.68)
@@ -1504,14 +1604,28 @@ private struct TrackPerformRuntimeLayerControl: View {
                                     let isInside = CGRect(origin: .zero, size: proxy.size).contains(value.location)
                                     if isInside, !isTrackingMomentaryPress {
                                         isTrackingMomentaryPress = true
+                                        momentaryPressStartedAt = Date()
                                         onActivate()
                                     } else if !isInside, isTrackingMomentaryPress {
                                         isTrackingMomentaryPress = false
+                                        momentaryPressStartedAt = nil
                                         onRelease()
                                     }
                                 }
                                 .onEnded { _ in
+                                    // A sub-threshold press is the plain TAP:
+                                    // with quantise live it arms/cancels the
+                                    // next-bar cue. Longer presses stay pure
+                                    // MOM holds (interaction unchanged).
+                                    let wasCueTap = onCue != nil
+                                        && isTrackingMomentaryPress
+                                        && momentaryPressStartedAt.map {
+                                            Date().timeIntervalSince($0) < Self.cueTapThreshold
+                                        } == true
                                     endMomentaryPressIfNeeded()
+                                    if wasCueTap {
+                                        onCue?()
+                                    }
                                 }
                         )
                 }
@@ -1527,17 +1641,34 @@ private struct TrackPerformRuntimeLayerControl: View {
     // state (plus the captured step/rate while engaged), filling the card.
     private func label(
         isActive: Bool,
-        activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?
+        activeRepeatSnapshot: EngineController.NoteRepeatRuntimeSnapshot?,
+        cuePresentation: QuantisedFillCuePresentation
     ) -> some View {
-        let foreground = labelForeground(isActive: isActive)
+        let foreground = labelForeground(isActive: isActive, isCuePending: cuePresentation.isPending)
         return VStack(spacing: 6) {
-            Text(stateLabel(isActive: isActive))
-                .studioText(.title)
-                .foregroundStyle(foreground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            HStack(spacing: 6) {
+                if cuePresentation.isPending {
+                    // The pending glyph from the armed-toggle grammar
+                    // (wireframes §2): lands at the bar boundary.
+                    Image(systemName: QuantisedTogglePresentation.pendingGlyphSystemName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(StudioTheme.amber)
+                }
+                Text(cuePresentation.stateLabel ?? stateLabel(isActive: isActive))
+                    .studioText(.title)
+                    .foregroundStyle(foreground)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
 
-            if let capturedInfoLabel = capturedInfoLabel(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot) {
+            if let cueDetailLabel = cuePresentation.detailLabel {
+                Text(cueDetailLabel)
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.amber)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            } else if let capturedInfoLabel = capturedInfoLabel(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot) {
                 Text(capturedInfoLabel)
                     .studioText(.micro)
                     .tracking(0.8)
@@ -1552,7 +1683,15 @@ private struct TrackPerformRuntimeLayerControl: View {
         .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(labelStroke, lineWidth: state.isMomentaryPressed ? 2 : StudioMetrics.borderWidth)
+                .stroke(
+                    labelStroke(cuePresentation: cuePresentation, isActive: isActive),
+                    style: QuantisedTogglePresentation.strokeStyle(
+                        isPending: cuePresentation.usesDashedStroke,
+                        lineWidth: state.isMomentaryPressed || cuePresentation.isPending || cuePresentation.isCueBarActive
+                            ? 2
+                            : StudioMetrics.borderWidth
+                    )
+                )
         )
     }
 
@@ -1590,11 +1729,11 @@ private struct TrackPerformRuntimeLayerControl: View {
         return "READY"
     }
 
-    private func labelForeground(isActive: Bool) -> Color {
+    private func labelForeground(isActive: Bool, isCuePending: Bool) -> Color {
         guard state.isAvailable else {
             return StudioTheme.mutedText
         }
-        if state.isMomentaryPressed {
+        if isCuePending || state.isMomentaryPressed {
             return StudioTheme.amber
         }
         if state.isLatched {
@@ -1610,9 +1749,14 @@ private struct TrackPerformRuntimeLayerControl: View {
         Color.white.opacity(StudioOpacity.subtleFill)
     }
 
-    private var labelStroke: Color {
+    private func labelStroke(cuePresentation: QuantisedFillCuePresentation, isActive: Bool) -> Color {
         if !state.isAvailable {
             return StudioTheme.border
+        }
+        // Armed = dashed amber; applies-at-boundary = solid amber for the
+        // cued bar (the armed-toggle grammar, wireframes §2).
+        if cuePresentation.isPending || cuePresentation.isCueBarActive {
+            return StudioTheme.amber.opacity(0.9)
         }
         if state.isMomentaryPressed {
             return StudioTheme.amber.opacity(0.9)
@@ -1636,6 +1780,7 @@ private struct TrackPerformRuntimeLayerControl: View {
         }
 
         isTrackingMomentaryPress = false
+        momentaryPressStartedAt = nil
         onRelease()
     }
 }
