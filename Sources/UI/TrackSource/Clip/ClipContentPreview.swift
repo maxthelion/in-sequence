@@ -759,28 +759,7 @@ struct ClipContentPreview: View {
     }
 
     private func macroAllowedValues(for binding: TrackMacroBinding) -> [Double] {
-        let descriptor = binding.descriptor
-        switch descriptor.valueType {
-        case .boolean:
-            return [descriptor.minValue, descriptor.maxValue]
-        case .patternIndex:
-            let lower = Int(descriptor.minValue.rounded(.up))
-            let upper = Int(descriptor.maxValue.rounded(.down))
-            guard lower <= upper else {
-                return [descriptor.minValue]
-            }
-            return (lower...upper).map(Double.init)
-        case .scalar:
-            let minValue = descriptor.minValue
-            let maxValue = descriptor.maxValue
-            guard maxValue > minValue else {
-                return [minValue]
-            }
-            let divisionCount = 8
-            return (0...divisionCount).map { index in
-                minValue + ((maxValue - minValue) * Double(index) / Double(divisionCount))
-            }
-        }
+        ClipNoteGridStepEditing.macroAllowedValues(for: binding)
     }
 
     private func headerControlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
