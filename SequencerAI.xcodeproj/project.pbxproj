@@ -445,6 +445,7 @@
 		EE3BC06D914E4092C8CE30BA /* SequencerAIAppDelegateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B429A3ED9DC172B8351D6DA7 /* SequencerAIAppDelegateTests.swift */; };
 		EE87267DF80AC112B2F611CE /* StudioMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73E46AC9A8152C166CE53DC6 /* StudioMetrics.swift */; };
 		EEB0D446A1AF5FFA68B09BCD /* BlockRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E225A96D4898185DBF25B36 /* BlockRegistryTests.swift */; };
+		EF3D5ACAD33B5DC3A15216AA /* ConcurrencyChurnStressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331184F7EEC6160B0A43D647 /* ConcurrencyChurnStressTests.swift */; };
 		EF4A12DD57C2CF09ED36C128 /* SliceTrackWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 453B20117552809DE3D50E85 /* SliceTrackWorkspaceView.swift */; };
 		EF68319EF3742400D231D417 /* Project+TrackSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A8F2166C41E5989FD7D215B /* Project+TrackSources.swift */; };
 		F0C002E857E8923CA3944DAA /* DrumAssetLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = E68B29D1143C97E47A672605 /* DrumAssetLibrary.swift */; };
@@ -783,6 +784,7 @@
 		32C6820A7F300AB847103392 /* 2026-04-23-live-sequencer-store-v2-adversarial-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-23-live-sequencer-store-v2-adversarial-review.md"; sourceTree = "<group>"; };
 		32DA25B002A939CD01CC7D2E /* build-status.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "build-status.txt"; sourceTree = "<group>"; };
 		32F12B668D60DEC6BFC4FEE4 /* image-1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "image-1.png"; sourceTree = "<group>"; };
+		331184F7EEC6160B0A43D647 /* ConcurrencyChurnStressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrencyChurnStressTests.swift; sourceTree = "<group>"; };
 		331B0D6DF5D2261BD79B0BD5 /* ProjectTrackSamplerFilterMacrosTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTrackSamplerFilterMacrosTests.swift; sourceTree = "<group>"; };
 		335DB02EDFB49FDA977D24AC /* existing-state.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "existing-state.md"; sourceTree = "<group>"; };
 		3373C55484625FEECE75F6E1 /* DrumGroupRoutingEditorDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumGroupRoutingEditorDraft.swift; sourceTree = "<group>"; };
@@ -4274,6 +4276,7 @@
 				921877FE74260A065D539C53 /* ClipCaptureServiceTests.swift */,
 				2C45E686A3EBB622C3AB8321 /* ClipHistoryLiveCaptureTests.swift */,
 				55BE9D6C71635DC7BA504BC2 /* CommandQueueTests.swift */,
+				331184F7EEC6160B0A43D647 /* ConcurrencyChurnStressTests.swift */,
 				0692CD421AF06A434E123447 /* EngineControllerAudioInputPublicationTests.swift */,
 				096DCB8E4C9950DB95BF6F51 /* EngineControllerDeltaDispatchTests.swift */,
 				230F8F00147A645CF4E932F5 /* EngineControllerMixerBusTests.swift */,
@@ -5292,6 +5295,7 @@
 				71D176C051C6EB348ED0563D /* ClipEditorLayerMappingTests.swift in Sources */,
 				DA8DA0B05D01495ECF2345A8 /* ClipHistoryLiveCaptureTests.swift in Sources */,
 				A961D7A68763CB55DACB2DFF /* CommandQueueTests.swift in Sources */,
+				EF3D5ACAD33B5DC3A15216AA /* ConcurrencyChurnStressTests.swift in Sources */,
 				12DA27C506B5F683A3B90CA2 /* DAWNoteNameTests.swift in Sources */,
 				960AB948B6AAE414394DA7A7 /* DebounceSemanticsTests.swift in Sources */,
 				9288FD7EF3B31BDBD796F0BE /* DestinationInheritGroupTests.swift in Sources */,

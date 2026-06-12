@@ -52,16 +52,23 @@ final class SamplerFilterNode: SamplerFilterControlling {
     /// Use fine-grained setters from `TrackMacroApplier` when only one value changes per step.
     func apply(_ settings: SamplerFilterSettings) {
         let resolved = settings.clamped()
-        Self.performOnMain { [self] in
+        Self.performOnMainAsync { [self] in
             self.settings = resolved
             applyCurrentSettingsOnMain()
         }
     }
 
     // MARK: - Fine-grained setters
+    //
+    // All mutators hop to main FIRE-AND-FORGET (inline when already on
+    // main): TrackMacroApplier calls them per step from the tick queue, and
+    // a synchronous hop there is the D2 deadlock class (tick parked in
+    // main.sync while main is parked in TickClock's queue.sync). The main
+    // queue is FIFO, so successive setter values still apply in call order;
+    // `settings` is only ever touched on main.
 
     func setType(_ type: SamplerFilterType) {
-        Self.performOnMain { [self] in
+        Self.performOnMainAsync { [self] in
             settings.type = type
             applyCurrentSettingsOnMain()
         }
@@ -73,7 +80,7 @@ final class SamplerFilterNode: SamplerFilterControlling {
     /// order. Narrower bandwidth → steeper perceived roll-off (perceptual stand-in
     /// only). A custom AUAudioUnit subclass will replace this in a future plan.
     func setPoles(_ poles: SamplerFilterPoles) {
-        Self.performOnMain { [self] in
+        Self.performOnMainAsync { [self] in
             settings.poles = poles
             applyCurrentSettingsOnMain()
         }
@@ -81,7 +88,7 @@ final class SamplerFilterNode: SamplerFilterControlling {
 
     func setCutoff(hz: Double) {
         let clamped = min(max(hz, 20), 20_000)
-        Self.performOnMain { [self] in
+        Self.performOnMainAsync { [self] in
             settings.cutoffHz = clamped
             applyCurrentSettingsOnMain()
         }
@@ -94,7 +101,7 @@ final class SamplerFilterNode: SamplerFilterControlling {
     /// the notch by reducing bandwidth.
     func setResonance(_ normalized: Double) {
         let clamped = min(max(normalized, 0), 1)
-        Self.performOnMain { [self] in
+        Self.performOnMainAsync { [self] in
             settings.resonance = clamped
             applyCurrentSettingsOnMain()
         }
@@ -105,7 +112,7 @@ final class SamplerFilterNode: SamplerFilterControlling {
     /// v1: `globalGain += drive * 12 dB`. Not a saturation stage.
     func setDrive(_ normalized: Double) {
         let clamped = min(max(normalized, 0), 1)
-        Self.performOnMain { [self] in
+        Self.performOnMainAsync { [self] in
             settings.drive = clamped
             applyCurrentSettingsOnMain()
         }
@@ -174,6 +181,9 @@ final class SamplerFilterNode: SamplerFilterControlling {
         Float(0.5 - resonance * 0.45)
     }
 
+    /// Synchronous hop — only `init` needs a value back (node creation).
+    /// Mutators must use `performOnMainAsync`; a sync hop on the tick path
+    /// is reported by TickPathMainSyncGuard.
     private static func performOnMain<T>(_ work: @escaping @MainActor () -> T) -> T {
         if Thread.isMainThread {
             return MainActor.assumeIsolated {
@@ -189,5 +199,24 @@ final class SamplerFilterNode: SamplerFilterControlling {
             }
         }
         return result!
+    }
+
+    /// Fire-and-forget hop for the parameter mutators (inline when already
+    /// on main, preserving synchronous behaviour for main-thread callers
+    /// and tests). Off-main callers are the tick queue via
+    /// TrackMacroApplier — they must never wait on main (D2).
+    private static func performOnMainAsync(_ work: @escaping @MainActor () -> Void) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                work()
+            }
+            return
+        }
+
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                work()
+            }
+        }
     }
 }

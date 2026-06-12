@@ -1,0 +1,27 @@
+# Thread Sanitizer suppressions for the SequencerAI-TSan lane.
+#
+# RULES (docs/testing/concurrency-lane.md):
+# - Every entry MUST carry a justification comment explaining why the
+#   report is benign BY DESIGN (not merely "noisy"). An entry without a
+#   justification is a process bug.
+# - Real races are never suppressed: they are either fixed or recorded in
+#   docs/audits/2026-06-12-tsan-findings.md with a follow-up.
+# - Format: https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions
+#   (race:, deadlock:, mutex:, signal:, called_from_lib: …)
+#
+# Pass to the lane via:
+#   TEST_RUNNER_TSAN_OPTIONS="suppressions=$(pwd)/Tests/SequencerAITests/tsan-suppressions.txt"
+
+# --- CoreMIDI callback publication (2026-06-12 lane finding 3) ---
+# Three test-helper packet recorders are constructed on the test main
+# thread, then handed to MIDIClient.createVirtualInput; their first
+# `append` runs on CoreMIDI's receive thread (CADeprecated::CAPThread).
+# TSan flags init-vs-first-append as unordered, but the happens-before
+# edge is MIDIDestinationCreate's registration round trip through
+# MIDIServer (cross-process), which TSan cannot model: the receive thread
+# cannot invoke the handler before registration completes, and
+# registration starts strictly after init returns. All post-init access
+# in all three helpers is NSLock-guarded (verified 2026-06-12).
+race:IntegrationMIDIPacketRecorder
+race:LockedPacketStore
+race:LockedMIDIPacketStore
