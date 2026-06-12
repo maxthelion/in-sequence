@@ -111,6 +111,7 @@
 		3A3A015CEE1FE4CBD087F985 /* DrumGroupPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C0F5F2F1EE2CEC60B3FE8D /* DrumGroupPlan.swift */; };
 		3BB491B86164F6FC8822E9F8 /* ProjectDefaultDestinationForVoiceTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44061EB708044A5E5850E385 /* ProjectDefaultDestinationForVoiceTagTests.swift */; };
 		3C1DB65D7E389B98E1AEA6AC /* SamplerFilterSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69807CDF39FA8147DC9A9461 /* SamplerFilterSettingsTests.swift */; };
+		3F058E820DE95FC4B6ADE145 /* tsan-suppressions.txt in Resources */ = {isa = PBXBuildFile; fileRef = 1469B8712C03997820975252 /* tsan-suppressions.txt */; };
 		3FB37B09D4FD44A5B8C0C571 /* SessionSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F5315493DF8287EC5F7B71 /* SessionSnapshotPublisher.swift */; };
 		3FC4273583B46817785B1439 /* ScenesWorkspaceView+AUEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB7647B37DBB4E09B7C638B5 /* ScenesWorkspaceView+AUEffects.swift */; };
 		400D1777440DDEEFEF043BBC /* TrackFillPreviewControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4BF2A7761F9A6CD6F238ED /* TrackFillPreviewControl.swift */; };
@@ -603,6 +604,7 @@
 		13B7632A2E03B97582595A46 /* 02-phrase-workspace-grid.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "02-phrase-workspace-grid.html"; sourceTree = "<group>"; };
 		13C14A2A76F7F6C69BF872B1 /* overnight-broad-probe-2026-05-05-postmortem.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "overnight-broad-probe-2026-05-05-postmortem.md"; sourceTree = "<group>"; };
 		13E02BE1CC46907BB7F816A8 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		1469B8712C03997820975252 /* tsan-suppressions.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "tsan-suppressions.txt"; sourceTree = "<group>"; };
 		148D41CEDC9D7C85F77B2301 /* window.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = window.png; sourceTree = "<group>"; };
 		14934EA8F0408DEBBFA8A550 /* architecture-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "architecture-review.md"; sourceTree = "<group>"; };
 		14A4E2596576B27E1521B4AD /* plan.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = plan.md; sourceTree = "<group>"; };
@@ -853,6 +855,7 @@
 		3FAB67B09B6FB5184267DBD7 /* screen-capture.err */ = {isa = PBXFileReference; path = "screen-capture.err"; sourceTree = "<group>"; };
 		3FB2CF58C445BC558A09F4A0 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		3FBF4EBA1D917BE58B2CDB4D /* 02-kit-step-matrix.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "02-kit-step-matrix.html"; sourceTree = "<group>"; };
+		40E0A5E31E9E1C23E0D0A905 /* concurrency-lane.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "concurrency-lane.md"; sourceTree = "<group>"; };
 		40F62EA6AD5008B76AD7E25F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		40FD3F2A22D39AC39E84A868 /* spec.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = spec.md; sourceTree = "<group>"; };
 		4164667705DDF9F1DA2E8724 /* CaptureSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSnapshot.swift; sourceTree = "<group>"; };
@@ -1840,6 +1843,7 @@
 		F099D07BAFAE0B6334B67A6E /* chosen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = chosen.png; sourceTree = "<group>"; };
 		F0A66C09FE881E5045D6383E /* AddDrumGroupSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDrumGroupSheet.swift; sourceTree = "<group>"; };
 		F0F9FADA87C4030EC58CAD27 /* SamplerFilterNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SamplerFilterNode.swift; sourceTree = "<group>"; };
+		F1279A77BAF322D66ABFFE35 /* 2026-06-12-tsan-findings.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-12-tsan-findings.md"; sourceTree = "<group>"; };
 		F14434DD7DA21D43FC17F93B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		F1454BDA1AEDFA23DD79C118 /* 2026-06-04-track-source-grid-fill-and-play-crash.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-04-track-source-grid-fill-and-play-crash.md"; sourceTree = "<group>"; };
 		F168421E430D9A45AADCCD3F /* MIDIPacketBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIPacketBuilderTests.swift; sourceTree = "<group>"; };
@@ -2804,6 +2808,7 @@
 				F3EBBC2005C3B8AC8E8BA34C /* MIDIClientTests.swift */,
 				AAC5A175399F7E0F17A1089A /* PhraseCellPreviewTests.swift */,
 				FC5AE83F7B58972852FAEBC7 /* SeqAIDocumentTests.swift */,
+				1469B8712C03997820975252 /* tsan-suppressions.txt */,
 				4077E09A7DE38831F91B7157 /* App */,
 				34E5D04EE5F8E1AC7B9F8E46 /* Audio */,
 				CBE55CB4126A8A24222CDC16 /* Document */,
@@ -3801,6 +3806,7 @@
 		9A33C531123645D445FC8AFF /* testing */ = {
 			isa = PBXGroup;
 			children = (
+				40E0A5E31E9E1C23E0D0A905 /* concurrency-lane.md */,
 				5A0F1D4FA35D97C8460C2CEA /* render-harness.md */,
 			);
 			path = testing;
@@ -5153,6 +5159,7 @@
 		FE6C3D8431770D1FE467E297 /* audits */ = {
 			isa = PBXGroup;
 			children = (
+				F1279A77BAF322D66ABFFE35 /* 2026-06-12-tsan-findings.md */,
 				16BCB1DE23037FF9A959F48A /* render-harness-degradation.md */,
 			);
 			path = audits;
@@ -5177,6 +5184,7 @@
 			buildConfigurationList = 784F08CCF5A1AC7CB4217BD6 /* Build configuration list for PBXNativeTarget "SequencerAITests" */;
 			buildPhases = (
 				38B74313FCAD210D3715D2E4 /* Sources */,
+				A8474E9FCAFA9FC51F8FB959 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -5248,6 +5256,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A8474E9FCAFA9FC51F8FB959 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F058E820DE95FC4B6ADE145 /* tsan-suppressions.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F827BEC57AC9890095F35FBA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
