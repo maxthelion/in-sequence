@@ -19,6 +19,7 @@ import Observation
 enum TickPathMainSyncGuard {
     #if DEBUG
     private static let markerKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.isOnTickPath"
+    private static let stateLockDepthKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.stateLockDepth"
     private static let loggedContextsLock = NSLock()
     private static var loggedContexts: Set<String> = []
 
@@ -26,6 +27,17 @@ enum TickPathMainSyncGuard {
     static var isOnTickPath: Bool {
         get { (Thread.current.threadDictionary[markerKey] as? Bool) ?? false }
         set { Thread.current.threadDictionary[markerKey] = newValue }
+    }
+
+    /// Per-thread `EngineController.stateLock` hold depth. Maintained by
+    /// `EngineController.withStateLock` (NSLock has no owner readout).
+    /// Shared here — not private to EngineController — so the sync-to-main
+    /// hop helpers in Sources/Audio can assert the mirror-image of the
+    /// graphLock rule: no synchronous main hop while stateLock is held
+    /// (deadlock class D1).
+    static var stateLockDepthForCurrentThread: Int {
+        get { (Thread.current.threadDictionary[stateLockDepthKey] as? Int) ?? 0 }
+        set { Thread.current.threadDictionary[stateLockDepthKey] = newValue }
     }
 
     /// Test hook: receives every violation context instead of the log, so
@@ -45,11 +57,42 @@ enum TickPathMainSyncGuard {
     }
 
     /// Call immediately before any synchronous dispatch to main. Skips when
-    /// already on main (an inline call, not a wait).
+    /// already on main (an inline call, not a wait). Fires for two distinct
+    /// contract breaks:
+    /// - the calling thread is the tick path (tempo-sag/deadlock class D2);
+    /// - the calling thread holds `stateLock` (deadlock class D1 — main may
+    ///   be parked in `withStateLock`, so it can never drain the sync hop).
     static func assertNotSyncingToMainFromTickPath(_ context: @autoclosure () -> String) {
         #if DEBUG
-        guard isOnTickPath, !Thread.isMainThread else { return }
+        guard !Thread.isMainThread else { return }
+        if isOnTickPath {
+            report(context())
+        }
+        if stateLockDepthForCurrentThread > 0 {
+            report("\(context()) while holding stateLock (deadlock class D1)")
+        }
+        #endif
+    }
+
+    /// Reports an imminent-deadlock lock-discipline violation (e.g. a
+    /// non-recursive lock about to be re-locked by its owning thread).
+    /// Unlike the tick-path log-by-default policy, this TRAPS in DEBUG when
+    /// no test handler is installed: the alternative is a guaranteed wedge a
+    /// few instructions later, and a crash with a message beats a silent
+    /// hang. Compiles to a no-op in release.
+    static func reportImminentDeadlock(_ context: @autoclosure () -> String) {
+        #if DEBUG
         let resolvedContext = context()
+        if let handler = violationHandlerForTesting {
+            handler(resolvedContext)
+            return
+        }
+        assertionFailure("[TickPathMainSyncGuard] IMMINENT DEADLOCK: \(resolvedContext)")
+        #endif
+    }
+
+    #if DEBUG
+    private static func report(_ resolvedContext: String) {
         if let handler = violationHandlerForTesting {
             handler(resolvedContext)
             return
@@ -65,8 +108,8 @@ enum TickPathMainSyncGuard {
                 resolvedContext
             )
         }
-        #endif
     }
+    #endif
 }
 
 @Observable
@@ -3363,8 +3406,8 @@ final class EngineController: RouterDispatcher {
         stateLock.lock()
         defer { stateLock.unlock() }
         #if DEBUG
-        Self.stateLockDepthForCurrentThread += 1
-        defer { Self.stateLockDepthForCurrentThread -= 1 }
+        TickPathMainSyncGuard.stateLockDepthForCurrentThread += 1
+        defer { TickPathMainSyncGuard.stateLockDepthForCurrentThread -= 1 }
         #endif
         return body()
     }
@@ -3374,23 +3417,18 @@ final class EngineController: RouterDispatcher {
     // CONTRACT: no synchronous main-thread hop (performOnMain* in the audio
     // graph) may be reachable while stateLock is held — the mirror image of
     // the documented graphLock rule. Violations are the D1 deadlock class.
+    //
+    // The per-thread hold depth lives on TickPathMainSyncGuard so the shared
+    // hop helpers in Sources/Audio enforce the same contract at the actual
+    // sync-dispatch sites (wave 2d generalization of the wave-1 assertion).
 
     #if DEBUG
-    /// Per-thread stateLock hold depth (DEBUG only). NSLock has no owner
-    /// readout, so withStateLock maintains this for the assertion below.
-    private static let stateLockDepthKey = "ai.sequencer.SequencerAI.EngineController.stateLockDepth"
-
-    private static var stateLockDepthForCurrentThread: Int {
-        get { (Thread.current.threadDictionary[stateLockDepthKey] as? Int) ?? 0 }
-        set { Thread.current.threadDictionary[stateLockDepthKey] = newValue }
-    }
-
     /// Test hook: receives the context string instead of trapping, so tests
     /// can pin the "no main hop under stateLock" contract.
     var stateLockHoldViolationHandlerForTesting: ((String) -> Void)?
 
     var isHoldingStateLockForTesting: Bool {
-        Self.stateLockDepthForCurrentThread > 0
+        TickPathMainSyncGuard.stateLockDepthForCurrentThread > 0
     }
 
     /// Test-only positive control: proves the held-lock detector fires, so
@@ -3406,7 +3444,7 @@ final class EngineController: RouterDispatcher {
     /// Call before any code path that synchronously hops to main.
     private func debugAssertNotHoldingStateLock(_ context: String) {
         #if DEBUG
-        guard Self.stateLockDepthForCurrentThread > 0 else { return }
+        guard TickPathMainSyncGuard.stateLockDepthForCurrentThread > 0 else { return }
         if let handler = stateLockHoldViolationHandlerForTesting {
             handler(context)
         } else {

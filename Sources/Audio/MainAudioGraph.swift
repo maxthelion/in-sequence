@@ -86,12 +86,88 @@ final class MainAudioGraph {
     /// not bump this (mixer-latency cause 2).
     private(set) var reconnectTrackOutputCountForTesting = 0
     var audioInputCaptureHandlerInstalledForTesting: Bool {
-        graphLock.lock()
-        defer { graphLock.unlock() }
+        lockGraphLock()
+        defer { unlockGraphLock() }
         return audioInputCaptureHandler != nil
     }
 
     private let graphLock = NSLock()
+
+    // MARK: - graphLock acquisition tracking (DEBUG lock-discipline net)
+    //
+    // graphLock is NON-RECURSIVE and (by documented convention) only ever
+    // taken inside main-thread closures. Two contract breaks both end in a
+    // hard wedge, so they are asserted at the acquisition/hop sites:
+    // - re-locking graphLock on a thread that already holds it (sampled
+    //   live 2026-06-11: send-bus "+ Add FX" — an AU instantiation callback
+    //   re-entered installSendBus inline under the held lock);
+    // - synchronously dispatching to main while holding graphLock from off
+    //   main (the comment at every lock site: "holding graphLock across
+    //   DispatchQueue.main.sync is a lock-order deadlock waiting to happen").
+
+    #if DEBUG
+    /// Per-thread, per-instance graphLock hold depth (NSLock has no owner
+    /// readout). Instance-scoped key: multiple MainAudioGraph instances
+    /// coexist in the test process.
+    private let graphLockDepthKey = "ai.sequencer.SequencerAI.MainAudioGraph.graphLockDepth.\(UUID().uuidString)"
+
+    private var graphLockDepthForCurrentThread: Int {
+        get { (Thread.current.threadDictionary[graphLockDepthKey] as? Int) ?? 0 }
+        set { Thread.current.threadDictionary[graphLockDepthKey] = newValue }
+    }
+
+    /// Test-only positive control: proves the re-entry detector fires, so
+    /// "no violation" assertions in churn tests cannot pass vacuously.
+    func simulateGraphLockReentryForTesting() {
+        lockGraphLock()
+        defer { unlockGraphLock() }
+        debugAssertGraphLockNotHeldByCurrentThread(
+            "simulated graphLock re-entry"
+        )
+    }
+    #endif
+
+    /// Asserts (DEBUG) that the calling thread does not already hold
+    /// `graphLock` — re-locking would self-deadlock.
+    private func debugAssertGraphLockNotHeldByCurrentThread(_ context: @autoclosure () -> String) {
+        #if DEBUG
+        guard graphLockDepthForCurrentThread > 0 else { return }
+        TickPathMainSyncGuard.reportImminentDeadlock(
+            "\(context()): graphLock is non-recursive and already held by this thread " +
+            "(self-deadlock, send-bus Add-FX class)"
+        )
+        #endif
+    }
+
+    /// Asserts (DEBUG) that the calling thread does not hold `graphLock`
+    /// before a synchronous hop to main. Called by the performOnMain*
+    /// helpers (wave 2d: the prose rule at every lock site, mechanized).
+    private func debugAssertNotHoldingGraphLockForMainHop(_ context: @autoclosure () -> String) {
+        #if DEBUG
+        guard graphLockDepthForCurrentThread > 0 else { return }
+        TickPathMainSyncGuard.reportImminentDeadlock(
+            "\(context()) must not sync-dispatch to main while holding graphLock " +
+            "(lock-order deadlock)"
+        )
+        #endif
+    }
+
+    /// All graphLock acquisitions go through here (DEBUG re-entry assertion
+    /// + hold-depth tracking; plain `lock()` in release).
+    private func lockGraphLock() {
+        debugAssertGraphLockNotHeldByCurrentThread("MainAudioGraph.lockGraphLock")
+        graphLock.lock()
+        #if DEBUG
+        graphLockDepthForCurrentThread += 1
+        #endif
+    }
+
+    private func unlockGraphLock() {
+        #if DEBUG
+        graphLockDepthForCurrentThread -= 1
+        #endif
+        graphLock.unlock()
+    }
     private var audioInputCaptureHandler: ((UUID, AVAudioPCMBuffer) -> Void)?
     private let postBlendMixer = AVAudioMixerNode()
     private let finalOutputMixer = AVAudioMixerNode()
@@ -275,8 +351,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             if self.canUpdateAudioInputRoutingParametersOnMain(requests) {
                 self.applyAudioInputRoutingParametersOnMain(requests)
                 self.audioInputScopedRoutingUpdateCountForTesting += 1
@@ -320,8 +396,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             self.audioInputCaptureHandler = handler
             for host in self.audioInputRoutingHosts.values {
                 if handler == nil {
@@ -338,8 +414,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             self.applyAudioInputRoutingParametersOnMain(requests)
             self.audioInputScopedRoutingUpdateCountForTesting += 1
         }
@@ -350,8 +426,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             guard let host = self.audioInputRoutingHosts[trackID],
                   host.connectedSource != .silent
             else {
@@ -374,8 +450,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             guard let host = self.audioInputRoutingHosts[trackID],
                   host.connectedSource == .loop,
                   buffer.frameLength > 0
@@ -433,8 +509,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
@@ -469,8 +545,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             self.mixerBusHosts[busID]?.applyMix(mix, effectiveMute: effectiveMute)
         }
     }
@@ -480,8 +556,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             self.mixerBusHosts[bus.id]?.applyParameters(bus: bus, effectiveMute: effectiveMute)
         }
     }
@@ -491,8 +567,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
 
             let busesByID = Dictionary(uniqueKeysWithValues: sendBuses.map { ($0.id, $0) })
             var installs: [(host: SendBusHost, state: SendBusState)] = []
@@ -546,8 +622,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             return SendBusID.allCases.map { id in
                 if id == sendBus.id {
                     return sendBus
@@ -567,8 +643,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             guard source.engine === self.engine else { return }
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
@@ -594,8 +670,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             let key = ObjectIdentifier(source)
             let sendLevels = TrackSendLevels(sendA: sendA, sendB: sendB)
             guard var routing = self.trackOutputRoutings[key] else { return }
@@ -698,8 +774,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             let clampedMasterOutputGain = Self.clampedMasterOutputGain(masterOutputGain)
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
@@ -819,8 +895,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             return self.mixerBusHosts.values.compactMap { $0.readout() }
                 .sorted { $0.busID.uuidString < $1.busID.uuidString }
         }
@@ -831,8 +907,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             return self.mixerBusHosts[busID]?.readout()
         }
     }
@@ -842,8 +918,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             return self.sendBusHosts.values.compactMap { $0.readout() }
                 .sorted { $0.busID.rawValue < $1.busID.rawValue }
         }
@@ -853,8 +929,8 @@ final class MainAudioGraph {
     /// factory) so installSendBus(es) exercise it.
     func installSendBusHostForTesting(_ host: SendBusHost) {
         performOnMain {
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             self.sendBusHosts[host.id] = host
         }
     }
@@ -864,8 +940,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             return self.sendBusHosts[busID]?.readout()
         }
     }
@@ -875,8 +951,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             return self.trackOutputDestinationsForTesting[ObjectIdentifier(source)]
         }
     }
@@ -886,8 +962,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             let key = ObjectIdentifier(source)
             guard let dryDestination = self.trackOutputDestinationsForTesting[key] else {
                 return nil
@@ -913,8 +989,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             guard let host = self.audioInputRoutingHosts[trackID] else { return nil }
             return AudioInputRoutingReadout(
                 trackID: host.trackID,
@@ -1060,8 +1136,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             self.trackMeterSources = self.trackMeterSources.filter { $0.value !== node || trackIDs.contains($0.key) }
             for trackID in trackIDs {
                 self.trackMeterSources[trackID] = node
@@ -1074,8 +1150,8 @@ final class MainAudioGraph {
 
     var trackMeterSourceCountForTesting: Int {
         performOnMainReturning {
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             return self.trackMeterSources.count
         }
     }
@@ -1206,8 +1282,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             let clampedGain = Self.clampedMasterOutputGain(gain)
             self.finalOutputMixer.outputVolume = clampedGain
             self.masterOutputGainForTesting = clampedGain
@@ -1219,8 +1295,8 @@ final class MainAudioGraph {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
-            self.graphLock.lock()
-            defer { self.graphLock.unlock() }
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
             guard !gains.isEmpty else { return }
             for (index, gain) in gains.enumerated() where index < self.managedMasterGainMixers.count {
                 let clampedGain = Float(min(max(gain, 0), 1.5))
@@ -1592,6 +1668,7 @@ final class MainAudioGraph {
         }
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMain")
+        debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMain")
         DispatchQueue.main.sync {
             MainActor.assumeIsolated {
                 work()
@@ -1608,6 +1685,7 @@ final class MainAudioGraph {
         }
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainThrowing")
+        debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMainThrowing")
         var thrownError: Error?
         DispatchQueue.main.sync {
             do {
@@ -1631,6 +1709,7 @@ final class MainAudioGraph {
         }
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainReturning")
+        debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMainReturning")
         var output: T?
         DispatchQueue.main.sync {
             output = MainActor.assumeIsolated {
@@ -1648,6 +1727,7 @@ final class MainAudioGraph {
         }
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainThrowingReturning")
+        debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMainThrowingReturning")
         var output: T?
         var thrownError: Error?
         DispatchQueue.main.sync {
