@@ -291,7 +291,6 @@
 		9C25B356ECA1D8F046FABF95 /* ThrottledMixControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502A93B74D6805E67DA16441 /* ThrottledMixControl.swift */; };
 		9CAAE66D969C385F887A58F9 /* AddDestinationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD1A1AC6C6690AB9E9295956 /* AddDestinationSheet.swift */; };
 		9CD7A142C94A92F9B0852128 /* WaveformDownsamplerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B698555B717FC33A33579951 /* WaveformDownsamplerTests.swift */; };
-		9D9C9462D2009A5B9E7659FD /* ClipMacroLaneEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F1B9438D3C4A8D8774FEBB /* ClipMacroLaneEditor.swift */; };
 		9DFA3A30DE8647DB47232608 /* ProjectEnsureClipForCurrentPatternTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2416F03FB18DD31C46308F /* ProjectEnsureClipForCurrentPatternTests.swift */; };
 		9EDFA24DDA0130DAFEEB5722 /* ProjectAddDrumKitClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 370F7CF0CDFDBF463EF231FE /* ProjectAddDrumKitClipTests.swift */; };
 		9F94BE6A91C0F90737189A11 /* BooleanCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C37C6F6CF4724609B3A492 /* BooleanCellPreview.swift */; };
@@ -1163,7 +1162,6 @@
 		75B004AA84F6C95E90DF6E2C /* mixer-main-out-live-meter.seqai */ = {isa = PBXFileReference; path = "mixer-main-out-live-meter.seqai"; sourceTree = "<group>"; };
 		75C2DB0E870CF97627E6F4F5 /* PseudoClipStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PseudoClipStateTests.swift; sourceTree = "<group>"; };
 		75DAD048D87C91A31B16CB56 /* ChordContextSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordContextSink.swift; sourceTree = "<group>"; };
-		75F1B9438D3C4A8D8774FEBB /* ClipMacroLaneEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipMacroLaneEditor.swift; sourceTree = "<group>"; };
 		7611F537342C487C4F7DCE6E /* testing.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = testing.md; sourceTree = "<group>"; };
 		76433D2C6DC54CAED27B9AD0 /* GeneratorParams.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorParams.swift; sourceTree = "<group>"; };
 		764F3FE4A253C7E25877A970 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -2975,7 +2973,6 @@
 		57AE0DDCD5DD94FE359565FE /* Track */ = {
 			isa = PBXGroup;
 			children = (
-				75F1B9438D3C4A8D8774FEBB /* ClipMacroLaneEditor.swift */,
 				99F3A797BF18508361EAB829 /* TrackWorkspaceView.swift */,
 			);
 			path = Track;
@@ -5533,7 +5530,6 @@
 				50E662194D8A8C548C0881ED /* ClipContent+Empty.swift in Sources */,
 				85EBFB77A837286E5DD85C0D /* ClipContent.swift in Sources */,
 				D92007DBB0F991D44607AC0C /* ClipContentPreview.swift in Sources */,
-				9D9C9462D2009A5B9E7659FD /* ClipMacroLaneEditor.swift in Sources */,
 				A10E1E60CD9C627F993CE74B /* ClipNoteGridStepEditing.swift in Sources */,
 				9BFD7AD0489E91D31233CDB5 /* ClipPianoRollPreview.swift in Sources */,
 				50AC8F0AE30210164734451F /* CommandQueue.swift in Sources */,
