@@ -38,7 +38,28 @@ final class SequencerDocumentSession {
     /// Session-only UI state like the selected page: every page derives its
     /// presentation from this one value. Defaults to `.setup` each session
     /// and is intentionally NEVER flushed into the document.
-    var workspaceMode: WorkspaceMode = .setup
+    var workspaceMode: WorkspaceMode = .setup {
+        didSet {
+            // Leaving perform mode abandons the arm window: armed quantised
+            // changes would otherwise commit invisibly at the next bar.
+            if oldValue != workspaceMode, workspaceMode == .setup {
+                engineController.cancelAllQuantisedToggles()
+            }
+        }
+    }
+
+    /// Quantised perform toggles (perform/setup split slice 2): session-only
+    /// like `workspaceMode`, defaults to BAR in perform mode, never flushed
+    /// into the document. The top bar's Q pill flips it in one tap.
+    var performQuantise: PerformQuantise = .bar {
+        didSet {
+            // Q:OFF means "land immediately" — pending arms are cancelled so
+            // no stale change fires at a boundary the player opted out of.
+            if oldValue != performQuantise, performQuantise == .off {
+                engineController.cancelAllQuantisedToggles()
+            }
+        }
+    }
 
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
@@ -71,6 +92,7 @@ final class SequencerDocumentSession {
         )
         self.revision = store.revision
         installStepOrderToggleAppliedHandler()
+        installQuantisedToggleCommittedHandler()
         SequencerDocumentSessionRegistry.register(self)
         // Deferred: applying a stored device preference talks to CoreAudio
         // synchronously, and a stalled HAL call here blocks document window
@@ -96,6 +118,7 @@ final class SequencerDocumentSession {
         )
         self.revision = store.revision
         installStepOrderToggleAppliedHandler()
+        installQuantisedToggleCommittedHandler()
         SequencerDocumentSessionRegistry.register(self)
         // No stored-device-preference apply here: this initializer exists for
         // tests, and applying the user's real device preference reads real
@@ -250,6 +273,7 @@ final class SequencerDocumentSession {
         clearTrackFillPreview(reason: .documentChanged)
         phrasePerformOverlay.clear()
         engineController.clearPendingStepOrderToggle()
+        engineController.resetQuantisedToggles()
         revision = store.revision
         // apply(documentModel:) compiles and installs a fresh snapshot internally.
         // We also update the publisher so UI visualisers see the new state immediately.
