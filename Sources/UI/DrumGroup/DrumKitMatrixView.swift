@@ -320,6 +320,10 @@ struct DrumKitMatrixView: View {
     @Environment(EngineController.self) private var engineController
 
     let navigationState: DrumKitWorkspaceNavigationState
+    /// When the matrix is the track editor's home (kit-first), there is no
+    /// "back" target above it, so the back affordance is hidden. Defaults to
+    /// `true` so any other caller keeps the original behaviour.
+    var showsBackButton = true
     let onBack: () -> Void
     let onSelectPart: (UUID) -> Void
 
@@ -465,21 +469,23 @@ struct DrumKitMatrixView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            Button {
-                onBack()
-            } label: {
-                Label("Back", systemImage: "chevron.left")
-                    .studioText(.labelBold)
+            if showsBackButton {
+                Button {
+                    onBack()
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                        .studioText(.labelBold)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(StudioTheme.text)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(StudioTheme.text)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {

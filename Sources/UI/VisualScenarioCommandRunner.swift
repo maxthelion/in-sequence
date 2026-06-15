@@ -8,6 +8,11 @@ enum VisualScenarioCommandRunner {
     private static let commandFileEnvironmentKey = "SEQUENCER_AI_VISUAL_COMMAND_FILE"
     private static let commandFileDefaultsKey = "VisualScenarioCommandFile"
     private static var drumPartHeaderRenameVisualState = false
+    // Slice 6a "kit view first": a drum-group track now lands on the kit matrix
+    // by default; the per-part editor is the dive-in. This flag records whether
+    // a fixture has dived into the part editor, so the harness reflects which of
+    // the two views the drum track is actually showing.
+    private static var drumPartHeaderDivedIn = false
     private static var drumPartHeaderOpenKitOriginPartName: String?
     private static var drumPartHeaderOpenKitOriginGroupName: String?
     private static var drumKitMatrixVisualState = false
@@ -530,6 +535,7 @@ enum VisualScenarioCommandRunner {
         selectedTrackType=\(session.store.selectedTrack.trackType.rawValue)
         selectedTrackGroupName=\(drumPartHeaderModel?.groupName ?? "none")
         drumPartHeaderVisible=\(drumPartHeaderModel != nil)
+        drumTrackDefaultView=\(drumPartHeaderModel == nil ? "none" : (drumPartHeaderDivedIn ? "partEditor" : "kitMatrix"))
         drumPartHeaderCurrentPartName=\(drumPartHeaderModel?.currentPartName ?? "none")
         drumPartHeaderPosition=\(drumPartHeaderModel?.positionLabel ?? "none")
         drumPartHeaderPreviousEnabled=\(drumPartHeaderModel?.previousPartID != nil)
@@ -1059,12 +1065,14 @@ enum VisualScenarioCommandRunner {
               command["drumPartHeaderSelectedIndex"] != nil ||
               command["drumPartHeaderRename"] != nil ||
               command["drumPartHeaderOpenKitView"] != nil ||
+              command["drumPartHeaderDiveIn"] != nil ||
               command["drumKitMatrixFixture"] != nil
         else { return }
 
         section.wrappedValue = .track
         drumPartHeaderOpenKitOriginPartName = nil
         drumPartHeaderOpenKitOriginGroupName = nil
+        drumPartHeaderDivedIn = false
         drumKitMatrixVisualState = false
         drumKitMatrixRoutingEditorVisualState = false
         drumKitMatrixGroupID = nil
@@ -1106,6 +1114,21 @@ enum VisualScenarioCommandRunner {
             applyDrumKitMatrixFixture(matrixFixture, groupID: groupID, session: session)
         }
 
+        // Kit-first default: a drum-group track lands directly on the kit
+        // matrix, so reflect the matrix as the default-visible view (and seed
+        // the model-backed status keys) whenever a kit fixture is selected.
+        // Rows that want the per-part editor must explicitly dive in below.
+        let defaultMatrixModel = DrumPartWorkspaceHeaderModel(
+            selectedTrack: session.store.selectedTrack,
+            tracks: session.store.tracks,
+            trackGroups: session.store.trackGroups
+        )
+        if let defaultMatrixModel {
+            drumKitMatrixVisualState = true
+            drumKitMatrixGroupID = defaultMatrixModel.groupID
+            drumKitMatrixOriginatingPartID = defaultMatrixModel.currentPartID
+        }
+
         switch command["drumPartHeaderRename"] {
         case "on", "true", "editing":
             drumPartHeaderRenameVisualState = true
@@ -1143,6 +1166,18 @@ enum VisualScenarioCommandRunner {
             if let mutation = command["drumKitMatrixMutation"] {
                 applyDrumKitMatrixMutation(mutation, session: session)
             }
+        }
+
+        // Kit-first dive-in: drill from the default kit matrix into the
+        // currently selected part's editor. Mirrors selecting a part row in the
+        // matrix, so QA rows that want the per-part editor still capture it.
+        if command["drumPartHeaderDiveIn"] == "true" {
+            drumPartHeaderDivedIn = true
+            drumKitMatrixVisualState = false
+            drumKitMatrixRoutingEditorVisualState = false
+            drumKitMatrixGroupID = nil
+            drumKitMatrixOriginatingPartID = nil
+            postRepeatedVisualCommand(name: .drumPartWorkspaceHeaderVisualCommand, object: "dive-into-part")
         }
     }
 
