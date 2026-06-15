@@ -564,6 +564,7 @@ enum VisualScenarioCommandRunner {
         trackPerformLayerMode=\(trackPerformLayerMode)
         trackPerformLayerSelectorVisible=\(trackPerformLayerSelectorVisible)
         trackPerformLayerVariant=\(trackPerformLayerVariant)
+        performOverviewRowCount=\(PerformOverviewRowModel.rows(tracks: session.store.tracks, groups: session.store.trackGroups).count)
         selectedNoteRepeatAvailable=\(session.isNoteRepeatAvailable(trackID: session.store.selectedTrackID))
         selectedNoteRepeatStoredInterval=\(session.store.selectedTrack.noteRepeatInterval.rawValue)
         selectedNoteRepeatActive=\(selectedNoteRepeatSnapshot != nil)

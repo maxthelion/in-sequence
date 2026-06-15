@@ -203,6 +203,12 @@ struct TracksMatrixView: View {
                     } else {
                         if isPresentingPerformLayerSelection {
                             performLayerSelectionSurface
+                        } else if isPerforming {
+                            // The perform-mode tracks page IS the perform
+                            // overview (wireframes §9 + §1 — one surface):
+                            // a row per track with its playable controls,
+                            // macro rack beneath.
+                            performOverviewDashboard
                         } else {
                             matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
                         }
@@ -585,6 +591,91 @@ struct TracksMatrixView: View {
         }
     }
 
+    private var performOverviewDashboard: some View {
+        PerformOverviewDashboard(
+            phrase: editingPhrase,
+            rows: PerformOverviewRowModel.rows(
+                tracks: session.store.tracks,
+                groups: session.store.trackGroups
+            ),
+            muteLayer: TrackPerformLayerMode.mute.phraseLayerID.flatMap { session.store.layer(id: $0) },
+            patternLayer: session.store.patternLayer,
+            activeLayerMode: performLayerSelection.mode,
+            activeVariantLabel: performLayerSelection.variantLabel,
+            latchMode: performRuntimeOverlay.latchMode,
+            selection: performSelection,
+            selectedTrackID: session.store.selectedTrackID,
+            orderedTrackIDs: session.store.tracks.map(\.id),
+            runtimeControlState: { trackIDs, control in
+                runtimeControlState(forRow: trackIDs, control: control)
+            },
+            isQuantiseCueLive: session.isQuantisedPerformToggleArmingActive,
+            onSelectRow: { trackID in
+                session.setSelectedTrackID(trackID)
+            },
+            onToggleRowSelection: { trackIDs in
+                toggleRowPerformSelection(trackIDs)
+            },
+            onCycleCell: { layer, sourceTrackID, recipientTrackIDs in
+                session.setSelectedTrackID(sourceTrackID)
+                performCycleTap(
+                    layer: layer,
+                    sourceTrackID: sourceTrackID,
+                    recipientTrackIDs: recipientTrackIDs
+                )
+            },
+            onActivateRuntimeControl: { control, sourceTrackID, recipientTrackIDs in
+                session.setSelectedTrackID(sourceTrackID)
+                activateRuntimeControl(
+                    control,
+                    sourceTrackID: sourceTrackID,
+                    recipientTrackIDs: recipientTrackIDs
+                )
+            },
+            onReleaseRuntimeControl: { control, sourceTrackID in
+                releaseRuntimeControl(control, sourceTrackID: sourceTrackID)
+            },
+            onCueRuntimeControl: session.isQuantisedPerformToggleArmingActive
+                ? { control, sourceTrackID, recipientTrackIDs in
+                    cueRuntimeControl(
+                        control,
+                        sourceTrackID: sourceTrackID,
+                        recipientTrackIDs: recipientTrackIDs
+                    )
+                }
+                : nil
+        )
+    }
+
+    /// Row edit-set toggle: a kit row joins/leaves the set as one unit (all
+    /// member parts together).
+    private func toggleRowPerformSelection(_ trackIDs: [UUID]) {
+        let allSelected = trackIDs.allSatisfy { performSelection.contains($0) }
+        for trackID in trackIDs {
+            if allSelected {
+                performSelection.remove(trackID)
+            } else {
+                performSelection.add(trackID)
+            }
+        }
+    }
+
+    /// Row-aggregated overlay control state (kit rows fold their members):
+    /// page-owned gesture/overlay state only — engine-side repeat activity
+    /// stays in the runtime-control leaf.
+    private func runtimeControlState(forRow trackIDs: [UUID], control: TrackPerformBinaryControl) -> TrackPerformRuntimeControlState {
+        let isAvailable = control == .noteRepeat
+            ? trackIDs.contains { session.isNoteRepeatAvailable(trackID: $0) }
+            : true
+        return TrackPerformRuntimeControlState(
+            control: control,
+            isAvailable: isAvailable,
+            isActive: trackIDs.contains { performRuntimeOverlay.isActive(control, trackID: $0) },
+            isLatched: trackIDs.contains { performRuntimeOverlay.isLatched(control, trackID: $0) },
+            isMomentaryPressed: trackIDs.contains { performRuntimeOverlay.isMomentaryPressed(control, trackID: $0) }
+        )
+    }
+
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if !ungroupedTracks.isEmpty {
@@ -703,22 +794,36 @@ struct TracksMatrixView: View {
             return
         }
 
-        let layer = activeMatrixLayer
-        let address = phraseCellAddress(for: trackID, layerID: layer.id)
-        let cell = editingPhrase.cell(at: address)
         let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
             sourceTrackID: trackID,
             orderedTrackIDs: session.store.tracks.map(\.id),
             selection: performSelection
         )
+        performCycleTap(
+            layer: activeMatrixLayer,
+            sourceTrackID: trackID,
+            recipientTrackIDs: recipientTrackIDs
+        )
+    }
+
+    /// One perform tap on a phrase-layer cell (pattern/mute rows, legacy
+    /// card taps): cycles the source track's value and stages it across the
+    /// recipients — except quantise-armed mutes, which ARM for the next bar
+    /// instead (slice 2 grammar).
+    private func performCycleTap(
+        layer: PhraseLayerDefinition,
+        sourceTrackID: UUID,
+        recipientTrackIDs: [UUID]
+    ) {
+        let address = phraseCellAddress(for: sourceTrackID, layerID: layer.id)
+        let cell = editingPhrase.cell(at: address)
 
         // Quantised perform toggles (slice 2): with Q:BAR and the transport
         // running, a mute tap ARMS for the next bar boundary instead of
         // landing immediately; tapping again while armed cancels. Q:OFF (or
         // transport stopped) falls through to the immediate staging below —
         // exactly today's behaviour.
-        if isPerforming,
-           layer.id == TrackPerformLayerMode.mute.phraseLayerID,
+        if layer.id == TrackPerformLayerMode.mute.phraseLayerID,
            session.isQuantisedPerformToggleArmingActive {
             session.toggleQuantisedMute(
                 trackIDs: recipientTrackIDs,
@@ -787,11 +892,17 @@ struct TracksMatrixView: View {
         )
     }
 
-    private func activateRuntimeControl(_ control: TrackPerformBinaryControl, sourceTrackID: UUID) {
-        let orderedTrackIDs = session.store.tracks.map(\.id)
-        let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
+    /// `recipientTrackIDs` nil = the card/legacy path (edit-set fanout from
+    /// the source); the overview rows pass their own recipients (kit rows
+    /// fan out to members).
+    private func activateRuntimeControl(
+        _ control: TrackPerformBinaryControl,
+        sourceTrackID: UUID,
+        recipientTrackIDs: [UUID]? = nil
+    ) {
+        let recipientTrackIDs = recipientTrackIDs ?? TrackPerformAuthoredEdit.recipientTrackIDs(
             sourceTrackID: sourceTrackID,
-            orderedTrackIDs: orderedTrackIDs,
+            orderedTrackIDs: session.store.tracks.map(\.id),
             selection: performSelection
         )
 
@@ -843,11 +954,15 @@ struct TracksMatrixView: View {
     /// plain tap in MOM mode with Q:BAR arms fill for the next bar across
     /// the edit set; tapping while armed cancels. Note repeat keeps its
     /// existing gestures — cue quantise for repeat is a later slice.
-    private func cueRuntimeControl(_ control: TrackPerformBinaryControl, sourceTrackID: UUID) {
+    private func cueRuntimeControl(
+        _ control: TrackPerformBinaryControl,
+        sourceTrackID: UUID,
+        recipientTrackIDs: [UUID]? = nil
+    ) {
         guard control == .fill else {
             return
         }
-        let recipientTrackIDs = TrackPerformAuthoredEdit.recipientTrackIDs(
+        let recipientTrackIDs = recipientTrackIDs ?? TrackPerformAuthoredEdit.recipientTrackIDs(
             sourceTrackID: sourceTrackID,
             orderedTrackIDs: session.store.tracks.map(\.id),
             selection: performSelection
@@ -996,7 +1111,7 @@ private struct GroupSectionView<Grid: View>: View {
     }
 }
 
-private struct TrackPerformRuntimeControlState: Equatable, Identifiable {
+struct TrackPerformRuntimeControlState: Equatable, Identifiable {
     let control: TrackPerformBinaryControl
     let isAvailable: Bool
     let isActive: Bool
@@ -1284,7 +1399,7 @@ private struct TrackMatrixCard: View {
            let control = activePerformLayer.binaryControl {
             TrackPerformRuntimeLayerControl(
                 mode: activePerformLayer,
-                trackID: track.id,
+                trackIDs: [track.id],
                 state: runtimeControlState,
                 latchMode: latchMode,
                 accent: layerAccentColor,
@@ -1330,7 +1445,7 @@ private struct TrackMatrixCard: View {
     }
 }
 
-private extension PhraseCell {
+extension PhraseCell {
     /// True when the rendered value varies with the transport step. Only
     /// these cells' leaves may register a dependency on the tick-rate
     /// transport mirror; single/inherit cells resolve statically.
@@ -1527,13 +1642,23 @@ private struct AudioInputRuntimeBadge: View {
 /// with captured step/rate) is read HERE, keyed to the narrow
 /// `noteRepeatRuntimeUIRevision` publisher — the page passes only its own
 /// overlay gesture state, so engage/release never re-builds the page.
-private struct TrackPerformRuntimeLayerControl: View {
+struct TrackPerformRuntimeLayerControl: View {
+    /// Card cells fill the matrix card; row cells are the dense overview
+    /// rows (wireframes §9) — smaller type, no card-height floor.
+    enum Layout {
+        case card
+        case row
+    }
+
     @Environment(EngineController.self) private var engineController
     let mode: TrackPerformLayerMode
-    let trackID: UUID
+    /// Engine runtime is watched for every track the surface speaks for
+    /// (kit rows fold their members; cards pass one).
+    let trackIDs: [UUID]
     let state: TrackPerformRuntimeControlState
     let latchMode: TrackPerformLatchMode
     let accent: Color
+    var layout: Layout = .card
     let onActivate: () -> Void
     let onRelease: () -> Void
     /// Quantised next-cycle cue (fill's third gesture). Non-nil only when
@@ -1556,11 +1681,11 @@ private struct TrackPerformRuntimeLayerControl: View {
         // the GeometryReader closure below, whose evaluation context SwiftUI
         // does not document).
         let activeRepeatSnapshot = mode == .noteRepeat
-            ? engineController.noteRepeatRuntimeSnapshot(for: trackID)
+            ? trackIDs.lazy.compactMap({ engineController.noteRepeatRuntimeSnapshot(for: $0) }).first
             : nil
         let cuePresentation = QuantisedFillCuePresentation(
-            isPending: mode == .fill && engineController.hasQuantisedPendingFillCue(for: trackID),
-            isCueBarActive: mode == .fill && engineController.quantisedFillCueActiveTrackIDs.contains(trackID)
+            isPending: mode == .fill && trackIDs.contains { engineController.hasQuantisedPendingFillCue(for: $0) },
+            isCueBarActive: mode == .fill && trackIDs.contains { engineController.quantisedFillCueActiveTrackIDs.contains($0) }
         )
         let isActive = state.isActive || activeRepeatSnapshot != nil || cuePresentation.isCueBarActive
         triggerSurface(
@@ -1629,7 +1754,7 @@ private struct TrackPerformRuntimeLayerControl: View {
                                 }
                         )
                 }
-                .frame(minHeight: 96)
+                .frame(minHeight: layout == .card ? 96 : 0)
                 .onDisappear {
                     endMomentaryPressIfNeeded()
                 }
@@ -1655,7 +1780,7 @@ private struct TrackPerformRuntimeLayerControl: View {
                         .foregroundStyle(StudioTheme.amber)
                 }
                 Text(cuePresentation.stateLabel ?? stateLabel(isActive: isActive))
-                    .studioText(.title)
+                    .studioText(layout == .card ? .title : .labelBold)
                     .foregroundStyle(foreground)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -1678,7 +1803,7 @@ private struct TrackPerformRuntimeLayerControl: View {
             }
         }
         .foregroundStyle(foreground)
-        .padding(StudioMetrics.Spacing.comfortable)
+        .padding(layout == .card ? StudioMetrics.Spacing.comfortable : StudioMetrics.Spacing.compact)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .background(labelBackground, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
