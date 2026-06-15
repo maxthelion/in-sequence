@@ -28,3 +28,39 @@ enum DevActivity {
         #endif
     }
 }
+
+/// Opt-in trace for debugging whether sample-backed tracks are actually being
+/// dispatched. This is intentionally separate from DevActivity so per-step
+/// playback diagnostics stay off unless a developer asks for them.
+enum SampleTriggerTrace {
+    private static let logger = Logger(subsystem: DevActivity.subsystem, category: "sample-trigger")
+
+    #if DEBUG
+    private static let enabled: Bool = {
+        if ProcessInfo.processInfo.environment["SEQUENCERAI_SAMPLE_TRIGGER_TRACE"] == "1" {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "SampleTriggerTraceEnabled")
+    }()
+    #endif
+
+    static func dispatch(
+        trackID: UUID,
+        sampleID: UUID,
+        sampleURL: URL,
+        scheduledHostTime: TimeInterval,
+        gain: Double
+    ) {
+        #if DEBUG
+        guard enabled else { return }
+        logger.info("sample dispatch track=\(trackID.uuidString, privacy: .public) sample=\(sampleID.uuidString, privacy: .public) file=\(sampleURL.lastPathComponent, privacy: .public) host=\(scheduledHostTime, privacy: .public) gain=\(gain, privacy: .public)")
+        #endif
+    }
+
+    static func drop(trackID: UUID, sampleID: UUID, reason: String) {
+        #if DEBUG
+        guard enabled else { return }
+        logger.info("sample drop track=\(trackID.uuidString, privacy: .public) sample=\(sampleID.uuidString, privacy: .public) reason=\(reason, privacy: .public)")
+        #endif
+    }
+}

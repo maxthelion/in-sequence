@@ -1810,8 +1810,21 @@ final class EngineController: RouterDispatcher {
                 break
 
             case let .sampleTrigger(trackID, sampleID, settings, _):
-                guard let sample = sampleLibrary.sample(id: sampleID) else { continue }
-                guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else { continue }
+                guard let sample = sampleLibrary.sample(id: sampleID) else {
+                    SampleTriggerTrace.drop(trackID: trackID, sampleID: sampleID, reason: "missing-sample")
+                    continue
+                }
+                guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else {
+                    SampleTriggerTrace.drop(trackID: trackID, sampleID: sampleID, reason: "unresolved-file")
+                    continue
+                }
+                SampleTriggerTrace.dispatch(
+                    trackID: trackID,
+                    sampleID: sampleID,
+                    sampleURL: url,
+                    scheduledHostTime: event.scheduledHostTime,
+                    gain: settings.gain
+                )
                 _ = sampleEngine.play(
                     sampleURL: url,
                     settings: settings,
