@@ -38,6 +38,7 @@ enum VisualScenarioCommandRunner {
     private static var trackPerformLayerMode = TrackPerformLayerMode.pattern.rawValue
     private static var trackPerformLayerSelectorVisible = false
     private static var trackPerformLayerVariant = "none"
+    private static var trackPerformCaptureVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var sceneEditorFixtureState = "none"
@@ -185,6 +186,15 @@ enum VisualScenarioCommandRunner {
                 phrasePerformLayerMode = userInfo["performLayerMode"] as? String ?? TrackPerformLayerMode.pattern.rawValue
                 phrasePerformLayerSelectorVisible = userInfo["performLayerSelectorVisible"] as? Bool ?? false
                 phrasePerformLayerVariant = userInfo["performLayerVariant"] as? String ?? "none"
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .trackPerformCaptureRenderedVisualState,
+            object: nil,
+            queue: .main
+        ) { notification in
+            Task { @MainActor in
+                trackPerformCaptureVisible = notification.userInfo?["visible"] as? Bool ?? false
             }
         }
     }
@@ -564,6 +574,7 @@ enum VisualScenarioCommandRunner {
         trackPerformLayerMode=\(trackPerformLayerMode)
         trackPerformLayerSelectorVisible=\(trackPerformLayerSelectorVisible)
         trackPerformLayerVariant=\(trackPerformLayerVariant)
+        trackPerformCaptureVisible=\(trackPerformCaptureVisible)
         performOverviewRowCount=\(PerformOverviewRowModel.rows(tracks: session.store.tracks, groups: session.store.trackGroups).count)
         selectedNoteRepeatAvailable=\(session.isNoteRepeatAvailable(trackID: session.store.selectedTrackID))
         selectedNoteRepeatStoredInterval=\(session.store.selectedTrack.noteRepeatInterval.rawValue)
@@ -693,6 +704,7 @@ enum VisualScenarioCommandRunner {
         guard command["trackPerformLayerSelector"] != nil ||
               command["trackPerformLayer"] != nil ||
               command["trackPerformLayerVariant"] != nil ||
+              command["phrasePerformCapture"] != nil ||
               command["trackPerformTrackCount"] != nil
         else { return }
 
@@ -711,6 +723,15 @@ enum VisualScenarioCommandRunner {
         case "close", "hidden", "false":
             trackPerformLayerSelectorVisible = false
             NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "close-layer-selector")
+        default:
+            break
+        }
+
+        switch command["phrasePerformCapture"] {
+        case "open", "visible", "true":
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "open-phrase-capture")
+        case "close", "hidden", "false":
+            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "close-phrase-capture")
         default:
             break
         }

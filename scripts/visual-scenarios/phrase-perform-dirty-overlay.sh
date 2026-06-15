@@ -43,11 +43,12 @@ Status from this script run: ${scenario_status}.
 Captured state:
 
 - \`tracks-matrix-dirty-overlay.png\`: Tracks Matrix dirty Save Back/Revert strip.
+- \`tracks-matrix-capture-chooser.png\`: Capture action opened with the 4x4 phrase-slot chooser.
 
 The sidecar \`tracks-matrix-dirty-overlay.status\` records
 \`workspace=tracks\`, \`tracksMode=perform\`,
 \`phrasePerformOverlayDirty=true\`, \`phrasePerformOverlayBasisPhraseName=Phrase A\`,
-\`stagedCellCount=1\`, and enabled Save Back/Revert status.
+\`stagedCellCount=1\`, and enabled Capture/Revert status.
 NOTES
 }
 
@@ -147,6 +148,22 @@ cp "$command_file" "$output_dir/tracks-matrix-dirty-overlay.command.env"
 capture_window "$pid" "$output_dir/tracks-matrix-dirty-overlay.png"
 cp "$status_file" "$output_dir/tracks-matrix-dirty-overlay.status"
 scenario_status="captured tracks-matrix-dirty-overlay"
+
+write_visual_command "workspace=tracks
+tracksMode=perform
+phrasePerformOverlay=dirtyOneCell
+phrasePerformCapture=open
+transport=stop"
+
+wait_for_status workspace tracks 10
+wait_for_status tracksMode perform 10
+wait_for_status phrasePerformOverlayDirty true 10
+wait_for_status trackPerformCaptureVisible true 10
+sleep 0.8
+cp "$command_file" "$output_dir/tracks-matrix-capture-chooser.command.env"
+capture_window "$pid" "$output_dir/tracks-matrix-capture-chooser.png"
+cp "$status_file" "$output_dir/tracks-matrix-capture-chooser.status"
+scenario_status="captured tracks-matrix-capture-chooser"
 
 scenario_status="completed phrase perform dirty overlay capture"
 sleep 0.2

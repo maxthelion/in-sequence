@@ -69,6 +69,55 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         )
     }
 
+    func test_capturePhrasePerformOverlayToExistingPhraseCopiesHeardBasisState() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.setPhraseBarCount(4, phraseID: fixture.phrases[0].id)
+        fixture.session.stagePhrasePerformCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            basisPhraseID: fixture.phrases[0].id
+        )
+
+        XCTAssertTrue(fixture.session.capturePhrasePerformOverlay(to: fixture.phrases[1].id))
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.store.phrases[1].id, fixture.phrases[1].id)
+        XCTAssertEqual(fixture.session.store.phrases[1].name, fixture.phrases[1].name)
+        XCTAssertEqual(fixture.session.store.phrases[1].lengthBars, 4)
+        XCTAssertEqual(
+            fixture.session.store.phrases[1].cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            .single(.bool(true))
+        )
+    }
+
+    func test_capturePhrasePerformOverlayToNewPhraseCreatesReusableCopy() throws {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.setPhraseBarCount(3, phraseID: fixture.phrases[0].id)
+        fixture.session.stagePhrasePerformCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            basisPhraseID: fixture.phrases[0].id
+        )
+
+        let newPhraseID = try XCTUnwrap(fixture.session.capturePhrasePerformOverlayToNewPhrase())
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        let newPhrase = try XCTUnwrap(fixture.session.store.phrases.first(where: { $0.id == newPhraseID }))
+        XCTAssertEqual(newPhrase.name, "Phrase C")
+        XCTAssertEqual(newPhrase.lengthBars, 3)
+        XCTAssertEqual(
+            newPhrase.cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            .single(.bool(true))
+        )
+        XCTAssertEqual(fixture.session.store.selectedPhraseID, newPhraseID)
+    }
+
     func test_dirtyOverlayBlocksBasisPhraseSelectionAndNavigationUntilResolved() {
         let fixture = makeSession()
         defer {
