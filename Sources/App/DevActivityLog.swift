@@ -57,6 +57,16 @@ enum SampleTriggerTrace {
         #endif
     }
 
+    static func schedule(trackID: UUID, sampleURL: URL, scheduledHostTime: TimeInterval?) {
+        #if DEBUG
+        guard enabled else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let scheduled = scheduledHostTime ?? -1
+        let lateBy = scheduledHostTime.map { now - $0 } ?? -1
+        logger.info("sample schedule track=\(trackID.uuidString, privacy: .public) file=\(sampleURL.lastPathComponent, privacy: .public) scheduled=\(scheduled, privacy: .public) now=\(now, privacy: .public) late=\(lateBy, privacy: .public)")
+        #endif
+    }
+
     static func drop(trackID: UUID, sampleID: UUID, reason: String) {
         #if DEBUG
         guard enabled else { return }

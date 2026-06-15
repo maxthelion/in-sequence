@@ -180,6 +180,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         guard lifecycleLock.withLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
         return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic) { [self] voice, voiceFilter, params in
+            SampleTriggerTrace.schedule(
+                trackID: trackID,
+                sampleURL: sampleURL,
+                scheduledHostTime: when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+            )
             self.scheduleAndStart(
                 voice,
                 voiceFilter: voiceFilter,

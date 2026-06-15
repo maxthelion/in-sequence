@@ -50,6 +50,13 @@ track destination has resolved and the sample file has been found, but before
 `SamplePlaybackEngine` schedules playback. That answers whether a sample-backed
 track produced a trigger and whether the engine could resolve its sample.
 
+The same flag also records the playback scheduling boundary in
+`SamplePlaybackEngine`, including the difference between the requested host time
+and the moment the main-queue scheduling work actually runs. Positive `late`
+values mean the scheduler is behind the intended playback time. Large positive
+values during UI interaction point to main-thread scheduling latency rather than
+missing sequencer events.
+
 Enable it with:
 
 ```sh
@@ -93,6 +100,10 @@ For the missing hi-hat class of bugs:
   the sample library could not find the referenced sample ID.
 - `sample drop ... reason=unresolved-file` means the sample record exists, but
   its file reference could not resolve on disk.
+- `sample schedule ... late=...` shows how far the actual voice scheduling work
+  ran after the requested host time. Values near zero are expected. Large
+  positive values mean the sample may have been scheduled too late to hear
+  cleanly.
 - no hi-hat dispatch/drop while kick/snare dispatches appear means the problem
   is upstream: pattern contents, track mute/layer resolution, drum group
   inheritance, or generator output.
