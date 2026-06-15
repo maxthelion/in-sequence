@@ -119,6 +119,7 @@ struct TracksMatrixView: View {
     @State private var performRuntimeOverlay = TrackPerformRuntimeOverlayState()
     @State private var performLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformLayerSelection = false
+    @State private var isPresentingPhraseCapture = false
 
     private let columns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -203,12 +204,6 @@ struct TracksMatrixView: View {
                     } else {
                         if isPresentingPerformLayerSelection {
                             performLayerSelectionSurface
-                        } else if isPerforming {
-                            // The perform-mode tracks page IS the perform
-                            // overview (wireframes §9 + §1 — one surface):
-                            // a row per track with its playable controls,
-                            // macro rack beneath.
-                            performOverviewDashboard
                         } else {
                             matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
                         }
@@ -261,6 +256,25 @@ struct TracksMatrixView: View {
                 },
                 onCancel: {
                     isPresentingAddDrumGroup = false
+                }
+            )
+            .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isPresentingPhraseCapture) {
+            PhrasePerformCaptureSheet(
+                phrases: session.store.phrases,
+                basisPhraseID: session.phrasePerformOverlay.basisPhraseID,
+                stagedCellCount: session.phrasePerformOverlay.stagedCellCount,
+                onCaptureExisting: { phraseID in
+                    _ = session.capturePhrasePerformOverlay(to: phraseID)
+                    isPresentingPhraseCapture = false
+                },
+                onCaptureNew: {
+                    _ = session.capturePhrasePerformOverlayToNewPhrase()
+                    isPresentingPhraseCapture = false
+                },
+                onCancel: {
+                    isPresentingPhraseCapture = false
                 }
             )
             .presentationBackground(.clear)
@@ -406,13 +420,16 @@ struct TracksMatrixView: View {
 
             Spacer(minLength: 8)
 
-            Button("Save Back") {
-                session.savePhrasePerformOverlayBack()
+            Button {
+                isPresentingPhraseCapture = true
+            } label: {
+                Text("Capture")
+                    .studioText(.labelBold)
             }
             .buttonStyle(.borderedProminent)
             .tint(StudioTheme.amber)
             .disabled(!canSavePhrasePerformOverlay)
-            .help(canSavePhrasePerformOverlay ? "Save staged perform edits back to the basis phrase" : "Basis phrase is no longer available")
+            .help(canSavePhrasePerformOverlay ? "Choose a phrase slot for the staged perform edits" : "Basis phrase is no longer available")
 
             Button {
                 session.revertPhrasePerformOverlay()
@@ -450,7 +467,7 @@ struct TracksMatrixView: View {
         let phraseName = session.phrasePerformOverlay.basisPhraseID
             .flatMap { phraseID in session.store.phrases.first(where: { $0.id == phraseID })?.name }
             ?? "missing phrase"
-        return "\(count) staged cell\(count == 1 ? "" : "s") for \(phraseName)"
+        return "\(count) edit\(count == 1 ? "" : "s") on \(phraseName)"
     }
 
     private var performSelectionSummary: some View {
@@ -609,6 +626,11 @@ struct TracksMatrixView: View {
             runtimeControlState: { trackIDs, control in
                 runtimeControlState(forRow: trackIDs, control: control)
             },
+            isCellDirty: { layer, trackIDs in
+                trackIDs.contains { trackID in
+                    session.performOverlayCell(phraseID: editingPhraseID, layerID: layer.id, trackID: trackID) != nil
+                }
+            },
             isQuantiseCueLive: session.isQuantisedPerformToggleArmingActive,
             onSelectRow: { trackID in
                 session.setSelectedTrackID(trackID)
@@ -717,6 +739,11 @@ struct TracksMatrixView: View {
                     activePerformLayer: activePerformLayer,
                     activePerformVariantLabel: performLayerSelection.variantLabel,
                     cell: cell,
+                    isDirty: session.performOverlayCell(
+                        phraseID: editingPhraseID,
+                        layerID: layer.id,
+                        trackID: track.id
+                    ) != nil,
                     isFocused: track.id == selectedTrackID,
                     isPerformSelected: performSelection.contains(track.id),
                     isPerforming: isPerforming,
@@ -1010,6 +1037,16 @@ struct TracksMatrixView: View {
             return
         }
 
+        if command == "open-phrase-capture" {
+            isPresentingPhraseCapture = session.phrasePerformOverlay.isDirty
+            return
+        }
+
+        if command == "close-phrase-capture" {
+            isPresentingPhraseCapture = false
+            return
+        }
+
         if let rawMode = command.removingPrefix("select-layer:"),
            let mode = TrackPerformLayerMode(rawValue: rawMode) {
             setPerformLayer(mode, variantLabel: nil)
@@ -1181,6 +1218,142 @@ private struct TrackPerformPlaceholderLayerCard: View {
     }
 }
 
+private struct PhrasePerformCaptureSheet: View {
+    let phrases: [PhraseModel]
+    let basisPhraseID: UUID?
+    let stagedCellCount: Int
+    let onCaptureExisting: (UUID) -> Void
+    let onCaptureNew: () -> Void
+    let onCancel: () -> Void
+
+    private enum Slot: Identifiable {
+        case phrase(PhraseModel)
+        case new
+        case empty(Int)
+
+        var id: String {
+            switch self {
+            case .phrase(let phrase):
+                return phrase.id.uuidString
+            case .new:
+                return "new"
+            case .empty(let index):
+                return "empty-\(index)"
+            }
+        }
+    }
+
+    private var slots: [Slot] {
+        var result = phrases.prefix(15).map(Slot.phrase)
+        result.append(.new)
+        while result.count < 16 {
+            result.append(.empty(result.count))
+        }
+        return result
+    }
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.fixed(104), spacing: 10), count: 4)
+    }
+
+    private var basisName: String {
+        basisPhraseID.flatMap { basisID in
+            phrases.first(where: { $0.id == basisID })?.name
+        } ?? "missing phrase"
+    }
+
+    var body: some View {
+        StudioModal(
+            title: "Capture Perform Edits",
+            subtitle: "\(stagedCellCount) edit\(stagedCellCount == 1 ? "" : "s") on \(basisName)",
+            accent: StudioTheme.amber,
+            minWidth: 500,
+            onClose: onCancel
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Choose a phrase slot to store the current heard state.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(slots) { slot in
+                        slotView(slot)
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("phrase-perform-capture-sheet")
+        .onAppear {
+            NotificationCenter.default.post(
+                name: .trackPerformCaptureRenderedVisualState,
+                object: nil,
+                userInfo: ["visible": true]
+            )
+        }
+        .onDisappear {
+            NotificationCenter.default.post(
+                name: .trackPerformCaptureRenderedVisualState,
+                object: nil,
+                userInfo: ["visible": false]
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func slotView(_ slot: Slot) -> some View {
+        switch slot {
+        case .phrase(let phrase):
+            Button {
+                onCaptureExisting(phrase.id)
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(phrase.name)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Text(phrase.id == basisPhraseID ? "basis" : "\(phrase.lengthBars) bars")
+                        .studioText(.micro)
+                        .foregroundStyle(phrase.id == basisPhraseID ? StudioTheme.amber : StudioTheme.mutedText)
+                }
+                .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+                .padding(.horizontal, 10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(phrase.id == basisPhraseID ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+            .help("Capture edits to \(phrase.name)")
+
+        case .new:
+            Button(action: onCaptureNew) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("+ New")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.background)
+
+                    Text("phrase")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.background.opacity(0.82))
+                }
+                .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+                .padding(.horizontal, 10)
+                .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .help("Create a new phrase from these edits")
+
+        case .empty:
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
+                .frame(minHeight: 58)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
 private struct TrackPerformLatchModePicker: View {
     @Binding var selection: TrackPerformLatchMode
 
@@ -1240,6 +1413,7 @@ private struct TrackMatrixCard: View {
     let activePerformLayer: TrackPerformLayerMode?
     let activePerformVariantLabel: String?
     let cell: PhraseCell
+    let isDirty: Bool
     let isFocused: Bool
     let isPerformSelected: Bool
     let isPerforming: Bool
@@ -1377,6 +1551,7 @@ private struct TrackMatrixCard: View {
                 layer: layer,
                 trackID: track.id,
                 cell: cell,
+                isDirty: isDirty,
                 isFocused: isFocused,
                 isPerformSelected: isPerformSelected,
                 isPerforming: isPerforming,
@@ -1509,6 +1684,7 @@ private struct TrackCardStrokeOverlay: View {
     let layer: PhraseLayerDefinition
     let trackID: UUID
     let cell: PhraseCell
+    let isDirty: Bool
     let isFocused: Bool
     let isPerformSelected: Bool
     let isPerforming: Bool
@@ -1532,7 +1708,7 @@ private struct TrackCardStrokeOverlay: View {
                     pendingMuteTarget != nil ? StudioTheme.amber.opacity(0.9) : strokeColor,
                     style: QuantisedTogglePresentation.strokeStyle(
                         isPending: pendingMuteTarget != nil,
-                        lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth
+                        lineWidth: isFocused || isPerformSelected || isPerforming || isDirty ? 2 : StudioMetrics.borderWidth
                     )
                 )
             if let pendingMuteTarget {
@@ -1564,6 +1740,9 @@ private struct TrackCardStrokeOverlay: View {
     private var strokeColor: Color {
         if isPerformSelected {
             return StudioTheme.amber.opacity(StudioOpacity.accentFill)
+        }
+        if isDirty {
+            return StudioTheme.amber.opacity(0.92)
         }
         if isPerforming, let activePatternColor {
             return activePatternColor.opacity(StudioOpacity.accentFill)

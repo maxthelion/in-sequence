@@ -38,16 +38,15 @@ tomorrow." Slices in order (each: worktree → gate → land):
 >> row-per-track dashboard is not the right shape for this surface, and
 >> macros should live somewhere else. Current branch
 >> feature/perform-capture-edits contains the capture machinery plus the
->> layout correction (0d51ba80 + 9b0d9300). COREAUDIOD RESTARTED AND
->> VERIFIED: full clean gate on the feature worktree passed (1497 tests,
->> 19 skipped, 0 failures) and the previously skipped HAL selection passed
->> directly (5 tests, 0 failures). Local adversarial checklist review
->> found no new landing blocker after the matrix correction; the only
->> process note is that the old PerformOverviewDashboard file remains
->> unreferenced and is parked in attention for a repurpose/delete ruling.
->> Remaining before main landing: merge through a clean main checkout (main
->> is currently dirty with unrelated Foreman/migration work). Slices 6-7
->> wait behind the land of slice 5, not behind another product answer.
+>> layout correction (0d51ba80 + 9b0d9300 + 9cb03ca2). COREAUDIOD
+>> RESTARTED AND VERIFIED: full clean gate on the feature worktree passed
+>> (1497 tests, 19 skipped, 0 failures) and the previously skipped HAL
+>> selection passed directly (5 tests, 0 failures). Local adversarial
+>> checklist review found no new landing blocker after the matrix
+>> correction; the only process note is that the old
+>> PerformOverviewDashboard file remains unreferenced and is parked in
+>> attention for a repurpose/delete ruling. SLICE 5 LANDED on main as
+>> 685fd795. Slices 6-7 can now proceed.
 >>
 >> TIDY (nit, no rush): rename TrackRoutingTabContent ->
 >> TrackSourceRoutingTabContent for sibling-naming consistency; ride a

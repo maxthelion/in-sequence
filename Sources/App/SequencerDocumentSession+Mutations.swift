@@ -898,6 +898,54 @@ extension SequencerDocumentSession {
         return changed
     }
 
+    @discardableResult
+    func capturePhrasePerformOverlay(to targetPhraseID: UUID) -> Bool {
+        guard phrasePerformOverlay.isDirty,
+              let basisPhraseID = phrasePerformOverlay.basisPhraseID,
+              let basisPhrase = store.phrases.first(where: { $0.id == basisPhraseID }),
+              let targetIndex = store.phrases.firstIndex(where: { $0.id == targetPhraseID })
+        else {
+            return false
+        }
+
+        var phrases = store.phrases
+        let targetPhrase = phrases[targetIndex]
+        var capturedPhrase = phrasePerformOverlay.applying(to: basisPhrase)
+        capturedPhrase.id = targetPhrase.id
+        capturedPhrase.name = targetPhrase.name
+        phrases[targetIndex] = capturedPhrase.synced(with: store.tracks, layers: store.layers)
+        store.replacePhrases(phrases, selectedPhraseID: targetPhrase.id)
+        phrasePerformOverlay.clear()
+        dispatchImpact(.snapshotOnly, changed: .phrase(targetPhrase.id))
+        return true
+    }
+
+    @discardableResult
+    func capturePhrasePerformOverlayToNewPhrase() -> UUID? {
+        guard phrasePerformOverlay.isDirty,
+              let basisPhraseID = phrasePerformOverlay.basisPhraseID,
+              let basisPhrase = store.phrases.first(where: { $0.id == basisPhraseID })
+        else {
+            return nil
+        }
+
+        var project = store.exportToProject()
+        project.insertPhrase(below: basisPhraseID)
+        guard let newIndex = project.phrases.firstIndex(where: { $0.id == project.selectedPhraseID }) else {
+            return nil
+        }
+
+        let newPhraseShell = project.phrases[newIndex]
+        var capturedPhrase = phrasePerformOverlay.applying(to: basisPhrase)
+        capturedPhrase.id = newPhraseShell.id
+        capturedPhrase.name = newPhraseShell.name
+        project.phrases[newIndex] = capturedPhrase.synced(with: project.tracks, layers: project.layers)
+        store.replacePhrases(project.phrases, selectedPhraseID: capturedPhrase.id)
+        phrasePerformOverlay.clear()
+        dispatchImpact(.snapshotOnly, changed: .full)
+        return capturedPhrase.id
+    }
+
     func revertPhrasePerformOverlay() {
         let phraseID = phrasePerformOverlay.basisPhraseID
         phrasePerformOverlay.clear()

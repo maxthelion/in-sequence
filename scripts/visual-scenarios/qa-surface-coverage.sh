@@ -53,6 +53,7 @@ CAPTURES=$(cat <<'TABLE'
 09-phrase-transpose-layer|workspace=phrase,phraseMatrixSelectedLayerID=transpose|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixEnsureDefaultLayers=true;phraseMatrixLayerID=transpose;transport=stop
 10-phrase-controls-open|workspace=phrase,phraseControlsOpenIndex=0|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseControlsOpenIndex=0;transport=stop
 11-phrase-perform-overlay|workspace=tracks,tracksMode=perform|tracksMode=perform;trackPerformTrackCount=6;phrasePerformOverlay=dirtyOneCell;transport=stop
+11a-phrase-perform-capture|workspace=tracks,tracksMode=perform,phrasePerformOverlayDirty=true|tracksMode=perform;trackPerformTrackCount=6;phrasePerformOverlay=dirtyOneCell;phrasePerformCapture=open;transport=stop
 12-phrase-layer-selector-open|workspace=phrase,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phrasePerformLayerSelector=open;transport=stop
 13-phrase-volume-layer|workspace=phrase,phrasePerformLayerMode=volume|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phrasePerformLayer=volume;transport=stop
 14-tracks-perform-layer-selector|workspace=tracks,trackPerformLayerSelectorVisible=true|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayerSelector=open;transport=stop

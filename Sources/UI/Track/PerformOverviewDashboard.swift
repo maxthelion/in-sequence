@@ -19,6 +19,7 @@ struct PerformOverviewDashboard: View {
     let selectedTrackID: UUID
     let orderedTrackIDs: [UUID]
     let runtimeControlState: ([UUID], TrackPerformBinaryControl) -> TrackPerformRuntimeControlState
+    let isCellDirty: (PhraseLayerDefinition, [UUID]) -> Bool
     let isQuantiseCueLive: Bool
     let onSelectRow: (UUID) -> Void
     let onToggleRowSelection: ([UUID]) -> Void
@@ -56,6 +57,7 @@ struct PerformOverviewDashboard: View {
                     isFocused: row.trackIDs.contains(selectedTrackID),
                     isInEditSet: row.trackIDs.allSatisfy { selection.contains($0) } && !selection.isEmpty,
                     runtimeControlState: runtimeControlState,
+                    isCellDirty: isCellDirty,
                     recipients: recipients(for: row),
                     onSelectRow: onSelectRow,
                     onToggleRowSelection: onToggleRowSelection,
@@ -146,6 +148,7 @@ struct PerformOverviewRowView: View {
     let isFocused: Bool
     let isInEditSet: Bool
     let runtimeControlState: ([UUID], TrackPerformBinaryControl) -> TrackPerformRuntimeControlState
+    let isCellDirty: (PhraseLayerDefinition, [UUID]) -> Bool
     let recipients: [UUID]
     let onSelectRow: (UUID) -> Void
     let onToggleRowSelection: ([UUID]) -> Void
@@ -258,7 +261,8 @@ struct PerformOverviewRowView: View {
                 PerformOverviewPatternCellLeaf(
                     phrase: phrase,
                     layer: patternLayer,
-                    trackIDs: row.trackIDs
+                    trackIDs: row.trackIDs,
+                    isDirty: isCellDirty(patternLayer, row.trackIDs)
                 ) {
                     onCycleCell(patternLayer, row.primaryTrackID, recipients)
                 }
@@ -294,7 +298,8 @@ struct PerformOverviewRowView: View {
                 PerformOverviewMuteCellLeaf(
                     phrase: phrase,
                     layer: muteLayer,
-                    trackIDs: row.trackIDs
+                    trackIDs: row.trackIDs,
+                    isDirty: isCellDirty(muteLayer, row.trackIDs)
                 ) {
                     onCycleCell(muteLayer, row.primaryTrackID, recipients)
                 }
@@ -336,7 +341,8 @@ struct PerformOverviewRowView: View {
                     phrase: phrase,
                     layer: muteLayer,
                     part: part,
-                    accent: row.accent
+                    accent: row.accent,
+                    isDirty: muteLayer.map { isCellDirty($0, [part.id]) } ?? false
                 ) {
                     guard let muteLayer else { return }
                     // Part dots address ONE part — never the edit set.
@@ -360,6 +366,7 @@ struct PerformOverviewPatternCellLeaf: View {
     let phrase: PhraseModel
     let layer: PhraseLayerDefinition
     let trackIDs: [UUID]
+    let isDirty: Bool
     let onTap: () -> Void
 
     var body: some View {
@@ -382,8 +389,8 @@ struct PerformOverviewPatternCellLeaf: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         .stroke(
-                            uniformIndex.map { StudioTheme.patternColor($0) } ?? StudioTheme.border,
-                            lineWidth: StudioMetrics.borderWidth
+                            isDirty ? StudioTheme.amber : uniformIndex.map { StudioTheme.patternColor($0) } ?? StudioTheme.border,
+                            lineWidth: isDirty ? 2 : StudioMetrics.borderWidth
                         )
                 )
                 .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
@@ -420,6 +427,7 @@ struct PerformOverviewMuteCellLeaf: View {
     let phrase: PhraseModel
     let layer: PhraseLayerDefinition
     let trackIDs: [UUID]
+    let isDirty: Bool
     let onTap: () -> Void
 
     var body: some View {
@@ -456,10 +464,10 @@ struct PerformOverviewMuteCellLeaf: View {
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(
-                        pendingTarget != nil ? StudioTheme.amber.opacity(0.9) : strokeColor(isMuted: isMuted, isPartial: isPartial),
+                        isDirty ? StudioTheme.amber.opacity(0.95) : pendingTarget != nil ? StudioTheme.amber.opacity(0.9) : strokeColor(isMuted: isMuted, isPartial: isPartial),
                         style: QuantisedTogglePresentation.strokeStyle(
                             isPending: pendingTarget != nil,
-                            lineWidth: pendingTarget != nil || isMuted ? 2 : StudioMetrics.borderWidth
+                            lineWidth: isDirty || pendingTarget != nil || isMuted ? 2 : StudioMetrics.borderWidth
                         )
                     )
             )
@@ -581,6 +589,7 @@ struct PerformOverviewPartToggleLeaf: View {
     let layer: PhraseLayerDefinition?
     let part: PerformOverviewPartModel
     let accent: Color
+    let isDirty: Bool
     let onTap: () -> Void
 
     var body: some View {
@@ -606,10 +615,10 @@ struct PerformOverviewPartToggleLeaf: View {
             .padding(.vertical, 5)
             .overlay(
                 Capsule().stroke(
-                    pendingTarget != nil ? StudioTheme.amber.opacity(0.9) : StudioTheme.border.opacity(StudioOpacity.softStroke),
+                    isDirty ? StudioTheme.amber.opacity(0.95) : pendingTarget != nil ? StudioTheme.amber.opacity(0.9) : StudioTheme.border.opacity(StudioOpacity.softStroke),
                     style: QuantisedTogglePresentation.strokeStyle(
                         isPending: pendingTarget != nil,
-                        lineWidth: StudioMetrics.borderWidth
+                        lineWidth: isDirty || pendingTarget != nil ? 2 : StudioMetrics.borderWidth
                     )
                 )
             )

@@ -8,13 +8,12 @@ Items genuinely needing Max, ranked. Each says what it unlocks.
    NOT deleting it — you said macros "live somewhere else," and the
    dashboard's row+macro-rack layout may be the home for that. Tell me:
    repurpose it for the macro home, or delete it as dead code? (Its
-   own tests still pass since the view compiles; only the perform-mode
-   invalidation test needed fixing, which the finish pass is doing.)
+   own tests still pass since the view compiles; the perform-mode
+   invalidation test has been corrected to gate the matrix path.)
 
-1. **Review the perform/setup build-out** (now 4/7 landed; slice 5
-   capture-edits is green on its feature branch and awaiting landing:
-   global mode,
-   quantised toggles, perform overview, routing tab). Morning captures + gallery
+1. **Review the perform/setup build-out** (now 5/7 landed: global mode,
+   quantised toggles, perform overview, routing tab, capture edits).
+   Morning captures + gallery
    will be ready at first unlock. Judgment calls parked for you:
    - LATCH-mode fill taps bypass quantise (immediate latch even at
      Q:BAR) — confirm or veto.
