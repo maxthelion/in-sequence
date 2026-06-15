@@ -8,7 +8,13 @@ struct TrackWorkspaceView: View {
     @State private var editingTrackID: UUID?
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
     @State private var draftTrackName = ""
-    @State private var kitNavigationState: DrumKitWorkspaceNavigationState?
+    // Slice 6a "kit view first": a drum-group track now lands on the kit matrix
+    // by default. The single-part editor is the dive-in, reached by selecting a
+    // part from the matrix; `divedInPartID` records which part the user drilled
+    // into (matched against the currently selected track). When `nil`, a drum
+    // track shows the matrix; when it equals the selected drum part, that part's
+    // editor is shown. Non-drum tracks ignore this entirely.
+    @State private var divedInPartID: UUID?
     @FocusState private var trackNameFieldFocused: Bool
 
     private var track: StepSequenceTrack {
@@ -21,6 +27,18 @@ struct TrackWorkspaceView: View {
             tracks: session.store.tracks,
             trackGroups: session.store.trackGroups
         )
+    }
+
+    /// The kit matrix navigation state to show, or `nil` when the per-part
+    /// editor should be shown instead. A drum-group track defaults to the
+    /// matrix (kit-first) and only shows the part editor once the user has
+    /// dived into the currently selected part.
+    private var kitNavigationState: DrumKitWorkspaceNavigationState? {
+        guard let headerModel = drumPartHeaderModel else { return nil }
+        if divedInPartID == headerModel.currentPartID {
+            return nil
+        }
+        return DrumKitWorkspaceNavigationState.defaultForOpening(headerModel: headerModel)
     }
 
     private var outboundRouteCount: Int {
@@ -54,6 +72,13 @@ struct TrackWorkspaceView: View {
                     self.editingTrackID = nil
                     draftTrackName = ""
                 }
+                // Selecting a different track resets the dive-in: a newly opened
+                // drum track lands on the kit matrix (kit-first), and a non-drum
+                // track is unaffected. We only keep the dive-in when the matrix
+                // itself drilled into a specific part (handled in onSelectPart).
+                if divedInPartID != track.id {
+                    divedInPartID = nil
+                }
                 stepGridWorkspaceModel.reset()
             }
             .onChange(of: kitNavigationState) {
@@ -84,11 +109,15 @@ struct TrackWorkspaceView: View {
                     draftTrackName = ""
                     trackNameFieldFocused = false
                 case "open-kit-view":
+                    // Kit-first: the matrix is the default home. From the
+                    // part-editor dive-in this dives back out to the matrix by
+                    // clearing the dived-in part.
+                    divedInPartID = nil
+                case "dive-into-part":
+                    // Drill from the kit matrix into the currently selected
+                    // part's editor (the dive-in). Mirrors selecting a part row.
                     if let drumPartHeaderModel {
-                        kitNavigationState = DrumKitWorkspaceNavigationState(
-                            groupID: drumPartHeaderModel.groupID,
-                            originatingPartID: drumPartHeaderModel.currentPartID
-                        )
+                        divedInPartID = drumPartHeaderModel.currentPartID
                     }
                 default:
                     break
@@ -102,13 +131,15 @@ struct TrackWorkspaceView: View {
             DrumKitMatrixView(
                 document: $document,
                 navigationState: kitNavigationState,
-                onBack: {
-                    session.setSelectedTrackID(kitNavigationState.originatingPartID)
-                    self.kitNavigationState = nil
-                },
+                // Kit-first: the matrix is the track editor's home, so there is
+                // no "back" target above it — the back affordance is hidden.
+                showsBackButton: false,
+                onBack: {},
                 onSelectPart: { partID in
+                    // Dive into the selected part: keep it as the selected track
+                    // and remember the dive-in so its part editor is shown.
                     session.setSelectedTrackID(partID)
-                    self.kitNavigationState = nil
+                    divedInPartID = partID
                 }
             )
         } else {
@@ -165,10 +196,8 @@ struct TrackWorkspaceView: View {
                 title: { trackNameEditor },
                 onSelectPart: { session.setSelectedTrackID($0) },
                 onOpenKitView: {
-                    kitNavigationState = DrumKitWorkspaceNavigationState(
-                        groupID: drumPartHeaderModel.groupID,
-                        originatingPartID: drumPartHeaderModel.currentPartID
-                    )
+                    // Dive back out of the part editor to the kit matrix home.
+                    divedInPartID = nil
                 }
             )
         } else {
@@ -257,6 +286,21 @@ struct TrackWorkspaceView: View {
 struct DrumKitWorkspaceNavigationState: Equatable {
     var groupID: TrackGroupID
     var originatingPartID: UUID
+
+    /// Slice 6a "kit view first": a drum-group/kit track opens directly on the
+    /// kit matrix (all parts together), with the per-part editor as the
+    /// dive-in. This returns the matrix navigation state a freshly opened drum
+    /// track should default into, or `nil` for a non-drum track (which keeps
+    /// its single-source editor and is unaffected).
+    static func defaultForOpening(
+        headerModel: DrumPartWorkspaceHeaderModel?
+    ) -> DrumKitWorkspaceNavigationState? {
+        guard let headerModel else { return nil }
+        return DrumKitWorkspaceNavigationState(
+            groupID: headerModel.groupID,
+            originatingPartID: headerModel.currentPartID
+        )
+    }
 }
 
 struct DrumPartWorkspaceHeaderModel: Equatable {
@@ -367,7 +411,7 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
                     Button {
                         onOpenKitView()
                     } label: {
-                        Label("Open Kit View", systemImage: "square.grid.3x3")
+                        Label("Back to Kit", systemImage: "square.grid.3x3")
                             .studioText(.labelBold)
                     }
                     .buttonStyle(.plain)
@@ -375,7 +419,7 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
                     .padding(.vertical, 6)
                     .foregroundStyle(StudioTheme.background)
                     .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .help("Open the kit matrix from \(model.currentPartName)")
+                    .help("Dive back out to the kit matrix from \(model.currentPartName)")
                 }
                 .frame(maxWidth: 240, alignment: .trailing)
             }
