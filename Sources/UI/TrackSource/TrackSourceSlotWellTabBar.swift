@@ -91,11 +91,21 @@ enum TrackSourceHistoryDisplayState: Equatable {
     }
 }
 
+/// Tab-bar presentation for the (setup-only) ROUTING tab. When unavailable
+/// (perform mode), the pill is omitted from the bar entirely.
+struct TrackSourceRoutingDisplayState: Equatable {
+    let isAvailable: Bool
+    /// One-glance path summary shown under the ROUTING label, e.g.
+    /// "Clap kit → Bus A".
+    let pillSummary: String
+}
+
 struct TrackSourceSlotWellTabBar: View {
     @Binding var selectedTab: TrackSourceEditorTab
     let sourceState: TrackSourceSourceDisplayState
     let modifierState: TrackSourceModifierDisplayState
     let historyState: TrackSourceHistoryDisplayState
+    let routingState: TrackSourceRoutingDisplayState
     let accent: Color
 
     var body: some View {
@@ -120,8 +130,63 @@ struct TrackSourceSlotWellTabBar: View {
                 badgeTitle: historyState.badgeTitle,
                 accentPresentation: historyAccentPresentation
             )
+
+            if routingState.isAvailable {
+                routingButton
+            }
         }
         .padding(.horizontal, 10)
+    }
+
+    /// The ROUTING pill carries the path summary inline (no badge) so the
+    /// whole instrument → destination path reads at a glance with the tab
+    /// closed.
+    private var routingButton: some View {
+        let isSelected = selectedTab == .routing
+        let selectedAccent = StudioTheme.success
+
+        return Button {
+            selectedTab = .routing
+        } label: {
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("ROUTING")
+                            .studioText(.eyebrowBold)
+                            .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                            .tracking(0.8)
+                        Text(routingState.pillSummary)
+                            .studioText(.micro)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 7)
+                .padding(.horizontal, 12)
+
+                Rectangle()
+                    .fill(isSelected ? selectedAccent : Color.clear)
+                    .frame(height: 2)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(
+                        isSelected ? selectedAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("track-routing-tab")
+        .accessibilityValue(routingState.pillSummary)
     }
 
     private func slotButton(

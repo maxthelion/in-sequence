@@ -1125,9 +1125,11 @@ enum VisualScenarioCommandRunner {
         }
     }
 
-    /// Drives the Source/Modifier/History tab on the track editor without
-    /// coordinate clicks. Posts repeatedly because the editor view may not
-    /// exist yet right after the section switch.
+    /// Drives the Source/Modifier/History/Routing tab on the track editor
+    /// without coordinate clicks. Posts repeatedly because the editor view may
+    /// not exist yet right after the section switch. The ROUTING tab is
+    /// setup-only; the editor's own guard ignores a `routing` selection while
+    /// the workspace is in perform mode.
     private static func applyTrackSourceTabCommand(
         command: [String: String],
         section: Binding<WorkspaceSection>

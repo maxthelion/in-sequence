@@ -4,6 +4,7 @@ enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
     case source
     case modifiers
     case history
+    case routing
 
     var id: String { rawValue }
 
@@ -15,6 +16,19 @@ enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
             return "Modifier"
         case .history:
             return "History"
+        case .routing:
+            return "Routing"
+        }
+    }
+
+    /// The ROUTING tab is SETUP-only: perform mode dropped the destination
+    /// concern, so the tab is absent there.
+    func isAvailable(in mode: WorkspaceMode) -> Bool {
+        switch self {
+        case .routing:
+            return mode == .setup
+        case .source, .modifiers, .history:
+            return true
         }
     }
 }
@@ -141,6 +155,19 @@ struct TrackSourceEditorView: View {
             sourceState: sourceDisplayState
         )
     }
+
+    /// One-glance audio-path summary for the ROUTING tab pill + tab body.
+    private var routingPathSummary: TrackRoutingPathSummary {
+        TrackRoutingPathSummary.make(
+            destinationSummary: DestinationSummary.make(
+                for: session.store.resolvedDestination(for: track.id),
+                in: session.store,
+                trackID: track.id
+            ),
+            outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: session.store.buses),
+            mix: track.mix
+        )
+    }
     private var previewClipContent: ClipContent {
         currentClip?.content
             ?? .emptyNoteGrid(lengthSteps: 16)
@@ -251,6 +278,8 @@ struct TrackSourceEditorView: View {
                         modifiersTab
                     case .history:
                         clipHistoryTab
+                    case .routing:
+                        routingTab
                     }
                 }
             }
@@ -317,10 +346,19 @@ struct TrackSourceEditorView: View {
         .onDisappear {
             session.clearTrackFillPreview(reason: .editorClosed)
         }
+        .onChange(of: session.workspaceMode) { _, newMode in
+            // ROUTING is setup-only; if the global mode flips to perform while
+            // it is open, fall back to the source tab so the dropped tab is
+            // never left selected.
+            if !selectedTab.isAvailable(in: newMode) {
+                selectedTab = .source
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
             guard let command = notification.object as? String,
                   command.hasPrefix("select-tab:"),
-                  let tab = TrackSourceEditorTab(rawValue: String(command.dropFirst("select-tab:".count)))
+                  let tab = TrackSourceEditorTab(rawValue: String(command.dropFirst("select-tab:".count))),
+                  tab.isAvailable(in: session.workspaceMode)
             else { return }
             selectedTab = tab
         }
@@ -335,6 +373,10 @@ struct TrackSourceEditorView: View {
             sourceState: sourceDisplayState,
             modifierState: modifierDisplayState,
             historyState: historyDisplayState,
+            routingState: TrackSourceRoutingDisplayState(
+                isAvailable: TrackSourceEditorTab.routing.isAvailable(in: session.workspaceMode),
+                pillSummary: routingPathSummary.pillSummary
+            ),
             accent: accent
         )
         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
@@ -497,6 +539,15 @@ struct TrackSourceEditorView: View {
             return reason
         }
         return "History is unavailable for this source."
+    }
+
+    @ViewBuilder
+    private var routingTab: some View {
+        TrackRoutingTabContent(
+            document: $document,
+            summary: routingPathSummary,
+            accent: accent
+        )
     }
 
     @ViewBuilder

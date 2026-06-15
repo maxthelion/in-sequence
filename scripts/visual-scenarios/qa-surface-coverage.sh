@@ -60,6 +60,7 @@ CAPTURES=$(cat <<'TABLE'
 20-track-fill-preview-active|workspace=track,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;transport=stop
 21-track-modifier-tab|workspace=track,trackSourceTab=modifiers|trackFillSource=clip;trackFillPreview=off;trackSourceTab=modifiers;transport=stop
 22-track-history-tab|workspace=track,trackSourceTab=history|trackFillSource=generator;trackSourceTab=history;transport=stop
+22b-track-routing-tab|workspace=track,trackSourceTab=routing|trackFillSource=clip;trackSourceTab=routing;workspaceMode=setup;transport=stop
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
 24-audio-idle|workspace=track,selectedTrackType=audioInput|audioInputFixture=idle;audioInputAvailableChannels=0;transport=stop
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop

@@ -7,9 +7,20 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
     func test_editorTabsKeepHistoryAsTabPeer() {
         XCTAssertEqual(
             TrackSourceEditorTab.allCases.map(\.title),
-            ["Source", "Modifier", "History"]
+            ["Source", "Modifier", "History", "Routing"]
         )
         XCTAssertEqual(TrackSourceEditorTab.history.id, "history")
+        XCTAssertEqual(TrackSourceEditorTab.routing.id, "routing")
+    }
+
+    func test_routingTabIsSetupOnly() {
+        XCTAssertTrue(TrackSourceEditorTab.routing.isAvailable(in: .setup))
+        XCTAssertFalse(TrackSourceEditorTab.routing.isAvailable(in: .perform))
+        // The constantly-touched tabs stay present in both modes.
+        for tab in [TrackSourceEditorTab.source, .modifiers, .history] {
+            XCTAssertTrue(tab.isAvailable(in: .setup))
+            XCTAssertTrue(tab.isAvailable(in: .perform))
+        }
     }
 
     @MainActor
@@ -966,6 +977,7 @@ private struct ClipHistoryEvidenceSurface: View {
                 sourceState: sourceState,
                 modifierState: .empty,
                 historyState: .liveCapture,
+                routingState: TrackSourceRoutingDisplayState(isAvailable: true, pillSummary: "AU Instrument → Master"),
                 accent: StudioTheme.cyan
             )
 
@@ -1010,6 +1022,7 @@ private struct ClipHistoryDestinationEvidenceSurface: View {
                 sourceState: .occupiedGenerator,
                 modifierState: .empty,
                 historyState: .liveCapture,
+                routingState: TrackSourceRoutingDisplayState(isAvailable: true, pillSummary: "AU Instrument → Master"),
                 accent: StudioTheme.cyan
             )
 
@@ -1074,6 +1087,7 @@ private struct ClipHistoryUnavailableEvidenceSurface: View {
                 sourceState: sourceState,
                 modifierState: .empty,
                 historyState: historyState,
+                routingState: TrackSourceRoutingDisplayState(isAvailable: true, pillSummary: "AU Instrument → Master"),
                 accent: StudioTheme.cyan
             )
 

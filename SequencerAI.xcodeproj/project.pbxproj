@@ -84,8 +84,10 @@
 		2957E2D27D11FD9C8A9D4302 /* DestinationSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */; };
 		295A4BEED435806DC5E40E53 /* InspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BDE0286507605D92758E623 /* InspectorView.swift */; };
 		2987BC3A8BE7E469E498B535 /* SessionDestinationMacroTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC3216D89B7D3D550E597D4 /* SessionDestinationMacroTests.swift */; };
+		29E022A02D62985ACEDF8A7F /* TrackRoutingPathSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95ACC91BF6254B6856B167FB /* TrackRoutingPathSummary.swift */; };
 		29E9B826109E864A16A899E8 /* ScalarCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A96D2E2F787B4A142F0A38 /* ScalarCellPreview.swift */; };
 		2A6F6318A13C5404AD761CC0 /* WorkspaceModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D75C7E5ACB62DAE40B89AC /* WorkspaceModeTests.swift */; };
+		2D84B2209B611EBE57485FD8 /* TrackRoutingPathSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2130F4649C642C3D23A0F342 /* TrackRoutingPathSummaryTests.swift */; };
 		2DA942913918429C9F1ECDD4 /* MasterBusStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE7C1979E74747240D5BD60 /* MasterBusStateTests.swift */; };
 		2F5312B2BE640A624AD51374 /* QuantisedToggleScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478D5B4A5A838BB797AD19A5 /* QuantisedToggleScheduler.swift */; };
 		2FBA280F40E6A748D1C7483A /* StepGridCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 351C184AAD302ADC4B726F18 /* StepGridCoordinator.swift */; };
@@ -313,6 +315,7 @@
 		A165D88338847DD38B45532D /* SessionSnapshotPublisherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A3535947AAA3671C9B3D2A /* SessionSnapshotPublisherTests.swift */; };
 		A27E0379DA114C6152495F2F /* TrackRuntimeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0851E79637C9FC5A44D84673 /* TrackRuntimeRegistry.swift */; };
 		A30436CF980B2ADCFE36EC40 /* TrackMixSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BC7DACF1EF2F933F3C2796E /* TrackMixSettings.swift */; };
+		A34AC965C1FB1DEA76543EEA /* TrackRoutingTabContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCEA41E1B79A575F5264617C /* TrackRoutingTabContent.swift */; };
 		A36187DAE7106C5DC5C96669 /* StudioListChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FD6BF65DFD2A9F17300E43 /* StudioListChrome.swift */; };
 		A3CDD28361E970CEE8C6C282 /* PhrasePerformOverlaySessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F9EB8F54530FD81E909628 /* PhrasePerformOverlaySessionTests.swift */; };
 		A41D96EB80354E03A6A7D80F /* EngineController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E31D7113289BE3CB828D500 /* EngineController.swift */; };
@@ -705,6 +708,7 @@
 		21040B7892B3D6595B83765F /* existing-state.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "existing-state.md"; sourceTree = "<group>"; };
 		2111A4CE671E23A6861FF546 /* PlaybackSnapshotBuffersOnlyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSnapshotBuffersOnlyTests.swift; sourceTree = "<group>"; };
 		212909B3247C06B5369DEE7B /* 2026-05-07-p0-track-performance-overlay-engine-session-evidence-resolved.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-07-p0-track-performance-overlay-engine-session-evidence-resolved.md"; sourceTree = "<group>"; };
+		2130F4649C642C3D23A0F342 /* TrackRoutingPathSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackRoutingPathSummaryTests.swift; sourceTree = "<group>"; };
 		216D98EE35E519AF32697669 /* PhraseMatrixLayoutPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseMatrixLayoutPresentationTests.swift; sourceTree = "<group>"; };
 		21765AD5B137A65A23F32A05 /* 2026-05-08T09-36-02Z-holistic-observer-p0-overlay-coherence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T09-36-02Z-holistic-observer-p0-overlay-coherence.md"; sourceTree = "<group>"; };
 		218EEC64BC59CC77FBB8CF2D /* engine-architecture.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "engine-architecture.md"; sourceTree = "<group>"; };
@@ -1351,6 +1355,7 @@
 		94F5C0BDBCD6EB277E6963AB /* QuantisedTogglePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuantisedTogglePresentationTests.swift; sourceTree = "<group>"; };
 		95676F5A2AFC79A54CB017F0 /* Executor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Executor.swift; sourceTree = "<group>"; };
 		95A43D71A01E62FCA95A6586 /* 2026-05-08T11-11-19Z-ux-ia-review-completed.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-08T11-11-19Z-ux-ia-review-completed.md"; sourceTree = "<group>"; };
+		95ACC91BF6254B6856B167FB /* TrackRoutingPathSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackRoutingPathSummary.swift; sourceTree = "<group>"; };
 		966EE154729E17A3DE9E9329 /* validated-screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "validated-screen.png"; sourceTree = "<group>"; };
 		9672E7B19B6CB39CF62317B3 /* EngineControllerMuteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerMuteTests.swift; sourceTree = "<group>"; };
 		9746E27A8EBC5DC275C658E0 /* ux-canon.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-canon.md"; sourceTree = "<group>"; };
@@ -1679,6 +1684,7 @@
 		CCACF6D47020837E3FBDA324 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		CCBD20AD88DE07BAAA0DD021 /* Project+Selection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Selection.swift"; sourceTree = "<group>"; };
 		CCC35AACD0B669F91C60D272 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		CCEA41E1B79A575F5264617C /* TrackRoutingTabContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackRoutingTabContent.swift; sourceTree = "<group>"; };
 		CCFD16A01A2EEB06D6B6C6A1 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
 		CD1A1AC6C6690AB9E9295956 /* AddDestinationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDestinationSheet.swift; sourceTree = "<group>"; };
 		CD2EB37ED3671B8A0DC7F6B3 /* TrackDestinationEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackDestinationEditingTests.swift; sourceTree = "<group>"; };
@@ -2182,6 +2188,8 @@
 			children = (
 				BC0DBE521F50BC3A91EC0A15 /* GeneratorAttachmentControl.swift */,
 				57912ABBC0CEFBFE13662D84 /* TrackPatternSlotPalette.swift */,
+				95ACC91BF6254B6856B167FB /* TrackRoutingPathSummary.swift */,
+				CCEA41E1B79A575F5264617C /* TrackRoutingTabContent.swift */,
 				E4BFBA6DA4AEBBCBF99E7F1C /* TrackSourceActionButton.swift */,
 				CC61EDFD65D7B8063FEE9CB1 /* TrackSourceClipHistoryTabContent.swift */,
 				C4253FFC7984B760498A1B30 /* TrackSourceClipPanel.swift */,
@@ -3364,6 +3372,7 @@
 				BA6431E6B6A4CF15606A414B /* StudioMixerStripScaffoldTests.swift */,
 				BF8772C8554BBCE9F9C6026A /* StudioTypographyTests.swift */,
 				034C9347D990B68BE91CFA66 /* TrackPerformSelectionStateTests.swift */,
+				2130F4649C642C3D23A0F342 /* TrackRoutingPathSummaryTests.swift */,
 				D0ED9814F4772023BA0FC68D /* TrackSourceSourceDisplayStateTests.swift */,
 				1A600A820765DFABD27798E4 /* TracksPageInvalidationTests.swift */,
 				C04AEE099D6FB9303E4DCB83 /* UIReadsStoreDirectlyTests.swift */,
@@ -5536,6 +5545,7 @@
 				808530F1DECBEDFD2A8B1EC1 /* TrackPatternBankDefaultSeedingTests.swift in Sources */,
 				EC010232A948070E2CE5C3D0 /* TrackPatternBankSyncedTests.swift in Sources */,
 				4188653D0B096D54D39F44AB /* TrackPerformSelectionStateTests.swift in Sources */,
+				2D84B2209B611EBE57485FD8 /* TrackRoutingPathSummaryTests.swift in Sources */,
 				7E644B5452556C45E95CE59E /* TrackSourceSourceDisplayStateTests.swift in Sources */,
 				95AF5DC840B4983E9DC22979 /* TrackTypeTests.swift in Sources */,
 				743C9A6E7B10DB1F328845C2 /* TracksPageInvalidationTests.swift in Sources */,
@@ -5801,6 +5811,8 @@
 				A30436CF980B2ADCFE36EC40 /* TrackMixSettings.swift in Sources */,
 				97291714B354CC84D3C90211 /* TrackPatternSlotPalette.swift in Sources */,
 				AE14AF39DEA8AFC6E2B4640B /* TrackPerformSelectionState.swift in Sources */,
+				29E022A02D62985ACEDF8A7F /* TrackRoutingPathSummary.swift in Sources */,
+				A34AC965C1FB1DEA76543EEA /* TrackRoutingTabContent.swift in Sources */,
 				A27E0379DA114C6152495F2F /* TrackRuntimeRegistry.swift in Sources */,
 				496DAD8342ECB5EA42572A49 /* TrackSourceActionButton.swift in Sources */,
 				DEE974187352B2C7D9A9F01A /* TrackSourceCatalog.swift in Sources */,

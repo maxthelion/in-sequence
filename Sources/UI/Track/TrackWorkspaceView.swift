@@ -128,39 +128,32 @@ struct TrackWorkspaceView: View {
                         stepGridWorkspaceModel: stepGridWorkspaceModel
                     )
                 } else {
-                    HStack(alignment: .top, spacing: 18) {
-                        TrackSourceEditorView(
-                            document: $document,
-                            accent: sourceAccent,
-                            stepGridWorkspaceModel: stepGridWorkspaceModel
-                        )
-                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
-                            .layoutPriority(1)
+                    // The permanent right-hand destination column is gone: the
+                    // destination + sends path now lives in the ROUTING tab of
+                    // the track editor (wireframe SS8), so the editor — and the
+                    // surfaces touched constantly — get the full width.
+                    TrackSourceEditorView(
+                        document: $document,
+                        accent: sourceAccent,
+                        stepGridWorkspaceModel: stepGridWorkspaceModel
+                    )
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
 
-                        destinationColumn
-                            .frame(width: 320, alignment: .topLeading)
+                    // Cross-track project routes remain a distinct concern from
+                    // the audio destination; surface them full-width only when
+                    // the track actually sources outbound routes.
+                    if outboundRouteCount > 0 {
+                        StudioPanel(
+                            title: "Project Routes",
+                            eyebrow: "\(outboundRouteCount) outbound project route\(outboundRouteCount == 1 ? "" : "s")",
+                            accent: StudioTheme.violet
+                        ) {
+                            RoutesListView(document: $document)
+                        }
                     }
                 }
             }
             .padding(StudioMetrics.Spacing.section)
-        }
-    }
-
-    private var destinationColumn: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Destination", accent: StudioTheme.success) {
-                TrackDestinationEditor(document: $document)
-            }
-
-            if outboundRouteCount > 0 {
-                StudioPanel(
-                    title: "Routing",
-                    eyebrow: "\(outboundRouteCount) outbound project route\(outboundRouteCount == 1 ? "" : "s")",
-                    accent: StudioTheme.violet
-                ) {
-                    RoutesListView(document: $document)
-                }
-            }
         }
     }
 
