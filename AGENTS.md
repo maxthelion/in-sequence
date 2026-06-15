@@ -14,7 +14,7 @@ artifacts live under `docs/roadmap/`.
 
 ## Current Automation
 
-This repo is a Multi-Pass v2 client. Meta ticks it through the project shim:
+This repo is a Foreman Coordinator client. Meta ticks it through the project shim:
 
 ```sh
 /Users/maxwilliams/dev/in-sequence/project/scripts/tick.sh --write
@@ -23,13 +23,15 @@ This repo is a Multi-Pass v2 client. Meta ticks it through the project shim:
 The shim delegates to the reusable runtime:
 
 ```sh
-bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/tick.ts \
+bun /Users/maxwilliams/dev/foreman-coordinator/src/cli/tick.ts \
   --project /Users/maxwilliams/dev/in-sequence --write
 ```
 
 Do not use the old `.claude/hooks/setup-next-action.sh` or `/next-action`
-behaviour-tree path. That path has been retired because it competed with the
-OODA loop and made agents infer the wrong control model.
+behaviour-tree path. Do not route new work through the old
+`multi-pass-coordinator` binary unless explicitly debugging legacy state. Those
+paths competed with the foreman loop and made agents infer the wrong control
+model.
 
 ## Loop Model
 
@@ -45,21 +47,23 @@ The live coordination shape is OODA:
 
 Actor-to-actor inbox chatter should be rare. Prefer loop-local artifacts:
 
-- `.meta/multipass/loops/<loop-id>/observe/`
-- `.meta/multipass/loops/<loop-id>/orient/`
-- `.meta/multipass/loops/<loop-id>/decide/`
-- `.meta/multipass/loops/<loop-id>/act/` or actor finals under runs
+- `.meta/multipass/runtime/loops/<loop-id>/observe/`
+- `.meta/multipass/runtime/loops/<loop-id>/orient/`
+- `.meta/multipass/runtime/loops/<loop-id>/decide/`
+- `.meta/multipass/runtime/loops/<loop-id>/act/` or actor finals under runs
 
 Runtime inbox and actor logs live under `.meta/multipass/`. Compact durable
-summaries live under `docs/multi-pass-coordinator/state/`.
+summaries live under `.meta/multipass/state/`.
 
 ## Important Files
 
-- `multipass.yaml` configures this repo as a Multi-Pass client.
-- `docs/multi-pass-coordinator/loops/project.yaml` is the top-level project loop.
-- `docs/multi-pass-coordinator/loops/build/*.yaml` are active feature build loops.
-- `docs/multi-pass-coordinator/state/` holds compact current-state summaries.
-- `/Users/maxwilliams/dev/multi-pass-coordinator/actors/` holds central actor prompts.
+- `.meta/foreman/foreman.yaml` configures this repo as a Foreman client.
+- `.meta/multipass/multipass.yaml` is legacy compatibility state during the
+  handover.
+- `.meta/multipass/config/loops/project.yaml` is the top-level project loop.
+- `.meta/multipass/config/loops/build/*.yaml` are active feature build loops.
+- `.meta/multipass/state/` holds compact current-state summaries.
+- `/Users/maxwilliams/dev/foreman-coordinator/actors/` holds central actor prompts.
 - `scripts/visual-scenarios/` holds project-local Peekaboo visual evidence scripts.
 
 ## How To Orient
@@ -67,20 +71,20 @@ summaries live under `docs/multi-pass-coordinator/state/`.
 Run:
 
 ```sh
-bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/inventory.ts \
+bun /Users/maxwilliams/dev/foreman-coordinator/src/cli/inventory.ts \
   --project /Users/maxwilliams/dev/in-sequence
 ```
 
 Then read the current summaries:
 
-- `docs/multi-pass-coordinator/state/work/current-work.md`
-- `docs/multi-pass-coordinator/state/feature-readiness.md`
-- `docs/multi-pass-coordinator/state/holistic-status.md`
-- `docs/multi-pass-coordinator/state/decision-log.md`
-- active build-loop summaries in `docs/multi-pass-coordinator/state/build-loops/`
+- `.meta/multipass/state/work/current-work.md`
+- `.meta/multipass/state/feature-readiness.md`
+- `.meta/multipass/state/holistic-status.md`
+- `.meta/multipass/state/decision-log.md`
+- active build-loop summaries in `.meta/multipass/state/build-loops/`
 
-If those summaries disagree with fresh evidence under `.meta/multipass/loops/`
-or actor finals under `.meta/multipass/runs/`, prefer the fresher evidence and
+If those summaries disagree with fresh evidence under `.meta/multipass/runtime/loops/`
+or actor finals under `.meta/multipass/runtime/runs/`, prefer the fresher evidence and
 update the compact summary through the loop.
 
 ## Working Rules

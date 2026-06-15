@@ -2,6 +2,6 @@
 set -euo pipefail
 
 ROOT="$(git -C "$(dirname "$0")/../.." rev-parse --show-toplevel)"
-RUNTIME="${MULTIPASS_COORDINATOR:-/Users/maxwilliams/dev/multi-pass-coordinator}"
+RUNTIME="${FOREMAN_COORDINATOR:-/Users/maxwilliams/dev/foreman-coordinator}"
 
 exec bun "$RUNTIME/src/cli/tick.ts" --project "$ROOT" "$@"
