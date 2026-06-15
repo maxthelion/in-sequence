@@ -1,0 +1,83 @@
+# Abstraction-Layer Audit — 2026-06-12
+
+Read-only audit of the current working tree (main, post mixer-overhaul / clip-history /
+flat-UI merges). Reference docs: `wiki/pages/engine-architecture.md`,
+`wiki/pages/playback-data-path.md`, `wiki/pages/architecture-guardrails.md`.
+
+## 1. Layer map (as built)
+
+```
+UI (Sources/UI, SwiftUI)
+│ reads:  SequencerDocumentSession (@Observable: store, revision, overlays)
+│         SessionSnapshotPublisher.snapshot        — compiled PlaybackSnapshot for visualisers
+│         EngineController @Observable transport   — publishToMain()'d tick/phrase/transport state
+│         audioInputRuntimeRevision                — manual counter, read via `_ =` to register observation
+│         MasterMeterPublisher / ChannelMeterBank  — TWO 60 Hz main-queue pump timers
+│         CaptureSnapshot                          — 250 ms async poll loop (clip history tab)
+│         NotificationCenter visual commands       — 9 string channels, fixture-only
+│ writes: session typed mutations (~120 methods: mutateClip/mutateTrack/batch/ensureClipAndMutate)
+│         session performance paths (setTrackMix … : store → scoped engine → narrow snapshot → debounced flush)
+│         direct EngineController calls (transport, BPM, audition override, live master crossfader/gain,
+│         scene macro overrides; audio-input goes through session wrappers)
+│         ThrottledMixValue (drag-local @Published holder; commit on release)
+├─ App/session (SequencerDocumentSession + extensions)
+│   LiveSequencerStore (resident truth, UInt64 revision)
+│   SnapshotChange-scoped compile → EngineController.apply(playbackSnapshot:) + SessionSnapshotPublisher.replace
+│   debounced flush → SeqAIDocument.project (persistence/undo); ingestExternalDocumentChange back-path
+│   overlays: PhrasePerformOverlayState (compile-input override), TrackFillPreviewState
+├─ Engine (EngineController 3 524 LOC + TickStateBuffer + executor/blocks)
+│   TickStateBuffer (lock-guarded snapshot, clip capture, audition PseudoClipState)
+│   TrackRuntimeRegistry (AU hosts, audio-input runtimes), RouterDispatchState
+│   MasterBusPerformanceOverlayState (engine-owned perform overlay)
+│   audio-input capture rings + RecordingLibrary persistence (WAV writes on utility queue)
+├─ Audio (MainAudioGraph 1 907 LOC, hosts, SamplePlaybackEngine, meters, master render)
+└─ Document (Project + pools, MasterBus state/overlay types; no upward imports)
+```
+
+Dependency direction matches the wiki (UI→Engine, Engine→Document/Audio). The
+problems below are almost all *parallel paths inside a layer*, not direction
+violations — with one exception (F8: engine mutating `Project`).
+
+## 2. Findings
+
+| # | Kind | Finding | Evidence | Risk | Proposed consolidation (smallest change first) |
+|---|------|---------|----------|------|-----------------------------------------------|
+| F1 | Duplicate write path | Step grid has **two live write paths to the same clip data**. In-grid edits: `ClipContentPreview.commit()` sets optimistic `displayedContent` then replaces *whole* `ClipContent` built from the view's `steps` copy, committed via `ensureClipAndMutate(at: PatternSlotAddress)`. Rotary/batch edits: `StepGridCoordinator.writeAbsoluteValue/onTap` mutate the store entry *in place* via `mutateClip(id: clipID)`. Different keys (slot address vs clip ID), different granularity (replace vs in-place). Flagged "worth watching" by its own author. | `Sources/UI/TrackSource/Clip/ClipContentPreview.swift:144,840-864`; `Sources/UI/TrackSource/TrackSourceEditorView.swift:576-594`; `Sources/StepGrid/StepGridCoordinator.swift:260,290` | Lost-update window between the view's steps copy and the store during rapid edits; identity drift if a slot's clip is reassigned while a selection is active; divergent semantics as layers are added | Route both paths through one mutator: coordinator exposes the edit (or the view calls a session API keyed one way), `displayedContent` remains a pure render cache that is never the source of a commit |
+| F2 | Duplicated semantics | Note-grid step-edit logic implemented **twice**: `ClipNoteGridStepEditing` (documented as "the one note-grid step-editing implementation") and `StepGridCoordinator`'s private statics (`toggleActive`, `setVelocityFraction`, `setChanceFraction`, `ensureActive`, `clearStep`) re-implement the same toggles/velocity/chance writes with slightly different value handling (fractions vs 0–127, slice-gain mapping only in the coordinator). | `Sources/StepGrid/ClipNoteGridStepEditing.swift:1-9` vs `Sources/StepGrid/StepGridCoordinator.swift:474-639` | The two surfaces (grid vs rotary) can drift: same gesture class, different result | Fold coordinator statics onto `ClipNoteGridStepEditing` (add slice-trigger transforms there); tests assert byte-identical output for both call paths |
+| F3 | Duplicate write path | Macro-lane step values: grid drag replaces the whole `macroLanes` dict (`updateMacroLaneFraction` → `onUpdateMacroLanes` → `ensureClipAndMutate { entry.macroLanes = … }`) while the rotary writes one lane in place (`StepGridCoordinator.setMacroValue`). Same shape as F1. | `Sources/UI/TrackSource/Clip/ClipContentPreview.swift:729-742`; `Sources/StepGrid/StepGridCoordinator.swift:581-587` | Same lost-update/divergence class as F1 | Resolve together with F1/F2 |
+| F4 | Parallel components | **Four rotary-knob implementations** drawing the same 0.15→0.85 trimmed arc: `StudioRotaryKnob` (canonical, theme), `MacroKnob`, `MacroSlotKnob`, `SamplerParameterKnob`. The last hand-rolls its `DragGesture` instead of using `StudioDrag.verticalValueGesture`. | `Sources/UI/Theme/StudioRotaryKnob.swift:5`; `Sources/UI/MacroKnobRow.swift:122`; `Sources/UI/TrackDestination/AUMacroSlotKnob.swift:64`; `Sources/UI/SamplerDestinationWidget.swift:451` | Flat-UI styling changes must be made 4×; drag feel/sensitivity already inconsistent | Rebuild `MacroKnob`/`SamplerParameterKnob` as thin wrappers over `StudioRotaryKnob`; keep `MacroSlotKnob` only for its assign/remove affordances, drawing through the shared knob |
+| F5 | Parallel components | **Three private labeled-slider-row helpers** with the same layout (`title / Slider / value`), plus the shared `SourceParameterSliderRow` widget. Only the shared widget throttles via `ThrottledMixValue`; the locals write per drag tick. | `Sources/UI/Mixer/MixerWorkspaceView.swift:371`; `Sources/UI/Mixer/ScenesWorkspaceView.swift:695`; `Sources/UI/Slicer/SliceInspectorView.swift:175`; `Sources/UI/TrackSource/Widgets/SourceParameterSliderRow.swift` | Inconsistent throttling on performance-time controls (guardrail: debounce per gesture); styling drift | Extract `StudioSliderRow` into Theme with `ThrottledMixValue` baked in; delete the three locals |
+| F6 | Duplicate mechanism | **Two 60 Hz main-queue meter pumps**: the master `MasterMeterPublisher` self-pumps with its own `DispatchSourceTimer` while `ChannelMeterBank` runs a second timer pumping every channel publisher. Both started side by side. | `Sources/Audio/MainAudioGraph.swift:593-594,1138-1139,1803-1812`; `Sources/Audio/ChannelMeterBank.swift:85-100` | Two timers in the known Observation-re-entrancy deadlock class where one suffices; divergent start/stop lifecycles | Register the master publisher in the bank (e.g. `ChannelMeterID.master`) and delete the per-publisher timer path |
+| F7 | Missing shared abstraction | **Four transient perform-overlay mechanisms** across three layers: `PhrasePerformOverlayState` (session, applied by hand-rebuilding `LiveSequencerStoreState` field-by-field), `MasterBusPerformanceOverlayState` (engine+host), `TrackFillPreviewState`→`TrackFillPreviewPlaybackSnapshot` (session→engine), `PseudoClipState` audition overrides (TickStateBuffer). Domains differ (justified — see §3), but the phrase overlay's `overlayAppliedCompileInput` copies all 11 state fields manually. | `Sources/App/SequencerDocumentSession.swift:173-197`; `Sources/App/PhrasePerformOverlayState.swift`; `Sources/Document/MasterBus.swift:746`; `Sources/Engine/TickStateBuffer.swift:144` | Adding a field to `LiveSequencerStoreState` silently drops it from overlay-applied compiles | Smallest fix: give `LiveSequencerStoreState` a `replacingPhrase(_:)`/`with(phrasesByID:)` helper so the session never enumerates fields. Larger (later): one "compile-input override" seam the other overlays can also use |
+| F8 | Layer inversion + duplicate path | **Engine writes the document**: `EngineController.saveRollingCapture(to: &project, …)` mutates an exported `Project`, which the session then re-imports with a full engine apply. Meanwhile `saveMaterializedClipToPatternSlot` does the same save with the session/`Project` API directly — two parallel capture-save paths. | `Sources/Engine/EngineController.swift:1390`; `Sources/App/SequencerDocumentSession+Mutations.swift:102-148` | Document-mutation logic split across layers; the two save paths can diverge on naming/slot rules; full export/import round-trip for one clip | Engine returns captured `ClipContent` (API exists: `capturedClipContent`); session funnels both saves through `saveMaterializedClipToPatternSlot` |
+| F9 | Layer leak | **Slicer views do raw audio-file IO**: `try? AVAudioFile(forReading:)` in three view files to get lengths/waveforms, duplicating Audio-layer loaders (`WaveformDownsampler`, `AudioSampleLibrary` metadata read). A second magnitude-bucket downsampler also lives in `AudioInputCaptureStore`. | `Sources/UI/Slicer/SliceTrackWorkspaceView.swift:491,792,947`; `Sources/UI/Slicer/SlicerSourceWidget.swift:495-561`; `Sources/UI/Slicer/SlicerWaveformWindow.swift:164`; `Sources/Audio/WaveformDownsampler.swift:10` vs `Sources/Engine/AudioInputCaptureStore.swift:561` | Blocking file IO on the main thread inside view code; sample-length logic duplicated per view | Add a small sample-metadata/waveform service in `Sources/Audio` (wrapping `WaveformDownsampler` + length read); slicer views call it |
+| F10 | Dead code | `ClipMacroLaneEditor` (282 LOC) has **zero callers** in Sources or Tests — orphaned when the step grid's macro layer took over (it still carries its own `Slider`-based scrubber, a third macro-editing surface on paper). | `Sources/UI/Track/ClipMacroLaneEditor.swift` | Misleads future work into "the third macro editor" | Delete |
+| F11 | Shared-infra duplication | Tiny helpers re-implemented: `Color(hex:)` ×3 (identical), `clamped(to:)` ×6, `subscript(safe:)` ×4, `clampedUnit` ×3, normalized-fraction math in every knob/slide control. | `TracksMatrixView.swift:1784`, `TrackWorkspaceView.swift:418`, `DrumKitMatrixView.swift:1467` (Color); `EngineController.swift:3521`, `MainAudioGraph.swift:1627`, `MasterBusHost.swift:606`, `MixerBusHost.swift:561`, `MasterBus.swift:1027`, `SamplerDestinationWidget.swift:527` (clamp); `StepGridCoordinator.swift:907`, `SequencerSnapshotCompiler.swift:556`, `GeneratedSourceEvaluator.swift:722`, `AddDrumGroupSheet.swift:498` (safe) | Low individually; collectively signals no Support home exists | One `Sources/Platform` (or `Support`) extensions file; mechanical sweep |
+| F12 | Inconsistent publish mechanism | `audioInputRuntimeRevision` is a hand-rolled observation shim: getters execute `_ = audioInputRuntimeRevision` so SwiftUI re-runs on *any* audio-input change — every input panel invalidates on every other track's input activity (over-invalidation by design). `DrumKitMatrixView` similarly re-keys on the global `session.revision`. | `Sources/Engine/EngineController.swift:135,628,644,2557,2642,2863`; `Sources/UI/DrumGroup/DrumKitMatrixView.swift:434` | Unrelated state coupled into one counter; pattern is spreading (it is the path of least resistance) | Acceptable short-term; when the EngineController carve-up extracts the audio-input runtime, give it per-track `@Observable` runtime objects instead of one counter |
+| F13 | Fixture path divergence | The visual-fixture layer drives production through 9 string-typed `NotificationCenter` channels parsed in 10 views, and `VisualScenarioCommandRunner` (1 996 LOC) sometimes calls the engine directly where real UI goes through session wrappers — e.g. audio-input arm: runner calls `engineController.armAudioInput(…, pendingStartTick: 16)`, the button calls `session.armAudioInputTrack(…)`. Fixtures therefore exercise a different write path than users do. | `Sources/UI/VisualScenarioCommandRunner.swift:1841-1888` vs `Sources/UI/Track/TrackWorkspaceView.swift:491-493`; channel names at `Sources/UI/Track/TrackWorkspaceView.swift:406-415` | Visual evidence can pass while the real path is broken (and vice versa) | Rule: the runner may only call session APIs (or post commands that views resolve to their normal handlers); audit the ~6 direct engine writes in the runner |
+| F14 | Mixed observation idioms | `ThrottledMixValue` is the codebase's only `ObservableObject`/`@Published` type (12 `@StateObject` uses) in an otherwise `@Observable` codebase; `InspectorView` duplicates `MixerView`'s fader/pan wiring around it. | `Sources/UI/ThrottledMixControl.swift:6`; `Sources/UI/InspectorView.swift:7-8` | Cosmetic; slight re-render cost difference | Migrate to `@Observable` opportunistically when F5 touches it |
+
+## 3. Looks like duplication, but justified
+
+- **`LiveSequencerStore` resident state vs `Project`** — deliberate live/document split per the guardrails; export/import is the documented boundary, revision-gated.
+- **Engine's snapshot copy (`TickStateBuffer`) vs `SessionSnapshotPublisher`** — same compiled value held twice on purpose: lock-guarded copy for the clock thread, main-actor `@Observable` copy for SwiftUI (documented in `SessionSnapshotPublisher.swift`).
+- **`ClipCaptureService` vs `AudioInputCaptureStore`** — both are rolling capture buffers, but one captures note events on the tick path and the other PCM audio with ring/writer plumbing; payloads and threading contracts differ.
+- **Three asset libraries (`AudioSampleLibrary`, `DrumAssetLibrary`, `RecordingLibrary`)** — per-kind manifests genuinely differ (scan vs JSON manifests vs sidecars); `LibraryAssetCatalog` is the right move: a stateless resolution layer over all three rather than a merged library.
+- **`MixerWorkspaceView` wrapping `MixerView`** — composition (workspace chrome around the strip rail), not a second mixer.
+- **`StudioSlideControl` vs `VerticalLevelFader`** — different orientation, gesture math, and meter integration; sharing only the normalize math (F11) is enough.
+- **`SequencerSnapshotCompiler.compile(project:)` beside `compile(state:)`** — documented transitional shim that delegates to the same compiler.
+- **Per-domain perform overlays (F7)** — phrase cells, master bus, fill preview, and audition genuinely live at different layers (compile input vs AU host vs tick buffer); the finding targets only the fragile hand-copy, not a forced merge.
+
+## 4. Recommended consolidation order (foreman dispatches)
+
+1. **S — Dead code + helper sweep** (F10, F11): delete `ClipMacroLaneEditor`; one Support extensions file for `Color(hex:)`, `clamped(to:)`, `subscript(safe:)`. Zero behavior change.
+2. **S — One note-grid edit implementation** (F2): move `StepGridCoordinator`'s private static transforms onto `ClipNoteGridStepEditing` (adding slice-trigger transforms); parity tests for both call paths.
+3. **S — One meter pump** (F6): master meter registers in `ChannelMeterBank`; delete the per-publisher timer.
+4. **S — `LiveSequencerStoreState` overlay helper** (F7): replace the 11-field hand copy in `overlayAppliedCompileInput` with a `with(phrasesByID:)` initializer.
+5. **M — Single step-grid write path** (F1, F3): after #2, route `ClipContentPreview`/`DrumKitMatrix` commits and coordinator writes through one session entry keyed one way (decide `PatternSlotAddress` vs clip ID once); `displayedContent` stays render-only.
+6. **S — `StudioSliderRow`** (F5, F14): shared themed slider row with `ThrottledMixValue` inside; replace the three locals.
+7. **S — Knob unification** (F4): wrap `MacroKnob`/`SamplerParameterKnob`/`MacroSlotKnob` around `StudioRotaryKnob`.
+8. **M — Capture-save inversion** (F8): `saveRollingCaptureToPatternSlot` consumes `capturedClipContent` + `saveMaterializedClipToPatternSlot`; remove `saveRollingCapture(to: &Project)` from the engine.
+9. **M — Sample metadata service** (F9): Audio-layer length/waveform loader; slicer views stop opening `AVAudioFile`.
+10. **M — Fixture-path parity** (F13): runner calls session wrappers only; optionally a typed visual-command enum replacing raw strings.
+11. **L — Audio-input runtime observation** (F12): per-track observable runtime objects, as part of the existing EngineController carve-up plan (do not start independently).

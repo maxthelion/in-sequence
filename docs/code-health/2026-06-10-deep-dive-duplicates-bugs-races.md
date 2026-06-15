@@ -4,6 +4,11 @@ Date: 2026-06-10. Four parallel audits (duplicates, races, bugs, dead code)
 over `Sources/`, findings hand-verified before acting. Items marked **FIXED**
 landed today; the rest are a prioritized backlog.
 
+Follow-up: `docs/code-health/2026-06-15-realtime-architecture-debt-queue.md`
+is the closeable ledger for the June 12 realtime/concurrency audit class. Use
+that queue for tick/audio/main-thread debt instead of treating the audit prose
+as implicitly closed.
+
 ## Fixed today
 
 1. **Debounce cancel fell through to an immediate flush** — FIXED.
