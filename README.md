@@ -91,24 +91,48 @@ Layers in the phrase view can change this too. Factors like intensity can be fed
 
 ## Agentic development loop
 
-This repo is currently a Multi-Pass v2 client. Meta ticks it through:
+This repo is currently a Foreman Coordinator client, running in a hybrid
+compatibility shape. Meta should tick it through the project shim:
 
 ```sh
-bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/tick.ts --project /Users/maxwilliams/dev/in-sequence --write
+/Users/maxwilliams/dev/in-sequence/project/scripts/tick.sh --write
 ```
 
+The shim delegates to:
+
+```sh
+bun /Users/maxwilliams/dev/foreman-coordinator/src/cli/tick.ts \
+  --project /Users/maxwilliams/dev/in-sequence --write
+```
+
+The lineage matters:
+
+* **Multi-Pass** was the first reusable loop shape, built for Codex. It made
+  the OODA phases explicit and gave us loop manifests, inboxes, actor logs,
+  evidence files, and compact state summaries.
+* **Foreman** was the more judgment-bearing shape explored with the Fable
+  agent. It was better at holding the whole product in view and avoiding
+  over-split process chatter.
+* **Foreman Coordinator** is the current hybrid: it keeps the useful Multi-Pass
+  runtime substrate, but it should operate with Foreman-style judgment, smaller
+  briefs, stronger evidence checks, and fewer ceremonial handoffs. It is the
+  shape we expect Codex to run now.
+
 The product truth still lives here: this README, roadmap artifacts, wiki pages,
-feature worktrees, and durable state summaries under
-`docs/multi-pass-coordinator/state/`.
+feature worktrees, `.foreman/` ledger files, and durable state summaries under
+`.meta/multipass/state/`.
 
-The reusable runtime and default actor prompts live in
-`/Users/maxwilliams/dev/multi-pass-coordinator`. `multipass.yaml` points there
-and configures:
+During the migration, `.meta/foreman/foreman.yaml` points the Foreman
+Coordinator at the existing `.meta/multipass/*` paths. That means the directory
+name is historical compatibility, not a signal to run the old
+`multi-pass-coordinator` binary.
 
-* a frontmatter-routed runtime inbox under `.meta/multipass/inbox`;
-* actor run logs under `.meta/multipass/runs`;
-* loop-local OODA artifacts under `.meta/multipass/loops/<loop-id>/`;
-* active loop manifests under `docs/multi-pass-coordinator/loops`;
+The current runtime configures:
+
+* a frontmatter-routed runtime inbox under `.meta/multipass/runtime/inbox`;
+* actor run logs under `.meta/multipass/runtime/runs`;
+* loop-local OODA artifacts under `.meta/multipass/runtime/loops/<loop-id>/`;
+* active loop manifests under `.meta/multipass/config/loops`;
 * a current build-loop capacity of two active build loops.
 
 Feature implementation should happen in build-loop worktrees, not by leaving
@@ -127,3 +151,8 @@ The intended shape is OODA:
 
 Human attention should be represented as a loop-scoped lock or compact
 product-owner question. It should not block unrelated build or review loops.
+
+The old `.claude` behaviour tree and the old `multi-pass-coordinator` command
+are legacy control paths. They may still contain useful historical evidence, but
+they should not schedule new work unless we are explicitly debugging the
+handover.

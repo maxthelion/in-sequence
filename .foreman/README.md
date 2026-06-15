@@ -1,20 +1,35 @@
 # Foreman
 
-A single judgment-bearing agent loop for this project. It replaces the
-orient/decide/integrate *roles* of the OODA system with one persistent
-context, while keeping the parts of that system that earn their keep:
-definition-of-done checklists, evidence pairing, standing observer lenses,
-and preserved raw intent. Multipass (`.meta/multipass`) continues to exist
-and run independently; the foreman reads its state but never writes its
-inbox or touches its worktrees.
+This directory is the ledger for the Fable-era Foreman experiment and for the
+current Foreman-shaped project memory.
+
+The historical Foreman was a single judgment-bearing loop for this project. It
+replaced the orient/decide/integrate *roles* of the OODA system with one
+persistent context, while keeping the parts of that system that earned their
+keep: definition-of-done checklists, evidence pairing, standing observer lenses,
+and preserved raw intent.
+
+That experiment was created with the Fable agent, which was more powerful than
+the Codex loop available at the time. It produced useful project judgment, but
+it was not the final reusable runtime. The current shape is Foreman Coordinator:
+Codex runs `/Users/maxwilliams/dev/foreman-coordinator`, using
+`.meta/foreman/foreman.yaml` as the live config, while this directory remains a
+compact foreman ledger.
+
+Multi-Pass (`.meta/multipass`) was the earlier Codex-first runtime. Its paths
+are still used as a compatibility bridge for loop manifests, runtime evidence,
+and compact state, but the old `multi-pass-coordinator` binary is not the
+normal scheduler now.
 
 ## How it runs
 
-- `bin/tick.sh` is the wakeup. It does a **cheap deterministic pre-check**
-  (fingerprint of watched inputs: new bug reports, unresolved feedback,
-  branch list, heartbeat age) and only invokes the model when something
-  changed or the heartbeat lapsed. Judgment is never spent on "nothing
-  happened".
+- The live project shim is `project/scripts/tick.sh`, which invokes Foreman
+  Coordinator.
+- `bin/tick.sh` is the older Fable-era wakeup. It is still useful as historical
+  reference for the cheap deterministic pre-check idea: watched inputs included
+  new bug reports, unresolved feedback, branch list, heartbeat age, and rotating
+  observer lenses. Do not assume it is the active scheduler unless a trigger
+  explicitly calls it.
 - The model invocation is one headless session with `PROMPT.md` as its
   standing instructions. The model is configurable (`FOREMAN_MODEL`); the
   prompt is written so a weaker model on the same prompt degrades into
@@ -41,3 +56,10 @@ inbox or touches its worktrees.
 - `full` — fix, dispatch, verify, and merge on green gates without asking.
 - `cautious` — everything stops short of merge/destructive actions; those
   become attention items. **Use this when running a weaker model.**
+
+## Current migration rule
+
+When the Foreman Coordinator and this ledger disagree, prefer fresh committed
+evidence and the live Foreman config. Preserve the lessons from the Fable
+foreman, but route new automation through the Codex-runnable Foreman
+Coordinator path.
