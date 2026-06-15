@@ -118,6 +118,74 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         XCTAssertEqual(fixture.session.store.selectedPhraseID, newPhraseID)
     }
 
+    func test_performOverlayCellAndStagedCountReflectStagedEditsForDirtyRingAndCounter() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        // No edits staged: counter reads zero and no cell is dirty.
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.stagedCellCount, 0)
+        XCTAssertNil(fixture.session.performOverlayCell(
+            phraseID: fixture.phrases[0].id,
+            layerID: fixture.muteLayerID,
+            trackID: fixture.trackID
+        ))
+
+        // Stage one cell on the mute layer.
+        fixture.session.stagePhrasePerformCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            basisPhraseID: fixture.phrases[0].id
+        )
+
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.stagedCellCount, 1)
+        // The dirty-ring lookup the matrix card uses returns the staged cell
+        // for the basis phrase/layer/track...
+        XCTAssertEqual(
+            fixture.session.performOverlayCell(
+                phraseID: fixture.phrases[0].id,
+                layerID: fixture.muteLayerID,
+                trackID: fixture.trackID
+            ),
+            .single(.bool(true))
+        )
+        // ...and nil for a layer that was not edited.
+        XCTAssertNil(fixture.session.performOverlayCell(
+            phraseID: fixture.phrases[0].id,
+            layerID: "volume",
+            trackID: fixture.trackID
+        ))
+        // ...and nil for a different (non-basis) phrase.
+        XCTAssertNil(fixture.session.performOverlayCell(
+            phraseID: fixture.phrases[1].id,
+            layerID: fixture.muteLayerID,
+            trackID: fixture.trackID
+        ))
+
+        // Stage a second distinct cell: the edit counter advances to 2.
+        fixture.session.stagePhrasePerformCell(
+            .single(.scalar(0.5)),
+            layerID: "volume",
+            trackIDs: [fixture.trackID],
+            basisPhraseID: fixture.phrases[0].id
+        )
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.stagedCellCount, 2)
+        XCTAssertNotNil(fixture.session.performOverlayCell(
+            phraseID: fixture.phrases[0].id,
+            layerID: "volume",
+            trackID: fixture.trackID
+        ))
+
+        // Revert clears both the counter and the per-cell dirty indicator.
+        fixture.session.revertPhrasePerformOverlay()
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.stagedCellCount, 0)
+        XCTAssertNil(fixture.session.performOverlayCell(
+            phraseID: fixture.phrases[0].id,
+            layerID: fixture.muteLayerID,
+            trackID: fixture.trackID
+        ))
+    }
+
     func test_dirtyOverlayBlocksBasisPhraseSelectionAndNavigationUntilResolved() {
         let fixture = makeSession()
         defer {

@@ -204,12 +204,6 @@ struct TracksMatrixView: View {
                     } else {
                         if isPresentingPerformLayerSelection {
                             performLayerSelectionSurface
-                        } else if isPerforming {
-                            // The perform-mode tracks page IS the perform
-                            // overview (wireframes §9 + §1 — one surface):
-                            // a row per track with its playable controls,
-                            // macro rack beneath.
-                            performOverviewDashboard
                         } else {
                             matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
                         }
@@ -745,6 +739,11 @@ struct TracksMatrixView: View {
                     activePerformLayer: activePerformLayer,
                     activePerformVariantLabel: performLayerSelection.variantLabel,
                     cell: cell,
+                    isDirty: session.performOverlayCell(
+                        phraseID: editingPhraseID,
+                        layerID: layer.id,
+                        trackID: track.id
+                    ) != nil,
                     isFocused: track.id == selectedTrackID,
                     isPerformSelected: performSelection.contains(track.id),
                     isPerforming: isPerforming,
@@ -1264,33 +1263,17 @@ private struct PhrasePerformCaptureSheet: View {
     }
 
     var body: some View {
-        StudioPanel(title: "Capture Perform Edits", accent: StudioTheme.amber) {
+        StudioModal(
+            title: "Capture Perform Edits",
+            subtitle: "\(stagedCellCount) edit\(stagedCellCount == 1 ? "" : "s") on \(basisName)",
+            accent: StudioTheme.amber,
+            minWidth: 500,
+            onClose: onCancel
+        ) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(stagedCellCount) edit\(stagedCellCount == 1 ? "" : "s") on \(basisName)")
-                            .studioText(.subtitle)
-                            .foregroundStyle(StudioTheme.text)
-
-                        Text("Choose a phrase slot to store the current heard state.")
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-
-                    Spacer(minLength: 20)
-
-                    Button {
-                        onCancel()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .frame(width: 28, height: 28)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Cancel capture")
-                }
+                Text("Choose a phrase slot to store the current heard state.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
 
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(slots) { slot in
@@ -1299,8 +1282,6 @@ private struct PhrasePerformCaptureSheet: View {
                 }
             }
         }
-        .frame(width: 500)
-        .padding(24)
         .accessibilityIdentifier("phrase-perform-capture-sheet")
         .onAppear {
             NotificationCenter.default.post(
@@ -1432,6 +1413,7 @@ private struct TrackMatrixCard: View {
     let activePerformLayer: TrackPerformLayerMode?
     let activePerformVariantLabel: String?
     let cell: PhraseCell
+    let isDirty: Bool
     let isFocused: Bool
     let isPerformSelected: Bool
     let isPerforming: Bool
@@ -1569,6 +1551,7 @@ private struct TrackMatrixCard: View {
                 layer: layer,
                 trackID: track.id,
                 cell: cell,
+                isDirty: isDirty,
                 isFocused: isFocused,
                 isPerformSelected: isPerformSelected,
                 isPerforming: isPerforming,
@@ -1701,6 +1684,7 @@ private struct TrackCardStrokeOverlay: View {
     let layer: PhraseLayerDefinition
     let trackID: UUID
     let cell: PhraseCell
+    let isDirty: Bool
     let isFocused: Bool
     let isPerformSelected: Bool
     let isPerforming: Bool
@@ -1724,7 +1708,7 @@ private struct TrackCardStrokeOverlay: View {
                     pendingMuteTarget != nil ? StudioTheme.amber.opacity(0.9) : strokeColor,
                     style: QuantisedTogglePresentation.strokeStyle(
                         isPending: pendingMuteTarget != nil,
-                        lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth
+                        lineWidth: isFocused || isPerformSelected || isPerforming || isDirty ? 2 : StudioMetrics.borderWidth
                     )
                 )
             if let pendingMuteTarget {
@@ -1756,6 +1740,9 @@ private struct TrackCardStrokeOverlay: View {
     private var strokeColor: Color {
         if isPerformSelected {
             return StudioTheme.amber.opacity(StudioOpacity.accentFill)
+        }
+        if isDirty {
+            return StudioTheme.amber.opacity(0.92)
         }
         if isPerforming, let activePatternColor {
             return activePatternColor.opacity(StudioOpacity.accentFill)
