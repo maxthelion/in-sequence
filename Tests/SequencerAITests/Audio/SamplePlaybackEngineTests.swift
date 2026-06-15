@@ -92,6 +92,18 @@ final class SamplePlaybackEngineTests: XCTestCase {
         XCTAssertNotNil(handle)
     }
 
+    func test_effectivePlaybackTime_clampsStaleHostTimeToImmediate() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let stale = AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: now - 0.05))
+        let future = AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: now + 0.05))
+        let sampleTime = AVAudioTime(sampleTime: 128, atRate: 44_100)
+
+        XCTAssertNil(SamplePlaybackEngine.effectivePlaybackTime(for: nil, now: now))
+        XCTAssertNil(SamplePlaybackEngine.effectivePlaybackTime(for: stale, now: now))
+        XCTAssertTrue(SamplePlaybackEngine.effectivePlaybackTime(for: future, now: now) === future)
+        XCTAssertTrue(SamplePlaybackEngine.effectivePlaybackTime(for: sampleTime, now: now) === sampleTime)
+    }
+
     func test_startRepairsPreparedVoiceGraphBeforePlayback() throws {
         let engine = SamplePlaybackEngine()
         let trackID = UUID()

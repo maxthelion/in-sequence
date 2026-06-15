@@ -180,10 +180,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         guard lifecycleLock.withLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
         return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic) { [self] voice, voiceFilter, params in
+            let effectiveWhen = Self.effectivePlaybackTime(for: when)
             SampleTriggerTrace.schedule(
                 trackID: trackID,
                 sampleURL: sampleURL,
-                scheduledHostTime: when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+                scheduledHostTime: when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) },
+                mode: effectiveWhen == nil ? "immediate" : "scheduled"
             )
             self.scheduleAndStart(
                 voice,
@@ -191,7 +193,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 file: file,
                 settings: settings,
                 params: params,
-                at: when
+                at: effectiveWhen
             )
         }
     }
@@ -217,6 +219,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         guard resolvedEnd > resolvedStart else { return nil }
 
         return playWithPreparedVoice(trackID: trackID, voiceMode: clampedSettings.voiceMode) { [self] voice, voiceFilter, params in
+            let effectiveWhen = Self.effectivePlaybackTime(for: when)
+            SampleTriggerTrace.schedule(
+                trackID: trackID,
+                sampleURL: sampleURL,
+                scheduledHostTime: when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) },
+                mode: effectiveWhen == nil ? "immediate" : "scheduled"
+            )
             self.scheduleAndStartSlice(
                 voice,
                 voiceFilter: voiceFilter,
@@ -226,7 +235,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 endFrame: resolvedEnd,
                 settings: clampedSettings,
                 params: params,
-                at: when,
+                at: effectiveWhen,
                 reverse: reverse,
                 sliceParameters: sliceParameters
             )
@@ -589,6 +598,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     private func linearGain(dB: Double) -> Float {
         Float(pow(10, dB / 20))
+    }
+
+    static func effectivePlaybackTime(for when: AVAudioTime?, now: Double = ProcessInfo.processInfo.systemUptime) -> AVAudioTime? {
+        guard let when else { return nil }
+        guard when.isHostTimeValid else { return when }
+        let scheduled = AVAudioTime.seconds(forHostTime: when.hostTime)
+        return scheduled > now ? when : nil
     }
 
     private func playbackRate(forSemitoneOffset semitones: Int) -> Double {

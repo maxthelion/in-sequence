@@ -100,10 +100,11 @@ For the missing hi-hat class of bugs:
   the sample library could not find the referenced sample ID.
 - `sample drop ... reason=unresolved-file` means the sample record exists, but
   its file reference could not resolve on disk.
-- `sample schedule ... late=...` shows how far the actual voice scheduling work
-  ran after the requested host time. Values near zero are expected. Large
-  positive values mean the sample may have been scheduled too late to hear
-  cleanly.
+- `sample schedule ... late=... mode=scheduled` shows a future host time was
+  preserved for sample-accurate playback.
+- `sample schedule ... late=... mode=immediate` means playback degraded to
+  immediate scheduling. This is expected for nil times and stale host times; it
+  avoids asking `AVAudioPlayerNode` to schedule a short sample in the past.
 - no hi-hat dispatch/drop while kick/snare dispatches appear means the problem
   is upstream: pattern contents, track mute/layer resolution, drum group
   inheritance, or generator output.
