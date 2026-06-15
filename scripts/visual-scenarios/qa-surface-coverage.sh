@@ -74,8 +74,9 @@ CAPTURES=$(cat <<'TABLE'
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop
 26-audio-recording|workspace=track,audioInputArmState=recording|audioInputState=recording;transport=stop
 27-audio-loop-ready|workspace=track,audioInputArmState=hasLoop|audioInputState=completed;transport=stop
-28-drum-part|workspace=track,drumPartHeaderVisible=true|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;transport=stop
-29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
+28-drum-part|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=partEditor|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;drumPartHeaderDiveIn=true;transport=stop
+28b-drum-track-default-kit|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;transport=stop
+29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
 30-drum-kit-matrix-32|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedDisplayStepCount=32|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=32;transport=stop
 31-drum-kit-routing|workspace=track,drumGroupRoutingEditorRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=openRouting;drumGroupRoutingEditorState=channel;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
