@@ -71,7 +71,7 @@ extension EngineController {
         let host = withStateLock { trackRuntime.audioOutputsByTrackID[trackID] }
         host?.setOutputBusID(busID)
 
-        switch track.destination {
+        switch Self.effectiveDestination(for: trackID, in: documentModel).destination {
         case .sample, .slicer:
             sampleEngine.setTrackOutputBus(trackID: trackID, busID: busID)
         default:
@@ -146,7 +146,7 @@ extension EngineController {
                 isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)
             )
             audioOutputs[track.id]?.setMix(effectiveMix)
-            switch track.destination {
+            switch Self.effectiveDestination(for: track.id, in: documentModel).destination {
             case .sample, .slicer:
                 sampleEngine.setTrackMix(
                     trackID: track.id,
@@ -279,7 +279,7 @@ extension EngineController {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
         var sampleTrackIDs: Set<UUID> = []
         for track in documentModel.tracks {
-            switch track.destination {
+            switch Self.effectiveDestination(for: track.id, in: documentModel).destination {
             case .sample, .slicer:
                 break
             default:

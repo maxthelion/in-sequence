@@ -143,6 +143,112 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(spy.playCalls.count, 4, "manual processTick driving should dispatch one sample trigger per fired step")
     }
 
+    func test_factory808Kit_dispatchesKickAndHatWhenBothFireOnSameStep() throws {
+        for category in ["snare", "hatClosed", "clap"] {
+            let directory = libraryRoot.appendingPathComponent(category)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try writeSilentWAV(to: directory.appendingPathComponent("\(category)-default.wav"), sampleRate: 48_000)
+        }
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let hat = try XCTUnwrap(library.firstSample(in: .hatClosed))
+        let spy = SpySamplePlaybackSink()
+        var project = Project.empty
+
+        let groupID = try XCTUnwrap(project.addDrumGroup(
+            plan: DrumKitFixtures.templatedPlan(named: "808"),
+            library: library,
+            templateLookup: DrumKitFixtures.factoryTemplateLookup
+        ))
+        let group = try XCTUnwrap(project.trackGroups.first(where: { $0.id == groupID }))
+        let members = Dictionary(uniqueKeysWithValues: group.memberIDs.compactMap { memberID -> (VoiceTag, UUID)? in
+            guard let track = project.tracks.first(where: { $0.id == memberID }),
+                  let voiceTag = track.voiceTag
+            else { return nil }
+            return (voiceTag, track.id)
+        })
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
+
+        let triggeredTrackIDs = Set(spy.playCalls.map(\.2))
+        let triggeredSampleIDs = Set(spy.playCalls.compactMap { call -> UUID? in
+            library.samples.first { sample in
+                (try? sample.fileRef.resolve(libraryRoot: library.libraryRoot)) == call.0
+            }?.id
+        })
+
+        XCTAssertTrue(triggeredTrackIDs.contains(try XCTUnwrap(members["kick"])))
+        XCTAssertTrue(triggeredTrackIDs.contains(try XCTUnwrap(members["hat-closed"])))
+        XCTAssertTrue(triggeredSampleIDs.contains(kick.id))
+        XCTAssertTrue(triggeredSampleIDs.contains(hat.id))
+        XCTAssertEqual(spy.playCalls.count, 2, "808 step 0 should trigger kick and closed hat, not let one suppress the other")
+    }
+
+    func test_inheritedSampleDestination_preparesMixerAndDispatchesTrigger() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+        let groupID = UUID(uuidString: "91919191-9191-9191-9191-919191919191")!
+        let trackID = UUID(uuidString: "92929292-9292-9292-9292-929292929292")!
+        let track = StepSequenceTrack(
+            id: trackID,
+            name: "Inherited Kick",
+            voiceTag: "kick",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .inheritGroup,
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            trackGroups: [
+                TrackGroup(
+                    id: groupID,
+                    name: "Shared Sampler Kit",
+                    memberIDs: [track.id],
+                    sharedDestination: .sample(sampleID: kick.id, settings: .default)
+                )
+            ],
+            generatorPool: [generator],
+            layers: layers,
+            patternBanks: [
+                TrackPatternBank(
+                    trackID: track.id,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+                )
+            ],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
+
+        XCTAssertTrue(spy.prepareTrackCalls.contains(track.id))
+        XCTAssertEqual(spy.playCalls.map(\.2), [track.id])
+        XCTAssertEqual(spy.playCalls.first?.0, try kick.fileRef.resolve(libraryRoot: library.libraryRoot))
+    }
+
     func test_noteRepeatSampleDestinationPassesDistinctScheduledTimesForSixtyFourthRepeats() throws {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         let kick = try XCTUnwrap(library.firstSample(in: .kick))

@@ -1715,7 +1715,7 @@ final class EngineController: RouterDispatcher {
                   case let .notes(events)? = outputs[generatorID]?["notes"],
                   !events.isEmpty
             else { continue }
-            switch track.destination {
+            switch playbackSnapshot.resolvedDestination(for: track.id).destination {
             case let .sample(sampleID, settings):
                 for _ in events {
                     eventQueue.enqueue(ScheduledEvent(
