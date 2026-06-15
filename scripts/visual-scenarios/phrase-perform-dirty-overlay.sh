@@ -42,7 +42,7 @@ Status from this script run: ${scenario_status}.
 
 Captured state:
 
-- \`tracks-matrix-dirty-overlay.png\`: Tracks Matrix dirty Save Back/Revert strip.
+- \`tracks-matrix-dirty-overlay.png\`: Tracks Matrix dirty Capture/Revert strip.
 - \`tracks-matrix-capture-chooser.png\`: Capture action opened with the 4x4 phrase-slot chooser.
 
 The sidecar \`tracks-matrix-dirty-overlay.status\` records
