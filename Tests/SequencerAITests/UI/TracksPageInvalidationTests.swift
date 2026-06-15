@@ -266,7 +266,53 @@ final class TracksPageInvalidationTests: XCTestCase {
         XCTAssertEqual(
             cardEvaluations, 0,
             "Transport ticks must not re-build the track cards in perform mode " +
-            "(\(cardEvaluations) card-content evaluations for \(tickCount) ticks)."
+            "(\(cardEvaluations) card-content evaluations for \(tickCount) ticks). " +
+            "In perform mode this closure builds the perform-overview dashboard " +
+            "rows (the ForEach item closure bumps the same counter); a tick-rate " +
+            "read in the dashboard body or a row body would re-build every row " +
+            "per tick."
+        )
+    }
+
+    /// Perform-mode positive control for the dashboard leaf path: the
+    /// perform-overview dashboard reaches the SAME playhead-leaf budget as the
+    /// edit-mode matrix. The fixture's step/bar-varying cells mean the
+    /// dashboard's pattern/mute leaves must keep re-evaluating while ticks
+    /// advance — so the perform-mode budget assertion above (page=0, rows=0)
+    /// is proven non-vacuous: ticks DO reach the leaves, just not the bodies.
+    func test_transportTicks_reachDashboardLeaves_only_performMode() throws {
+        let harness = try makeHarness(mode: .perform)
+        defer { harness.window.close() }
+
+        drainMainRunLoop()
+        TracksPageInvalidationProbe.reset()
+
+        let tickCount = 32
+        driveTicks(tickCount, engine: harness.engine)
+
+        let pageEvaluations = TracksPageInvalidationProbe.pageBodyEvaluations
+        let rowEvaluations = TracksPageInvalidationProbe.cardContentEvaluations
+        let leafEvaluations = TracksPageInvalidationProbe.playheadLeafEvaluations
+        print("[TracksPageInvalidation] perform mode leaves: \(tickCount) ticks → " +
+              "pageBodyEvaluations=\(pageEvaluations), " +
+              "rowBodyEvaluations=\(rowEvaluations), " +
+              "playheadLeafEvaluations=\(leafEvaluations)")
+
+        XCTAssertEqual(
+            pageEvaluations, 0,
+            "perform-mode ticks must not re-evaluate the page body"
+        )
+        XCTAssertEqual(
+            rowEvaluations, 0,
+            "perform-mode ticks must not re-build the dashboard rows " +
+            "(\(rowEvaluations) row-body evaluations for \(tickCount) ticks)"
+        )
+        XCTAssertGreaterThan(
+            leafEvaluations, 0,
+            "Perform-overview leaves (pattern / mute cells) must re-evaluate " +
+            "while ticks advance — zero leaf evaluations means the dashboard " +
+            "did not render in the harness, which would make the perform-mode " +
+            "budget assertions pass vacuously."
         )
     }
 }
