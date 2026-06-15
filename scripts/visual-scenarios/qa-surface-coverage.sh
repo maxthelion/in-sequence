@@ -10,6 +10,7 @@ set -euo pipefail
 #
 # Adding QA coverage = adding a row. Analysis of the output folder is the only
 # step that needs human/LLM judgment.
+# Set QA_SURFACE_CAPTURE_FILTER to run only rows whose names contain that text.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -31,6 +32,7 @@ case "$command_file" in
 esac
 status_file="${command_file}.status"
 WB="120,80,1100,780"
+capture_filter="${QA_SURFACE_CAPTURE_FILTER:-}"
 captured_count=0
 scenario_status="started; no captures completed yet"
 
@@ -43,6 +45,8 @@ CAPTURES=$(cat <<'TABLE'
 03-tracks-perform|workspace=tracks,tracksMode=perform,trackPerformLayerMode=pattern|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=pattern;transport=stop
 04-mixer|workspace=mixer|workspace=mixer;transport=stop
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
+05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
+05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
 06-scenes-perform|workspace=scenes,scenesMode=perform|scenesMode=perform;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
 08-phrase-mute-layer|workspace=phrase,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerID=mute;transport=stop
@@ -62,6 +66,9 @@ CAPTURES=$(cat <<'TABLE'
 22-track-history-tab|workspace=track,trackSourceTab=history|trackFillSource=generator;trackSourceTab=history;transport=stop
 22b-track-routing-tab|workspace=track,trackSourceTab=routing|trackFillSource=clip;trackSourceTab=routing;workspaceMode=setup;transport=stop
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
+23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
+23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop
+23c-track-slicer-chance-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=chance|slicerFixture=populated;slicerLayer=chance;workspaceScroll=bottom;transport=stop
 24-audio-idle|workspace=track,selectedTrackType=audioInput|audioInputFixture=idle;audioInputAvailableChannels=0;transport=stop
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop
 26-audio-recording|workspace=track,audioInputArmState=recording|audioInputState=recording;transport=stop
@@ -138,6 +145,15 @@ run_capture_row() {
   waits="$(printf '%s' "$row" | cut -d'|' -f2)"
   payload="$(printf '%s' "$row" | cut -d'|' -f3- | tr ';' '\n')"
 
+  if [[ "$name" == *drum-kit-matrix* ]] &&
+     [[ "$payload" != *"drumKitMatrixCommand=openRouting"* ]] &&
+     [[ "$payload" != *"drumKitMatrixCommand=open-routing"* ]]; then
+    write_visual_command "windowFrame=$WB
+drumKitMatrixCommand=closeRouting
+transport=stop"
+    wait_for_status "drumKitMatrixRenderedRoutingEditorVisible" "false" 10
+  fi
+
   write_visual_command "windowFrame=$WB
 $payload"
 
@@ -197,11 +213,11 @@ cleanup() {
   write_visual_command "transport=stop
 noteRepeatAction=release" 2>/dev/null || true
   sleep 2
-  pgrep -x "$APP_NAME" 2>/dev/null | while read -r leftover_pid; do
+  (pgrep -x "$APP_NAME" 2>/dev/null || true) | while read -r leftover_pid; do
     kill "$leftover_pid" 2>/dev/null || true
   done
   sleep 1
-  pgrep -x "$APP_NAME" 2>/dev/null | while read -r leftover_pid; do
+  (pgrep -x "$APP_NAME" 2>/dev/null || true) | while read -r leftover_pid; do
     kill -9 "$leftover_pid" 2>/dev/null || true
   done
   launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
@@ -264,6 +280,10 @@ ensure_new_document_keyboard "$pid"
 
 while IFS= read -r row; do
   [ -n "$row" ] || continue
+  if [ -n "$capture_filter" ]; then
+    row_name="${row%%|*}"
+    [[ "$row_name" == *"$capture_filter"* ]] || continue
+  fi
   run_capture_row "$pid" "$row"
 done <<< "$CAPTURES"
 
