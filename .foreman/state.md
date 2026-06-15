@@ -24,6 +24,26 @@ tomorrow." Slices in order (each: worktree → gate → land):
 >> audits for exploratory work. Build-out resumes at slice 5
 >> capture-edits.
 >>
+>> SLICE 5 IN PROGRESS: ~351 lines of interrupted capture-edits build
+>> found uncommitted in the worktree → PRESERVED (33917956) →
+>> critic-read verdict FINISH IN PLACE (feature-complete vs §3, reuses
+>> phrasePerformOverlay, one compile blocker: missing
+>> trackPerformCaptureRenderedVisualState Notification.Name).
+>> Finish-and-gate agent dispatched (fix+gate, NO merge). On its green
+>> return: run the MANDATORY adversarial critic pass, then land. Slices
+>> 6-7 follow.
+>>
+>> SLICE 5 PRODUCT FORK RESOLVED BY MAX (2026-06-15): perform-mode
+>> tracks should use the existing layered track-card matrix; the
+>> row-per-track dashboard is not the right shape for this surface, and
+>> macros should live somewhere else. Current branch
+>> feature/perform-capture-edits contains the capture machinery plus the
+>> layout correction (0d51ba80 + 9b0d9300). Still needed before landing:
+>> clean full gate after coreaudiod is restarted; then mandatory critic
+>> pass should verify the corrected layered-card direction rather than
+>> re-escalating the old dashboard-vs-matrix fork. Slices 6-7 wait behind
+>> the gate/land of slice 5, not behind another product answer.
+>>
 >> TIDY (nit, no rush): rename TrackRoutingTabContent ->
 >> TrackSourceRoutingTabContent for sibling-naming consistency; ride a
 >> future slice that touches the area (avoid a standalone re-gate). Deferred-feature seams the perform
