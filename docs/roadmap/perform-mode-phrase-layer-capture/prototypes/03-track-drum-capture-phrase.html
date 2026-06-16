@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Track Drum Capture Phrase Wireframe</title>
+  <style>
+    :root {
+      --bg:#f4f4f4; --panel:#fff; --ink:#202020; --muted:#6c6c6c; --line:#707070;
+      --stub:#dedede; --accent:#1f6feb; --selected:#d7e7ff; --pending:#fff3c4;
+      --success:#dff3df; --changed:#ffe1c6; --error:#ffd6d6;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; border:2px solid var(--line); background:var(--panel); padding:8px 10px; min-height:36px; cursor:pointer; }
+    button.primary { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    button.stub { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .app { width:min(1320px, calc(100vw - 32px)); margin:16px auto; border:2px solid var(--line); background:var(--panel); min-height:calc(100vh - 32px); }
+    .top { display:grid; grid-template-columns:210px 1fr 260px; gap:12px; padding:14px; border-bottom:2px solid var(--line); align-items:center; }
+    .brand { font-size:22px; font-weight:800; }
+    .transport,.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav { display:flex; gap:8px; padding:12px 14px; border-bottom:2px solid var(--line); }
+    .nav button.active { background:var(--selected); border-color:var(--accent); }
+    .body { padding:22px; display:grid; grid-template-columns:220px 1fr; gap:18px; }
+    .panel { border:2px solid var(--line); padding:14px; background:var(--panel); }
+    h1,h2,h3 { margin:0; }
+    h1 { font-size:24px; }
+    h2 { font-size:17px; margin-bottom:10px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:16px 0 8px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.4; }
+    .pill { border:2px solid var(--line); padding:5px 9px; background:var(--panel); min-width:58px; text-align:center; }
+    .pill.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .pill.pending { background:var(--pending); border-style:dashed; }
+    .tabs { display:grid; gap:8px; }
+    .tabs button { text-align:left; }
+    .tabs button.active { background:var(--selected); border-color:var(--accent); font-weight:700; }
+    .state-grid { display:grid; grid-template-columns:160px 1fr 120px; gap:8px; align-items:stretch; }
+    .cell { border:2px solid var(--line); padding:10px; min-height:54px; background:var(--panel); }
+    .cell.head { font-weight:700; background:var(--stub); }
+    .cell.on { background:var(--success); border-color:var(--accent); }
+    .cell.pending { background:var(--pending); border-style:dashed; }
+    .cell.changed { background:var(--changed); }
+    .section { display:none; }
+    .section.active { display:block; }
+    .kit { display:grid; grid-template-columns:120px repeat(8, 1fr); gap:6px; align-items:center; }
+    .step { height:42px; border:2px solid var(--line); display:grid; place-items:center; background:var(--panel); }
+    .step.on { background:var(--selected); border-color:var(--accent); }
+    .step.pending { background:var(--pending); border-style:dashed; }
+    .part { border:2px solid var(--line); padding:10px; font-weight:700; background:var(--stub); }
+    .macro-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; }
+    .macro { border:2px dashed var(--line); min-height:80px; display:grid; place-items:center; color:var(--muted); background:var(--stub); }
+    .macro.assigned { border-style:solid; color:var(--ink); background:var(--changed); }
+    .drawer { display:none; margin-top:14px; border:2px solid var(--line); padding:14px; background:var(--panel); }
+    .drawer.open { display:block; }
+    .matrix4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+    .slot { min-height:60px; border:2px solid var(--line); display:grid; place-items:center; text-align:center; background:var(--panel); }
+    .slot.current { background:var(--success); }
+    .slot.changed { background:var(--changed); }
+    .slot.empty { border-style:dashed; color:var(--muted); }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:8px 12px; display:none; }
+    .toast.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">Track In Phrase</div>
+      <div class="transport">
+        <button class="stub" onclick="toast('transport stub')">Play</button>
+        <span class="pill on">Phrase A</span>
+        <span class="pill">copy: live edits</span>
+        <span class="pill pending">3 uncaptured changes</span>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button onclick="toggleCapture()">Capture</button>
+        <button class="primary">Perform</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="stub">Perform home</button>
+      <button class="stub">Layer</button>
+      <button class="active">Track / Drum</button>
+      <button class="stub">Scenes</button>
+    </div>
+    <div class="body">
+      <aside class="panel">
+        <h2>Perform Detail</h2>
+        <div class="tabs">
+          <button id="tabTrack" class="active" onclick="setPrototypeState('track-detail')">Main Track</button>
+          <button id="tabDrum" onclick="setPrototypeState('drum-group')">808 Bones</button>
+          <button id="tabCapture" onclick="setPrototypeState('capture-phrase')">Capture Phrase</button>
+          <button class="stub" onclick="toast('scene detail stub')">Scene A/B</button>
+        </div>
+        <p class="hint">Detail pages are phrase-aware: values shown here are the values active in Phrase A or its staged copy.</p>
+      </aside>
+      <main class="panel">
+        <section id="trackDetail" class="section active">
+          <h1>Main Track</h1>
+          <p class="hint">Track page reflects the phrase currently playing. Fill Preview becomes Fill in Phrase.</p>
+          <h3>Layer values in Phrase A</h3>
+          <div class="state-grid">
+            <div class="cell head">Layer</div><div class="cell head">Mapping</div><div class="cell head">Value</div>
+            <div class="cell">Pattern</div><div class="cell on">single value for whole phrase</div><button class="cell on">P1 active</button>
+            <div class="cell">Mute</div><div class="cell">single value</div><button class="cell">playing</button>
+            <div class="cell">Fill</div><div class="cell changed">single value in staged copy</div><button class="cell pending">on next bar</button>
+            <div class="cell">Repeat</div><div class="cell">per bar</div><button class="cell">1/16 on bars 7-8</button>
+            <div class="cell">Volume</div><div class="cell">continuous event data</div><button class="cell">4 events</button>
+          </div>
+          <h3>Macros</h3>
+          <div class="macro-grid">
+            <div class="macro assigned">M1 cutoff<br><span class="hint">74%</span></div>
+            <div class="macro assigned">M2 drive<br><span class="hint">12%</span></div>
+            <div class="macro">M3 assign in setup</div>
+            <div class="macro">M4 assign in setup</div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="primary" onclick="toast('captured fill + repeat edits into phrase copy')">Capture phrase changes</button>
+            <button>Revert track changes</button>
+          </div>
+        </section>
+
+        <section id="drumGroup" class="section">
+          <h1>808 Bones</h1>
+          <p class="hint">Pattern and clip-like settings are shared by the kit by default. Part-level mute is allowed without making parts feel like unrelated tracks.</p>
+          <div class="row">
+            <span class="pill on">Kit pattern P1 shared</span>
+            <span class="pill">Layer: part mute</span>
+            <span class="pill pending">Hat mute queued</span>
+          </div>
+          <h3>Part Mute Layer</h3>
+          <div class="kit">
+            <div class="part">Part</div><div class="part">1</div><div class="part">2</div><div class="part">3</div><div class="part">4</div><div class="part">5</div><div class="part">6</div><div class="part">7</div><div class="part">8</div>
+            <div class="part">Kick</div><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button>
+            <div class="part">Snare</div><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button><button class="step on">on</button>
+            <div class="part">Hat</div><button class="step on">on</button><button class="step pending">mute</button><button class="step pending">mute</button><button class="step on">on</button><button class="step on">on</button><button class="step pending">mute</button><button class="step on">on</button><button class="step on">on</button>
+            <div class="part">Clap</div><button class="step">off</button><button class="step">off</button><button class="step on">on</button><button class="step">off</button><button class="step">off</button><button class="step">off</button><button class="step on">on</button><button class="step">off</button>
+          </div>
+          <h3>Capture candidates</h3>
+          <div class="two">
+            <div class="cell changed"><b>Chance produced nice hat variation</b><br><span class="hint">Capture kit phrase or capture Hat clip/pattern.</span></div>
+            <div class="cell"><b>Mixed pattern warning</b><br><span class="hint">If parts diverge from shared P1, show it as exceptional, not normal.</span></div>
+          </div>
+        </section>
+
+        <section id="capturePhrase" class="section">
+          <h1>Capture</h1>
+          <p class="hint">Transport-level capture can branch into track output or phrase-state printing.</p>
+          <div class="two">
+            <div class="cell changed">
+              <h2>Capture Clip</h2>
+              <p class="hint">Choose a track, then save recent generated/performed output into a pattern slot.</p>
+              <div class="matrix4">
+                <button class="slot current">Main Track<br>P3</button>
+                <button class="slot">808 Bones<br>kit</button>
+                <button class="slot">Atlantis<br>P5</button>
+                <button class="slot empty">Select track</button>
+              </div>
+            </div>
+            <div class="cell changed">
+              <h2>Capture Phrase</h2>
+              <p class="hint">Print layer, scene, crossfader, macro, and continuous changes into a phrase copy.</p>
+              <div class="matrix4">
+                <button class="slot current">Phrase A<br>current</button>
+                <button class="slot changed">A copy<br>new</button>
+                <button class="slot">Phrase B<br>overwrite</button>
+                <button class="slot empty">Empty slot</button>
+              </div>
+            </div>
+          </div>
+          <h3>Captured event summary</h3>
+          <div class="state-grid">
+            <div class="cell head">Kind</div><div class="cell head">Source</div><div class="cell head">Output</div>
+            <div class="cell">Layer changes</div><div class="cell">track fill, repeat, mute</div><div class="cell on">phrase copy</div>
+            <div class="cell">Scene crossfader</div><div class="cell">A/B value moves</div><div class="cell on">event data</div>
+            <div class="cell">Clip history</div><div class="cell">selected track recent output</div><div class="cell">pattern slot</div>
+          </div>
+        </section>
+
+        <div id="captureDrawer" class="drawer">
+          <h3>Capture menu</h3>
+          <div class="row">
+            <button class="primary" onclick="setPrototypeState('capture-phrase')">Capture phrase</button>
+            <button onclick="toast('choose track first')">Capture clip</button>
+            <button>Cancel</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1200);
+    }
+    function toggleCapture() {
+      document.getElementById('captureDrawer').classList.toggle('open');
+    }
+    function setPrototypeState(state) {
+      const sections = {
+        'track-detail': ['trackDetail', 'tabTrack'],
+        'drum-group': ['drumGroup', 'tabDrum'],
+        'capture-phrase': ['capturePhrase', 'tabCapture']
+      };
+      for (const key of Object.keys(sections)) {
+        document.getElementById(sections[key][0]).classList.toggle('active', key === state);
+        document.getElementById(sections[key][1]).classList.toggle('active', key === state);
+      }
+      document.getElementById('captureDrawer').classList.toggle('open', state === 'capture-phrase');
+    }
+    window.setPrototypeState = setPrototypeState;
+  </script>
+</body>
+</html>
+

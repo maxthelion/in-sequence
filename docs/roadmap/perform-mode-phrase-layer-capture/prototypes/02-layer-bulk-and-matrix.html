@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layer Bulk And Matrix Wireframe</title>
+  <style>
+    :root {
+      --bg:#f4f4f4; --panel:#fff; --ink:#202020; --muted:#6c6c6c; --line:#707070;
+      --stub:#dedede; --accent:#1f6feb; --selected:#d7e7ff; --pending:#fff3c4;
+      --success:#dff3df; --changed:#ffe1c6; --error:#ffd6d6;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; border:2px solid var(--line); background:var(--panel); padding:8px 10px; min-height:36px; cursor:pointer; }
+    button.primary { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    button.stub { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .app { width:min(1320px, calc(100vw - 32px)); margin:16px auto; border:2px solid var(--line); background:var(--panel); min-height:calc(100vh - 32px); }
+    .top { display:grid; grid-template-columns:210px 1fr 250px; gap:12px; padding:14px; border-bottom:2px solid var(--line); align-items:center; }
+    .brand { font-size:22px; font-weight:800; }
+    .transport,.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav { display:flex; gap:8px; padding:12px 14px; border-bottom:2px solid var(--line); }
+    .nav button.active { background:var(--selected); border-color:var(--accent); }
+    .body { padding:22px; display:grid; gap:18px; }
+    .toolbar,.panel { border:2px solid var(--line); padding:14px; background:var(--panel); }
+    .layout { display:grid; grid-template-columns:270px 1fr; gap:18px; }
+    h1,h2,h3 { margin:0; }
+    h1 { font-size:24px; }
+    h2 { font-size:17px; margin-bottom:10px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:16px 0 8px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.4; }
+    .pill { border:2px solid var(--line); padding:5px 9px; background:var(--panel); min-width:58px; text-align:center; }
+    .pill.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .track-list { display:grid; gap:8px; }
+    .track { border:2px solid var(--line); padding:10px; display:grid; grid-template-columns:22px 1fr auto; gap:8px; align-items:center; }
+    .track.selected { background:var(--selected); border-color:var(--accent); }
+    .box { width:18px; height:18px; border:2px solid var(--line); display:inline-block; }
+    .selected .box { background:var(--accent); }
+    .layer-options { display:grid; grid-template-columns:repeat(4, minmax(130px, 1fr)); gap:10px; }
+    .option { border:2px solid var(--line); min-height:86px; padding:10px; background:var(--panel); display:flex; flex-direction:column; justify-content:space-between; }
+    .option.selected { border-color:var(--accent); background:var(--selected); }
+    .option.changed { background:var(--changed); }
+    .confirm { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .matrix { display:grid; grid-template-columns:160px repeat(6, minmax(105px, 1fr)); gap:8px; align-items:stretch; }
+    .head,.cell { border:2px solid var(--line); min-height:58px; padding:10px; background:var(--panel); }
+    .head { font-weight:700; background:var(--stub); }
+    .cell { display:flex; align-items:center; justify-content:center; text-align:center; }
+    .cell.on { background:var(--success); border-color:var(--accent); }
+    .cell.pending { background:var(--pending); border-style:dashed; }
+    .cell.off { color:var(--muted); }
+    .cell.drum { outline:3px solid var(--changed); }
+    .side-note { border:2px dashed var(--line); padding:12px; background:var(--stub); color:var(--muted); }
+    .hidden { display:none; }
+    .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:8px 12px; display:none; }
+    .toast.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">Layer Perform</div>
+      <div class="transport">
+        <button class="stub" onclick="toast('transport stub')">Play</button>
+        <span class="pill on">Phrase A</span>
+        <span class="pill">bar 3/8</span>
+        <span class="pill">Q: bar</span>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button onclick="setPrototypeState('bulk-pattern')">Bulk Apply</button>
+        <button onclick="setPrototypeState('layer-matrix-mute')" class="primary">Matrix</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="stub">Perform home</button>
+      <button class="active">Layer</button>
+      <button class="stub">Track detail</button>
+      <button class="stub">Scenes</button>
+    </div>
+    <div class="body">
+      <div class="toolbar">
+        <div class="row">
+          <button id="modeBulk" class="primary" onclick="setPrototypeState('bulk-pattern')">Bulk apply to selection</button>
+          <button id="modeMatrix" onclick="setPrototypeState('layer-matrix-mute')">Layer perform matrix</button>
+          <span class="hint">Primary budget: select layer/value and apply in <= 2 interactions after tracks are selected.</span>
+        </div>
+      </div>
+
+      <section id="bulkView" class="layout">
+        <aside class="panel">
+          <h2>Track Selection</h2>
+          <div class="row" style="margin-bottom:10px"><button class="primary">All tracks</button><button>Clear</button></div>
+          <div class="track-list">
+            <div class="track selected"><span class="box"></span><div><b>Main Track</b><br><span class="hint">mono</span></div><span>P1</span></div>
+            <div class="track selected"><span class="box"></span><div><b>Atlantis Amen</b><br><span class="hint">slice</span></div><span>P5</span></div>
+            <div class="track selected"><span class="box"></span><div><b>Poly 3 With A Long Name</b><br><span class="hint">poly</span></div><span>P3</span></div>
+            <div class="track"><span class="box"></span><div><b>808 Bones</b><br><span class="hint">drum group</span></div><span>kit</span></div>
+            <div class="track"><span class="box"></span><div><b>Input Loop</b><br><span class="hint">audio</span></div><span>live</span></div>
+          </div>
+        </aside>
+        <main class="panel">
+          <h2>Apply Layer Value</h2>
+          <p class="hint">All layer options are visible at once. Choosing a value shows an explicit batch apply footer.</p>
+          <h3>Pattern</h3>
+          <div class="layer-options">
+            <button class="option selected"><b>P1</b><span class="hint">current for 1 track</span></button>
+            <button class="option changed"><b>P2</b><span class="hint">apply to selected</span></button>
+            <button class="option"><b>P3</b><span class="hint">current for 1 track</span></button>
+            <button class="option"><b>P4</b><span class="hint">empty</span></button>
+          </div>
+          <h3>Common toggles</h3>
+          <div class="layer-options">
+            <button class="option"><b>Mute off</b><span class="hint">3 selected differ</span></button>
+            <button class="option changed"><b>Fill on</b><span class="hint">armed in phrase copy</span></button>
+            <button class="option"><b>Repeat 1/16</b><span class="hint">note repeat</span></button>
+            <button class="option"><b>Step order: Reverse</b><span class="hint">performance map</span></button>
+          </div>
+          <div class="row" style="margin-top:16px">
+            <button class="confirm" onclick="toast('applied to selected tracks in phrase copy')">Apply Fill On To 3 Tracks</button>
+            <button>Cancel</button>
+            <span class="hint">Writes to a staged copy of Phrase A until captured.</span>
+          </div>
+        </main>
+      </section>
+
+      <section id="matrixView" class="panel hidden">
+        <h2>Layer Perform Matrix</h2>
+        <div class="row" style="margin-bottom:12px">
+          <button id="layerPattern" onclick="setPrototypeState('layer-matrix-pattern')">Pattern</button>
+          <button id="layerMute" class="primary" onclick="setPrototypeState('layer-matrix-mute')">Mute</button>
+          <button>Fill</button>
+          <button>Repeat</button>
+          <button>Volume</button>
+          <button class="stub" onclick="toast('variant management elsewhere')">Manage variants</button>
+        </div>
+        <div class="matrix" id="patternMatrix">
+          <div class="head">Track</div><div class="head">Main</div><div class="head">Amen</div><div class="head">Poly 3</div><div class="head">808 Bones</div><div class="head">Input Loop</div><div class="head">Long Track Name</div>
+          <div class="head">Pattern</div><button class="cell on">P1</button><button class="cell">P5</button><button class="cell on">P3</button><button class="cell drum">Kit P1</button><button class="cell">Live</button><button class="cell pending">P8 queued</button>
+          <div class="head">Phrase mapping</div><div class="cell">single</div><div class="cell">per bar</div><div class="cell">single</div><div class="cell drum">shared kit</div><div class="cell">source per pattern</div><div class="cell">continuous?</div>
+        </div>
+        <div class="matrix hidden" id="muteMatrix">
+          <div class="head">Track</div><div class="head">Main</div><div class="head">Amen</div><div class="head">Poly 3</div><div class="head">808 Bones</div><div class="head">Input Loop</div><div class="head">Long Track Name</div>
+          <div class="head">Mute</div><button class="cell off">playing</button><button class="cell on">muted</button><button class="cell off">playing</button><button class="cell drum">parts...</button><button class="cell off">live</button><button class="cell pending">mute next bar</button>
+          <div class="head">Latch</div><div class="cell">toggle</div><div class="cell">toggle</div><div class="cell">momentary</div><div class="cell drum">part layer</div><div class="cell">toggle</div><div class="cell">toggle</div>
+        </div>
+        <div class="side-note" style="margin-top:14px">
+          Drum groups show as one track column. Part-level mute is reached from the drum-group detail, not by exploding parts into unrelated track cards.
+        </div>
+      </section>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1200);
+    }
+    function setPrototypeState(state) {
+      const bulk = document.getElementById('bulkView');
+      const matrix = document.getElementById('matrixView');
+      const modeBulk = document.getElementById('modeBulk');
+      const modeMatrix = document.getElementById('modeMatrix');
+      const pattern = document.getElementById('patternMatrix');
+      const mute = document.getElementById('muteMatrix');
+      const layerPattern = document.getElementById('layerPattern');
+      const layerMute = document.getElementById('layerMute');
+      bulk.classList.toggle('hidden', !state.startsWith('bulk'));
+      matrix.classList.toggle('hidden', state.startsWith('bulk'));
+      modeBulk.classList.toggle('primary', state.startsWith('bulk'));
+      modeMatrix.classList.toggle('primary', !state.startsWith('bulk'));
+      pattern.classList.toggle('hidden', state !== 'layer-matrix-pattern');
+      mute.classList.toggle('hidden', state !== 'layer-matrix-mute');
+      layerPattern.classList.toggle('primary', state === 'layer-matrix-pattern');
+      layerMute.classList.toggle('primary', state === 'layer-matrix-mute');
+    }
+    window.setPrototypeState = setPrototypeState;
+    setPrototypeState('bulk-pattern');
+  </script>
+</body>
+</html>
+

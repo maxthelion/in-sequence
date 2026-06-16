@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perform Home And Phrase Cue Wireframe</title>
+  <style>
+    :root {
+      --bg: #f4f4f4;
+      --panel: #ffffff;
+      --ink: #1f1f1f;
+      --muted: #707070;
+      --line: #6f6f6f;
+      --stub: #dcdcdc;
+      --accent: #1f6feb;
+      --selected: #d7e7ff;
+      --pending: #fff3c4;
+      --success: #dff3df;
+      --changed: #ffe1c6;
+      --error: #ffd6d6;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button { font: inherit; border: 2px solid var(--line); background: var(--panel); padding: 8px 12px; min-height: 36px; cursor: pointer; }
+    button.primary { border-color: var(--accent); background: var(--selected); font-weight: 700; }
+    button.stub { border-style: dashed; color: var(--muted); background: var(--stub); }
+    .app { width: min(1280px, calc(100vw - 32px)); margin: 16px auto; border: 2px solid var(--line); background: var(--panel); min-height: calc(100vh - 32px); }
+    .top { display: grid; grid-template-columns: 180px 1fr 310px; gap: 12px; padding: 14px; border-bottom: 2px solid var(--line); align-items: center; }
+    .brand { font-weight: 800; font-size: 22px; }
+    .transport { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .status { border: 2px solid var(--line); padding: 8px 10px; background: var(--success); min-width: 180px; }
+    .status.pending { background: var(--pending); }
+    .nav { display: flex; gap: 8px; padding: 12px 14px; border-bottom: 2px solid var(--line); }
+    .nav button.active { border-color: var(--accent); background: var(--selected); }
+    .body { padding: 22px; display: grid; grid-template-columns: 280px 1fr; gap: 22px; }
+    .rail, .stage, .drawer { border: 2px solid var(--line); padding: 16px; background: var(--panel); }
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 17px; margin-bottom: 12px; }
+    h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 8px; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .tilegrid { display: grid; grid-template-columns: repeat(2, minmax(210px, 1fr)); gap: 14px; }
+    .tile { border: 2px solid var(--line); min-height: 144px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; }
+    .tile.primary { border-color: var(--accent); background: var(--selected); }
+    .tile.stub { border-style: dashed; background: var(--stub); color: var(--muted); }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .pill { border: 2px solid var(--line); padding: 5px 9px; background: var(--panel); min-width: 62px; text-align: center; }
+    .pill.on { border-color: var(--accent); background: var(--selected); font-weight: 700; }
+    .phrase-list { display: grid; gap: 8px; }
+    .phrase { border: 2px solid var(--line); padding: 10px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+    .phrase.current { background: var(--success); }
+    .phrase.queued { background: var(--pending); }
+    .drawer { display: none; margin-top: 16px; }
+    .drawer.open { display: block; }
+    .matrix4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+    .slot { min-height: 58px; border: 2px solid var(--line); display: grid; place-items: center; text-align: center; background: var(--panel); }
+    .slot.current { background: var(--success); }
+    .slot.queued { background: var(--pending); }
+    .slot.empty { border-style: dashed; color: var(--muted); }
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: white; padding: 8px 12px; display: none; }
+    .toast.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">SequencerAI</div>
+      <div class="transport">
+        <button class="primary" onclick="toast('stubbed transport')">Play</button>
+        <button>Stop</button>
+        <span class="pill">BPM 120</span>
+        <button>Song</button>
+        <button class="primary">Free</button>
+        <button id="phraseButton" class="status" onclick="toggleCue()">Phrase A / bar 3 of 8</button>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button onclick="setPrototypeState('capture-open')">Capture</button>
+        <button class="primary">Perform</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="active">Perform</button>
+      <button class="stub" onclick="toast('stubbed page')">Phrase</button>
+      <button class="stub" onclick="toast('stubbed page')">Tracks</button>
+      <button class="stub" onclick="toast('stubbed page')">Scenes</button>
+      <button class="stub" onclick="toast('stubbed page')">Mixer</button>
+    </div>
+    <div class="body">
+      <aside class="rail">
+        <h2>Current Phrase</h2>
+        <div class="phrase-list">
+          <div class="phrase current"><div><b>Phrase A</b><br><span class="hint">8 bars, repeats forever</span></div><span>now</span></div>
+          <div class="phrase queued"><div><b>Phrase B</b><br><span class="hint">queued at cycle end</span></div><button onclick="queuePhrase('B')">cue</button></div>
+          <div class="phrase"><div><b>Breakdown</b><br><span class="hint">4 bars, 2 repeats</span></div><button onclick="queuePhrase('Breakdown')">cue</button></div>
+          <div class="phrase"><div><b>Build With A Very Long Name</b><br><span class="hint">12 bars, manual</span></div><button onclick="queuePhrase('Build')">cue</button></div>
+        </div>
+        <div id="cueDrawer" class="drawer">
+          <h3>Phrase Cue Drawer</h3>
+          <div class="row"><button class="primary">Cue at cycle end</button><button>Switch now</button></div>
+          <div class="row" style="margin-top:10px"><span class="pill on">8 bars</span><span class="pill">1x</span><span class="pill on">Loop</span></div>
+          <p class="hint">Transport owns current and next phrase. Phrase page remains for arranging and editing.</p>
+        </div>
+      </aside>
+      <main class="stage">
+        <h1>Perform</h1>
+        <p class="hint">Primary goal: choose the kind of live operation in <= 1 interaction. Off-path pages are stubs.</p>
+        <div class="tilegrid">
+          <div class="tile primary">
+            <div><h2>Layer Across Tracks</h2><p class="hint">Select tracks, see all layer options, apply one value to the selection.</p></div>
+            <button onclick="toast('open wireframe 02 bulk apply')">Open</button>
+          </div>
+          <div class="tile">
+            <div><h2>Layer Perform Matrix</h2><p class="hint">Pick one layer, then see one changer per track in a matrix.</p></div>
+            <button onclick="toast('open wireframe 02 matrix')">Open</button>
+          </div>
+          <div class="tile">
+            <div><h2>Track / Drum Perform</h2><p class="hint">Change one running track, its phrase state, macros, or drum-group parts.</p></div>
+            <button onclick="toast('open wireframe 03')">Open</button>
+          </div>
+          <div class="tile">
+            <div><h2>Scene Crossfade</h2><p class="hint">Scene A/B, crossfader value, and phrase-contained scene automation.</p></div>
+            <button onclick="toast('stubbed scene perform')">Open</button>
+          </div>
+        </div>
+        <div id="captureDrawer" class="drawer">
+          <h3>Capture Menu</h3>
+          <div class="matrix4">
+            <button class="slot current" onclick="toast('choose track then save pattern')">Capture Clip<br><span class="hint">track output to pattern</span></button>
+            <button class="slot queued" onclick="toast('print edits into phrase copy')">Capture Phrase<br><span class="hint">layer, scene, macro changes</span></button>
+            <button class="slot empty" onclick="toast('future')">Capture Scene</button>
+            <button class="slot empty" onclick="toast('future')">Capture Audio</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1200);
+    }
+    function toggleCue() {
+      document.getElementById('cueDrawer').classList.toggle('open');
+    }
+    function queuePhrase(name) {
+      document.getElementById('phraseButton').textContent = 'Phrase A / queued: ' + name;
+      document.getElementById('phraseButton').classList.add('pending');
+    }
+    function setPrototypeState(state) {
+      document.getElementById('cueDrawer').classList.remove('open');
+      document.getElementById('captureDrawer').classList.remove('open');
+      document.getElementById('phraseButton').classList.remove('pending');
+      document.getElementById('phraseButton').textContent = 'Phrase A / bar 3 of 8';
+      if (state === 'cue-open') document.getElementById('cueDrawer').classList.add('open');
+      if (state === 'capture-open') document.getElementById('captureDrawer').classList.add('open');
+      if (state === 'home') return;
+    }
+    window.setPrototypeState = setPrototypeState;
+  </script>
+</body>
+</html>
+
