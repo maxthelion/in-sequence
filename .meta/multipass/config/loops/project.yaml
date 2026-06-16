@@ -76,25 +76,19 @@ actors:
         alignment/grid issues, unreadable controls, default styling leaks,
         screen-level user-story fit, and cross-screen design patterns. Write
         observations only; orienter/decider route any follow-up.
-  orient:
-    - actor: orienter
-      cadence: 15m
-      tick: >
-        Interpret project observations, evidence pairings, build capacity,
-        merge/rebase facts, and current intent. Record what the state means;
-        do not schedule work.
   decide:
     - actor: decider
       cadence: 10m
       tick: >
-        Decide the next useful project-level action from fresh orientation,
-        feature-readiness observations, active build-loop state, and build
-        capacity. Use the v2 build-capacity CLI as context, not as a decision
-        engine. Promote at most one ready feature into a build loop when there
-        is capacity and the product priority is clear. If build capacity is
-        available but no feature is ready, treat upstream starvation as a real
-        throughput issue and start or advance one PM lane unless higher-priority
-        active work would conflict with it.
+        Act as the project foreman: synthesize the fresh observer batch into a
+        compact orientation snapshot, then decide the next useful project-level
+        action in the same run. Use feature-readiness observations, bug intake,
+        active build-loop state, and build capacity as context, not as a
+        decision engine. Promote at most one ready feature into a build loop
+        when there is capacity and the product priority is clear. If build
+        capacity is available but no feature is ready, treat upstream starvation
+        as a real throughput issue and start or advance one PM lane unless
+        higher-priority active work would conflict with it.
   act:
     - actor: implementer
       cadence: on_inbox
