@@ -18,7 +18,7 @@ runtime:
   runs: .meta/multipass/runtime/runs
   state: .meta/multipass/state
   activity: .meta/multipass/runtime/activity.ndjson
-  max_starts_per_tick: 1
+  max_starts_per_tick: 3
   actor_timeout_seconds: 1500
   actor_execution: async
   flow_control:
