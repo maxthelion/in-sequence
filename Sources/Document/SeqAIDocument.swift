@@ -22,14 +22,17 @@ final class SeqAIDocument: ReferenceFileDocument {
         self.project = try JSONDecoder().decode(Project.self, from: data)
     }
 
-    /// Called by SwiftUI on the main thread before `fileWrapper(snapshot:configuration:)`.
+    /// Called by SwiftUI/AppKit before `fileWrapper(snapshot:configuration:)`.
     /// Flushes any pending live-store edits into `self.project` so the save always
-    /// captures the freshest state, even within the debounce window.
+    /// captures the freshest state when the snapshot hook is invoked on main.
     func snapshot(contentType: UTType) throws -> Project {
-        // SwiftUI calls snapshot(contentType:) on the main thread. We assume that
-        // invariant here so we can safely access @MainActor-isolated registry state.
-        MainActor.assumeIsolated {
-            SequencerDocumentSessionRegistry.session(for: self)?.flushToDocumentSync()
+        // SwiftUI/AppKit can invoke ReferenceFileDocument serialization on a
+        // background save queue. Do not sync-hop to main from here: during save
+        // AppKit may already be waiting on the worker, which would deadlock.
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                SequencerDocumentSessionRegistry.session(for: self)?.flushToDocumentSync()
+            }
         }
         return project
     }

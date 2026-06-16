@@ -295,4 +295,16 @@ final class SaveFlushTests: XCTestCase {
         let returned = try doc.snapshot(contentType: .seqAIDocument)
         XCTAssertEqual(returned, project)
     }
+
+    func test_snapshot_onBackgroundSaveQueue_doesNotTrap() throws {
+        let (project, _, _) = makeLiveStoreProject()
+        let doc = SeqAIDocument(project: project)
+        let queue = DispatchQueue(label: "SaveFlushTests.background-save")
+
+        let returned = try queue.sync {
+            try doc.snapshot(contentType: .seqAIDocument)
+        }
+
+        XCTAssertEqual(returned, project)
+    }
 }
