@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Codex/Ghostty sessions can export C.UTF-8, which macOS' system perl does
+# not always provide. `shasum` uses perl, so force a local-safe locale before
+# hashing watched inputs.
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+export LC_CTYPE="${LC_CTYPE:-en_US.UTF-8}"
+export LANG="${LANG:-en_US.UTF-8}"
+if [ "$LC_ALL" = "C.UTF-8" ]; then export LC_ALL="en_US.UTF-8"; fi
+if [ "$LC_CTYPE" = "C.UTF-8" ]; then export LC_CTYPE="en_US.UTF-8"; fi
+if [ "$LANG" = "C.UTF-8" ]; then export LANG="en_US.UTF-8"; fi
+
 # Foreman pre-check, shared by every trigger mechanism (tick.sh, /loop,
 # scheduled sessions). Deterministically decides whether a tick is worth
 # spending judgment on.
