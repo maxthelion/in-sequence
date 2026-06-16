@@ -20,13 +20,6 @@ struct MixerWorkspaceView: View {
                 StudioPanel(title: "Mixer", accent: StudioTheme.cyan, showsHeader: false) {
                     masterAwareMixer(presentation: presentation)
                 }
-
-                StudioPanel(title: "Voice Routes", eyebrow: "Future drum and sliced-loop mixer coverage", accent: StudioTheme.violet) {
-                    VStack(spacing: 12) {
-                        StudioPlaceholderTile(title: "Tagged Voices", detail: "Drum and slice tracks")
-                        StudioPlaceholderTile(title: "Per-Voice Treatment", detail: "Mute, bus, FX, and gain")
-                    }
-                }
             }
             .padding(StudioMetrics.Spacing.section)
             .onChange(of: presentation.usesCompactOverlay) {
