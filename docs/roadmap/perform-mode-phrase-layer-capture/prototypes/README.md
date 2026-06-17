@@ -10,7 +10,7 @@
   drum-group perform detail, and capture clip/phrase menu.
 - `04-phrase-matrix-system-v2.html`: replacement direction that keeps all major
   pages in one matrix-first phrase system: Song, Phrase, Phrase Layers, Phrase
-  Scenes, Phrase Cell Edit, Performance Groups, and Tracks.
+  Scenes, Phrase Cell Edit, and Tracks.
 
 ## Renderable States
 
@@ -30,7 +30,6 @@
 - `setPrototypeState("phrase-layers")`
 - `setPrototypeState("phrase-scenes")`
 - `setPrototypeState("phrase-cell")`
-- `setPrototypeState("performance-groups")`
 - `setPrototypeState("phrase-cue")`
 - `setPrototypeState("capture-menu")`
 

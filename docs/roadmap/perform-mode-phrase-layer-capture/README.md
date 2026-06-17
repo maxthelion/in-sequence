@@ -27,6 +27,7 @@ Exploratory wireframes for a richer perform-mode information architecture:
 ## Feedback
 
 - [feedback/2026-06-17-perform-phrase-time-values.md](feedback/2026-06-17-perform-phrase-time-values.md)
+- [feedback/2026-06-17-defer-performance-groups.md](feedback/2026-06-17-defer-performance-groups.md)
 
 ## Reference Captures Used
 

@@ -7,9 +7,9 @@ version treats perform as a phrase-scoped instrument state:
 
 - the transport has a current phrase button;
 - song view is a phrase matrix, not a task list;
-- phrase view owns layer, scene, cell, and performance group modes;
-- tracks view is simple selection/opening, with group creation as the main
-  action;
+- phrase view owns layer, scene, and cell modes;
+- tracks view is simple selection/opening, with selection used only as scope for
+  phrase-layer changes;
 - capture remains transport-level but intentionally light in this pass.
 
 ## Main IA
@@ -22,9 +22,8 @@ The hierarchy is:
   - overview matrix;
   - phrase layers / layer perform;
   - phrase scenes;
-  - selected phrase cell edit;
-  - performance groups.
-- Tracks: select tracks, open tracks, add tracks, or make a performance group.
+  - selected phrase cell edit.
+- Tracks: select tracks, open tracks, or add tracks.
 - Mixer and Scenes: global setup/management stubs for this prototype.
 
 ## Perform Definition
@@ -34,9 +33,8 @@ The prototype takes a position on the open question:
 Perform means editing a live copy of the current phrase while playback continues.
 The live copy can be printed/captured into a phrase, or discarded.
 
-This lets layer changes, scene crossfader moves, and grouped track changes share
-one mental model. It also avoids making "perform" a separate business-style
-process flow.
+This lets layer changes and scene crossfader moves share one mental model. It
+also avoids making "perform" a separate business-style process flow.
 
 ## Phrase Values Over Time
 
@@ -80,7 +78,6 @@ Matrices are used as the main interaction surface:
 - layer-per-track perform matrix;
 - scene A/crossfader/B by phrase/bar;
 - selected cell by bar;
-- performance group matrix;
 - track selection grid.
 
 Non-matrix controls only switch mode, set scope, or expose off-path stubs.
@@ -90,5 +87,9 @@ Non-matrix controls only switch mode, set scope, or expose off-path stubs.
 Capture is placed but not fully solved. The prototype keeps a transport-level
 Capture menu with Capture Phrase and Capture Clip options, but does not design
 the full history/capture workflow again.
+
+Performance groups are deliberately left out of this prototype. The concept
+needs more thought before it becomes visible IA; track selection remains only as
+a temporary scope for applying phrase-layer changes.
 
 Cue-output preview is also deferred.

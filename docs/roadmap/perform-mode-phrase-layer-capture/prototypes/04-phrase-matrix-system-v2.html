@@ -291,7 +291,6 @@
           <button id="modeLayers" onclick="showPhraseMode('layers')">Phrase Layers</button>
           <button id="modeScenes" onclick="showPhraseMode('scenes')">Phrase Scenes</button>
           <button id="modeCell" onclick="showPhraseMode('cell')">Cell Edit</button>
-          <button id="modeGroups" onclick="showPhraseMode('groups')">Performance Groups</button>
         </div>
         <div class="side-note">
           Perform means live edits are made against a phrase copy. Commit by capturing/printing the phrase copy, or discard it.
@@ -400,7 +399,7 @@
               <button id="layerFill" onclick="setLayer('Fill')">Fill</button>
               <button id="layerRepeat" onclick="setLayer('Repeat')">Repeat</button>
               <span class="grow"></span>
-              <button onclick="showPhraseMode('groups')">Limit to group</button>
+              <span class="pill">scope: selected tracks</span>
             </div>
             <div class="matrix phrase-matrix" id="layerMatrix"></div>
           </div>
@@ -481,49 +480,16 @@
             </div>
           </div>
 
-          <div id="phraseGroups" class="phrase-mode" style="display:none">
-            <div class="toolbar">
-              <span class="pill selected">Performance groups</span>
-              <button onclick="toast('selected tracks became group')">Create group from selection</button>
-              <button onclick="toast('group perform mode switched')">Mode: one layer</button>
-              <button onclick="toast('group perform mode switched')">Mode: same value</button>
-            </div>
-            <div class="matrix tracks-matrix">
-              <button class="cell selected"><span class="value">Melody pair</span><span>Main + Atlantis</span><span class="label">perform one layer</span></button>
-              <button class="cell current"><span class="value">808 Bones</span><span>Kick Snare Hat Clap</span><span class="label">same pattern, part mute</span></button>
-              <button class="cell"><span class="value">Bass pair</span><span>Poly + Mono</span><span class="label">same value</span></button>
-              <button class="cell empty">+ group</button>
-            </div>
-            <h3>Group Matrix</h3>
-            <div class="matrix phrase-matrix" style="grid-template-columns: 120px repeat(4, 1fr);">
-              <div class="cell head">Layer</div>
-              <div class="cell head">Melody pair</div>
-              <div class="cell head">808 Bones</div>
-              <div class="cell head">Bass pair</div>
-              <div class="cell head">All selected</div>
-              <div class="cell head">Pattern</div>
-              <button class="cell selected">P3 to both</button>
-              <button class="cell success">P1 shared</button>
-              <button class="cell">mixed</button>
-              <button class="cell changed">apply P5</button>
-              <div class="cell head">Mute</div>
-              <button class="cell">play</button>
-              <button class="cell changed">hat muted</button>
-              <button class="cell">play</button>
-              <button class="cell">toggle all</button>
-            </div>
-          </div>
         </section>
 
         <section id="pageTracks" class="page">
           <div class="page-head">
             <div>
               <h1>Tracks</h1>
-              <p class="note">Top-level tracks page is simple: select tracks, open a track, or make a performance group. It is not another perform workflow dashboard.</p>
+              <p class="note">Top-level tracks page is simple: select tracks, open a track, or add tracks. Selection can scope phrase-layer changes without creating a new group model in this prototype.</p>
             </div>
             <div class="row right">
               <button id="selectionToggle" class="primary" onclick="toggleSelection()">Selection On</button>
-              <button onclick="showPage('phrase'); showPhraseMode('groups')">Make Group</button>
               <button class="stub" onclick="toast('add track modal stub')">Add Track</button>
             </div>
           </div>
@@ -549,8 +515,7 @@
       overview: ['phraseOverview', 'modeOverview', 'Phrase A / Overview Matrix', 'Tracks run across the columns. The selected phrase mode decides what each cell edits.'],
       layers: ['phraseLayers', 'modeLayers', 'Phrase A / Phrase Layers', 'One active layer becomes a matrix of controls across tracks. This is layer perform.'],
       scenes: ['phraseScenes', 'modeScenes', 'Phrase A / Scene Values', 'Phrase scene mode edits A, B, and crossfader values for the phrase or bars inside it.'],
-      cell: ['phraseCell', 'modeCell', 'Phrase A / Cell Edit', 'A selected phrase cell can be single value, per bar, or continuous events.'],
-      groups: ['phraseGroups', 'modeGroups', 'Phrase A / Performance Groups', 'Groups constrain which tracks a performance matrix affects.']
+      cell: ['phraseCell', 'modeCell', 'Phrase A / Cell Edit', 'A selected phrase cell can be single value, per bar, or continuous events.']
     };
     const pages = {
       song: ['pageSong', 'navSong'],
@@ -650,7 +615,6 @@
       if (state === 'phrase-layers') showPhraseMode('layers');
       if (state === 'phrase-scenes') showPhraseMode('scenes');
       if (state === 'phrase-cell') showPhraseMode('cell');
-      if (state === 'performance-groups') showPhraseMode('groups');
       if (state === 'phrase-cue') document.getElementById('phraseCue').classList.add('open');
       if (state === 'capture-menu') document.getElementById('captureMenu').classList.add('open');
     }
