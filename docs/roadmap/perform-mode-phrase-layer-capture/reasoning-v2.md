@@ -45,6 +45,8 @@ Default state:
 
 - a phrase layer value has a single value for the whole phrase unless something
   more specific has been recorded;
+- in phrase layers mode, the value and its bar/event map are two visible parts
+  of one phrase cell, not separate rows or separate layers;
 - the UI should therefore show the simple value first, and reveal per-bar or
   event detail only when the phrase actually contains it or the user chooses to
   edit at that level.
@@ -75,7 +77,8 @@ Matrices are used as the main interaction surface:
 
 - phrase slots in song view;
 - track/layer cells in phrase overview;
-- layer-per-track perform matrix;
+- layer-per-track perform matrix, with each track represented as a phrase cell
+  containing both the current layer value and its bar map;
 - scene A/crossfader/B by phrase/bar;
 - selected cell by bar;
 - track selection grid.

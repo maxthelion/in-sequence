@@ -401,7 +401,7 @@
               <span class="grow"></span>
               <span class="pill">scope: selected tracks</span>
             </div>
-            <div class="matrix phrase-matrix" id="layerMatrix"></div>
+            <div class="matrix tracks-matrix" id="layerMatrix"></div>
           </div>
 
           <div id="phraseScenes" class="phrase-mode" style="display:none">
@@ -570,23 +570,26 @@
       });
       const matrix = document.getElementById('layerMatrix');
       const values = layerData[layer];
+      matrix.className = 'matrix tracks-matrix';
       matrix.innerHTML = '';
-      matrix.appendChild(cell('Layer', 'head'));
-      tracks.forEach(track => matrix.appendChild(cell(track, 'head')));
-      matrix.appendChild(cell(layer, 'head'));
       values.forEach((value, index) => {
         const classes = [];
         if ((layer === 'Pattern' && index === 0) || (layer === 'Fill' && index === 0)) classes.push('selected');
         if (String(value).includes('mute') || value === 'on') classes.push('changed');
-        matrix.appendChild(cell(value, classes.join(' '), () => toast(layer + ' set on ' + tracks[index])));
-      });
-      matrix.appendChild(cell('bar map', 'head'));
-      values.forEach((_, index) => {
         const el = document.createElement('button');
-        el.className = 'cell';
-        el.innerHTML = '<span class="mini-bars">' +
-          Array.from({ length: 8 }, (_x, i) => '<i class="' + ((i + index) % 3 === 0 ? 'on' : '') + '"></i>').join('') +
-          '</span><span class="label">per-bar preview</span>';
+        const hasPerBar = classes.includes('changed') || (layer === 'Pattern' && index === 2);
+        el.className = 'cell ' + classes.join(' ');
+        el.innerHTML =
+          '<span class="label">' + tracks[index] + ' / ' + layer + '</span>' +
+          '<span class="value">' + value + '</span>' +
+          '<span class="mini-bars">' +
+          Array.from({ length: 8 }, (_x, i) => {
+            const on = hasPerBar ? ((i + index) % 3 === 0) : i === 0;
+            const changed = hasPerBar && ((i + index) % 4 === 0);
+            return '<i class="' + (changed ? 'changed' : on ? 'on' : '') + '"></i>';
+          }).join('') +
+          '</span>' +
+          '<span class="label">' + (hasPerBar ? 'bar map overrides' : 'single value, whole phrase') + '</span>';
         el.onclick = () => showPhraseMode('cell');
         matrix.appendChild(el);
       });
