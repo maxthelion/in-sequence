@@ -194,15 +194,39 @@
       background: var(--paper);
       font-size: 12px;
     }
-    .cell-part {
-      border-top: 1px solid var(--line);
-      padding-top: 5px;
-      display: grid;
-      gap: 4px;
+    .phrase-card {
+      min-height: 156px;
+      grid-template-rows: auto auto 1fr auto;
     }
-    .cell-part:first-child { border-top: 0; padding-top: 0; }
-    .part-label { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
-    .part-value { font-size: 16px; font-weight: 800; }
+    .layer-strip {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .layer-chip {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      padding: 3px 5px;
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .layer-chip.changed { background: var(--changed); }
+    .layer-chip.inherit { border-style: dashed; color: var(--muted); }
+    .tiny-bars {
+      display: inline-grid;
+      grid-template-columns: repeat(4, 7px);
+      gap: 2px;
+      height: 12px;
+      align-items: stretch;
+    }
+    .tiny-bars i { border: 1px solid var(--line); background: var(--paper); }
+    .tiny-bars i.on { background: var(--accent); }
+    .tiny-bars i.changed { background: var(--changed); }
 
     .mini-bars {
       display: grid;
@@ -445,7 +469,7 @@
           <div class="page-head">
             <div>
               <h1>Phrase A / Overview</h1>
-              <p class="note">Overview shows one phrase cell per track. Each track cell contains the relevant layer values and their timing maps.</p>
+              <p class="note">Overview shows one card-like phrase cell per track. Layer values sit inside the card as compact chips.</p>
             </div>
             <div class="row right">
               <span class="pill selected">editing live copy</span>
@@ -460,53 +484,45 @@
             <button onclick="showMode('cell')">Open Selected Cell</button>
           </div>
           <div class="matrix overview-matrix">
-            <button class="pv-cell selected" onclick="showMode('cell')">
-              <span class="scope">Main</span><span class="value">Phrase cell</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="mode-label">per bar</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">on b2</span><span class="mode-label">bar event</span></span>
+            <button class="pv-cell phrase-card selected" onclick="showMode('cell')">
+              <span class="scope">Main</span><span class="value">P1</span>
+              <span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
+              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip changed">fill b2</span><span class="layer-chip">repeat off</span></span>
             </button>
-            <button class="pv-cell selected" onclick="showMode('cell')">
-              <span class="scope">Atlantis</span><span class="value">Phrase cell</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P4</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">off</span><span class="mode-label">single</span></span>
+            <button class="pv-cell phrase-card selected" onclick="showMode('cell')">
+              <span class="scope">Atlantis</span><span class="value">P4</span>
+              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
+              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip">fill off</span><span class="layer-chip">repeat off</span></span>
             </button>
-            <button class="pv-cell">
-              <span class="scope">Poly</span><span class="value">Phrase cell</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P3</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">mute b8</span><span class="mode-label">per bar</span></span>
-              <span class="cell-part"><span class="part-label">Repeat</span><span class="part-value">off</span><span class="mode-label">single</span></span>
+            <button class="pv-cell phrase-card">
+              <span class="scope">Poly</span><span class="value">P3</span>
+              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
+              <span class="layer-strip"><span class="layer-chip changed">mute b8</span><span class="layer-chip">fill off</span><span class="layer-chip">repeat off</span></span>
             </button>
-            <button class="pv-cell">
-              <span class="scope">Mono</span><span class="value">Phrase cell</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">off</span><span class="mode-label">single</span></span>
+            <button class="pv-cell phrase-card">
+              <span class="scope">Mono</span><span class="value">P1</span>
+              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
+              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip">fill off</span><span class="layer-chip">repeat off</span></span>
             </button>
-            <button class="pv-cell success">
-              <span class="scope">Kick</span><span class="value">Kit part</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            <button class="pv-cell phrase-card success">
+              <span class="scope">Kick</span><span class="value">P1</span>
+              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
+              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
             </button>
-            <button class="pv-cell success">
-              <span class="scope">Snare</span><span class="value">Kit part</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            <button class="pv-cell phrase-card success">
+              <span class="scope">Snare</span><span class="value">P1</span>
+              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
+              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
             </button>
-            <button class="pv-cell success changed">
-              <span class="scope">Hat</span><span class="value">Kit part</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">mute b5-6</span><span class="mode-label">per bar</span></span>
-              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            <button class="pv-cell phrase-card success changed">
+              <span class="scope">Hat</span><span class="value">P1</span>
+              <span class="tiny-bars"><i></i><i></i><i class="changed"></i><i class="changed"></i></span>
+              <span class="layer-strip"><span class="layer-chip changed">mute b5-6</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
             </button>
-            <button class="pv-cell success">
-              <span class="scope">Clap</span><span class="value">Kit part</span>
-              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
-              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            <button class="pv-cell phrase-card success">
+              <span class="scope">Clap</span><span class="value">P1</span>
+              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
+              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
             </button>
           </div>
         </section>

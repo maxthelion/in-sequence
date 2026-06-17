@@ -11,7 +11,7 @@ That grammar is now used across the phrase overview, layer perform, scene editin
 
 ## Changes From V2
 
-- Phrase Overview is an 8-track matrix. Each track cell contains compact pattern, mute, fill, and timing parts rather than splitting layers onto a separate table axis.
+- Phrase Overview is an 8-track matrix of card-like cells. Each cell is a single track card with compact layer chips inside it, rather than a vertical stack of nested layer wrappers or a separate table axis.
 - Layer Perform is still matrix-first, but it is framed as editing one selected layer across the same 8-track scope. It shows the current phrase copy and the quantized bars where performance changes will be printed.
 - Phrase Scenes is closer to the current scene model: slot A, crossfader, and slot B are phrase value cells, and scene macros are shown as cells tied to the selected scene slot.
 - Cell Detail is a contextual drill-in for one track's layers. It uses graphical mode indicators inside the layer cells, then opens an editor modal for choosing single value, per-bar values, or continuous events. It no longer includes unrelated settings such as track pattern length, scene A/B, xfade controls, or a persistent bar editor on the page.
