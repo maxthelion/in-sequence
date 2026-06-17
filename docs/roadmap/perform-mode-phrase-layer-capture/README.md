@@ -24,6 +24,10 @@ Exploratory wireframes for a richer perform-mode information architecture:
 - [prototypes/03-track-drum-capture-phrase.html](prototypes/03-track-drum-capture-phrase.html)
 - [prototypes/04-phrase-matrix-system-v2.html](prototypes/04-phrase-matrix-system-v2.html)
 
+## Feedback
+
+- [feedback/2026-06-17-perform-phrase-time-values.md](feedback/2026-06-17-perform-phrase-time-values.md)
+
 ## Reference Captures Used
 
 - `.meta/multipass/runtime/loops/project/observe/qa-surface-coverage/01-phrase.png`

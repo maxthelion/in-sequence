@@ -38,6 +38,39 @@ This lets layer changes, scene crossfader moves, and grouped track changes share
 one mental model. It also avoids making "perform" a separate business-style
 process flow.
 
+## Phrase Values Over Time
+
+Layer values inside a phrase should be understood as phrase-scoped values with a
+time dimension, not only as static settings.
+
+Default state:
+
+- a phrase layer value has a single value for the whole phrase unless something
+  more specific has been recorded;
+- the UI should therefore show the simple value first, and reveal per-bar or
+  event detail only when the phrase actually contains it or the user chooses to
+  edit at that level.
+
+Perform state:
+
+- perform mode is an alternate way of setting the same phrase-layer values while
+  playback is running;
+- a change made during perform mode has a position within the phrase cycle;
+- if bar quantization is enabled, the affected bar or bars become part of the
+  captured phrase data;
+- without bar quantization, the captured data may need a finer event-like
+  representation, but the UI can still summarize it as phrase-local automation.
+
+Capture implication:
+
+- capture phrase should print the temporary performance phrase, including the
+  temporal placement of performed layer changes;
+- capture should preserve whether a layer remains a single phrase-wide value,
+  becomes per-bar values, or contains finer performance events;
+- the visible phrase editor should make that distinction inspectable after
+  capture, rather than flattening all performance changes into a single current
+  value.
+
 ## Matrix Preference
 
 Matrices are used as the main interaction surface:
