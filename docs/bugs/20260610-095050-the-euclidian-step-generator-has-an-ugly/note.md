@@ -1,0 +1,1 @@
+The euclidian step generator has an ugly UI. In general, we should be using standard rotary controls for most values. Also, we should be prioritising the parameters that are most likely to be tweaked, and potentially relegating some of the others. Number of pulses is the main one here. Trigger type is completely unnecessary. The others can be mostly hidden by default.

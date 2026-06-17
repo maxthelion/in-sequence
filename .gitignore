@@ -37,6 +37,8 @@ Pods/
 !.meta/multipass/state/**
 .meta/multipass/runtime/
 .meta/project/
+.meta/project-tick/
+.routing-source-mixer-split-visual-evidence-output
 
 # Editor
 .vscode/

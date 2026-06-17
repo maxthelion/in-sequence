@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perform/Setup split — wireframes</title>
+<style>
+  :root{ --bg:#0d0d10; --card:#16161b; --line:#62626c; --dim:#9a9aa4; --txt:#e8e8ec;
+         --cyan:#35c3ee; --violet:#9b7ef0; --amber:#f0a035; --green:#3ecf72; --red:#ef5350; }
+  body{background:var(--bg);color:var(--txt);font:14px -apple-system,sans-serif;margin:0;padding:28px;max-width:1200px}
+  h1{font-size:22px} h2{font-size:17px;margin:48px 0 4px;color:var(--cyan)}
+  h3{font-size:12px;letter-spacing:1px;color:var(--dim);text-transform:uppercase;margin:18px 0 8px}
+  p.note{color:var(--dim);max-width:760px;line-height:1.5}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  .frame{border:1.5px solid var(--line);border-radius:10px;padding:14px;background:var(--card)}
+  .frame.before{opacity:.78;border-style:dashed}
+  .cap{font-size:11px;letter-spacing:1px;margin-bottom:10px;text-transform:uppercase}
+  .cap.b{color:var(--dim)} .cap.a{color:var(--green)}
+  .bar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .pill{border:1.5px solid var(--line);border-radius:14px;padding:3px 12px;font-size:11px;color:var(--dim)}
+  .pill.on{background:var(--cyan);color:#08222c;border-color:var(--cyan);font-weight:700}
+  .pill.setup{background:var(--violet);color:#1d1430;border-color:var(--violet);font-weight:700}
+  .pill.perf{background:var(--amber);color:#2c1d08;border-color:var(--amber);font-weight:700}
+  .pill.ghost{border-style:dashed}
+  .row{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+  .cell{border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:11px;min-width:74px;text-align:center;color:var(--txt)}
+  .cell .sub{display:block;font-size:9px;color:var(--dim);margin-top:3px}
+  .cell.solid{background:var(--green);border-color:var(--green);color:#06250f;font-weight:700}
+  .cell.solid .sub{color:#06250f99}
+  .cell.red{background:var(--red);border-color:var(--red);color:#2d0707;font-weight:700}
+  .cell.violet{background:var(--violet);border-color:var(--violet);color:#1d1430;font-weight:700}
+  .cell.amberline{border-color:var(--amber);color:var(--amber)}
+  .cell.pending{border-color:var(--amber);border-style:dashed;color:var(--amber)}
+  .cell.dimmed{opacity:.4}
+  .cell.dirty{box-shadow:0 0 0 2px var(--amber) inset}
+  .tag{display:inline-block;background:var(--green);color:#06250f;font-size:9px;font-weight:800;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .tag.gone{background:var(--red);color:#2d0707}
+  .tag.moved{background:var(--violet);color:#1d1430}
+  ul.diff{max-width:760px;line-height:1.6;color:var(--txt)} ul.diff b{color:var(--green)}
+  .lane{display:grid;grid-template-columns:64px repeat(8,1fr);gap:4px;align-items:center;margin:4px 0}
+  .lane .name{font-size:10px;color:var(--dim)} .step{height:18px;border:1.5px solid var(--line);border-radius:4px}
+  .step.on{background:var(--cyan);border-color:var(--cyan)}
+  .grid4{display:grid;grid-template-columns:repeat(4,64px);gap:8px;margin:8px 0}
+  .slot{height:44px;border:1.5px solid var(--line);border-radius:8px;font-size:10px;color:var(--dim);display:flex;align-items:center;justify-content:center}
+  .slot.occ{border-color:var(--cyan);color:var(--cyan)} .slot.new{border-style:dashed;color:var(--green);border-color:var(--green)}
+  .knob{width:34px;height:34px;border-radius:50%;border:2px solid var(--amber);display:inline-block;margin-right:10px}
+  .knob.empty{border-style:dashed;border-color:var(--line)}
+</style></head><body>
+
+<h1>Setup / Perform split — wireframes</h1>
+<p class="note">Each section shows TODAY (dashed, left) vs PROPOSED (right), with the behavioural
+differences listed under the frames. Visual language matches the shipped flat grammar.
+Source: <code>intent-dictation.md</code> (exploration only).</p>
+
+<h2>0 — One global mode replaces the local ones</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — modes scattered per page</div>
+    <div class="bar"><span class="pill on">TRACKS</span><span class="pill">MIXER</span><span class="pill">SCENES</span></div>
+    <div class="bar"><span class="pill">Edit</span><span class="pill on">Perform</span><span style="font-size:10px;color:var(--dim)">← tracks-page-only toggle</span></div>
+    <div class="bar"><span class="pill">Browse/Edit</span><span class="pill on">Perform</span><span style="font-size:10px;color:var(--dim)">← scenes-page-only toggle</span></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — one switch in the top bar</div>
+    <div class="bar"><span class="pill setup">SETUP</span><span class="pill perf">PERFORM</span><span style="font-size:10px;color:var(--dim)">← global, lives next to transport</span></div>
+    <div class="bar"><span class="pill on">TRACKS</span><span class="pill">MIXER</span><span class="pill">SCENES</span><span style="font-size:10px;color:var(--dim)">every page obeys the global mode</span></div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> the per-page Edit/Perform and Browse/Perform toggles are <span class="tag gone">GONE</span>; one global switch drives every surface.</li>
+  <li>Mode is a property of the <i>session</i>, not the page — switching pages never changes mode underneath you.</li>
+</ul>
+
+<h2>1 — Tracks page in each mode</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — one card serves both jobs</div>
+    <div class="row">
+      <div class="cell" style="min-width:120px">Mono 2<span class="sub">icon · swatches<br>+ 60% empty fill</span></div>
+      <div class="cell" style="min-width:120px">Drum Kit<span class="sub">six part colours<br>mixed grammar</span></div>
+    </div>
+  </div>
+  <div class="frame"><div class="cap a">proposed</div>
+    <h3>setup</h3>
+    <div class="row">
+      <div class="cell" style="min-width:120px">Mono 2<span class="sub">instrument · macro assign<br>destination · source</span></div>
+      <div class="cell" style="min-width:120px">808 Bones<span class="sub">kit config · routing</span></div>
+    </div>
+    <h3>perform</h3>
+    <div class="row">
+      <div class="cell solid" style="min-width:120px">Mono 2<span class="sub">pattern · mute · fill</span></div>
+      <div class="cell violet" style="min-width:120px">808 Bones<span class="sub">ONE colour · part toggles</span></div>
+    </div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> instrument choice + macro <i>assignment</i> appear only in SETUP <span class="tag moved">MOVED</span>; perform cards carry only playable controls (pattern, mute, fill, part toggles).</li>
+  <li>A drum kit on the perform screen renders as <b>one colour, one instrument</b> — today's six part colours collapse.</li>
+  <li>Resolves capture-review F1: setup cards size to setup content; perform cards to perform content.</li>
+</ul>
+
+<h2>2 — Quantised perform toggles</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — toggles land immediately</div>
+    <div class="row"><div class="cell solid">FILL ON<span class="sub">applies instantly,<br>mid-bar = jarring</span></div></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — armed until the bar</div>
+    <div class="bar"><span class="pill perf">PERFORM</span><span class="pill on">Q: BAR</span><span class="pill ghost">Q: OFF</span></div>
+    <div class="row">
+      <div class="cell pending">FILL ⏲<span class="sub">armed — lands<br>next bar</span></div>
+      <div class="cell solid">FILL ON<span class="sub">after boundary</span></div>
+    </div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> with quantise on, toggle taps <b>arm</b> (dashed amber, the shipped pending grammar from step-order) and apply at the bar boundary; tapping again while armed cancels.</li>
+  <li>Reuses the engine's existing pending-at-boundary idiom — no new timing machinery.</li>
+</ul>
+
+<h2>3 — Capture edits</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — overlay dirty state, save-back buried</div>
+    <div class="row"><div class="cell dirty">Mono 4<span class="sub">changed (no cue)</span></div><div class="cell">Mono 5</div></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed</div>
+    <div class="bar"><span class="pill perf">PERFORM</span><span class="pill amberline" style="border-color:var(--amber);color:var(--amber)">● 3 edits — CAPTURE</span></div>
+    <div class="row"><div class="cell dirty">Mono 4<span class="sub">amber ring = edited</span></div><div class="cell">Mono 5</div></div>
+    <h3>capture → choose destination (4×4)</h3>
+    <div class="grid4">
+      <div class="slot occ">Phrase A</div><div class="slot occ">Phrase B</div><div class="slot occ">Breakdn</div><div class="slot new">+ NEW</div>
+    </div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> every live edit marks its control with an amber ring; the top bar counts them and offers <b>CAPTURE</b>.</li>
+  <li>Capture arms a 4×4 phrase matrix (same arm-then-choose grammar as clip-history's Save Clip) — one tap to overwrite a phrase or mint a new one.</li>
+  <li>Builds on the overlay's existing dirty/save-back tracking; the new parts are the visible diff cues and the chooser.</li>
+</ul>
+
+<h2>4 — Audio-in track: patterns own the source</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — track-global monitor toggle</div>
+    <div class="bar"><span class="pill on">Live</span><span class="pill">Buffer</span><span style="font-size:10px;color:var(--dim)">← one switch for the whole track</span></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — source is per-pattern</div>
+    <div class="row">
+      <div class="cell solid">P1<span class="sub">LIVE</span></div>
+      <div class="cell">P2<span class="sub">take 03</span></div>
+      <div class="cell">P3<span class="sub">take 07</span></div>
+      <div class="cell pending">P4<span class="sub">armed · records<br>next bar</span></div>
+    </div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> Live-vs-buffer stops being a mode <span class="tag gone">TOGGLE GONE</span> and becomes <b>content</b>: each pattern is either the live input or a recorded take (a RecordingLibrary asset).</li>
+  <li>Switching patterns = switching sources, so the audio-in track performs exactly like every other track — including quantised switching (§2).</li>
+  <li>Recording becomes "arm a pattern slot" rather than a separate capture flow.</li>
+</ul>
+
+<h2>5 — Drum tracks: kit view first</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — part editor first, kit view behind a button</div>
+    <div class="bar"><span class="pill on">Clap (3 of 6)</span><span class="pill">Open Kit View</span></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — kit matrix IS the track editor</div>
+    <div class="lane"><span class="name">Kick</span><span class="step on"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step on"></span><span class="step"></span><span class="step"></span><span class="step"></span></div>
+    <div class="lane"><span class="name">Snare</span><span class="step"></span><span class="step"></span><span class="step on"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step on"></span><span class="step"></span></div>
+    <div class="lane"><span class="name">Hat ↗</span><span class="step on"></span><span class="step on"></span><span class="step on"></span><span class="step on"></span><span class="step on"></span><span class="step on"></span><span class="step on"></span><span class="step on"></span></div>
+    <div class="bar" style="margin-top:8px"><span class="pill">↗ dive into part</span><span class="pill perf">kit perform: part on/off</span></div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> opening a drum track lands on the <b>kit matrix</b> (all parts together); the per-part editor is the dive-in <span class="tag moved">DEMOTED</span>, not the default.</li>
+  <li>Kit perform facet: one row of part on/off toggles — and it obeys quantise (§2).</li>
+</ul>
+
+<h2>6 — Slicer: setup slices, perform moves</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — autoslice + playback share one surface</div>
+    <div class="bar"><span class="pill on">Autoslice</span><span class="pill">Sensitivity</span><span class="pill">Slices: 9</span></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed</div>
+    <h3>setup — slicing happens here</h3>
+    <div class="bar"><span class="pill setup">SETUP</span><span class="pill">Autoslice</span><span class="pill">Sensitivity</span></div>
+    <h3>rejected: kit-style lanes (the diagonal problem)</h3>
+    <div class="lane" style="opacity:.45"><span class="name">Slice 1</span><span class="step on"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span></div>
+    <div class="lane" style="opacity:.45"><span class="name">Slice 2</span><span class="step"></span><span class="step on"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span></div>
+    <div class="lane" style="opacity:.45"><span class="name">Slice 3</span><span class="step"></span><span class="step"></span><span class="step on"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span></div>
+    <div class="lane" style="opacity:.45"><span class="name">…</span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step on"></span><span class="step"></span><span class="step"></span><span class="step"></span><span class="step"></span></div>
+    <p style="font-size:10px;color:var(--red);margin:4px 0 14px">default = one slice per lane → a diagonal: N lanes spent showing the identity mapping. Wrong shape.</p>
+    <h3>proposed instead: one slice-sequence row (position → which slice)</h3>
+    <div class="row">
+      <div class="cell" style="min-width:0">1<span class="sub">S1</span></div><div class="cell" style="min-width:0">2<span class="sub">S2</span></div>
+      <div class="cell solid" style="min-width:0">3<span class="sub">S7</span></div><div class="cell" style="min-width:0">4<span class="sub">S4</span></div>
+      <div class="cell solid" style="min-width:0">5<span class="sub">S1</span></div><div class="cell" style="min-width:0">6<span class="sub">S6</span></div>
+      <div class="cell" style="min-width:0">7<span class="sub">S7</span></div><div class="cell dimmed" style="min-width:0">8<span class="sub">—</span></div>
+    </div>
+    <p style="font-size:10px;color:var(--dim);margin:4px 0">one row: each step shows WHICH slice plays (solid = deviates from the diagonal). Drag/cycle a cell to reorder; blank = silence.</p>
+    <div class="bar" style="margin-top:8px"><span class="knob"></span><span style="font-size:10px;color:var(--dim)">SHUFFLE</span><span class="knob"></span><span style="font-size:10px;color:var(--dim)">STRIDE</span></div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> autoslice controls live in SETUP only <span class="tag moved">MOVED</span>; perform mode gets slice-movement macros (rotary, per the house control grammar).</li>
+  <li><b>Kit-style lanes rejected</b> (Max): the default sequence is the identity diagonal — one active step per lane wastes N lanes of vertical space on zero information.</li>
+  <li>Instead: a single <b>slice-sequence row</b> — position = step, value = slice. The diagonal reads flat ("S1 S2 S3 …"); deviations render solid so the remix is what the eye sees. Cells reuse the existing sliceLabel/value-cell grammar.</li>
+  <li>Structurally this is a <b>step-order map applied to slices</b> — the machinery (and its pending-toggle quantise behavior) already exists; per-slice velocity/chance stay as layers on the same row, not extra lanes.</li>
+  <li><b>The three-process split (Max):</b> (1) load/slice/apply = <i>palette creation</i> → SETUP; (2) slice sound/playback characteristics = <i>part editing</i> → dive into the slice (drum-part grammar; slice carries its defaults everywhere); (3) rearrange/copy steps = <i>sequence editing</i> → this row, with per-step overrides layered on slice defaults (Rytm sound-lock model).</li>
+  <li><b>Open design point — selection scope:</b> on the sequence row a cell tap must be unambiguous between "this STEP" (edit what plays here: rotary row, copy/paste, locks) and "this SLICE" (edit the palette object everywhere it's used). Proposed: tap = step scope; tap the slice label / hold = slice scope, opening the slice editor like a drum-part dive-in. One grid, two signposted exits.</li>
+</ul>
+
+<h2>7 — Global macros</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — macros live per-track / per-scene</div>
+    <div class="bar"><span class="knob"></span><span class="knob"></span><span style="font-size:10px;color:var(--dim)">scene A/B slots only</span></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — a favourites rack in perform</div>
+    <div class="bar"><span class="pill perf">PERFORM</span></div>
+    <div class="bar">
+      <span class="knob"></span><span style="font-size:10px;color:var(--dim)">M2 Cutoff</span>
+      <span class="knob"></span><span style="font-size:10px;color:var(--dim)">Kit Drive</span>
+      <span class="knob"></span><span style="font-size:10px;color:var(--dim)">Slice Shuffle</span>
+      <span class="knob empty"></span><span style="font-size:10px;color:var(--dim)">+ assign (setup)</span>
+    </div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> any track/scene/slicer macro can be <b>promoted</b> to a global rack; assignment happens in SETUP, the rack is always at hand in PERFORM.</li>
+  <li>4-up rotary rows, solid-when-assigned / dashed-when-empty — the shipped scenes grammar reused.</li>
+</ul>
+
+<h2>8 — Track editor: ROUTING tab (FX + destination)</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — permanent right column</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <div>
+        <div class="bar"><span class="pill on">SOURCE</span><span class="pill">MODIFIER</span><span class="pill">HISTORY</span></div>
+        <div class="row"><div class="cell" style="min-width:150px">step grid…</div></div>
+      </div>
+      <div class="cell" style="min-height:90px">DESTINATION<span class="sub">~1/3 of the page,<br>rarely touched</span></div>
+    </div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — ROUTING tab, full-width editor</div>
+    <div class="bar"><span class="pill on">SOURCE</span><span class="pill">MODIFIER</span><span class="pill">HISTORY</span><span class="pill">ROUTING <span style="font-size:9px">· Clap kit → Bus A</span></span></div>
+    <div class="row"><div class="cell" style="min-width:260px">step grid gets the full width…</div></div>
+    <h3>routing tab open</h3>
+    <div class="row">
+      <div class="cell" style="min-width:96px">INSTRUMENT<span class="sub">Clap kit</span></div>
+      <div class="cell amberline" style="min-width:96px">FX: Filter<span class="sub">cutoff ◎ macro</span></div>
+      <div class="cell" style="min-width:96px">FX: Drive<span class="sub">+ assign macro</span></div>
+      <div class="cell" style="min-width:96px">DEST<span class="sub">Bus A · sends 35/20</span></div>
+    </div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> the permanent destination column is <span class="tag gone">GONE</span>; a ROUTING tab carries the whole audio path — instrument → FX chain → destination/sends — its pill showing a one-glance summary so you rarely open it.</li>
+  <li><b>FX params are macro-assignable in place</b> (the ◎): assignment is a SETUP act here; the assigned macro then appears in the global rack (§7) for perform.</li>
+  <li>Everything else (the surfaces you touch constantly) gets ~50% more width. In the split, ROUTING is setup-only — perform mode drops the tab.</li>
+</ul>
+
+<h2>10 — The per-step "Sound" (kits and slices)</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — sample settings & FX scattered</div>
+    <div class="row"><div class="cell" style="min-width:120px">part/slice cell<span class="sub">sound params live<br>elsewhere (or nowhere)</span></div></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — every part/slice opens its SOUND</div>
+    <div class="row"><div class="cell violet" style="min-width:80px">Clap<span class="sub">hold → Sound</span></div><div class="cell" style="min-width:80px">Slice 7<span class="sub">hold → Sound</span></div></div>
+    <h3>sound view (one object: player + fx)</h3>
+    <div class="row">
+      <div class="cell" style="min-width:88px">PLAYER<span class="sub">pitch · start/end<br>env · reverse</span></div>
+      <div class="cell amberline" style="min-width:88px">FX: Filter<span class="sub">cutoff ◎</span></div>
+      <div class="cell" style="min-width:88px">FX: +<span class="sub">add</span></div>
+      <div class="cell" style="min-width:88px">SENDS<span class="sub">A 20 · B 0</span></div>
+    </div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> drum parts and slices share ONE openable <b>Sound object</b> — sample-player settings plus its FX — reached the same way from the kit matrix and the slice row (the §7b "slice scope" exit lands here).</li>
+  <li>Sound = the part/slice's <i>defaults</i>; per-step overrides (§7b, Rytm sound-lock model) layer on top in the sequence.</li>
+  <li>Same macro-assign affordance (◎) as the ROUTING tab — any Sound param can feed the global rack.</li>
+  <li>Rytm precedent: their Sound = synth+sample+filter+env+FX-send settings as one saveable, lockable object (rytm-study.md).</li>
+</ul>
+
+<h2>9 — Perform overview page</h2>
+<div class="pair">
+  <div class="frame before"><div class="cap b">today — performing means hopping pages</div>
+    <div class="bar"><span class="pill on">TRACKS</span><span class="pill">MIXER</span><span class="pill">SCENES</span><span style="font-size:10px;color:var(--dim)">fill here, macros there…</span></div>
+  </div>
+  <div class="frame"><div class="cap a">proposed — one dashboard in perform</div>
+    <div class="bar"><span class="pill perf">PERFORM</span><span class="pill on">OVERVIEW</span><span class="pill">TRACKS</span><span class="pill">MIXER</span></div>
+    <div class="lane" style="grid-template-columns:64px repeat(4,1fr)">
+      <span class="name">Mono 2</span><div class="cell solid" style="min-width:0">P1</div><div class="cell" style="min-width:0">FILL</div><div class="cell" style="min-width:0">RPT 1/16</div><div class="cell" style="min-width:0">MUTE</div>
+    </div>
+    <div class="lane" style="grid-template-columns:64px repeat(4,1fr)">
+      <span class="name">808 Bones</span><div class="cell violet" style="min-width:0">P2</div><div class="cell solid" style="min-width:0">FILL</div><div class="cell" style="min-width:0">RPT</div><div class="cell" style="min-width:0">MUTE</div>
+    </div>
+    <div class="lane" style="grid-template-columns:64px repeat(4,1fr)">
+      <span class="name">Audio In</span><div class="cell" style="min-width:0">LIVE</div><div class="cell" style="min-width:0">take 03</div><div class="cell pending" style="min-width:0">take 07 ⏲</div><div class="cell" style="min-width:0">MUTE</div>
+    </div>
+    <div class="bar" style="margin-top:10px"><span class="knob"></span><span class="knob"></span><span class="knob"></span><span style="font-size:10px;color:var(--dim)">global macro rack (§7) lives here</span></div>
+  </div>
+</div>
+<ul class="diff">
+  <li><b>Different:</b> a NEW first page in perform mode — every track as one row of its playable controls (pattern, fill, note-repeat, mute), with the global macro rack beneath. No page-hopping mid-performance.</li>
+  <li>One row per track regardless of type — kit = one violet row (§1), audio-in patterns show their takes (§4), everything obeys quantise (§2) and feeds Capture (§3).</li>
+  <li>This page is arguably what §1's perform-mode tracks page <i>becomes</i> — they may be the same surface.</li>
+</ul>
+
+<h2 style="color:var(--amber)">The one rule underneath all nine</h2>
+<p class="note"><b>Setup configures; Perform plays.</b> If a control changes <i>what a thing is</i>
+(instrument, routing, macro assignment, slice points), it lives in Setup. If it changes
+<i>what you hear next bar</i> (pattern, mute, fill, part on/off, macro value), it lives in
+Perform — visible, quantisable, capturable.</p>
+
+</body></html>

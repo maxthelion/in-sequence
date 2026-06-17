@@ -1,0 +1,1 @@
+There's lots of wasted space causing the step sequencer to be too low. There's lots of explainer text, for example. pattern controls (length, fill etc) could be in title space for the clip. sequencer layers should probably be a single line with up and down arrow to move to different row.

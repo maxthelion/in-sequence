@@ -1,0 +1,1 @@
+The tracks page shouldn't have all the buttons for adding new types of track. There should be a matrix of potential tracks with plus buttons on them. Pressing plus opens a modal with the type of track as the first selection. The layer select interface should work more like a corrected version of the one from phrase view with matrix of options to be selected.

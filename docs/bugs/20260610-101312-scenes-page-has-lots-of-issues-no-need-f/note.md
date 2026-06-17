@@ -1,0 +1,1 @@
+scenes page has lots of issues. No need for text saying how many scenes. Consistent heigh for items in the matrix (incl. plus button). No need for the extra green button. perform/manage switcher is basically invisible..
