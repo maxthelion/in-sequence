@@ -143,8 +143,8 @@
       align-items: stretch;
     }
     .song-matrix { grid-template-columns: 100px repeat(4, minmax(130px, 1fr)); }
-    .overview-matrix { grid-template-columns: 120px repeat(4, minmax(150px, 1fr)); }
-    .track-matrix { grid-template-columns: repeat(4, minmax(160px, 1fr)); }
+    .overview-matrix { grid-template-columns: repeat(8, minmax(118px, 1fr)); }
+    .track-matrix { grid-template-columns: repeat(8, minmax(118px, 1fr)); }
     .scene-slot-matrix { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
     .bar-matrix { grid-template-columns: repeat(8, minmax(78px, 1fr)); }
 
@@ -194,6 +194,15 @@
       background: var(--paper);
       font-size: 12px;
     }
+    .cell-part {
+      border-top: 1px solid var(--line);
+      padding-top: 5px;
+      display: grid;
+      gap: 4px;
+    }
+    .cell-part:first-child { border-top: 0; padding-top: 0; }
+    .part-label { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .part-value { font-size: 16px; font-weight: 800; }
 
     .mini-bars {
       display: grid;
@@ -243,8 +252,8 @@
       .main-nav { grid-template-columns: 1fr 1fr; }
       .layout { grid-template-columns: 1fr; }
       aside { border-right: 0; border-bottom: 2px solid var(--line); }
-      .overview-matrix, .song-matrix, .bar-matrix, .scene-slot-matrix { overflow-x: auto; display: flex; }
-      .overview-matrix > *, .song-matrix > *, .bar-matrix > *, .scene-slot-matrix > * { min-width: 120px; }
+      .overview-matrix, .song-matrix, .track-matrix, .bar-matrix, .scene-slot-matrix { overflow-x: auto; display: flex; }
+      .overview-matrix > *, .song-matrix > *, .track-matrix > *, .bar-matrix > *, .scene-slot-matrix > * { min-width: 120px; }
       .track-matrix { grid-template-columns: 1fr; }
     }
   </style>
@@ -347,7 +356,7 @@
           <div class="page-head">
             <div>
               <h1>Phrase A / Overview</h1>
-              <p class="note">Overview shows phrase cells across tracks. Each cell carries the mode and timing map, not just the current value.</p>
+              <p class="note">Overview shows one phrase cell per track. Each track cell contains the relevant layer values and their timing maps.</p>
             </div>
             <div class="row right">
               <span class="pill selected">editing live copy</span>
@@ -356,35 +365,60 @@
             </div>
           </div>
           <div class="toolbar">
-            <span class="pill selected">layer rows</span>
+            <span class="pill selected">8 track cells</span>
             <span class="pill">selected tracks: Main, Atlantis</span>
             <button onclick="showMode('layers')">Layer Perform</button>
             <button onclick="showMode('cell')">Open Selected Cell</button>
           </div>
           <div class="matrix overview-matrix">
-            <div class="cell head">Layer</div>
-            <div class="cell head">Main</div>
-            <div class="cell head">Atlantis</div>
-            <div class="cell head">Poly</div>
-            <div class="cell head">808 Kit</div>
-
-            <div class="cell head">Pattern</div>
-            <button class="pv-cell selected" onclick="showMode('cell')"><span class="scope">Main / Pattern</span><span class="value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="mode-label">per bar</span></button>
-            <button class="pv-cell"><span class="scope">Atlantis / Pattern</span><span class="value">P4</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-            <button class="pv-cell"><span class="scope">Poly / Pattern</span><span class="value">P3</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-            <button class="pv-cell success"><span class="scope">808 Kit / Pattern</span><span class="value">P1 shared</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-
-            <div class="cell head">Mute</div>
-            <button class="pv-cell"><span class="scope">Main / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-            <button class="pv-cell"><span class="scope">Atlantis / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-            <button class="pv-cell changed"><span class="scope">Poly / Mute</span><span class="value">mute bar 8</span><span class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="changed"></i></span><span class="mode-label">per bar</span></button>
-            <button class="pv-cell changed"><span class="scope">808 Kit / Hat mute</span><span class="value">mute bars 5-6</span><span class="mini-bars"><i></i><i></i><i></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i></span><span class="mode-label">per bar</span></button>
-
-            <div class="cell head">Fill</div>
-            <button class="pv-cell changed"><span class="scope">Main / Fill</span><span class="value">on</span><span class="mini-bars"><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">bar event</span></button>
-            <button class="pv-cell"><span class="scope">Atlantis / Fill</span><span class="value">off</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-            <button class="pv-cell"><span class="scope">Poly / Fill</span><span class="value">off</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-            <button class="pv-cell"><span class="scope">808 Kit / Fill</span><span class="value">off</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell selected" onclick="showMode('cell')">
+              <span class="scope">Main</span><span class="value">Phrase cell</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="mode-label">per bar</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">on b2</span><span class="mode-label">bar event</span></span>
+            </button>
+            <button class="pv-cell selected" onclick="showMode('cell')">
+              <span class="scope">Atlantis</span><span class="value">Phrase cell</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P4</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">off</span><span class="mode-label">single</span></span>
+            </button>
+            <button class="pv-cell">
+              <span class="scope">Poly</span><span class="value">Phrase cell</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P3</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">mute b8</span><span class="mode-label">per bar</span></span>
+              <span class="cell-part"><span class="part-label">Repeat</span><span class="part-value">off</span><span class="mode-label">single</span></span>
+            </button>
+            <button class="pv-cell">
+              <span class="scope">Mono</span><span class="value">Phrase cell</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">off</span><span class="mode-label">single</span></span>
+            </button>
+            <button class="pv-cell success">
+              <span class="scope">Kick</span><span class="value">Kit part</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            </button>
+            <button class="pv-cell success">
+              <span class="scope">Snare</span><span class="value">Kit part</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            </button>
+            <button class="pv-cell success changed">
+              <span class="scope">Hat</span><span class="value">Kit part</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">mute b5-6</span><span class="mode-label">per bar</span></span>
+              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            </button>
+            <button class="pv-cell success">
+              <span class="scope">Clap</span><span class="value">Kit part</span>
+              <span class="cell-part"><span class="part-label">Pattern</span><span class="part-value">P1 shared</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Mute</span><span class="part-value">play</span><span class="mode-label">single</span></span>
+              <span class="cell-part"><span class="part-label">Fill</span><span class="part-value">kit</span><span class="mode-label">inherit</span></span>
+            </button>
           </div>
         </section>
 
@@ -483,7 +517,11 @@
             <button class="cell selected"><span class="value">Main</span><span>selected</span><span class="scope">Phrase A: pattern per bar</span></button>
             <button class="cell selected"><span class="value">Atlantis</span><span>selected</span><span class="scope">Phrase A: P4</span></button>
             <button class="cell"><span class="value">Poly</span><span>not selected</span><span class="scope">Phrase A: P3</span></button>
-            <button class="cell success"><span class="value">808 Kit</span><span>drum group</span><span class="scope">shared kit pattern</span></button>
+            <button class="cell"><span class="value">Mono</span><span>not selected</span><span class="scope">Phrase A: P1</span></button>
+            <button class="cell success"><span class="value">Kick</span><span>kit part</span><span class="scope">808: shared P1</span></button>
+            <button class="cell success"><span class="value">Snare</span><span>kit part</span><span class="scope">808: shared P1</span></button>
+            <button class="cell success"><span class="value">Hat</span><span>kit part</span><span class="scope">808: mute bars 5-6</span></button>
+            <button class="cell success"><span class="value">Clap</span><span>kit part</span><span class="scope">808: shared P1</span></button>
           </div>
         </section>
       </main>
