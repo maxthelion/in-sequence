@@ -54,6 +54,61 @@ or root cleanup was performed by the container setup.
 
 ## Current Decision
 
+2026-06-17T10:31Z decision:
+
+`.meta/multipass/runtime/loops/build/au-discovery-rescan/decide/2026-06-17T10-31Z-route-eb0f0e6c-evidence-repair.md`
+
+Current AU discovery/rescan state:
+`clean_committed_fixture_output_needs_evidence_repair`.
+
+The decider scheduled one focused builder evidence-repair pass for exact output
+`eb0f0e6cd0802b2ad54337f3aee1154c033de4a3` (`eb0f0e6c Add AU rescan visual
+scenario fixtures`):
+
+`.meta/multipass/runtime/inbox/pending/2026-06-17T101031293Z-builder.md`
+
+The fresh testing, UX/IA, and visual-economy reviews accept the fixture UI
+grammar but return `needs-correction` because the PNG build badge still shows
+`4ce14c75`, no bounded non-fixture runtime artifact proves real installed
+`aumu`/`aufx` choices after explicit rescan without relaunch, the focused XCTest
+passed its assertion but timed out at the `xcodebuild` process level, and
+exact-state architecture evidence for the fixture commit is missing or needs
+scoped inheritance. This is evidence/provenance repair, not broad product/UI
+rework. No merge candidacy, product-owner attention, push, rebase, or worktree
+cleanup is indicated.
+
+2026-06-17T10:12Z orientation:
+
+`.meta/multipass/runtime/loops/build/au-discovery-rescan/orient/2026-06-17T10-12Z-build-orienter-progress.md`
+
+Current AU discovery/rescan state:
+`clean_committed_fixture_output_needs_evidence_repair`.
+
+The worktree is clean at `eb0f0e6cd0802b2ad54337f3aee1154c033de4a3`
+(`eb0f0e6c Add AU rescan visual scenario fixtures`). The previously dirty AU
+picker/menu visual fixture continuation is now committed, with 10 screenshot and
+status artifacts under
+`.meta/multipass/runtime/loops/build/au-discovery-rescan/act/manual-au-rescan-states-20260617T0910Z/`
+covering instrument/effect ready, scanning-disabled, ready-count, previous-list,
+and long-list states.
+
+Fresh testing, UX/IA, and visual-economy reviews for `eb0f0e6c` all return
+`needs-correction`. They accept the fixture UI grammar as coherent but do not
+accept the branch as gate-ready because the PNG build badge still shows
+`feature/au-discovery-rescan 4ce14c75`, no non-fixture runtime artifact proves
+real installed `aumu`/`aufx` choices appear after explicit rescan without
+relaunch, and the focused publication XCTest reached a passing assertion but the
+`xcodebuild` invocation timed out with `** BUILD INTERRUPTED **`. A fresh
+architecture review artifact for `eb0f0e6c` is also not normalized in `observe/`
+yet.
+
+Next action kind appears to be evidence repair/continuation: recapture or
+explain/fix the exact-build identity mismatch, add one bounded non-fixture
+runtime rescan acceptance artifact for instruments and effects, rerun or
+adjudicate the focused XCTest timeout, and complete/inherit the architecture
+gate with rationale. No merge candidacy, product/UI rework, product-owner
+attention, push, rebase, or worktree cleanup is indicated.
+
 2026-06-17T09:10Z decision:
 
 `.meta/multipass/runtime/loops/build/au-discovery-rescan/decide/2026-06-17T09-10Z-observation-batch-already-pending.md`

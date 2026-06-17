@@ -55,6 +55,49 @@ or root cleanup was performed by the container setup.
 
 ## Current Orientation
 
+2026-06-17T09:34Z orientation:
+
+`.meta/multipass/runtime/loops/build/routing-source-mixer-split/orient/2026-06-17T09-34Z-sample-slicer-review-synthesis.md`
+
+The branch remains clean at `3938b6bc` (`Fix slicer routing visual fixture`).
+The latest commit is still fixture-only in
+`Sources/UI/VisualScenarioCommandRunner.swift`; `git diff --check HEAD`
+passed.
+
+Observation batch `3938b6bc` is partially passed but not critic-ready:
+
+- architecture: pass via actor final; prior product-code architecture evidence
+  is inheritable because `3938b6bc` is fixture-only and keeps slicer setup on
+  the existing typed session/destination path;
+- testing: pass; the testing review accepted the focused 21/0 run and
+  fixture-only diff for this batch;
+- UX/IA: pass; screenshots show the intended Tracks routing tab split with
+  `Sound Source` and adjacent `Mixer & FX` wells for sample and slicer source
+  states;
+- visual-economy: `evidence-insufficient`, gap type `stale-or-wrong-commit`.
+  The screenshots show the right surfaces, but their visible build badge says
+  `feature/routing-source-mixer-split 0f297367` while the requested exact output
+  is `3938b6bc`.
+
+Missing evidence is narrow: rebuild/relaunch from `3938b6bc`, confirm the
+visible in-app build badge reflects `3938b6bc`, recapture only `22d` sample
+source and `22e` slicer source, then route visual-economy review over those
+exact-state screenshots. This is an evidence freshness gap, not a product UX
+correction.
+
+Lowest unmet pyramid layer: exact-state visual evidence / visual-economy gate.
+
+Architecture risk severity: low. Evidence risk severity: caution because the
+surface looks correct but exact-commit visual evidence failed.
+
+Next action kind: evidence repair (`stale-or-wrong-commit` recapture), not
+rework, integration, or product escalation. After visual-economy passes, rerun
+the mandatory adversarial critic before any integration decision.
+
+Product-owner attention is not needed.
+
+Prior orientation:
+
 2026-06-17T08:47Z orientation:
 
 `.meta/multipass/runtime/loops/build/routing-source-mixer-split/orient/2026-06-17T08-47Z-manual-capture-unblock-synthesis.md`
@@ -126,6 +169,32 @@ state.
 Product-owner attention is not needed.
 
 ## Current Decision
+
+2026-06-17T09:40Z decision:
+
+`.meta/multipass/runtime/loops/build/routing-source-mixer-split/decide/2026-06-17T09-40Z-route-exact-state-sample-slicer-recapture.md`
+
+Disposition: `needs_review`.
+
+Routed a focused builder evidence-repair request:
+
+`.meta/multipass/runtime/inbox/pending/2026-06-17T094026691Z-builder.md`
+
+The only current blocker is exact-state visual-economy pairing for the sample
+and slicer source screenshots. The branch is clean at `3938b6bc`, and
+architecture/testing/UX evidence has passed or been accepted for the
+fixture-only current output, but visual-economy rejected the available
+screenshots because their visible build badge says `0f297367` instead of
+`3938b6bc`.
+
+Builder should rebuild/relaunch from `3938b6bc`, confirm the visible badge
+shows `3938b6bc`, recapture only `22d` sample source and `22e` slicer source,
+and write loop-local act evidence with screenshot paths and badge confirmation.
+After that, route only the visual-economy rerun against repaired exact-state
+captures. If visual-economy passes, route the mandatory adversarial critic
+before any integration decision.
+
+Prior decision:
 
 2026-06-17T08:56Z decision:
 
