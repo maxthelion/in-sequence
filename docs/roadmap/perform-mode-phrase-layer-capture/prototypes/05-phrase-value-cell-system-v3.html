@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phrase Value Cell System V3 Wireframe</title>
+  <style>
+    :root {
+      --bg: #f3f3f3;
+      --paper: #fff;
+      --ink: #202020;
+      --muted: #707070;
+      --line: #595959;
+      --stub: #e4e4e4;
+      --accent: #1f6feb;
+      --selected: #dceaff;
+      --changed: #fff0c2;
+      --success: #e2f4e8;
+      --error: #ffd9d9;
+      --disabled: #eeeeee;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, select {
+      font: inherit;
+      color: inherit;
+      border: 2px solid var(--line);
+      background: var(--paper);
+      min-height: 36px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    button:focus, select:focus { outline: 3px solid var(--accent); outline-offset: 2px; }
+    button.primary { border-color: var(--accent); background: var(--selected); font-weight: 800; }
+    button.stub { border-style: dashed; background: var(--stub); color: var(--muted); }
+    button.disabled { background: var(--disabled); color: var(--muted); cursor: not-allowed; }
+
+    .app {
+      width: min(1440px, calc(100vw - 24px));
+      min-height: calc(100vh - 24px);
+      margin: 12px auto;
+      border: 2px solid var(--line);
+      background: var(--paper);
+    }
+
+    .top {
+      display: grid;
+      grid-template-columns: 170px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .brand { font-size: 22px; font-weight: 800; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .right { justify-content: flex-end; }
+
+    .pill {
+      border: 2px solid var(--line);
+      min-height: 36px;
+      padding: 7px 10px;
+      background: var(--paper);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-width: 58px;
+    }
+    .pill.selected { border-color: var(--accent); background: var(--selected); font-weight: 800; }
+    .pill.changed { background: var(--changed); }
+    .pill.success { background: var(--success); }
+    .pill.stub { border-style: dashed; background: var(--stub); color: var(--muted); }
+
+    .main-nav {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 2px solid var(--line);
+    }
+    .main-nav button.active { border-color: var(--accent); background: var(--selected); font-weight: 800; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      min-height: calc(100vh - 160px);
+    }
+    aside {
+      border-right: 2px solid var(--line);
+      padding: 14px;
+      background: #fafafa;
+    }
+    main { padding: 14px; }
+
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 23px; }
+    h2 { font-size: 17px; margin: 0 0 8px; }
+    h3 {
+      margin: 16px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .note { color: var(--muted); line-height: 1.4; max-width: 820px; }
+
+    .side-stack { display: grid; gap: 8px; }
+    .side-stack button { text-align: left; }
+    .side-stack button.active { border-color: var(--accent); background: var(--selected); font-weight: 800; }
+    .side-note {
+      border: 2px dashed var(--line);
+      background: var(--stub);
+      color: var(--muted);
+      padding: 10px;
+      margin-top: 16px;
+      line-height: 1.4;
+    }
+
+    .page-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 14px;
+    }
+    .mode { display: none; }
+    .mode.active { display: block; }
+
+    .matrix {
+      display: grid;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .song-matrix { grid-template-columns: 100px repeat(4, minmax(130px, 1fr)); }
+    .overview-matrix { grid-template-columns: 120px repeat(4, minmax(150px, 1fr)); }
+    .track-matrix { grid-template-columns: repeat(4, minmax(160px, 1fr)); }
+    .scene-slot-matrix { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
+    .bar-matrix { grid-template-columns: repeat(8, minmax(78px, 1fr)); }
+
+    .cell {
+      border: 2px solid var(--line);
+      min-height: 64px;
+      padding: 8px;
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+      text-align: left;
+    }
+    button.cell { width: 100%; }
+    .cell.center { align-items: center; justify-content: center; text-align: center; }
+    .cell.head { background: var(--stub); font-weight: 800; min-height: 44px; justify-content: center; }
+    .cell.selected { background: var(--selected); border-color: var(--accent); }
+    .cell.changed { background: var(--changed); }
+    .cell.success { background: var(--success); }
+    .cell.empty { border-style: dashed; background: var(--stub); color: var(--muted); }
+
+    .pv-cell {
+      border: 2px solid var(--line);
+      min-height: 118px;
+      padding: 8px;
+      background: var(--paper);
+      display: grid;
+      grid-template-rows: auto 1fr auto auto;
+      gap: 6px;
+      text-align: left;
+    }
+    button.pv-cell { width: 100%; }
+    .pv-cell.selected { background: var(--selected); border-color: var(--accent); }
+    .pv-cell.changed { background: var(--changed); }
+    .pv-cell.success { background: var(--success); }
+    .pv-cell.empty { border-style: dashed; background: var(--stub); color: var(--muted); }
+    .scope { color: var(--muted); font-size: 12px; }
+    .value { font-size: 19px; font-weight: 800; }
+    .mode-label {
+      border: 1px solid var(--line);
+      display: inline-flex;
+      width: fit-content;
+      min-height: 24px;
+      padding: 2px 6px;
+      align-items: center;
+      background: var(--paper);
+      font-size: 12px;
+    }
+
+    .mini-bars {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 3px;
+      height: 18px;
+    }
+    .mini-bars i { border: 1px solid var(--line); background: var(--paper); display: block; }
+    .mini-bars i.on { background: var(--accent); }
+    .mini-bars i.changed { background: var(--changed); }
+    .mini-bars i.event { background: var(--ink); }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 10px;
+      border: 2px solid var(--line);
+      margin: 10px 0 14px;
+      background: #fafafa;
+    }
+    .toolbar .grow { flex: 1; }
+    .drawer {
+      display: none;
+      border: 2px solid var(--line);
+      padding: 12px;
+      margin: 12px;
+      background: #fafafa;
+    }
+    .drawer.open { display: block; }
+    .toast {
+      display: none;
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      background: var(--ink);
+      color: white;
+      padding: 8px 12px;
+      max-width: 520px;
+    }
+    .toast.show { display: block; }
+
+    @media (max-width: 900px) {
+      .top { grid-template-columns: 1fr; }
+      .main-nav { grid-template-columns: 1fr 1fr; }
+      .layout { grid-template-columns: 1fr; }
+      aside { border-right: 0; border-bottom: 2px solid var(--line); }
+      .overview-matrix, .song-matrix, .bar-matrix, .scene-slot-matrix { overflow-x: auto; display: flex; }
+      .overview-matrix > *, .song-matrix > *, .bar-matrix > *, .scene-slot-matrix > * { min-width: 120px; }
+      .track-matrix { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">SequencerAI</div>
+      <div class="row">
+        <button class="stub" onclick="toast('transport stub')">Play</button>
+        <button class="primary" onclick="showMode('overview')">Phrase A</button>
+        <span class="pill changed">live phrase copy</span>
+        <span class="pill">bar 3 / 8</span>
+        <button onclick="toggleDrawer('phraseCue')">Cue Phrase</button>
+      </div>
+      <div class="row right">
+        <button onclick="showMode('overview')">Perform</button>
+        <button onclick="toggleDrawer('captureMenu')">Capture</button>
+        <button class="stub" onclick="toast('setup stub')">Setup</button>
+      </div>
+    </header>
+
+    <nav class="main-nav">
+      <button onclick="showMode('song')">Song</button>
+      <button class="active" onclick="showMode('overview')">Phrase</button>
+      <button onclick="showMode('tracks')">Tracks</button>
+      <button class="stub" onclick="toast('mixer global defaults stub')">Mixer</button>
+      <button class="stub" onclick="toast('scene management stub')">Scenes</button>
+    </nav>
+
+    <div class="drawer" id="phraseCue">
+      <h2>Phrase Cue</h2>
+      <div class="matrix song-matrix">
+        <button class="cell selected" onclick="showMode('overview')"><span class="value">A</span><span>current, loop on</span></button>
+        <button class="cell" onclick="toast('Phrase B queued at cycle end')"><span class="value">B</span><span>cue at cycle end</span></button>
+        <button class="cell" onclick="toast('Phrase C switches now')"><span class="value">C</span><span>switch now</span></button>
+        <button class="cell empty">empty</button>
+        <button class="cell empty">empty</button>
+      </div>
+    </div>
+
+    <div class="drawer" id="captureMenu">
+      <h2>Capture Phrase</h2>
+      <div class="toolbar">
+        <span class="pill selected">source: live Phrase A copy</span>
+        <button class="primary" onclick="toast('bar quantize toggled')">bar quantize on</button>
+        <button onclick="toast('captured as Phrase A2')">Print Phrase Copy</button>
+        <button onclick="toast('clip capture chooses a track')">Capture Clip</button>
+      </div>
+      <div class="matrix track-matrix">
+        <div class="pv-cell changed"><span class="scope">Main / Pattern</span><span class="value">P3 on bars 3-4</span><span class="mini-bars"><i></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">per bar</span></div>
+        <div class="pv-cell changed"><span class="scope">A slot / Scene 02 / M3</span><span class="value">gesture</span><span class="mini-bars"><i></i><i class="event"></i><i></i><i class="event"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">events</span></div>
+        <div class="pv-cell changed"><span class="scope">Crossfader</span><span class="value">32% -> 76%</span><span class="mini-bars"><i class="on"></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">per bar</span></div>
+        <div class="pv-cell"><span class="scope">Atlantis / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside>
+        <h2>Phrase A</h2>
+        <p class="note">The phrase view edits a live copy. Every editable item is represented as a phrase value cell.</p>
+        <h3>Phrase Modes</h3>
+        <div class="side-stack">
+          <button id="tabSong" onclick="showMode('song')">Song Matrix</button>
+          <button id="tabOverview" class="active" onclick="showMode('overview')">Phrase Overview</button>
+          <button id="tabLayers" onclick="showMode('layers')">Layer Perform</button>
+          <button id="tabScenes" onclick="showMode('scenes')">Phrase Scenes</button>
+          <button id="tabCell" onclick="showMode('cell')">Cell Detail</button>
+          <button id="tabTracks" onclick="showMode('tracks')">Tracks</button>
+        </div>
+        <div class="side-note">
+          Cell grammar: scope, value, mode, and timing map. The same cell shape appears in every mode.
+        </div>
+      </aside>
+
+      <main>
+        <section id="modeSong" class="mode">
+          <div class="page-head">
+            <div>
+              <h1>Song</h1>
+              <p class="note">Song remains a phrase matrix. Open a phrase to edit its value cells.</p>
+            </div>
+            <button class="primary" onclick="showMode('overview')">Open Phrase A</button>
+          </div>
+          <div class="matrix song-matrix">
+            <div class="cell head">Row</div>
+            <div class="cell head">1</div>
+            <div class="cell head">2</div>
+            <div class="cell head">3</div>
+            <div class="cell head">4</div>
+            <div class="cell head">Intro</div>
+            <button class="cell selected" onclick="showMode('overview')"><span class="value">Phrase A</span><span>8 bars</span></button>
+            <button class="cell">Phrase B<br><span class="scope">4 bars</span></button>
+            <button class="cell empty">empty</button>
+            <button class="cell empty">empty</button>
+          </div>
+        </section>
+
+        <section id="modeOverview" class="mode active">
+          <div class="page-head">
+            <div>
+              <h1>Phrase A / Overview</h1>
+              <p class="note">Overview shows phrase cells across tracks. Each cell carries the mode and timing map, not just the current value.</p>
+            </div>
+            <div class="row right">
+              <span class="pill selected">editing live copy</span>
+              <button onclick="toggleDrawer('captureMenu')">Capture</button>
+              <button onclick="toast('copy discarded')">Discard</button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <span class="pill selected">layer rows</span>
+            <span class="pill">selected tracks: Main, Atlantis</span>
+            <button onclick="showMode('layers')">Layer Perform</button>
+            <button onclick="showMode('cell')">Open Selected Cell</button>
+          </div>
+          <div class="matrix overview-matrix">
+            <div class="cell head">Layer</div>
+            <div class="cell head">Main</div>
+            <div class="cell head">Atlantis</div>
+            <div class="cell head">Poly</div>
+            <div class="cell head">808 Kit</div>
+
+            <div class="cell head">Pattern</div>
+            <button class="pv-cell selected" onclick="showMode('cell')"><span class="scope">Main / Pattern</span><span class="value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="mode-label">per bar</span></button>
+            <button class="pv-cell"><span class="scope">Atlantis / Pattern</span><span class="value">P4</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell"><span class="scope">Poly / Pattern</span><span class="value">P3</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell success"><span class="scope">808 Kit / Pattern</span><span class="value">P1 shared</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+
+            <div class="cell head">Mute</div>
+            <button class="pv-cell"><span class="scope">Main / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell"><span class="scope">Atlantis / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell changed"><span class="scope">Poly / Mute</span><span class="value">mute bar 8</span><span class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="changed"></i></span><span class="mode-label">per bar</span></button>
+            <button class="pv-cell changed"><span class="scope">808 Kit / Hat mute</span><span class="value">mute bars 5-6</span><span class="mini-bars"><i></i><i></i><i></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i></span><span class="mode-label">per bar</span></button>
+
+            <div class="cell head">Fill</div>
+            <button class="pv-cell changed"><span class="scope">Main / Fill</span><span class="value">on</span><span class="mini-bars"><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">bar event</span></button>
+            <button class="pv-cell"><span class="scope">Atlantis / Fill</span><span class="value">off</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell"><span class="scope">Poly / Fill</span><span class="value">off</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell"><span class="scope">808 Kit / Fill</span><span class="value">off</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+          </div>
+        </section>
+
+        <section id="modeLayers" class="mode">
+          <div class="page-head">
+            <div>
+              <h1>Phrase A / Layer Perform</h1>
+              <p class="note">One layer is mapped across tracks. Track selection is visible because it scopes multi-cell changes.</p>
+            </div>
+            <span class="pill selected">scope: Main + Atlantis</span>
+          </div>
+          <div class="toolbar">
+            <button id="layerPattern" class="primary" onclick="setLayer('Pattern')">Pattern</button>
+            <button id="layerMute" onclick="setLayer('Mute')">Mute</button>
+            <button id="layerFill" onclick="setLayer('Fill')">Fill</button>
+            <button id="layerRepeat" onclick="setLayer('Repeat')">Repeat</button>
+            <span class="grow"></span>
+            <button onclick="toast('same value applied to selected tracks')">Apply Same Value</button>
+          </div>
+          <div class="matrix track-matrix" id="layerMatrix"></div>
+        </section>
+
+        <section id="modeCell" class="mode">
+          <div class="page-head">
+            <div>
+              <h1>Phrase A / Cell Detail</h1>
+              <p class="note">Cell detail is a drill-in for a selected track/layer tuple.</p>
+            </div>
+            <span class="pill selected">Main / Pattern</span>
+          </div>
+          <h3>Layer Cells For Main</h3>
+          <div class="matrix track-matrix">
+            <button class="pv-cell selected"><span class="scope">Main / Pattern</span><span class="value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="mode-label">per bar</span></button>
+            <button class="pv-cell"><span class="scope">Main / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell changed"><span class="scope">Main / Fill</span><span class="value">on</span><span class="mini-bars"><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">bar event</span></button>
+            <button class="pv-cell changed"><span class="scope">Main / Velocity</span><span class="value">96</span><span class="mini-bars"><i class="on"></i><i class="event"></i><i></i><i class="event"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">events</span></button>
+          </div>
+          <div class="toolbar">
+            <span class="pill selected">Editing Main / Pattern</span>
+            <button onclick="toast('mode set to single')">Single</button>
+            <button class="primary" onclick="toast('mode set to per bar')">Per Bar</button>
+            <button onclick="toast('mode set to events')">Events</button>
+            <span class="grow"></span>
+            <button onclick="toast('bars updated')">Apply To Bars</button>
+          </div>
+          <h3>When Pattern Applies</h3>
+          <div class="matrix bar-matrix">
+            <button class="cell selected center"><span class="value">P1</span><span class="scope">bar 1</span></button>
+            <button class="cell selected center"><span class="value">P1</span><span class="scope">bar 2</span></button>
+            <button class="cell changed center"><span class="value">P3</span><span class="scope">bar 3</span></button>
+            <button class="cell changed center"><span class="value">P3</span><span class="scope">bar 4</span></button>
+            <button class="cell center"><span class="value">P1</span><span class="scope">bar 5</span></button>
+            <button class="cell center"><span class="value">P1</span><span class="scope">bar 6</span></button>
+            <button class="cell center"><span class="value">P1</span><span class="scope">bar 7</span></button>
+            <button class="cell center"><span class="value">P1</span><span class="scope">bar 8</span></button>
+          </div>
+        </section>
+
+        <section id="modeScenes" class="mode">
+          <div class="page-head">
+            <div>
+              <h1>Phrase A / Scenes</h1>
+              <p class="note">A, B, crossfader, and scene macro values use the same cell grammar.</p>
+            </div>
+            <button onclick="toast('record macros armed')">Record Macros</button>
+          </div>
+          <h3>Scene Slots In Phrase</h3>
+          <div class="matrix scene-slot-matrix">
+            <button class="pv-cell selected"><span class="scope">A slot / scene id</span><span class="value">Scene 02</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell changed"><span class="scope">Crossfader</span><span class="value">32% -> 76%</span><span class="mini-bars"><i class="on"></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">per bar</span></button>
+            <button class="pv-cell changed"><span class="scope">B slot / scene id</span><span class="value">Scene 07</span><span class="mini-bars"><i class="on"></i><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">bar map</span></button>
+          </div>
+          <div class="toolbar">
+            <span class="pill selected">macro context: A slot / Scene 02</span>
+            <span class="pill changed">slot scene changes affect macro context</span>
+            <button onclick="toast('B slot macro context selected')">Show B Slot</button>
+          </div>
+          <h3>Scene 02 Macro Cells</h3>
+          <div class="matrix track-matrix">
+            <button class="pv-cell changed"><span class="scope">A slot / Scene 02 / M1</span><span class="value">24%</span><span class="mini-bars"><i class="on"></i><i></i><i class="event"></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">events</span></button>
+            <button class="pv-cell"><span class="scope">A slot / Scene 02 / M2</span><span class="value">61%</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
+            <button class="pv-cell changed"><span class="scope">A slot / Scene 02 / M3</span><span class="value">18%</span><span class="mini-bars"><i></i><i class="event"></i><i></i><i class="event"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">events</span></button>
+            <button class="pv-cell empty"><span class="scope">A slot / Scene 02 / M4</span><span class="value">unassigned</span><span class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">stub</span></button>
+          </div>
+        </section>
+
+        <section id="modeTracks" class="mode">
+          <div class="page-head">
+            <div>
+              <h1>Tracks</h1>
+              <p class="note">Track selection scopes layer perform. Selected tracks stay highlighted across this prototype.</p>
+            </div>
+            <button class="stub" onclick="toast('add track stub')">Add Track</button>
+          </div>
+          <div class="matrix track-matrix">
+            <button class="cell selected"><span class="value">Main</span><span>selected</span><span class="scope">Phrase A: pattern per bar</span></button>
+            <button class="cell selected"><span class="value">Atlantis</span><span>selected</span><span class="scope">Phrase A: P4</span></button>
+            <button class="cell"><span class="value">Poly</span><span>not selected</span><span class="scope">Phrase A: P3</span></button>
+            <button class="cell success"><span class="value">808 Kit</span><span>drum group</span><span class="scope">shared kit pattern</span></button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const modes = ['song', 'overview', 'layers', 'scenes', 'cell', 'tracks'];
+    const tabs = {
+      song: 'tabSong',
+      overview: 'tabOverview',
+      layers: 'tabLayers',
+      scenes: 'tabScenes',
+      cell: 'tabCell',
+      tracks: 'tabTracks'
+    };
+    const tracks = ['Main', 'Atlantis', 'Poly', 'Mono', 'Kick', 'Snare', 'Hat', 'Clap'];
+    const layerData = {
+      Pattern: ['P1', 'P4', 'P3', 'P1', 'P1', 'P1', 'P1', 'P1'],
+      Mute: ['play', 'play', 'mute b8', 'play', 'play', 'play', 'mute b5-6', 'play'],
+      Fill: ['on', 'off', 'off', 'off', 'off', 'off', 'off', 'off'],
+      Repeat: ['off', 'off', 'off', 'off', 'off', 'off', '1/32', 'off']
+    };
+
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1300);
+    }
+
+    function toggleDrawer(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    function showMode(mode) {
+      modes.forEach(name => {
+        document.getElementById('mode' + cap(name)).classList.toggle('active', name === mode);
+        const tab = document.getElementById(tabs[name]);
+        if (tab) tab.classList.toggle('active', name === mode);
+      });
+      if (mode === 'layers') setLayer('Pattern');
+    }
+
+    function setLayer(layer) {
+      ['Pattern', 'Mute', 'Fill', 'Repeat'].forEach(name => {
+        const button = document.getElementById('layer' + name);
+        if (button) button.classList.toggle('primary', name === layer);
+      });
+      const matrix = document.getElementById('layerMatrix');
+      matrix.innerHTML = '';
+      layerData[layer].forEach((value, index) => {
+        const changed = String(value).includes('mute') || value === 'on' || value.includes('/');
+        const selected = index < 2;
+        const cell = document.createElement('button');
+        cell.className = 'pv-cell' + (selected ? ' selected' : '') + (changed ? ' changed' : '');
+        cell.innerHTML =
+          '<span class="scope">' + tracks[index] + ' / ' + layer + '</span>' +
+          '<span class="value">' + value + '</span>' +
+          '<span class="mini-bars">' + bars(changed ? 'bar' : 'single', index) + '</span>' +
+          '<span class="mode-label">' + (changed ? 'per bar' : 'single') + '</span>';
+        cell.onclick = () => showMode('cell');
+        matrix.appendChild(cell);
+      });
+    }
+
+    function bars(kind, index) {
+      return Array.from({ length: 8 }, (_x, i) => {
+        let cls = '';
+        if (kind === 'single' && i === 0) cls = 'on';
+        if (kind === 'bar' && ((i + index) % 3 === 0)) cls = 'changed';
+        if (kind === 'events' && (i === 1 || i === 3)) cls = 'event';
+        return '<i class="' + cls + '"></i>';
+      }).join('');
+    }
+
+    function cap(text) {
+      return text.slice(0, 1).toUpperCase() + text.slice(1);
+    }
+
+    function setPrototypeState(state) {
+      if (state === 'phrase-overview') showMode('overview');
+      if (state === 'phrase-layers') showMode('layers');
+      if (state === 'phrase-scenes') showMode('scenes');
+      if (state === 'phrase-cell') showMode('cell');
+      if (state === 'tracks') showMode('tracks');
+      if (state === 'song') showMode('song');
+      if (state === 'capture-menu') document.getElementById('captureMenu').classList.add('open');
+      if (state === 'phrase-cue') document.getElementById('phraseCue').classList.add('open');
+    }
+
+    window.setPrototypeState = setPrototypeState;
+    setLayer('Pattern');
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# V3 Reasoning
+
+This pass treats the phrase value cell as the reusable unit of the IA. A phrase value cell should always make four things visible:
+
+- scope: which phrase, track, layer, scene slot, macro, or bar it belongs to;
+- value: the current value or inherited value;
+- mode: whether the value is single, per-bar, continuous, inherited, or live;
+- timing: when inside the phrase the value applies.
+
+That grammar is now used across the phrase overview, layer perform, scene editing, cell detail, and capture drawer. The goal is to stop each page inventing its own representation of "a thing that changes in a phrase".
+
+## Changes From V2
+
+- Phrase Layers is a matrix of tracks and layers. Pattern and bar map are no longer separate rows pretending to be separate concepts; they are two parts of the same phrase value cell.
+- Layer Perform is still matrix-first, but it is framed as editing one layer across a selected track scope. It shows the current phrase copy and the quantized bars where performance changes will be printed.
+- Phrase Scenes is closer to the current scene model: slot A, crossfader, and slot B are phrase value cells, and scene macros are shown as cells tied to the selected scene slot.
+- Cell Detail is a contextual drill-in for one track's layers. It no longer includes unrelated settings such as track pattern length, scene A/B, or xfade controls.
+- Capture is shown as printing the live phrase copy, with explicit bar quantize and changed cells. Capture clip is acknowledged as a sibling action but not made the centre of this prototype.
+- Track selection remains a scope tool for layer perform. Performance groups are still deferred.
+
+## Open Shape
+
+The key unresolved product question is no longer "what does perform mean?" in the broad sense. In this model, perform means temporarily changing phrase value cells during playback, with optional quantization, and then deciding whether to print those changes into a phrase copy.
+
+The remaining design pressure is how much of this grammar should be visible on production screens at once. The prototype intentionally over-labels scope, mode, and timing so the model can be reviewed. A later production pass can compress the labels once the grammar feels right.
+

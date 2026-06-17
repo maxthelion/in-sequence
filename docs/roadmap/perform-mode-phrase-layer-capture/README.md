@@ -19,10 +19,12 @@ Exploratory wireframes for a richer perform-mode information architecture:
 
 - [reasoning.md](reasoning.md)
 - [reasoning-v2.md](reasoning-v2.md)
+- [reasoning-v3.md](reasoning-v3.md)
 - [prototypes/01-perform-home-and-phrase-cue.html](prototypes/01-perform-home-and-phrase-cue.html)
 - [prototypes/02-layer-bulk-and-matrix.html](prototypes/02-layer-bulk-and-matrix.html)
 - [prototypes/03-track-drum-capture-phrase.html](prototypes/03-track-drum-capture-phrase.html)
 - [prototypes/04-phrase-matrix-system-v2.html](prototypes/04-phrase-matrix-system-v2.html)
+- [prototypes/05-phrase-value-cell-system-v3.html](prototypes/05-phrase-value-cell-system-v3.html)
 
 ## Feedback
 

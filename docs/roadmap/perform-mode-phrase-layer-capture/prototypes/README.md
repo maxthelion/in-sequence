@@ -11,6 +11,9 @@
 - `04-phrase-matrix-system-v2.html`: replacement direction that keeps all major
   pages in one matrix-first phrase system: Song, Phrase, Phrase Layers, Phrase
   Scenes, Phrase Cell Edit, and Tracks.
+- `05-phrase-value-cell-system-v3.html`: next pass that gives phrase layers,
+  scene slots, scene macros, cell detail, and capture a shared phrase value cell
+  grammar: scope, value, mode, and timing.
 
 ## Renderable States
 
