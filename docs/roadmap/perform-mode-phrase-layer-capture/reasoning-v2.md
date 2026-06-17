@@ -79,11 +79,28 @@ Matrices are used as the main interaction surface:
 - track/layer cells in phrase overview;
 - layer-per-track perform matrix, with each track represented as a phrase cell
   containing both the current layer value and its bar map;
-- scene A/crossfader/B by phrase/bar;
+- scene A/crossfader/B phrase cells, followed by macro-value cells for the
+  selected scene slot;
 - selected cell by bar;
 - track selection grid.
 
 Non-matrix controls only switch mode, set scope, or expose off-path stubs.
+
+## Phrase Scenes
+
+Phrase scenes need a more careful model than a simple A / crossfader / B table.
+
+- the A slot and B slot each choose a scene, and that scene choice can be a
+  single value, per-bar values, or finer continuous/event data;
+- the crossfader is its own phrase value and can also be single, per-bar, or
+  continuous/event data;
+- macro knob values are recordable as events, but those values are tied to the
+  scene currently loaded into the selected A or B slot;
+- therefore the scene macro editor should be cell-based and scene-contextual:
+  editing `A slot / Scene 02 / M1` is different from editing `B slot / Scene 07
+  / M1`;
+- if a slot changes scenes over the phrase, the UI needs to make clear which
+  scene's macro values are being displayed or recorded at each point.
 
 ## Deliberately Deferred
 
