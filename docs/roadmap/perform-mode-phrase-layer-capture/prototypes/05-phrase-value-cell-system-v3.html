@@ -214,6 +214,95 @@
     .mini-bars i.on { background: var(--accent); }
     .mini-bars i.changed { background: var(--changed); }
     .mini-bars i.event { background: var(--ink); }
+    .mode-icon {
+      min-height: 28px;
+      display: grid;
+      align-items: center;
+    }
+    .mode-icon.single {
+      width: 32px;
+      border: 2px solid var(--line);
+      background: var(--accent);
+    }
+    .mode-icon.bars {
+      grid-template-columns: repeat(8, 1fr);
+      gap: 3px;
+    }
+    .mode-icon.bars i { height: 28px; border: 1px solid var(--line); background: var(--paper); }
+    .mode-icon.bars i.on { background: var(--accent); }
+    .mode-icon.bars i.changed { background: var(--changed); }
+    .mode-icon.events {
+      position: relative;
+      height: 42px;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(to top, transparent 48%, var(--line) 49%, var(--line) 51%, transparent 52%),
+        var(--paper);
+    }
+    .mode-icon.events i {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border: 2px solid var(--line);
+      background: var(--accent);
+      transform: translate(-50%, 50%);
+    }
+    .mode-icon.events i:nth-child(1) { left: 12%; bottom: 28%; }
+    .mode-icon.events i:nth-child(2) { left: 36%; bottom: 70%; }
+    .mode-icon.events i:nth-child(3) { left: 62%; bottom: 44%; }
+    .mode-icon.events i:nth-child(4) { left: 86%; bottom: 78%; }
+    .layer-cell {
+      min-height: 130px;
+      grid-template-rows: auto auto 1fr;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.22);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 10;
+    }
+    .modal.open { display: flex; }
+    .modal-panel {
+      width: min(820px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      border: 2px solid var(--line);
+      background: var(--paper);
+      padding: 16px;
+    }
+    .mode-picker {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 14px 0;
+    }
+    .graph-editor {
+      height: 180px;
+      border: 2px solid var(--line);
+      background:
+        linear-gradient(to bottom, transparent 24%, var(--stub) 25%, transparent 26%),
+        linear-gradient(to bottom, transparent 49%, var(--stub) 50%, transparent 51%),
+        linear-gradient(to bottom, transparent 74%, var(--stub) 75%, transparent 76%),
+        var(--paper);
+      position: relative;
+      margin-top: 10px;
+    }
+    .graph-editor i {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--line);
+      background: var(--accent);
+      transform: translate(-50%, 50%);
+    }
+    .graph-editor i:nth-child(1) { left: 9%; bottom: 28%; }
+    .graph-editor i:nth-child(2) { left: 34%; bottom: 62%; }
+    .graph-editor i:nth-child(3) { left: 63%; bottom: 44%; }
+    .graph-editor i:nth-child(4) { left: 89%; bottom: 78%; }
 
     .toolbar {
       display: flex;
@@ -445,35 +534,15 @@
           <div class="page-head">
             <div>
               <h1>Phrase A / Cell Detail</h1>
-              <p class="note">Cell detail is a drill-in for a selected track/layer tuple.</p>
+              <p class="note">Choose a layer cell to set whether it is single, per bar, or continuous.</p>
             </div>
             <span class="pill selected">Main / Pattern</span>
           </div>
-          <h3>Layer Cells For Main</h3>
           <div class="matrix track-matrix">
-            <button class="pv-cell selected"><span class="scope">Main / Pattern</span><span class="value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="mode-label">per bar</span></button>
-            <button class="pv-cell"><span class="scope">Main / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></button>
-            <button class="pv-cell changed"><span class="scope">Main / Fill</span><span class="value">on</span><span class="mini-bars"><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">bar event</span></button>
-            <button class="pv-cell changed"><span class="scope">Main / Velocity</span><span class="value">96</span><span class="mini-bars"><i class="on"></i><i class="event"></i><i></i><i class="event"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">events</span></button>
-          </div>
-          <div class="toolbar">
-            <span class="pill selected">Editing Main / Pattern</span>
-            <button onclick="toast('mode set to single')">Single</button>
-            <button class="primary" onclick="toast('mode set to per bar')">Per Bar</button>
-            <button onclick="toast('mode set to events')">Events</button>
-            <span class="grow"></span>
-            <button onclick="toast('bars updated')">Apply To Bars</button>
-          </div>
-          <h3>When Pattern Applies</h3>
-          <div class="matrix bar-matrix">
-            <button class="cell selected center"><span class="value">P1</span><span class="scope">bar 1</span></button>
-            <button class="cell selected center"><span class="value">P1</span><span class="scope">bar 2</span></button>
-            <button class="cell changed center"><span class="value">P3</span><span class="scope">bar 3</span></button>
-            <button class="cell changed center"><span class="value">P3</span><span class="scope">bar 4</span></button>
-            <button class="cell center"><span class="value">P1</span><span class="scope">bar 5</span></button>
-            <button class="cell center"><span class="value">P1</span><span class="scope">bar 6</span></button>
-            <button class="cell center"><span class="value">P1</span><span class="scope">bar 7</span></button>
-            <button class="cell center"><span class="value">P1</span><span class="scope">bar 8</span></button>
+            <button class="pv-cell layer-cell selected" onclick="openValueEditor('Pattern', 'bars')"><span class="scope">Main / Pattern</span><span class="value">P1, P3</span><span class="mode-icon bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></button>
+            <button class="pv-cell layer-cell" onclick="openValueEditor('Mute', 'single')"><span class="scope">Main / Mute</span><span class="value">play</span><span class="mode-icon single"></span></button>
+            <button class="pv-cell layer-cell changed" onclick="openValueEditor('Fill', 'bars')"><span class="scope">Main / Fill</span><span class="value">on b2</span><span class="mode-icon bars"><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <button class="pv-cell layer-cell changed" onclick="openValueEditor('Velocity', 'events')"><span class="scope">Main / Velocity</span><span class="value">gesture</span><span class="mode-icon events"><i></i><i></i><i></i><i></i></span></button>
           </div>
         </section>
 
@@ -529,6 +598,23 @@
   </div>
 
   <div id="toast" class="toast"></div>
+  <div id="valueEditor" class="modal" role="dialog" aria-modal="true" aria-labelledby="valueEditorTitle">
+    <div class="modal-panel">
+      <div class="page-head">
+        <div>
+          <h2 id="valueEditorTitle">Main / Pattern</h2>
+          <p class="note" id="valueEditorNote">Choose how this phrase value is applied.</p>
+        </div>
+        <button onclick="closeValueEditor()">Close</button>
+      </div>
+      <div class="mode-picker">
+        <button id="editSingle" aria-label="Single value" onclick="setEditorMode('single')"><span class="mode-icon single"></span></button>
+        <button id="editBars" aria-label="Per bar values" onclick="setEditorMode('bars')"><span class="mode-icon bars"><i class="on"></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i></span></button>
+        <button id="editEvents" aria-label="Continuous events" onclick="setEditorMode('events')"><span class="mode-icon events"><i></i><i></i><i></i><i></i></span></button>
+      </div>
+      <div id="valueEditorBody"></div>
+    </div>
+  </div>
 
   <script>
     const modes = ['song', 'overview', 'layers', 'scenes', 'cell', 'tracks'];
@@ -547,6 +633,8 @@
       Fill: ['on', 'off', 'off', 'off', 'off', 'off', 'off', 'off'],
       Repeat: ['off', 'off', 'off', 'off', 'off', 'off', '1/32', 'off']
     };
+    let editorLayer = 'Pattern';
+    let editorMode = 'bars';
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -566,6 +654,41 @@
         if (tab) tab.classList.toggle('active', name === mode);
       });
       if (mode === 'layers') setLayer('Pattern');
+    }
+
+    function openValueEditor(layer, mode) {
+      editorLayer = layer;
+      document.getElementById('valueEditorTitle').textContent = 'Main / ' + layer;
+      document.getElementById('valueEditor').classList.add('open');
+      setEditorMode(mode);
+    }
+
+    function closeValueEditor() {
+      document.getElementById('valueEditor').classList.remove('open');
+    }
+
+    function setEditorMode(mode) {
+      editorMode = mode;
+      ['Single', 'Bars', 'Events'].forEach(name => {
+        const button = document.getElementById('edit' + name);
+        if (button) button.classList.toggle('primary', name.toLowerCase() === mode);
+      });
+      const body = document.getElementById('valueEditorBody');
+      if (mode === 'single') {
+        body.innerHTML =
+          '<div class="toolbar"><span class="pill selected">' + editorLayer + '</span><button class="primary">current value</button><button>alternate value</button><button>inherit</button></div>';
+      }
+      if (mode === 'bars') {
+        body.innerHTML =
+          '<div class="matrix bar-matrix">' +
+          ['P1', 'P1', 'P3', 'P3', 'P1', 'P1', 'P1', 'P1'].map((value, index) =>
+            '<button class="cell center' + (index === 2 || index === 3 ? ' changed' : index < 2 ? ' selected' : '') + '"><span class="value">' + value + '</span><span class="scope">bar ' + (index + 1) + '</span></button>'
+          ).join('') +
+          '</div>';
+      }
+      if (mode === 'events') {
+        body.innerHTML = '<div class="graph-editor"><i></i><i></i><i></i><i></i></div>';
+      }
     }
 
     function setLayer(layer) {
