@@ -18,9 +18,11 @@ Exploratory wireframes for a richer perform-mode information architecture:
 ## Artifacts
 
 - [reasoning.md](reasoning.md)
+- [reasoning-v2.md](reasoning-v2.md)
 - [prototypes/01-perform-home-and-phrase-cue.html](prototypes/01-perform-home-and-phrase-cue.html)
 - [prototypes/02-layer-bulk-and-matrix.html](prototypes/02-layer-bulk-and-matrix.html)
 - [prototypes/03-track-drum-capture-phrase.html](prototypes/03-track-drum-capture-phrase.html)
+- [prototypes/04-phrase-matrix-system-v2.html](prototypes/04-phrase-matrix-system-v2.html)
 
 ## Reference Captures Used
 
@@ -30,4 +32,3 @@ Exploratory wireframes for a richer perform-mode information architecture:
 - `.meta/multipass/runtime/loops/project/observe/qa-surface-coverage/14-tracks-perform-layer-selector.png`
 - `.meta/multipass/runtime/loops/project/observe/qa-surface-coverage/22-track-history-tab.png`
 - `.meta/multipass/runtime/loops/project/observe/qa-surface-coverage/29-drum-kit-matrix.png`
-

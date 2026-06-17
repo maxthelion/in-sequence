@@ -8,6 +8,9 @@
   layer-perform matrix.
 - `03-track-drum-capture-phrase.html`: tests phrase-aware track detail,
   drum-group perform detail, and capture clip/phrase menu.
+- `04-phrase-matrix-system-v2.html`: replacement direction that keeps all major
+  pages in one matrix-first phrase system: Song, Phrase, Phrase Layers, Phrase
+  Scenes, Phrase Cell Edit, Performance Groups, and Tracks.
 
 ## Renderable States
 
@@ -21,9 +24,17 @@
 - `setPrototypeState("track-detail")`
 - `setPrototypeState("drum-group")`
 - `setPrototypeState("capture-phrase")`
+- `setPrototypeState("song")`
+- `setPrototypeState("tracks")`
+- `setPrototypeState("phrase-overview")`
+- `setPrototypeState("phrase-layers")`
+- `setPrototypeState("phrase-scenes")`
+- `setPrototypeState("phrase-cell")`
+- `setPrototypeState("performance-groups")`
+- `setPrototypeState("phrase-cue")`
+- `setPrototypeState("capture-menu")`
 
 ## Scope
 
 The wireframes test information architecture and interaction grouping. They do
 not specify production styling, exact copy, or engine storage details.
-
