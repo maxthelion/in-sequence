@@ -142,7 +142,7 @@
       gap: 8px;
       align-items: stretch;
     }
-    .song-matrix { grid-template-columns: 100px repeat(4, minmax(130px, 1fr)); }
+    .song-matrix { grid-template-columns: repeat(8, minmax(118px, 1fr)); }
     .overview-matrix { grid-template-columns: repeat(8, minmax(118px, 1fr)); }
     .track-matrix { grid-template-columns: repeat(8, minmax(118px, 1fr)); }
     .scene-slot-matrix { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
@@ -405,6 +405,9 @@
         <button class="cell" onclick="toast('Phrase C switches now')"><span class="value">C</span><span>switch now</span></button>
         <button class="cell empty">empty</button>
         <button class="cell empty">empty</button>
+        <button class="cell empty">empty</button>
+        <button class="cell empty">empty</button>
+        <button class="cell empty">empty</button>
       </div>
     </div>
 
@@ -452,14 +455,12 @@
             <button class="primary" onclick="showMode('overview')">Open Phrase A</button>
           </div>
           <div class="matrix song-matrix">
-            <div class="cell head">Row</div>
-            <div class="cell head">1</div>
-            <div class="cell head">2</div>
-            <div class="cell head">3</div>
-            <div class="cell head">4</div>
-            <div class="cell head">Intro</div>
             <button class="cell selected" onclick="showMode('overview')"><span class="value">Phrase A</span><span>8 bars</span></button>
-            <button class="cell">Phrase B<br><span class="scope">4 bars</span></button>
+            <button class="cell"><span class="value">Phrase B</span><span class="scope">4 bars</span></button>
+            <button class="cell"><span class="value">Phrase C</span><span class="scope">8 bars</span></button>
+            <button class="cell"><span class="value">Phrase D</span><span class="scope">2 bars</span></button>
+            <button class="cell empty">empty</button>
+            <button class="cell empty">empty</button>
             <button class="cell empty">empty</button>
             <button class="cell empty">empty</button>
           </div>
