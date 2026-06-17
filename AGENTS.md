@@ -93,6 +93,11 @@ update the compact summary through the loop.
   production-code changes on `main`.
 - Review the actual built surface for UX/visual decisions. Use Peekaboo
   screenshots where relevant.
+- Unattended agents must not run Peekaboo, visual scenario scripts, `osascript`
+  UI automation, or app-control flows that can trigger macOS TCC prompts unless
+  `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1` is explicitly set for an interactive,
+  pre-authorized session. If the gate is closed, record
+  `capture-permission-or-focus` / `evidence-insufficient` instead of retrying.
 - Keep the README/project spirit in view, but do not make every actor reread the
   whole repo.
 - Human attention is precious. Ask only when the product owner has a genuinely

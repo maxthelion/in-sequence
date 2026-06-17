@@ -4,9 +4,44 @@ set -euo pipefail
 APP_NAME="${APP_NAME:-SequencerAI}"
 PEEKABOO_BIN="${PEEKABOO_BIN:-peekaboo}"
 PEEKABOO_ACTION_TIMEOUT_SECONDS="${PEEKABOO_ACTION_TIMEOUT_SECONDS:-8}"
+PEEKABOO_OUTPUT_DIR="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}"
+
+require_visual_automation_allowed() {
+  case "${SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION:-}" in
+    1|true|TRUE|yes|YES|on|ON)
+      return 0
+      ;;
+  esac
+
+  mkdir -p "$PEEKABOO_OUTPUT_DIR"
+  cat > "$PEEKABOO_OUTPUT_DIR/visual-automation-blocked.md" <<BLOCKED
+# Visual Automation Blocked
+
+Visual automation was not started because \`SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION\`
+is not enabled.
+
+This guard prevents unattended Foreman/Codex agents from triggering macOS TCC
+permission prompts such as "bun would like to access data from other apps".
+
+To run this scenario in an interactive, pre-authorized session:
+
+\`\`\`sh
+SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 PEEKABOO_OUTPUT_DIR="$PEEKABOO_OUTPUT_DIR" <visual-scenario-command>
+\`\`\`
+
+Unattended actors should treat this as \`capture-permission-or-focus\` /
+\`evidence-insufficient\` and route a bounded interactive capture or process
+repair instead of retrying.
+BLOCKED
+
+  echo "Visual automation disabled; set SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 only in an interactive, pre-authorized session." >&2
+  exit 42
+}
+
+require_visual_automation_allowed
 
 action_log() {
-  local output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}"
+  local output_dir="$PEEKABOO_OUTPUT_DIR"
   mkdir -p "$output_dir"
   printf '%s\n' "$*" >> "$output_dir/scenario-actions.log"
 }
