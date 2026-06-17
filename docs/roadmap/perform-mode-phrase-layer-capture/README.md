@@ -30,6 +30,7 @@ Exploratory wireframes for a richer perform-mode information architecture:
 - [feedback/2026-06-17-defer-performance-groups.md](feedback/2026-06-17-defer-performance-groups.md)
 - [feedback/2026-06-17-phrase-layer-cell-shape.md](feedback/2026-06-17-phrase-layer-cell-shape.md)
 - [feedback/2026-06-17-phrase-scene-macro-events.md](feedback/2026-06-17-phrase-scene-macro-events.md)
+- [feedback/2026-06-17-phrase-cell-edit-tuple.md](feedback/2026-06-17-phrase-cell-edit-tuple.md)
 
 ## Reference Captures Used
 

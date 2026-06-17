@@ -459,47 +459,43 @@
 
           <div id="phraseCell" class="phrase-mode" style="display:none">
             <div class="toolbar">
-              <span class="pill selected">Selected: Main / Pattern</span>
-              <select aria-label="Layer">
-                <option>Pattern</option>
-                <option>Mute</option>
-                <option>Fill</option>
-                <option>Scene Crossfader</option>
-              </select>
-              <select aria-label="Cell mode">
-                <option>Single value</option>
-                <option>Per bar</option>
-                <option>Continuous events</option>
-              </select>
+              <span class="pill selected">Track: Main</span>
+              <span class="pill">Phrase A copy</span>
+              <span class="pill changed">3 layer cells changed</span>
               <button onclick="toast('cell value copied')">Copy</button>
               <button onclick="toast('cell cleared to inherit')">Clear</button>
             </div>
-            <div class="two">
-              <div>
-                <h3>Bar Values</h3>
-                <div class="matrix phrase-matrix" style="grid-template-columns: repeat(8, 1fr);">
-                  <button class="cell selected center"><span class="value">P1</span><span class="label">bar 1</span></button>
-                  <button class="cell selected center"><span class="value">P1</span><span class="label">bar 2</span></button>
-                  <button class="cell changed center"><span class="value">P3</span><span class="label">bar 3</span></button>
-                  <button class="cell changed center"><span class="value">P3</span><span class="label">bar 4</span></button>
-                  <button class="cell center"><span class="value">P1</span><span class="label">bar 5</span></button>
-                  <button class="cell center"><span class="value">P1</span><span class="label">bar 6</span></button>
-                  <button class="cell center"><span class="value">P1</span><span class="label">bar 7</span></button>
-                  <button class="cell center"><span class="value">P1</span><span class="label">bar 8</span></button>
-                </div>
-              </div>
-              <div>
-                <h3>Phrase Cell Settings</h3>
-                <div class="subgrid">
-                  <button class="cell selected"><span class="label">Pattern length</span><span class="value">16</span></button>
-                  <button class="cell"><span class="label">Repeat</span><span class="value">1x</span></button>
-                  <button class="cell"><span class="label">Inheritance</span><span class="value">single</span></button>
-                  <button class="cell"><span class="label">Scene A</span><span class="value">02</span></button>
-                  <button class="cell changed"><span class="label">Xfade</span><span class="value">per bar</span></button>
-                  <button class="cell"><span class="label">Scene B</span><span class="value">07</span></button>
-                </div>
-              </div>
+            <h3>Layer Cells For Selected Track</h3>
+            <div class="matrix tracks-matrix">
+              <button class="cell selected" onclick="toast('Pattern layer selected')"><span class="label">Main / Pattern</span><span class="value">P1</span><span>mode: per bar</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></button>
+              <button class="cell" onclick="toast('Mute layer selected')"><span class="label">Main / Mute</span><span class="value">play</span><span>mode: single</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+              <button class="cell changed" onclick="toast('Fill layer selected')"><span class="label">Main / Fill</span><span class="value">on</span><span>mode: bar event</span><span class="mini-bars"><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+              <button class="cell" onclick="toast('Repeat layer selected')"><span class="label">Main / Repeat</span><span class="value">off</span><span>mode: single</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+              <button class="cell changed" onclick="toast('Velocity layer selected')"><span class="label">Main / Velocity</span><span class="value">96</span><span>mode: events</span><span class="mini-bars"><i class="on"></i><i class="changed"></i><i></i><i class="changed"></i><i></i><i></i><i></i><i></i></span></button>
+              <button class="cell empty" onclick="toast('Chance layer stub')"><span class="label">Main / Chance</span><span class="value">inherit</span><span>stub</span></button>
+              <button class="cell empty" onclick="toast('Macro layer stub')"><span class="label">Main / Macro</span><span class="value">unassigned</span><span>stub</span></button>
+              <button class="cell empty" onclick="toast('add layer stub')"><span class="value">+ layer</span><span class="label">stub</span></button>
             </div>
+            <div class="toolbar">
+              <span class="pill selected">Editing: Main / Pattern</span>
+              <button class="primary" onclick="toast('mode changed to single')">Single</button>
+              <button onclick="toast('mode changed to per bar')">Per Bar</button>
+              <button onclick="toast('mode changed to events')">Events</button>
+              <span class="grow"></span>
+              <button onclick="toast('apply value to selected bars')">Apply To Bars</button>
+            </div>
+            <h3>When Pattern Applies</h3>
+            <div class="matrix phrase-matrix" style="grid-template-columns: repeat(8, 1fr);">
+              <button class="cell selected center"><span class="value">P1</span><span class="label">bar 1</span></button>
+              <button class="cell selected center"><span class="value">P1</span><span class="label">bar 2</span></button>
+              <button class="cell changed center"><span class="value">P3</span><span class="label">bar 3</span></button>
+              <button class="cell changed center"><span class="value">P3</span><span class="label">bar 4</span></button>
+              <button class="cell center"><span class="value">P1</span><span class="label">bar 5</span></button>
+              <button class="cell center"><span class="value">P1</span><span class="label">bar 6</span></button>
+              <button class="cell center"><span class="value">P1</span><span class="label">bar 7</span></button>
+              <button class="cell center"><span class="value">P1</span><span class="label">bar 8</span></button>
+            </div>
+            <p class="note">Cell edit is scoped to a track/layer tuple. Each layer cell owns its value mode and the timing/value map for when that layer applies.</p>
           </div>
 
         </section>

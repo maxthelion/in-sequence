@@ -102,6 +102,21 @@ Phrase scenes need a more careful model than a simple A / crossfader / B table.
 - if a slot changes scenes over the phrase, the UI needs to make clear which
   scene's macro values are being displayed or recorded at each point.
 
+## Phrase Cell Edit
+
+Cell edit is for inspecting and editing a tuple:
+
+- selected phrase;
+- selected track;
+- selected layer;
+- the layer value mode: single, per-bar, or event/continuous;
+- the value map that says when the value applies.
+
+It should not show unrelated phrase settings. Pattern length, track clip length,
+scene A/B, and crossfader values belong to their own track or scene contexts.
+The useful overview is a matrix of layer cells for the selected track; clicking a
+layer cell opens the value/timing editor for that layer.
+
 ## Deliberately Deferred
 
 Capture is placed but not fully solved. The prototype keeps a transport-level
