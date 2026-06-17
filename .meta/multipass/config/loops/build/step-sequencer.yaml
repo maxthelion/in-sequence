@@ -1,0 +1,46 @@
+id: build/step-sequencer
+kind: build
+status: complete
+feature: step-sequencer
+worktree: .worktrees/roadmap-3-step-sequencer
+branch: auto/roadmap-3-step-sequencer
+actors:
+  orient:
+    - actor: build-orienter
+      cadence: 30m
+      tick: >
+        Interpret build-loop evidence pairings for step-sequencer. Record what
+        the evidence means; do not schedule work.
+  decide:
+    - actor: build-decider
+      cadence: 30m
+      tick: >
+        Decide the next build-loop action for step-sequencer from fresh
+        orientation and evidence pairings.
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+    - actor: ux-ia-review
+      cadence: on_inbox
+    - actor: visual-economy-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing
+  - id: ux
+    actor: ux-ia-review
+    checklist: ux
+    when: user_facing
+  - id: visual-economy
+    actor: visual-economy-review
+    checklist: visual-economy
+    when: persistent_surface

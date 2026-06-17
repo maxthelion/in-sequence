@@ -48,6 +48,25 @@ tomorrow." Slices in order (each: worktree → gate → land):
 >> attention for a repurpose/delete ruling. SLICE 5 LANDED on main as
 >> 685fd795. Slices 6-7 can now proceed.
 >>
+>> SLICE 6 SPLIT for tight disk + small-slice polish posture: 6a =
+>> drum-track-defaults-to-kit-matrix (§5) LANDED (gate 1496/0; critic
+>> verified; build-out 6a/7). 6b = shared Sound panel (§10, player+sends;
+>> per-part FX deferred; entangled with slicer §7b). Then slice 7
+>> (slicer row).
+>> INTERRUPT (polish primary input) — Max bug 20260615-tracks-routing-
+>> source-and-mixer-split: split the ROUTING tab into a source well +
+>> a mixer/FX well (slice-4 follow-up, has acceptance check). DISPATCHED
+>> (feature/routing-source-mixer-split); prioritized over 6b and usefully
+>> precedes it. 6b + slice 7 queue behind it.
+>> FOREMAN TIDY (deferred, non-blocking): qa-surface rows 30/31/35-39
+>> should add drumTrackDefaultView=kitMatrix to expected-status (critic
+>> should-fix); fold into the next capture-touching slice — rows still
+>> capture correctly today, script isn't in the gate.
+>> All under the standard build→gate→MANDATORY-critic→land. Standard
+>> agent skip list KEPT (coreaudiod degrades mid-run unattended; Max
+>> runs the HAL tests directly when it's fresh, as he just did: 1497/0
+>> incl. the previously-skipped selection test).
+>>
 >> TIDY (nit, no rush): rename TrackRoutingTabContent ->
 >> TrackSourceRoutingTabContent for sibling-naming consistency; ride a
 >> future slice that touches the area (avoid a standalone re-gate). Deferred-feature seams the perform

@@ -10,7 +10,7 @@ case "$fixture_path" in
   /*) fixture_source_path="$fixture_path" ;;
   *) fixture_source_path="$REPO_ROOT/$fixture_path" ;;
 esac
-output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/loops/build/song-mode-phrase-looping/evidence/transport-phrase-navigation-captures}"
+output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/runtime/loops/build/song-mode-phrase-looping/evidence/transport-phrase-navigation-captures}"
 case "$output_dir" in
   /*) ;;
   *) output_dir="$REPO_ROOT/$output_dir" ;;

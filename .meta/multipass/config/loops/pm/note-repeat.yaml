@@ -1,0 +1,67 @@
+id: pm/note-repeat
+kind: pm
+status: active
+feature: note-repeat
+source_intent:
+  - README.md
+  - docs/roadmap/note-repeat/README.md
+  - docs/roadmap/note-repeat/user-stories.md
+  - docs/roadmap/note-repeat/existing-state.md
+  - docs/roadmap/note-repeat/ux-review.md
+runtime:
+  root: .meta/multipass/runtime/loops/pm/note-repeat
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/note-repeat.md
+  product_docs: docs/roadmap/note-repeat
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for Note Repeat artifact readiness, not product implementation.
+  stale_when:
+    - docs/roadmap/note-repeat artifacts change.
+    - project orientation or feature-readiness evidence changes Note Repeat readiness.
+    - a product-owner prototype decision is recorded.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Note Repeat PM artifact readiness. Record existing artifacts,
+        missing readiness gates, product-owner decision needs, and whether the
+        lane is ready for promotion. Do not write inbox requests or modify
+        roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Note Repeat PM observations against README intent and current
+        feature-readiness evidence. Identify the next PM artifact gap or lock.
+        Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Note Repeat from the latest PM
+        orientation. Route only PM artifact work or a loop-local lock; do not
+        promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:note-repeat

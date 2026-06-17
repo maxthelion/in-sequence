@@ -10,7 +10,13 @@ echo "- branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 echo "- commit: $(git rev-parse HEAD 2>/dev/null || echo unknown)"
 echo
 
-find docs/roadmap/agentic-loop/reviews docs/multi-pass-coordinator/inbox -type f -name '*.md' 2>/dev/null \
+find \
+  .meta/multipass/runtime/runs/actors/architecture-review \
+  .meta/multipass/runtime/runs/actors/testing-review \
+  .meta/multipass/runtime/runs/actors/ux-ia-review \
+  .meta/multipass/runtime/runs/actors/visual-economy-review \
+  .meta/multipass/runtime/loops \
+  -type f \( -name '*.final.md' -o -name '*review*.md' -o -name '*evidence*.md' \) 2>/dev/null \
   | sort \
   | while read -r file; do
       echo "## $file"

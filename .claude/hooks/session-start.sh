@@ -18,14 +18,14 @@ DIRTY=""
 [ -n "$(git status --porcelain 2>/dev/null)" ] && DIRTY=" (dirty)"
 
 PENDING=0
-if [ -d ".meta/multipass/inbox/pending" ]; then
-  PENDING="$(find .meta/multipass/inbox/pending -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
+if [ -d ".meta/multipass/runtime/inbox/pending" ]; then
+  PENDING="$(find .meta/multipass/runtime/inbox/pending -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')"
 fi
 
 BUILD_LOOPS="none"
-if [ -d "docs/multi-pass-coordinator/loops/build" ]; then
+if [ -d ".meta/multipass/config/loops/build" ]; then
   BUILD_LOOPS="$(
-    find docs/multi-pass-coordinator/loops/build -maxdepth 1 -type f -name '*.yaml' 2>/dev/null \
+    find .meta/multipass/config/loops/build -maxdepth 1 -type f -name '*.yaml' 2>/dev/null \
       | sed 's#.*/##; s#\.yaml$##' \
       | sort \
       | paste -sd ', ' -

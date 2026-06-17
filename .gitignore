@@ -36,6 +36,7 @@ Pods/
 !.meta/multipass/state/
 !.meta/multipass/state/**
 .meta/multipass/runtime/
+.meta/project/
 
 # Editor
 .vscode/

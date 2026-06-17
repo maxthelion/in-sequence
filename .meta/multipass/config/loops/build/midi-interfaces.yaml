@@ -1,0 +1,43 @@
+id: build/midi-interfaces
+kind: build
+status: locked
+feature: midi-interfaces
+worktree: .worktrees/roadmap-8-midi-interfaces
+branch: auto/roadmap-8-midi-interfaces
+lock:
+  by: human
+  locked_at: 2026-06-04T17:10:00Z
+  reason: "Paused for hands-on MIDI hardware walkthrough with Max; do not tick autonomously or consume an ordinary build slot."
+  unlock_when: "Max resumes the MIDI Interfaces build loop after direct hardware testing."
+actors:
+  orient:
+    - actor: build-orienter
+  decide:
+    - actor: build-decider
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+    - actor: ux-ia-review
+      cadence: on_inbox
+    - actor: visual-economy-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing
+  - id: ux
+    actor: ux-ia-review
+    checklist: ux
+    when: user_facing
+  - id: visual-economy
+    actor: visual-economy-review
+    checklist: visual-economy
+    when: persistent_surface

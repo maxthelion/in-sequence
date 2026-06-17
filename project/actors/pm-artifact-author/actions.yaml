@@ -1,0 +1,10 @@
+actions:
+  - read_pm_loop_manifest_request_and_artifacts
+  - update_requested_pm_artifact
+  - record_pm_artifact_evidence
+  - update_pm_loop_durable_summary
+
+write_roots:
+  - docs/roadmap
+  - .meta/multipass/runtime/loops/pm
+  - .meta/multipass/state/pm-loops

@@ -10,12 +10,16 @@ echo "- branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 echo "- commit: $(git rev-parse HEAD 2>/dev/null || echo unknown)"
 echo
 
-echo "## Evidence Log"
-if [ -f docs/multi-pass-coordinator/evidence-log.md ]; then
-  sed -n '1,180p' docs/multi-pass-coordinator/evidence-log.md
-else
-  echo "missing"
-fi
+echo "## Recent Testing Review Evidence"
+find .meta/multipass/runtime/runs/actors/testing-review .meta/multipass/runtime/loops -type f \
+  \( -name '*.final.md' -o -name '*testing*.md' \) 2>/dev/null \
+  | xargs ls -t 2>/dev/null \
+  | sed -n '1,12p' \
+  | while read -r file; do
+      echo "### $file"
+      sed -n '1,48p' "$file"
+      echo
+    done
 echo
 
 echo "## Recent Xcode Test Results"

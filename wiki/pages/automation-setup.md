@@ -21,10 +21,10 @@ bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/tick.ts \
   --project /Users/maxwilliams/dev/in-sequence --write
 ```
 
-The runtime reads `multipass.yaml`, active loop manifests under
-`docs/multi-pass-coordinator/loops/`, central actor prompts from
+The runtime reads `.meta/multipass/multipass.yaml`, active loop manifests under
+`.meta/multipass/config/loops/`, central actor prompts from
 `/Users/maxwilliams/dev/multi-pass-coordinator/actors/`, and runtime inboxes
-under `.meta/multipass/`.
+under `.meta/multipass/runtime/inbox/`.
 
 ## OODA Discipline
 
@@ -32,10 +32,10 @@ The project loop and feature build loops use four roles:
 
 | Phase | Responsibility | Writes |
 | --- | --- | --- |
-| observe | Gather facts, reviews, screenshots, logs, branch state, readiness, and process health. | `.meta/multipass/loops/<loop>/observe/` and compact durable summaries when useful |
-| orient | Interpret observations against the README, roadmap intent, active work, and the product pyramid. | `.meta/multipass/loops/<loop>/orient/` |
-| decide | Schedule one bounded next action when action is useful. | Runtime inbox messages under `.meta/multipass/inbox/pending/` |
-| act | Build, review, integrate, or repair one bounded thing. | Actor finals under `.meta/multipass/runs/` plus loop-local completion evidence |
+| observe | Gather facts, reviews, screenshots, logs, branch state, readiness, and process health. | `.meta/multipass/runtime/loops/<loop>/observe/` and compact state summaries when useful |
+| orient | Interpret observations against the README, roadmap intent, active work, and the product pyramid. | `.meta/multipass/runtime/loops/<loop>/orient/` |
+| decide | Schedule one bounded next action when action is useful. | Runtime inbox messages under `.meta/multipass/runtime/inbox/pending/` |
+| act | Build, review, integrate, or repair one bounded thing. | Actor finals under `.meta/multipass/runtime/runs/` plus loop-local completion evidence |
 
 Observers should not route work. Orienters should not schedule work. Deciders
 should avoid broad admin churn and prefer concrete progress.
@@ -43,26 +43,26 @@ should avoid broad admin churn and prefer concrete progress.
 ## Live Runtime Layout
 
 ```text
-multipass.yaml
+.meta/multipass/multipass.yaml
 project/scripts/tick.sh
-docs/multi-pass-coordinator/loops/
+.meta/multipass/config/loops/
   project.yaml
   build/<feature>.yaml
-docs/multi-pass-coordinator/state/
+.meta/multipass/state/
   work/current-work.md
   feature-readiness.md
   holistic-status.md
   decision-log.md
   build-loops/<feature>.md
-.meta/multipass/
+.meta/multipass/runtime/
   inbox/{pending,claimed,done,blocked}/
   runs/actors/<actor>/
   loops/<loop-id>/{observe,orient,decide,act}/
   activity.ndjson
 ```
 
-Runtime `.meta/multipass` files are transient evidence and logs. Durable docs
-under `docs/multi-pass-coordinator/state/` should stay compact and current.
+Runtime `.meta/multipass/runtime` files are transient evidence and logs. Compact
+state under `.meta/multipass/state/` should stay current and terse.
 
 ## Project-Local Evidence
 

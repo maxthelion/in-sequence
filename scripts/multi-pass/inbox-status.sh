@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-inbox_root=".meta/multipass/inbox"
+inbox_root=".meta/multipass/runtime/inbox"
 
 count_requests() {
   local dir="$1"
@@ -44,8 +44,8 @@ field_or_unknown() {
 
 loop_status() {
   local loop="$1"
-  local loop_file="docs/multi-pass-coordinator/loops/${loop}.yaml"
-  local manifest_file=".meta/multipass/loops/${loop}/manifest.yaml"
+  local loop_file=".meta/multipass/config/loops/${loop}.yaml"
+  local manifest_file=".meta/multipass/runtime/loops/${loop}/manifest.yaml"
   local file=""
 
   if [[ -f "$loop_file" ]]; then

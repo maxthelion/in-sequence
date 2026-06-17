@@ -558,7 +558,7 @@ bun /Users/maxwilliams/dev/multi-pass-coordinator/src/cli/promote-build.ts \
   --branch auto/<feature-branch>
 ```
 
-The promotion should create or update a build loop instance under `docs/multi-pass-coordinator/loops/build/`. Once the loop exists, Meta ticks the project through `project/scripts/tick.sh`, and the central runtime schedules the loop's observe, orient, decide, and act phases.
+The promotion should create or update a build loop instance under `.meta/multipass/config/loops/build/`. Once the loop exists, Meta ticks the project through `project/scripts/tick.sh`, and the central runtime schedules the loop's observe, orient, decide, and act phases.
 
 Do not run implementation agents from the PM loop. Do not let the PM loop write production code or tests. Its job is to preserve intent, create artifacts, and mark readiness; the build loop owns implementation and evidence gates.
 

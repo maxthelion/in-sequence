@@ -6,9 +6,9 @@ implementation loop. It is no longer the control plane for this project.
 Current automation is Multi-Pass/OODA:
 
 - project tick shim: `project/scripts/tick.sh`
-- runtime inbox/runs/activity: `.meta/multipass/`
-- loop registry: `docs/multi-pass-coordinator/loops/`
-- compact state docs: `docs/multi-pass-coordinator/state/`
+- runtime inbox/runs/activity: `.meta/multipass/runtime/`
+- loop registry: `.meta/multipass/config/loops/`
+- compact state docs: `.meta/multipass/state/`
 - central actor prompts: `/Users/maxwilliams/dev/multi-pass-coordinator/actors/`
 
 Do not add new scheduler state here. If an old note in this directory contains

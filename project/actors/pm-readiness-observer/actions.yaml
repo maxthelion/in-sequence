@@ -1,0 +1,9 @@
+actions:
+  - inspect_lane_readme_and_pm_artifacts
+  - inspect_project_orientation_and_feature_readiness
+  - write_pm_readiness_observation
+  - update_pm_loop_durable_summary
+
+write_roots:
+  - .meta/multipass/runtime/loops/pm/input-audio/observe
+  - .meta/multipass/state/pm-loops

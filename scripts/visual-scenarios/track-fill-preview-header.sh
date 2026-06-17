@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "$SCRIPT_DIR/peekaboo-common.sh"
 
-output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/loops/build/track-fill-toggle/act/track-fill-preview-header-screenshots}"
+output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/runtime/loops/build/track-fill-toggle/act/track-fill-preview-header-screenshots}"
 case "$output_dir" in
   /*) ;;
   *) output_dir="$REPO_ROOT/$output_dir" ;;

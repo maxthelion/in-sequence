@@ -1,0 +1,84 @@
+id: pm/scenes-in-phrases
+kind: pm
+status: locked
+feature: scenes-in-phrases
+source_intent:
+  - README.md
+  - docs/roadmap/scenes-in-phrases/README.md
+  - docs/roadmap/scenes-in-phrases/notes.md
+  - docs/roadmap/scenes-in-phrases/user-stories.md
+  - docs/roadmap/scenes-in-phrases/existing-state.md
+  - docs/roadmap/scenes-in-phrases/ux-review.md
+  - docs/roadmap/scenes-in-phrases/prototypes/03-selected-phrase-scene-rail.html
+  - docs/roadmap/scenes-in-phrases/prototypes/04-inline-scene-strip-matrix.html
+runtime:
+  root: .meta/multipass/runtime/loops/pm/scenes-in-phrases
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/scenes-in-phrases.md
+  product_docs: docs/roadmap/scenes-in-phrases
+work:
+  branch: main
+  worktree: .
+lock:
+  locked_at: 2026-06-07T15:11Z
+  type: product-owner-prototype-approval
+  question: >
+    Is prototype 03, the selected-phrase scene rail, approved as the
+    Scenes In Phrases architecture/spec direction, or should the prototype
+    change toward the heavier row-visible scene-summary emphasis shown by
+    prototype 04?
+  recommended_default: >
+    Approve prototype 03 as the direction, keeping prototype 04 only as
+    comparison evidence for final row-summary language.
+  unlock_when: >
+    A product-owner approval or requested-change answer for the selected
+    prototype direction is recorded in the Scenes In Phrases PM artifacts.
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for Scenes In Phrases artifact readiness, not product implementation.
+  stale_when:
+    - docs/roadmap/scenes-in-phrases artifacts change.
+    - project orientation or feature-readiness evidence changes Scenes In Phrases readiness.
+    - a product-owner prototype decision is recorded.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Scenes In Phrases PM artifact readiness. Record existing
+        artifacts, missing readiness gates, product-owner decision needs, and
+        whether the lane is ready for promotion. Do not write inbox requests or
+        modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Scenes In Phrases PM observations against README intent and
+        current feature-readiness evidence. Identify the next PM artifact gap
+        or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Scenes In Phrases from the
+        latest PM orientation. Route only PM artifact work or a loop-local
+        lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:scenes-in-phrases

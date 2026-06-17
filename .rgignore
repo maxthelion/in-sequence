@@ -1,0 +1,11 @@
+.meta/multipass/runtime/runs/**/*.stderr.txt
+.meta/multipass/runtime/runs/**/*.stdout.txt
+.meta/multipass/runtime/runs/**/*.prompt.md
+.meta/multipass/runtime/runs/**/*.stderr.txt.gz
+.meta/multipass/runtime/runs/**/*.stdout.txt.gz
+.meta/multipass/runtime/runs/**/*.prompt.md.gz
+.meta/orchestrator-runs/**/*.log
+docs/roadmap/probe-results/**
+.worktrees/**/.meta/multipass/runtime/runs/**/*.stderr.txt
+.worktrees/**/.meta/multipass/runtime/runs/**/*.stdout.txt
+.worktrees/**/.meta/multipass/runtime/runs/**/*.prompt.md

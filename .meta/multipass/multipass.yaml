@@ -1,0 +1,33 @@
+version: 2
+coordinator: /Users/maxwilliams/dev/multi-pass-coordinator
+
+project:
+  name: in-sequence
+  root: /Users/maxwilliams/dev/in-sequence
+  read_first:
+    - .meta/multipass/state/project-spirit.md
+
+runtime:
+  inbox: .meta/multipass/runtime/inbox
+  runs: .meta/multipass/runtime/runs
+  state: .meta/multipass/state
+  activity: .meta/multipass/runtime/activity.ndjson
+  max_starts_per_tick: 1
+  actor_timeout_seconds: 1500
+  actor_execution: async
+  flow_control:
+    usage_rate_limit_cooldown_seconds: 1800
+  concurrency:
+    max_active_loops:
+      build: 2
+
+loops:
+  registry: .meta/multipass/config/loops
+
+actors:
+  overrides:
+    decider:
+      mode: replace
+      prompt: project/actors/decider/prompt.md
+    work-observer:
+      addenda: project/actors/work-observer/bounded-cadence.md

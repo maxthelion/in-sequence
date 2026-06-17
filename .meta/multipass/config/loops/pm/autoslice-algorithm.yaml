@@ -1,0 +1,69 @@
+id: pm/autoslice-algorithm
+kind: pm
+status: active
+feature: autoslice-algorithm
+source_intent:
+  - README.md
+  - docs/roadmap/autoslice-algorithm/README.md
+  - docs/roadmap/autoslice-algorithm/notes.md
+  - docs/roadmap/autoslice-algorithm/user-stories.md
+  - docs/roadmap/autoslice-algorithm/existing-state.md
+  - docs/roadmap/autoslice-algorithm/ux-review.md
+  - docs/roadmap/autoslice-algorithm/prototypes/loop-boundary-heuristic.html
+runtime:
+  root: .meta/multipass/runtime/loops/pm/autoslice-algorithm
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/autoslice-algorithm.md
+  product_docs: docs/roadmap/autoslice-algorithm
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for Autoslice Algorithm artifact readiness, not product implementation.
+  stale_when:
+    - docs/roadmap/autoslice-algorithm artifacts change.
+    - project orientation or feature-readiness evidence changes Autoslice Algorithm readiness.
+    - a product-owner prototype or algorithm-scope decision is recorded.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Autoslice Algorithm PM artifact readiness. Record existing
+        artifacts, missing readiness gates, product-owner decision needs, and
+        whether the lane is ready for promotion. Do not write inbox requests or
+        modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Autoslice Algorithm PM observations against README intent
+        and current feature-readiness evidence. Identify the next PM artifact
+        gap or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Autoslice Algorithm from the
+        latest PM orientation. Route only PM artifact work or a loop-local
+        lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:autoslice-algorithm

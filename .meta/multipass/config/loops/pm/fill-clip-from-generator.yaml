@@ -1,0 +1,65 @@
+id: pm/fill-clip-from-generator
+kind: pm
+status: complete
+feature: fill-clip-from-generator
+source_intent:
+  - README.md
+  - docs/roadmap/fill-clip-from-generator/README.md
+runtime:
+  root: .meta/multipass/runtime/loops/pm/fill-clip-from-generator
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/fill-clip-from-generator.md
+  product_docs: docs/roadmap/fill-clip-from-generator
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane folded into Clip History / History by overlap disposition, not product implementation.
+  stale_when:
+    - docs/roadmap/fill-clip-from-generator artifacts change.
+    - project orientation or feature-readiness evidence changes Fill Clip From Generator readiness.
+    - Clip History or generator-capture roadmap evidence changes the overlap frame.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Fill A Clip From Current Generator PM artifact readiness.
+        Record existing artifacts, missing readiness gates, likely overlap with
+        Clip History or generator-capture direction, product-owner decision
+        needs if any, and whether the lane is ready for promotion. Do not write
+        inbox requests or modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Fill A Clip From Current Generator PM observations against
+        README intent and current feature-readiness evidence. Identify the next
+        PM artifact gap or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Fill A Clip From Current
+        Generator from the latest PM orientation. Route only PM artifact work
+        or a loop-local lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:fill-clip-from-generator

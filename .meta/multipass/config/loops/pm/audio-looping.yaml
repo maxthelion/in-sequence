@@ -1,0 +1,78 @@
+id: pm/audio-looping
+kind: pm
+status: locked
+feature: audio-looping
+source_intent:
+  - README.md
+  - docs/roadmap/audio-looping/README.md
+runtime:
+  root: .meta/multipass/runtime/loops/pm/audio-looping
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/audio-looping.md
+  product_docs: docs/roadmap/audio-looping
+work:
+  branch: main
+  worktree: .
+lock:
+  locked_at: 2026-06-04T11:05Z
+  type: product-owner-scope
+  question: >
+    Should Audio Looping v1 narrow to a one-capable-track macro page on top of
+    landed Input Audio v1, or wait until multiple audio input tracks and shared
+    input distribution are in scope?
+  recommended_default: >
+    Narrow Audio Looping v1 to one loop-capable Input Audio track now, while
+    preserving the accepted plural/global-record prototype as later target
+    intent.
+  unlock_when: >
+    A product-owner answer to this scope choice is recorded in the Audio Looping
+    PM artifacts.
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane artifacts for Audio Looping, not product implementation.
+  stale_when:
+    - docs/roadmap/audio-looping artifacts change.
+    - project orientation or feature-readiness evidence changes Audio Looping readiness.
+    - a product-owner prototype decision is recorded.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Audio Looping PM artifact readiness. Record existing artifacts,
+        missing readiness gates, product-owner decision needs, and whether the
+        lane is ready for promotion. Do not write inbox requests or modify
+        roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Audio Looping PM observations against README intent and
+        current feature-readiness evidence. Identify the next PM artifact gap
+        or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Audio Looping from the latest PM
+        orientation. Route only PM artifact work or a loop-local lock; do not
+        promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:audio-looping

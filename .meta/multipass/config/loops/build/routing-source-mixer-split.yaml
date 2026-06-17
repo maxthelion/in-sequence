@@ -1,0 +1,38 @@
+id: build/routing-source-mixer-split
+kind: build
+status: active
+feature: routing-source-mixer-split
+worktree: .worktrees/routing-source-mixer-split
+branch: feature/routing-source-mixer-split
+actors:
+  orient:
+    - actor: build-orienter
+  decide:
+    - actor: build-decider
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+    - actor: ux-ia-review
+      cadence: on_inbox
+    - actor: visual-economy-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing
+  - id: ux
+    actor: ux-ia-review
+    checklist: ux
+    when: user_facing
+  - id: visual-economy
+    actor: visual-economy-review
+    checklist: visual-economy
+    when: persistent_surface

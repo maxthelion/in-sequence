@@ -1,0 +1,9 @@
+actions:
+  - interpret_pm_readiness_evidence
+  - identify_lowest_unmet_pm_artifact_layer
+  - write_pm_orientation
+  - update_pm_loop_durable_summary
+
+write_roots:
+  - .meta/multipass/runtime/loops/pm/input-audio/orient
+  - .meta/multipass/state/pm-loops

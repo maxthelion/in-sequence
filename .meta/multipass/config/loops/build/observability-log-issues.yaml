@@ -1,0 +1,43 @@
+id: build/observability-log-issues
+kind: build
+status: locked
+feature: observability-log-issues
+worktree: .worktrees/roadmap-21-observability-log-issues
+branch: auto/roadmap-21-observability-log-issues
+lock:
+  by: human
+  locked_at: 2026-06-08T14:37:54Z
+  reason: "Paused for scope correction: keep this as app-side diagnostic evidence for the OODA log observer, not a parallel issue-review workflow."
+  unlock_when: "A revised build-loop plan says which diagnostic event/storage pieces remain useful and how they feed the existing project log-observer/orienter/decider path."
+actors:
+  orient:
+    - actor: build-orienter
+  decide:
+    - actor: build-decider
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+    - actor: ux-ia-review
+      cadence: on_inbox
+    - actor: visual-economy-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing
+  - id: ux
+    actor: ux-ia-review
+    checklist: ux
+    when: user_facing
+  - id: visual-economy
+    actor: visual-economy-review
+    checklist: visual-economy
+    when: persistent_surface

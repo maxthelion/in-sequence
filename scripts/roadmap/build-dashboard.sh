@@ -247,7 +247,7 @@ recent_commits_html() {
 
 runtime_messages_html() {
   local files
-  files="$(find "$REPO/.meta/multipass/inbox/pending" -maxdepth 1 -type f -print 2>/dev/null | sort || true)"
+  files="$(find "$REPO/.meta/multipass/runtime/inbox/pending" -maxdepth 1 -type f -print 2>/dev/null | sort || true)"
 
   if [ -z "$files" ]; then
     printf '%s\n' '          <li><span class="ok">No pending Multi-Pass runtime messages.</span></li>'
@@ -268,7 +268,7 @@ prototype_count="$(find "$ROADMAP_DIR" -path '*/prototypes/*.html' -type f | wc 
 new_prototype_count="$(find "$ROADMAP_DIR" -path '*/prototypes/*.html' -type f -mtime -1 | wc -l | tr -d ' ')"
 open_question_count="$(find "$ROADMAP_DIR" -maxdepth 3 -type f -name 'open-questions.md' | wc -l | tr -d ' ')"
 open_question_class="$(count_class "$open_question_count")"
-runtime_pending_count="$(count_files "$REPO/.meta/multipass/inbox/pending")"
+runtime_pending_count="$(count_files "$REPO/.meta/multipass/runtime/inbox/pending")"
 runtime_pending_class="$(count_class "$runtime_pending_count")"
 
 next_user_item="$(section_value "Next User Item" "Item" | html_escape)"

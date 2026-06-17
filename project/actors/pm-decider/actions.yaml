@@ -1,0 +1,12 @@
+actions:
+  - read_pm_orientation_and_lane_artifacts
+  - decide_one_pm_artifact_action_or_lock
+  - write_sparse_pm_inbox_request_when_useful
+  - write_pm_decision_artifact
+  - update_pm_loop_durable_summary
+
+write_roots:
+  - .meta/multipass/runtime/inbox/pending
+  - .meta/multipass/runtime/loops/pm/input-audio/decide
+  - .meta/multipass/config/loops/pm
+  - .meta/multipass/state/pm-loops

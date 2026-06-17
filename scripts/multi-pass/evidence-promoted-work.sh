@@ -10,27 +10,22 @@ echo "- branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 echo "- commit: $(git rev-parse HEAD 2>/dev/null || echo unknown)"
 echo
 
-echo "## Agentic Loop State"
-if [ -f docs/roadmap/agentic-loop/state.md ]; then
-  sed -n '1,120p' docs/roadmap/agentic-loop/state.md
+echo "## Loop Lifecycle"
+if [ -f .meta/multipass/state/loop-lifecycle-status.md ]; then
+  sed -n '1,180p' .meta/multipass/state/loop-lifecycle-status.md
 else
   echo "missing"
 fi
 echo
 
-echo "## Recent Build Promotions"
-if [ -d docs/multi-pass-coordinator/inbox/build-loop/archive ]; then
-  find docs/multi-pass-coordinator/inbox/build-loop/archive -maxdepth 1 -type f -name '*.md' -print0 \
-    | xargs -0 ls -t 2>/dev/null \
-    | sed -n '1,8p' \
-    | while read -r file; do
-        echo "### $file"
-        sed -n '1,80p' "$file"
-        echo
-      done
-else
-  echo "none"
-fi
+echo "## Build Loop Registry"
+find .meta/multipass/config/loops/build -maxdepth 1 -type f -name '*.yaml' -print 2>/dev/null \
+  | sort \
+  | while read -r file; do
+      echo "### $file"
+      sed -n '1,44p' "$file"
+      echo
+    done
 
 echo "## Implementation Worktrees"
 for wt in .worktrees/p0-track-performance-overlay .worktrees/*; do

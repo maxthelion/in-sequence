@@ -1,0 +1,70 @@
+id: pm/observability-log-issues
+kind: pm
+status: active
+feature: observability-log-issues
+source_intent:
+  - README.md
+  - docs/roadmap/observability-log-issues/README.md
+  - docs/roadmap/observability-log-issues/notes.md
+  - docs/roadmap/observability-log-issues/user-stories.md
+  - docs/roadmap/observability-log-issues/existing-state.md
+  - docs/roadmap/observability-log-issues/ux-review.md
+  - docs/roadmap/observability-log-issues/prototypes/01-runtime-event-queue.html
+  - docs/roadmap/observability-log-issues/prototypes/02-issue-draft-review.html
+runtime:
+  root: .meta/multipass/runtime/loops/pm/observability-log-issues
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/observability-log-issues.md
+  product_docs: docs/roadmap/observability-log-issues
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for Observability From Application Logs artifact readiness, not product implementation.
+  stale_when:
+    - docs/roadmap/observability-log-issues artifacts change.
+    - project orientation or feature-readiness evidence changes Observability readiness.
+    - a product-owner prototype or scope decision is recorded.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Observability From Application Logs PM artifact readiness.
+        Record existing artifacts, missing readiness gates, product-owner
+        decision needs, and whether the lane is ready for promotion. Do not
+        write inbox requests or modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Observability From Application Logs PM observations against
+        README intent and current feature-readiness evidence. Identify the next
+        PM artifact gap or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Observability From Application
+        Logs from the latest PM orientation. Route only PM artifact work or a
+        loop-local lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:observability-log-issues
