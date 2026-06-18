@@ -1,6 +1,6 @@
 ---
-status: exploratory
-stage: prototype
+status: ready-for-build-loop-promotion
+stage: implementation-handoff
 priority: high
 blocked_by: []
 ---
@@ -17,6 +17,10 @@ Exploratory wireframes for a richer perform-mode information architecture:
 
 ## Artifacts
 
+- [architecture.md](architecture.md)
+- [spec.md](spec.md)
+- [plan.md](plan.md)
+- [implementation-handoff.md](implementation-handoff.md)
 - [reasoning.md](reasoning.md)
 - [reasoning-v2.md](reasoning-v2.md)
 - [reasoning-v3.md](reasoning-v3.md)
