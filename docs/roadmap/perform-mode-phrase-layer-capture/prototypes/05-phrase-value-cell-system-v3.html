@@ -84,7 +84,7 @@
 
     .main-nav {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 8px;
       padding: 12px;
       border-bottom: 2px solid var(--line);
@@ -417,9 +417,10 @@
     </header>
 
     <nav class="main-nav">
-      <button onclick="showMode('song')">Song</button>
-      <button class="active" onclick="showMode('overview')">Phrase</button>
-      <button onclick="showMode('tracks')">Tracks</button>
+      <button id="mainSong" onclick="showMode('song')">Song</button>
+      <button id="mainPhrase" class="active" onclick="showMode('overview')">Phrase</button>
+      <button id="mainLayers" onclick="showMode('layers')">Layer Perform</button>
+      <button id="mainTracks" onclick="showMode('tracks')">Tracks</button>
       <button class="stub" onclick="toast('mixer global defaults stub')">Mixer</button>
       <button class="stub" onclick="toast('scene management stub')">Scenes</button>
     </nav>
@@ -722,6 +723,14 @@
       cell: 'tabCell',
       tracks: 'tabTracks'
     };
+    const mainTabs = {
+      song: 'mainSong',
+      overview: 'mainPhrase',
+      scenes: 'mainPhrase',
+      cell: 'mainPhrase',
+      layers: 'mainLayers',
+      tracks: 'mainTracks'
+    };
     const tracks = ['Main', 'Atlantis', 'Poly', 'Mono', 'Kick', 'Snare', 'Hat', 'Clap'];
     const layerData = {
       Pattern: ['P1', 'P4', 'P3', 'P1', 'P1', 'P1', 'P1', 'P1'],
@@ -749,6 +758,12 @@
         const tab = document.getElementById(tabs[name]);
         if (tab) tab.classList.toggle('active', name === mode);
       });
+      Object.values(mainTabs).forEach(id => {
+        const tab = document.getElementById(id);
+        if (tab) tab.classList.remove('active');
+      });
+      const mainTab = document.getElementById(mainTabs[mode]);
+      if (mainTab) mainTab.classList.add('active');
       if (mode === 'layers') setLayer('Pattern');
     }
 
