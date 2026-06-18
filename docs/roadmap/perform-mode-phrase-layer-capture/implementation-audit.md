@@ -58,8 +58,24 @@ done declaration for the whole feature.
   `setPhraseCell`, so Perform mode stages the change in the overlay and setup
   mode writes baseline.
 - Focused tests cover multi-track scoped writes in Perform mode.
-- Scenes is present as a phrase-local tab marker but still delegates real scene
-  work to a future slice.
+
+## Implemented In Fourth Slice
+
+- The Scenes tab is now a concrete phrase workspace surface rather than a
+  placeholder.
+- It uses the existing scene grammar: Slot A, crossfader, and Slot B.
+- Slot A/B cards use the existing `MasterBusScene` and `MasterBusABSelection`
+  model instead of inventing a parallel phrase-scene model.
+- Slot picking uses the existing scene picker semantics and writes through
+  `setMasterABMode`.
+- Crossfader moves use the existing live master crossfader overlay.
+- Scene macro wells reuse the existing `MacroSlotKnob` primitive and existing
+  master scene macro override plumbing.
+- The new wrapper is phrase-local in the IA, but phrase-specific persistence of
+  scene selection/crossfader/macro automation remains explicit model work.
+- A small phrase-local crossfader track view was copied because the existing
+  scene perform crossfader is private to `ScenesWorkspaceView+Perform`; this
+  should be extracted to a shared component in a cleanup pass.
 
 ## Verified
 
@@ -71,13 +87,19 @@ done declaration for the whole feature.
 - After the third slice, `xcodebuild build` passed for the app target and
   `xcodebuild test -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests`
   passed again with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After the fourth slice, `xcodebuild build` passed for the app target with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After the fourth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests` passed with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Still Not Done
 
 - Transport still needs the full current phrase / next phrase / boundary
   progress treatment from the spec.
-- Scenes has not yet been moved into the phrase-local A/B/crossfader tab; the
-  current tab is an explicit placeholder.
+- Scenes is now in the phrase-local A/B/crossfader tab, but the values are not
+  yet stored as phrase-cell/phrase-scene data, and per-bar/continuous scene
+  values have not been implemented.
 - Moment and Latch behavior is currently represented in the shell; quantized
   latch execution and length-limited expiry still need engine-level handling.
 - Visual review evidence against the V3 prototype has not yet been captured for
@@ -90,10 +112,11 @@ done declaration for the whole feature.
 
 ## Next Build-Loop Action
 
-Build the production Phrase Scenes tab around the existing scene grammar:
+Add phrase-scene persistence behind the production Scenes tab:
 
-- keep the current Slot A / crossfader / Slot B shape;
-- make it phrase-local rather than a disconnected top-level scene surface;
-- preserve scene macro wells as belonging to the scene currently in each slot;
-- use phrase values for A scene, crossfader, and B scene;
-- do not attempt full continuous scene automation in this slice.
+- define the minimal phrase-local data for A scene, crossfader, and B scene;
+- preserve the current Slot A / crossfader / Slot B UI shape;
+- keep macro wells tied to the scene currently selected in each slot;
+- make scene choices/crossfader capture with the phrase perform overlay;
+- defer full continuous scene automation until the phrase-scene value model is
+  in place.

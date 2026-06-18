@@ -15,6 +15,7 @@ struct PhraseWorkspaceView: View {
     @State private var phraseCellTool: PhraseCellTool = .value
     @State private var globalApplyScope = TrackPerformSelectionState()
     @State private var isPresentingGlobalApplyTrackSelector = false
+    @State private var phraseSceneSlotPickerRequest: ScenePerformSlotPickerRequest?
     @State private var isPresentingPhraseCapture = false
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
@@ -109,7 +110,7 @@ struct PhraseWorkspaceView: View {
                         matrix
                     }
                 case .scenes:
-                    phraseScenesPlaceholder
+                    phraseScenesSurface
                 case .globalApply:
                     globalApplySurface
                 }
@@ -142,6 +143,10 @@ struct PhraseWorkspaceView: View {
                 }
             )
             .presentationBackground(.clear)
+        }
+        .sheet(item: $phraseSceneSlotPickerRequest) { request in
+            phraseSceneSlotPickerSheet(request)
+                .presentationBackground(.clear)
         }
         .onAppear {
             reconcileSelectedLayer()
@@ -402,13 +407,284 @@ struct PhraseWorkspaceView: View {
         }
     }
 
-    private var phraseScenesPlaceholder: some View {
-        StudioPlaceholderTile(
-            title: "Phrase Scenes",
-            detail: "Scene A, crossfader, and Scene B stay on the current Scenes page for this slice. This tab marks their phrase-local home for the next build pass.",
-            accent: StudioTheme.amber
+    private var phraseScenesSurface: some View {
+        let selection = activePhraseSceneSelection
+        let sceneA = session.store.masterBus.scene(id: selection.sceneAID) ?? session.store.masterBus.activeScene
+        let sceneB = session.store.masterBus.scene(id: selection.sceneBID)
+            ?? session.store.masterBus.scenes.first { $0.id != sceneA.id }
+            ?? MasterBusScene.sceneB
+        let crossfader = engineController.effectiveCrossfader
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                phraseSceneSlot(title: "Slot A", scene: sceneA, slot: .a, isDominant: crossfader < 0.5)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                phraseSceneCrossfader(value: crossfader)
+                    .frame(width: 180)
+
+                phraseSceneSlot(title: "Slot B", scene: sceneB, slot: .b, isDominant: crossfader > 0.5)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+
+            Text("Scene choices and macro moves currently use the live master scene surface; phrase-local scene persistence and per-bar/continuous scene values are still the next model pass.")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: min(trackGridWidth + phraseColumnWidth + matrixGutterWidth * 2 + actionColumnWidth + gridSpacing * 4, 1120))
+        .accessibilityIdentifier("phrase-scenes-surface")
+    }
+
+    private var activePhraseSceneSelection: MasterBusABSelection {
+        if let selection = session.store.masterBus.abSelection {
+            return selection
+        }
+
+        let scenes = session.store.masterBus.scenes
+        return MasterBusABSelection(
+            sceneAID: scenes.first?.id ?? MasterBusScene.sceneAID,
+            sceneBID: scenes.dropFirst().first?.id ?? scenes.first?.id ?? MasterBusScene.sceneBID
         )
-        .frame(maxWidth: min(trackGridWidth + phraseColumnWidth + matrixGutterWidth * 2 + actionColumnWidth + gridSpacing * 4, 980))
+    }
+
+    private func phraseSceneSlot(
+        title: String,
+        scene: MasterBusScene,
+        slot: ScenePerformSlotPickerRequest.Slot,
+        isDominant: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title.uppercased())
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(isDominant ? StudioTheme.amber : StudioTheme.mutedText)
+
+                    Text(scene.name)
+                        .studioText(.title)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                Spacer(minLength: 8)
+
+                Button {
+                    phraseSceneSlotPickerRequest = ScenePerformSlotPickerRequest(slot: slot)
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("Choose")
+                            .studioText(.micro)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(
+                        Color.white.opacity(StudioOpacity.subtleFill),
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Choose scene")
+            }
+            .padding(StudioMetrics.Spacing.comfortable)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(isDominant ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                engineController.setLiveMasterCrossfader(slot == .a ? 0 : 1)
+            }
+
+            phraseSceneMacroGrid(scene)
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("phrase-scene-slot-\(slot.rawValue)")
+    }
+
+    private func phraseSceneMacroGrid(_ scene: MasterBusScene) -> some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(minimum: 58), spacing: 8), count: 4),
+            spacing: 10
+        ) {
+            ForEach(0..<MasterSceneMacroBinding.slotCount, id: \.self) { slotIndex in
+                phraseSceneMacroSlot(slotIndex, scene: scene)
+            }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func phraseSceneMacroSlot(_ slotIndex: Int, scene: MasterBusScene) -> some View {
+        let macro = scene.macroBindings.first { $0.slotIndex == slotIndex }
+        return MacroSlotKnob(
+            slotIndex: slotIndex,
+            descriptor: macro.map {
+                MacroSlotKnobDescriptor(displayName: $0.name, valueRange: $0.target.valueRange)
+            },
+            value: macro.map { phraseSceneMacroValue($0, scene: scene) },
+            accent: StudioTheme.amber,
+            emptyLabel: "",
+            onAssign: {},
+            onChange: { value in
+                guard let macro else { return }
+                engineController.setMasterSceneMacroOverride(sceneID: scene.id, macroID: macro.id, value: value)
+            }
+        )
+    }
+
+    private func phraseSceneMacroValue(_ macro: MasterSceneMacroBinding, scene: MasterBusScene) -> Double {
+        let authoredValue = macro.value(in: scene) ?? macro.target.valueRange.lowerBound
+        return engineController.masterSceneMacroOverride(sceneID: scene.id, macroID: macro.id) ?? authoredValue
+    }
+
+    private func phraseSceneCrossfader(value: Double) -> some View {
+        VStack(spacing: 10) {
+            Text("\(Int((value * 100).rounded()))%")
+                .studioText(.eyebrowBold)
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.amber)
+                .frame(width: 56, alignment: .center)
+
+            HStack(spacing: 8) {
+                Text("A")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.amber)
+                    .frame(width: 14, alignment: .leading)
+
+                PhraseSceneCrossfaderTrack(value: value) { nextValue in
+                    engineController.setLiveMasterCrossfader(nextValue)
+                }
+                .frame(height: 42)
+
+                Text("B")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.amber)
+                    .frame(width: 14, alignment: .trailing)
+            }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+        .frame(maxWidth: .infinity)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-scene-crossfader")
+    }
+
+    private func phraseSceneSlotPickerSheet(_ request: ScenePerformSlotPickerRequest) -> some View {
+        StudioModal(
+            title: request.slot.title,
+            subtitle: "Choose scene",
+            minWidth: 560,
+            minHeight: 430,
+            onClose: { phraseSceneSlotPickerRequest = nil }
+        ) {
+            ScrollView {
+                LazyVGrid(columns: scenePickerColumns, spacing: 12) {
+                    ForEach(session.store.masterBus.scenes) { scene in
+                        phraseScenePickerCard(scene, request: request)
+                    }
+                }
+                .padding(.bottom, 2)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    private var scenePickerColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: 104, maximum: 150), spacing: 12),
+            count: 4
+        )
+    }
+
+    private func phraseScenePickerCard(_ scene: MasterBusScene, request: ScenePerformSlotPickerRequest) -> some View {
+        let selected = selectedPhraseSceneID(for: request.slot) == scene.id
+        return Button {
+            setPhraseScene(scene.id, for: request.slot)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(selected ? StudioTheme.background : StudioTheme.text)
+                        .frame(width: 26, height: 26)
+                        .background(selected ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    Spacer()
+                    if selected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(StudioTheme.amber)
+                    }
+                }
+
+                Text(scene.name)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text("\(scene.macroBindings.count) macros")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .padding(StudioMetrics.Spacing.comfortable)
+            .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(selected ? StudioTheme.amber.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func selectedPhraseSceneID(for slot: ScenePerformSlotPickerRequest.Slot) -> UUID {
+        let selection = session.store.masterBus.abSelection ?? activePhraseSceneSelection
+        switch slot {
+        case .a: return selection.sceneAID
+        case .b: return selection.sceneBID
+        }
+    }
+
+    private func setPhraseScene(_ sceneID: UUID, for slot: ScenePerformSlotPickerRequest.Slot) {
+        engineController.clearMasterBusPerformanceOverlay()
+        let current = session.store.masterBus.abSelection ?? activePhraseSceneSelection
+        switch slot {
+        case .a:
+            let sceneBID = current.sceneBID == sceneID ? current.sceneAID : current.sceneBID
+            session.setMasterABMode(MasterBusABSelection(sceneAID: sceneID, sceneBID: sceneBID, crossfader: current.crossfader))
+        case .b:
+            let sceneAID = current.sceneAID == sceneID ? current.sceneBID : current.sceneAID
+            session.setMasterABMode(MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneID, crossfader: current.crossfader))
+        }
+        phraseSceneSlotPickerRequest = nil
     }
 
     private func reconcileSelectedLayer() {
@@ -1485,6 +1761,66 @@ private struct PhraseMatrixEmptyTrackHeaderCell: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
             )
+    }
+}
+
+private struct PhraseSceneCrossfaderTrack: View {
+    let value: Double
+    let onChange: (Double) -> Void
+
+    private var clampedValue: Double {
+        min(max(value, 0), 1)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, 1)
+            let thumbX = width * clampedValue
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(StudioTheme.border.opacity(0.8))
+                    .frame(height: 10)
+                    .frame(maxWidth: .infinity)
+                    .frame(maxHeight: .infinity)
+
+                Capsule()
+                    .fill(StudioTheme.amber)
+                    .frame(width: thumbX, height: 10)
+                    .frame(maxHeight: .infinity, alignment: .center)
+
+                Circle()
+                    .fill(StudioTheme.amber)
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(StudioOpacity.ghostStroke), lineWidth: 2)
+                    )
+                    .offset(x: min(max(thumbX - 14, 0), width - 28))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+                        let x = min(max(drag.location.x, 0), width)
+                        onChange(Double(x / width))
+                    }
+            )
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Phrase scene crossfader")
+        .accessibilityValue("\(Int((clampedValue * 100).rounded())) percent")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                onChange(min(clampedValue + 0.05, 1))
+            case .decrement:
+                onChange(max(clampedValue - 0.05, 0))
+            @unknown default:
+                break
+            }
+        }
     }
 }
 
