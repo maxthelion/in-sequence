@@ -7,7 +7,7 @@ This pass treats the phrase value cell as the reusable unit of the IA. A phrase 
 - mode: whether the value is single, per-bar, continuous, inherited, or live;
 - timing: when inside the phrase the value applies.
 
-That grammar is now used across phrase layers, scene editing, automation editing, and capture drawer. The goal is to stop each page inventing its own representation of "a thing that changes in a phrase".
+That grammar is now used across phrase layers, scene editing, and automation editing. The goal is to stop each page inventing its own representation of "a thing that changes in a phrase".
 
 ## Changes From V2
 
@@ -25,7 +25,7 @@ That grammar is now used across phrase layers, scene editing, automation editing
 - Global Apply is a broader scoped action mode inside the phrase. It now follows the spirit of the current layer picker: an 8-column matrix of layer/value actions, a compact scope count in the top bar, a track-selector overlay that also uses 8-column cells, and shared Moment/Latch gate controls so MIDI surfaces can map to it quickly.
 - Phrase Scenes was pulled back toward the current scene perform model: slot A, crossfader, slot B, and macro assignment wells inside each scene. The more detailed phrase-scene automation model still needs a rethink before it should drive the wireframe.
 - Layers no longer has a separate Cell Detail page. A layer cell click controls the selected layer value by default; the toolbar's Automation cell arms automation editing, so clicking a layer cell opens a modal for per-bar, ramp, or event automation, including a clear-automation action.
-- Capture is shown as printing the live phrase copy and changed cells. Capture clip is acknowledged as a sibling action but not made the centre of this prototype; quantize is no longer in the capture drawer because it is a latch-performance timing rule.
+- Capture Phrase is deliberately narrow: it only asks where in the phrase matrix the modified phrase should be saved. It does not review changed cells or offer clip capture in this pass; quantize is also outside the capture drawer because it is a latch-performance timing rule.
 - Track selection remains a scope tool for layer perform. Performance groups are still deferred.
 
 ## Open Shape

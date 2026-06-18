@@ -669,14 +669,17 @@
       <h2>Capture Phrase</h2>
       <div class="toolbar">
         <span class="pill selected">source: live Phrase A copy</span>
-        <button onclick="toast('captured as Phrase A2')">Print Phrase Copy</button>
-        <button onclick="toast('clip capture chooses a track')">Capture Clip</button>
+        <span class="pill changed">choose phrase matrix destination</span>
       </div>
-      <div class="matrix track-matrix">
-        <div class="pv-cell changed"><span class="scope">Main / Pattern</span><span class="value">P3 on bars 3-4</span><span class="mini-bars"><i></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">per bar</span></div>
-        <div class="pv-cell changed"><span class="scope">A slot / Scene 02 / M3</span><span class="value">gesture</span><span class="mini-bars"><i></i><i class="event"></i><i></i><i class="event"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">events</span></div>
-        <div class="pv-cell changed"><span class="scope">Crossfader</span><span class="value">32% -> 76%</span><span class="mini-bars"><i class="on"></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">per bar</span></div>
-        <div class="pv-cell"><span class="scope">Atlantis / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">baseline</span></div>
+      <div class="matrix song-matrix">
+        <button class="cell selected" onclick="toast('replace Phrase A with perform copy')"><span class="scope">current</span><span class="value">Phrase A</span><span>replace baseline</span></button>
+        <button class="cell changed" onclick="toast('saved perform copy as Phrase A2')"><span class="scope">new copy</span><span class="value">Phrase A2</span><span>recommended</span></button>
+        <button class="cell" onclick="toast('saved perform copy to Phrase B')"><span class="scope">existing</span><span class="value">Phrase B</span><span>overwrite</span></button>
+        <button class="cell" onclick="toast('saved perform copy to Phrase C')"><span class="scope">existing</span><span class="value">Phrase C</span><span>overwrite</span></button>
+        <button class="cell empty" onclick="toast('saved perform copy to empty slot 5')"><span class="value">empty</span><span>slot 5</span></button>
+        <button class="cell empty" onclick="toast('saved perform copy to empty slot 6')"><span class="value">empty</span><span>slot 6</span></button>
+        <button class="cell empty" onclick="toast('saved perform copy to empty slot 7')"><span class="value">empty</span><span>slot 7</span></button>
+        <button class="cell empty" onclick="toast('saved perform copy to empty slot 8')"><span class="value">empty</span><span>slot 8</span></button>
       </div>
     </div>
 
