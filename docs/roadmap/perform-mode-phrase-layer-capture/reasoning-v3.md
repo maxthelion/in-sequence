@@ -15,6 +15,7 @@ That grammar is now used across phrase layers, scene editing, cell detail, and c
 - Song and phrase cue use the same 8-column cell rhythm so phrase navigation does not introduce a different grid grammar.
 - Song mode now keeps the current phrase-page ingredients visible: layer selection, track page context, track headers, phrase controls, and add/duplicate/delete actions.
 - In Song mode, the matrix uses explicit `now` and `next` states so it is clear which phrase is currently playing and which phrase is queued for the next cycle.
+- The transport now treats phrase playback as current plus next. In Song mode, next is proposed by the arrangement but can be overridden; in Free mode, next is empty until the user cues a phrase. A progress strip shows proximity to the next phrase boundary.
 - App navigation is kept to top-level places. Once Phrase A is selected, Layers, Scenes, and Global Apply become phrase-local tabs under the phrase header.
 - Perform is represented as the phrase write mode, not a destination. Capture and Discard live in the phrase header because they operate on the live phrase copy.
 - Layers is still matrix-first, but it is framed as editing one selected layer across the same 8-track scope. It shows the current phrase copy and the quantized bars where performance changes will be printed.

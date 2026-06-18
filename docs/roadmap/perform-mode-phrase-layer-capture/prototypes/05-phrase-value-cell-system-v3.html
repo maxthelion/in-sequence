@@ -65,6 +65,76 @@
     .brand { font-size: 22px; font-weight: 800; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .right { justify-content: flex-end; }
+    .transport-phrase {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .mode-toggle {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      border: 2px solid var(--line);
+      padding: 3px;
+      background: var(--paper);
+    }
+    .mode-toggle button {
+      min-height: 28px;
+      padding: 3px 8px;
+      border-width: 1px;
+    }
+    .mode-toggle button.active {
+      border-color: var(--accent);
+      background: var(--selected);
+      font-weight: 800;
+    }
+    .phrase-status {
+      display: grid;
+      grid-template-columns: auto auto minmax(110px, 160px);
+      gap: 8px;
+      align-items: stretch;
+    }
+    .phrase-status button,
+    .phrase-status .phrase-progress {
+      min-height: 44px;
+    }
+    .phrase-button {
+      display: grid;
+      gap: 2px;
+      align-content: center;
+      min-width: 112px;
+      text-align: left;
+    }
+    .phrase-button.changed { background: var(--changed); }
+    .phrase-button .scope { font-size: 11px; text-transform: uppercase; }
+    .phrase-progress {
+      border: 2px solid var(--line);
+      padding: 6px 8px;
+      display: grid;
+      gap: 4px;
+      background: var(--paper);
+      min-width: 128px;
+    }
+    .progress-track {
+      height: 10px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      position: relative;
+    }
+    .progress-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 78%;
+      background: var(--accent);
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
 
     .pill {
       border: 2px solid var(--line);
@@ -537,12 +607,20 @@
   <div class="app">
     <header class="top">
       <div class="brand">SequencerAI</div>
-      <div class="row">
+      <div class="transport-phrase">
         <button class="stub" onclick="toast('transport stub')">Play</button>
-        <button class="primary" onclick="showMode('layers')">Phrase A</button>
-        <span class="pill changed">live phrase copy</span>
-        <span class="pill">bar 3 / 8</span>
-        <button onclick="toggleDrawer('phraseCue')">Cue Phrase</button>
+        <div class="mode-toggle" aria-label="play mode">
+          <button id="transportSong" onclick="setTransportMode('song')">Song</button>
+          <button id="transportFree" class="active" onclick="setTransportMode('free')">Free</button>
+        </div>
+        <div class="phrase-status">
+          <button class="phrase-button primary" onclick="showMode('layers')"><span class="scope">current</span><span class="value">Phrase A</span></button>
+          <button id="transportNextPhrase" class="phrase-button" onclick="toggleDrawer('phraseCue')"><span class="scope">next</span><span class="value">none</span></button>
+          <div class="phrase-progress">
+            <div class="progress-track"><span id="transportProgressFill" class="progress-fill"></span></div>
+            <div class="progress-label"><span>bar 3 / 8</span><span id="transportProgressLabel">free loop</span></div>
+          </div>
+        </div>
       </div>
       <div class="row right">
         <button onclick="showMode('layers')">Perform</button>
@@ -561,11 +639,17 @@
     </nav>
 
     <div class="drawer" id="phraseCue">
-      <h2>Phrase Cue</h2>
+      <div class="page-head">
+        <div>
+          <h2>Phrase Cue</h2>
+          <p id="phraseCueNote" class="note">Free mode has no next phrase until one is selected. Choosing a phrase cues it at the next boundary.</p>
+        </div>
+        <span class="pill selected" id="phraseCueMode">Free mode</span>
+      </div>
       <div class="matrix song-matrix">
         <button class="cell selected" onclick="showMode('layers')"><span class="value">A</span><span>current, loop on</span></button>
-        <button class="cell" onclick="toast('Phrase B queued at cycle end')"><span class="value">B</span><span>cue at cycle end</span></button>
-        <button class="cell" onclick="toast('Phrase C switches now')"><span class="value">C</span><span>switch now</span></button>
+        <button class="cell" onclick="cuePhrase('B')"><span class="value">B</span><span>cue at cycle end</span></button>
+        <button class="cell" onclick="cuePhrase('C')"><span class="value">C</span><span>cue at cycle end</span></button>
         <button class="cell empty">empty</button>
         <button class="cell empty">empty</button>
         <button class="cell empty">empty</button>
@@ -912,6 +996,8 @@
     let selectedTrackIndexes = [0, 1];
     let globalControlId = 'globalFill';
     let gateMode = 'moment';
+    let transportMode = 'free';
+    let nextPhrase = '';
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -922,6 +1008,41 @@
 
     function toggleDrawer(id) {
       document.getElementById(id).classList.toggle('open');
+    }
+
+    function setTransportMode(mode) {
+      transportMode = mode;
+      nextPhrase = mode === 'song' ? 'Phrase B' : '';
+      renderTransportPhrase();
+      toast(mode === 'song' ? 'Song mode picks the next phrase' : 'Free mode waits for a cue');
+    }
+
+    function cuePhrase(phrase) {
+      nextPhrase = 'Phrase ' + phrase;
+      renderTransportPhrase();
+      toast(nextPhrase + ' queued for the next phrase boundary');
+    }
+
+    function renderTransportPhrase() {
+      const song = document.getElementById('transportSong');
+      const free = document.getElementById('transportFree');
+      const next = document.getElementById('transportNextPhrase');
+      const progress = document.getElementById('transportProgressLabel');
+      const cueMode = document.getElementById('phraseCueMode');
+      const cueNote = document.getElementById('phraseCueNote');
+      if (song) song.classList.toggle('active', transportMode === 'song');
+      if (free) free.classList.toggle('active', transportMode === 'free');
+      if (next) {
+        next.classList.toggle('changed', Boolean(nextPhrase));
+        next.innerHTML = '<span class="scope">next</span><span class="value">' + (nextPhrase || 'none') + '</span>';
+      }
+      if (progress) progress.textContent = nextPhrase ? 'next soon' : (transportMode === 'song' ? 'song advance' : 'free loop');
+      if (cueMode) cueMode.textContent = transportMode === 'song' ? 'Song mode' : 'Free mode';
+      if (cueNote) {
+        cueNote.textContent = transportMode === 'song'
+          ? 'Song mode chooses the next phrase from the arrangement, but pressing another phrase overrides the next boundary.'
+          : 'Free mode has no next phrase until one is selected. Choosing a phrase cues it at the next boundary.';
+      }
     }
 
     function showMode(mode) {
@@ -1095,6 +1216,7 @@
     }
 
     window.setPrototypeState = setPrototypeState;
+    renderTransportPhrase();
     setLayer('Pattern');
   </script>
 </body>
