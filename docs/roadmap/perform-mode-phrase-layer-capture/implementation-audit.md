@@ -94,6 +94,21 @@ done declaration for the whole feature.
 - Focused tests cover setup write, perform staging, save-back, and capture for
   phrase scene state.
 
+## Implemented In Sixth Slice
+
+- The transport phrase control now exposes Current and Next as separate readable
+  elements rather than hiding queued state inside one compact pill.
+- Stopped transport shows the selected phrase as the current phrase instead of
+  replacing phrase context with "Stopped".
+- Free mode shows no next phrase until a phrase is queued.
+- Song mode previews the arrangement-proposed next phrase when there is no
+  explicit queued override.
+- Queued phrases still use the existing phrase launch grid and cue/switch
+  semantics.
+- A small phrase progress bar and bar readout are visible in the transport
+  control, using the existing `PhrasePlayhead` rather than a second timing
+  model.
+
 ## Verified
 
 - `xcodebuild test -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests`
@@ -114,11 +129,14 @@ done declaration for the whole feature.
 - After the fifth slice, `xcodebuild test
   -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests` passed with
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After the sixth slice, `xcodebuild build` passed for the app target with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Still Not Done
 
-- Transport still needs the full current phrase / next phrase / boundary
-  progress treatment from the spec.
+- Transport now has current phrase, next phrase, and cycle progress visible, but
+  it still needs visual review against the V3 prototype and runtime checking in
+  both Song and Free playback.
 - Scenes is now in the phrase-local A/B/crossfader tab and stores single phrase
   values for scene A, scene B, and crossfader. Per-bar/continuous scene values
   and macro automation have not been implemented.
@@ -137,9 +155,10 @@ done declaration for the whole feature.
 Review and harden the built phrase perform surface before more feature growth:
 
 - run visual review against the V3 prototype for Layers, Scenes, and Global
-  Apply;
+  Apply, and the transport current/next/progress control;
 - extract the duplicated scene crossfader view into a shared component if the
   visual shape survives review;
 - decide whether scene macro moves become phrase-cell automation or a separate
   phrase-scene event lane;
-- then move to transport current/next phrase and boundary progress.
+- then implement Moment/Latch engine semantics and the remaining scene
+  automation model.

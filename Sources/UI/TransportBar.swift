@@ -24,12 +24,12 @@ struct TransportBar: View {
     }
 
     private var currentPhrase: PhraseModel? {
-        guard engineController.isRunning,
-              let phraseID = engineController.currentPhraseID
-        else {
-            return nil
+        if engineController.isRunning,
+           let phraseID = engineController.currentPhraseID,
+           let phrase = phrase(for: phraseID) {
+            return phrase
         }
-        return phrase(for: phraseID)
+        return session.store.selectedPhrase
     }
 
     private var queuedPhrase: PhraseModel? {
@@ -39,11 +39,18 @@ struct TransportBar: View {
         return phrase(for: phraseID)
     }
 
-    private var phraseControlTitle: String {
-        if phrases.isEmpty {
-            return "NO PHRASES"
+    private var nextPhrase: PhraseModel? {
+        if let queuedPhrase {
+            return queuedPhrase
         }
-        return engineController.isRunning ? "CURRENT PHRASE" : "PHRASE"
+        guard engineController.transportMode == .song,
+              let currentPhrase,
+              !currentPhrase.loopEnabled,
+              currentPhrase.repeatCount != 0
+        else {
+            return nil
+        }
+        return nextPhraseInArrangement(after: currentPhrase.id)
     }
 
     private var phraseControlName: String {
@@ -56,13 +63,31 @@ struct TransportBar: View {
         return engineController.isRunning ? "No current phrase" : "Stopped"
     }
 
-    private var phraseControlHelp: String {
-        var components = [phraseControlTitle.capitalized, phraseControlName]
-        if let queuedPhrase {
-            components.append("Queued: \(queuedPhrase.name)")
+    private var nextPhraseName: String {
+        nextPhrase?.name ?? "None"
+    }
+
+    private var nextPhraseLabel: String {
+        if queuedPhrase != nil {
+            return "QUEUED"
         }
-        if !engineController.isRunning {
-            components.append("Queueing is available during playback")
+        if engineController.transportMode == .song, nextPhrase != nil {
+            return "NEXT"
+        }
+        return "NEXT"
+    }
+
+    private var phraseControlHelp: String {
+        var components = ["Current phrase", phraseControlName]
+        if let nextPhrase {
+            components.append("\(nextPhraseLabel.capitalized): \(nextPhrase.name)")
+        } else if engineController.transportMode == .free {
+            components.append("No next phrase in Free mode")
+        }
+        if engineController.isRunning {
+            components.append("Open the phrase matrix to cue another phrase")
+        } else {
+            components.append("Open the phrase matrix to switch phrase")
         }
         return components.joined(separator: ". ")
     }
@@ -172,53 +197,33 @@ struct TransportBar: View {
         Button {
             phrasePickerPresented.toggle()
         } label: {
-            HStack(spacing: 7) {
-                Image(systemName: engineController.isRunning && currentPhrase != nil ? "music.note.list" : "music.note")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(currentPhrase == nil ? StudioTheme.mutedText : StudioTheme.cyan)
-                    .frame(width: 12)
+            HStack(spacing: 6) {
+                phraseButton(
+                    eyebrow: "CURRENT",
+                    title: phraseControlName,
+                    icon: engineController.isRunning ? "music.note.list" : "music.note",
+                    accent: StudioTheme.cyan,
+                    isPrimary: currentPhrase != nil
+                )
 
-                Text(phraseControlName)
-                    .studioText(.labelBold)
-                    .foregroundStyle(currentPhrase == nil ? StudioTheme.mutedText : StudioTheme.text)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .help(phraseControlName)
-                    .frame(minWidth: 58, maxWidth: 130, alignment: .leading)
+                phraseButton(
+                    eyebrow: nextPhraseLabel,
+                    title: nextPhraseName,
+                    icon: queuedPhrase == nil ? "clock" : "clock.fill",
+                    accent: nextPhrase == nil ? StudioTheme.border : StudioTheme.amber,
+                    isPrimary: nextPhrase != nil
+                )
 
-                if let queuedPhrase {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 10, weight: .bold))
-                        Text(queuedPhrase.name)
-                            .studioText(.microEmphasis)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    .foregroundStyle(StudioTheme.amber)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .frame(maxWidth: 90)
-                    // Colour identifies, it never floods (ux-canon rule 12):
-                    // the queued chip stays neutral; amber lives in the
-                    // outline and text.
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-                    )
-                    .help("Queued phrase: \(queuedPhrase.name)")
-                    .accessibilityLabel("Queued phrase \(queuedPhrase.name)")
-                    .layoutPriority(-1)
-                }
+                TransportPhraseProgress(phrase: currentPhrase)
+                    .frame(width: 64, height: 24)
 
                 Image(systemName: "square.grid.3x3")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(StudioTheme.mutedText)
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .frame(maxWidth: 230, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: 300, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .fill(Color.white.opacity(StudioOpacity.subtleFill))
@@ -227,6 +232,7 @@ struct TransportBar: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(currentPhrase == nil ? StudioTheme.border : StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
             )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(phrases.isEmpty)
@@ -241,6 +247,46 @@ struct TransportBar: View {
             applyVisualPhraseNavigationCommand(command)
         }
         .layoutPriority(1)
+    }
+
+    private func phraseButton(
+        eyebrow: String,
+        title: String,
+        icon: String,
+        accent: Color,
+        isPrimary: Bool
+    ) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(isPrimary ? accent : StudioTheme.mutedText)
+                .frame(width: 11)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(eyebrow)
+                    .studioText(.micro)
+                    .foregroundStyle(isPrimary ? accent : StudioTheme.mutedText)
+                    .lineLimit(1)
+
+                Text(title)
+                    .studioText(.microEmphasis)
+                    .foregroundStyle(isPrimary ? StudioTheme.text : StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .frame(width: 76, alignment: .leading)
+    }
+
+    private func nextPhraseInArrangement(after phraseID: UUID) -> PhraseModel? {
+        let validPhrases = phrases
+        guard validPhrases.count > 1 else {
+            return nil
+        }
+        guard let currentIndex = validPhrases.firstIndex(where: { $0.id == phraseID }) else {
+            return validPhrases.first
+        }
+        return validPhrases[(currentIndex + 1) % validPhrases.count]
     }
 
     private func phrase(for phraseID: UUID) -> PhraseModel? {
@@ -276,6 +322,50 @@ struct TransportBar: View {
                 break
             }
         }
+    }
+}
+
+private struct TransportPhraseProgress: View {
+    @Environment(EngineController.self) private var engineController
+    let phrase: PhraseModel?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(StudioOpacity.borderFaint))
+
+                    Capsule()
+                        .fill(phrase == nil ? StudioTheme.border : StudioTheme.cyan)
+                        .frame(width: geo.size.width * progressFraction)
+                }
+            }
+            .frame(height: 4)
+
+            Text(progressLabel)
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .accessibilityLabel("Phrase progress \(progressLabel)")
+    }
+
+    private var progressFraction: CGFloat {
+        guard let phrase else {
+            return 0
+        }
+        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
+        return CGFloat(playhead.stepIndex + 1) / CGFloat(max(1, phrase.stepCount))
+    }
+
+    private var progressLabel: String {
+        guard let phrase else {
+            return "--"
+        }
+        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
+        return "bar \(playhead.barIndex + 1)/\(phrase.lengthBars)"
     }
 }
 
