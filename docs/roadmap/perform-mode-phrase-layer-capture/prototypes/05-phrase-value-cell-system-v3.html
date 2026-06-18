@@ -151,6 +151,7 @@
     .pill.changed { background: var(--changed); }
     .pill.success { background: var(--success); }
     .pill.stub { border-style: dashed; background: var(--stub); color: var(--muted); }
+    .pill.disabled { background: var(--disabled); color: var(--muted); }
 
     .main-nav {
       display: grid;
@@ -198,6 +199,15 @@
     .dirty-summary.disabled {
       background: var(--disabled);
       color: var(--muted);
+    }
+    .phrase-timing {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 10px 0 0;
+      padding-top: 10px;
+      border-top: 2px solid var(--line);
     }
     .global-menu {
       display: flex;
@@ -659,7 +669,6 @@
       <h2>Capture Phrase</h2>
       <div class="toolbar">
         <span class="pill selected">source: live Phrase A copy</span>
-        <button class="primary" onclick="toast('bar quantize toggled')">bar quantize on</button>
         <button onclick="toast('captured as Phrase A2')">Print Phrase Copy</button>
         <button onclick="toast('clip capture chooses a track')">Capture Clip</button>
       </div>
@@ -766,6 +775,11 @@
               <button id="captureButton" onclick="toggleDrawer('captureMenu')">Capture</button>
               <button id="discardButton" onclick="toast('live phrase copy discarded')">Discard</button>
             </div>
+          </div>
+          <div class="phrase-timing">
+            <span id="latchTimingLabel" class="pill disabled">latch timing</span>
+            <button id="latchQuantizeButton" class="disabled" onclick="setLatchQuantize()">Quantize: next bar</button>
+            <button id="latchLengthButton" class="disabled" onclick="setLatchLength()">Length: 1 bar</button>
           </div>
           <div class="phrase-tabs">
             <button id="tabLayers" class="active" onclick="showMode('layers')">Layers</button>
@@ -980,6 +994,10 @@
     let selectedTrackIndexes = [0, 1];
     let globalControlId = 'globalFill';
     let gateMode = 'moment';
+    let latchQuantize = 'next bar';
+    let latchLength = '1 bar';
+    const latchQuantizeOptions = ['next bar', 'next beat', 'phrase end'];
+    const latchLengthOptions = ['held', '1 bar', '2 bars', '4 bars'];
     let transportMode = 'free';
     let nextPhrase = '';
     let phraseMode = 'perform';
@@ -1063,6 +1081,43 @@
         item.classList.toggle('disabled', !isPerform);
         item.disabled = !isPerform;
       });
+      renderLatchTiming();
+    }
+
+    function renderLatchTiming() {
+      const enabled = gateMode === 'latch';
+      const label = document.getElementById('latchTimingLabel');
+      const quantizeButton = document.getElementById('latchQuantizeButton');
+      const lengthButton = document.getElementById('latchLengthButton');
+      if (label) {
+        label.textContent = enabled ? 'latch timing' : 'moment: immediate';
+        label.classList.toggle('disabled', !enabled);
+        label.classList.toggle('selected', enabled);
+      }
+      if (quantizeButton) {
+        quantizeButton.textContent = 'Quantize: ' + latchQuantize;
+        quantizeButton.classList.toggle('disabled', !enabled);
+        quantizeButton.disabled = !enabled;
+      }
+      if (lengthButton) {
+        lengthButton.textContent = 'Length: ' + latchLength;
+        lengthButton.classList.toggle('disabled', !enabled);
+        lengthButton.disabled = !enabled;
+      }
+    }
+
+    function setLatchQuantize(value) {
+      const current = latchQuantizeOptions.indexOf(latchQuantize);
+      latchQuantize = value || latchQuantizeOptions[(current + 1) % latchQuantizeOptions.length];
+      renderLatchTiming();
+      toast('Latch quantize: ' + latchQuantize);
+    }
+
+    function setLatchLength(value) {
+      const current = latchLengthOptions.indexOf(latchLength);
+      latchLength = value || latchLengthOptions[(current + 1) % latchLengthOptions.length];
+      renderLatchTiming();
+      toast('Latch length: ' + latchLength);
     }
 
     function showMode(mode) {
@@ -1111,7 +1166,8 @@
       gateMode = mode;
       document.querySelectorAll('.gate-moment').forEach(button => button.classList.toggle('primary', mode === 'moment'));
       document.querySelectorAll('.gate-latch').forEach(button => button.classList.toggle('primary', mode === 'latch'));
-      toast((mode === 'moment' ? 'Moment' : 'Latch') + ' gate selected');
+      renderLatchTiming();
+      toast(mode === 'moment' ? 'Moment gate selected: timing is immediate' : 'Latch gate selected: quantize controls active');
     }
 
     function openScopePicker() {

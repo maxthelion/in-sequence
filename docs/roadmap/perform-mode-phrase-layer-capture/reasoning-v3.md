@@ -19,12 +19,13 @@ That grammar is now used across phrase layers, scene editing, automation editing
 - App navigation is kept to top-level places. Once Phrase A is selected, Layers, Scenes, and Global Apply become phrase-local tabs under the phrase header.
 - Phrase editing is controlled by one Perform toggle. When Perform is off, the user is editing the phrase baseline directly. When Perform is on, changes go to a temporary live copy/overlay.
 - Capture, Discard, and the dirty summary stay visible in the phrase header, but they are disabled when Perform is off because there is no temporary copy to capture or discard.
+- Quantize and length now belong to the phrase header as latch timing controls. They are disabled in Moment mode because momentary performance should be immediate; when Latch is selected they describe when the latched change lands and how long it should last.
 - Phrase automation is still conceptually separate from the performance overlay, but the explicit Automation On/Off control was removed from this wireframe pass until the scheduled-change model is clearer.
 - Layers is still matrix-first, but it is framed as editing one selected layer across the same 8-track scope. It shows the current phrase copy and the quantized bars where performance changes will be printed.
 - Global Apply is a broader scoped action mode inside the phrase. It now follows the spirit of the current layer picker: an 8-column matrix of layer/value actions, a compact scope count in the top bar, a track-selector overlay that also uses 8-column cells, and shared Moment/Latch gate controls so MIDI surfaces can map to it quickly.
 - Phrase Scenes was pulled back toward the current scene perform model: slot A, crossfader, slot B, and macro assignment wells inside each scene. The more detailed phrase-scene automation model still needs a rethink before it should drive the wireframe.
 - Layers no longer has a separate Cell Detail page. A layer cell click controls the selected layer value by default; the toolbar's Automation cell arms automation editing, so clicking a layer cell opens a modal for per-bar, ramp, or event automation, including a clear-automation action.
-- Capture is shown as printing the live phrase copy, with explicit bar quantize and changed cells. Capture clip is acknowledged as a sibling action but not made the centre of this prototype.
+- Capture is shown as printing the live phrase copy and changed cells. Capture clip is acknowledged as a sibling action but not made the centre of this prototype; quantize is no longer in the capture drawer because it is a latch-performance timing rule.
 - Track selection remains a scope tool for layer perform. Performance groups are still deferred.
 
 ## Open Shape
