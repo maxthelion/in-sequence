@@ -126,6 +126,9 @@ done declaration for the whole feature.
 
 ## Verified
 
+- `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
+  now maps the spec acceptance criteria to current code/test evidence and
+  explicitly marks partial, missing, and anti-hybrid concerns.
 - `xcodebuild test -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests`
   passed with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - `xcodebuild build` passed for the app target.
@@ -180,6 +183,8 @@ done declaration for the whole feature.
 
 Review and harden the built phrase perform surface before more feature growth:
 
+- resolve or explicitly accept the partial/fail items in
+  `acceptance-verification.md`;
 - run visual review against the V3 prototype for Layers, Scenes, and Global
   Apply, and the transport current/next/progress control;
 - extract the duplicated scene crossfader view into a shared component if the

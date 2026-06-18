@@ -1,0 +1,88 @@
+---
+feature: perform-mode-phrase-layer-capture
+created: 2026-06-18
+status: partial-verification
+sources:
+  - docs/roadmap/perform-mode-phrase-layer-capture/spec.md
+  - docs/roadmap/perform-mode-phrase-layer-capture/implementation-audit.md
+  - Sources/UI/PhraseWorkspaceView.swift
+  - Sources/UI/TransportBar.swift
+  - Sources/App/PhrasePerformOverlayState.swift
+  - Sources/App/SequencerDocumentSession+Mutations.swift
+  - Tests/SequencerAITests/App/PhrasePerformOverlaySessionTests.swift
+  - Tests/SequencerAITests/UI/TransportPhraseNavigationPresentationTests.swift
+  - Tests/SequencerAITests/UI/PhrasePerformTimingPolicyTests.swift
+---
+
+# Acceptance Verification
+
+This is a strict check against `spec.md`. It records what is proven by current
+code/tests, what is only partially supported, and what still needs visual or
+runtime evidence. A partial result means "do not call the whole feature done".
+
+## Summary
+
+- Verified enough to keep building: phrase overlay state, capture/discard model,
+  transport phrase presentation, phrase scene single-value state, scoped Global
+  Apply writes, and the first quantized Mute latch policy.
+- Not yet verified enough to ship as the full feature: visual match to the V3
+  wireframes, the anti-hybrid top-level Perform concern, general latch
+  length/expiry semantics, scene macro/per-bar/continuous automation, and
+  runtime agreement for every phrase layer during playback.
+
+## Acceptance Criteria
+
+| # | Criterion | Status | Evidence |
+|---|---|---|---|
+| 1 | Current phrase, next phrase, and progress are visible in transport. | Pass, needs visual review | `TransportPhraseNavigationPresentation` and `TransportPhraseProgressPresentation` drive separate current/next/progress UI in `Sources/UI/TransportBar.swift`. Covered by `TransportPhraseNavigationPresentationTests`. |
+| 2 | Song mode proposes next phrase and Free mode starts with no next phrase. | Pass | Tests cover Free stopped with no next phrase and Song running with arrangement next phrase. |
+| 3 | The user can cue/override the next phrase. | Partial | Presentation tests cover queued phrase overriding Song arrangement next. Existing phrase launch grid remains the interaction path, but this needs runtime/visual verification in the built app. |
+| 4 | Phrase page has Layers, Scenes, and Global Apply tabs. | Pass, needs visual review | `PhraseWorkspaceTab` defines `layers`, `scenes`, and `globalApply`; `PhraseWorkspaceView` switches between those surfaces. |
+| 5 | Perform Off edits phrase baseline directly. | Pass | `PhrasePerformOverlaySessionTests.test_setPhraseCellInSetupModeMutatesCanonicalPhrase` and scene setup tests prove setup-mode writes canonical phrase state. |
+| 6 | Perform On edits a live phrase copy/overlay. | Pass | `PhrasePerformOverlayState` stores staged cells/scene state. Overlay tests prove perform-mode writes do not mutate canonical phrase and are read through `phraseWithPerformOverlay`. |
+| 7 | Capture/Discard are visible but disabled when Perform is off. | Partial | `PhraseWorkspaceView` renders Capture/Discard in the phrase shell and gates actions from overlay state. This still needs visual review to prove disabled/off-state presentation is clear. |
+| 8 | Dirty/changed state is visible when Perform is on and changes exist. | Pass, needs visual review | Overlay staged counts and dirty lookups are covered by `PhrasePerformOverlaySessionTests`. Built visual clarity is not yet reviewed. |
+| 9 | Latch timing controls are phrase-local and inactive in Moment mode. | Partial | UI state and `PhrasePerformTimingPolicyTests` prove Moment does not arm quantized Mute. Visual state and length behavior remain unverified. |
+| 10 | Layers uses an eight-column matrix and direct cell click changes values. | Partial | `PhraseWorkspaceView` uses eight-column grids and value-mode clicks route through direct `setPhraseCell` paths. Needs visual evidence against V3. |
+| 11 | Automation mode changes layer-cell click behavior to open automation editing. | Partial | `PhraseCellTool.automation` routes cell clicks to the deeper editor. The editor is still the existing modal shape and needs UX review. |
+| 12 | Global Apply applies a chosen layer/value to the current track scope. | Pass | `PhrasePerformOverlaySessionTests.test_scopedGlobalApplyInPerformModeStagesEveryRecipientTrack` proves scoped multi-track writes through the phrase overlay path. |
+| 13 | Global Apply track scope selection uses an eight-column matrix. | Partial | Implemented in `PhraseWorkspaceView`, but needs visual evidence. |
+| 14 | Scenes keeps the current scene A/B/crossfader shape. | Partial | `phraseScenesSurface` uses Slot A, crossfader, Slot B and stores `PhraseSceneState`. It needs visual comparison with the current scenes surface and V3 intent. |
+| 15 | Capture Phrase only chooses a phrase destination. | Pass | `PhrasePerformCaptureSheet` is reused for destination-only capture paths. No changed-cell review or Capture Clip option is in this phrase capture surface. |
+| 16 | Capture writes the perform copy to the chosen phrase destination. | Pass | Overlay tests cover capture to existing phrase and new phrase, including staged cells and scene state. |
+| 17 | Discard removes the perform copy without saving it. | Pass | Overlay tests cover `revertPhrasePerformOverlay` clearing staged cells while preserving canonical phrase state. |
+| 18 | Playback and UI agree about phrase mute/fill/pattern/repeat values. | Partial | UI reads through `phraseWithPerformOverlay`; snapshot compilation includes phrase cells and scene state. Full runtime agreement for mute/fill/pattern/repeat together is not proven. |
+| 19 | Moment changes are immediate. | Partial | Policy tests prove Moment bypasses quantized Mute arming. Direct value paths are immediate, but this is not covered end-to-end for every layer. |
+| 20 | Latch changes can be quantized to next bar and length-limited. | Partial/fail for full criterion | Quantized Mute arming exists for phrase Layers and Global Apply when Latch + Q:BAR is active. General phrase-cell quantized execution and length-limited expiry are not implemented. |
+| 21 | No deferred performance-group UI is implemented. | Pass | The current phrase workspace does not add performance-group UI. |
+| 22 | No Capture Clip redesign is implemented. | Pass | This build keeps phrase capture separate from clip history/capture clip work. |
+| 23 | No generic Cell Detail page remains in this flow. | Partial | Normal layer clicks no longer open the generic editor. Automation mode still opens the deeper cell editor, so this needs UX review against "automation modal" intent. |
+| 24 | Visual review evidence shows built surfaces compared with V3 wireframe intent. | Missing | Peekaboo/visual automation was not run in this unattended context. No screenshot evidence is attached yet. |
+
+## Anti-Hybrid Review
+
+- Concern: the spec says the app must not expose top-level Capture or Perform
+  as global app modes. The phrase shell now has phrase-local Perform/Capture,
+  but the production top bar still carries the existing Setup/Perform workspace
+  mode. That may be semantically intentional, but it violates the wording unless
+  the top-level control is removed, renamed, or clearly scoped away from phrase
+  Perform.
+- Pass: Capture Phrase no longer contains Capture Clip and no longer asks for a
+  changed-cell review.
+- Partial: Layers and Global Apply use matrix grammar in code, but visual
+  evidence is still required before declaring they avoided a workflow-form feel.
+
+## Required Next Evidence
+
+1. Run an interactive visual review with screenshots for Transport, Layers,
+   Scenes, Global Apply, Capture, and Automation mode against
+   `prototypes/05-phrase-value-cell-system-v3.html`.
+2. Exercise a running phrase in Free and Song modes to prove the displayed
+   current/next phrase and heard phrase agree.
+3. Add or extend engine-level tests for phrase mute/fill/pattern/repeat
+   agreement, not just isolated overlay writes.
+4. Decide whether the old top-level Setup/Perform workspace switch survives,
+   and if so what name/placement keeps it from conflicting with phrase-local
+   Perform.
+5. Implement and test latch length expiry before marking criterion 20 complete.
+
