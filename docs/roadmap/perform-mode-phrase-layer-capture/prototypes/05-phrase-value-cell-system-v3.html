@@ -121,20 +121,39 @@
     }
     .phrase-shell .page-head { margin-bottom: 0; }
 
-    .global-pad {
+    .global-menu {
       display: grid;
-      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border: 2px solid var(--line);
+      margin: 10px 0 14px;
+      background: #fafafa;
+    }
+    .global-menu .scope-count {
+      border-color: var(--accent);
+      background: var(--selected);
+      font-weight: 800;
+    }
+    .global-control-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(118px, 1fr));
       gap: 8px;
       margin: 10px 0 14px;
     }
-    .global-pad button {
+    .global-control {
       min-height: 92px;
       display: grid;
+      grid-template-rows: auto 1fr auto;
       gap: 6px;
-      align-content: center;
-      text-align: center;
+      align-content: stretch;
+      text-align: left;
       font-weight: 800;
     }
+    .global-control .scope { align-self: start; }
+    .global-control .value { align-self: center; }
+    .scope-picker-grid { grid-template-columns: repeat(8, minmax(86px, 1fr)); }
     .scope-grid { grid-template-columns: repeat(8, minmax(118px, 1fr)); }
     .out-of-scope { opacity: .45; border-style: dashed; }
 
@@ -415,7 +434,8 @@
       .top { grid-template-columns: 1fr; }
       .main-nav { grid-template-columns: 1fr 1fr; }
       .phrase-tabs { grid-template-columns: 1fr 1fr; }
-      .global-pad { grid-template-columns: 1fr 1fr; }
+      .global-menu { grid-template-columns: 1fr; }
+      .global-control-grid { grid-template-columns: 1fr 1fr; }
       .overview-matrix, .song-matrix, .track-matrix, .bar-matrix, .scene-slot-matrix { overflow-x: auto; display: flex; }
       .overview-matrix > *, .song-matrix > *, .track-matrix > *, .bar-matrix > *, .scene-slot-matrix > * { min-width: 120px; }
       .track-matrix { grid-template-columns: 1fr; }
@@ -605,28 +625,33 @@
           <div class="page-head">
             <div>
               <h1>Phrase A / Global Apply</h1>
-              <p class="note">A layer value is applied instantly to every track in the current scope. Scope comes from the Tracks page selection, or all tracks if nothing is selected.</p>
-            </div>
-            <div class="row right">
-              <span class="pill selected">scope: Main + Atlantis</span>
-              <button onclick="setGlobalScope('all')">All Tracks</button>
-              <button onclick="setGlobalScope('selection')">Track Selection</button>
+              <p class="note">A layer value is applied instantly to every track in the current scope. The surface is an 8-column matrix so MIDI controls can map to fast selections.</p>
             </div>
           </div>
-          <div class="global-pad">
-            <button id="globalFill" class="primary" onclick="applyGlobal('Fill', 'on')"><span>Fill</span><span class="scope">toggle on</span></button>
-            <button id="globalMute" onclick="applyGlobal('Mute', 'muted')"><span>Mute</span><span class="scope">toggle muted</span></button>
-            <button id="globalRepeat" onclick="applyGlobal('Repeat', '1/32')"><span>Repeat</span><span class="scope">set 1/32</span></button>
-            <button id="globalPattern" onclick="applyGlobal('Pattern', 'P3')"><span>Pattern</span><span class="scope">set P3</span></button>
-          </div>
-          <div class="toolbar">
-            <span class="pill selected" id="globalLayerReadout">Fill on</span>
-            <span class="pill" id="globalScopeReadout">applies to selected tracks</span>
+          <div class="global-menu">
+            <span class="pill scope-count" id="globalScopeCount">2 tracks</span>
+            <span class="pill" id="globalActionReadout">Fill on</span>
             <span class="pill changed">instant phrase-copy edit</span>
-            <span class="grow"></span>
-            <button onclick="showMode('tracks')">Change Track Selection</button>
+            <button onclick="openScopePicker()">Track Selector</button>
           </div>
-          <div class="matrix track-matrix scope-grid" id="globalMatrix"></div>
+          <div class="global-control-grid">
+            <button id="globalMute" class="global-control" onclick="applyGlobal('Mute', 'toggle')"><span class="scope">track mute</span><span class="value">Mute</span><span class="mode-label">toggle</span></button>
+            <button id="globalPattern" class="global-control" onclick="applyGlobal('Pattern', 'P3')"><span class="scope">pattern slot</span><span class="value">Pattern</span><span class="mode-label">set P3</span></button>
+            <button id="globalFill" class="global-control primary" onclick="applyGlobal('Fill', 'on')"><span class="scope">runtime fill</span><span class="value">Fill</span><span class="mode-label">toggle on</span></button>
+            <button id="globalRepeat4" class="global-control" onclick="applyGlobal('Repeat', '1/4')"><span class="scope">note repeat</span><span class="value">1/4</span><span class="mode-label">set</span></button>
+            <button id="globalRepeat8" class="global-control" onclick="applyGlobal('Repeat', '1/8')"><span class="scope">note repeat</span><span class="value">1/8</span><span class="mode-label">set</span></button>
+            <button id="globalRepeat16" class="global-control" onclick="applyGlobal('Repeat', '1/16')"><span class="scope">note repeat</span><span class="value">1/16</span><span class="mode-label">set</span></button>
+            <button id="globalRepeat32" class="global-control" onclick="applyGlobal('Repeat', '1/32')"><span class="scope">note repeat</span><span class="value">1/32</span><span class="mode-label">set</span></button>
+            <button id="globalRepeat64" class="global-control" onclick="applyGlobal('Repeat', '1/64')"><span class="scope">note repeat</span><span class="value">1/64</span><span class="mode-label">set</span></button>
+            <button id="globalIdentity" class="global-control" onclick="applyGlobal('Step Order', 'identity')"><span class="scope">step order</span><span class="value">Identity</span><span class="mode-label">set</span></button>
+            <button id="globalBreakFold" class="global-control" onclick="applyGlobal('Step Order', 'break fold')"><span class="scope">step order</span><span class="value">Break Fold</span><span class="mode-label">set</span></button>
+            <button id="globalBackHalf" class="global-control" onclick="applyGlobal('Step Order', 'back half')"><span class="scope">step order</span><span class="value">Back Half</span><span class="mode-label">set</span></button>
+            <button id="globalReverse" class="global-control" onclick="applyGlobal('Step Order', 'reverse')"><span class="scope">step order</span><span class="value">Reverse</span><span class="mode-label">set</span></button>
+            <button id="globalVolume" class="global-control" onclick="applyGlobal('Volume', '+3 dB')"><span class="scope">track volume</span><span class="value">Volume</span><span class="mode-label">+3 dB</span></button>
+            <button id="globalPan" class="global-control" onclick="applyGlobal('Pan', 'center')"><span class="scope">track pan</span><span class="value">Pan</span><span class="mode-label">center</span></button>
+            <button class="global-control stub" onclick="toast('custom layer slot stub')"><span class="scope">custom</span><span class="value">Custom</span><span class="mode-label">stub</span></button>
+            <button class="global-control stub" onclick="toast('next page stub')"><span class="scope">page</span><span class="value">More</span><span class="mode-label">stub</span></button>
+          </div>
         </section>
 
         <section id="modeCell" class="mode">
@@ -714,6 +739,24 @@
     </div>
   </div>
 
+  <div id="scopePicker" class="modal" role="dialog" aria-modal="true" aria-labelledby="scopePickerTitle">
+    <div class="modal-panel">
+      <div class="page-head">
+        <div>
+          <h2 id="scopePickerTitle">Track Selector</h2>
+          <p class="note">Choose which tracks receive Global Apply changes. The selector keeps the same 8-column cell rhythm as the perform surfaces.</p>
+        </div>
+        <button onclick="closeScopePicker()">Close</button>
+      </div>
+      <div class="toolbar">
+        <button onclick="setGlobalScope('all')">All 8 Tracks</button>
+        <button onclick="setGlobalScope('selection')">Main + Atlantis</button>
+        <span class="pill selected" id="scopePickerCount">2 selected</span>
+      </div>
+      <div class="matrix scope-picker-grid" id="scopePickerMatrix"></div>
+    </div>
+  </div>
+
   <script>
     const modes = ['song', 'layers', 'global', 'scenes', 'cell', 'tracks'];
     const tabs = {
@@ -741,7 +784,8 @@
     let globalScope = 'selection';
     let globalLayer = 'Fill';
     let globalValue = 'on';
-    const selectedTrackIndexes = [0, 1];
+    let selectedTrackIndexes = [0, 1];
+    let globalControlId = 'globalFill';
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -769,42 +813,69 @@
       const mainTab = document.getElementById(mainTabs[mode]);
       if (mainTab) mainTab.classList.add('active');
       if (mode === 'layers') setLayer('Pattern');
-      if (mode === 'global') renderGlobalMatrix();
+      if (mode === 'global') renderGlobalApply();
     }
 
     function setGlobalScope(scope) {
       globalScope = scope;
-      renderGlobalMatrix();
+      if (scope === 'all') selectedTrackIndexes = tracks.map((_track, index) => index);
+      if (scope === 'selection') selectedTrackIndexes = [0, 1];
+      renderGlobalApply();
+      renderScopePicker();
     }
 
-    function applyGlobal(layer, value) {
+    function applyGlobal(layer, value, controlId) {
       globalLayer = layer;
       globalValue = value;
-      ['Fill', 'Mute', 'Repeat', 'Pattern'].forEach(name => {
-        const button = document.getElementById('global' + name);
-        if (button) button.classList.toggle('primary', name === layer);
+      globalControlId = controlId || (typeof event !== 'undefined' && event.currentTarget ? event.currentTarget.id : globalControlId);
+      document.querySelectorAll('.global-control').forEach(button => {
+        button.classList.toggle('primary', button.id === globalControlId);
       });
-      renderGlobalMatrix();
-      toast(layer + ' applied to ' + (globalScope === 'all' ? 'all tracks' : 'selected tracks'));
+      renderGlobalApply();
+      toast(layer + ' ' + value + ' applied to ' + selectedTrackIndexes.length + ' tracks');
     }
 
-    function renderGlobalMatrix() {
-      const matrix = document.getElementById('globalMatrix');
+    function renderGlobalApply() {
+      const count = document.getElementById('globalScopeCount');
+      const action = document.getElementById('globalActionReadout');
+      if (count) count.textContent = selectedTrackIndexes.length + ' tracks';
+      if (action) action.textContent = globalLayer + ' ' + globalValue;
+    }
+
+    function openScopePicker() {
+      document.getElementById('scopePicker').classList.add('open');
+      renderScopePicker();
+    }
+
+    function closeScopePicker() {
+      document.getElementById('scopePicker').classList.remove('open');
+    }
+
+    function toggleTrackScope(index) {
+      globalScope = 'selection';
+      if (selectedTrackIndexes.includes(index)) {
+        selectedTrackIndexes = selectedTrackIndexes.filter(item => item !== index);
+      } else {
+        selectedTrackIndexes = [...selectedTrackIndexes, index].sort((a, b) => a - b);
+      }
+      renderGlobalApply();
+      renderScopePicker();
+    }
+
+    function renderScopePicker() {
+      const matrix = document.getElementById('scopePickerMatrix');
       if (!matrix) return;
-      const scopedIndexes = globalScope === 'all' ? tracks.map((_track, index) => index) : selectedTrackIndexes;
-      document.getElementById('globalLayerReadout').textContent = globalLayer + ' ' + globalValue;
-      document.getElementById('globalScopeReadout').textContent = globalScope === 'all' ? 'applies to all tracks' : 'applies to selected tracks';
+      const count = document.getElementById('scopePickerCount');
+      if (count) count.textContent = selectedTrackIndexes.length + ' selected';
       matrix.innerHTML = '';
       tracks.forEach((track, index) => {
-        const inScope = scopedIndexes.includes(index);
+        const inScope = selectedTrackIndexes.includes(index);
         const cell = document.createElement('button');
-        cell.className = 'pv-cell' + (inScope ? ' selected changed' : ' out-of-scope');
+        cell.className = 'cell' + (inScope ? ' selected' : '');
         cell.innerHTML =
-          '<span class="scope">' + track + '</span>' +
-          '<span class="value">' + (inScope ? globalValue : 'unchanged') + '</span>' +
-          '<span class="mini-bars">' + bars(inScope ? 'bar' : 'single', index) + '</span>' +
-          '<span class="mode-label">' + (inScope ? globalLayer : 'outside scope') + '</span>';
-        cell.onclick = () => toast(track + (inScope ? ' is in scope' : ' is outside scope'));
+          '<span class="value">' + track + '</span>' +
+          '<span class="scope">' + (inScope ? 'receives changes' : 'not in scope') + '</span>';
+        cell.onclick = () => toggleTrackScope(index);
         matrix.appendChild(cell);
       });
     }
