@@ -108,6 +108,9 @@ done declaration for the whole feature.
 - A small phrase progress bar and bar readout are visible in the transport
   control, using the existing `PhrasePlayhead` rather than a second timing
   model.
+- Transport current/next/progress presentation is factored into pure helpers so
+  stopped, Free, Song, queued override, looped phrase, and progress cases have
+  focused regression coverage without requiring visual automation.
 
 ## Verified
 
@@ -131,6 +134,11 @@ done declaration for the whole feature.
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - After the sixth slice, `xcodebuild build` passed for the app target with
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After transport presentation hardening, `xcodebuild test
+  -only-testing:SequencerAITests/TransportPhraseNavigationPresentationTests`
+  passed with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After transport presentation hardening, `xcodebuild build` passed for the app
+  target with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Still Not Done
 

@@ -1,5 +1,101 @@
 import SwiftUI
 
+struct TransportPhraseNavigationPresentation: Equatable {
+    var currentName: String
+    var hasCurrent: Bool
+    var nextLabel: String
+    var nextName: String
+    var hasNext: Bool
+    var helpText: String
+
+    static func make(
+        phrases: [PhraseModel],
+        selectedPhraseID: UUID,
+        currentPhraseID: UUID?,
+        queuedPhraseID: UUID?,
+        isRunning: Bool,
+        transportMode: TransportMode
+    ) -> TransportPhraseNavigationPresentation {
+        let selectedPhrase = phrase(id: selectedPhraseID, in: phrases)
+        let currentPhrase: PhraseModel?
+        if isRunning, let currentPhraseID, let playingPhrase = phrase(id: currentPhraseID, in: phrases) {
+            currentPhrase = playingPhrase
+        } else {
+            currentPhrase = selectedPhrase
+        }
+
+        let queuedPhrase = phrase(id: queuedPhraseID, in: phrases)
+        let nextPhrase = queuedPhrase ?? arrangementNextPhrase(
+            after: currentPhrase,
+            phrases: phrases,
+            transportMode: transportMode
+        )
+        let nextLabel = queuedPhrase == nil ? "NEXT" : "QUEUED"
+        let currentName = currentPhrase?.name ?? (phrases.isEmpty ? "Empty" : (isRunning ? "No current phrase" : "Stopped"))
+        let nextName = nextPhrase?.name ?? "None"
+
+        var helpComponents = ["Current phrase", currentName]
+        if let nextPhrase {
+            helpComponents.append("\(nextLabel.capitalized): \(nextPhrase.name)")
+        } else if transportMode == .free {
+            helpComponents.append("No next phrase in Free mode")
+        }
+        helpComponents.append(isRunning ? "Open the phrase matrix to cue another phrase" : "Open the phrase matrix to switch phrase")
+
+        return TransportPhraseNavigationPresentation(
+            currentName: currentName,
+            hasCurrent: currentPhrase != nil,
+            nextLabel: nextLabel,
+            nextName: nextName,
+            hasNext: nextPhrase != nil,
+            helpText: helpComponents.joined(separator: ". ")
+        )
+    }
+
+    private static func phrase(id: UUID?, in phrases: [PhraseModel]) -> PhraseModel? {
+        guard let id else {
+            return nil
+        }
+        return phrases.first { $0.id == id }
+    }
+
+    private static func arrangementNextPhrase(
+        after currentPhrase: PhraseModel?,
+        phrases: [PhraseModel],
+        transportMode: TransportMode
+    ) -> PhraseModel? {
+        guard transportMode == .song,
+              let currentPhrase,
+              !currentPhrase.loopEnabled,
+              currentPhrase.repeatCount != 0,
+              phrases.count > 1
+        else {
+            return nil
+        }
+        guard let currentIndex = phrases.firstIndex(where: { $0.id == currentPhrase.id }) else {
+            return phrases.first
+        }
+        return phrases[(currentIndex + 1) % phrases.count]
+    }
+}
+
+struct TransportPhraseProgressPresentation: Equatable {
+    var label: String
+    var fraction: Double
+
+    static func make(phrase: PhraseModel?, transportTickIndex: UInt64) -> TransportPhraseProgressPresentation {
+        guard let phrase else {
+            return TransportPhraseProgressPresentation(label: "--", fraction: 0)
+        }
+        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: transportTickIndex)
+        let fraction = Double(playhead.stepIndex + 1) / Double(max(1, phrase.stepCount))
+        return TransportPhraseProgressPresentation(
+            label: "bar \(playhead.barIndex + 1)/\(phrase.lengthBars)",
+            fraction: min(max(fraction, 0), 1)
+        )
+    }
+}
+
 struct TransportBar: View {
     @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
@@ -39,57 +135,15 @@ struct TransportBar: View {
         return phrase(for: phraseID)
     }
 
-    private var nextPhrase: PhraseModel? {
-        if let queuedPhrase {
-            return queuedPhrase
-        }
-        guard engineController.transportMode == .song,
-              let currentPhrase,
-              !currentPhrase.loopEnabled,
-              currentPhrase.repeatCount != 0
-        else {
-            return nil
-        }
-        return nextPhraseInArrangement(after: currentPhrase.id)
-    }
-
-    private var phraseControlName: String {
-        if let currentPhrase {
-            return currentPhrase.name
-        }
-        if phrases.isEmpty {
-            return "Empty"
-        }
-        return engineController.isRunning ? "No current phrase" : "Stopped"
-    }
-
-    private var nextPhraseName: String {
-        nextPhrase?.name ?? "None"
-    }
-
-    private var nextPhraseLabel: String {
-        if queuedPhrase != nil {
-            return "QUEUED"
-        }
-        if engineController.transportMode == .song, nextPhrase != nil {
-            return "NEXT"
-        }
-        return "NEXT"
-    }
-
-    private var phraseControlHelp: String {
-        var components = ["Current phrase", phraseControlName]
-        if let nextPhrase {
-            components.append("\(nextPhraseLabel.capitalized): \(nextPhrase.name)")
-        } else if engineController.transportMode == .free {
-            components.append("No next phrase in Free mode")
-        }
-        if engineController.isRunning {
-            components.append("Open the phrase matrix to cue another phrase")
-        } else {
-            components.append("Open the phrase matrix to switch phrase")
-        }
-        return components.joined(separator: ". ")
+    private var phrasePresentation: TransportPhraseNavigationPresentation {
+        TransportPhraseNavigationPresentation.make(
+            phrases: phrases,
+            selectedPhraseID: session.store.selectedPhraseID,
+            currentPhraseID: engineController.currentPhraseID,
+            queuedPhraseID: engineController.queuedPhraseID,
+            isRunning: engineController.isRunning,
+            transportMode: engineController.transportMode
+        )
     }
 
     var body: some View {
@@ -200,18 +254,18 @@ struct TransportBar: View {
             HStack(spacing: 6) {
                 phraseButton(
                     eyebrow: "CURRENT",
-                    title: phraseControlName,
+                    title: phrasePresentation.currentName,
                     icon: engineController.isRunning ? "music.note.list" : "music.note",
                     accent: StudioTheme.cyan,
-                    isPrimary: currentPhrase != nil
+                    isPrimary: phrasePresentation.hasCurrent
                 )
 
                 phraseButton(
-                    eyebrow: nextPhraseLabel,
-                    title: nextPhraseName,
+                    eyebrow: phrasePresentation.nextLabel,
+                    title: phrasePresentation.nextName,
                     icon: queuedPhrase == nil ? "clock" : "clock.fill",
-                    accent: nextPhrase == nil ? StudioTheme.border : StudioTheme.amber,
-                    isPrimary: nextPhrase != nil
+                    accent: phrasePresentation.hasNext ? StudioTheme.amber : StudioTheme.border,
+                    isPrimary: phrasePresentation.hasNext
                 )
 
                 TransportPhraseProgress(phrase: currentPhrase)
@@ -236,8 +290,8 @@ struct TransportBar: View {
         }
         .buttonStyle(.plain)
         .disabled(phrases.isEmpty)
-        .help(phrases.isEmpty ? "No phrases available" : phraseControlHelp)
-        .accessibilityLabel(phraseControlHelp)
+        .help(phrases.isEmpty ? "No phrases available" : phrasePresentation.helpText)
+        .accessibilityLabel(phrasePresentation.helpText)
         .accessibilityIdentifier("transport-phrase-navigation")
         .sheet(isPresented: $phrasePickerPresented) {
             PhraseLaunchGridSheet(onClose: { phrasePickerPresented = false })
@@ -276,17 +330,6 @@ struct TransportBar: View {
             }
         }
         .frame(width: 76, alignment: .leading)
-    }
-
-    private func nextPhraseInArrangement(after phraseID: UUID) -> PhraseModel? {
-        let validPhrases = phrases
-        guard validPhrases.count > 1 else {
-            return nil
-        }
-        guard let currentIndex = validPhrases.firstIndex(where: { $0.id == phraseID }) else {
-            return validPhrases.first
-        }
-        return validPhrases[(currentIndex + 1) % validPhrases.count]
     }
 
     private func phrase(for phraseID: UUID) -> PhraseModel? {
@@ -353,19 +396,17 @@ private struct TransportPhraseProgress: View {
     }
 
     private var progressFraction: CGFloat {
-        guard let phrase else {
-            return 0
-        }
-        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
-        return CGFloat(playhead.stepIndex + 1) / CGFloat(max(1, phrase.stepCount))
+        CGFloat(TransportPhraseProgressPresentation.make(
+            phrase: phrase,
+            transportTickIndex: engineController.transportTickIndex
+        ).fraction)
     }
 
     private var progressLabel: String {
-        guard let phrase else {
-            return "--"
-        }
-        let playhead = PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex)
-        return "bar \(playhead.barIndex + 1)/\(phrase.lengthBars)"
+        TransportPhraseProgressPresentation.make(
+            phrase: phrase,
+            transportTickIndex: engineController.transportTickIndex
+        ).label
     }
 }
 
