@@ -17,6 +17,7 @@ That grammar is now used across the phrase overview, layer perform, scene editin
 - In Song mode, the matrix uses explicit `now` and `next` states so it is clear which phrase is currently playing and which phrase is queued for the next cycle.
 - Prototype navigation is kept in a compact top mode strip. There is no persistent left rail, so the matrix remains the main object on screen.
 - Layer Perform is still matrix-first, but it is framed as editing one selected layer across the same 8-track scope. It shows the current phrase copy and the quantized bars where performance changes will be printed.
+- Global Perform is a broader scoped action mode: choose one layer/value and apply it immediately to all tracks in the current selection, or to all tracks when the scope is widened.
 - Phrase Scenes is closer to the current scene model: slot A, crossfader, and slot B are phrase value cells, and scene macros are shown as cells tied to the selected scene slot.
 - Cell Detail is a contextual drill-in for one track's layers. It uses graphical mode indicators inside the layer cells, then opens an editor modal for choosing single value, per-bar values, or continuous events. It no longer includes unrelated settings such as track pattern length, scene A/B, xfade controls, or a persistent bar editor on the page.
 - Capture is shown as printing the live phrase copy, with explicit bar quantize and changed cells. Capture clip is acknowledged as a sibling action but not made the centre of this prototype.

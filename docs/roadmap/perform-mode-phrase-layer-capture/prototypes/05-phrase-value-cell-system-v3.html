@@ -84,7 +84,7 @@
 
     .main-nav {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(7, 1fr);
       gap: 8px;
       padding: 12px;
       border-bottom: 2px solid var(--line);
@@ -107,13 +107,30 @@
 
     .mode-nav {
       display: grid;
-      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      grid-template-columns: repeat(7, minmax(120px, 1fr));
       gap: 8px;
       padding: 12px;
       border-bottom: 2px solid var(--line);
       background: #fafafa;
     }
     .mode-nav button.active { border-color: var(--accent); background: var(--selected); font-weight: 800; }
+
+    .global-pad {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 8px;
+      margin: 10px 0 14px;
+    }
+    .global-pad button {
+      min-height: 92px;
+      display: grid;
+      gap: 6px;
+      align-content: center;
+      text-align: center;
+      font-weight: 800;
+    }
+    .scope-grid { grid-template-columns: repeat(8, minmax(118px, 1fr)); }
+    .out-of-scope { opacity: .45; border-style: dashed; }
 
     .page-head {
       display: grid;
@@ -392,6 +409,7 @@
       .top { grid-template-columns: 1fr; }
       .main-nav { grid-template-columns: 1fr 1fr; }
       .mode-nav { grid-template-columns: 1fr 1fr; }
+      .global-pad { grid-template-columns: 1fr 1fr; }
       .overview-matrix, .song-matrix, .track-matrix, .bar-matrix, .scene-slot-matrix { overflow-x: auto; display: flex; }
       .overview-matrix > *, .song-matrix > *, .track-matrix > *, .bar-matrix > *, .scene-slot-matrix > * { min-width: 120px; }
       .track-matrix { grid-template-columns: 1fr; }
@@ -420,6 +438,7 @@
       <button id="mainSong" onclick="showMode('song')">Song</button>
       <button id="mainPhrase" class="active" onclick="showMode('overview')">Phrase</button>
       <button id="mainLayers" onclick="showMode('layers')">Layer Perform</button>
+      <button id="mainGlobal" onclick="showMode('global')">Global Perform</button>
       <button id="mainTracks" onclick="showMode('tracks')">Tracks</button>
       <button class="stub" onclick="toast('mixer global defaults stub')">Mixer</button>
       <button class="stub" onclick="toast('scene management stub')">Scenes</button>
@@ -459,6 +478,7 @@
       <button id="tabSong" onclick="showMode('song')">Song Matrix</button>
       <button id="tabOverview" class="active" onclick="showMode('overview')">Phrase Overview</button>
       <button id="tabLayers" onclick="showMode('layers')">Layer Perform</button>
+      <button id="tabGlobal" onclick="showMode('global')">Global Perform</button>
       <button id="tabScenes" onclick="showMode('scenes')">Phrase Scenes</button>
       <button id="tabCell" onclick="showMode('cell')">Cell Detail</button>
       <button id="tabTracks" onclick="showMode('tracks')">Tracks</button>
@@ -628,6 +648,34 @@
           <div class="matrix track-matrix" id="layerMatrix"></div>
         </section>
 
+        <section id="modeGlobal" class="mode">
+          <div class="page-head">
+            <div>
+              <h1>Phrase A / Global Perform</h1>
+              <p class="note">A layer value is applied instantly to every track in the current scope. Scope comes from the Tracks page selection, or all tracks if nothing is selected.</p>
+            </div>
+            <div class="row right">
+              <span class="pill selected">scope: Main + Atlantis</span>
+              <button onclick="setGlobalScope('all')">All Tracks</button>
+              <button onclick="setGlobalScope('selection')">Track Selection</button>
+            </div>
+          </div>
+          <div class="global-pad">
+            <button id="globalFill" class="primary" onclick="applyGlobal('Fill', 'on')"><span>Fill</span><span class="scope">toggle on</span></button>
+            <button id="globalMute" onclick="applyGlobal('Mute', 'muted')"><span>Mute</span><span class="scope">toggle muted</span></button>
+            <button id="globalRepeat" onclick="applyGlobal('Repeat', '1/32')"><span>Repeat</span><span class="scope">set 1/32</span></button>
+            <button id="globalPattern" onclick="applyGlobal('Pattern', 'P3')"><span>Pattern</span><span class="scope">set P3</span></button>
+          </div>
+          <div class="toolbar">
+            <span class="pill selected" id="globalLayerReadout">Fill on</span>
+            <span class="pill" id="globalScopeReadout">applies to selected tracks</span>
+            <span class="pill changed">instant phrase-copy edit</span>
+            <span class="grow"></span>
+            <button onclick="showMode('tracks')">Change Track Selection</button>
+          </div>
+          <div class="matrix track-matrix scope-grid" id="globalMatrix"></div>
+        </section>
+
         <section id="modeCell" class="mode">
           <div class="page-head">
             <div>
@@ -714,11 +762,12 @@
   </div>
 
   <script>
-    const modes = ['song', 'overview', 'layers', 'scenes', 'cell', 'tracks'];
+    const modes = ['song', 'overview', 'layers', 'global', 'scenes', 'cell', 'tracks'];
     const tabs = {
       song: 'tabSong',
       overview: 'tabOverview',
       layers: 'tabLayers',
+      global: 'tabGlobal',
       scenes: 'tabScenes',
       cell: 'tabCell',
       tracks: 'tabTracks'
@@ -729,6 +778,7 @@
       scenes: 'mainPhrase',
       cell: 'mainPhrase',
       layers: 'mainLayers',
+      global: 'mainGlobal',
       tracks: 'mainTracks'
     };
     const tracks = ['Main', 'Atlantis', 'Poly', 'Mono', 'Kick', 'Snare', 'Hat', 'Clap'];
@@ -740,6 +790,10 @@
     };
     let editorLayer = 'Pattern';
     let editorMode = 'bars';
+    let globalScope = 'selection';
+    let globalLayer = 'Fill';
+    let globalValue = 'on';
+    const selectedTrackIndexes = [0, 1];
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -765,6 +819,44 @@
       const mainTab = document.getElementById(mainTabs[mode]);
       if (mainTab) mainTab.classList.add('active');
       if (mode === 'layers') setLayer('Pattern');
+      if (mode === 'global') renderGlobalMatrix();
+    }
+
+    function setGlobalScope(scope) {
+      globalScope = scope;
+      renderGlobalMatrix();
+    }
+
+    function applyGlobal(layer, value) {
+      globalLayer = layer;
+      globalValue = value;
+      ['Fill', 'Mute', 'Repeat', 'Pattern'].forEach(name => {
+        const button = document.getElementById('global' + name);
+        if (button) button.classList.toggle('primary', name === layer);
+      });
+      renderGlobalMatrix();
+      toast(layer + ' applied to ' + (globalScope === 'all' ? 'all tracks' : 'selected tracks'));
+    }
+
+    function renderGlobalMatrix() {
+      const matrix = document.getElementById('globalMatrix');
+      if (!matrix) return;
+      const scopedIndexes = globalScope === 'all' ? tracks.map((_track, index) => index) : selectedTrackIndexes;
+      document.getElementById('globalLayerReadout').textContent = globalLayer + ' ' + globalValue;
+      document.getElementById('globalScopeReadout').textContent = globalScope === 'all' ? 'applies to all tracks' : 'applies to selected tracks';
+      matrix.innerHTML = '';
+      tracks.forEach((track, index) => {
+        const inScope = scopedIndexes.includes(index);
+        const cell = document.createElement('button');
+        cell.className = 'pv-cell' + (inScope ? ' selected changed' : ' out-of-scope');
+        cell.innerHTML =
+          '<span class="scope">' + track + '</span>' +
+          '<span class="value">' + (inScope ? globalValue : 'unchanged') + '</span>' +
+          '<span class="mini-bars">' + bars(inScope ? 'bar' : 'single', index) + '</span>' +
+          '<span class="mode-label">' + (inScope ? globalLayer : 'outside scope') + '</span>';
+        cell.onclick = () => toast(track + (inScope ? ' is in scope' : ' is outside scope'));
+        matrix.appendChild(cell);
+      });
     }
 
     function openValueEditor(layer, mode) {
@@ -841,6 +933,7 @@
     function setPrototypeState(state) {
       if (state === 'phrase-overview') showMode('overview');
       if (state === 'phrase-layers') showMode('layers');
+      if (state === 'global-perform') showMode('global');
       if (state === 'phrase-scenes') showMode('scenes');
       if (state === 'phrase-cell') showMode('cell');
       if (state === 'tracks') showMode('tracks');

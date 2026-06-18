@@ -31,6 +31,7 @@
 - `setPrototypeState("tracks")`
 - `setPrototypeState("phrase-overview")`
 - `setPrototypeState("phrase-layers")`
+- `setPrototypeState("global-perform")`
 - `setPrototypeState("phrase-scenes")`
 - `setPrototypeState("phrase-cell")`
 - `setPrototypeState("phrase-cue")`
