@@ -960,6 +960,16 @@ extension SequencerDocumentSession {
         phraseID: UUID,
         impact: LiveMutationImpact = .snapshotOnly
     ) {
+        if workspaceMode == .perform {
+            _ = stagePhrasePerformCell(
+                cell,
+                layerID: layerID,
+                trackIDs: trackIDs,
+                basisPhraseID: phraseID
+            )
+            return
+        }
+
         let changed = store.mutatePhrase(id: phraseID) { phrase in
             for trackID in trackIDs {
                 phrase.setCell(cell, for: layerID, trackID: trackID)

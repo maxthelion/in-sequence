@@ -1218,7 +1218,7 @@ private struct TrackPerformPlaceholderLayerCard: View {
     }
 }
 
-private struct PhrasePerformCaptureSheet: View {
+struct PhrasePerformCaptureSheet: View {
     let phrases: [PhraseModel]
     let basisPhraseID: UUID?
     let stagedCellCount: Int
@@ -1264,14 +1264,14 @@ private struct PhrasePerformCaptureSheet: View {
 
     var body: some View {
         StudioModal(
-            title: "Capture Perform Edits",
+            title: "Save Modified Phrase",
             subtitle: "\(stagedCellCount) edit\(stagedCellCount == 1 ? "" : "s") on \(basisName)",
             accent: StudioTheme.amber,
             minWidth: 500,
             onClose: onCancel
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Choose a phrase slot to store the current heard state.")
+                Text("Choose where in the phrase matrix this modified phrase should be saved.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
 

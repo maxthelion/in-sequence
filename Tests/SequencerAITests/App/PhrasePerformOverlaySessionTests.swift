@@ -27,6 +27,50 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         XCTAssertTrue(fixture.session.phrasePerformOverlay.isDirty)
     }
 
+    func test_setPhraseCellInSetupModeMutatesCanonicalPhrase() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.workspaceMode = .setup
+        fixture.session.setPhraseCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            phraseID: fixture.phrases[0].id
+        )
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(
+            fixture.session.store.phrases[0].cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            .single(.bool(true))
+        )
+    }
+
+    func test_setPhraseCellInPerformModeStagesOverlayWithoutMutatingCanonicalPhrase() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.workspaceMode = .perform
+        fixture.session.setPhraseCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            phraseID: fixture.phrases[0].id
+        )
+
+        XCTAssertTrue(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(
+            fixture.session.store.phrases[0].cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            .inheritDefault
+        )
+        XCTAssertEqual(
+            fixture.session.phraseWithPerformOverlay(fixture.session.store.phrases[0])
+                .cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            .single(.bool(true))
+        )
+    }
+
     func test_revertPhrasePerformOverlay_discardsStagedCellsOnly() {
         let fixture = makeSession()
         defer { fixture.unregister() }

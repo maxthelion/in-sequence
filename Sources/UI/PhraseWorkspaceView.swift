@@ -11,6 +11,8 @@ struct PhraseWorkspaceView: View {
     @State private var trackPage = 0
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
+    @State private var isPresentingPhraseCapture = false
+    @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
 
     private let phraseColumnWidth: CGFloat = 118
@@ -88,6 +90,7 @@ struct PhraseWorkspaceView: View {
             showsHeader: false
         ) {
             VStack(alignment: .leading, spacing: 16) {
+                phrasePerformanceShell
                 layerBar
                 if isPresentingPerformanceLayerSelection {
                     performanceLayerSelectionSurface
@@ -102,6 +105,25 @@ struct PhraseWorkspaceView: View {
             PhraseCellEditorSheet(
                 target: target,
                 accent: layerAccent(target.layerID)
+            )
+            .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isPresentingPhraseCapture) {
+            PhrasePerformCaptureSheet(
+                phrases: session.store.phrases,
+                basisPhraseID: session.phrasePerformOverlay.basisPhraseID,
+                stagedCellCount: session.phrasePerformOverlay.stagedCellCount,
+                onCaptureExisting: { phraseID in
+                    _ = session.capturePhrasePerformOverlay(to: phraseID)
+                    isPresentingPhraseCapture = false
+                },
+                onCaptureNew: {
+                    _ = session.capturePhrasePerformOverlayToNewPhrase()
+                    isPresentingPhraseCapture = false
+                },
+                onCancel: {
+                    isPresentingPhraseCapture = false
+                }
             )
             .presentationBackground(.clear)
         }
@@ -164,6 +186,174 @@ struct PhraseWorkspaceView: View {
             VisualScenarioCommandRunner.pendingPhraseMatrixCommands = []
             applyMatrixVisualCommand(command)
         }
+    }
+
+    private var phrasePerformanceShell: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(phraseShellTitle)
+                    .studioText(.title)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+
+                Text(phraseShellDetail)
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+
+            phrasePerformToggle
+            phraseDirtyPill
+            phraseLatchTimingControls
+            phraseCaptureActions
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(phraseShellAccent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-performance-shell")
+    }
+
+    private var phraseShellTitle: String {
+        let phraseName = session.store.selectedPhrase.name
+        return session.workspaceMode == .perform ? "\(phraseName) / Perform Copy" : "\(phraseName) / Edit Baseline"
+    }
+
+    private var phraseShellDetail: String {
+        if session.workspaceMode == .perform {
+            return "Changes stage in a temporary phrase copy. Capture chooses where that modified phrase is saved."
+        }
+        return "Perform is off. Phrase edits write to the baseline; Capture and Discard stay visible but inactive."
+    }
+
+    private var phraseShellAccent: Color {
+        session.workspaceMode == .perform ? StudioTheme.amber : StudioTheme.violet
+    }
+
+    private var phrasePerformToggle: some View {
+        Button {
+            session.workspaceMode = session.workspaceMode == .perform ? .setup : .perform
+        } label: {
+            Text(session.workspaceMode == .perform ? "Perform On" : "Perform Off")
+                .studioText(.labelBold)
+                .foregroundStyle(session.workspaceMode == .perform ? StudioTheme.background : StudioTheme.text)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(session.workspaceMode == .perform ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(phraseShellAccent, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("phrase-perform-toggle")
+        .help(session.workspaceMode == .perform ? "Turn off phrase perform copy editing" : "Edit a temporary phrase copy during performance")
+    }
+
+    private var phraseDirtyPill: some View {
+        let hasActivePerformChanges = session.workspaceMode == .perform && session.phrasePerformOverlay.isDirty
+        return Text(phraseDirtyText)
+            .studioText(.microEmphasis)
+            .tracking(0.8)
+            .foregroundStyle(hasActivePerformChanges ? StudioTheme.background : StudioTheme.mutedText)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(hasActivePerformChanges ? StudioTheme.amber : StudioTheme.inset, in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(hasActivePerformChanges ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .accessibilityIdentifier("phrase-perform-dirty-summary")
+    }
+
+    private var phraseDirtyText: String {
+        guard session.workspaceMode == .perform else {
+            return "NO PERFORM CHANGES"
+        }
+        let count = session.phrasePerformOverlay.stagedCellCount
+        return count == 0 ? "NO CHANGES" : "\(count) CHANGED"
+    }
+
+    private var phraseLatchTimingControls: some View {
+        HStack(spacing: 4) {
+            ForEach(TrackPerformLatchMode.allCases) { mode in
+                Button {
+                    phraseLatchMode = mode
+                } label: {
+                    Text(mode == .momentary ? "MOM" : "LATCH")
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                        .foregroundStyle(phraseLatchMode == mode ? StudioTheme.background : StudioTheme.mutedText)
+                        .frame(width: 58, height: 30)
+                        .background(phraseLatchMode == mode ? StudioTheme.amber : StudioTheme.inset, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button {
+                session.performQuantise = session.performQuantise.flipped
+            } label: {
+                Text(session.performQuantise == .bar ? "Q: BAR" : "Q: OFF")
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+                    .foregroundStyle(phraseLatchMode == .latched ? StudioTheme.text : StudioTheme.mutedText)
+                    .frame(width: 70, height: 30)
+                    .background(phraseLatchMode == .latched ? Color.white.opacity(StudioOpacity.subtleFill) : StudioTheme.inset, in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(phraseLatchMode == .latched ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(phraseLatchMode != .latched)
+            .help(phraseLatchMode == .latched ? "Latch changes can land on the next bar" : "Momentary changes are immediate")
+        }
+        .padding(3)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-latch-timing")
+    }
+
+    private var phraseCaptureActions: some View {
+        HStack(spacing: 8) {
+            Button {
+                isPresentingPhraseCapture = true
+            } label: {
+                Text("Capture")
+                    .studioText(.labelBold)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(StudioTheme.amber)
+            .disabled(!canCapturePhrasePerformOverlay)
+            .help(canCapturePhrasePerformOverlay ? "Choose where to save the modified phrase" : "Turn Perform on and make changes before capture")
+
+            Button {
+                session.revertPhrasePerformOverlay()
+            } label: {
+                Text("Discard")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+            }
+            .buttonStyle(.plain)
+            .disabled(!canCapturePhrasePerformOverlay)
+            .help("Discard staged phrase perform changes")
+        }
+    }
+
+    private var canCapturePhrasePerformOverlay: Bool {
+        session.workspaceMode == .perform && session.phrasePerformOverlay.isDirty
     }
 
     private func reconcileSelectedLayer() {
@@ -458,9 +648,12 @@ struct PhraseWorkspaceView: View {
                 }
                 let next = dragBase.value + Double(-drag.translation.height) / 120 * span
                 let clamped = min(max(next, layer.minValue), layer.maxValue)
-                session.mutatePhrase(id: phrase.id) { mutablePhrase in
-                    mutablePhrase.setCell(.single(.scalar(clamped)), for: layer.id, trackID: track.id)
-                }
+                session.setPhraseCell(
+                    .single(.scalar(clamped)),
+                    layerID: layer.id,
+                    trackIDs: [track.id],
+                    phraseID: phrase.id
+                )
             }
             .onEnded { _ in
                 scalarDragBase = nil
@@ -556,6 +749,7 @@ struct PhraseWorkspaceView: View {
                 let selectedPhraseID = session.store.selectedPhraseID
                 let selectedTrackID = session.store.selectedTrackID
                 ForEach(Array(phrases.enumerated()), id: \.element.id) { index, phrase in
+                    let displayedPhrase = session.phraseWithPerformOverlay(phrase)
                     VStack(alignment: .leading, spacing: 6) {
                         // A fixed row height lets every cell stretch to the
                         // same bounds, keeping the strip aligned (ux-canon 9).
@@ -591,8 +785,8 @@ struct PhraseWorkspaceView: View {
                                             if let activeLayer {
                                                 PhraseGridCell(
                                                     layer: activeLayer,
-                                                    cell: phrase.cell(for: activeLayer.id, trackID: track.id),
-                                                    phrase: phrase,
+                                                    cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
+                                                    phrase: displayedPhrase,
                                                     track: track,
                                                     isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
                                                     accent: accent
@@ -600,7 +794,7 @@ struct PhraseWorkspaceView: View {
                                             } else {
                                                 PhrasePerformancePlaceholderCell(
                                                     selection: performanceLayerSelection,
-                                                    phrase: phrase,
+                                                    phrase: displayedPhrase,
                                                     track: track,
                                                     isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
                                                     accent: accent
@@ -623,7 +817,7 @@ struct PhraseWorkspaceView: View {
                                                 }
                                         )
                                         .simultaneousGesture(
-                                            scalarDragGesture(phrase: phrase, track: track, layer: activeLayer)
+                                            scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
                                         )
                                     } else {
                                         PhraseGridEmptyCell()
@@ -666,22 +860,33 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        session.mutatePhrase(id: phraseID) { phrase in
-            let currentCell = phrase.cell(for: selectedLayer.id, trackID: trackID)
-            let resolvedValue = phrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
-            let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
-
-            switch currentCell {
-            case .inheritDefault, .curve:
-                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
-            case .single:
-                phrase.setCell(.single(toggledValue), for: selectedLayer.id, trackID: trackID)
-            case let .bars(values):
-                phrase.setCell(.bars(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
-            case let .steps(values):
-                phrase.setCell(.steps(Array(repeating: toggledValue, count: values.count)), for: selectedLayer.id, trackID: trackID)
-            }
+        guard let phrase = phrases.first(where: { $0.id == phraseID }) else {
+            return
         }
+
+        let displayedPhrase = session.phraseWithPerformOverlay(phrase)
+        let currentCell = displayedPhrase.cell(for: selectedLayer.id, trackID: trackID)
+        let resolvedValue = displayedPhrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
+        let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
+
+        let nextCell: PhraseCell
+        switch currentCell {
+        case .inheritDefault, .curve:
+            nextCell = .single(toggledValue)
+        case .single:
+            nextCell = .single(toggledValue)
+        case let .bars(values):
+            nextCell = .bars(Array(repeating: toggledValue, count: values.count))
+        case let .steps(values):
+            nextCell = .steps(Array(repeating: toggledValue, count: values.count))
+        }
+
+        session.setPhraseCell(
+            nextCell,
+            layerID: selectedLayer.id,
+            trackIDs: [trackID],
+            phraseID: phraseID
+        )
     }
 
     private var performanceLayerSelectionSurface: some View {

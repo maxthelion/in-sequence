@@ -1,0 +1,45 @@
+id: build/perform-mode-phrase-layer-capture
+kind: build
+status: active
+feature: perform-mode-phrase-layer-capture
+worktree: .worktrees/roadmap-perform-mode-phrase-layer-capture
+branch: auto/roadmap-perform-mode-phrase-layer-capture
+sources:
+  - docs/roadmap/perform-mode-phrase-layer-capture/spec.md
+  - docs/roadmap/perform-mode-phrase-layer-capture/architecture.md
+  - docs/roadmap/perform-mode-phrase-layer-capture/plan.md
+  - docs/roadmap/perform-mode-phrase-layer-capture/implementation-handoff.md
+  - docs/roadmap/perform-mode-phrase-layer-capture/implementation-audit.md
+  - docs/roadmap/perform-mode-phrase-layer-capture/prototypes/05-phrase-value-cell-system-v3.html
+actors:
+  orient:
+    - actor: build-orienter
+  decide:
+    - actor: build-decider
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+    - actor: ux-ia-review
+      cadence: on_inbox
+    - actor: visual-economy-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing
+  - id: ux
+    actor: ux-ia-review
+    checklist: ux
+    when: user_facing
+  - id: visual-economy
+    actor: visual-economy-review
+    checklist: visual-economy
+    when: persistent_surface

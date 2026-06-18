@@ -64,9 +64,6 @@ struct StudioTopBar: View {
 
                 Spacer()
 
-                if session.workspaceMode == .perform {
-                    quantisePill
-                }
                 workspaceModeControl
             }
         }
@@ -132,47 +129,6 @@ struct StudioTopBar: View {
                     : "Perform plays: pattern, mute, fill — what you hear next bar")
             }
         }
-    }
-
-    /// The quantise pill (perform/setup split slice 2, wireframes §2): one
-    /// tap flips Q:BAR ↔ Q:OFF. Same pill grammar as the mode switch —
-    /// Q:BAR is a solid amber block (toggles land on the bar), Q:OFF is a
-    /// dashed ghost outline (toggles land immediately). Perform mode only.
-    private var quantisePill: some View {
-        Button {
-            session.performQuantise = session.performQuantise.flipped
-        } label: {
-            Text(session.performQuantise.pillLabel)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .tracking(0.9)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-                .foregroundStyle(session.performQuantise == .bar ? StudioTheme.background : StudioTheme.mutedText)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .frame(minWidth: 78)
-                .background(
-                    session.performQuantise == .bar ? StudioTheme.amber : Color.clear,
-                    in: Capsule()
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            session.performQuantise == .bar ? StudioTheme.amber : StudioTheme.border,
-                            style: QuantisedTogglePresentation.strokeStyle(
-                                isPending: session.performQuantise == .off,
-                                lineWidth: StudioMetrics.borderWidth
-                            )
-                        )
-                )
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("perform-quantise-pill")
-        .accessibilityValue(session.performQuantise == .bar ? "Bar" : "Off")
-        .help(session.performQuantise == .bar
-            ? "Perform toggles land at the next bar boundary; tap for immediate"
-            : "Perform toggles land immediately; tap to quantise to the bar")
     }
 
     private func modeAccent(for mode: WorkspaceMode) -> Color {
