@@ -112,6 +112,18 @@ done declaration for the whole feature.
   stopped, Free, Song, queued override, looped phrase, and progress cases have
   focused regression coverage without requiring visual automation.
 
+## Implemented In Seventh Slice
+
+- Phrase-local Layers and Global Apply now use the existing quantised mute
+  scheduler when the phrase shell is in Latch mode, Q:BAR is active, the
+  transport is running, and the selected layer is Mute.
+- Moment mode never arms quantised mute from the phrase surfaces.
+- Pattern, scalar, scene, and fill-flag phrase edits still land immediately;
+  Fill's existing runtime cue is not reused here because it does not capture
+  back into the phrase perform overlay.
+- The timing decision is covered by `PhrasePerformTimingPolicyTests`, including
+  the explicit non-goal that fill/pattern do not use the mute scheduler.
+
 ## Verified
 
 - `xcodebuild test -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests`
@@ -139,6 +151,11 @@ done declaration for the whole feature.
   passed with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - After transport presentation hardening, `xcodebuild build` passed for the app
   target with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After the seventh slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformTimingPolicyTests` passed with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After the seventh slice, `xcodebuild build` passed for the app target with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Still Not Done
 
@@ -148,8 +165,9 @@ done declaration for the whole feature.
 - Scenes is now in the phrase-local A/B/crossfader tab and stores single phrase
   values for scene A, scene B, and crossfader. Per-bar/continuous scene values
   and macro automation have not been implemented.
-- Moment and Latch behavior is currently represented in the shell; quantized
-  latch execution and length-limited expiry still need engine-level handling.
+- Moment and Latch behavior is partially engine-backed for phrase-local Mute
+  changes. General phrase-cell quantized execution and length-limited expiry
+  still need engine-level handling.
 - Visual review evidence against the V3 prototype has not yet been captured for
   the built app.
 - The automation modal is still visually the existing editor restyled as

@@ -1247,6 +1247,20 @@ struct PhraseWorkspaceView: View {
         let resolvedValue = displayedPhrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
         let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
 
+        if PhrasePerformTimingPolicy.usesQuantisedMuteArming(
+            layerID: selectedLayer.id,
+            latchMode: phraseLatchMode,
+            sessionArmingActive: session.isQuantisedPerformToggleArmingActive
+        ) {
+            session.toggleQuantisedMute(
+                trackIDs: [trackID],
+                basisPhrase: displayedPhrase,
+                layer: selectedLayer,
+                stepIndex: 0
+            )
+            return
+        }
+
         let nextCell: PhraseCell
         switch currentCell {
         case .inheritDefault, .curve:
@@ -1521,6 +1535,20 @@ struct PhraseWorkspaceView: View {
             phrase.resolvedValue(for: layer, trackID: seedTrackID, stepIndex: 0),
             for: layer
         )
+        if PhrasePerformTimingPolicy.usesQuantisedMuteArming(
+            layerID: layer.id,
+            latchMode: phraseLatchMode,
+            sessionArmingActive: session.isQuantisedPerformToggleArmingActive
+        ) {
+            session.toggleQuantisedMute(
+                trackIDs: globalApplyScopeTrackIDs,
+                basisPhrase: phrase,
+                layer: layer,
+                stepIndex: 0
+            )
+            return
+        }
+
         session.setPhraseCell(
             .single(nextValue),
             layerID: layer.id,

@@ -186,6 +186,18 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
     }
 }
 
+enum PhrasePerformTimingPolicy {
+    static func usesQuantisedMuteArming(
+        layerID: String,
+        latchMode: TrackPerformLatchMode,
+        sessionArmingActive: Bool
+    ) -> Bool {
+        latchMode == .latched
+            && sessionArmingActive
+            && layerID == TrackPerformLayerMode.mute.phraseLayerID
+    }
+}
+
 /// One selectable cell in the performance layer matrix. Plain layers are one
 /// cell each; variant layers (note repeat, step order) contribute one cell per
 /// variant so every option is a full-size toggle.
