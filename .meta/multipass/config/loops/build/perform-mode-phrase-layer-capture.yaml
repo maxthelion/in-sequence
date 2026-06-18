@@ -1,6 +1,6 @@
 id: build/perform-mode-phrase-layer-capture
 kind: build
-status: active
+status: complete
 feature: perform-mode-phrase-layer-capture
 worktree: .worktrees/roadmap-perform-mode-phrase-layer-capture
 branch: auto/roadmap-perform-mode-phrase-layer-capture
