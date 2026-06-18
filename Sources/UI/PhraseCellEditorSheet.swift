@@ -19,7 +19,7 @@ struct PhraseCellEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private var phrase: PhraseModel? {
-        session.store.phrases.first(where: { $0.id == target.phraseID })
+        session.store.phrases.first(where: { $0.id == target.phraseID }).map(session.phraseWithPerformOverlay)
     }
 
     private var track: StepSequenceTrack? {
@@ -38,7 +38,7 @@ struct PhraseCellEditorSheet: View {
         Group {
             if let phrase, let track, let layer {
                 StudioModal(
-                    title: "Cell Editor",
+                    title: "Automation",
                     subtitle: "\(phrase.name) • \(track.name) • \(layer.name)",
                     accent: accent,
                     minWidth: 680,
@@ -71,9 +71,7 @@ struct PhraseCellEditorSheet: View {
             HStack(spacing: 8) {
                 ForEach(availableModes(phrase: phrase, track: track, layer: layer), id: \.self) { mode in
                     Button {
-                        mutatePhrase(phraseID: phrase.id) { mutablePhrase in
-                            mutablePhrase.setCellMode(mode, for: layer, trackID: track.id)
-                        }
+                        setCellMode(mode, phrase: phrase, track: track, layer: layer)
                     } label: {
                         Text(mode.label)
                             .studioText(.labelBold)
@@ -123,9 +121,7 @@ struct PhraseCellEditorSheet: View {
                     return false
                 },
                 set: { newValue in
-                    mutatePhrase(phraseID: phrase.id) { mutablePhrase in
-                        mutablePhrase.setCell(.single(.bool(newValue)), for: layer.id, trackID: track.id)
-                    }
+                    setCell(.single(.bool(newValue)), phrase: phrase, track: track, layer: layer)
                 }
             ))
             .toggleStyle(.switch)
@@ -137,9 +133,7 @@ struct PhraseCellEditorSheet: View {
                         return 0
                     },
                     set: { newIndex in
-                        mutatePhrase(phraseID: phrase.id) { mutablePhrase in
-                            mutablePhrase.setCell(.single(.index(newIndex)), for: layer.id, trackID: track.id)
-                        }
+                        setCell(.single(.index(newIndex)), phrase: phrase, track: track, layer: layer)
                     }
                 )
             )
@@ -153,9 +147,7 @@ struct PhraseCellEditorSheet: View {
                         return layer.minValue
                     },
                     set: { newValue in
-                        mutatePhrase(phraseID: phrase.id) { mutablePhrase in
-                            mutablePhrase.setCell(.single(.scalar(newValue)), for: layer.id, trackID: track.id)
-                        }
+                        setCell(.single(.scalar(newValue)), phrase: phrase, track: track, layer: layer)
                     }
                 )
             )
@@ -180,9 +172,7 @@ struct PhraseCellEditorSheet: View {
                     valueEditor(for: value, layer: layer) { newValue in
                         var nextValues = values
                         nextValues[index] = newValue
-                        mutatePhrase(phraseID: phrase.id) { mutablePhrase in
-                            mutablePhrase.setCell(.bars(nextValues), for: layer.id, trackID: track.id)
-                        }
+                        setCell(.bars(nextValues), phrase: phrase, track: track, layer: layer)
                     }
                 }
             }
@@ -221,11 +211,9 @@ struct PhraseCellEditorSheet: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8), spacing: 8) {
                 ForEach(start..<end, id: \.self) { stepIndex in
                     Button {
-                        mutatePhrase(phraseID: phrase.id) { mutablePhrase in
-                            var nextValues = values
-                            nextValues[stepIndex] = cycledValue(nextValues[stepIndex], for: layer)
-                            mutablePhrase.setCell(.steps(nextValues), for: layer.id, trackID: track.id)
-                        }
+                        var nextValues = values
+                        nextValues[stepIndex] = cycledValue(nextValues[stepIndex], for: layer)
+                        setCell(.steps(nextValues), phrase: phrase, track: track, layer: layer)
                     } label: {
                         VStack(spacing: 6) {
                             Text("\(stepIndex - start + 1)")
@@ -259,9 +247,7 @@ struct PhraseCellEditorSheet: View {
             HStack(spacing: 8) {
                 ForEach(PhraseCurvePreset.allCases, id: \.self) { preset in
                     Button(preset.label) {
-                        mutatePhrase(phraseID: phrase.id) { mutablePhrase in
-                            mutablePhrase.setCell(.curve(preset.points(in: layer.scalarRange)), for: layer.id, trackID: track.id)
-                        }
+                        setCell(.curve(preset.points(in: layer.scalarRange)), phrase: phrase, track: track, layer: layer)
                     }
                     .buttonStyle(.bordered)
                 }
@@ -313,8 +299,34 @@ struct PhraseCellEditorSheet: View {
         }
     }
 
-    private func mutatePhrase(phraseID: UUID, _ update: (inout PhraseModel) -> Void) {
-        session.mutatePhrase(id: phraseID, update)
+    private func setCell(
+        _ cell: PhraseCell,
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) {
+        session.setPhraseCell(
+            cell,
+            layerID: layer.id,
+            trackIDs: [track.id],
+            phraseID: phrase.id
+        )
+    }
+
+    private func setCellMode(
+        _ mode: PhraseCellEditMode,
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) {
+        let cell = PhraseCell.makeDefault(
+            mode: mode,
+            layer: layer,
+            defaultValue: layer.defaultValue(for: track.id),
+            stepCount: phrase.stepCount,
+            barCount: phrase.lengthBars
+        )
+        setCell(cell, phrase: phrase, track: track, layer: layer)
     }
 
     /// Inherit is only offered when this cell follows a phrase whose same

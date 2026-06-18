@@ -11,6 +11,7 @@ struct PhraseWorkspaceView: View {
     @State private var trackPage = 0
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
+    @State private var phraseCellTool: PhraseCellTool = .value
     @State private var isPresentingPhraseCapture = false
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
@@ -395,52 +396,87 @@ struct PhraseWorkspaceView: View {
     }
 
     private var layerSelectorRegion: some View {
-        Button {
-            isPresentingPerformanceLayerSelection = true
-        } label: {
-            HStack(spacing: 8) {
-                // Bold-flat pass: solid accent circle with dark glyph.
-                Image(systemName: performanceLayerSelection.mode.symbolName)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(StudioTheme.background)
-                    .frame(width: 28, height: 28)
-                    .background(activeLayerAccent, in: Circle())
+        HStack(spacing: gridSpacing) {
+            Button {
+                isPresentingPerformanceLayerSelection = true
+            } label: {
+                HStack(spacing: 8) {
+                    // Bold-flat pass: solid accent circle with dark glyph.
+                    Image(systemName: performanceLayerSelection.mode.symbolName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(StudioTheme.background)
+                        .frame(width: 28, height: 28)
+                        .background(activeLayerAccent, in: Circle())
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("PHRASE LAYER")
-                        .studioText(.micro)
-                        .tracking(0.8)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("PHRASE LAYER")
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .foregroundStyle(StudioTheme.mutedText)
+
+                        Text(performanceLayerSelection.activeLabel.uppercased())
+                            .studioText(.labelBold)
+                            .foregroundStyle(activeLayerAccent)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+
+                        Text(performanceLayerSelection.mode.subtitle)
+                            .studioText(.micro)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Image(systemName: isPresentingPerformanceLayerSelection ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(StudioTheme.mutedText)
-
-                    Text(performanceLayerSelection.activeLabel.uppercased())
-                        .studioText(.labelBold)
-                        .foregroundStyle(activeLayerAccent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-
-                    Text(performanceLayerSelection.mode.subtitle)
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: isPresentingPerformanceLayerSelection ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(StudioTheme.mutedText)
             }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+            )
+            .accessibilityIdentifier("phrase-layer-selector")
+            .help("Choose the Phrase performance layer")
+
+            phraseCellToolButton(.value)
+                .frame(width: 104)
+            phraseCellToolButton(.automation)
+                .frame(width: 132)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func phraseCellToolButton(_ tool: PhraseCellTool) -> some View {
+        Button {
+            phraseCellTool = tool
+        } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                Image(systemName: tool.symbolName)
+                    .font(.system(size: 13, weight: .bold))
+                Text(tool.label.uppercased())
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(phraseCellTool == tool ? StudioTheme.background : StudioTheme.mutedText)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .background(phraseCellTool == tool ? activeLayerAccent : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(phraseCellTool == tool ? activeLayerAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-        .accessibilityIdentifier("phrase-layer-selector")
-        .help("Choose the Phrase performance layer")
+        .accessibilityIdentifier("phrase-cell-tool-\(tool.rawValue)")
+        .help(tool.help)
     }
 
     private func cycleLayer(by delta: Int) {
@@ -575,14 +611,26 @@ struct PhraseWorkspaceView: View {
     private func handleSingleTap(on phraseID: UUID, trackID: UUID) {
         session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
 
-        guard activeMatrixLayer?.valueType == .boolean else {
+        guard phraseCellTool == .value else {
+            openCellEditor(phraseID: phraseID, trackID: trackID)
             return
         }
 
-        if NSEvent.modifierFlags.contains(.shift) {
-            cascadeBooleanValue(phraseID: phraseID, trackID: trackID)
-        } else {
-            toggleBooleanCell(phraseID: phraseID, trackID: trackID)
+        guard let activeMatrixLayer else {
+            return
+        }
+
+        switch activeMatrixLayer.valueType {
+        case .boolean:
+            if NSEvent.modifierFlags.contains(.shift) {
+                cascadeBooleanValue(phraseID: phraseID, trackID: trackID)
+            } else {
+                toggleBooleanCell(phraseID: phraseID, trackID: trackID)
+            }
+        case .patternIndex:
+            cycleIndexedCell(phraseID: phraseID, trackID: trackID)
+        case .scalar:
+            break
         }
     }
 
@@ -803,17 +851,9 @@ struct PhraseWorkspaceView: View {
                                         }
                                         .contentShape(Rectangle())
                                         .gesture(
-                                            TapGesture(count: 2)
-                                                .exclusively(before: TapGesture())
-                                                .onEnded { value in
-                                                    switch value {
-                                                    case .first:
-                                                        if activeLayer != nil {
-                                                            openCellEditor(phraseID: phrase.id, trackID: track.id)
-                                                        }
-                                                    case .second:
-                                                        handleSingleTap(on: phrase.id, trackID: track.id)
-                                                    }
+                                            TapGesture()
+                                                .onEnded {
+                                                    handleSingleTap(on: phrase.id, trackID: track.id)
                                                 }
                                         )
                                         .simultaneousGesture(
@@ -879,6 +919,47 @@ struct PhraseWorkspaceView: View {
             nextCell = .bars(Array(repeating: toggledValue, count: values.count))
         case let .steps(values):
             nextCell = .steps(Array(repeating: toggledValue, count: values.count))
+        }
+
+        session.setPhraseCell(
+            nextCell,
+            layerID: selectedLayer.id,
+            trackIDs: [trackID],
+            phraseID: phraseID
+        )
+    }
+
+    private func cycleIndexedCell(phraseID: UUID, trackID: UUID) {
+        guard let selectedLayer = activeMatrixLayer, selectedLayer.valueType == .patternIndex else {
+            assertionFailure("cycleIndexedCell called without an active indexed phrase layer")
+            return
+        }
+
+        guard let phrase = phrases.first(where: { $0.id == phraseID }) else {
+            return
+        }
+
+        let displayedPhrase = session.phraseWithPerformOverlay(phrase)
+        let currentCell = displayedPhrase.cell(for: selectedLayer.id, trackID: trackID)
+        let resolvedValue = displayedPhrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
+        let currentIndex: Int
+        if case let .index(index) = resolvedValue.normalized(for: selectedLayer) {
+            currentIndex = index
+        } else {
+            currentIndex = 0
+        }
+        let nextValue = PhraseCellValue.index((currentIndex + 1) % TrackPatternBank.slotCount)
+
+        let nextCell: PhraseCell
+        switch currentCell {
+        case .inheritDefault, .curve:
+            nextCell = .single(nextValue)
+        case .single:
+            nextCell = .single(nextValue)
+        case let .bars(values):
+            nextCell = .bars(Array(repeating: nextValue, count: values.count))
+        case let .steps(values):
+            nextCell = .steps(Array(repeating: nextValue, count: values.count))
         }
 
         session.setPhraseCell(
@@ -962,6 +1043,38 @@ struct PhraseWorkspaceView: View {
         }
         isPresentingPerformanceLayerSelection = false
         postRenderedMatrixVisualState(isVisible: true)
+    }
+}
+
+private enum PhraseCellTool: String, Equatable {
+    case value
+    case automation
+
+    var label: String {
+        switch self {
+        case .value:
+            return "Value"
+        case .automation:
+            return "Automation"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .value:
+            return "cursorarrow.click"
+        case .automation:
+            return "point.topleft.down.curvedto.point.bottomright.up"
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .value:
+            return "Cell clicks change the selected layer value"
+        case .automation:
+            return "Cell clicks open automation editing for the selected layer"
+        }
     }
 }
 

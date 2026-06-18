@@ -31,11 +31,28 @@ done declaration for the whole feature.
 - A Foreman build loop config has been added for the remaining feature work and
   review gates.
 
+## Implemented In Second Slice
+
+- Phrase layer toolbar now has explicit Value and Automation tools.
+- Normal phrase matrix cell clicks no longer open the old hidden double-click
+  editor path.
+- Boolean layer cells still toggle directly through `setPhraseCell`.
+- Pattern layer cells now cycle pattern index directly through `setPhraseCell`.
+- Automation tool clicks open the deeper cell editor/modal for the selected
+  track/layer.
+- The deeper cell editor now reads the effective phrase state through
+  `phraseWithPerformOverlay`.
+- Deeper cell edits now write through `setPhraseCell`, so Perform mode stages
+  those edits into the overlay instead of mutating the canonical phrase.
+- Focused tests cover bar/automation-shaped cell replacement in Perform mode.
+
 ## Verified
 
 - `xcodebuild test -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests`
   passed with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - `xcodebuild build` passed for the app target.
+- After the second slice, the same focused test target passed again with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Still Not Done
 
@@ -43,22 +60,23 @@ done declaration for the whole feature.
   progress treatment from the spec.
 - Phrase page does not yet have final Layers, Scenes, and Global Apply tabs as
   separate production surfaces.
-- The generic phrase cell editor can still be reached from the phrase matrix;
-  the spec wants normal clicks to edit values and Automation mode to own deeper
-  cell editing.
 - Global Apply is not yet implemented as a phrase-local scoped matrix surface.
 - Scenes has not yet been moved into the phrase-local A/B/crossfader tab.
 - Moment and Latch behavior is currently represented in the shell; quantized
   latch execution and length-limited expiry still need engine-level handling.
 - Visual review evidence against the V3 prototype has not yet been captured for
   the built app.
+- The automation modal is still visually the existing editor restyled as
+  "Automation"; it needs a UX review against the V3 intent before the full
+  feature can be called done.
 
 ## Next Build-Loop Action
 
-Build the production Phrase Layers tab around the existing matrix grammar:
+Build the production Phrase Global Apply tab around the existing matrix grammar:
 
-- default to one selected layer mapped across an eight-column track matrix;
-- normal cell click changes that layer value through `setPhraseCell`;
-- add Automation as a toolbar/mode cell that opens automation editing;
-- remove the generic Cell Detail path from normal layer editing;
-- keep using `phraseWithPerformOverlay` for display while Perform is on.
+- phrase-local, not top-level;
+- show the current scope count;
+- use an eight-column matrix for track scope selection;
+- apply one chosen layer/value action to the whole scope through
+  `setPhraseCell`;
+- reuse the same Moment/Latch gesture model as the phrase shell.

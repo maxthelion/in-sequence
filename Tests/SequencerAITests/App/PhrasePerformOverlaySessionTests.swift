@@ -71,6 +71,30 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         )
     }
 
+    func test_automationStyleCellReplacementInPerformModeStagesOverlay() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.workspaceMode = .perform
+        fixture.session.setPhraseCell(
+            .bars([.bool(true), .bool(false), .bool(true), .bool(false)]),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            phraseID: fixture.phrases[0].id
+        )
+
+        XCTAssertTrue(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(
+            fixture.session.store.phrases[0].cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            .inheritDefault
+        )
+        XCTAssertEqual(
+            fixture.session.phraseWithPerformOverlay(fixture.session.store.phrases[0])
+                .cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            .bars([.bool(true), .bool(false), .bool(true), .bool(false)])
+        )
+    }
+
     func test_revertPhrasePerformOverlay_discardsStagedCellsOnly() {
         let fixture = makeSession()
         defer { fixture.unregister() }
