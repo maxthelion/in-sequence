@@ -13,6 +13,8 @@ That grammar is now used across the phrase overview, layer perform, scene editin
 
 - Phrase Overview is an 8-track matrix of card-like cells. Each cell is a single track card with compact layer chips inside it, rather than a vertical stack of nested layer wrappers or a separate table axis.
 - Song and phrase cue use the same 8-column cell rhythm so phrase navigation does not introduce a different grid grammar.
+- Song mode now keeps the current phrase-page ingredients visible: layer selection, track page context, track headers, phrase controls, and add/duplicate/delete actions.
+- In Song mode, the matrix uses explicit `now` and `next` states so it is clear which phrase is currently playing and which phrase is queued for the next cycle.
 - Prototype navigation is kept in a compact top mode strip. There is no persistent left rail, so the matrix remains the main object on screen.
 - Layer Perform is still matrix-first, but it is framed as editing one selected layer across the same 8-track scope. It shows the current phrase copy and the quantized bars where performance changes will be printed.
 - Phrase Scenes is closer to the current scene model: slot A, crossfader, and slot B are phrase value cells, and scene macros are shown as cells tied to the selected scene slot.

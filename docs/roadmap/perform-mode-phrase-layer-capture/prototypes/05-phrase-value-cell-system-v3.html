@@ -154,6 +154,46 @@
     .cell.changed { background: var(--changed); }
     .cell.success { background: var(--success); }
     .cell.empty { border-style: dashed; background: var(--stub); color: var(--muted); }
+    .cell.playing { border-color: var(--accent); background: var(--selected); }
+    .cell.queued { background: var(--changed); }
+
+    .song-status {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 8px;
+      margin: 10px 0 14px;
+    }
+    .song-tool-row {
+      display: grid;
+      grid-template-columns: 150px 1fr auto;
+      gap: 8px;
+      align-items: stretch;
+      margin: 10px 0;
+    }
+    .song-track-heads {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(118px, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .song-track-heads .cell { min-height: 50px; }
+    .status-mark {
+      border: 2px solid var(--line);
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      margin-right: 6px;
+      vertical-align: middle;
+      background: var(--paper);
+    }
+    .status-mark.playing { background: var(--accent); }
+    .status-mark.queued { background: var(--changed); }
+    .phrase-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .phrase-controls .pill { min-height: 30px; padding: 4px 6px; }
 
     .pv-cell {
       border: 2px solid var(--line);
@@ -427,20 +467,82 @@
         <section id="modeSong" class="mode">
           <div class="page-head">
             <div>
-              <h1>Song</h1>
-              <p class="note">Song remains a phrase matrix. Open a phrase to edit its value cells.</p>
+              <h1>Song Matrix</h1>
+              <p class="note">Arrangement uses the same eight-cell rhythm, with explicit now and next phrase state when Song mode is active.</p>
             </div>
-            <button class="primary" onclick="showMode('overview')">Open Phrase A</button>
+            <div class="row right">
+              <span class="pill selected">Song mode</span>
+              <button class="primary" onclick="showMode('overview')">Open Playing Phrase</button>
+            </div>
           </div>
+
+          <div class="song-status">
+            <div class="cell playing"><span class="scope">Now</span><span class="value"><span class="status-mark playing"></span>Phrase A</span><span>bar 3 / 8</span></div>
+            <div class="cell queued"><span class="scope">Next</span><span class="value"><span class="status-mark queued"></span>Phrase B</span><span>at cycle end</span></div>
+            <div class="cell"><span class="scope">Transport</span><span class="value">1:1:1</span><span>repeat advances in Song mode</span></div>
+            <div class="cell"><span class="scope">Edit target</span><span class="value">Phrase A copy</span><span>capture prints changes</span></div>
+          </div>
+
+          <div class="toolbar">
+            <button class="primary">Pattern</button>
+            <button>Mute</button>
+            <button>Fill</button>
+            <button>Repeat</button>
+            <span class="grow"></span>
+            <button class="stub" onclick="toast('previous track page stub')">tracks page left</button>
+            <span class="pill selected">Tracks 1-8</span>
+            <button class="stub" onclick="toast('next track page stub')">tracks page right</button>
+          </div>
+
+          <div class="song-track-heads">
+            <div class="cell head">Main</div>
+            <div class="cell head">Atlantis</div>
+            <div class="cell head">Poly</div>
+            <div class="cell head">Mono</div>
+            <div class="cell head">Kick</div>
+            <div class="cell head">Snare</div>
+            <div class="cell head">Hat</div>
+            <div class="cell head">Clap</div>
+          </div>
+
           <div class="matrix song-matrix">
-            <button class="cell selected" onclick="showMode('overview')"><span class="value">Phrase A</span><span>8 bars</span></button>
-            <button class="cell"><span class="value">Phrase B</span><span class="scope">4 bars</span></button>
-            <button class="cell"><span class="value">Phrase C</span><span class="scope">8 bars</span></button>
-            <button class="cell"><span class="value">Phrase D</span><span class="scope">2 bars</span></button>
+            <button class="cell playing" onclick="showMode('overview')"><span class="scope">Phrase A / Main</span><span class="value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></button>
+            <button class="cell playing"><span class="scope">Phrase A / Atlantis</span><span class="value">P4</span><span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span></button>
+            <button class="cell playing"><span class="scope">Phrase A / Poly</span><span class="value">P3</span><span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span></button>
+            <button class="cell playing"><span class="scope">Phrase A / Mono</span><span class="value">P1</span><span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span></button>
+            <button class="cell playing success"><span class="scope">Phrase A / Kick</span><span class="value">P1</span><span>kit</span></button>
+            <button class="cell playing success"><span class="scope">Phrase A / Snare</span><span class="value">P1</span><span>kit</span></button>
+            <button class="cell playing success"><span class="scope">Phrase A / Hat</span><span class="value">P1</span><span>mute b5-6</span></button>
+            <button class="cell playing success"><span class="scope">Phrase A / Clap</span><span class="value">P1</span><span>kit</span></button>
+
+            <button class="cell queued"><span class="scope">Phrase B / Main</span><span class="value">P2</span><span>queued</span></button>
+            <button class="cell queued"><span class="scope">Phrase B / Atlantis</span><span class="value">P5</span><span>queued</span></button>
+            <button class="cell queued"><span class="scope">Phrase B / Poly</span><span class="value">P3</span><span>inherit</span></button>
+            <button class="cell queued"><span class="scope">Phrase B / Mono</span><span class="value">muted</span><span>queued</span></button>
+            <button class="cell queued success"><span class="scope">Phrase B / Kick</span><span class="value">P2</span><span>kit</span></button>
+            <button class="cell queued success"><span class="scope">Phrase B / Snare</span><span class="value">P2</span><span>kit</span></button>
+            <button class="cell queued success"><span class="scope">Phrase B / Hat</span><span class="value">P2</span><span>kit</span></button>
+            <button class="cell queued success"><span class="scope">Phrase B / Clap</span><span class="value">P2</span><span>kit</span></button>
+
+            <button class="cell"><span class="scope">Breakdown / Main</span><span class="value">P7</span><span>4 bars x2</span></button>
+            <button class="cell"><span class="scope">Breakdown / Atlantis</span><span class="value">mute</span><span>single</span></button>
+            <button class="cell"><span class="scope">Breakdown / Poly</span><span class="value">P8</span><span>single</span></button>
+            <button class="cell"><span class="scope">Breakdown / Mono</span><span class="value">P1</span><span>single</span></button>
             <button class="cell empty">empty</button>
             <button class="cell empty">empty</button>
             <button class="cell empty">empty</button>
             <button class="cell empty">empty</button>
+          </div>
+
+          <div class="song-tool-row">
+            <button class="cell selected" onclick="showMode('overview')"><span class="value">Phrase A</span><span>8 bars</span><span class="phrase-controls"><span class="pill">bars 8</span><span class="pill">loop on</span></span></button>
+            <div class="toolbar">
+              <button onclick="toast('add phrase row stub')">Add Phrase</button>
+              <button onclick="toast('duplicate phrase row stub')">Duplicate</button>
+              <button onclick="toast('delete phrase row stub')">Delete</button>
+              <button onclick="toast('cue phrase B')">Cue B</button>
+            </div>
+            <button class="cell queued"><span class="value">Phrase B</span><span>queued next</span><span class="phrase-controls"><span class="pill">bars 4</span><span class="pill">repeat 2</span></span></button>
           </div>
         </section>
 
