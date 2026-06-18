@@ -9,9 +9,12 @@ struct PhraseWorkspaceView: View {
     @State private var selectedLayerID = "pattern"
     @State private var editingCellTarget: PhraseCellEditorTarget?
     @State private var trackPage = 0
+    @State private var phraseTab: PhraseWorkspaceTab = .layers
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
     @State private var phraseCellTool: PhraseCellTool = .value
+    @State private var globalApplyScope = TrackPerformSelectionState()
+    @State private var isPresentingGlobalApplyTrackSelector = false
     @State private var isPresentingPhraseCapture = false
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
@@ -82,6 +85,10 @@ struct PhraseWorkspaceView: View {
         return pagedTracks.map(Optional.some) + Array(repeating: nil, count: max(0, trackPageSize - pagedTracks.count))
     }
 
+    private var selectedPhraseForEditing: PhraseModel {
+        session.phraseWithPerformOverlay(session.store.selectedPhrase)
+    }
+
     var body: some View {
         // The top-nav pill already names this page; the panel renders no
         // header of its own (ux-canon rule 1).
@@ -92,11 +99,19 @@ struct PhraseWorkspaceView: View {
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 phrasePerformanceShell
-                layerBar
-                if isPresentingPerformanceLayerSelection {
-                    performanceLayerSelectionSurface
-                } else {
-                    matrix
+                phraseTabBar
+                switch phraseTab {
+                case .layers:
+                    layerBar
+                    if isPresentingPerformanceLayerSelection {
+                        performanceLayerSelectionSurface
+                    } else {
+                        matrix
+                    }
+                case .scenes:
+                    phraseScenesPlaceholder
+                case .globalApply:
+                    globalApplySurface
                 }
             }
         }
@@ -355,6 +370,45 @@ struct PhraseWorkspaceView: View {
 
     private var canCapturePhrasePerformOverlay: Bool {
         session.workspaceMode == .perform && session.phrasePerformOverlay.isDirty
+    }
+
+    private var phraseTabBar: some View {
+        HStack(spacing: gridSpacing) {
+            ForEach(PhraseWorkspaceTab.allCases) { tab in
+                Button {
+                    phraseTab = tab
+                    isPresentingPerformanceLayerSelection = false
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: tab.symbolName)
+                            .font(.system(size: 12, weight: .bold))
+                        Text(tab.label.uppercased())
+                            .studioText(.microEmphasis)
+                            .tracking(0.8)
+                    }
+                    .foregroundStyle(phraseTab == tab ? StudioTheme.background : StudioTheme.text)
+                    .frame(width: 148, height: 36)
+                    .background(phraseTab == tab ? tab.accent : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                            .stroke(phraseTab == tab ? tab.accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("phrase-tab-\(tab.rawValue)")
+                .help(tab.help)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var phraseScenesPlaceholder: some View {
+        StudioPlaceholderTile(
+            title: "Phrase Scenes",
+            detail: "Scene A, crossfader, and Scene B stay on the current Scenes page for this slice. This tab marks their phrase-local home for the next build pass.",
+            accent: StudioTheme.amber
+        )
+        .frame(maxWidth: min(trackGridWidth + phraseColumnWidth + matrixGutterWidth * 2 + actionColumnWidth + gridSpacing * 4, 980))
     }
 
     private func reconcileSelectedLayer() {
@@ -970,6 +1024,227 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    private var globalApplySurface: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            globalApplyScopeBar
+
+            if isPresentingGlobalApplyTrackSelector {
+                globalApplyTrackSelector
+            }
+
+            LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
+                ForEach(globalApplyOptions) { option in
+                    globalApplyActionCell(option)
+                }
+            }
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-global-apply-surface")
+    }
+
+    private var globalApplyScopeBar: some View {
+        HStack(spacing: gridSpacing) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("GLOBAL APPLY")
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.amber)
+                Text("\(globalApplyScopeTitle) • \(selectedPhraseForEditing.name)")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+
+            Button {
+                isPresentingGlobalApplyTrackSelector.toggle()
+            } label: {
+                Text(isPresentingGlobalApplyTrackSelector ? "Hide Tracks" : "Track Selector")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 132, height: 44)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                            .stroke(isPresentingGlobalApplyTrackSelector ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                selectAllGlobalApplyTracks()
+            } label: {
+                Text("All Tracks")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 92, height: 44)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var globalApplyTrackSelector: some View {
+        LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
+            ForEach(tracks, id: \.id) { track in
+                let isSelected = globalApplyScope.contains(track.id) || globalApplyScope.isEmpty
+                Button {
+                    if globalApplyScope.isEmpty {
+                        globalApplyScope.add(track.id)
+                    } else {
+                        globalApplyScope.toggle(track.id)
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(isSelected ? StudioTheme.amber : StudioTheme.mutedText)
+                            Spacer(minLength: 0)
+                        }
+                        Text(track.name)
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                        Text(track.trackType.shortLabel.uppercased())
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .foregroundStyle(StudioTheme.mutedText)
+                    }
+                    .padding(StudioMetrics.Spacing.compact)
+                    .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
+                    .background(isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(isSelected ? StudioTheme.amber : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .accessibilityIdentifier("phrase-global-apply-track-selector")
+    }
+
+    private func globalApplyActionCell(_ option: PerformanceLayerOption) -> some View {
+        let accent = option.mode.selectorAccent
+        return Button {
+            applyGlobalOption(option)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: option.mode.symbolName)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(accent)
+                    Spacer(minLength: 0)
+                    Text(globalApplyPreview(option))
+                        .studioText(.microEmphasis)
+                        .tracking(0.7)
+                        .foregroundStyle(StudioTheme.text)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(option.title.uppercased())
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.62)
+
+                Text("Apply to \(globalApplyScopeCount) track\(globalApplyScopeCount == 1 ? "" : "s")")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+            .padding(StudioMetrics.Spacing.compact)
+            .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+            .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(accent, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var globalApplyOptions: [PerformanceLayerOption] {
+        PerformanceLayerOption.all.filter { $0.mode.phraseLayerID != nil }
+    }
+
+    private var globalApplyColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 84, maximum: 190), spacing: 10), count: 8)
+    }
+
+    private var globalApplyScopeTrackIDs: [UUID] {
+        let orderedTrackIDs = tracks.map(\.id)
+        if globalApplyScope.isEmpty {
+            return orderedTrackIDs
+        }
+        return orderedTrackIDs.filter { globalApplyScope.contains($0) }
+    }
+
+    private var globalApplyScopeCount: Int {
+        globalApplyScopeTrackIDs.count
+    }
+
+    private var globalApplyScopeTitle: String {
+        if globalApplyScope.isEmpty {
+            return "All \(tracks.count) tracks"
+        }
+        return "\(globalApplyScopeCount) selected"
+    }
+
+    private func selectAllGlobalApplyTracks() {
+        globalApplyScope.clear()
+    }
+
+    private func globalApplyPreview(_ option: PerformanceLayerOption) -> String {
+        guard let layerID = option.mode.phraseLayerID,
+              let layer = layers.first(where: { $0.id == layerID }),
+              let seedTrackID = globalApplyScopeTrackIDs.first
+        else {
+            return "Ready"
+        }
+
+        let value = selectedPhraseForEditing.resolvedValue(for: layer, trackID: seedTrackID, stepIndex: 0)
+        return valueLabel(cycledValue(value, for: layer), layer: layer)
+    }
+
+    private func applyGlobalOption(_ option: PerformanceLayerOption) {
+        guard let layerID = option.mode.phraseLayerID,
+              let layer = layers.first(where: { $0.id == layerID }),
+              let seedTrackID = globalApplyScopeTrackIDs.first
+        else {
+            return
+        }
+
+        performanceLayerSelection.select(option.mode, variantLabel: option.variantLabel)
+        selectedLayerID = layer.id
+
+        let phrase = selectedPhraseForEditing
+        let nextValue = cycledValue(
+            phrase.resolvedValue(for: layer, trackID: seedTrackID, stepIndex: 0),
+            for: layer
+        )
+        session.setPhraseCell(
+            .single(nextValue),
+            layerID: layer.id,
+            trackIDs: globalApplyScopeTrackIDs,
+            phraseID: phrase.id
+        )
+    }
+
     private var performanceLayerSelectionSurface: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
@@ -1074,6 +1349,58 @@ private enum PhraseCellTool: String, Equatable {
             return "Cell clicks change the selected layer value"
         case .automation:
             return "Cell clicks open automation editing for the selected layer"
+        }
+    }
+}
+
+private enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
+    case layers
+    case scenes
+    case globalApply
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .layers:
+            return "Layers"
+        case .scenes:
+            return "Scenes"
+        case .globalApply:
+            return "Global Apply"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .layers:
+            return "square.grid.3x3"
+        case .scenes:
+            return "square.2.layers.3d"
+        case .globalApply:
+            return "scope"
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .layers:
+            return StudioTheme.violet
+        case .scenes:
+            return StudioTheme.amber
+        case .globalApply:
+            return StudioTheme.cyan
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .layers:
+            return "Edit phrase layer values by track"
+        case .scenes:
+            return "Edit phrase scene values"
+        case .globalApply:
+            return "Apply one value to the current track scope"
         }
     }
 }

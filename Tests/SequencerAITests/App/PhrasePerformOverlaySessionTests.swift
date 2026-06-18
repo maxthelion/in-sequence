@@ -91,8 +91,37 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         XCTAssertEqual(
             fixture.session.phraseWithPerformOverlay(fixture.session.store.phrases[0])
                 .cell(for: fixture.muteLayerID, trackID: fixture.trackID),
-            .bars([.bool(true), .bool(false), .bool(true), .bool(false)])
+                .bars([.bool(true), .bool(false), .bool(true), .bool(false)])
         )
+    }
+
+    func test_scopedGlobalApplyInPerformModeStagesEveryRecipientTrack() throws {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let recipientTrackIDs = Array(fixture.trackIDs.prefix(2))
+        try XCTSkipIf(recipientTrackIDs.count < 2, "Fixture needs at least two tracks for scoped Global Apply coverage")
+
+        fixture.session.workspaceMode = .perform
+        fixture.session.setPhraseCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: recipientTrackIDs,
+            phraseID: fixture.phrases[0].id
+        )
+
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.stagedCellCount, recipientTrackIDs.count)
+        for trackID in recipientTrackIDs {
+            XCTAssertEqual(
+                fixture.session.store.phrases[0].cell(for: fixture.muteLayerID, trackID: trackID),
+                .inheritDefault
+            )
+            XCTAssertEqual(
+                fixture.session.phraseWithPerformOverlay(fixture.session.store.phrases[0])
+                    .cell(for: fixture.muteLayerID, trackID: trackID),
+                .single(.bool(true))
+            )
+        }
     }
 
     func test_revertPhrasePerformOverlay_discardsStagedCellsOnly() {
@@ -402,6 +431,7 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
             engine: engine,
             documentBox: documentBox,
             trackID: trackID,
+            trackIDs: project.tracks.map(\.id),
             muteLayerID: muteLayerID,
             phrases: project.phrases
         )
@@ -414,6 +444,7 @@ private struct PhrasePerformOverlayFixture {
     let engine: EngineController
     let documentBox: PhrasePerformOverlayDocumentBox
     let trackID: UUID
+    let trackIDs: [UUID]
     let muteLayerID: String
     let phrases: [PhraseModel]
 
