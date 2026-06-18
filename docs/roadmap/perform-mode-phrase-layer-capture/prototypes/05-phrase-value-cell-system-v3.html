@@ -190,6 +190,19 @@
       background: #fafafa;
     }
     .phrase-shell .page-head { margin-bottom: 0; }
+    .phrase-mode-strip {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 10px 0 0;
+    }
+    .dirty-summary {
+      border-color: var(--line);
+      background: var(--changed);
+      font-weight: 800;
+    }
+    .hidden { display: none !important; }
 
     .global-menu {
       display: flex;
@@ -758,15 +771,24 @@
         <section id="phraseShell" class="phrase-shell">
           <div class="page-head">
             <div>
-              <h1>Phrase A</h1>
-              <p class="note">Perform is the write mode for this phrase: changes go to a live copy until captured or discarded.</p>
+              <h1 id="phraseShellTitle">Phrase A / Perform Copy</h1>
+              <p id="phraseShellNote" class="note">Changes are applied to a temporary live copy. Capture prints the marked cells into the phrase baseline; Discard returns to the baseline.</p>
             </div>
             <div class="row right">
-              <span class="pill changed">Perform mode</span>
+              <span id="phraseModePill" class="pill changed">Perform mode</span>
               <span class="pill">bar 3 / 8</span>
-              <button onclick="toggleDrawer('captureMenu')">Capture</button>
-              <button onclick="toast('live phrase copy discarded')">Discard</button>
+              <span id="dirtySummary" class="pill dirty-summary">3 changed cells</span>
+              <button id="captureButton" onclick="toggleDrawer('captureMenu')">Capture</button>
+              <button id="discardButton" onclick="toast('live phrase copy discarded')">Discard</button>
             </div>
+          </div>
+          <div class="phrase-mode-strip">
+            <span class="pill">phrase mode</span>
+            <button id="phraseEditButton" onclick="setPhraseMode('edit')">Edit</button>
+            <button id="phrasePerformButton" class="primary" onclick="setPhraseMode('perform')">Perform</button>
+            <span class="pill">automation</span>
+            <button id="automationToggle" class="primary" onclick="togglePhraseAutomation()">On</button>
+            <span id="automationReadout" class="pill">scheduled changes read</span>
           </div>
           <div class="phrase-tabs">
             <button id="tabLayers" class="active" onclick="showMode('layers')">Layers</button>
@@ -996,6 +1018,8 @@
     let gateMode = 'moment';
     let transportMode = 'free';
     let nextPhrase = '';
+    let phraseMode = 'perform';
+    let phraseAutomation = true;
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -1040,6 +1064,56 @@
         cueNote.textContent = transportMode === 'song'
           ? 'Song mode chooses the next phrase from the arrangement, but pressing another phrase overrides the next boundary.'
           : 'Free mode has no next phrase until one is selected. Choosing a phrase cues it at the next boundary.';
+      }
+    }
+
+    function setPhraseMode(mode) {
+      phraseMode = mode;
+      renderPhraseHeader();
+      toast(mode === 'perform' ? 'Perform copy active' : 'Editing phrase baseline');
+    }
+
+    function togglePhraseAutomation() {
+      phraseAutomation = !phraseAutomation;
+      renderPhraseHeader();
+      toast('Phrase automation ' + (phraseAutomation ? 'on' : 'off'));
+    }
+
+    function renderPhraseHeader() {
+      const isPerform = phraseMode === 'perform';
+      const title = document.getElementById('phraseShellTitle');
+      const note = document.getElementById('phraseShellNote');
+      const pill = document.getElementById('phraseModePill');
+      const editButton = document.getElementById('phraseEditButton');
+      const performButton = document.getElementById('phrasePerformButton');
+      const captureButton = document.getElementById('captureButton');
+      const discardButton = document.getElementById('discardButton');
+      const dirtySummary = document.getElementById('dirtySummary');
+      const automationToggle = document.getElementById('automationToggle');
+      const automationReadout = document.getElementById('automationReadout');
+      if (title) title.textContent = isPerform ? 'Phrase A / Perform Copy' : 'Phrase A / Edit Baseline';
+      if (note) {
+        note.textContent = isPerform
+          ? 'Changes are applied to a temporary live copy. Capture prints the marked cells into the phrase baseline; Discard returns to the baseline.'
+          : 'Changes update the phrase baseline directly. Capture and Discard are hidden because there is no temporary perform copy.';
+      }
+      if (pill) {
+        pill.textContent = isPerform ? 'Perform mode' : 'Edit mode';
+        pill.classList.toggle('changed', isPerform);
+        pill.classList.toggle('selected', !isPerform);
+      }
+      if (editButton) editButton.classList.toggle('primary', !isPerform);
+      if (performButton) performButton.classList.toggle('primary', isPerform);
+      [captureButton, discardButton, dirtySummary].forEach(item => {
+        if (item) item.classList.toggle('hidden', !isPerform);
+      });
+      if (automationToggle) {
+        automationToggle.textContent = phraseAutomation ? 'On' : 'Off';
+        automationToggle.classList.toggle('primary', phraseAutomation);
+      }
+      if (automationReadout) {
+        automationReadout.textContent = phraseAutomation ? 'scheduled changes read' : 'baseline values only';
+        automationReadout.classList.toggle('changed', phraseAutomation && isPerform);
       }
     }
 
@@ -1215,6 +1289,7 @@
 
     window.setPrototypeState = setPrototypeState;
     renderTransportPhrase();
+    renderPhraseHeader();
     setLayer('Pattern');
   </script>
 </body>
