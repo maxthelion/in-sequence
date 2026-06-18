@@ -33,7 +33,6 @@
 - `setPrototypeState("phrase-layers")`
 - `setPrototypeState("global-perform")`
 - `setPrototypeState("phrase-scenes")`
-- `setPrototypeState("phrase-cell")`
 - `setPrototypeState("phrase-cue")`
 - `setPrototypeState("capture-menu")`
 

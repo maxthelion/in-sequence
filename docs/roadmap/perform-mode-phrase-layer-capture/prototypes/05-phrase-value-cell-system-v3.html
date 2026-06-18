@@ -482,11 +482,6 @@
       display: grid;
       align-items: center;
     }
-    .mode-icon.single {
-      width: 32px;
-      border: 2px solid var(--line);
-      background: var(--accent);
-    }
     .mode-icon.bars {
       grid-template-columns: repeat(8, 1fr);
       gap: 3px;
@@ -514,10 +509,6 @@
     .mode-icon.events i:nth-child(2) { left: 36%; bottom: 70%; }
     .mode-icon.events i:nth-child(3) { left: 62%; bottom: 44%; }
     .mode-icon.events i:nth-child(4) { left: 86%; bottom: 78%; }
-    .layer-cell {
-      min-height: 130px;
-      grid-template-rows: auto auto 1fr;
-    }
     .modal {
       display: none;
       position: fixed;
@@ -676,7 +667,7 @@
         <div class="pv-cell changed"><span class="scope">Main / Pattern</span><span class="value">P3 on bars 3-4</span><span class="mini-bars"><i></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">per bar</span></div>
         <div class="pv-cell changed"><span class="scope">A slot / Scene 02 / M3</span><span class="value">gesture</span><span class="mini-bars"><i></i><i class="event"></i><i></i><i class="event"></i><i></i><i></i><i></i><i></i></span><span class="mode-label">events</span></div>
         <div class="pv-cell changed"><span class="scope">Crossfader</span><span class="value">32% -> 76%</span><span class="mini-bars"><i class="on"></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">per bar</span></div>
-        <div class="pv-cell"><span class="scope">Atlantis / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">single</span></div>
+        <div class="pv-cell"><span class="scope">Atlantis / Mute</span><span class="value">play</span><span class="mini-bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="mode-label">baseline</span></div>
       </div>
     </div>
 
@@ -796,6 +787,7 @@
             <button id="layerMute" onclick="setLayer('Mute')">Mute</button>
             <button id="layerFill" onclick="setLayer('Fill')">Fill</button>
             <button id="layerRepeat" onclick="setLayer('Repeat')">Repeat</button>
+            <button id="layerAutomation" onclick="setLayerAutomationMode()">Automation</button>
             <span class="grow"></span>
             <button class="gate-moment primary" onclick="setGateMode('moment')">Moment</button>
             <button class="gate-latch" onclick="setGateMode('latch')">Latch</button>
@@ -835,22 +827,6 @@
             <button id="globalPan" class="global-control" onclick="applyGlobal('Pan', 'center')"><span class="scope">track pan</span><span class="value">Pan</span><span class="mode-label">center</span></button>
             <button class="global-control stub" onclick="toast('custom layer slot stub')"><span class="scope">custom</span><span class="value">Custom</span><span class="mode-label">stub</span></button>
             <button class="global-control stub" onclick="toast('next page stub')"><span class="scope">page</span><span class="value">More</span><span class="mode-label">stub</span></button>
-          </div>
-        </section>
-
-        <section id="modeCell" class="mode">
-          <div class="page-head">
-            <div>
-              <h1>Phrase A / Cell Detail</h1>
-              <p class="note">Choose a layer cell to set whether it is single, per bar, or continuous.</p>
-            </div>
-            <span class="pill selected">Main / Pattern</span>
-          </div>
-          <div class="matrix track-matrix">
-            <button class="pv-cell layer-cell selected" onclick="openValueEditor('Pattern', 'bars')"><span class="scope">Main / Pattern</span><span class="value">P1, P3</span><span class="mode-icon bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></button>
-            <button class="pv-cell layer-cell" onclick="openValueEditor('Mute', 'single')"><span class="scope">Main / Mute</span><span class="value">play</span><span class="mode-icon single"></span></button>
-            <button class="pv-cell layer-cell changed" onclick="openValueEditor('Fill', 'bars')"><span class="scope">Main / Fill</span><span class="value">on b2</span><span class="mode-icon bars"><i></i><i class="changed"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-            <button class="pv-cell layer-cell changed" onclick="openValueEditor('Velocity', 'events')"><span class="scope">Main / Velocity</span><span class="value">gesture</span><span class="mode-icon events"><i></i><i></i><i></i><i></i></span></button>
           </div>
         </section>
 
@@ -940,15 +916,18 @@
     <div class="modal-panel">
       <div class="page-head">
         <div>
-          <h2 id="valueEditorTitle">Main / Pattern</h2>
-          <p class="note" id="valueEditorNote">Choose how this phrase value is applied.</p>
+          <h2 id="valueEditorTitle">Automation / Main / Pattern</h2>
+          <p class="note" id="valueEditorNote">Choose how this layer value changes over the phrase.</p>
         </div>
         <button onclick="closeValueEditor()">Close</button>
       </div>
       <div class="mode-picker">
-        <button id="editSingle" aria-label="Single value" onclick="setEditorMode('single')"><span class="mode-icon single"></span></button>
-        <button id="editBars" aria-label="Per bar values" onclick="setEditorMode('bars')"><span class="mode-icon bars"><i class="on"></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i></span></button>
-        <button id="editEvents" aria-label="Continuous events" onclick="setEditorMode('events')"><span class="mode-icon events"><i></i><i></i><i></i><i></i></span></button>
+        <button id="editBars" aria-label="Per bar values" onclick="setEditorMode('bars')"><span class="scope">Per Bar</span><span class="mode-icon bars"><i class="on"></i><i></i><i class="changed"></i><i class="changed"></i><i></i><i></i><i></i><i></i></span></button>
+        <button id="editRamp" aria-label="Ramp values" onclick="setEditorMode('ramp')"><span class="scope">Ramp</span><span class="mode-icon events"><i></i><i></i><i></i><i></i></span></button>
+        <button id="editEvents" aria-label="Continuous events" onclick="setEditorMode('events')"><span class="scope">Events</span><span class="mode-icon events"><i></i><i></i><i></i><i></i></span></button>
+      </div>
+      <div class="toolbar">
+        <button onclick="clearAutomation()">Clear Automation</button>
       </div>
       <div id="valueEditorBody"></div>
     </div>
@@ -973,7 +952,7 @@
   </div>
 
   <script>
-    const modes = ['song', 'layers', 'global', 'scenes', 'cell', 'tracks'];
+    const modes = ['song', 'layers', 'global', 'scenes', 'tracks'];
     const tabs = {
       layers: 'tabLayers',
       global: 'tabGlobal',
@@ -982,7 +961,6 @@
     const mainTabs = {
       song: 'mainSong',
       scenes: 'mainPhrase',
-      cell: 'mainPhrase',
       layers: 'mainPhrase',
       global: 'mainPhrase',
       tracks: 'mainTracks'
@@ -996,6 +974,7 @@
     };
     let editorLayer = 'Pattern';
     let editorMode = 'bars';
+    let layerAutomationMode = false;
     let globalScope = 'selection';
     let globalLayer = 'Fill';
     let globalValue = 'on';
@@ -1094,7 +1073,7 @@
         if (tab) tab.classList.toggle('active', name === mode);
       });
       const shell = document.getElementById('phraseShell');
-      if (shell) shell.style.display = ['layers', 'global', 'scenes', 'cell'].includes(mode) ? 'block' : 'none';
+      if (shell) shell.style.display = ['layers', 'global', 'scenes'].includes(mode) ? 'block' : 'none';
       Object.values(mainTabs).forEach(id => {
         const tab = document.getElementById(id);
         if (tab) tab.classList.remove('active');
@@ -1174,9 +1153,9 @@
       });
     }
 
-    function openValueEditor(layer, mode) {
+    function openValueEditor(layer, mode, track) {
       editorLayer = layer;
-      document.getElementById('valueEditorTitle').textContent = 'Main / ' + layer;
+      document.getElementById('valueEditorTitle').textContent = 'Automation / ' + (track || 'Main') + ' / ' + layer;
       document.getElementById('valueEditor').classList.add('open');
       setEditorMode(mode);
     }
@@ -1187,15 +1166,11 @@
 
     function setEditorMode(mode) {
       editorMode = mode;
-      ['Single', 'Bars', 'Events'].forEach(name => {
+      ['Bars', 'Ramp', 'Events'].forEach(name => {
         const button = document.getElementById('edit' + name);
         if (button) button.classList.toggle('primary', name.toLowerCase() === mode);
       });
       const body = document.getElementById('valueEditorBody');
-      if (mode === 'single') {
-        body.innerHTML =
-          '<div class="toolbar"><span class="pill selected">' + editorLayer + '</span><button class="primary">current value</button><button>alternate value</button><button>inherit</button></div>';
-      }
       if (mode === 'bars') {
         body.innerHTML =
           '<div class="matrix bar-matrix">' +
@@ -1207,13 +1182,31 @@
       if (mode === 'events') {
         body.innerHTML = '<div class="graph-editor"><i></i><i></i><i></i><i></i></div>';
       }
+      if (mode === 'ramp') {
+        body.innerHTML = '<div class="graph-editor"><i></i><i></i></div>';
+      }
+    }
+
+    function clearAutomation() {
+      closeValueEditor();
+      toast(editorLayer + ' automation cleared');
+    }
+
+    function setLayerAutomationMode() {
+      layerAutomationMode = !layerAutomationMode;
+      const button = document.getElementById('layerAutomation');
+      if (button) button.classList.toggle('primary', layerAutomationMode);
+      toast(layerAutomationMode ? 'Automation edit armed' : 'Automation edit off');
     }
 
     function setLayer(layer) {
+      layerAutomationMode = false;
       ['Pattern', 'Mute', 'Fill', 'Repeat'].forEach(name => {
         const button = document.getElementById('layer' + name);
         if (button) button.classList.toggle('primary', name === layer);
       });
+      const automationButton = document.getElementById('layerAutomation');
+      if (automationButton) automationButton.classList.remove('primary');
       const matrix = document.getElementById('layerMatrix');
       matrix.innerHTML = '';
       layerData[layer].forEach((value, index) => {
@@ -1224,9 +1217,14 @@
         cell.innerHTML =
           '<span class="scope">' + tracks[index] + ' / ' + layer + '</span>' +
           '<span class="value">' + value + '</span>' +
-          '<span class="mini-bars">' + bars(changed ? 'bar' : 'single', index) + '</span>' +
-          '<span class="mode-label">' + (changed ? 'per bar' : 'single') + '</span>';
-        cell.onclick = () => showMode('cell');
+          '<span class="mini-bars">' + bars(changed ? 'bar' : 'single', index) + '</span>';
+        cell.onclick = () => {
+          if (layerAutomationMode) {
+            openValueEditor(layer, changed ? 'bars' : 'bars', tracks[index]);
+          } else {
+            toast(tracks[index] + ' ' + layer + ' value changed');
+          }
+        };
         matrix.appendChild(cell);
       });
     }
@@ -1250,7 +1248,6 @@
       if (state === 'phrase-layers') showMode('layers');
       if (state === 'global-perform') showMode('global');
       if (state === 'phrase-scenes') showMode('scenes');
-      if (state === 'phrase-cell') showMode('cell');
       if (state === 'tracks') showMode('tracks');
       if (state === 'song') showMode('song');
       if (state === 'capture-menu') document.getElementById('captureMenu').classList.add('open');
