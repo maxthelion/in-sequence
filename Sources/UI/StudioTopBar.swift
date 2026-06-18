@@ -3,7 +3,6 @@ import SwiftUI
 struct StudioTopBar: View {
     @Binding var section: WorkspaceSection
     @Binding var document: SeqAIDocument
-    @Environment(SequencerDocumentSession.self) private var session
 
     private let buildIdentity = BuildIdentity.current
 
@@ -63,8 +62,6 @@ struct StudioTopBar: View {
                 }
 
                 Spacer()
-
-                workspaceModeControl
             }
         }
         .padding(.horizontal, 12)
@@ -93,54 +90,6 @@ struct StudioTopBar: View {
             )
             .help(buildIdentity.logSummary)
             .accessibilityLabel("Build identity \(buildIdentity.logSummary)")
-    }
-
-    /// The ONE global SETUP/PERFORM switch (perform/setup split slice 1).
-    /// Same pill grammar as the page pills; the active mode is a solid block
-    /// — violet for setup, amber for perform (colour identifies the mode).
-    /// The whole capsule is the hit target (ux-canon rule 2).
-    private var workspaceModeControl: some View {
-        HStack(spacing: 6) {
-            ForEach(WorkspaceMode.allCases) { mode in
-                Button {
-                    session.workspaceMode = mode
-                } label: {
-                    Text(mode.title.uppercased())
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .tracking(0.9)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .foregroundStyle(session.workspaceMode == mode ? StudioTheme.background : StudioTheme.mutedText)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .frame(minWidth: 78)
-                        .background(modeFill(for: mode), in: Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(modeStroke(for: mode), lineWidth: StudioMetrics.borderWidth)
-                        )
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("workspace-mode-\(mode.rawValue)")
-                .accessibilityValue(session.workspaceMode == mode ? "Selected" : "Not selected")
-                .help(mode == .setup
-                    ? "Setup configures: instruments, routing, macro assignment"
-                    : "Perform plays: pattern, mute, fill — what you hear next bar")
-            }
-        }
-    }
-
-    private func modeAccent(for mode: WorkspaceMode) -> Color {
-        mode == .perform ? StudioTheme.amber : StudioTheme.violet
-    }
-
-    private func modeFill(for mode: WorkspaceMode) -> Color {
-        session.workspaceMode == mode ? modeAccent(for: mode) : Color.clear
-    }
-
-    private func modeStroke(for mode: WorkspaceMode) -> Color {
-        session.workspaceMode == mode ? modeAccent(for: mode) : StudioTheme.border
     }
 
     /// Bold-flat pass: the selected pill is a fully solid accent block with a

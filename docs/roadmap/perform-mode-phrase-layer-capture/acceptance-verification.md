@@ -26,9 +26,9 @@ runtime evidence. A partial result means "do not call the whole feature done".
   transport phrase presentation, phrase scene single-value state, scoped Global
   Apply writes, and the first quantized Mute latch policy.
 - Not yet verified enough to ship as the full feature: visual match to the V3
-  wireframes, the anti-hybrid top-level Perform concern, general latch
-  length/expiry semantics, scene macro/per-bar/continuous automation, and
-  runtime agreement for every phrase layer during playback.
+  wireframes, general latch length/expiry semantics, scene
+  macro/per-bar/continuous automation, and runtime agreement for every phrase
+  layer during playback.
 
 ## Acceptance Criteria
 
@@ -61,12 +61,11 @@ runtime evidence. A partial result means "do not call the whole feature done".
 
 ## Anti-Hybrid Review
 
-- Concern: the spec says the app must not expose top-level Capture or Perform
-  as global app modes. The phrase shell now has phrase-local Perform/Capture,
-  but the production top bar still carries the existing Setup/Perform workspace
-  mode. That may be semantically intentional, but it violates the wording unless
-  the top-level control is removed, renamed, or clearly scoped away from phrase
-  Perform.
+- Pass for visible UI: the top bar no longer exposes the old global
+  Setup/Perform switch, so the phrase-local Perform/Capture shell is the only
+  visible Perform/Capture affordance in the main chrome. The underlying
+  `WorkspaceMode` session state still exists for tracks/scenes behavior and
+  visual-scenario compatibility.
 - Pass: Capture Phrase no longer contains Capture Clip and no longer asks for a
   changed-cell review.
 - Partial: Layers and Global Apply use matrix grammar in code, but visual
@@ -81,8 +80,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
    current/next phrase and heard phrase agree.
 3. Add or extend engine-level tests for phrase mute/fill/pattern/repeat
    agreement, not just isolated overlay writes.
-4. Decide whether the old top-level Setup/Perform workspace switch survives,
-   and if so what name/placement keeps it from conflicting with phrase-local
-   Perform.
+4. Decide whether the remaining internal `WorkspaceMode.perform` name should be
+   renamed later; it is no longer exposed as top-level app chrome, but tests and
+   scenario commands still use the legacy name.
 5. Implement and test latch length expiry before marking criterion 20 complete.
-

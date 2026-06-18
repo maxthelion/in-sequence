@@ -124,6 +124,15 @@ done declaration for the whole feature.
 - The timing decision is covered by `PhrasePerformTimingPolicyTests`, including
   the explicit non-goal that fill/pattern do not use the mute scheduler.
 
+## Implemented In Eighth Slice
+
+- The visible top-bar Setup/Perform switch has been removed from
+  `StudioTopBar`.
+- The underlying session `WorkspaceMode` remains in place for tracks/scenes
+  behavior and visual-scenario command compatibility.
+- This resolves the visible anti-hybrid issue where phrase-local Perform/Capture
+  coexisted with a global top-level Perform affordance.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -159,6 +168,13 @@ done declaration for the whole feature.
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 - After the seventh slice, `xcodebuild build` passed for the app target with
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After the eighth slice, `xcodebuild build` passed for the app target with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
+- After the eighth slice, `xcodebuild test
+  -only-testing:SequencerAITests/WorkspaceModeTests` passed with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` when rerun outside
+  the sandbox after the sandboxed runner could not reach Xcode's helper
+  services.
 
 ## Still Not Done
 
@@ -171,6 +187,9 @@ done declaration for the whole feature.
 - Moment and Latch behavior is partially engine-backed for phrase-local Mute
   changes. General phrase-cell quantized execution and length-limited expiry
   still need engine-level handling.
+- The visible top-level Perform affordance is gone, but the internal
+  `WorkspaceMode.perform` naming still exists and may need a later rename if it
+  keeps confusing the phrase-local Perform model.
 - Visual review evidence against the V3 prototype has not yet been captured for
   the built app.
 - The automation modal is still visually the existing editor restyled as
