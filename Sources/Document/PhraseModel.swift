@@ -112,6 +112,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
     }
     var loopEnabled: Bool
     var stepOrderAssignment: StepOrderAssignment?
+    var sceneState: PhraseSceneState?
     var cells: [PhraseCellAssignment]
 
     init(
@@ -122,6 +123,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         repeatCount: Int = 1,
         loopEnabled: Bool = false,
         stepOrderAssignment: StepOrderAssignment? = nil,
+        sceneState: PhraseSceneState? = nil,
         cells: [PhraseCellAssignment]
     ) {
         self.id = id
@@ -131,6 +133,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         self.repeatCount = Self.clampedRepeatCount(repeatCount)
         self.loopEnabled = loopEnabled
         self.stepOrderAssignment = stepOrderAssignment
+        self.sceneState = sceneState?.normalized()
         self.cells = cells
     }
 
@@ -142,6 +145,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         case repeatCount
         case loopEnabled
         case stepOrderAssignment
+        case sceneState
         case cells
     }
 
@@ -154,6 +158,7 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         repeatCount = Self.clampedRepeatCount(try container.decodeIfPresent(Int.self, forKey: .repeatCount) ?? 1)
         loopEnabled = try container.decodeIfPresent(Bool.self, forKey: .loopEnabled) ?? false
         stepOrderAssignment = try container.decodeIfPresent(StepOrderAssignment.self, forKey: .stepOrderAssignment)
+        sceneState = try container.decodeIfPresent(PhraseSceneState.self, forKey: .sceneState)?.normalized()
         cells = try container.decode([PhraseCellAssignment].self, forKey: .cells)
     }
 
@@ -326,8 +331,25 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
             repeatCount: repeatCount,
             loopEnabled: loopEnabled,
             stepOrderAssignment: stepOrderAssignment,
+            sceneState: sceneState,
             cells: normalizedCells
         )
+    }
+}
+
+struct PhraseSceneState: Codable, Equatable, Sendable {
+    var sceneAID: UUID
+    var sceneBID: UUID
+    var crossfader: Double
+
+    init(sceneAID: UUID, sceneBID: UUID, crossfader: Double = 0) {
+        self.sceneAID = sceneAID
+        self.sceneBID = sceneBID
+        self.crossfader = min(max(crossfader, 0), 1)
+    }
+
+    func normalized() -> PhraseSceneState {
+        PhraseSceneState(sceneAID: sceneAID, sceneBID: sceneBID, crossfader: crossfader)
     }
 }
 

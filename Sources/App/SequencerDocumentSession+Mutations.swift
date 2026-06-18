@@ -851,8 +851,31 @@ extension SequencerDocumentSession {
         phrasePerformOverlay.applying(to: phrase)
     }
 
+    func resolvedPhraseSceneState(for phrase: PhraseModel) -> PhraseSceneState {
+        let displayedPhrase = phraseWithPerformOverlay(phrase)
+        if let sceneState = displayedPhrase.sceneState {
+            return sceneState.normalized()
+        }
+
+        let masterBus = store.masterBus
+        let selection = masterBus.abSelection ?? MasterBusABSelection(
+            sceneAID: masterBus.scenes.first?.id ?? MasterBusScene.sceneAID,
+            sceneBID: masterBus.scenes.dropFirst().first?.id ?? masterBus.scenes.first?.id ?? MasterBusScene.sceneBID,
+            crossfader: masterBus.abSelection?.crossfader ?? 0
+        )
+        return PhraseSceneState(
+            sceneAID: selection.sceneAID,
+            sceneBID: selection.sceneBID,
+            crossfader: selection.crossfader
+        )
+    }
+
     func performOverlayCell(phraseID: UUID, layerID: String, trackID: UUID) -> PhraseCell? {
         phrasePerformOverlay.cell(phraseID: phraseID, layerID: layerID, trackID: trackID)
+    }
+
+    func performOverlaySceneState(phraseID: UUID) -> PhraseSceneState? {
+        phrasePerformOverlay.stagedSceneState(phraseID: phraseID)
     }
 
     @discardableResult
@@ -876,6 +899,22 @@ extension SequencerDocumentSession {
     }
 
     @discardableResult
+    func stagePhrasePerformSceneState(
+        _ state: PhraseSceneState,
+        basisPhraseID: UUID
+    ) -> Bool {
+        let changed = phrasePerformOverlay.stageSceneState(
+            state,
+            basisPhraseID: basisPhraseID
+        )
+        guard changed else {
+            return false
+        }
+        publishPhrasePerformOverlayChange(phraseID: basisPhraseID)
+        return true
+    }
+
+    @discardableResult
     func savePhrasePerformOverlayBack() -> Bool {
         guard phrasePerformOverlay.isDirty,
               let targetPhraseID = phrasePerformOverlay.basisPhraseID,
@@ -886,11 +925,11 @@ extension SequencerDocumentSession {
             return false
         }
 
-        let assignments = phrasePerformOverlay.stagedAssignments
+        let overlay = phrasePerformOverlay
+        let tracks = store.tracks
+        let layers = store.layers
         let changed = mutatePhrase(id: targetPhraseID) { phrase in
-            for assignment in assignments {
-                phrase.setCell(assignment.cell, for: assignment.layerID, trackID: assignment.trackID)
-            }
+            phrase = overlay.applying(to: phrase).synced(with: tracks, layers: layers)
         }
 
         phrasePerformOverlay.clear()
@@ -974,6 +1013,28 @@ extension SequencerDocumentSession {
             for trackID in trackIDs {
                 phrase.setCell(cell, for: layerID, trackID: trackID)
             }
+        }
+        guard changed else { return }
+        if isInBatch {
+            recordBatchChange(.phrase(phraseID))
+            return
+        }
+        dispatchImpact(impact, changed: .phrase(phraseID))
+    }
+
+    func setPhraseSceneState(
+        _ state: PhraseSceneState,
+        phraseID: UUID,
+        impact: LiveMutationImpact = .snapshotOnly
+    ) {
+        let normalizedState = state.normalized()
+        if workspaceMode == .perform {
+            _ = stagePhrasePerformSceneState(normalizedState, basisPhraseID: phraseID)
+            return
+        }
+
+        let changed = store.mutatePhrase(id: phraseID) { phrase in
+            phrase.sceneState = normalizedState
         }
         guard changed else { return }
         if isInBatch {

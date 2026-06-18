@@ -411,6 +411,19 @@ final class EngineController: RouterDispatcher {
         tickState.currentPreparedTickIndex() ?? currentTransportTick
     }
 
+    private func applyPhraseSceneState(phraseID: UUID?, snapshot: PlaybackSnapshot) {
+        guard let phraseID else { return }
+        var masterBus = currentDocumentModel.masterBus
+        if let sceneState = snapshot.phraseBuffer(for: phraseID)?.sceneState {
+            masterBus.setABSelection(MasterBusABSelection(
+                sceneAID: sceneState.sceneAID,
+                sceneBID: sceneState.sceneBID,
+                crossfader: sceneState.crossfader
+            ))
+        }
+        applyMasterBusIfChanged(masterBus)
+    }
+
     private func initializePhraseNavigationForPlaybackStart(snapshot: PlaybackSnapshot, cycleStartTick: UInt64) {
         let fallbackPhraseID = firstValidPhraseID(in: snapshot)
         let updatedState = mutatePhraseNavigationState { state in
@@ -425,6 +438,7 @@ final class EngineController: RouterDispatcher {
             state.currentPhraseCompletedCycles = 0
         }
         publishPhraseNavigationStateIfChanged(updatedState)
+        applyPhraseSceneState(phraseID: updatedState?.currentPhraseID ?? fallbackPhraseID, snapshot: snapshot)
     }
 
     private func clearQueuedPhraseOnStop(snapshot: PlaybackSnapshot) {
@@ -539,6 +553,7 @@ final class EngineController: RouterDispatcher {
             }
         }
         publishPhraseNavigationStateIfChanged(updatedState)
+        applyPhraseSceneState(phraseID: playbackPhraseID, snapshot: snapshot)
         return (playbackPhraseID, stepInPhrase, didEnterPhraseBoundary, completedPhraseID)
     }
 
@@ -1140,6 +1155,7 @@ final class EngineController: RouterDispatcher {
         invalidatePreparedPlaybackOutput(resetGeneratedStates: true)
         eventQueue.clear()
         publishPhraseNavigationStateIfChanged(updatedState)
+        applyPhraseSceneState(phraseID: phraseID, snapshot: snapshot)
         return true
     }
 
@@ -1214,6 +1230,12 @@ final class EngineController: RouterDispatcher {
     func apply(masterBus: MasterBusState) {
         applyMasterBusIfChanged(masterBus)
         currentDocumentModel.masterBus = masterBus.normalized()
+    }
+
+    func auditionMasterABSelection(_ selection: MasterBusABSelection) {
+        var masterBus = currentDocumentModel.masterBus
+        masterBus.setABSelection(selection)
+        applyMasterBusIfChanged(masterBus)
     }
 
     func setMasterSceneMacroOverride(sceneID: UUID, macroID: UUID, value: Double) {

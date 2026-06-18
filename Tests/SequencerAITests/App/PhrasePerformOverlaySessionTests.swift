@@ -124,6 +124,91 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         }
     }
 
+    func test_setPhraseSceneStateInSetupModeMutatesCanonicalPhrase() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let state = PhraseSceneState(
+            sceneAID: fixture.sceneAID,
+            sceneBID: fixture.sceneBID,
+            crossfader: 0.7
+        )
+
+        fixture.session.workspaceMode = .setup
+        fixture.session.setPhraseSceneState(state, phraseID: fixture.phrases[0].id)
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.store.phrases[0].sceneState, state)
+        XCTAssertEqual(
+            fixture.session.resolvedPhraseSceneState(for: fixture.session.store.phrases[0]),
+            state
+        )
+    }
+
+    func test_setPhraseSceneStateInPerformModeStagesOverlayWithoutMutatingCanonicalPhrase() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let state = PhraseSceneState(
+            sceneAID: fixture.sceneAID,
+            sceneBID: fixture.sceneBID,
+            crossfader: 0.7
+        )
+
+        fixture.session.workspaceMode = .perform
+        fixture.session.setPhraseSceneState(state, phraseID: fixture.phrases[0].id)
+
+        XCTAssertTrue(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.basisPhraseID, fixture.phrases[0].id)
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.stagedCellCount, 0)
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.stagedChangeCount, 1)
+        XCTAssertNil(fixture.session.store.phrases[0].sceneState)
+        XCTAssertEqual(
+            fixture.session.performOverlaySceneState(phraseID: fixture.phrases[0].id),
+            state
+        )
+        XCTAssertEqual(
+            fixture.session.phraseWithPerformOverlay(fixture.session.store.phrases[0]).sceneState,
+            state
+        )
+    }
+
+    func test_savePhrasePerformOverlayBack_appliesStagedSceneStateAndClearsOverlay() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let state = PhraseSceneState(
+            sceneAID: fixture.sceneAID,
+            sceneBID: fixture.sceneBID,
+            crossfader: 0.7
+        )
+        fixture.session.stagePhrasePerformSceneState(state, basisPhraseID: fixture.phrases[0].id)
+
+        XCTAssertTrue(fixture.session.savePhrasePerformOverlayBack())
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.store.phrases[0].sceneState, state)
+    }
+
+    func test_capturePhrasePerformOverlayToExistingPhraseCopiesSceneState() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let state = PhraseSceneState(
+            sceneAID: fixture.sceneAID,
+            sceneBID: fixture.sceneBID,
+            crossfader: 0.7
+        )
+        fixture.session.stagePhrasePerformSceneState(state, basisPhraseID: fixture.phrases[0].id)
+
+        XCTAssertTrue(fixture.session.capturePhrasePerformOverlay(to: fixture.phrases[1].id))
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.store.phrases[1].id, fixture.phrases[1].id)
+        XCTAssertEqual(fixture.session.store.phrases[1].name, fixture.phrases[1].name)
+        XCTAssertEqual(fixture.session.store.phrases[1].sceneState, state)
+    }
+
     func test_revertPhrasePerformOverlay_discardsStagedCellsOnly() {
         let fixture = makeSession()
         defer { fixture.unregister() }
@@ -402,6 +487,7 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         var project = makeLiveStoreProject().0
         let trackID = project.selectedTrackID
         let muteLayerID = project.layers.first(where: { $0.target == .mute })!.id
+        let sceneIDs = project.masterBus.scenes.map(\.id)
 
         var firstPhrase = project.phrases[0]
         firstPhrase.id = UUID(uuidString: "10000000-0000-4000-8000-000000000001")!
@@ -433,6 +519,8 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
             trackID: trackID,
             trackIDs: project.tracks.map(\.id),
             muteLayerID: muteLayerID,
+            sceneAID: sceneIDs[0],
+            sceneBID: sceneIDs[1],
             phrases: project.phrases
         )
     }
@@ -446,6 +534,8 @@ private struct PhrasePerformOverlayFixture {
     let trackID: UUID
     let trackIDs: [UUID]
     let muteLayerID: String
+    let sceneAID: UUID
+    let sceneBID: UUID
     let phrases: [PhraseModel]
 
     func unregister() {

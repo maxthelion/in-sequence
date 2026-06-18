@@ -443,6 +443,7 @@ enum SequencerSnapshotCompiler {
             stepCount: stepCount,
             repeatCount: phrase.repeatCount,
             loopEnabled: phrase.loopEnabled,
+            sceneState: phrase.sceneState,
             stepOrderMap: compiledStepOrderMap(for: phrase, in: stepOrderMaps),
             trackStates: trackStates
         )

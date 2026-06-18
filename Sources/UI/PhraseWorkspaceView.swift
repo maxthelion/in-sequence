@@ -129,7 +129,7 @@ struct PhraseWorkspaceView: View {
             PhrasePerformCaptureSheet(
                 phrases: session.store.phrases,
                 basisPhraseID: session.phrasePerformOverlay.basisPhraseID,
-                stagedCellCount: session.phrasePerformOverlay.stagedCellCount,
+                stagedCellCount: session.phrasePerformOverlay.stagedChangeCount,
                 onCaptureExisting: { phraseID in
                     _ = session.capturePhrasePerformOverlay(to: phraseID)
                     isPresentingPhraseCapture = false
@@ -296,7 +296,7 @@ struct PhraseWorkspaceView: View {
         guard session.workspaceMode == .perform else {
             return "NO PERFORM CHANGES"
         }
-        let count = session.phrasePerformOverlay.stagedCellCount
+        let count = session.phrasePerformOverlay.stagedChangeCount
         return count == 0 ? "NO CHANGES" : "\(count) CHANGED"
     }
 
@@ -408,12 +408,12 @@ struct PhraseWorkspaceView: View {
     }
 
     private var phraseScenesSurface: some View {
-        let selection = activePhraseSceneSelection
-        let sceneA = session.store.masterBus.scene(id: selection.sceneAID) ?? session.store.masterBus.activeScene
-        let sceneB = session.store.masterBus.scene(id: selection.sceneBID)
+        let sceneState = session.resolvedPhraseSceneState(for: session.store.selectedPhrase)
+        let sceneA = session.store.masterBus.scene(id: sceneState.sceneAID) ?? session.store.masterBus.activeScene
+        let sceneB = session.store.masterBus.scene(id: sceneState.sceneBID)
             ?? session.store.masterBus.scenes.first { $0.id != sceneA.id }
             ?? MasterBusScene.sceneB
-        let crossfader = engineController.effectiveCrossfader
+        let crossfader = engineController.masterBusPerformanceOverlay.crossfaderOverride ?? sceneState.crossfader
 
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
@@ -427,7 +427,7 @@ struct PhraseWorkspaceView: View {
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
 
-            Text("Scene choices and macro moves currently use the live master scene surface; phrase-local scene persistence and per-bar/continuous scene values are still the next model pass.")
+            Text("Scene A, crossfader, and Scene B are phrase values. Macro moves remain live scene overrides until the per-scene automation model is added.")
                 .studioText(.micro)
                 .foregroundStyle(StudioTheme.mutedText)
                 .lineLimit(2)
@@ -437,14 +437,11 @@ struct PhraseWorkspaceView: View {
     }
 
     private var activePhraseSceneSelection: MasterBusABSelection {
-        if let selection = session.store.masterBus.abSelection {
-            return selection
-        }
-
-        let scenes = session.store.masterBus.scenes
+        let sceneState = session.resolvedPhraseSceneState(for: session.store.selectedPhrase)
         return MasterBusABSelection(
-            sceneAID: scenes.first?.id ?? MasterBusScene.sceneAID,
-            sceneBID: scenes.dropFirst().first?.id ?? scenes.first?.id ?? MasterBusScene.sceneBID
+            sceneAID: sceneState.sceneAID,
+            sceneBID: sceneState.sceneBID,
+            crossfader: sceneState.crossfader
         )
     }
 
@@ -506,7 +503,7 @@ struct PhraseWorkspaceView: View {
             )
             .contentShape(Rectangle())
             .onTapGesture {
-                engineController.setLiveMasterCrossfader(slot == .a ? 0 : 1)
+                setPhraseSceneCrossfader(slot == .a ? 0 : 1)
             }
 
             phraseSceneMacroGrid(scene)
@@ -576,7 +573,7 @@ struct PhraseWorkspaceView: View {
                     .frame(width: 14, alignment: .leading)
 
                 PhraseSceneCrossfaderTrack(value: value) { nextValue in
-                    engineController.setLiveMasterCrossfader(nextValue)
+                    setPhraseSceneCrossfader(nextValue)
                 }
                 .frame(height: 42)
 
@@ -675,16 +672,27 @@ struct PhraseWorkspaceView: View {
 
     private func setPhraseScene(_ sceneID: UUID, for slot: ScenePerformSlotPickerRequest.Slot) {
         engineController.clearMasterBusPerformanceOverlay()
-        let current = session.store.masterBus.abSelection ?? activePhraseSceneSelection
+        let current = session.resolvedPhraseSceneState(for: session.store.selectedPhrase)
+        let nextState: PhraseSceneState
         switch slot {
         case .a:
             let sceneBID = current.sceneBID == sceneID ? current.sceneAID : current.sceneBID
-            session.setMasterABMode(MasterBusABSelection(sceneAID: sceneID, sceneBID: sceneBID, crossfader: current.crossfader))
+            nextState = PhraseSceneState(sceneAID: sceneID, sceneBID: sceneBID, crossfader: current.crossfader)
         case .b:
             let sceneAID = current.sceneAID == sceneID ? current.sceneBID : current.sceneAID
-            session.setMasterABMode(MasterBusABSelection(sceneAID: sceneAID, sceneBID: sceneID, crossfader: current.crossfader))
+            nextState = PhraseSceneState(sceneAID: sceneAID, sceneBID: sceneID, crossfader: current.crossfader)
         }
+        session.setPhraseSceneState(nextState, phraseID: session.store.selectedPhraseID)
+        engineController.auditionMasterABSelection(MasterBusABSelection(sceneAID: nextState.sceneAID, sceneBID: nextState.sceneBID, crossfader: nextState.crossfader))
         phraseSceneSlotPickerRequest = nil
+    }
+
+    private func setPhraseSceneCrossfader(_ value: Double) {
+        let current = session.resolvedPhraseSceneState(for: session.store.selectedPhrase)
+        let nextState = PhraseSceneState(sceneAID: current.sceneAID, sceneBID: current.sceneBID, crossfader: value)
+        session.setPhraseSceneState(nextState, phraseID: session.store.selectedPhraseID)
+        engineController.auditionMasterABSelection(MasterBusABSelection(sceneAID: nextState.sceneAID, sceneBID: nextState.sceneBID, crossfader: nextState.crossfader))
+        engineController.setLiveMasterCrossfader(nextState.crossfader)
     }
 
     private func reconcileSelectedLayer() {

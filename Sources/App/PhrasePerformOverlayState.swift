@@ -13,13 +13,18 @@ struct PhrasePerformOverlayAssignment: Equatable, Sendable {
 struct PhrasePerformOverlayState: Equatable, Sendable {
     private(set) var basisPhraseID: UUID?
     private var cellsByKey: [PhrasePerformOverlayCellKey: PhraseCell] = [:]
+    private(set) var sceneState: PhraseSceneState?
 
     var isDirty: Bool {
-        basisPhraseID != nil && !cellsByKey.isEmpty
+        basisPhraseID != nil && (!cellsByKey.isEmpty || sceneState != nil)
     }
 
     var stagedCellCount: Int {
         cellsByKey.count
+    }
+
+    var stagedChangeCount: Int {
+        stagedCellCount + (sceneState == nil ? 0 : 1)
     }
 
     var stagedAssignments: [PhrasePerformOverlayAssignment] {
@@ -49,6 +54,13 @@ struct PhrasePerformOverlayState: Equatable, Sendable {
         return cellsByKey[PhrasePerformOverlayCellKey(layerID: layerID, trackID: trackID)]
     }
 
+    func stagedSceneState(phraseID: UUID) -> PhraseSceneState? {
+        guard isDirty, basisPhraseID == phraseID else {
+            return nil
+        }
+        return sceneState
+    }
+
     mutating func stage(
         _ cell: PhraseCell,
         basisPhraseID nextBasisPhraseID: UUID,
@@ -73,9 +85,28 @@ struct PhrasePerformOverlayState: Equatable, Sendable {
         return changed
     }
 
+    mutating func stageSceneState(
+        _ state: PhraseSceneState,
+        basisPhraseID nextBasisPhraseID: UUID
+    ) -> Bool {
+        if isDirty, basisPhraseID != nextBasisPhraseID {
+            return false
+        }
+
+        let normalizedState = state.normalized()
+        guard sceneState != normalizedState else {
+            return false
+        }
+
+        basisPhraseID = nextBasisPhraseID
+        sceneState = normalizedState
+        return true
+    }
+
     mutating func clear() {
         basisPhraseID = nil
         cellsByKey.removeAll()
+        sceneState = nil
     }
 
     mutating func reconcile(availablePhraseIDs: some Collection<UUID>) -> Bool {
@@ -96,6 +127,9 @@ struct PhrasePerformOverlayState: Equatable, Sendable {
         var stagedPhrase = phrase
         for assignment in stagedAssignments {
             stagedPhrase.setCell(assignment.cell, for: assignment.layerID, trackID: assignment.trackID)
+        }
+        if let sceneState {
+            stagedPhrase.sceneState = sceneState.normalized()
         }
         return stagedPhrase
     }
