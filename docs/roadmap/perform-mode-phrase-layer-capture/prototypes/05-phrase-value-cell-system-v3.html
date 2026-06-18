@@ -122,10 +122,10 @@
     .phrase-shell .page-head { margin-bottom: 0; }
 
     .global-menu {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
+      display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
       padding: 10px;
       border: 2px solid var(--line);
       margin: 10px 0 14px;
@@ -525,7 +525,6 @@
       .top { grid-template-columns: 1fr; }
       .main-nav { grid-template-columns: 1fr 1fr; }
       .phrase-tabs { grid-template-columns: 1fr 1fr; }
-      .global-menu { grid-template-columns: 1fr; }
       .global-control-grid { grid-template-columns: 1fr 1fr; }
       .overview-matrix, .song-matrix, .track-matrix, .bar-matrix, .scene-slot-matrix { overflow-x: auto; display: flex; }
       .overview-matrix > *, .song-matrix > *, .track-matrix > *, .bar-matrix > *, .scene-slot-matrix > * { min-width: 120px; }
@@ -708,6 +707,8 @@
             <button id="layerFill" onclick="setLayer('Fill')">Fill</button>
             <button id="layerRepeat" onclick="setLayer('Repeat')">Repeat</button>
             <span class="grow"></span>
+            <button class="gate-moment primary" onclick="setGateMode('moment')">Moment</button>
+            <button class="gate-latch" onclick="setGateMode('latch')">Latch</button>
             <button onclick="toast('same value applied to selected tracks')">Apply Same Value</button>
           </div>
           <div class="matrix track-matrix" id="layerMatrix"></div>
@@ -722,9 +723,10 @@
           </div>
           <div class="global-menu">
             <span class="pill scope-count" id="globalScopeCount">2 tracks</span>
-            <span class="pill" id="globalActionReadout">Fill on</span>
-            <span class="pill changed">instant phrase-copy edit</span>
             <button onclick="openScopePicker()">Track Selector</button>
+            <span class="pill">gate</span>
+            <button class="gate-moment primary" onclick="setGateMode('moment')">Moment</button>
+            <button class="gate-latch" onclick="setGateMode('latch')">Latch</button>
           </div>
           <div class="global-control-grid">
             <button id="globalMute" class="global-control" onclick="applyGlobal('Mute', 'toggle')"><span class="scope">track mute</span><span class="value">Mute</span><span class="mode-label">toggle</span></button>
@@ -909,6 +911,7 @@
     let globalValue = 'on';
     let selectedTrackIndexes = [0, 1];
     let globalControlId = 'globalFill';
+    let gateMode = 'moment';
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -955,14 +958,19 @@
         button.classList.toggle('primary', button.id === globalControlId);
       });
       renderGlobalApply();
-      toast(layer + ' ' + value + ' applied to ' + selectedTrackIndexes.length + ' tracks');
+      toast(layer + ' ' + value + ' applies to ' + selectedTrackIndexes.length + ' tracks as ' + gateMode);
     }
 
     function renderGlobalApply() {
       const count = document.getElementById('globalScopeCount');
-      const action = document.getElementById('globalActionReadout');
       if (count) count.textContent = selectedTrackIndexes.length + ' tracks';
-      if (action) action.textContent = globalLayer + ' ' + globalValue;
+    }
+
+    function setGateMode(mode) {
+      gateMode = mode;
+      document.querySelectorAll('.gate-moment').forEach(button => button.classList.toggle('primary', mode === 'moment'));
+      document.querySelectorAll('.gate-latch').forEach(button => button.classList.toggle('primary', mode === 'latch'));
+      toast((mode === 'moment' ? 'Moment' : 'Latch') + ' gate selected');
     }
 
     function openScopePicker() {
