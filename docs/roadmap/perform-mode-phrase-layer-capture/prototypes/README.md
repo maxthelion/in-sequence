@@ -12,7 +12,7 @@
   pages in one matrix-first phrase system: Song, Phrase, Phrase Layers, Phrase
   Scenes, Phrase Cell Edit, and Tracks.
 - `05-phrase-value-cell-system-v3.html`: next pass that makes Phrase the local
-  container for Overview, Layers, Scenes, and Global Apply, while treating
+  container for Layers, Scenes, and Global Apply, while treating
   Perform as the phrase write mode. Phrase value cells share scope, value, mode,
   and timing grammar.
 
@@ -30,7 +30,6 @@
 - `setPrototypeState("capture-phrase")`
 - `setPrototypeState("song")`
 - `setPrototypeState("tracks")`
-- `setPrototypeState("phrase-overview")`
 - `setPrototypeState("phrase-layers")`
 - `setPrototypeState("global-perform")`
 - `setPrototypeState("phrase-scenes")`

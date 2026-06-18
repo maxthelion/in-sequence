@@ -428,13 +428,13 @@
       <div class="brand">SequencerAI</div>
       <div class="row">
         <button class="stub" onclick="toast('transport stub')">Play</button>
-        <button class="primary" onclick="showMode('overview')">Phrase A</button>
+        <button class="primary" onclick="showMode('layers')">Phrase A</button>
         <span class="pill changed">live phrase copy</span>
         <span class="pill">bar 3 / 8</span>
         <button onclick="toggleDrawer('phraseCue')">Cue Phrase</button>
       </div>
       <div class="row right">
-        <button onclick="showMode('overview')">Perform</button>
+        <button onclick="showMode('layers')">Perform</button>
         <button onclick="toggleDrawer('captureMenu')">Capture</button>
         <button class="stub" onclick="toast('setup stub')">Setup</button>
       </div>
@@ -442,7 +442,7 @@
 
     <nav class="main-nav">
       <button id="mainSong" onclick="showMode('song')">Song</button>
-      <button id="mainPhrase" class="active" onclick="showMode('overview')">Phrase</button>
+      <button id="mainPhrase" class="active" onclick="showMode('layers')">Phrase</button>
       <button id="mainTracks" onclick="showMode('tracks')">Tracks</button>
       <button class="stub" onclick="toast('mixer global defaults stub')">Mixer</button>
       <button class="stub" onclick="toast('scene management stub')">Scenes</button>
@@ -452,7 +452,7 @@
     <div class="drawer" id="phraseCue">
       <h2>Phrase Cue</h2>
       <div class="matrix song-matrix">
-        <button class="cell selected" onclick="showMode('overview')"><span class="value">A</span><span>current, loop on</span></button>
+        <button class="cell selected" onclick="showMode('layers')"><span class="value">A</span><span>current, loop on</span></button>
         <button class="cell" onclick="toast('Phrase B queued at cycle end')"><span class="value">B</span><span>cue at cycle end</span></button>
         <button class="cell" onclick="toast('Phrase C switches now')"><span class="value">C</span><span>switch now</span></button>
         <button class="cell empty">empty</button>
@@ -488,7 +488,7 @@
             </div>
             <div class="row right">
               <span class="pill selected">Song mode</span>
-              <button class="primary" onclick="showMode('overview')">Open Playing Phrase</button>
+              <button class="primary" onclick="showMode('layers')">Open Playing Phrase</button>
             </div>
           </div>
 
@@ -522,7 +522,7 @@
           </div>
 
           <div class="matrix song-matrix">
-            <button class="cell playing" onclick="showMode('overview')"><span class="scope">Phrase A / Main</span><span class="value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></button>
+            <button class="cell playing" onclick="showMode('layers')"><span class="scope">Phrase A / Main</span><span class="value">P1</span><span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></button>
             <button class="cell playing"><span class="scope">Phrase A / Atlantis</span><span class="value">P4</span><span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span></button>
             <button class="cell playing"><span class="scope">Phrase A / Poly</span><span class="value">P3</span><span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span></button>
             <button class="cell playing"><span class="scope">Phrase A / Mono</span><span class="value">P1</span><span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span></button>
@@ -551,7 +551,7 @@
           </div>
 
           <div class="song-tool-row">
-            <button class="cell selected" onclick="showMode('overview')"><span class="value">Phrase A</span><span>8 bars</span><span class="phrase-controls"><span class="pill">bars 8</span><span class="pill">loop on</span></span></button>
+            <button class="cell selected" onclick="showMode('layers')"><span class="value">Phrase A</span><span>8 bars</span><span class="phrase-controls"><span class="pill">bars 8</span><span class="pill">loop on</span></span></button>
             <div class="toolbar">
               <button onclick="toast('add phrase row stub')">Add Phrase</button>
               <button onclick="toast('duplicate phrase row stub')">Duplicate</button>
@@ -576,76 +576,13 @@
             </div>
           </div>
           <div class="phrase-tabs">
-            <button id="tabOverview" class="active" onclick="showMode('overview')">Overview</button>
-            <button id="tabLayers" onclick="showMode('layers')">Layers</button>
+            <button id="tabLayers" class="active" onclick="showMode('layers')">Layers</button>
             <button id="tabScenes" onclick="showMode('scenes')">Scenes</button>
             <button id="tabGlobal" onclick="showMode('global')">Global Apply</button>
           </div>
         </section>
 
-        <section id="modeOverview" class="mode active">
-          <div class="page-head">
-            <div>
-              <h1>Phrase A / Overview</h1>
-              <p class="note">Overview shows one card-like phrase cell per track. Layer values sit inside the card as compact chips.</p>
-            </div>
-            <div class="row right">
-              <span class="pill selected">editing live copy</span>
-              <button onclick="toggleDrawer('captureMenu')">Capture</button>
-              <button onclick="toast('copy discarded')">Discard</button>
-            </div>
-          </div>
-          <div class="toolbar">
-            <span class="pill selected">8 track cells</span>
-            <span class="pill">selected tracks: Main, Atlantis</span>
-            <button onclick="showMode('layers')">Layers</button>
-            <button onclick="showMode('cell')">Open Selected Cell</button>
-          </div>
-          <div class="matrix overview-matrix">
-            <button class="pv-cell phrase-card selected" onclick="showMode('cell')">
-              <span class="scope">Main</span><span class="value">P1</span>
-              <span class="mini-bars"><i class="on"></i><i class="on"></i><i class="changed"></i><i class="changed"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
-              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip changed">fill b2</span><span class="layer-chip">repeat off</span></span>
-            </button>
-            <button class="pv-cell phrase-card selected" onclick="showMode('cell')">
-              <span class="scope">Atlantis</span><span class="value">P4</span>
-              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
-              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip">fill off</span><span class="layer-chip">repeat off</span></span>
-            </button>
-            <button class="pv-cell phrase-card">
-              <span class="scope">Poly</span><span class="value">P3</span>
-              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
-              <span class="layer-strip"><span class="layer-chip changed">mute b8</span><span class="layer-chip">fill off</span><span class="layer-chip">repeat off</span></span>
-            </button>
-            <button class="pv-cell phrase-card">
-              <span class="scope">Mono</span><span class="value">P1</span>
-              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
-              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip">fill off</span><span class="layer-chip">repeat off</span></span>
-            </button>
-            <button class="pv-cell phrase-card success">
-              <span class="scope">Kick</span><span class="value">P1</span>
-              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
-              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
-            </button>
-            <button class="pv-cell phrase-card success">
-              <span class="scope">Snare</span><span class="value">P1</span>
-              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
-              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
-            </button>
-            <button class="pv-cell phrase-card success changed">
-              <span class="scope">Hat</span><span class="value">P1</span>
-              <span class="tiny-bars"><i></i><i></i><i class="changed"></i><i class="changed"></i></span>
-              <span class="layer-strip"><span class="layer-chip changed">mute b5-6</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
-            </button>
-            <button class="pv-cell phrase-card success">
-              <span class="scope">Clap</span><span class="value">P1</span>
-              <span class="tiny-bars"><i class="on"></i><i></i><i></i><i></i></span>
-              <span class="layer-strip"><span class="layer-chip">mute play</span><span class="layer-chip inherit">fill kit</span><span class="layer-chip inherit">kit part</span></span>
-            </button>
-          </div>
-        </section>
-
-        <section id="modeLayers" class="mode">
+        <section id="modeLayers" class="mode active">
           <div class="page-head">
             <div>
               <h1>Phrase A / Layers</h1>
@@ -778,16 +715,14 @@
   </div>
 
   <script>
-    const modes = ['song', 'overview', 'layers', 'global', 'scenes', 'cell', 'tracks'];
+    const modes = ['song', 'layers', 'global', 'scenes', 'cell', 'tracks'];
     const tabs = {
-      overview: 'tabOverview',
       layers: 'tabLayers',
       global: 'tabGlobal',
       scenes: 'tabScenes'
     };
     const mainTabs = {
       song: 'mainSong',
-      overview: 'mainPhrase',
       scenes: 'mainPhrase',
       cell: 'mainPhrase',
       layers: 'mainPhrase',
@@ -826,7 +761,7 @@
         if (tab) tab.classList.toggle('active', name === mode);
       });
       const shell = document.getElementById('phraseShell');
-      if (shell) shell.style.display = ['overview', 'layers', 'global', 'scenes', 'cell'].includes(mode) ? 'block' : 'none';
+      if (shell) shell.style.display = ['layers', 'global', 'scenes', 'cell'].includes(mode) ? 'block' : 'none';
       Object.values(mainTabs).forEach(id => {
         const tab = document.getElementById(id);
         if (tab) tab.classList.remove('active');
@@ -946,7 +881,7 @@
     }
 
     function setPrototypeState(state) {
-      if (state === 'phrase-overview') showMode('overview');
+      if (state === 'phrase-overview') showMode('layers');
       if (state === 'phrase-layers') showMode('layers');
       if (state === 'global-perform') showMode('global');
       if (state === 'phrase-scenes') showMode('scenes');

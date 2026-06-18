@@ -7,15 +7,15 @@ This pass treats the phrase value cell as the reusable unit of the IA. A phrase 
 - mode: whether the value is single, per-bar, continuous, inherited, or live;
 - timing: when inside the phrase the value applies.
 
-That grammar is now used across the phrase overview, phrase layers, scene editing, cell detail, and capture drawer. The goal is to stop each page inventing its own representation of "a thing that changes in a phrase".
+That grammar is now used across phrase layers, scene editing, cell detail, and capture drawer. The goal is to stop each page inventing its own representation of "a thing that changes in a phrase".
 
 ## Changes From V2
 
-- Phrase Overview is an 8-track matrix of card-like cells. Each cell is a single track card with compact layer chips inside it, rather than a vertical stack of nested layer wrappers or a separate table axis.
+- The separate Phrase Overview was removed because it duplicated Layers. Layers is now the default phrase surface.
 - Song and phrase cue use the same 8-column cell rhythm so phrase navigation does not introduce a different grid grammar.
 - Song mode now keeps the current phrase-page ingredients visible: layer selection, track page context, track headers, phrase controls, and add/duplicate/delete actions.
 - In Song mode, the matrix uses explicit `now` and `next` states so it is clear which phrase is currently playing and which phrase is queued for the next cycle.
-- App navigation is kept to top-level places. Once Phrase A is selected, Overview, Layers, Scenes, and Global Apply become phrase-local tabs under the phrase header.
+- App navigation is kept to top-level places. Once Phrase A is selected, Layers, Scenes, and Global Apply become phrase-local tabs under the phrase header.
 - Perform is represented as the phrase write mode, not a destination. Capture and Discard live in the phrase header because they operate on the live phrase copy.
 - Layers is still matrix-first, but it is framed as editing one selected layer across the same 8-track scope. It shows the current phrase copy and the quantized bars where performance changes will be printed.
 - Global Apply is a broader scoped action mode inside the phrase: choose one layer/value and apply it immediately to all tracks in the current selection, or to all tracks when the scope is widened.
