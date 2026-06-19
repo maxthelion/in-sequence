@@ -106,3 +106,28 @@ struct PhraseLayerSelectorPresentation: Equatable {
         layer.id == "variance" ? "Variance %" : layer.name
     }
 }
+
+struct PhrasePerformActionAvailabilityPresentation: Equatable {
+    let isPerformMode: Bool
+    let isDirty: Bool
+
+    var canCapture: Bool {
+        isPerformMode && isDirty
+    }
+
+    var canDiscard: Bool {
+        isPerformMode
+    }
+
+    var captureHelp: String {
+        canCapture
+            ? "Choose where to save the modified phrase"
+            : "Turn Perform on and make changes before capture"
+    }
+
+    var discardHelp: String {
+        canDiscard
+            ? "Discard the live phrase copy and return to the phrase baseline"
+            : "Turn Perform on before discarding a live phrase copy"
+    }
+}

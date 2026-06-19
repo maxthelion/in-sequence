@@ -371,7 +371,9 @@ struct PhraseWorkspaceView: View {
     }
 
     private var phraseCaptureActions: some View {
-        HStack(spacing: 8) {
+        let availability = phrasePerformActionAvailability
+
+        return HStack(spacing: 8) {
             Button {
                 isPresentingPhraseCapture = true
             } label: {
@@ -380,8 +382,8 @@ struct PhraseWorkspaceView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(StudioTheme.amber)
-            .disabled(!canCapturePhrasePerformOverlay)
-            .help(canCapturePhrasePerformOverlay ? "Choose where to save the modified phrase" : "Turn Perform on and make changes before capture")
+            .disabled(!availability.canCapture)
+            .help(availability.captureHelp)
 
             Button {
                 session.revertPhrasePerformOverlay()
@@ -395,13 +397,16 @@ struct PhraseWorkspaceView: View {
                     .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
-            .disabled(!canCapturePhrasePerformOverlay)
-            .help("Discard staged phrase perform changes")
+            .disabled(!availability.canDiscard)
+            .help(availability.discardHelp)
         }
     }
 
-    private var canCapturePhrasePerformOverlay: Bool {
-        session.workspaceMode == .perform && session.phrasePerformOverlay.isDirty
+    private var phrasePerformActionAvailability: PhrasePerformActionAvailabilityPresentation {
+        PhrasePerformActionAvailabilityPresentation(
+            isPerformMode: session.workspaceMode == .perform,
+            isDirty: session.phrasePerformOverlay.isDirty
+        )
     }
 
     private var phraseTabBar: some View {

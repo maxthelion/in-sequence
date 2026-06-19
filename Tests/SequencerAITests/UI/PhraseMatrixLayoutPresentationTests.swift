@@ -110,6 +110,42 @@ final class PhraseMatrixLayoutPresentationTests: XCTestCase {
         XCTAssertTrue(presentation.accessibilityLabel.contains(longName))
         XCTAssertTrue(presentation.accessibilityLabel.contains("macro param"))
     }
+
+    func test_phrasePerformActionsAreDisabledWhenPerformIsOff() {
+        let presentation = PhrasePerformActionAvailabilityPresentation(
+            isPerformMode: false,
+            isDirty: true
+        )
+
+        XCTAssertFalse(presentation.canCapture)
+        XCTAssertFalse(presentation.canDiscard)
+        XCTAssertEqual(presentation.captureHelp, "Turn Perform on and make changes before capture")
+        XCTAssertEqual(presentation.discardHelp, "Turn Perform on before discarding a live phrase copy")
+    }
+
+    func test_phrasePerformActionsAllowDiscardingCleanLiveCopy() {
+        let presentation = PhrasePerformActionAvailabilityPresentation(
+            isPerformMode: true,
+            isDirty: false
+        )
+
+        XCTAssertFalse(presentation.canCapture)
+        XCTAssertTrue(presentation.canDiscard)
+        XCTAssertEqual(presentation.captureHelp, "Turn Perform on and make changes before capture")
+        XCTAssertEqual(presentation.discardHelp, "Discard the live phrase copy and return to the phrase baseline")
+    }
+
+    func test_phrasePerformActionsAllowCaptureAndDiscardWhenDirty() {
+        let presentation = PhrasePerformActionAvailabilityPresentation(
+            isPerformMode: true,
+            isDirty: true
+        )
+
+        XCTAssertTrue(presentation.canCapture)
+        XCTAssertTrue(presentation.canDiscard)
+        XCTAssertEqual(presentation.captureHelp, "Choose where to save the modified phrase")
+        XCTAssertEqual(presentation.discardHelp, "Discard the live phrase copy and return to the phrase baseline")
+    }
 }
 
 private extension PhraseLayerSelectorPresentation {
